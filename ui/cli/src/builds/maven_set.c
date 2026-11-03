@@ -15,9 +15,6 @@
 // the bytes the user's settings written are taken with beyond what they contained
 #define CLI_MAVEN_SET_MORE 4096ull
 
-static CliXml s_xml;
-static char s_edit[1u << 14u];
-
 typedef struct
 {
     const char *text;

@@ -145,11 +145,11 @@ EMBED_INLINE int words_double(const RequestsWordsCtx *args)
 int cli_requests_words(const CliRequestsSizeCtx *args)
 {
     args->words->count = 0u;
-    args->words->used = 0ull;
-    unsigned long long start = 0ull;
+    args->words->used = 0ULL;
+    unsigned long long start = 0ULL;
     int started = 0;
     int read = 1;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((read == 1) && (at < args->size))
     {
         const char letter = args->line[at];
@@ -236,7 +236,7 @@ int cli_requests_words(const CliRequestsSizeCtx *args)
 
 void cli_requests_uncareted(const CliRequestsSizeOutCtx *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
         if ((args->line[at] == '^') && (at + 1u < args->size))

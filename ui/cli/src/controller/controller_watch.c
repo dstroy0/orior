@@ -60,13 +60,13 @@ void cli_controller_watch_taken(const CliWatchBatchCfg *args)
     {
         EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = root);
     }
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < args->files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = at);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
         EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = root, .path = path, .length = length);
-        bytes += length + 1ull;
+        bytes += length + 1ULL;
     }
     if (args->files->count == 0u)
     {
@@ -78,11 +78,11 @@ void cli_controller_watch_taken(const CliWatchBatchCfg *args)
         return;
     }
     char *const text = (char *)(void *)(batch + 1);
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < args->files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = at);
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text + used, .src = path, .bytes = size});
         used += size;
     }
@@ -103,7 +103,7 @@ static void watch_tree_run(void *context)
 {
     ControllerWatchWork *const work = (ControllerWatchWork *)context;
     const char *const root = cli_controller_root();
-    unsigned long long files = 0ull;
+    unsigned long long files = 0ULL;
     for (const ControllerWatched *batch = work->batches; batch != NULL; batch = batch->next)
     {
         files += batch->files;

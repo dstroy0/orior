@@ -39,10 +39,10 @@ EMBED_INLINE int map_row_height(const MinimapCtx *args)
 // `value` rounded to a line, no further than the text's first and last lines
 EMBED_INLINE unsigned long long map_line_get(const MinimapCtx *args)
 {
-    const unsigned long long last = (args->lines != 0ull) ? args->lines - 1ull : 0ull;
+    const unsigned long long last = (args->lines != 0ULL) ? args->lines - 1ULL : 0ULL;
     if (args->value <= 0.0f)
     {
-        return 0ull;
+        return 0ULL;
     }
     // a line count's float is not negative here and rounds to a whole number
     const unsigned long long line = (unsigned long long)(args->value + 0.5f);
@@ -57,15 +57,15 @@ void gui_minimap_on_position(const GuiMinimapPositionCfg *args)
     const int row_height = EMBED_CALL(map_row_height, MinimapCtx, .scale = scale);
     const int rows = args->place.height / row_height;
     const CliViewFrame *const frame = args->editor->frame;
-    const unsigned long long lines = (frame != NULL) ? frame->lines : 0ull;
+    const unsigned long long lines = (frame != NULL) ? frame->lines : 0ULL;
     // the rows are counted where there is capacity for them
     at->fit = (rows > 0) ? (unsigned int)rows : 1u;
     at->lines = lines;
     at->on_screen = on_screen;
     const float scrolled = (float)lines - on_screen;
     at->range = (scrolled > 1.0f) ? scrolled : 1.0f;
-    const unsigned long long top = (frame != NULL) ? frame->top : 0ull;
-    unsigned long long start = 0ull;
+    const unsigned long long top = (frame != NULL) ? frame->top : 0ULL;
+    unsigned long long start = 0ULL;
     if (lines > (unsigned long long)at->fit)
     {
         const unsigned long long most = lines - (unsigned long long)at->fit;
@@ -73,7 +73,7 @@ void gui_minimap_on_position(const GuiMinimapPositionCfg *args)
         {
             // the view has not moved since the map last stood: the map stands where it did beside it
             const long long saved = (long long)top - args->map->anchor_offset;
-            start = (saved > 0ll) ? (unsigned long long)saved : 0ull;
+            start = (saved > 0LL) ? (unsigned long long)saved : 0ULL;
         }
         else
         {
@@ -98,22 +98,22 @@ int gui_minimap_span(const GuiMinimapFirstCfg *args)
     unsigned long long *first = args->first;
     unsigned long long *last = args->last;
     const GuiMapPosition *const at = &args->map_read->place;
-    if (at->lines == 0ull)
+    if (at->lines == 0ULL)
     {
         return 0;
     }
     const unsigned long long end = at->start + (unsigned long long)at->fit;
     *first = at->start;
-    *last = ((end < at->lines) ? end : at->lines) - 1ull;
+    *last = ((end < at->lines) ? end : at->lines) - 1ULL;
     return 1;
 }
 
 // the map's pixel row of the text's `line` on the overview strip, which stands for the whole text
 EMBED_INLINE int map_strip_y(const MinimapCtx *args)
 {
-    const unsigned long long last = (args->lines != 0ull) ? args->lines - 1ull : 0ull;
+    const unsigned long long last = (args->lines != 0ULL) ? args->lines - 1ULL : 0ULL;
     const unsigned long long displayed = (args->line > last) ? last : args->line;
-    const float size = (args->lines > 1ull) ? (float)args->lines : 1.0f;
+    const float size = (args->lines > 1ULL) ? (float)args->lines : 1.0f;
     return args->place.y + (int)(((float)displayed / size) * (float)args->place.height);
 }
 
@@ -130,7 +130,7 @@ EMBED_INLINE void map_strip_draw(const MinimapCtx *args)
     const int mark = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_MARK, .scale = scale);
     // a line's share of the strip, a mark's height at the least
     const int share =
-        (int)((float)args->place.height / ((args->editor->lines > 1ull) ? (float)args->editor->lines : 1.0f));
+        (int)((float)args->place.height / ((args->editor->lines > 1ULL) ? (float)args->editor->lines : 1.0f));
     const int pixel_height = (share > mark) ? share : mark;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){left, args->place.y, strip_width, args->place.height},
@@ -142,7 +142,7 @@ EMBED_INLINE void map_strip_draw(const MinimapCtx *args)
                .color = args->palette->widget_line);
     if (args->editor->find.open)
     {
-        for (unsigned long long at = 0ull; at < args->editor->matches; at += 1ull)
+        for (unsigned long long at = 0ULL; at < args->editor->matches; at += 1ULL)
         {
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                        .rect = (GuiRect){left + inset,
@@ -177,7 +177,7 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
                                  EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
                                  args->place.height},
                .color = palette->line);
-    if ((editor == NULL) || (editor->lines == 0ull))
+    if ((editor == NULL) || (editor->lines == 0ULL))
     {
         return;
     }
@@ -205,16 +205,16 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     if (selected && (selected_to.line >= first) && (selected_from.line < end))
     {
         const unsigned long long top_row = (selected_from.line > first) ? selected_from.line : first;
-        const unsigned long long bottom_row = (selected_to.line < end - 1ull) ? selected_to.line : end - 1ull;
+        const unsigned long long bottom_row = (selected_to.line < end - 1ULL) ? selected_to.line : end - 1ULL;
         // the rows are within the map's, which an int counts
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                    .rect = (GuiRect){rows.x, args->place.y + ((int)(top_row - first) * row_height), rows.width,
-                                     (int)(bottom_row - top_row + 1ull) * row_height},
+                                     (int)(bottom_row - top_row + 1ULL) * row_height},
                    .color = palette->map_selection);
     }
     if (editor->find.open)
     {
-        for (unsigned long long each = 0ull; each < editor->matches; each += 1ull)
+        for (unsigned long long each = 0ULL; each < editor->matches; each += 1ULL)
         {
             const unsigned long long line = editor->match[each][0];
             if ((line >= first) && (line < end))
@@ -228,7 +228,7 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     }
     // each line's bars, a line the map does not hold left as ground
     const CliDocumentMap *const held = args->map->lines;
-    for (unsigned long long line = first; (held != NULL) && (line < end); line += 1ull)
+    for (unsigned long long line = first; (held != NULL) && (line < end); line += 1ULL)
     {
         if ((line < held->from) || (line >= held->from + (unsigned long long)held->count))
         {
@@ -271,7 +271,7 @@ int gui_minimap_press(const GuiMinimapPositionScaleCfg *args)
     int scale = args->scale;
     unsigned long long *top = args->top;
     if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->place, .x = args->x, .y = args->y) ||
-        (args->editor->frame == NULL) || (args->editor->frame->lines == 0ull))
+        (args->editor->frame == NULL) || (args->editor->frame->lines == 0ULL))
     {
         return 0;
     }

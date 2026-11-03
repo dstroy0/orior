@@ -58,7 +58,7 @@ EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
 static void jupyter_socket_read(void *context)
 {
     CliKernelReader *const reader = (CliKernelReader *)context;
-    const unsigned long long half = reader->capacity_bytes / 2ull;
+    const unsigned long long half = reader->capacity_bytes / 2ULL;
     CliZmtpFrame frames[CLI_KERNEL_FRAMES];
     for (;;)
     {
@@ -69,7 +69,7 @@ static void jupyter_socket_read(void *context)
         {
             break;
         }
-        VerbaLinea out = {(char *)reader->capacity + half, half, 0ull};
+        VerbaLinea out = {(char *)reader->capacity + half, half, 0ULL};
         char parent[CLI_KERNEL_ID];
         parent[0] = '\0';
         if (EMBED_CALL(cli_jupyter_out_internal.kernel_message_write, CliJupyterOutCtx, .reader = reader,
@@ -86,7 +86,7 @@ static void jupyter_socket_read(void *context)
 EMBED_INLINE void jupyter_line_recv(const JupyterReadersCtx *args)
 {
     VerbaLinea out = {(char *)args->reader->capacity + CLI_KERNEL_LINE, args->reader->capacity_bytes - CLI_KERNEL_LINE,
-                      0ull};
+                      0ULL};
     mmgr_line_put(&out, "{\"channel\":\"log\",\"msg_type\":\"log\",\"msg_id\":\"\",\"parent\":\"\",\"content\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = args->line, .length = args->size);
@@ -104,37 +104,37 @@ static void jupyter_log_read(void *context)
 {
     CliKernelReader *const reader = (CliKernelReader *)context;
     unsigned char *const line = reader->capacity;
-    unsigned long long line_start = 0ull;
+    unsigned long long line_start = 0ULL;
     char piece[4096];
     for (;;)
     {
         const unsigned long long count =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = reader->pipe, .piece = piece, .capacity = sizeof(piece));
-        if (count == 0ull)
+        if (count == 0ULL)
         {
             break;
         }
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             if (piece[at] == '\n')
             {
                 const unsigned long long size =
-                    ((line_start > 0ull) && (line[line_start - 1ull] == '\r')) ? line_start - 1ull : line_start;
+                    ((line_start > 0ULL) && (line[line_start - 1ULL] == '\r')) ? line_start - 1ULL : line_start;
                 EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = size);
-                line_start = 0ull;
+                line_start = 0ULL;
                 continue;
             }
             if (line_start == CLI_KERNEL_LINE)
             {
                 EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = line_start);
-                line_start = 0ull;
+                line_start = 0ULL;
             }
             line[line_start] = (unsigned char)piece[at];
-            line_start += 1ull;
+            line_start += 1ULL;
         }
     }
-    if (line_start > 0ull)
+    if (line_start > 0ULL)
     {
         EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = line_start);
     }
@@ -146,7 +146,7 @@ void cli_kernel_reader_start(const CliJupyterAtCtx *args)
     CliKernel *kernel = args->kernel;
     CliKernelReader *const reader = &kernel->readers[args->at];
     reader->kernel = kernel;
-    reader->thread = (CliThread){(args->at < 3u) ? jupyter_socket_read : jupyter_log_read, reader};
+    reader->thread = (CliThread){(args->at < 3u) ? &jupyter_socket_read : &jupyter_log_read, reader};
     kernel->read_state += 1u;
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &reader->thread))
     {

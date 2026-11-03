@@ -63,17 +63,17 @@ EMBED_INLINE GuiColor suggest_kind_color(const SuggestCtx *args)
                    {"snippet", "string"},      {"module", "tag"}};
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
-        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = s_marks[at].kind, .cap = 32ull});
+        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = s_marks[at].kind, .cap = 32ULL});
         if ((known == length) &&
             (memor.cmp(&(MemoriaCfg){.src = s_marks[at].kind, .other = kind, .bytes = length}) == 0))
         {
             const char *const token = s_marks[at].token;
             return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = token,
-                              .length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 32ull}));
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 32ULL}));
         }
     }
     return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = "keyword",
-                      .length = 7ull);
+                      .length = 7ULL);
 }
 
 void gui_suggest_draw(const GuiSuggestRasterCfg *args)
@@ -108,7 +108,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
         float pixel_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .text = item->label, .length = item->label_length);
-        if (item->detail_length > 0ull)
+        if (item->detail_length > 0ULL)
         {
             pixel_width += (float)gap + EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg,
                                                    .glyphs = glyphs, .face = GUI_FACE_CODE, .size = size,
@@ -124,7 +124,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
     // the row chosen is always among the rows shown
     const CliCompletionRow *const chosen = &panel->row[panel->chosen - panel->first];
-    const int detailed = chosen->detail_length > 0ull;
+    const int detailed = chosen->detail_length > 0ULL;
     const int detail_width =
         detailed ? EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_DETAIL, .scale = scale)
                  : 0;
@@ -175,7 +175,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
         float x = (float)(row_rect.x + pad_x + mark + gap);
         const char *const label = item->label;
         const unsigned long long typed = item->marked;
-        if (typed != 0ull)
+        if (typed != 0ULL)
         {
             x = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                            .face = GUI_FACE_CODE_BOLD, .size = size, .x_f32 = x, .y = row_rect.y + baseline,
@@ -191,7 +191,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
                            .face = GUI_FACE_CODE, .size = size, .x_f32 = x, .y = row_rect.y + baseline, .text = label,
                            .length = item->label_length, .color = palette->text, .clip = text_clip);
         }
-        if (item->detail_length > 0ull)
+        if (item->detail_length > 0ULL)
         {
             const float detail_width_text =
                 EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
@@ -219,7 +219,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_DETAIL_PAD_Y, .scale = scale);
         // the detail is laid as code, the panel's inline code, inside one pair of backticks
         char fenced[GUI_PANEL_RUN + 2u];
-        VerbaLinea text = {fenced, sizeof(fenced), 0ull};
+        VerbaLinea text = {fenced, sizeof(fenced), 0ULL};
         mmgr_line_ch(&text, '`');
         mmgr_line_put_n(&text, chosen->detail,
                         (chosen->detail_length < GUI_PANEL_RUN) ? chosen->detail_length : GUI_PANEL_RUN);
@@ -231,7 +231,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
                                         args->suggest->detail.height - (2 * detail_pad_y)},
                        .other = clip);
         (void)EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = raster, .glyphs = glyphs,
-                         .palette = palette, .text = fenced, .length = mmgr_line_ok(&text) ? text.at : 0ull,
+                         .palette = palette, .text = fenced, .length = mmgr_line_ok(&text) ? text.at : 0ULL,
                          .x = args->suggest->detail.x + detail_pad_x, .y = args->suggest->detail.y + detail_pad_y,
                          .pixel_width = args->suggest->detail.width - (2 * detail_pad_x), .scale = scale,
                          .clip = detail_clip);

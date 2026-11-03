@@ -87,7 +87,7 @@ EMBED_INLINE void busy_cell_free(const BusyCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
     args->busy->cell = NULL;
-    args->busy->cell_bytes = 0ull;
+    args->busy->cell_bytes = 0ULL;
     args->busy->under_saved = 0;
 }
 
@@ -102,21 +102,21 @@ void gui_busy_work(const GuiBusyRunningCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     if (!args->running)
     {
-        args->busy->work_start_ms = 0ull;
+        args->busy->work_start_ms = 0ULL;
     }
-    else if (args->busy->work_start_ms == 0ull)
+    else if (args->busy->work_start_ms == 0ULL)
     {
-        args->busy->work_start_ms = now_ms + 1ull;
+        args->busy->work_start_ms = now_ms + 1ULL;
     }
 }
 
 int gui_busy_waiting(const GuiBusySinceCfg *args)
 {
-    if (args->busy_read->work_start_ms == 0ull)
+    if (args->busy_read->work_start_ms == 0ULL)
     {
         return 0;
     }
-    *args->since = args->busy_read->work_start_ms - 1ull;
+    *args->since = args->busy_read->work_start_ms - 1ULL;
     return 1;
 }
 
@@ -125,7 +125,7 @@ EMBED_INLINE int busy_wait_over(const BusyCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
     const GuiBusy *busy = args->busy_read;
-    unsigned long long since = 0ull;
+    unsigned long long since = 0ULL;
     return EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = busy, .since = &since) &&
            (now_ms >= since + GUI_BUSY_SHOW_DELAY_MS);
 }
@@ -156,17 +156,17 @@ int gui_busy_tick(const GuiBusyRunningCfg *args)
 unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    unsigned long long since = 0ull;
+    unsigned long long since = 0ULL;
     const int waiting =
         EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = args->busy_read, .since = &since);
     const unsigned long long show_deadline_ms = since + GUI_BUSY_SHOW_DELAY_MS;
     if (!args->busy_read->displayed)
     {
-        return waiting ? show_deadline_ms : 0ull;
+        return waiting ? show_deadline_ms : 0ULL;
     }
     if (!args->busy_read->still)
     {
-        return now_ms + GUI_BUSY_STAGE_MS - ((now_ms - args->busy_read->visible_start_ms) & (GUI_BUSY_STAGE_MS - 1ull));
+        return now_ms + GUI_BUSY_STAGE_MS - ((now_ms - args->busy_read->visible_start_ms) & (GUI_BUSY_STAGE_MS - 1ULL));
     }
     // standing still it wants a tick only to go: at its minimum visible time, and then as soon as no request has stood
     // past the show delay; while one has, the answer wakes the window
@@ -177,9 +177,9 @@ unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args)
     }
     if (!waiting)
     {
-        return now_ms + 1ull;
+        return now_ms + 1ULL;
     }
-    return (now_ms < show_deadline_ms) ? show_deadline_ms : 0ull;
+    return (now_ms < show_deadline_ms) ? show_deadline_ms : 0ULL;
 }
 
 unsigned int gui_busy_stage_at(const GuiBusyCfg *args)
@@ -372,7 +372,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
     const unsigned int stages = args->busy->still ? 1u : GUI_BUSY_STAGES;
     const unsigned long long under_bytes = (unsigned long long)pixels * sizeof(GuiColor);
     const unsigned long long lane_bytes = (unsigned long long)stages * pixels * sizeof(unsigned int);
-    const unsigned long long bytes = under_bytes + (3ull * lane_bytes) + (3ull * pixels);
+    const unsigned long long bytes = under_bytes + (3ULL * lane_bytes) + (3ULL * pixels);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_cells);
     if (cell == NULL)
     {
@@ -386,7 +386,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
     args->busy->red_blue = (unsigned int *)(cell + under_bytes);
     args->busy->green = args->busy->red_blue + ((unsigned long long)stages * pixels);
     args->busy->rest = args->busy->green + ((unsigned long long)stages * pixels);
-    unsigned char *const ring = cell + under_bytes + (3ull * lane_bytes);
+    unsigned char *const ring = cell + under_bytes + (3ULL * lane_bytes);
     unsigned char *const glow = ring + pixels;
     unsigned char *const sector = glow + pixels;
     // sizes in pixels are not negative
@@ -414,7 +414,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
             // represents
             const int from_x = (2 * (int)column) + 1 - (int)side;
             const int from_y = (2 * (int)row) + 1 - (int)side;
-            long long best = 0ll;
+            long long best = 0LL;
             unsigned int best_stage = 0u;
             for (unsigned int turn = 0u; turn < GUI_BUSY_STAGES; turn += 1u)
             {
@@ -442,7 +442,6 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
 // the picture of the stage laid in the circle's rectangle, no further than what was saved
 EMBED_INLINE void busy_stage_layout(const BusyCtx *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
     GuiBusy *busy = args->busy;
     GuiRaster *raster = args->raster;
     const unsigned int stage = EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = busy);

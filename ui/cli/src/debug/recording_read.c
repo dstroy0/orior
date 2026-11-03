@@ -21,7 +21,7 @@ typedef struct
 CliReplay *g_cli_replay;
 
 // the most bytes of one line of the recording read
-#define CLI_RECORDING_LINE_TEXT (1ull << 20u)
+#define CLI_RECORDING_LINE_TEXT (1ULL << 20u)
 
 // the line read last, in a tree of its own sized to it, given back as the next is read and as the recording is let go
 static CliJson s_json;
@@ -78,12 +78,12 @@ EMBED_INLINE unsigned int read_digits(const RecordingReadCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned long long at = args->at;
-    unsigned long long value = 0ull;
-    unsigned long long digits = 0ull;
+    unsigned long long value = 0ULL;
+    unsigned long long digits = 0ULL;
     unsigned long long end = at;
     value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = text, .at = at, .size = size, .end = &end);
     digits = end - at;
-    return ((digits == 0ull) || (value > 0xffffffffull)) ? 0xffffffffu : (unsigned int)value;
+    return ((digits == 0ULL) || (value > 0xffffffffULL)) ? 0xffffffffu : (unsigned int)value;
 }
 
 // the counts of `size` bytes of `text`: each line's kind is the word its array opens with, and the number after it
@@ -95,7 +95,7 @@ EMBED_INLINE void read_on_count(const RecordingReadCtx *args)
     ReadCounts *counts = args->counts;
     static const char *const s_kinds[5] = {"[\"line\",", "[\"call\",", "[\"file\",", "[\"thread\",", "[\"raise\","};
     *counts = (ReadCounts){0u, 0u, 0u, 0u, 0u};
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ULL; at < size;)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).stop;
@@ -118,7 +118,7 @@ EMBED_INLINE void read_on_count(const RecordingReadCtx *args)
             counts->raises += (kind == 4u) ? 1u : 0u;
             break;
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
 }
 
@@ -127,7 +127,7 @@ EMBED_INLINE void *read_part(const RecordingReadCtx *args)
 {
     unsigned char **at = args->at_u8s;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -142,7 +142,7 @@ EMBED_INLINE int read_work_state_alloc(const RecordingReadCtx *args)
         ((unsigned long long)counts.frames * sizeof(CliRecordedFrame)) +
         ((unsigned long long)counts.files * sizeof(unsigned int)) +
         ((unsigned long long)counts.threads * (sizeof(unsigned long long) + sizeof(unsigned int))) +
-        ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + args->size + 1ull + (8ull * 8ull);
+        ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + args->size + 1ULL + (8ULL * 8ULL);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_debug_cells);
     if (cell == NULL)
     {
@@ -169,8 +169,8 @@ EMBED_INLINE int read_work_state_alloc(const RecordingReadCtx *args)
     args->recording->raised = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                          .bytes = (unsigned long long)counts.raises * sizeof(CliRecordedRaise));
     args->recording->raised_max = counts.raises;
-    args->recording->names = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at, .bytes = args->size + 1ull);
-    args->recording->names_max = args->size + 1ull;
+    args->recording->names = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at, .bytes = args->size + 1ULL);
+    args->recording->names_max = args->size + 1ULL;
     memor.set(&(MemoriaCfg){
         .dst = args->recording->frames, .val = 0, .bytes = (size_t)counts.frames * sizeof(CliRecordedFrame)});
     memor.set(
@@ -189,11 +189,11 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
         EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = recording->text, .at = at, .size = recording->size).stop;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         (end - at <= CLI_RECORDING_LINE_TEXT)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
-                         .text = recording->text + at, .size = end - at, .nodes_more = 0u, .text_more = 0ull,
+                         .text = recording->text + at, .size = end - at, .nodes_more = 0u, .text_more = 0ULL,
                          .err_msg = &unread, .owner = &g_cli_debug_cells)
             : CLI_JSON_NONE;
     return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = root,
@@ -217,18 +217,18 @@ EMBED_INLINE unsigned long long read_number(const RecordingReadCtx *args)
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = node,
                     .kind = CFG_JSON_NUMBER))
     {
-        return 0ull;
+        return 0ULL;
     }
     const char *const text = s_json.text + s_json.node[node].text;
-    unsigned long long value = 0ull;
-    for (unsigned long long letter = 0ull; letter < s_json.node[node].length; letter += 1ull)
+    unsigned long long value = 0ULL;
+    for (unsigned long long letter = 0ULL; letter < s_json.node[node].length; letter += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(text[letter] - '0');
-        if ((text[letter] < '0') || (text[letter] > '9') || (value > (~0ull - digit) / 10ull))
+        if ((text[letter] < '0') || (text[letter] > '9') || (value > (~0ULL - digit) / 10ULL))
         {
-            return 0ull;
+            return 0ULL;
         }
-        value = (value * 10ull) + digit;
+        value = (value * 10ULL) + digit;
     }
     return value;
 }
@@ -237,18 +237,18 @@ EMBED_INLINE unsigned long long read_number(const RecordingReadCtx *args)
 EMBED_INLINE unsigned int read_by_name(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                       .json_read = &s_json, .array = args->record, .index = args->at_u32),
                    .length_pointer = &length);
-    if ((text == NULL) || (recording->used + length + 1ull > recording->names_max))
+    if ((text == NULL) || (recording->used + length + 1ULL > recording->names_max))
     {
         return 0u;
     }
     const unsigned int place = recording->used;
-    for (unsigned long long letter = 0ull; letter < length; letter += 1ull)
+    for (unsigned long long letter = 0ULL; letter < length; letter += 1ULL)
     {
         recording->names[place + letter] = (args->slashed && (text[letter] == '\\')) ? '/' : text[letter];
     }
@@ -301,8 +301,8 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
         s_capacities[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
         s_has_stack[thread] = 1;
     }
-    if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) &&
-        (s_depths[thread] < s_capacities[thread]))
+    if ((s_stacks[thread] != NULL) && (s_depths[thread] < s_capacities[thread]) &&
+        ((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)))
     {
         s_stacks[thread][s_depths[thread]] = (unsigned int)serial;
         s_depths[thread] += 1u;
@@ -357,7 +357,7 @@ EMBED_INLINE void read_line(const RecordingReadCtx *args)
 // a return read: its frame and every frame above it taken off its thread's stack
 EMBED_INLINE void read_return(const RecordingReadCtx *args)
 {
-    CliRecording *const recording = &g_cli_replay->recording;
+    const CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
     const unsigned int thread =
         ((serial < recording->frame_max) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
@@ -423,7 +423,7 @@ void cli_recording_let_go(void)
         (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = recording->path);
         recording->path[0] = '\0';
     }
-    recording->size = 0ull;
+    recording->size = 0ULL;
     g_cli_cells->persistent_buf_release(recording->capacity, &g_cli_debug_cells);
     recording->capacity = NULL;
     recording->steps = NULL;
@@ -443,10 +443,10 @@ void cli_recording_let_go(void)
     recording->raised_count = 0u;
     recording->raised_max = 0u;
     recording->names = s_no_names;
-    recording->names_max = 0ull;
+    recording->names_max = 0ULL;
     recording->used = 1u;
     recording->has_code = 0;
-    recording->code = 0ll;
+    recording->code = 0LL;
     recording->cut = 0;
 }
 
@@ -501,18 +501,18 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
     {
         const unsigned int code = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = &s_json, .array = args->record, .index = 1u);
-        long long value = 0ll;
+        long long value = 0LL;
         int whole = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
                                .node = code, .kind = CFG_JSON_NUMBER);
         const char *const text = whole ? s_json.text + s_json.node[code].text : "";
-        const unsigned long long length = whole ? s_json.node[code].length : 0ull;
-        const int negative = (length > 0ull) && (text[0] == '-');
-        for (unsigned long long letter = negative ? 1ull : 0ull; whole && (letter < length); letter += 1ull)
+        const unsigned long long length = whole ? s_json.node[code].length : 0ULL;
+        const int negative = (length > 0ULL) && (text[0] == '-');
+        for (unsigned long long letter = negative ? 1ULL : 0ULL; whole && (letter < length); letter += 1ULL)
         {
-            whole = (text[letter] >= '0') && (text[letter] <= '9') && (value < 922337203685477580ll);
-            value = (value * 10ll) + (long long)(text[letter] - '0');
+            whole = (text[letter] >= '0') && (text[letter] <= '9') && (value < 922337203685477580LL);
+            value = (value * 10LL) + (long long)(text[letter] - '0');
         }
-        recording->has_code = whole && (length > (negative ? 1ull : 0ull));
+        recording->has_code = whole && (length > (negative ? 1ULL : 0ULL));
         recording->code = negative ? -value : value;
     }
 }
@@ -530,19 +530,19 @@ void cli_recording_read(const CliRecordingPathCtx *args)
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     // the recording's file saved as long as it is replayed, in a persistent cell of its size and the slack
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     unsigned char *bytes =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
             ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_debug_cells)
             : NULL;
     if ((bytes != NULL) && !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = args->path,
-                                       .from = 0ull, .bytes_bytes = bytes, .count_u64 = size, .got = &size))
+                                       .from = 0ULL, .bytes_bytes = bytes, .count_u64 = size, .got = &size))
     {
         g_cli_cells->persistent_buf_release(bytes, &g_cli_debug_cells);
         bytes = NULL;
     }
     recording->text = (const char *)bytes;
-    recording->size = 0ull;
+    recording->size = 0ULL;
     if (bytes != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = bytes + size, .val = 0, .bytes = CLI_FILE_SLACK});
@@ -554,7 +554,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
             return;
         }
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < recording->size)
     {
         const unsigned long long next =

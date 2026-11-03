@@ -44,7 +44,7 @@ typedef struct
 // a text stored among the command's: where it starts, NULL where it does not fit
 EMBED_INLINE const char *cli_text_store(const RunnerCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((args->command->used + size) > CLI_COMMAND_TEXT)
     {
         args->command->words.full = 1;
@@ -105,11 +105,11 @@ void cli_command_folder(const CliRunnerCommandFolderCfg *args)
 
 void cli_lines_append(const CliRunnerLinesCfg *args)
 {
-    if ((args->length + 1ull) > CLI_LINES_TEXT)
+    if ((args->length + 1ULL) > CLI_LINES_TEXT)
     {
         return;
     }
-    if ((args->lines->count >= CLI_LINES_MAX) || ((args->lines->used + args->length + 1ull) > CLI_LINES_TEXT))
+    if ((args->lines->count >= CLI_LINES_MAX) || ((args->lines->used + args->length + 1ULL) > CLI_LINES_TEXT))
     {
         // the oldest half let go, the newer moved down
         const unsigned int half = args->lines->count / 2u;
@@ -124,7 +124,7 @@ void cli_lines_append(const CliRunnerLinesCfg *args)
         }
         args->lines->used -= from;
         args->lines->count = half;
-        if ((args->lines->used + args->length + 1ull) > CLI_LINES_TEXT)
+        if ((args->lines->used + args->length + 1ULL) > CLI_LINES_TEXT)
         {
             args->lines->count = 0u;
             args->lines->used = 0u;
@@ -143,16 +143,18 @@ const char *cli_lines_at(const CliRunnerLinesIndexCfg *args)
     return args->lines_read->text + args->lines_read->start[args->index];
 }
 
+#if defined(_WIN32)
 // a file in a folder joined, `under` and `name`, where it is a file: 1, its path into `path`
 EMBED_INLINE int cli_found_in(const RunnerCtx *args)
 {
     char *path = args->path;
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->under);
     mmgr_line_put(&line, args->name);
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
 }
+#endif
 
 // The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because the bash System32
 // offers is WSL's and reads none of these paths
@@ -240,14 +242,14 @@ void cli_runner_python(const CliRunnerNameCfg *args)
 
 int cli_runner_build(const CliRunnerNameCfg *args)
 {
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/");
     mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
 #endif
-    if ((mmgr_line_finish(&line) != 0ull) &&
+    if ((mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path))
     {
         return 1;
@@ -269,7 +271,7 @@ EMBED_INLINE int cli_space(const RunnerCtx *args)
 int cli_runner_shell_words(const CliRunnerTextCfg *args)
 {
     static char s_word[CLI_WORDS_TEXT];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     int started = 0;
     char quote = '\0';
     for (const char *at = args->text; at[0] != '\0'; at += 1)
@@ -282,13 +284,13 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
         else if ((quote == '"') && (letter == '\\'))
         {
             s_word[length] = (at[1] != '\0') ? at[1] : '\\';
-            length += (length + 1u < sizeof(s_word)) ? 1ull : 0ull;
+            length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
             at += (at[1] != '\0') ? 1 : 0;
         }
         else if (quote != '\0')
         {
             s_word[length] = letter;
-            length += (length + 1u < sizeof(s_word)) ? 1ull : 0ull;
+            length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
         }
         else if ((letter == '\'') || (letter == '"'))
         {
@@ -302,14 +304,14 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
                 s_word[length] = '\0';
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                            .word = s_word);
-                length = 0ull;
+                length = 0ULL;
                 started = 0;
             }
         }
         else
         {
             s_word[length] = letter;
-            length += (length + 1u < sizeof(s_word)) ? 1ull : 0ull;
+            length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
             started = 1;
         }
     }
@@ -367,7 +369,7 @@ EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
         return 1;
     }
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     return EMBED_CALL(cli_runner_text.shell_words, CliRunnerTextCfg, .text = from, .words = words,
                       .err_msg = &err_msg) &&
            (words->count != 0u);

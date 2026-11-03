@@ -28,12 +28,12 @@ typedef struct
 EMBED_INLINE void tree_err(const ControllerTreeCtx *args)
 {
     char text[CLI_ERR_MSG_MAX_LEN + 8u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "orior: ");
-    mmgr_line_put_n(&line, args->err_msg->out, mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
+    mmgr_line_put_n(&line, args->err_msg->out, mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
     mmgr_line_ch(&line, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
-               .length = mmgr_line_ok(&line) ? line.at : 0ull);
+               .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 int cli_controller_command_line(int *window)
@@ -61,9 +61,9 @@ int cli_controller_command_line(int *window)
 void cli_controller_tree_begin(void)
 {
     char error[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {error, sizeof(error), 0ull};
+    VerbaLinea err_msg = {error, sizeof(error), 0ULL};
     // inside a Flatpak's sandbox the machine's own programs run on the machine
-    if (EMBED_CALL(cli_host_into.prepare, CliHostIntoCfg, .err_msg = &err_msg) == -1ll)
+    if (EMBED_CALL(cli_host_into.prepare, CliHostIntoCfg, .err_msg = &err_msg) == -1LL)
     {
         EMBED_CALL(tree_err, ControllerTreeCtx, .err_msg = &err_msg);
     }
@@ -75,18 +75,18 @@ void cli_controller_tree_begin(void)
                                                                                                   : NULL;
     if (root != NULL)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
         s_root = g_cli_cells->persistent_buf_alloc(size, &g_cli_controller_cells);
     }
     if (s_root != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_root,
                                 .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ull});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ULL});
         EMBED_CALL(cli_toolchains_root.set_tree, CliToolchainsRootCfg, .root = s_root);
         EMBED_CALL(cli_plugins_root.set_tree, CliPluginsRootCfg, .root = s_root);
     }
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     if (!EMBED_CALL(cli_model_door.open, CliModelCtx, .path = s_root, .err_msg = &err_msg))
     {
         EMBED_CALL(tree_err, ControllerTreeCtx, .err_msg = &err_msg);

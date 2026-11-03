@@ -38,7 +38,7 @@ EMBED_INLINE void cli_file_problem(const SettingsPartsCtx *args)
 {
     CliLayers *layers = args->layers;
     char problem[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {problem, sizeof(problem), 0ull};
+    VerbaLinea line = {problem, sizeof(problem), 0ULL};
     mmgr_line_put(&line, args->file);
     mmgr_line_put(&line, args->first);
     mmgr_line_put(&line, args->second);
@@ -86,7 +86,7 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
     {
         const char *const key = json->text + json->node[member].key;
         const char *kind = NULL;
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         if (EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = key, .kind = &kind,
                        .length_pointer = &length))
         {
@@ -129,7 +129,7 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
             if (EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
             {
                 char msg_buf[CLI_NAME_MAX_LEN * 2u];
-                VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+                VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ULL};
                 mmgr_line_put(&line, ": ");
                 mmgr_line_put(&line, args->layers->system);
                 mmgr_line_put(&line, " sets ");

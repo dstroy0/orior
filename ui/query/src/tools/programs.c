@@ -48,22 +48,22 @@ typedef struct
 EMBED_INLINE int query_in_folder(const ProgramsCtx *args)
 {
     char *path = args->path;
-    VerbaLinea line = {path, args->capacity, 0ull};
+    VerbaLinea line = {path, args->capacity, 0ULL};
     mmgr_line_put_n(&line, args->folder, args->folder_length);
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
     mmgr_line_put(&line, args->name);
-    if ((mmgr_line_finish(&line) != 0ull) &&
+    if ((mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return 1;
     }
 #if defined(_WIN32)
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put_n(&line, args->folder, args->folder_length);
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
     mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, ".exe");
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
 #else
     return 0;
@@ -94,7 +94,7 @@ EMBED_INLINE int query_on_path_find(const ProgramsCtx *args)
         const unsigned long long length = (end != NULL)
                                               ? (unsigned long long)(end - folder)
                                               : cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-        for (unsigned int at = 0u; (length != 0ull) && (at < args->count); at += 1u)
+        for (unsigned int at = 0u; (length != 0ULL) && (at < args->count); at += 1u)
         {
             if (EMBED_CALL(query_in_folder, ProgramsCtx, .folder = folder, .folder_length = length,
                            .name = args->names[at], .path = args->path, .capacity = args->capacity))
@@ -117,7 +117,7 @@ EMBED_INLINE void query_cl_enter(const ProgramsCtx *args)
     VerbaLinea line = {args->walk->folder, sizeof(args->walk->folder), existing};
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
     mmgr_line_put(&line, args->name);
-    if (mmgr_line_finish(&line) != 0ull)
+    if (mmgr_line_finish(&line) != 0ULL)
     {
         const unsigned int saved_depth = args->walk->depth;
         args->walk->depth = depth;
@@ -142,12 +142,12 @@ static void query_cl_walk(const CliEachNameIsFolderCfg *args)
     if ((walk->depth == 0u) || (walk->depth == 2u))
     {
         char cl[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {cl, sizeof(cl), 0ull};
+        VerbaLinea line = {cl, sizeof(cl), 0ULL};
         mmgr_line_put(&line, walk->folder);
         mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
         mmgr_line_put(&line, name);
         mmgr_line_put(&line, "\\bin\\Hostx64\\x64\\cl.exe");
-        if ((mmgr_line_finish(&line) != 0ull) &&
+        if ((mmgr_line_finish(&line) != 0ULL) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = cl) &&
             (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = cl, .other_pointer = walk->found) > 0))
         {
@@ -167,7 +167,7 @@ static void query_cl_walk(const CliEachNameIsFolderCfg *args)
         mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
         mmgr_line_put(&line, name);
         mmgr_line_put(&line, "\\VC\\Tools\\MSVC");
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             walk->depth = 2u;
             EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = walk->folder,
@@ -249,9 +249,9 @@ static int query_on_path_program(const QueryEachRolePathCapacityErrMsgCfg *args)
                 EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = nvcc,
                            .length_value = cellul.len(&(CatenaFinitaCfg){.src = nvcc, .cap = CLI_CELLS_POOL}),
                            .byte = QUERY_FOLDER_SEPARATOR);
-            const unsigned long long folder = (slash != NULL) ? (unsigned long long)(slash - nvcc) : 0ull;
+            const unsigned long long folder = (slash != NULL) ? (unsigned long long)(slash - nvcc) : 0ULL;
             found =
-                (folder != 0ull) && EMBED_CALL(query_in_folder, ProgramsCtx, .folder = nvcc, .folder_length = folder,
+                (folder != 0ULL) && EMBED_CALL(query_in_folder, ProgramsCtx, .folder = nvcc, .folder_length = folder,
                                                .name = (role == QUERY_ROLE_NVDISASM) ? "nvdisasm" : "cuobjdump",
                                                .path = path, .capacity = capacity);
         }

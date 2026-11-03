@@ -55,7 +55,7 @@ typedef struct
 EMBED_INLINE unsigned int editor_digits(const EditorCtx *args)
 {
     unsigned int digits = 1u;
-    for (unsigned long long left = args->lines_u64; left >= 10ull; left /= 10ull)
+    for (unsigned long long left = args->lines_u64; left >= 10ULL; left /= 10ULL)
     {
         digits += 1u;
     }
@@ -67,7 +67,7 @@ int gui_editor_gutter(const GuiEditorPositionCellCfg *args)
     int scale = args->scale;
     const float numbers =
         (float)EMBED_CALL(editor_digits, EditorCtx,
-                          .lines_u64 = (args->editor_read->frame != NULL) ? args->editor_read->frame->lines : 0ull) *
+                          .lines_u64 = (args->editor_read->frame != NULL) ? args->editor_read->frame->lines : 0ULL) *
         args->cell;
     return (int)(numbers + 0.5f) + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                               .pixels = GUI_GUTTER_BEFORE + GUI_GUTTER_AFTER, .scale = scale);
@@ -78,17 +78,17 @@ int gui_editor_gutter(const GuiEditorPositionCellCfg *args)
 EMBED_INLINE unsigned long long editor_cell_get(const EditorCtx *args)
 {
     const char *const text = args->editor->frame->bytes + args->line_line_pointer->text;
-    unsigned long long at = 0ull;
-    unsigned long long units = 0ull;
-    unsigned long long cell = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long units = 0ULL;
+    unsigned long long cell = 0ULL;
     while ((at < args->line_line_pointer->length) && (units < args->col))
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
                                                .size = args->line_line_pointer->length, .at = at, .length = &consumed);
-        at += (consumed != 0ull) ? consumed : 1ull;
-        units += (letter >= 0x10000u) ? 2ull : 1ull;
-        cell += (letter == '\t') ? (GUI_TAB_COLUMNS - (cell % GUI_TAB_COLUMNS)) : 1ull;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
+        units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+        cell += (letter == '\t') ? (GUI_TAB_COLUMNS - (cell % GUI_TAB_COLUMNS)) : 1ULL;
     }
     return cell;
 }
@@ -333,7 +333,7 @@ EMBED_INLINE float editor_folded_draw(const EditorCtx *args)
                    .color = args->palette->text_2);
     }
     float reach = x + (float)pixel_width + (args->cell / 2.0f);
-    if (args->fold->displayed && (args->fold->closer_length != 0ull))
+    if (args->fold->displayed && (args->fold->closer_length != 0ULL))
     {
         const char *const closer = args->editor->frame->bytes + args->editor->frame->closers + args->fold->closer;
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
@@ -378,9 +378,9 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[args->at] : none;
     const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word + runs.at) : NULL;
     const unsigned int *const name_of = (frame->runs != NULL) ? (frame->runs->word + runs.at + runs.runs) : NULL;
-    unsigned long long at = 0ull;
-    unsigned long long units = 0ull;
-    unsigned long long column = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long units = 0ULL;
+    unsigned long long column = 0ULL;
     unsigned int next = 0u;
     GuiColor color = palette->editor_text;
     const float start = x;
@@ -392,11 +392,11 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
                                .name = name_of[next]);
             next += 1u;
         }
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
                                                .size = args->line_line_pointer->length, .at = at, .length = &consumed);
-        at += (consumed != 0ull) ? consumed : 1ull;
-        units += (letter >= 0x10000u) ? 2ull : 1ull;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
+        units += (letter >= 0x10000u) ? 2ULL : 1ULL;
         if (letter == '\t')
         {
             column += GUI_TAB_COLUMNS - (column % GUI_TAB_COLUMNS);
@@ -414,7 +414,7 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
                 EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = raster, .cell = glyph,
                            .x = (int)roundf(here), .y = y, .clip = clip);
             }
-            column += 1ull;
+            column += 1ULL;
         }
         if (start + ((float)column * cell) > (float)(clip.x + clip.width))
         {
@@ -455,14 +455,14 @@ EMBED_INLINE void editor_matches_draw(const EditorCtx *args)
 {
     GuiRaster *raster = args->raster;
     int scale = args->scale;
-    for (unsigned long long at = 0ull; at < args->editor->frame->matches; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->editor->frame->matches; at += 1ULL)
     {
         if (args->editor->frame->match[at][0] != args->line)
         {
             continue;
         }
         const int current =
-            (args->editor->frame->find.current >= 0ll) && ((unsigned long long)args->editor->frame->find.current == at);
+            (args->editor->frame->find.current >= 0LL) && ((unsigned long long)args->editor->frame->find.current == at);
         const int left =
             (int)roundf(args->text_x + ((float)EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
                                                           .line_line_pointer = args->stored_line,
@@ -547,10 +547,10 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
         (float)(field.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale));
     const GuiRect field_clip =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = field, .other = args->place);
-    if (args->editor->frame->find.query_length == 0ull)
+    if (args->editor->frame->find.query_length == 0ULL)
     {
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = text_x, .y = baseline, .text = "Find", .length = 4ull,
+                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = text_x, .y = baseline, .text = "Find", .length = 4ULL,
                    .color = args->palette->text_3, .clip = field_clip);
     }
     else
@@ -563,16 +563,16 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
     if (args->editor->frame->find.focus)
     {
         // the caret after as many letters as the cursor's units count, a letter past the basic plane two of them
-        unsigned long long bytes = 0ull;
-        unsigned long long units = 0ull;
+        unsigned long long bytes = 0ULL;
+        unsigned long long units = 0ULL;
         while ((bytes < args->editor->frame->find.query_length) && (units < args->editor->frame->find.at))
         {
-            unsigned long long consumed = 0ull;
+            unsigned long long consumed = 0ULL;
             const unsigned int letter =
                 EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->editor->frame->find.query,
                            .size = args->editor->frame->find.query_length, .at = bytes, .length = &consumed);
-            bytes += (consumed != 0ull) ? consumed : 1ull;
-            units += (letter >= 0x10000u) ? 2ull : 1ull;
+            bytes += (consumed != 0ULL) ? consumed : 1ULL;
+            units += (letter >= 0x10000u) ? 2ULL : 1ULL;
         }
         const float before =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_HEAD,
@@ -610,17 +610,17 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
                        .color = args->palette->hover, .clip = args->place);
         }
         const float label_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
-                                             .face = GUI_FACE_HEAD, .size = size, .text = s_toggle[at], .length = 2ull);
+                                             .face = GUI_FACE_HEAD, .size = size, .text = s_toggle[at], .length = 2ULL);
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                    .face = GUI_FACE_HEAD, .size = size,
                    .x_f32 = (float)toggle.x + (((float)toggle_width - label_width) / 2.0f), .y = baseline,
-                   .text = s_toggle[at], .length = 2ull,
+                   .text = s_toggle[at], .length = 2ULL,
                    .color = on[at] ? args->palette->editor_text : args->palette->text_2, .clip = args->place);
         x += toggle_width + gap;
     }
     char count_text[64];
-    VerbaLinea count = {count_text, sizeof(count_text), 0ull};
-    if (args->editor->frame->find.count == 0ull)
+    VerbaLinea count = {count_text, sizeof(count_text), 0ULL};
+    if (args->editor->frame->find.count == 0ULL)
     {
         mmgr_line_put(&count, "No results");
     }
@@ -628,9 +628,9 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
     {
         // the current match is counted among the matches
         mmgr_line_decimal(&count,
-                          (args->editor->frame->find.current >= 0ll)
-                              ? (unsigned long long)args->editor->frame->find.current + 1ull
-                              : 0ull,
+                          (args->editor->frame->find.current >= 0LL)
+                              ? (unsigned long long)args->editor->frame->find.current + 1ULL
+                              : 0ULL,
                           1u);
         mmgr_line_put(&count, " of ");
         mmgr_line_decimal(&count, args->editor->frame->find.count, 1u);
@@ -713,13 +713,13 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
             const unsigned long long start_cell =
                 (line == selected_from.line) ? EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
                                                           .line_line_pointer = stored_line, .col = selected_from.col)
-                                             : 0ull;
+                                             : 0ULL;
             const unsigned long long end_cell =
                 (line == selected_to.line) ? EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
                                                         .line_line_pointer = stored_line, .col = selected_to.col)
                                            : EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
-                                                        .line_line_pointer = stored_line, .col = ~0ull) +
-                                                 1ull;
+                                                        .line_line_pointer = stored_line, .col = ~0ULL) +
+                                                 1ULL;
             const int left = (int)roundf(text_x + ((float)start_cell * cell));
             const int right = (int)roundf(text_x + ((float)end_cell * cell));
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
@@ -735,8 +735,8 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
                        .boxed = 0, .scale = scale, .clip = text_clip);
         }
         char digits[24];
-        VerbaLinea number = {digits, sizeof(digits), 0ull};
-        mmgr_line_decimal(&number, line + 1ull, 1u);
+        VerbaLinea number = {digits, sizeof(digits), 0ULL};
+        mmgr_line_decimal(&number, line + 1ULL, 1u);
         const float number_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                               .face = GUI_FACE_CODE, .size = size, .text = digits, .length = number.at);
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
@@ -758,8 +758,8 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
         if ((fold != NULL) && fold->closed)
         {
             const float after = text_x + ((float)(EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
-                                                             .line_line_pointer = stored_line, .col = ~0ull) +
-                                                  1ull) *
+                                                             .line_line_pointer = stored_line, .col = ~0ULL) +
+                                                  1ULL) *
                                           cell);
             (void)EMBED_CALL(editor_folded_draw, EditorCtx, .editor = args->editor, .fold = fold, .raster = raster,
                              .glyphs = glyphs, .palette = args->palette, .x = after, .top = row_rect.y, .baseline = y,
@@ -778,7 +778,7 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
                     (int)roundf(text_x + ((float)(EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
                                                              .line_line_pointer = stored_line,
                                                              .col = args->editor->frame->pair[each].col) +
-                                                  1ull) *
+                                                  1ULL) *
                                           cell));
                 EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster,
                            .rect = (GuiRect){left, row_rect.y, right - left, line_height},

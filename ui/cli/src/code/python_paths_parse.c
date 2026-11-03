@@ -10,7 +10,7 @@
 
 unsigned int cli_py_text_append(const CliPythonPathsTextCtx *args)
 {
-    if ((g_cli_py.used + args->length + 1ull) > g_cli_py.text_max)
+    if ((g_cli_py.used + args->length + 1ULL) > g_cli_py.text_max)
     {
         return CLI_PY_NONE;
     }
@@ -30,7 +30,7 @@ const char *cli_py_text(const CliPythonPathsAtCtx *args)
 // the capacity the texts have left, as a line a text is written in where it is put
 static VerbaLinea cli_text_line(void)
 {
-    return (VerbaLinea){g_cli_py.text + g_cli_py.used, g_cli_py.text_max - g_cli_py.used, 0ull};
+    return (VerbaLinea){g_cli_py.text + g_cli_py.used, g_cli_py.text_max - g_cli_py.used, 0ULL};
 }
 
 typedef struct
@@ -215,7 +215,7 @@ EMBED_INLINE unsigned int cli_string(const PythonPathsParseCtx *args)
         {
             return EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_TEXT,
                               .text = EMBED_CALL(cli_text_line_append, PythonPathsParseCtx, .line = &line),
-                              .number = 0ll, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
+                              .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
         }
         if ((next == '\\') && !args->raw)
         {
@@ -254,22 +254,22 @@ static unsigned int cli_primary(void)
         }
         return ((letter == '(') && (count == 1u))
                    ? g_cli_py.item[first]
-                   : EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_MANY, .text = 0u, .number = 0ll,
+                   : EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_MANY, .text = 0u, .number = 0LL,
                                 .left = 0u, .right = 0u, .first_value = first, .count_value = count);
     }
     unsigned int start = 0u;
     if ((letter >= '0') && (letter <= '9'))
     {
         EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &start);
-        long long number = 0ll;
+        long long number = 0LL;
         for (unsigned int at = start; at < g_cli_py.at; at += 1u)
         {
             const unsigned int digit = g_cli_py.letter[at] - '0';
-            if ((digit > 9u) || (number > ((0x7fffffffffffffffll - (long long)digit) / 10ll)))
+            if ((digit > 9u) || (number > ((0x7fffffffffffffffLL - (long long)digit) / 10LL)))
             {
                 return CLI_PY_NONE;
             }
-            number = (number * 10ll) + (long long)digit;
+            number = (number * 10LL) + (long long)digit;
         }
         return EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_NUMBER, .text = 0u, .number = number,
                           .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
@@ -297,7 +297,7 @@ static unsigned int cli_primary(void)
     }
     return EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_NAME,
                       .text = EMBED_CALL(cli_letters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
-                      .number = 0ll, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
+                      .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
 }
 
 // a primary with its attributes, calls and indexes after it: its expression, or CLI_PY_NONE
@@ -319,7 +319,7 @@ static unsigned int cli_postfix(void)
             value = EMBED_CALL(
                 cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_ATTR,
                 .text = EMBED_CALL(cli_letters_append, PythonPathsParseCtx, .from = start, .to = g_cli_py.at),
-                .number = 0ll, .left = value, .right = 0u, .first_value = 0u, .count_value = 0u);
+                .number = 0LL, .left = value, .right = 0u, .first_value = 0u, .count_value = 0u);
         }
         else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '('))
         {
@@ -327,7 +327,7 @@ static unsigned int cli_postfix(void)
             {
                 return CLI_PY_NONE;
             }
-            value = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_CALL, .text = 0u, .number = 0ll,
+            value = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_CALL, .text = 0u, .number = 0LL,
                                .left = value, .right = 0u, .first_value = first, .count_value = count);
         }
         else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '['))
@@ -342,7 +342,7 @@ static unsigned int cli_postfix(void)
                     g_cli_py.at += 1u;
                 }
                 index = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_NUMBER, .text = 0u,
-                                   .number = 0ll, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
+                                   .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
             }
             else
             {
@@ -352,7 +352,7 @@ static unsigned int cli_postfix(void)
             {
                 return CLI_PY_NONE;
             }
-            value = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_INDEX, .text = 0u, .number = 0ll,
+            value = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_INDEX, .text = 0u, .number = 0LL,
                                .left = value, .right = index, .first_value = 0u, .count_value = 0u);
         }
         else
@@ -380,7 +380,7 @@ static unsigned int cli_expr(void)
             return CLI_PY_NONE;
         }
         left = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = join ? CLI_EXPR_JOIN : CLI_EXPR_ADD, .text = 0u,
-                          .number = 0ll, .left = left, .right = right, .first_value = 0u, .count_value = 0u);
+                          .number = 0LL, .left = left, .right = right, .first_value = 0u, .count_value = 0u);
     }
     return CLI_PY_NONE;
 }

@@ -48,7 +48,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
         return 0;
     }
     char inner[CLI_NAME_MAX_LEN];
-    unsigned long long unpacked = 0ull;
+    unsigned long long unpacked = 0ULL;
     EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = name, .out_capacity = inner);
     if (!EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx, .bytes = bytes,
                     .size = args->bytes_size, .kind = kind, .inner = inner, .members = &levels->members[args->depth],
@@ -84,7 +84,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
                 mmgr_line_put(err_msg, " lies deeper in archives than orior_cli writes back");
                 return 0;
             }
-            unsigned long long nested_size = 0ull;
+            unsigned long long nested_size = 0ULL;
             if (!EMBED_CALL(
                     cli_archive_bytes_internal.data_get, CliArchiveBytesCtx, .bytes = bytes, .size = args->bytes_size,
                     .kind = kind, .unpacked_bytes = levels->unpacked[args->depth].bytes,
@@ -124,7 +124,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
                               .out = written->bytes, .capacity = written->capacity, .out_size = size,
                               .err_msg = err_msg);
         }
-        unsigned long long tar_size = 0ull;
+        unsigned long long tar_size = 0ULL;
         if ((kind == CLI_ARCHIVE_TARGZ) &&
             (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx,
                          .buffer_pointer = &levels->tar,
@@ -143,7 +143,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
                                  .out = written->bytes, .capacity = written->capacity)
                     : EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = changed, .size = changed_size,
                                  .out = written->bytes, .capacity = written->capacity);
-        if (*size == 0ull)
+        if (*size == 0ULL)
         {
             mmgr_line_put(err_msg, name);
             mmgr_line_put(err_msg, " is larger than orior_cli supports");
@@ -176,7 +176,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
         cli_archive_release();
         return 0;
     }
-    unsigned long long written = 0ull;
+    unsigned long long written = 0ULL;
     int done = EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = 0u, .bytes = descent.bytes, .bytes_size = descent.size,
                           .kind = descent.kind, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
                           .data_size = args->size, .size = &written, .err_msg = args->err_msg);
@@ -185,7 +185,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char adjacent[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {adjacent, sizeof(adjacent), 0ull};
+    VerbaLinea line = {adjacent, sizeof(adjacent), 0ULL};
     if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file, .out = folder))
     {
         mmgr_line_put(&line, folder);
@@ -194,7 +194,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     mmgr_line_ch(&line, '.');
     mmgr_line_put(&line, descent.name);
     mmgr_line_put(&line, ".saving");
-    if (done && ((mmgr_line_finish(&line) == 0ull) ||
+    if (done && ((mmgr_line_finish(&line) == 0ULL) ||
                  !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = adjacent,
                              .bytes = g_cli_archive_levels->written[0].bytes, .size = written)))
     {

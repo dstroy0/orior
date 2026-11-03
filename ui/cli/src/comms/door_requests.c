@@ -20,19 +20,19 @@ typedef struct
 EMBED_INLINE int request_send(const DoorRequestsCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    *args->moved = 0ull;
-    if (args->size == 0ull)
+    *args->moved = 0ULL;
+    if (args->size == 0ULL)
     {
         mmgr_line_put(err_msg, "a frame names where its body is");
         return 0;
     }
     if (args->rest[0] == CLI_IPC_BODY_TRANSFER)
     {
-        unsigned long long region_length = 0ull;
-        unsigned long long handle = 0ull;
+        unsigned long long region_length = 0ULL;
+        unsigned long long handle = 0ULL;
         CliRegion region;
         if (!EMBED_CALL(cli_ipc_err_msg_size_internal.transfer, CliIpcErrMsgSizeCtx, .transfer = args->rest + 1,
-                        .size = args->size - 1ull, .length_pointer = &region_length, .handle_pointer = &handle,
+                        .size = args->size - 1ULL, .length_pointer = &region_length, .handle_pointer = &handle,
                         .err_msg = err_msg) ||
             !EMBED_CALL(cli_ipc_err_msg_internal.transferred_over, CliIpcErrMsgCtx, .end = &args->joined->end,
                         .length = region_length, .handle = handle, .has_from = args->joined->has_peer,
@@ -43,12 +43,12 @@ EMBED_INLINE int request_send(const DoorRequestsCtx *args)
         const int sent = EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = args->joined->key,
                                     .channel = args->channel, .body = (const char *)region.view, .size = region.length,
                                     .delivered = args->delivered, .err_msg = err_msg);
-        *args->moved = sent ? region.length : 0ull;
+        *args->moved = sent ? region.length : 0ULL;
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &region);
         return sent;
     }
     return EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = args->joined->key,
-                      .channel = args->channel, .body = args->rest + 1, .size = args->size - 1ull,
+                      .channel = args->channel, .body = args->rest + 1, .size = args->size - 1ULL,
                       .delivered = args->delivered, .err_msg = err_msg);
 }
 
@@ -58,8 +58,8 @@ void cli_ipc_requests_serve(const CliIpcServeCfg *args)
     for (;;)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        unsigned long long size = 0ull;
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        unsigned long long size = 0ULL;
         const int read =
             EMBED_CALL(cli_ipc_err_msg_end_internal.frame_read, CliIpcErrMsgEndCtx, .end = &args->joined->end,
                        .frame = frame, .capacity = CLI_IPC_FRAME, .size_pointer = &size, .err_msg = &err_msg);
@@ -76,25 +76,25 @@ void cli_ipc_requests_serve(const CliIpcServeCfg *args)
             }
             continue;
         }
-        const char kind = (size != 0ull) ? frame[0] : '\0';
-        const unsigned long long channel_end = cli_ipc_field_end(frame, size, 1ull);
+        const char kind = (size != 0ULL) ? frame[0] : '\0';
+        const unsigned long long channel_end = cli_ipc_field_end(frame, size, 1ULL);
         char answer[32];
-        VerbaLinea out = {answer, sizeof(answer), 0ull};
+        VerbaLinea out = {answer, sizeof(answer), 0ULL};
         mmgr_line_ch(&out, CLI_IPC_KIND_ANSWER);
         int done = 0;
-        if ((kind == CLI_IPC_KIND_LISTEN) && (channel_end != 0ull))
+        if ((kind == CLI_IPC_KIND_LISTEN) && (channel_end != 0ULL))
         {
             done = EMBED_CALL(cli_ipc_serve_channel.ipc_listen_request, CliIpcServeChannelCfg, .joined = args->joined,
                               .channel = frame + 1, .err_msg = &err_msg);
         }
-        else if ((kind == CLI_IPC_KIND_SEND) && (channel_end != 0ull))
+        else if ((kind == CLI_IPC_KIND_SEND) && (channel_end != 0ULL))
         {
-            unsigned long long delivered = 0ull;
-            unsigned long long moved = 0ull;
+            unsigned long long delivered = 0ULL;
+            unsigned long long moved = 0ULL;
             done = EMBED_CALL(request_send, DoorRequestsCtx, .joined = args->joined, .channel = frame + 1,
                               .rest = frame + channel_end, .size = size - channel_end, .delivered = &delivered,
                               .moved = &moved, .err_msg = &err_msg);
-            if (done && (moved > 0ull))
+            if (done && (moved > 0ULL))
             {
                 EMBED_CALL(cli_comms_channel_bytes.transfer, CliCommsChannelBytesCfg, .channel = frame + 1,
                            .bytes = moved);

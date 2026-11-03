@@ -81,15 +81,15 @@ int cli_print_faces(const CliPrintJsonCfg *args)
         return 0;
     }
     s_typefaces->cover = g_cli_cells->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), &g_cli_print_cells);
-    s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ull;
-    s_typefaces->cover_used = 0ull;
+    s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ULL;
+    s_typefaces->cover_used = 0ULL;
     char paths[4][CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
         // a face's file read whole and saved as long as it is drawn from, in a persistent cell of its size and the
         // slack, a file past CLI_FONT_BYTES let go unread
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         unsigned char *data =
             ((paths[face][0] != '\0') &&
              EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = paths[face], .size_pointer = &size) &&
@@ -97,11 +97,11 @@ int cli_print_faces(const CliPrintJsonCfg *args)
                 ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_print_cells)
                 : NULL;
         if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = paths[face],
-                                          .from = 0ull, .bytes_bytes = data, .count_u64 = size, .got = &size))
+                                          .from = 0ULL, .bytes_bytes = data, .count_u64 = size, .got = &size))
         {
             g_cli_cells->persistent_buf_release(data, &g_cli_print_cells);
             data = NULL;
-            size = 0ull;
+            size = 0ULL;
         }
         else
         {
@@ -117,7 +117,7 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     {
         s_typefaces->glyphs[at].used = 0;
     }
-    s_typefaces->cover_used = 0ull;
+    s_typefaces->cover_used = 0ULL;
     if (!s_typefaces->has[0])
     {
         mmgr_line_put(args->err_msg,
@@ -164,12 +164,12 @@ EMBED_INLINE int cli_embolden(const RasterCtx *args)
     memor.set(&(MemoriaCfg){.dst = s_work_state->scratch,
                             .val = 0,
                             .bytes = width * args->mask->height * sizeof(s_work_state->scratch[0])});
-    for (unsigned long long y = 0ull; y < args->mask->height; y += 1ull)
+    for (unsigned long long y = 0ULL; y < args->mask->height; y += 1ULL)
     {
-        for (unsigned long long x = 0ull; x < args->mask->width; x += 1ull)
+        for (unsigned long long x = 0ULL; x < args->mask->width; x += 1ULL)
         {
             const float value = args->mask->cover[(y * args->mask->width) + x];
-            for (unsigned long long shift = 0ull; shift <= args->by; shift += 1ull)
+            for (unsigned long long shift = 0ULL; shift <= args->by; shift += 1ULL)
             {
                 float *const at = &s_work_state->scratch[(y * width) + x + shift];
                 *at = (*at > value) ? *at : value;
@@ -190,7 +190,7 @@ static void cli_glyphs_forgotten(void)
     {
         s_typefaces->glyphs[at].used = 0;
     }
-    s_typefaces->cover_used = 0ull;
+    s_typefaces->cover_used = 0ULL;
 }
 
 // the coverage given work state for a glyph, CLI_COVER_MIN floats past those used: where it has none left the glyphs
@@ -275,25 +275,25 @@ EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
 // Lays `mask` on `page` with its top left at x, y in `color`
 EMBED_INLINE void cli_blend(const RasterCtx *args)
 {
-    for (unsigned long long my = 0ull; my < args->mask_read->height; my += 1ull)
+    for (unsigned long long my = 0ULL; my < args->mask_read->height; my += 1ULL)
     {
         // a row's place is far inside what a long long represents
         const long long y = args->top + (long long)my;
-        if ((y < 0ll) || ((unsigned long long)y >= args->page->height))
+        if ((y < 0LL) || ((unsigned long long)y >= args->page->height))
         {
             continue;
         }
-        for (unsigned long long mx = 0ull; mx < args->mask_read->width; mx += 1ull)
+        for (unsigned long long mx = 0ULL; mx < args->mask_read->width; mx += 1ULL)
         {
             const float cover = args->mask_read->cover[(my * args->mask_read->width) + mx];
             const long long x = args->left + (long long)mx;
-            if ((cover <= 0.0f) || (x < 0ll) || ((unsigned long long)x >= args->page->width))
+            if ((cover <= 0.0f) || (x < 0LL) || ((unsigned long long)x >= args->page->width))
             {
                 continue;
             }
             const unsigned long long at =
                 (((unsigned long long)y * args->page->width) + (unsigned long long)x) * args->page->channels;
-            for (unsigned long long channel = 0ull; channel < args->page->channels; channel += 1ull)
+            for (unsigned long long channel = 0ULL; channel < args->page->channels; channel += 1ULL)
             {
                 const float level = (float)args->color[channel];
                 // a blend of two bytes by a share from 0 to 1 is a byte
@@ -320,7 +320,7 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length,
                    .letters = s_work_state->letters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
-    for (unsigned long long offset = 0ull; offset < count; offset += 1ull)
+    for (unsigned long long offset = 0ULL; offset < count; offset += 1ULL)
     {
         if (s_work_state->letters[offset] == ' ')
         {
@@ -363,7 +363,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = layout, .width = &width,
                .height = &height);
     CliPixels page = {(unsigned long long)roundf(width * scale), (unsigned long long)roundf(height * scale),
-                      layout->gray ? 1ull : 3ull, NULL};
+                      layout->gray ? 1ULL : 3ULL, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
     s_work_state->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_cells->temporary_buf_alloc(bytes, &g_cli_print_cells) : NULL;
@@ -377,7 +377,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        count += EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ull) ? 1u : 0u;
+        count += EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ULL) ? 1u : 0u;
     }
     unsigned char number_tint[3];
     if (layout->gray)
@@ -392,7 +392,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     unsigned int index = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        if (!EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ull))
+        if (!EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ULL))
         {
             continue;
         }
@@ -410,11 +410,11 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
             if (row->numbered)
             {
                 char number[32];
-                VerbaLinea line = {number, sizeof(number), 0ull};
-                const unsigned long long numbers = (laid->number_columns > 2ull) ? (laid->number_columns - 2ull) : 0ull;
+                VerbaLinea line = {number, sizeof(number), 0ULL};
+                const unsigned long long numbers = (laid->number_columns > 2ULL) ? (laid->number_columns - 2ULL) : 0ULL;
                 mmgr_line_decimal_columns(&line, row->number, (unsigned int)numbers);
                 const unsigned long long length = mmgr_line_finish(&line);
-                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = number, .length = length, .column = 0ull,
+                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = number, .length = length, .column = 0ULL,
                            .color = number_tint, .bold = 0, .italic = 0, .scale = scale, .baseline = baseline);
             }
             for (unsigned int piece_at = 0u; piece_at < row->pieces; piece_at += 1u)
@@ -440,13 +440,13 @@ void cli_print_turn(const CliPrintPageCfg *args)
     args->out_pixels_pointer->width = args->page->height;
     args->out_pixels_pointer->height = args->page->width;
     args->out_pixels_pointer->channels = args->page->channels;
-    for (unsigned long long y = 0ull; y < args->page->height; y += 1ull)
+    for (unsigned long long y = 0ULL; y < args->page->height; y += 1ULL)
     {
-        for (unsigned long long x = 0ull; x < args->page->width; x += 1ull)
+        for (unsigned long long x = 0ULL; x < args->page->width; x += 1ULL)
         {
             const unsigned long long from = ((y * args->page->width) + x) * args->page->channels;
             const unsigned long long to =
-                (((args->page->width - 1ull - x) * args->out_pixels_pointer->width) + y) * args->page->channels;
+                (((args->page->width - 1ULL - x) * args->out_pixels_pointer->width) + y) * args->page->channels;
             memor.cpy(&(MemoriaCfg){.dst = args->out_pixels_pointer->data + to,
                                     .src = args->page->data + from,
                                     .bytes = args->page->channels});

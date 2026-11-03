@@ -11,17 +11,17 @@ static const char s_crumb_mark[] = "\xe2\x80\xba";
 
 void gui_status_memory_text(const GuiStatusbarBytesCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
-    const unsigned long long tenths = ((args->bytes * 10ull) + (1024ull * 512ull)) / (1024ull * 1024ull);
-    if (tenths < 1000ull)
+    VerbaLinea line = {args->text, args->size, 0ULL};
+    const unsigned long long tenths = ((args->bytes * 10ULL) + (1024ULL * 512ULL)) / (1024ULL * 1024ULL);
+    if (tenths < 1000ULL)
     {
-        mmgr_line_decimal(&line, tenths / 10ull, 1u);
+        mmgr_line_decimal(&line, tenths / 10ULL, 1u);
         mmgr_line_ch(&line, '.');
-        mmgr_line_decimal(&line, tenths % 10ull, 1u);
+        mmgr_line_decimal(&line, tenths % 10ULL, 1u);
     }
     else
     {
-        mmgr_line_decimal(&line, (args->bytes + (1024ull * 512ull)) / (1024ull * 1024ull), 1u);
+        mmgr_line_decimal(&line, (args->bytes + (1024ULL * 512ULL)) / (1024ULL * 1024ULL), 1u);
     }
     mmgr_line_put(&line, " MB");
     (void)mmgr_line_finish(&line);
@@ -29,28 +29,28 @@ void gui_status_memory_text(const GuiStatusbarBytesCfg *args)
 
 void gui_status_cursor_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
-    mmgr_line_decimal(&line, args->status->line + 1ull, 1u);
+    VerbaLinea line = {args->text, args->size, 0ULL};
+    mmgr_line_decimal(&line, args->status->line + 1ULL, 1u);
     mmgr_line_ch(&line, ':');
-    mmgr_line_decimal(&line, args->status->col + 1ull, 1u);
+    mmgr_line_decimal(&line, args->status->col + 1ULL, 1u);
     (void)mmgr_line_finish(&line);
 }
 
 void gui_status_selection_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
+    VerbaLinea line = {args->text, args->size, 0ULL};
     const unsigned long long lines = (args->status->anchor_line > args->status->line)
                                          ? args->status->anchor_line - args->status->line
                                          : args->status->line - args->status->anchor_line;
     const unsigned long long letters = (args->status->anchor_col > args->status->col)
                                            ? args->status->anchor_col - args->status->col
                                            : args->status->col - args->status->anchor_col;
-    if (lines != 0ull)
+    if (lines != 0ULL)
     {
-        mmgr_line_decimal(&line, lines + 1ull, 1u);
+        mmgr_line_decimal(&line, lines + 1ULL, 1u);
         mmgr_line_put(&line, " lines selected");
     }
-    else if (letters != 0ull)
+    else if (letters != 0ULL)
     {
         mmgr_line_decimal(&line, letters, 1u);
         mmgr_line_put(&line, " selected");
@@ -60,7 +60,7 @@ void gui_status_selection_text(const GuiStatusbarCfg *args)
 
 void gui_status_indent_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
+    VerbaLinea line = {args->text, args->size, 0ULL};
     const unsigned int step = (args->status->indent_size != 0u) ? args->status->indent_size : 4u;
     if (args->status->indent_tabs == 1)
     {
@@ -178,13 +178,13 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
                            .clip = bar) -
                 (float)gap;
     }
-    if (args->status->memory != 0ull)
+    if (args->status->memory != 0ULL)
     {
         EMBED_CALL(gui_statusbar_bytes.status_memory_text, GuiStatusbarBytesCfg, .bytes = args->status->memory,
                    .text = text, .size = sizeof(text));
         const float min = (float)GUI_STATUS_MEMORY_ZEROS *
                           EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size, .text = "0", .length = 1ull);
+                                     .face = GUI_FACE_HEAD, .size = size, .text = "0", .length = 1ULL);
         const float pixel_width = EMBED_CALL(
             gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_HEAD,
             .size = size, .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT}));
@@ -213,7 +213,7 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     const char *at = args->status->path;
     while (*at != '\0')
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = length,
                             .size = length + cellul.len(&(CatenaFinitaCfg){.src = at + length, .cap = CLI_CELLS_POOL}),
                             .set = "/\\");
@@ -230,6 +230,6 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
                        .face = GUI_FACE_HEAD, .size = size, .x_f32 = x, .y = baseline, .text = s_crumb_mark,
                        .length = sizeof(s_crumb_mark) - 1u, .color = args->palette->bar_path, .clip = capacity) +
             crumb_gap;
-        at += length + 1ull;
+        at += length + 1ULL;
     }
 }

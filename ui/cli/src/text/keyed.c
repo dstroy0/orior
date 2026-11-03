@@ -60,7 +60,7 @@ EMBED_INLINE void keyed_cell_free(const KeyedCtx *args)
 EMBED_INLINE void keyed_reject(const KeyedCtx *args)
 {
     char msg_buf[CLI_PATH_MAX_LEN + 256u];
-    VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+    VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ULL};
     mmgr_line_put(&line, "orior: ");
     mmgr_line_put(&line, args->keyed->name);
     mmgr_line_put(&line, ": ");
@@ -166,7 +166,7 @@ const char *cli_keyed_get_hash(const CliKeyedKeyCfg *args)
     if (at == args->keyed->entries)
     {
         *adjacent = "";
-        *size = 0ull;
+        *size = 0ULL;
         return NULL;
     }
     const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed, .at = at);
@@ -228,11 +228,11 @@ void cli_keyed_each(const CliKeyedEachCfg *args)
 
 unsigned long long cli_keyed_listing_size(const CliKeyedCfg *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     for (unsigned int at = 0u; at < args->keyed->entries; at += 1u)
     {
         const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed, .at = at);
-        size += one->used ? ((unsigned long long)one->key_size + one->adjacent_size + 2ull) : 0ull;
+        size += one->used ? ((unsigned long long)one->key_size + one->adjacent_size + 2ULL) : 0ULL;
     }
     return size;
 }

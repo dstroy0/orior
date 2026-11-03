@@ -30,10 +30,10 @@ EMBED_INLINE unsigned int imports_module_in(const InspectTreeImportsCtx *args)
 {
     unsigned long long size = args->size;
     char base[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {base, sizeof(base), 0ull};
+    VerbaLinea line = {base, sizeof(base), 0ULL};
     mmgr_line_put_n(&line, args->root, args->root_size);
     mmgr_line_put(&line, ((args->root_size > 0u) && (size > 0u)) ? "/" : "");
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    for (unsigned long long at = 0ULL; at < size; at += 1u)
     {
         mmgr_line_ch(&line, (args->dotted[at] == '.') ? '/' : args->dotted[at]);
     }
@@ -57,7 +57,7 @@ unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args)
 {
     const char *const path = CLI_TREE_FILE(args->file).path;
     const unsigned long long path_size = CLI_TREE_FILE(args->file).path_size;
-    unsigned long long dots = 0ull;
+    unsigned long long dots = 0ULL;
     dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->spec, .at = dots,
                       .size = args->size, .set = ".");
     const char *const dotted = args->spec + dots;
@@ -66,7 +66,7 @@ unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args)
     {
         unsigned long long base = EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx,
                                              .path = path, .size = path_size);
-        for (unsigned long long up = 1ull; up < dots; up += 1u)
+        for (unsigned long long up = 1ULL; up < dots; up += 1u)
         {
             base = EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx, .path = path,
                               .size = base);
@@ -83,7 +83,7 @@ unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args)
     {
         top = EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx, .path = path, .size = top);
     }
-    const unsigned long long roots[3] = {folder, top, 0ull};
+    const unsigned long long roots[3] = {folder, top, 0ULL};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         if ((at > 0u) && (roots[at] == roots[at - 1u]))
@@ -119,11 +119,11 @@ EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
     const char *const spec = facts->text + args->import->spec.at;
     const unsigned long long size = args->import->spec.size;
     unsigned int count = 0u;
-    unsigned long long dots = 0ull;
+    unsigned long long dots = 0ULL;
     dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = spec, .at = dots, .size = size,
                       .set = ".");
     char joined[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ULL};
     mmgr_line_put_n(&line, spec, dots);
     int parts = 0;
     for (unsigned long long at = dots; at <= size; at += 1u)
@@ -160,7 +160,7 @@ EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
     for (unsigned int at = 0u; at < args->import->names; at += 1u)
     {
         const CliInspectName *const name = &facts->name[args->import->name_first + at];
-        line.at = 0ull;
+        line.at = 0ULL;
         mmgr_line_put_n(&line, spec, size);
         mmgr_line_put(&line, ((size > 0u) && (spec[size - 1u] == '.')) ? "" : ".");
         mmgr_line_put_n(&line, facts->text + name->name.at, name->name.size);
@@ -192,11 +192,11 @@ EMBED_INLINE unsigned int imports_javascript(const InspectTreeImportsCtx *args)
     const char *const spec = tree_file->facts.text + args->import->spec.at;
     const unsigned long long size = args->import->spec.size;
     char base[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {base, sizeof(base), 0ull};
+    VerbaLinea line = {base, sizeof(base), 0ULL};
     mmgr_line_put_n(&line, tree_file->path,
                     EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx,
                                .path = tree_file->path, .size = tree_file->path_size));
-    for (unsigned long long at = 0ull; at <= size;)
+    for (unsigned long long at = 0ULL; at <= size;)
     {
         const char *const slash =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = spec + at, .val = '/', .bytes = (size_t)(size - at)}) : NULL;

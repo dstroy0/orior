@@ -47,7 +47,7 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
     if ((size == 0u) || (hello[0] != 10u))
     {
         char why[CLI_NAME_MAX_LEN + 64u];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         mmgr_line_put(&err_msg, args->host);
         mmgr_line_ch(&err_msg, ':');
         mmgr_line_decimal(&err_msg, args->port, 1u);
@@ -65,7 +65,7 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
                    .message = "the server's greeting is cut short");
         return 0;
     }
-    VerbaLinea version = {args->mysql->version, sizeof(args->mysql->version), 0ull};
+    VerbaLinea version = {args->mysql->version, sizeof(args->mysql->version), 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &version, .text_bytes = hello + 1u,
                .length = at - 1u);
     mmgr_line_finish(&version);
@@ -74,7 +74,7 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
                              ((unsigned int)hello[at + 2u] << 16u) | ((unsigned int)hello[at + 3u] << 24u);
     at += 4u;
     memor.cpy(&(MemoriaCfg){.dst = args->scramble, .src = hello + at, .bytes = 8u});
-    *scramble_size = 8ull;
+    *scramble_size = 8ULL;
     at += 9u;
     const unsigned int lower = (unsigned int)hello[at] | ((unsigned int)hello[at + 1u] << 8u);
     at += 5u;
@@ -84,7 +84,7 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
     const unsigned long long data_length = hello[at];
     at += 11u;
     // the scramble's second part: what the length names past its first 8 bytes, 13 at the least
-    const unsigned long long rest = ((data_length > 8u) && (data_length - 8u > 13u)) ? data_length - 8u : 13ull;
+    const unsigned long long rest = ((data_length > 8u) && (data_length - 8u > 13u)) ? data_length - 8u : 13ULL;
     if ((at + rest <= size) && (rest <= 56u))
     {
         const unsigned long long more = ((rest > 0u) && (hello[at + rest - 1u] == 0u)) ? rest - 1u : rest;
@@ -95,8 +95,8 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
     const unsigned char *const plugin_end =
         (at < size) ? memor.chr(&(MemoriaCfg){.src = hello + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
     const unsigned long long plugin_size =
-        (plugin_end != NULL) ? (unsigned long long)(plugin_end - hello) - at : ((at < size) ? size - at : 0ull);
-    VerbaLinea plugin_line = {args->plugin, CLI_NAME_MAX_LEN, 0ull};
+        (plugin_end != NULL) ? (unsigned long long)(plugin_end - hello) - at : ((at < size) ? size - at : 0ULL);
+    VerbaLinea plugin_line = {args->plugin, CLI_NAME_MAX_LEN, 0ULL};
     if ((capabilities & CLI_MYSQL_PLUGIN_AUTH) != 0u)
     {
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &plugin_line,
@@ -133,7 +133,7 @@ EMBED_INLINE int sign_reply(const MysqlSignCtx *args)
     CliMysql *mysql = args->mysql;
     CliDbFailure *failure = args->failure;
     char reply[CLI_NAME_MAX_LEN * 4u];
-    VerbaLinea out = {reply, sizeof(reply), 0ull};
+    VerbaLinea out = {reply, sizeof(reply), 0ULL};
     unsigned int flags = CLI_MYSQL_LONG_PASSWORD | CLI_MYSQL_LONG_FLAG | CLI_MYSQL_PROTOCOL_41 |
                          CLI_MYSQL_TRANSACTIONS | CLI_MYSQL_SECURE_CONNECTION | CLI_MYSQL_MULTI_RESULTS |
                          CLI_MYSQL_PLUGIN_AUTH | CLI_MYSQL_PLUGIN_AUTH_LENENC;
@@ -182,9 +182,9 @@ EMBED_INLINE int sign_seal(const MysqlSignCtx *args)
     CliDbFailure *failure = args->failure;
     unsigned char secret[CLI_NAME_MAX_LEN + 1u];
     unsigned char sealed[1024];
-    unsigned long long sealed_size = 0ull;
+    unsigned long long sealed_size = 0ULL;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}) + 1u;
     memor.cpy(&(MemoriaCfg){.dst = secret, .src = args->password, .bytes = length});
     for (size_t at = 0u; (args->scramble_size_value > 0u) && (at < length); at += 1u)
@@ -218,13 +218,13 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
         memor.chr(&(MemoriaCfg){.src = packet + 1u, .val = 0, .bytes = (size_t)(size - 1u)});
     const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - packet) : size;
     char plugin[CLI_NAME_MAX_LEN];
-    VerbaLinea plugin_line = {plugin, sizeof(plugin), 0ull};
+    VerbaLinea plugin_line = {plugin, sizeof(plugin), 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &plugin_line, .text_bytes = packet + 1u,
                .length = end - 1u);
     mmgr_line_finish(&plugin_line);
-    const unsigned long long data = (end + 1u < size) ? size - end - 1u : 0ull;
+    const unsigned long long data = (end + 1u < size) ? size - end - 1u : 0ULL;
     const unsigned long long data_len = ((data > 0u) && (packet[size - 1u] == 0u)) ? data - 1u : data;
-    *scramble_size = (data_len < 64u) ? data_len : 64ull;
+    *scramble_size = (data_len < 64u) ? data_len : 64ULL;
     memor.cpy(&(MemoriaCfg){.dst = scramble, .src = packet + end + 1u, .bytes = (size_t)*scramble_size});
     unsigned char answer[CLI_NAME_MAX_LEN + 1u];
     unsigned int answer_size = 0u;
@@ -246,7 +246,7 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
     else
     {
         char why[CLI_NAME_MAX_LEN * 2u];
-        VerbaLinea line = {why, sizeof(why), 0ull};
+        VerbaLinea line = {why, sizeof(why), 0ULL};
         mmgr_line_put(&line, "the account signs in by ");
         mmgr_line_put(&line, plugin);
         mmgr_line_put(&line, ", which orior_cli does not support: mysql_native_password and caching_sha2_password are "
@@ -263,7 +263,7 @@ int cli_mysql_signed_in(const CliMysqlFailurePasswordCtx *args)
 {
     CliDbFailure *failure = args->failure;
     unsigned char scramble[64];
-    unsigned long long scramble_size = 0ull;
+    unsigned long long scramble_size = 0ULL;
     char plugin[CLI_NAME_MAX_LEN];
     unsigned char answer[32];
     if (!EMBED_CALL(cli_mysql_failure_internal.packet, CliMysqlFailureCtx, .mysql = args->mysql, .failure = failure) ||
@@ -345,8 +345,8 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     CliDbFailure *failure = args->failure;
     char address[CLI_NAME_MAX_LEN + 16u];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea named = {address, sizeof(address), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    VerbaLinea named = {address, sizeof(address), 0ULL};
     mmgr_line_put(&named, args->host);
     mmgr_line_ch(&named, ':');
     mmgr_line_decimal(&named, port, 1u);
@@ -376,8 +376,8 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
                    .message = "orior_cli has as many MySQL connections as it can");
         return NULL;
     }
-    mysql->start = 0ull;
-    mysql->end = 0ull;
+    mysql->start = 0ULL;
+    mysql->end = 0ULL;
     mysql->sequence = 0u;
     mysql->status = 0u;
     mysql->warnings = 0u;
@@ -398,7 +398,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}) + 1u});
     mysql->cancel.id = 0u;
     // the wait is at most what a socket's wait counts, in milliseconds
-    const unsigned int within = (args->wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)args->wait;
+    const unsigned int within = (args->wait > 0xffffffffULL) ? 0xffffffffu : (unsigned int)args->wait;
     int connected = EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &mysql->socket,
                                .host = args->host, .port = port, .milliseconds = within, .err_msg = &err_msg);
     if (!connected)

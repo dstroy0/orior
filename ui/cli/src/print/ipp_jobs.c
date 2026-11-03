@@ -120,7 +120,7 @@ EMBED_INLINE int cli_answer(const IppJobsCtx *args)
         return 0;
     }
     char words[CLI_PATH_MAX_LEN];
-    VerbaLinea status = {words, sizeof(words), 0ull};
+    VerbaLinea status = {words, sizeof(words), 0ULL};
     const int ok = EMBED_CALL(cli_ipp_code.status, CliIppCodeCfg, .code = s_answer.code, .err_msg = &status);
     mmgr_line_finish(&status);
     if (ok)
@@ -215,7 +215,7 @@ int cli_ipp_job_state(const CliIppErrMsgUriCfg *args)
                .text = "job-state");
     EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_KEYWORD,
                .text = "job-state-reasons");
-    if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ull, .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ULL, .err_msg = args->err_msg))
     {
         cli_jobs_let_go();
         return 0;
@@ -244,7 +244,7 @@ int cli_ipp_cancel(const CliIppErrMsgUriCfg *args)
     EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
                .value = args->id);
     const int done =
-        EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ull, .err_msg = args->err_msg);
+        EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ULL, .err_msg = args->err_msg);
     cli_jobs_let_go();
     return done;
 }
@@ -254,7 +254,7 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
     static const char *const s_requested[4] = {"printer-name", "printer-uri-supported", "printer-info",
                                                "printer-make-and-model"};
     char uri[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {uri, sizeof(uri), 0ull};
+    VerbaLinea line = {uri, sizeof(uri), 0ULL};
     mmgr_line_put(&line, "ipp://");
     mmgr_line_put(&line, args->host_read);
     mmgr_line_ch(&line, ':');
@@ -268,7 +268,7 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
         EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_KEYWORD,
                    .text = s_requested[at]);
     }
-    if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = uri, .document = NULL, .size = 0ull, .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = uri, .document = NULL, .size = 0ULL, .err_msg = args->err_msg))
     {
         cli_jobs_let_go();
         return -1;

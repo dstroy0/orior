@@ -12,8 +12,8 @@
 void cli_link_quote(const CliLinkTextSizeCfg *args)
 {
     mmgr_line_ch(args->out, '\'');
-    unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long from = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         if (args->text[at] == '\'')
         {
@@ -52,7 +52,7 @@ EMBED_INLINE void address_trim(const LinkAddressCtx *args)
     unsigned long long *start = args->start;
     unsigned long long *size = args->size;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    unsigned long long begin = 0ull;
+    unsigned long long begin = 0ULL;
     unsigned int letter = 0u;
     while (begin < length)
     {
@@ -93,8 +93,8 @@ EMBED_INLINE int address_field_set(const LinkAddressCtx *args)
 
 int cli_link_address_parse(const CliLinkTextCfg *args)
 {
-    unsigned long long start = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long size = 0ULL;
     EMBED_CALL(address_trim, LinkAddressCtx, .text = args->text, .start = &start, .size = &size);
     const char *const trimmed = args->text + start;
     const char *const first = memor.chr(&(MemoriaCfg){.src = trimmed, .val = ':', .bytes = (size_t)size});
@@ -238,7 +238,7 @@ int cli_link_remote_run(const CliLinkSizeCfg *args)
     const int started =
         !words.full && EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words.word, .folder = NULL,
                                   .settings = NULL, .count = 0u, .input = (args->input != NULL) ? args->input : "",
-                                  .length = (args->input != NULL) ? args->size : 0ull, .run_result = run_result,
+                                  .length = (args->input != NULL) ? args->size : 0ULL, .run_result = run_result,
                                   .err_msg = args->err_msg);
     if (words.full)
     {
@@ -247,8 +247,8 @@ int cli_link_remote_run(const CliLinkSizeCfg *args)
     const int done = started && (run_result->code == 0);
     if (started && !done)
     {
-        unsigned long long start = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
         EMBED_CALL(address_trim, LinkAddressCtx, .text = run_result->err, .start = &start, .size = &length);
         if (length > 0u)
         {

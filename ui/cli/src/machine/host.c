@@ -71,19 +71,11 @@ void cli_stand_in(const CliHostCfg *args)
 EMBED_INLINE int cli_host_folder(const HostCtx *args)
 {
     char base[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_RUNTIME_DIR",
-                    .value_out = base, .capacity = sizeof(base)) &&
-        !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR", .value_out = base,
-                    .capacity = sizeof(base)))
-    {
-        memor.cpy(&(MemoriaCfg){.dst = base,
-                                .src = "/tmp",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "/tmp", .cap = CLI_CELLS_POOL}) + 1u});
-    }
-    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ull};
+    EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = base);
+    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, base);
     mmgr_line_put(&line, "/orior-host");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // A stand-in written in `into` for each program of `names`, one a line, but those that stay running inside: how many,
@@ -94,9 +86,9 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
     {
         mmgr_line_put(args->err_msg, args->into);
         mmgr_line_put(args->err_msg, ": it could not be made");
-        return -1ll;
+        return -1LL;
     }
-    long long count = 0ll;
+    long long count = 0LL;
     const char *line = args->names;
     while (*line != '\0')
     {
@@ -119,22 +111,22 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
         {
             char path[CLI_PATH_MAX_LEN];
             static char s_text[4096];
-            VerbaLinea path_line = {path, sizeof(path), 0ull};
+            VerbaLinea path_line = {path, sizeof(path), 0ULL};
             mmgr_line_put(&path_line, args->into);
             mmgr_line_ch(&path_line, '/');
             mmgr_line_put(&path_line, name);
-            VerbaLinea text = {s_text, sizeof(s_text), 0ull};
+            VerbaLinea text = {s_text, sizeof(s_text), 0ULL};
             EMBED_CALL(cli_host.stand_in, CliHostCfg, .name = name, .line = &text);
-            if ((mmgr_line_finish(&path_line) == 0ull) || !mmgr_line_ok(&text) ||
+            if ((mmgr_line_finish(&path_line) == 0ULL) || !mmgr_line_ok(&text) ||
                 !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                             .bytes = s_text, .size = text.at) ||
                 !EMBED_CALL(cli_path_file_internal.file_runnable, CliPathFileCtx, .path = path))
             {
                 mmgr_line_put(args->err_msg, path);
                 mmgr_line_put(args->err_msg, ": it could not be written");
-                return -1ll;
+                return -1LL;
             }
-            count += 1ll;
+            count += 1LL;
         }
         line += length;
         line += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = line, .set = "\r\n");
@@ -149,7 +141,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
 {
     if (!cli_sandbox())
     {
-        return -2ll;
+        return -2LL;
     }
     const char *const listing[5] = {"flatpak-spawn", "--host", "sh", "-c",
                                     "IFS=:; for dir in $PATH; do ls -1 \"$dir\" 2>/dev/null; done"};
@@ -159,40 +151,40 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {
         mmgr_line_put(args->err_msg, "flatpak-spawn: it could not be started");
-        return -1ll;
+        return -1LL;
     }
     static char s_names[1u << 22u];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     for (;;)
     {
         const unsigned long long got =
             EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &list_entries,
                        .piece = s_names + length, .capacity_u64 = sizeof(s_names) - 1u - length);
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
         length += got;
     }
     s_names[length] = '\0';
-    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &list_entries) != 0ll)
+    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &list_entries) != 0LL)
     {
         mmgr_line_put(args->err_msg, "flatpak-spawn --host: it did not list the machine's programs");
-        return -1ll;
+        return -1LL;
     }
     char into[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_host_folder, HostCtx, .folder = into))
     {
         mmgr_line_put(args->err_msg, "the stand-ins have no folder");
-        return -1ll;
+        return -1LL;
     }
     const long long made = EMBED_CALL(cli_host_into.stand_ins_write, CliHostIntoCfg, .into = into, .names = s_names,
                                       .err_msg = args->err_msg);
-    if (made >= 0ll)
+    if (made >= 0LL)
     {
         static char s_path[32768];
         static char s_old[QUERY_ENVIRONMENT_MAX_LEN];
-        VerbaLinea path = {s_path, sizeof(s_path), 0ull};
+        VerbaLinea path = {s_path, sizeof(s_path), 0ULL};
         mmgr_line_put(&path, into);
         if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
                        .value_out = s_old, .capacity = sizeof(s_old)))
@@ -201,7 +193,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
             mmgr_line_put(&path, s_old);
         }
         // orior_cli starts nothing before this, and no thread of its own runs yet
-        if (mmgr_line_finish(&path) != 0ull)
+        if (mmgr_line_finish(&path) != 0ULL)
         {
             EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = s_path);
         }

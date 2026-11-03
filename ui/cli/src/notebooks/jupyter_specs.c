@@ -70,7 +70,7 @@ typedef struct
 // `length` bytes put in the spec's texts: their place, CLI_KERNEL_NONE where they do not fit
 EMBED_INLINE unsigned int jupyter_append(const JupyterSpecsCtx *args)
 {
-    if ((args->spec->used + args->length + 1ull > CLI_KERNEL_TEXT) ||
+    if ((args->spec->used + args->length + 1ULL > CLI_KERNEL_TEXT) ||
         (memor.chr(&(MemoriaCfg){.src = args->text, .val = '\0', .bytes = args->length}) != NULL))
     {
         args->spec->full = 1;
@@ -111,7 +111,7 @@ EMBED_INLINE int jupyter_member(const JupyterSpecsCtx *args)
     unsigned int *at = args->at;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = &s_listing.json, .object = object, .name = name);
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = &s_listing.json, .node = member, .length_pointer = &length);
     if ((member == CLI_JSON_NONE) && (args->fallback != NULL))
@@ -163,7 +163,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
                     .array = argv, .index = index) != CLI_JSON_NONE;
          index += 1u)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const word =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_listing.json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -187,7 +187,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     for (unsigned int member = (env != CLI_JSON_NONE) ? s_listing.json.node[env].first : CLI_JSON_NONE;
          member != CLI_JSON_NONE; member = s_listing.json.node[member].next)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const value = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                              .json_read = &s_listing.json, .node = member, .length_pointer = &length);
         if ((value == NULL) || (spec->env_count == CLI_KERNEL_SETTINGS))
@@ -223,11 +223,11 @@ EMBED_INLINE int jupyter_list(const JupyterSpecsCtx *args)
 {
     if (s_listing.list_entries < CLI_KERNEL_LISTING)
     {
-        VerbaLinea name = {s_listing.names[s_listing.list_entries], CLI_KERNEL_ENTRY, 0ull};
+        VerbaLinea name = {s_listing.names[s_listing.list_entries], CLI_KERNEL_ENTRY, 0ULL};
         mmgr_line_put(&name, EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                         .spec = &s_listing.spec, .at = s_listing.spec.name));
         mmgr_line_finish(&name);
-        VerbaLinea program = {s_listing.programs[s_listing.list_entries], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea program = {s_listing.programs[s_listing.list_entries], CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&program, (s_listing.spec.argv_count > 0u)
                                     ? EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                                  .spec = &s_listing.spec, .at = s_listing.spec.argv[0])
@@ -260,7 +260,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
         char file[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = kernels, .relative = name, .joined = folder);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "kernel.json", .joined = file);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = seen ? NULL
                                                 : EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                                              .size_pointer = &size, .owner = &g_cli_notebook_cells);
@@ -272,7 +272,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
                    .node_json_node_pointer = s_listing.nodes, .nodes_max = CLI_KERNEL_SPEC_NODES,
                    .text_out = s_listing.text, .text_max = CLI_KERNEL_SPEC_TEXT);
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea unread = {why, sizeof(why), 0ull};
+        VerbaLinea unread = {why, sizeof(why), 0ULL};
         // a spec is read as a text, which is UTF-8 whole
         const unsigned int root =
             EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size)
@@ -301,7 +301,7 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
         CliKernelSpec *const spec = &s_listing.spec;
         memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
         char name[32];
-        VerbaLinea name_line = {name, sizeof(name), 0ull};
+        VerbaLinea name_line = {name, sizeof(name), 0ULL};
         if ((index == 0u) && args->has_environment)
         {
             mmgr_line_put(&name_line, "python3-tree");
@@ -313,7 +313,7 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
         }
         mmgr_line_finish(&name_line);
         char displayed[CLI_PATH_MAX_LEN + 16u];
-        VerbaLinea displayed_line = {displayed, sizeof(displayed), 0ull};
+        VerbaLinea displayed_line = {displayed, sizeof(displayed), 0ULL};
         mmgr_line_put(&displayed_line, "Python (");
         mmgr_line_put(&displayed_line, python);
         mmgr_line_put(&displayed_line, ")");
@@ -336,12 +336,12 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
         spec->argv_count = 5u;
         spec->interrupt_mode =
             EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "signal", .length = 6u);
-        spec->folder = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "", .length = 0ull);
+        spec->folder = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "", .length = 0ULL);
         spec->install = CLI_KERNEL_NONE;
         if (!EMBED_CALL(cli_jupyter_internal.kernel_has_ipykernel, CliJupyterCtx, .python = python))
         {
             char install[CLI_PATH_MAX_LEN + 48u];
-            VerbaLinea line = {install, sizeof(install), 0ull};
+            VerbaLinea line = {install, sizeof(install), 0ULL};
             mmgr_line_ch(&line, '"');
             mmgr_line_put(&line, python);
             mmgr_line_put(&line, "\" -m pip install ipykernel");
@@ -401,7 +401,7 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
 {
     const CliKernelSpec *spec = args->spec;
     VerbaLinea *const out = (VerbaLinea *)args->context;
-    const char last = (out->at > 0ull) ? out->out[out->at - 1ull] : '[';
+    const char last = (out->at > 0ULL) ? out->out[out->at - 1ULL] : '[';
     mmgr_line_put(out, (last == '[') ? "{\"name\":" : ",{\"name\":");
     const char *const texts[3] = {
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->name),
@@ -430,7 +430,7 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = mode,
                .length = cellul.len(&(CatenaFinitaCfg){.src = mode, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"env\":{");
-    unsigned int order[CLI_KERNEL_SETTINGS];
+    unsigned int order[CLI_KERNEL_SETTINGS] = {0u};
     for (unsigned int at = 0u; at < spec->env_count; at += 1u)
     {
         // the names in their bytes' order, as a BTreeMap orders them

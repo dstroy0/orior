@@ -19,11 +19,11 @@ static unsigned int s_mounts;
 int cli_is_tree_root(const CliWordsErrMsgCtx *args)
 {
     char marker[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {marker, sizeof(marker), 0ull};
+    VerbaLinea line = {marker, sizeof(marker), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, CLI_TREE_MARKER);
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = marker);
 }
 
@@ -72,7 +72,7 @@ EMBED_INLINE int cli_tree_above(const RootCtx *args)
         const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        slash = (slash_end != 0ull) ? (folder + (slash_end - 1ull)) : slash;
+        slash = (slash_end != 0ULL) ? (folder + (slash_end - 1ULL)) : slash;
         // a root, `C:\` or `/`, stands where no separator is left past its first
         if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
         {
@@ -91,7 +91,7 @@ int cli_tree_on_find(const CliTreeCtx *args)
 {
     char named[CLI_PATH_MAX_LEN];
     char err_buf[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_ROOT",
                    .value_out = named, .capacity = sizeof(named)) &&
         EMBED_CALL(cli_path_err_msg_full_internal.tree_at, CliPathErrMsgFullCtx, .path = named, .full = args->tree,
@@ -114,7 +114,7 @@ int cli_tree_on_find(const CliTreeCtx *args)
         const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = program,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        slash = (slash_end != 0ull) ? (program + (slash_end - 1ull)) : slash;
+        slash = (slash_end != 0ULL) ? (program + (slash_end - 1ULL)) : slash;
         if (slash != NULL)
         {
             *slash = '\0';
@@ -153,26 +153,25 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
         return 0;
     }
     // the last part of the path, each separator in it made `_`
-    const char *base = full;
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
     const unsigned long long saved =
-        ((whole != 0ull) && ((full[whole - 1ull] == '/') || (full[whole - 1ull] == '\\'))) ? (whole - 1ull) : whole;
-    base = full + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full, .at = saved,
-                             .set = "/\\");
+        ((whole != 0ULL) && ((full[whole - 1ULL] == '/') || (full[whole - 1ULL] == '\\'))) ? (whole - 1ULL) : whole;
+    const char *const base = full + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
+                                               .at = saved, .set = "/\\");
     char stem[CLI_NAME_MAX_LEN];
-    VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
+    VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
     EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .out = &stem_line, .text = base, .set = "/\\",
                .with = "_");
-    if ((mmgr_line_finish(&stem_line) == 0ull) || (stem[0] == '\0'))
+    if ((mmgr_line_finish(&stem_line) == 0ULL) || (stem[0] == '\0'))
     {
         memor.cpy(&(MemoriaCfg){.dst = stem,
                                 .src = "folder",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "folder", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    VerbaLinea name_line = {args->name_out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea name_line = {args->name_out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&name_line, stem);
     mmgr_line_finish(&name_line);
-    for (unsigned long long count = 2ull;; count += 1ull)
+    for (unsigned long long count = 2ULL;; count += 1ULL)
     {
         int reserved = 0;
         for (unsigned int at = 0u; !reserved && (at < s_mounts); at += 1u)
@@ -184,7 +183,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
         {
             break;
         }
-        name_line.at = 0ull;
+        name_line.at = 0ULL;
         mmgr_line_put(&name_line, stem);
         mmgr_line_ch(&name_line, '-');
         mmgr_line_decimal(&name_line, count, 0u);
@@ -232,7 +231,7 @@ unsigned int cli_mounts(const CliCapacityNamesCtx *args)
 
 int cli_inside(const CliRootCtx *args)
 {
-    VerbaLinea line = {args->joined, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->joined, CLI_PATH_MAX_LEN, 0ULL};
     const char *rest = args->relative;
     if (args->relative[0] == '@')
     {
@@ -288,20 +287,20 @@ int cli_inside(const CliRootCtx *args)
         mmgr_line_put(args->err_msg, " is outside the tree");
         return 0;
     }
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 void cli_full(const CliRootCtx *args)
 {
     char err_buf[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->relative,
                     .joined = args->joined, .err_msg = &err_msg))
     {
         // a whole path is the path it names, and any other is written under the tree
         const int whole = (args->relative[0] == '/') || (args->relative[0] == '\\') ||
                           ((args->relative[0] != '\0') && (args->relative[1] == ':'));
-        VerbaLinea line = {args->joined, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->joined, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, whole ? "" : args->root);
         mmgr_line_put(&line, whole ? "" : "/");
         mmgr_line_put(&line, args->relative);
@@ -320,7 +319,7 @@ EMBED_INLINE int cli_starts_with(const RootCtx *args)
 
 void cli_relative(const CliPathRootCtx *args)
 {
-    VerbaLinea line = {args->relative_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->relative_out, CLI_PATH_MAX_LEN, 0ULL};
     const char *rest = args->path;
     if (!EMBED_CALL(cli_starts_with, RootCtx, .path = args->path, .base = args->root))
     {
@@ -347,8 +346,8 @@ void cli_relative(const CliPathRootCtx *args)
                 mmgr_line_ch(&line, '/');
                 rest += 1;
             }
-            rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\',
-                               .to = '/');
+            (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\',
+                             .to = '/');
             mmgr_line_finish(&line);
             return;
         }
@@ -358,27 +357,27 @@ void cli_relative(const CliPathRootCtx *args)
         rest = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
         rest += ((*rest == '/') || (*rest == '\\')) ? 1 : 0;
     }
-    rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
     mmgr_line_finish(&line);
 }
 
 int cli_path_parent(const CliPathOutKindCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    const unsigned long long root = ((length >= 2ull) && (args->path[1] == ':')) ? 3ull : 1ull;
+    const unsigned long long root = ((length >= 2ULL) && (args->path[1] == ':')) ? 3ULL : 1ULL;
     length = (root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path + root,
                                 .at = length - root, .set = "/\\"));
     unsigned long long slash = length;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         slash = ((args->path[at] == '/') || (args->path[at] == '\\')) ? at : slash;
     }
-    if ((slash == length) || ((slash + 1ull) == length))
+    if ((slash == length) || ((slash + 1ULL) == length))
     {
         return 0;
     }
     const unsigned long long cut = (slash < root) ? root : slash;
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, args->path, (cut > length) ? length : cut);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }

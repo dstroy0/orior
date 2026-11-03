@@ -94,7 +94,7 @@ int cli_prints_line(const CliPrintsPathCfg *args)
     (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = extension,
                      .capacity = sizeof(extension), .text = (dot != NULL) ? (dot + 1) : "");
     // the line with the whitespace at its start left off
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     while (from < args->length)
     {
         unsigned int letter = 0u;
@@ -112,17 +112,17 @@ int cli_prints_line(const CliPrintsPathCfg *args)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = start[0], .cap = CLI_CELLS_POOL});
         // a start of no bytes has no last byte to read
-        if ((size == 0ull) || ((args->length - from) < size) ||
+        if ((size == 0ULL) || ((args->length - from) < size) ||
             (memor.cmp(&(MemoriaCfg){.src = args->text + from, .other = start[0], .bytes = size}) != 0))
         {
             continue;
         }
-        const char last = start[0][size - 1ull];
+        const char last = start[0][size - 1ULL];
         const int joined =
             (last == '(') || (last == '<') || (last == ' ') ||
-            ((size >= 6ull) &&
-             ((memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ull, .other = "stderr", .bytes = 6u}) == 0) ||
-              (memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ull, .other = "stdout", .bytes = 6u}) == 0)));
+            ((size >= 6ULL) &&
+             ((memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ULL, .other = "stderr", .bytes = 6u}) == 0) ||
+              (memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ULL, .other = "stdout", .bytes = 6u}) == 0)));
         const unsigned long long rest = from + size;
         if (joined || ((rest < args->length) && ((args->text[rest] == ' ') || (args->text[rest] == '('))))
         {
@@ -142,5 +142,3 @@ typedef struct
     CliRepositories repositories;
     CliChangedList changed;
 } CliPrints;
-
-static CliPrints *s_prints;

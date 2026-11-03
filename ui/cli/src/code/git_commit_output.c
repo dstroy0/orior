@@ -8,22 +8,22 @@
 void cli_git_commit_line(const CliGitLengthOutCtx *args)
 {
     const char *first = NULL;
-    unsigned long long first_length = 0ull;
+    unsigned long long first_length = 0ULL;
     const char *line = args->output;
     const char *const end = args->output + args->length;
     while (line < end)
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = (unsigned long long)(end - stop), .set = "\n");
         const unsigned long long size =
-            (unsigned long long)(stop - line) - (((stop > line) && (stop[-1] == '\r')) ? 1ull : 0ull);
+            (unsigned long long)(stop - line) - (((stop > line) && (stop[-1] == '\r')) ? 1ULL : 0ULL);
         if (first == NULL)
         {
             first = line;
             first_length = size;
         }
-        if ((size != 0ull) && (line[0] == '['))
+        if ((size != 0ULL) && (line[0] == '['))
         {
             mmgr_line_put_n(args->out, line, size);
             return;
@@ -38,7 +38,7 @@ void cli_git_commit_line(const CliGitLengthOutCtx *args)
 
 void cli_git_failed_after(const CliGitLengthCtx *args)
 {
-    const unsigned long long joined_capacity = (args->out_read->at - args->from_u64) + args->length + 2ull;
+    const unsigned long long joined_capacity = (args->out_read->at - args->from_u64) + args->length + 2ULL;
     char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_capacity, &g_cli_code_cells);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)

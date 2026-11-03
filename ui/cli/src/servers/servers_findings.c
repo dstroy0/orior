@@ -24,7 +24,7 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
 {
     char *uri = args->uri;
     char *key = args->key;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const named =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_found.json,
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -50,19 +50,19 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
 {
     const char *key = args->key_read;
     const char *adjacent = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const stored =
         EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key,
                    .adjacent = &adjacent, .size = &size);
     unsigned int nodes_more = 1u;
-    unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1ull;
+    unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1ULL;
     EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = &s_found.json,
                .node = args->items, .nodes_pointer = &nodes_more, .text_u64s = &text_more);
     char quiet[256];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     unsigned int entry = CLI_JSON_NONE;
     if (stored != NULL)
     {

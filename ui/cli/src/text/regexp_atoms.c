@@ -101,8 +101,8 @@ static int cli_escape(const RegexpAtomsCtx *args)
     {
         if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '{'))
         {
-            unsigned long long code = 0ull;
-            unsigned long long digits = 0ull;
+            unsigned long long code = 0ULL;
+            unsigned long long digits = 0ULL;
             unsigned int digit = 0u;
             while (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
                               .reader_read = reader, .letter = &digit) &&
@@ -110,7 +110,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
                     ((digit >= 'A') && (digit <= 'F'))))
             {
                 code = (code << 4u) | ((digit <= '9') ? (digit - '0') : ((digit | 0x20u) - 'a' + 10u));
-                digits += 1ull;
+                digits += 1ULL;
                 reader->at += 1u;
             }
             if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '}'))
@@ -120,8 +120,8 @@ static int cli_escape(const RegexpAtomsCtx *args)
                 return CLI_ESCAPE_FAILED;
             }
             // a code past what a character represents, or none, reads as `u`
-            const int valid = (digits != 0ull) && (digits <= 6ull) && (code <= 0x10ffffull) &&
-                              !((code >= 0xd800ull) && (code <= 0xdfffull));
+            const int valid = (digits != 0ULL) && (digits <= 6ULL) && (code <= 0x10ffffULL) &&
+                              !((code >= 0xd800ULL) && (code <= 0xdfffULL));
             *letter = valid ? (unsigned int)code : 'u';
         }
         else

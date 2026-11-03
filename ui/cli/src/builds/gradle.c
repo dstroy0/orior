@@ -139,13 +139,13 @@ const char *const *cli_gradle_block_words(const CliGradleSizeCtx *args)
 void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->class_of, .val = CLI_GRADLE_CODE, .bytes = (size_t)args->size});
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const rest = args->text + at;
         const unsigned long long left = args->size - at;
         unsigned char kind = CLI_GRADLE_CODE;
         unsigned long long end = at;
-        unsigned long long found = 0ull;
+        unsigned long long found = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = rest, .size = left, .prefix = "//"))
         {
             kind = CLI_GRADLE_COMMENT;
@@ -273,7 +273,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     script->declares = 0u;
     // a byte past the text, so a script of no bytes is a cell too
     script->class_of =
-        (size <= CLI_GRADLE_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_gradle_cells) : NULL;
+        (size <= CLI_GRADLE_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_gradle_cells) : NULL;
     if (script->class_of == NULL)
     {
         return 0;
@@ -281,20 +281,20 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     EMBED_CALL(cli_gradle_text_size_class_of_internal.classes, CliGradleTextSizeClassOfCtx, .text = text, .size = size,
                .class_of = script->class_of);
     // the braces in code counted, so the blocks, the braces still open and the stray ones are cells of as many
-    unsigned long long opens = 0ull;
-    unsigned long long closes = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    unsigned long long opens = 0ULL;
+    unsigned long long closes = 0ULL;
+    for (unsigned long long at = 0ULL; at < size; at += 1u)
     {
-        opens += ((script->class_of[at] == CLI_GRADLE_CODE) && (text[at] == '{')) ? 1ull : 0ull;
-        closes += ((script->class_of[at] == CLI_GRADLE_CODE) && (text[at] == '}')) ? 1ull : 0ull;
+        opens += ((script->class_of[at] == CLI_GRADLE_CODE) && (text[at] == '{')) ? 1ULL : 0ULL;
+        closes += ((script->class_of[at] == CLI_GRADLE_CODE) && (text[at] == '}')) ? 1ULL : 0ULL;
     }
     opens = (opens < CLI_GRADLE_BLOCKS) ? opens : CLI_GRADLE_BLOCKS;
     closes = (closes < CLI_GRADLE_BLOCKS) ? closes : CLI_GRADLE_BLOCKS;
-    script->block = g_cli_cells->persistent_buf_alloc((opens + 1ull) * sizeof(CliGradleBlock), &g_cli_gradle_cells);
+    script->block = g_cli_cells->persistent_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), &g_cli_gradle_cells);
     script->stray =
-        g_cli_cells->persistent_buf_alloc((closes + 1ull) * sizeof(unsigned long long), &g_cli_gradle_cells);
+        g_cli_cells->persistent_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), &g_cli_gradle_cells);
     unsigned int *const opened =
-        g_cli_cells->temporary_buf_alloc((opens + 1ull) * sizeof(unsigned int), &g_cli_gradle_cells);
+        g_cli_cells->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), &g_cli_gradle_cells);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
         g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
@@ -302,7 +302,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
         return 0;
     }
     unsigned int open = 0u;
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    for (unsigned long long at = 0ULL; at < size; at += 1u)
     {
         if (script->class_of[at] != CLI_GRADLE_CODE)
         {
@@ -370,7 +370,7 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         unsigned long long start =
             EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = lines, .line = line);
         start = (start > block_at->open + 1u) ? start : block_at->open + 1u;
-        unsigned long long found = 0ull;
+        unsigned long long found = 0ULL;
         unsigned long long line_end =
             (start < g_cli_gradle.size) && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + start,
                                                       .length_value = g_cli_gradle.size - start, .required = "\n",
@@ -392,7 +392,7 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         unsigned long long word = at;
         while (word < line_end)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
                             .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = line_end,
                                                  .at = word, .length = &length)))
@@ -444,13 +444,13 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
     const char *const text = g_cli_gradle.text;
     const unsigned long long size = g_cli_gradle.size;
     static const char *const s_calls[3] = {"create(", "register(", "maybeCreate("};
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    for (unsigned long long at = 0ULL; at < size; at += 1u)
     {
         for (unsigned int call = 0u; call < 3u; call += 1u)
         {
             const unsigned long long length =
                 cellul.len(&(CatenaFinitaCfg){.src = s_calls[call], .cap = CLI_CELLS_POOL});
-            unsigned long long before = 0ull;
+            unsigned long long before = 0ULL;
             if (!EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
                             .prefix = s_calls[call]) ||
                 (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE) ||
@@ -470,17 +470,17 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
             }
         }
     }
-    for (unsigned long long start = 0ull; start < size;)
+    for (unsigned long long start = 0ULL; start < size;)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = start, .size = size).stop;
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start, .size = end - start,
                    .from_u64s = &from, .to_u64s = &to);
         const char *const line = text + start + from;
         const unsigned long long line_size = to - from;
-        unsigned long long found = 0ull;
+        unsigned long long found = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = line_size,
                        .prefix = "val ") &&
             (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = line + 4u, .length_value = line_size - 4u,
@@ -490,9 +490,9 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
              EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = line + 4u, .length_value = line_size - 4u,
                         .required = "by creating", .size = 11u, .at_pointer = &found)))
         {
-            unsigned long long walk = 0ull;
-            unsigned long long word = 0ull;
-            unsigned long long length = 0ull;
+            unsigned long long walk = 0ULL;
+            unsigned long long word = 0ULL;
+            unsigned long long length = 0ULL;
             if (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = line + 4u, .size = line_size - 4u,
                            .at_pointer = &walk, .word = &word, .length = &length))
             {

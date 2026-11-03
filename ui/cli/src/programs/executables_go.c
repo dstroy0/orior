@@ -33,10 +33,10 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
                              .path = path, .depth = walk->at_depth + 1u);
         }
     }
-    else if (!walk->main && (length > 3ull) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 3ull, .other = ".go", .cap = CLI_CELLS_POOL})) &&
-             !((length > 8ull) && (cellul.eq(&(CatenaFinitaCfg){
-                                      .src = name + length - 8ull, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
+    else if (!walk->main && (length > 3ULL) &&
+             (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 3ULL, .other = ".go", .cap = CLI_CELLS_POOL})) &&
+             !((length > 8ULL) && (cellul.eq(&(CatenaFinitaCfg){
+                                      .src = name + length - 8ULL, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
     {
         char package[CLI_NAME_MAX_LEN];
         char *const text = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
@@ -57,16 +57,16 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
     for (const char *line = args->text; line[0] != '\0';)
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
-        if ((length >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "module ", .bytes = 7u}) == 0))
+        if ((length >= 7ULL) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "module ", .bytes = 7u}) == 0))
         {
             EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx,
-                       .value = from + 7, .length = length - 7ull, .out = path, .capacity = sizeof(path));
+                       .value = from + 7, .length = length - 7ULL, .out = path, .capacity = sizeof(path));
             break;
         }
         line = (stop[0] != '\0') ? (stop + 1) : stop;
@@ -105,7 +105,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
                    1)
                 : named;
         char displayed[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {displayed, sizeof(displayed), 0ull};
+        VerbaLinea line = {displayed, sizeof(displayed), 0ULL};
         mmgr_line_put(&line, (package[0] == '\0') ? "." : "./");
         mmgr_line_put(&line, package);
         mmgr_line_finish(&line);
@@ -205,10 +205,10 @@ void cli_npm_builders(const CliExecutablesFolderCtx *args)
     }
     char found[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int has_bun = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "bun", .name = "bun",
                                    .path = found, .err_msg = &err_msg);
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     const int has_deno = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "deno", .name = "deno",
                                     .path = found, .err_msg = &err_msg);
     // the bundlers the machine has first, Bun before Deno where it has both or neither

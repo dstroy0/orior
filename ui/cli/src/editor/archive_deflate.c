@@ -50,7 +50,7 @@ unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args)
         s_created = 1;
     }
     unsigned int crc = 0xffffffffu;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         crc = s_table[(crc ^ args->bytes[at]) & 0xffu] ^ (crc >> 8u);
     }
@@ -85,7 +85,7 @@ EMBED_INLINE int cli_alloc(const ArchiveDeflateCtx *args)
             return 0;
         }
         args->bits->bit_buf |= (unsigned int)args->bits->data[args->bits->at] << args->bits->count;
-        args->bits->at += 1ull;
+        args->bits->at += 1ULL;
         args->bits->count += 8u;
     }
     *value = args->bits->bit_buf & ((count == 32u) ? 0xffffffffu : ((1u << count) - 1u));
@@ -178,7 +178,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
             }
             // a literal is below 256, a byte
             args->out[*size] = (unsigned char)symbol;
-            *size += 1ull;
+            *size += 1ULL;
             continue;
         }
         if (symbol == 256u)
@@ -219,10 +219,10 @@ static int cli_codes(const ArchiveDeflateCtx *args)
             return 0;
         }
         const unsigned long long from = *size - distance;
-        for (unsigned long long step = 0ull; step < length; step += 1ull)
+        for (unsigned long long step = 0ULL; step < length; step += 1ULL)
         {
             args->out[*size] = args->out[from + step];
-            *size += 1ull;
+            *size += 1ULL;
         }
     }
 }
@@ -236,8 +236,8 @@ int cli_inflate(const CliArchiveSizeCfg *args)
     static CliHuffman s_lengths_code;
     static const unsigned char s_order[19] = {16u, 17u, 18u, 0u, 8u,  7u, 9u,  6u, 10u, 5u,
                                               11u, 4u,  12u, 3u, 13u, 2u, 14u, 1u, 15u};
-    CliBits bits = {args->data, args->size, 0ull, 0u, 0u};
-    *out_size = 0ull;
+    CliBits bits = {args->data, args->size, 0ULL, 0u, 0u};
+    *out_size = 0ULL;
     for (;;)
     {
         unsigned int last = 0u;
@@ -254,31 +254,31 @@ int cli_inflate(const CliArchiveSizeCfg *args)
             bits.bit_buf = 0u;
             bits.count = 0u;
             const unsigned long long at = bits.at;
-            if ((at + 4ull) > args->size)
+            if ((at + 4ULL) > args->size)
             {
                 mmgr_line_put(args->err_msg, "a stored block's header is cut");
                 done = 0;
             }
-            const unsigned int length = done ? (args->data[at] | ((unsigned int)args->data[at + 1ull] << 8u)) : 0u;
+            const unsigned int length = done ? (args->data[at] | ((unsigned int)args->data[at + 1ULL] << 8u)) : 0u;
             const unsigned int check =
-                done ? (args->data[at + 2ull] | ((unsigned int)args->data[at + 3ull] << 8u)) : 0u;
+                done ? (args->data[at + 2ULL] | ((unsigned int)args->data[at + 3ULL] << 8u)) : 0u;
             if (done && (length != ((~check) & 0xffffu)))
             {
                 mmgr_line_put(args->err_msg, "a stored block's length does not check");
                 done = 0;
             }
-            if (done && (((at + 4ull + length) > args->size) || ((*out_size + length) > args->capacity)))
+            if (done && (((at + 4ULL + length) > args->size) || ((*out_size + length) > args->capacity)))
             {
-                mmgr_line_put(args->err_msg, ((at + 4ull + length) > args->size)
+                mmgr_line_put(args->err_msg, ((at + 4ULL + length) > args->size)
                                                  ? "a stored block is cut"
                                                  : "the inflated data is larger than orior_cli supports");
                 done = 0;
             }
             if (done)
             {
-                memor.cpy(&(MemoriaCfg){.dst = args->out + *out_size, .src = args->data + at + 4ull, .bytes = length});
+                memor.cpy(&(MemoriaCfg){.dst = args->out + *out_size, .src = args->data + at + 4ULL, .bytes = length});
                 *out_size += length;
-                bits.at = at + 4ull + length;
+                bits.at = at + 4ULL + length;
             }
         }
         else if (kind == 1u)

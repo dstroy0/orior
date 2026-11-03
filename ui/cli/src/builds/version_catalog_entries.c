@@ -38,15 +38,15 @@ EMBED_INLINE int entries_parts(const VersionCatalogEntriesCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned int parts = 0u;
-    unsigned long long start = 0ull;
-    for (unsigned long long at = 0ull; at <= size; at += 1u)
+    unsigned long long start = 0ULL;
+    for (unsigned long long at = 0ULL; at <= size; at += 1u)
     {
         if ((at < size) && (text[at] != ':'))
         {
             continue;
         }
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start, .size = at - start,
                    .from_u64s = &from, .to_u64s = &to);
         if (to == from)
@@ -130,7 +130,7 @@ EMBED_INLINE void entries_library(const VersionCatalogEntriesCtx *args)
                                                      .key = "group", .present = &group_present);
     const CliVersionsField *const name = EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry,
                                                     .key = "name", .present = &name_present);
-    VerbaLinea coordinates = {check->coordinates, check->capacity, 0ull};
+    VerbaLinea coordinates = {check->coordinates, check->capacity, 0ULL};
     if (module != NULL)
     {
         if (!EMBED_CALL(entries_parts, VersionCatalogEntriesCtx,
@@ -227,7 +227,7 @@ EMBED_INLINE void entries_bundle(const VersionCatalogEntriesCtx *args)
         const char *const text =
             EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = member->text_at);
         char accessor[1u << 12u];
-        VerbaLinea line = {accessor, sizeof(accessor), 0ull};
+        VerbaLinea line = {accessor, sizeof(accessor), 0ULL};
         if (EMBED_CALL(cli_version_catalog_size_out_internal.versions_contains, CliVersionCatalogSizeOutCtx,
                        .names = &g_cli_versions_libraries, .name = text, .size = member->text_size, .out = &line))
         {
@@ -254,7 +254,7 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
     const char *const alias =
         EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = args->entry->key_at);
     char named[1u << 12u];
-    VerbaLinea line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ULL};
     EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                .alias = alias, .size = args->entry->key_size, .out = &line);
     for (unsigned int above = args->first; above != CLI_VERSIONS_NONE; above = g_cli_versions.field[above].next)
@@ -265,13 +265,13 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
             break;
         }
         char other_named[1u << 12u];
-        VerbaLinea other_line = {other_named, sizeof(other_named), 0ull};
+        VerbaLinea other_line = {other_named, sizeof(other_named), 0ULL};
         EMBED_CALL(
             cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
             .alias = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = other->key_at),
             .size = other->key_size, .out = &other_line);
         if ((other_line.at == line.at) &&
-            (memor.cmp(&(MemoriaCfg){.src = other_named, .other = named, .bytes = (size_t)line.at}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = other_named, .other = named, .bytes = line.at}) == 0))
         {
             VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
             mmgr_line_ch(&msg, '`');
@@ -299,7 +299,7 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
                    .rest = "` is no alias: an alias starts with a lowercase letter and goes on in letters, "
                            "digits, `-`, `_` and `.`");
     }
-    const char *const dot = memor.chr(&(MemoriaCfg){.src = named, .val = '.', .bytes = (size_t)line.at});
+    const char *const dot = memor.chr(&(MemoriaCfg){.src = named, .val = '.', .bytes = line.at});
     const unsigned long long head = (dot != NULL) ? (unsigned long long)(dot - named) : line.at;
     for (unsigned int at = 0u;
          (cellul.eq(&(CatenaFinitaCfg){.src = args->section, .other = "libraries", .cap = CLI_CELLS_POOL})) &&
@@ -358,7 +358,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = above) ||
         !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = above, .out = folder))
     {
-        VerbaLinea copy = {folder, sizeof(folder), 0ull};
+        VerbaLinea copy = {folder, sizeof(folder), 0ULL};
         mmgr_line_put(&copy, root);
         (void)mmgr_line_finish(&copy);
     }
@@ -379,8 +379,8 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     }
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
-    s_check.capacity = g_cli_versions.used + 2ull;
-    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ull * s_check.capacity, &g_cli_versions_cells);
+    s_check.capacity = g_cli_versions.used + 2ULL;
+    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ULL * s_check.capacity, &g_cli_versions_cells);
     s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.capacity : NULL;
     const int met = (s_check.coordinates != NULL) &&
                     EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,

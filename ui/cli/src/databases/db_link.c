@@ -98,7 +98,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
         return args->link->lite != NULL;
     }
     char warned[CLI_NAME_MAX_LEN + 64u];
-    VerbaLinea line = {warned, sizeof(warned), 0ull};
+    VerbaLinea line = {warned, sizeof(warned), 0ULL};
     mmgr_line_put(&line, args->config->kind);
     mmgr_line_put(&line, " is no kind of database orior_cli supports");
     mmgr_line_finish(&line);
@@ -164,7 +164,7 @@ int cli_db_link_all(const CliDbLinkFailureStatementCtx *args)
     for (int done = !EMBED_CALL(cli_db_internal.link_head, CliDbCtx, .link_read = args->link)->rows; !done;)
     {
         if (!EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = args->link,
-                        .count = 4096ull, .each_row = args->each_row, .context = args->context, .done = &done,
+                        .count = 4096ULL, .each_row = args->each_row, .context = args->context, .done = &done,
                         .tag = tag, .failure = args->failure))
         {
             return 0;
@@ -234,12 +234,12 @@ static int link_warning(const CliDbRowCfg *args)
 {
     CliDbLinkWarnings *const warnings = (CliDbLinkWarnings *)args->context;
     char notice[CLI_DB_FIELD];
-    VerbaLinea line = {notice, sizeof(notice), 0ull};
+    VerbaLinea line = {notice, sizeof(notice), 0ULL};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         if (!args->values[at].null)
         {
-            mmgr_line_put(&line, (line.at > 0ull) ? " " : "");
+            mmgr_line_put(&line, (line.at > 0ULL) ? " " : "");
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                        .text_bytes = (const unsigned char *)args->values[at].text, .length = args->values[at].size);
         }
@@ -277,7 +277,7 @@ void cli_db_link_notices(const CliDbLinkContextCtx *args)
     if (warnings.warned == 0u)
     {
         char notice[64];
-        VerbaLinea line = {notice, sizeof(notice), 0ull};
+        VerbaLinea line = {notice, sizeof(notice), 0ULL};
         mmgr_line_decimal(&line, count, 1u);
         mmgr_line_put(&line, (count == 1u) ? " warning" : " warnings");
         mmgr_line_finish(&line);

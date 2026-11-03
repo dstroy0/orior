@@ -76,7 +76,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliJson *const to = &args->place->start;
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long parent = 0ull;
+    unsigned long long parent = 0ULL;
     args->plan->has_created = 0;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
@@ -158,7 +158,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = args->plan->spec,
                    .name = "program",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                       .json = to, .text = "orior", .length = 5ull));
+                                       .json = to, .text = "orior", .length = 5ULL));
         EMBED_CALL(
             cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = args->plan->spec,
             .name = "launch",
@@ -305,7 +305,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "module",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                       .json = to, .text = "pytest", .length = 6ull));
+                                       .json = to, .text = "pytest", .length = 6ULL));
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "args", .value = args_local);
         if (EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python))
@@ -326,12 +326,12 @@ EMBED_INLINE int start_process(const DebugStartCtx *args)
 {
     const CliJson *json = args->json;
     CliJson *const to = &args->place->start;
-    unsigned long long pid = 0ull;
+    unsigned long long pid = 0ULL;
     if (!EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx, .json = json,
                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                        .object = args->start, .name = "pid"),
                     .value_u64s = &pid) ||
-        (pid > 0xffffffffull))
+        (pid > 0xffffffffULL))
     {
         mmgr_line_put(args->err_msg, "missing field `pid`");
         return 0;
@@ -344,7 +344,7 @@ EMBED_INLINE int start_process(const DebugStartCtx *args)
     args->plan->has_pid = 1;
     args->plan->pid = (unsigned int)pid;
     char number[32];
-    VerbaLinea pid_line = {number, sizeof(number), 0ull};
+    VerbaLinea pid_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&pid_line, pid, 1u);
     mmgr_line_finish(&pid_line);
     unsigned int template = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = to,
@@ -355,14 +355,14 @@ EMBED_INLINE int start_process(const DebugStartCtx *args)
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = template,
                    .name = "pid",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                       .json = to, .text = "{pid}", .length = 5ull));
+                                       .json = to, .text = "{pid}", .length = 5ULL));
     }
     const char *const names[2] = {"pid", "root"};
     const char *const withs[2] = {number, args->root};
     args->plan->request = "attach";
     args->plan->arguments = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = to, .json = to,
                                        .from = template, .names = names, .withs = withs, .count = 2u, .numbered = 1);
-    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
+    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ULL};
     mmgr_line_put(&name, args->plan->has_parent ? "the native code of process " : "process ");
     mmgr_line_put(&name, number);
     mmgr_line_finish(&name);
@@ -395,8 +395,8 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = config, .name = "name"),
                        .length_pointer = NULL);
-        unsigned long long sub = 0ull;
-        VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
+        unsigned long long sub = 0ULL;
+        VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ULL};
         if (named != NULL)
         {
             mmgr_line_put(&name, named);
@@ -417,14 +417,14 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
         mmgr_line_finish(&name);
         const unsigned int connect = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = json, .object = config, .name = "connect");
-        unsigned long long port = 0ull;
+        unsigned long long port = 0ULL;
         args->plan->listening = EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned,
                                            CliDebugJsonNodeValueU64sCtx, .json = json,
                                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                               .json_read = json, .object = connect, .name = "port"),
                                            .value_u64s = &port);
         // a port retains its low 16 bits, as the protocol's ports are
-        args->plan->port = (unsigned int)(port & 0xffffull);
+        args->plan->port = (unsigned int)(port & 0xffffULL);
         memor.cpy(&(MemoriaCfg){
             .dst = args->plan->host,
             .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = json,
@@ -442,7 +442,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
         args->plan->ends_program = 1;
         return 1;
     }
-    unsigned long long port = 0ull;
+    unsigned long long port = 0ULL;
     if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "host",
                     .out = args->plan->host, .capacity = sizeof(args->plan->host), .err_msg = args->err_msg))
     {
@@ -452,7 +452,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                        .object = args->start, .name = "port"),
                     .value_u64s = &port) ||
-        (port > 0xffffull))
+        (port > 0xffffULL))
     {
         mmgr_line_put(args->err_msg, "missing field `port`");
         return 0;
@@ -470,7 +470,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
                             .text = args->plan->host,
                             .length = cellul.len(&(CatenaFinitaCfg){.src = args->plan->host, .cap = CLI_CELLS_POOL})));
     char number[32];
-    VerbaLinea port_line = {number, sizeof(number), 0ull};
+    VerbaLinea port_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&port_line, port, 1u);
     mmgr_line_finish(&port_line);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = connect,
@@ -506,7 +506,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "pathMappings", .value = mappings);
     }
-    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
+    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ULL};
     mmgr_line_put(&name, args->plan->host);
     mmgr_line_ch(&name, ':');
     mmgr_line_put(&name, number);

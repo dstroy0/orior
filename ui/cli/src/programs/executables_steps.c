@@ -110,7 +110,7 @@ EMBED_INLINE void cli_script_get(const ExecutablesStepsCtx *args)
 // `inner` under the script's folder, as a path in the tree, into `out`
 EMBED_INLINE void cli_under_folder(const ExecutablesStepsCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
         mmgr_line_put(&line, args->folder);
@@ -129,7 +129,7 @@ int cli_executables_job_begin(const CliExecutablesRootCtx *args)
     EMBED_CALL(cli_script_get, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .out = script);
     EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
                .script = args->exe->script, .out = folder);
-    VerbaLinea about = {s_about, sizeof(s_about), 0ull};
+    VerbaLinea about = {s_about, sizeof(s_about), 0ULL};
     if (args->exe->kind == CLI_KIND_CARGO)
     {
         mmgr_line_put(&about, "cargo builds the ");
@@ -199,7 +199,7 @@ int cli_executables_job_begin(const CliExecutablesRootCtx *args)
     }
     mmgr_line_finish(&about);
     char id[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
-    VerbaLinea named = {id, sizeof(id), 0ull};
+    VerbaLinea named = {id, sizeof(id), 0ULL};
     mmgr_line_put(&named, "executable/");
     mmgr_line_put(&named, script);
     mmgr_line_ch(&named, ':');
@@ -217,7 +217,7 @@ EMBED_INLINE void cli_cargo_steps(const ExecutablesStepsCtx *args)
     CliCatalog *catalog = args->catalog;
     static const char *const s_vv[1] = {"-vv"};
     char remap[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {remap, sizeof(remap), 0ull};
+    VerbaLinea line = {remap, sizeof(remap), 0ULL};
     mmgr_line_put(&line, "build.rustflags=['--remap-path-prefix=");
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "=.']");
@@ -350,7 +350,7 @@ EMBED_INLINE void cli_go_steps(const ExecutablesStepsCtx *args)
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "build");
     char out[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ULL};
     if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-C");
@@ -415,7 +415,7 @@ EMBED_INLINE void cli_npm_steps(const ExecutablesStepsCtx *args)
     CliCatalog *catalog = args->catalog;
     static const char *const s_debug[1] = {"--log-level=debug"};
     char out[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ULL};
     mmgr_line_put(&line, "build/exe/");
     mmgr_line_put(&line, args->exe->name);
     mmgr_line_finish(&line);

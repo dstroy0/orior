@@ -11,7 +11,7 @@
 // the most lines of a file read, and the bytes its pool reserves past twice the file's, every text stored being of the
 // file and its address the only one stored twice
 #define CLI_REQUESTS_LINES (1u << 18u)
-#define CLI_REQUESTS_POOL_MORE 64ull
+#define CLI_REQUESTS_POOL_MORE 64ULL
 
 CliRequestsParsed g_cli_requests_parsed;
 
@@ -60,7 +60,7 @@ EMBED_INLINE int parse_begins(const RequestsParseCtx *args)
 // whether a word is all capitals, as a method is
 EMBED_INLINE int parse_is_method(const RequestsParseCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         if ((args->word[at] < 'A') || (args->word[at] > 'Z'))
         {
@@ -74,7 +74,7 @@ EMBED_INLINE int parse_is_method(const RequestsParseCtx *args)
 EMBED_INLINE CliRequestsText parse_store(const RequestsParseCtx *args)
 {
     unsigned long long size = args->size;
-    CliRequestsText text_span = {0ull, 0ull};
+    CliRequestsText text_span = {0ULL, 0ULL};
     if (args->parsed->used + size + 1u > args->parsed->text_capacity)
     {
         args->parsed->full = 1;
@@ -153,8 +153,8 @@ EMBED_INLINE int parse_head_line(const RequestsParseCtx *args)
     {
         return 0;
     }
-    CliRequestsText name = {0ull, 0ull};
-    CliRequestsText value = {0ull, 0ull};
+    CliRequestsText name = {0ULL, 0ULL};
+    CliRequestsText value = {0ULL, 0ULL};
     if (EMBED_CALL(parse_pair, RequestsParseCtx, .parsed = args->parsed, .text = text, .start = start + 1u, .end = end,
                    .split = '=', .name = &name, .value = &value))
     {
@@ -177,7 +177,7 @@ EMBED_INLINE unsigned long long parse_word_end(const RequestsParseCtx *args)
     unsigned long long at = args->at;
     unsigned long long end = args->end;
     while ((at < end) && (EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = text,
-                                     .at = at, .end_value = end) == 0ull))
+                                     .at = at, .end_value = end) == 0ULL))
     {
         at += 1u;
     }
@@ -189,8 +189,8 @@ EMBED_INLINE unsigned long long parse_word_next(const RequestsParseCtx *args)
     const char *text = args->text;
     unsigned long long at = args->at;
     unsigned long long end = args->end;
-    unsigned long long reserved = 1ull;
-    while ((at < end) && (reserved > 0ull))
+    unsigned long long reserved = 1ULL;
+    while ((at < end) && (reserved > 0ULL))
     {
         reserved = EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = text, .at = at,
                               .end_value = end);
@@ -232,7 +232,7 @@ EMBED_INLINE unsigned long long parse_url_lines(const RequestsParseCtx *args)
     unsigned long long size = args->request->url.size;
     while ((at <= args->last) && (s_line_end[at] > s_line_start[at]) &&
            (EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = text,
-                       .at = s_line_start[at], .end_value = s_line_end[at]) > 0ull) &&
+                       .at = s_line_start[at], .end_value = s_line_end[at]) > 0ULL) &&
            !EMBED_CALL(parse_blank, RequestsParseCtx, .text = text, .line = at))
     {
         unsigned long long start = s_line_start[at];
@@ -240,7 +240,7 @@ EMBED_INLINE unsigned long long parse_url_lines(const RequestsParseCtx *args)
         EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = text, .start = &start,
                    .end = &end);
         size += end - start;
-        at += 1ull;
+        at += 1ULL;
     }
     if ((at == first) || (args->parsed->used + size + 1u > args->parsed->text_capacity))
     {
@@ -252,7 +252,7 @@ EMBED_INLINE unsigned long long parse_url_lines(const RequestsParseCtx *args)
                             .src = args->parsed->text + args->request->url.at,
                             .bytes = (size_t)args->request->url.size});
     args->parsed->used += args->request->url.size;
-    for (unsigned long long line = first; line < at; line += 1ull)
+    for (unsigned long long line = first; line < at; line += 1ULL)
     {
         unsigned long long start = s_line_start[line];
         unsigned long long end = s_line_end[line];
@@ -279,14 +279,14 @@ EMBED_INLINE unsigned long long parse_headers(const RequestsParseCtx *args)
         unsigned long long end = s_line_end[at];
         EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = text, .start = &start,
                    .end = &end);
-        at += 1ull;
+        at += 1ULL;
         if ((text[start] == '#') ||
             EMBED_CALL(parse_begins, RequestsParseCtx, .text = text, .start = start, .end = end, .prefix = "//"))
         {
             continue;
         }
-        CliRequestsText name = {0ull, 0ull};
-        CliRequestsText value = {0ull, 0ull};
+        CliRequestsText name = {0ULL, 0ULL};
+        CliRequestsText value = {0ULL, 0ULL};
         if (!EMBED_CALL(parse_pair, RequestsParseCtx, .parsed = args->parsed, .text = text, .start = start, .end = end,
                         .split = ':', .name = &name, .value = &value))
         {
@@ -312,7 +312,7 @@ EMBED_INLINE void parse_body(const RequestsParseCtx *args)
     unsigned long long at = args->at;
     while ((at <= args->last) && EMBED_CALL(parse_blank, RequestsParseCtx, .text = text, .line = at))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     unsigned long long end = at;
     while ((end <= args->last) &&
@@ -321,11 +321,11 @@ EMBED_INLINE void parse_body(const RequestsParseCtx *args)
            !EMBED_CALL(parse_begins, RequestsParseCtx, .text = text, .start = s_line_start[end], .end = s_line_end[end],
                        .prefix = ">> "))
     {
-        end += 1ull;
+        end += 1ULL;
     }
     while ((end > at) && EMBED_CALL(parse_blank, RequestsParseCtx, .text = text, .line = end - 1u))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     if (end == at)
     {
@@ -344,7 +344,7 @@ EMBED_INLINE void parse_body(const RequestsParseCtx *args)
         return;
     }
     unsigned long long size = end - at - 1u;
-    for (unsigned long long line = at; line < end; line += 1ull)
+    for (unsigned long long line = at; line < end; line += 1ULL)
     {
         size += s_line_end[line] - s_line_start[line];
     }
@@ -355,7 +355,7 @@ EMBED_INLINE void parse_body(const RequestsParseCtx *args)
     }
     args->request->body.at = args->parsed->used;
     args->request->body.size = size;
-    for (unsigned long long line = at; line < end; line += 1ull)
+    for (unsigned long long line = at; line < end; line += 1ULL)
     {
         if (line > at)
         {
@@ -392,7 +392,7 @@ EMBED_INLINE int parse_request(const RequestsParseCtx *args)
                    .end = &end);
         args->request->name = EMBED_CALL(parse_store, RequestsParseCtx, .parsed = args->parsed, .text = text + start,
                                          .size = end - start);
-        at += 1ull;
+        at += 1ULL;
     }
     int found = 0;
     while (!found && (at <= args->last))
@@ -401,13 +401,13 @@ EMBED_INLINE int parse_request(const RequestsParseCtx *args)
         unsigned long long end = s_line_end[at];
         EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = text, .start = &start,
                    .end = &end);
-        at += 1ull;
+        at += 1ULL;
         if ((start < end) && !EMBED_CALL(parse_head_line, RequestsParseCtx, .parsed = args->parsed,
                                          .request = args->request, .text = text, .start = start, .end = end))
         {
             EMBED_CALL(parse_request_line, RequestsParseCtx, .parsed = args->parsed, .request = args->request,
                        .text = text, .start = start, .end = end);
-            args->request->line = at - 1ull;
+            args->request->line = at - 1ULL;
             found = 1;
         }
     }
@@ -431,10 +431,10 @@ void cli_requests_parsed_free(const CliRequestsTextSizeParsedCtx *args)
     args->parsed->requests = NULL;
     args->parsed->requests_capacity = 0u;
     args->parsed->text = NULL;
-    args->parsed->text_capacity = 0ull;
+    args->parsed->text_capacity = 0ULL;
     args->parsed->count = 0u;
     args->parsed->variables = 0u;
-    args->parsed->used = 0ull;
+    args->parsed->used = 0ULL;
     args->parsed->full = 0;
 }
 
@@ -443,8 +443,8 @@ EMBED_INLINE unsigned long long parse_lines_count(const RequestsParseCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long lines = 0ull;
-    for (unsigned long long at = 0ull; (at < size) && (lines < CLI_REQUESTS_LINES); lines += 1ull)
+    unsigned long long lines = 0ULL;
+    for (unsigned long long at = 0ULL; (at < size) && (lines < CLI_REQUESTS_LINES); lines += 1ULL)
     {
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).next;
     }
@@ -456,8 +456,8 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long lines = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long lines = 0ULL;
+    unsigned long long at = 0ULL;
     while ((at < size) && (lines < CLI_REQUESTS_LINES))
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
@@ -466,7 +466,7 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
         at = bounds.next;
         end -= bounds.stop - bounds.cut;
         s_line_end[lines] = end;
-        lines += 1ull;
+        lines += 1ULL;
     }
     if (at < size)
     {
@@ -474,19 +474,19 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
         return 0;
     }
     // a request is one part of the file, from its top or a line of `###`, so the parts counted are the most of them
-    unsigned long long parts = (lines > 0ull) ? 1ull : 0ull;
-    for (unsigned long long line = 1ull; line < lines; line += 1ull)
+    unsigned long long parts = (lines > 0ULL) ? 1ULL : 0ULL;
+    for (unsigned long long line = 1ULL; line < lines; line += 1ULL)
     {
         parts += EMBED_CALL(parse_begins, RequestsParseCtx, .text = text,
                             .start = EMBED_CALL(parse_word_next, RequestsParseCtx, .text = text,
                                                 .at = s_line_start[line], .end = s_line_end[line]),
                             .end = s_line_end[line], .prefix = "###")
-                     ? 1ull
-                     : 0ull;
+                     ? 1ULL
+                     : 0ULL;
     }
     parts = (parts < CLI_REQUESTS_MAX) ? parts : CLI_REQUESTS_MAX;
     args->parsed->requests =
-        g_cli_cells->persistent_buf_alloc((parts + 1ull) * sizeof(*args->parsed->requests), &g_cli_requests_cells);
+        g_cli_cells->persistent_buf_alloc((parts + 1ULL) * sizeof(*args->parsed->requests), &g_cli_requests_cells);
     if (args->parsed->requests == NULL)
     {
         args->parsed->full = 1;
@@ -495,19 +495,19 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
     // a part counted is below CLI_REQUESTS_MAX, which an unsigned int stores
     args->parsed->requests_capacity = (unsigned int)parts;
     static CliRequest s_request;
-    unsigned long long first = 0ull;
+    unsigned long long first = 0ULL;
     while (first < lines)
     {
-        unsigned long long next = first + 1ull;
+        unsigned long long next = first + 1ULL;
         while ((next < lines) && !EMBED_CALL(parse_begins, RequestsParseCtx, .text = text,
                                              .start = EMBED_CALL(parse_word_next, RequestsParseCtx, .text = text,
                                                                  .at = s_line_start[next], .end = s_line_end[next]),
                                              .end = s_line_end[next], .prefix = "###"))
         {
-            next += 1ull;
+            next += 1ULL;
         }
         if (EMBED_CALL(parse_request, RequestsParseCtx, .parsed = args->parsed, .request = &s_request, .text = text,
-                       .first = first, .last = next - 1ull))
+                       .first = first, .last = next - 1ULL))
         {
             args->parsed->full = args->parsed->full || (args->parsed->count == args->parsed->requests_capacity);
             if (args->parsed->count < args->parsed->requests_capacity)
@@ -526,15 +526,15 @@ int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args)
     const char *text = args->text;
     cli_requests_text_size_parsed_internal.parsed_free(args);
     const unsigned long long lines = EMBED_CALL(parse_lines_count, RequestsParseCtx, .text = text, .size = args->size);
-    const unsigned long long pool = (2ull * args->size) + CLI_REQUESTS_POOL_MORE;
+    const unsigned long long pool = (2ULL * args->size) + CLI_REQUESTS_POOL_MORE;
     args->parsed->text_capacity = (pool < CLI_REQUESTS_TEXT) ? pool : CLI_REQUESTS_TEXT;
     args->parsed->text = g_cli_cells->persistent_buf_alloc(args->parsed->text_capacity, &g_cli_requests_cells);
     s_line_start =
         (args->parsed->text != NULL)
-            ? g_cli_cells->persistent_buf_alloc((lines + 1ull) * sizeof(*s_line_start), &g_cli_requests_cells)
+            ? g_cli_cells->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_start), &g_cli_requests_cells)
             : NULL;
     s_line_end = (s_line_start != NULL)
-                     ? g_cli_cells->persistent_buf_alloc((lines + 1ull) * sizeof(*s_line_end), &g_cli_requests_cells)
+                     ? g_cli_cells->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_end), &g_cli_requests_cells)
                      : NULL;
     const int read = (s_line_end != NULL) &&
                      EMBED_CALL(parse_read, RequestsParseCtx, .text = text, .size = args->size, .parsed = args->parsed);

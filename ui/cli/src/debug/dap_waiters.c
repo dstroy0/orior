@@ -27,7 +27,7 @@ void cli_dap_forgotten(const CliDapErrMsgCommandSeqCfg *args)
         {
             args->dap->waiters[at].waiting = 0;
             g_cli_cells->persistent_buf_release(args->dap->waiters[at].answer.message, &g_cli_debug_cells);
-            args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
+            args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ULL};
         }
     }
 }

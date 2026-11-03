@@ -59,19 +59,19 @@ int cli_settings_kind_get(const CliSettingsKeyCtx *args)
     const char **kind = args->kind;
     unsigned long long *length = args->length_pointer;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
-    if ((size < 3ull) || (args->key[0] != '[') || (args->key[size - 1ull] != ']'))
+    if ((size < 3ULL) || (args->key[0] != '[') || (args->key[size - 1ULL] != ']'))
     {
         return 0;
     }
     *kind = args->key + 1;
-    *length = size - 2ull;
+    *length = size - 2ULL;
     return 1;
 }
 
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
 {
     const char *kind = NULL;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     int found = (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_allocs, .cap = CLI_CELLS_POOL})) ||
                 (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine, .cap = CLI_CELLS_POOL})) ||
                 EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = args->key, .kind = &kind,
@@ -90,7 +90,7 @@ int cli_settings_tree_scope(const CliSettingsKeyCtx *args)
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL});
         if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL})) ||
-            ((s_tree_scoped_keys[at][length - 1ull] == '.') &&
+            ((s_tree_scoped_keys[at][length - 1ULL] == '.') &&
              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->key,
                         .other_pointer = s_tree_scoped_keys[at], .size = length)))
         {
@@ -117,18 +117,17 @@ void cli_settings_home(const CliSettingsCtx *args)
 void cli_settings_expand(const CliSettingsTextCtx *args)
 {
     const char *text = args->text;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
-        unsigned long long open = at;
-        open = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = text, .at = at,
-                          .size = args->length, .first = '$', .second = '{');
-        if ((open + 1ull) >= args->length)
+        const unsigned long long open = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = text,
+                                                   .at = at, .size = args->length, .first = '$', .second = '{');
+        if ((open + 1ULL) >= args->length)
         {
             break;
         }
         mmgr_line_put_n(args->out_verba_linea_pointer, text + at, open - at);
-        unsigned long long close = open + 2ull;
+        unsigned long long close = open + 2ULL;
         close = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = close,
                            .size = args->length, .set = "}");
         if (close >= args->length)
@@ -137,13 +136,13 @@ void cli_settings_expand(const CliSettingsTextCtx *args)
             return;
         }
         const unsigned long long mark = args->out_verba_linea_pointer->at;
-        if (!EMBED_CALL(args->look, CliEachNameLengthOutCfg, .context = args->context, .name = text + open + 2ull,
-                        .length = close - open - 2ull, .out = args->out_verba_linea_pointer))
+        if (!EMBED_CALL(args->look, CliEachNameLengthOutCfg, .context = args->context, .name = text + open + 2ULL,
+                        .length = close - open - 2ULL, .out = args->out_verba_linea_pointer))
         {
             args->out_verba_linea_pointer->at = mark;
-            mmgr_line_put_n(args->out_verba_linea_pointer, text + open, close + 1ull - open);
+            mmgr_line_put_n(args->out_verba_linea_pointer, text + open, close + 1ULL - open);
         }
-        at = close + 1ull;
+        at = close + 1ULL;
     }
     mmgr_line_put_n(args->out_verba_linea_pointer, text + at, args->length - at);
 }
@@ -165,38 +164,38 @@ static void cli_tidy(const SettingsCtx *args)
     char parts[64][CLI_NAME_MAX_LEN];
     unsigned int count = 0u;
     // the root the path starts at: a drive and its slash, or a slash
-    unsigned long long root = 0ull;
+    unsigned long long root = 0ULL;
     if ((args->path[0] != '\0') && (args->path[1] == ':'))
     {
-        root = ((args->path[2] == '/') || (args->path[2] == '\\')) ? 3ull : 2ull;
+        root = ((args->path[2] == '/') || (args->path[2] == '\\')) ? 3ULL : 2ULL;
     }
     else if ((args->path[0] == '/') || (args->path[0] == '\\'))
     {
-        root = 1ull;
+        root = 1ULL;
     }
     for (const char *at = args->path + root; at[0] != '\0';)
     {
         const char *stop = at;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "/\\");
         const unsigned long long length = (unsigned long long)(stop - at);
-        const int here = (length == 1ull) && (at[0] == '.');
-        const int up = (length == 2ull) && (at[0] == '.') && (at[1] == '.');
+        const int here = (length == 1ULL) && (at[0] == '.');
+        const int up = (length == 2ULL) && (at[0] == '.') && (at[1] == '.');
         if (up && (count > 0u) &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = parts[count - 1u], .other = "..", .cap = CLI_CELLS_POOL})))
         {
             count -= 1u;
         }
-        else if ((length != 0ull) && !here && (count < 64u))
+        else if ((length != 0ULL) && !here && (count < 64u))
         {
-            VerbaLinea part = {parts[count], CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea part = {parts[count], CLI_NAME_MAX_LEN, 0ULL};
             mmgr_line_put_n(&part, at, length);
             mmgr_line_finish(&part);
             count += 1u;
         }
         at = (stop[0] != '\0') ? (stop + 1) : stop;
     }
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, args->path, root);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -212,17 +211,17 @@ static int cli_alloc_look(const CliEachNameLengthOutCfg *args)
     const char *name = args->name;
     VerbaLinea *out = args->out;
     char value[CLI_PATH_MAX_LEN];
-    if ((args->length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
+    if ((args->length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
     {
         EMBED_CALL(cli_settings_internal.home, CliSettingsCtx, .out = value);
         mmgr_line_put(out, value);
         return value[0] != '\0';
     }
-    if ((args->length > 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
+    if ((args->length > 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
     {
         char variable[CLI_NAME_MAX_LEN];
-        VerbaLinea line = {variable, sizeof(variable), 0ull};
-        mmgr_line_put_n(&line, name + 4, args->length - 4ull);
+        VerbaLinea line = {variable, sizeof(variable), 0ULL};
+        mmgr_line_put_n(&line, name + 4, args->length - 4ULL);
         mmgr_line_finish(&line);
         if (EMBED_CALL(query_name_out_internal.environment_write, QueryNameOutCtx, .name = variable, .out = out))
         {
@@ -237,7 +236,7 @@ EMBED_INLINE void cli_problem(const SettingsCtx *args)
 {
     if (args->chain->problems < CLI_SETTINGS_PROBLEMS)
     {
-        VerbaLinea line = {args->chain->problem[args->chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
+        VerbaLinea line = {args->chain->problem[args->chain->problems], CLI_PATH_MAX_LEN * 2u, 0ULL};
         mmgr_line_put(&line, args->named);
         mmgr_line_put(&line, args->detail);
         mmgr_line_finish(&line);
@@ -250,14 +249,14 @@ EMBED_INLINE void cli_show(const SettingsCtx *args)
 {
     char *out = args->out;
     const unsigned long long length =
-        (args->root != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) : 0ull;
+        (args->root != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) : 0ULL;
     const int under = (args->root != NULL) &&
                       EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path,
                                  .other_pointer = args->root, .size = length) &&
                       ((args->path[length] == '/') || (args->path[length] == '\\') || (args->path[length] == '\0'));
     const char *from = under ? (args->path + length) : args->path;
     from += (under && ((from[0] == '/') || (from[0] == '\\'))) ? 1 : 0;
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ULL};
     if (under)
     {
         (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = from, .from = '\\',
@@ -276,7 +275,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
 {
     unsigned int nodes = 0u;
     unsigned int most = 0u;
-    unsigned long long text = 0ull;
+    unsigned long long text = 0ULL;
     for (unsigned int at = 0u; at < args->walk->count; at += 1u)
     {
         nodes += args->walk->file[at].nodes;
@@ -302,7 +301,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
     {
         const CliChainFile *const file = &args->walk->file[at];
         char why[CLI_PATH_MAX_LEN];
-        VerbaLinea reason = {why, sizeof(why), 0ull};
+        VerbaLinea reason = {why, sizeof(why), 0ULL};
         const unsigned int values = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                                                .json = &args->chain->json, .text = file->plain, .size = file->size,
                                                .tokens = tokens, .tokens_max = most, .err_msg = &reason);
@@ -323,7 +322,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
 void cli_settings_chain(const CliSettingsPathCfg *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->chain->files = 0u;
     args->chain->problems = 0u;
     CliChainWalk *const walk = g_cli_cells->temporary_buf_alloc(sizeof(*walk), &g_cli_settings_cells);
@@ -369,7 +368,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = walk->seen[walk->count],
                                 .src = full,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = next,
                                                       .size_pointer = &size, .owner = &g_cli_settings_cells);
         if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
@@ -387,29 +386,29 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         }
         first = 0;
         // a file's text with its comments taken out is no longer than the file
-        char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_settings_cells);
-        VerbaLinea plain = mmgr_line_over(plain_text, size + 1ull);
+        char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_settings_cells);
+        VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
         // the file's bytes are its text
         EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                    .plain = &plain);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
                    .owner = &g_cli_settings_cells);
         char why[CLI_PATH_MAX_LEN];
-        VerbaLinea reason = {why, sizeof(why), 0ull};
+        VerbaLinea reason = {why, sizeof(why), 0ULL};
         CliJson own;
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &own,
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         const unsigned int values =
             mmgr_line_ok(&plain) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                               .json = &own, .text = plain_text, .size = plain.at, .nodes_more = 0u,
-                                              .text_more = 0ull, .err_msg = &reason, .owner = &g_cli_settings_cells)
+                                              .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_settings_cells)
                                  : CLI_JSON_NONE;
         if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                                      .json_read = &own, .node = values, .kind = CFG_JSON_OBJECT))
         {
             mmgr_line_finish(&reason);
             char msg_buf[CLI_PATH_MAX_LEN + 2u];
-            VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+            VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
             mmgr_line_put(&msg, ": ");
             mmgr_line_put(&msg, why);
             mmgr_line_finish(&msg);
@@ -432,7 +431,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         // the file it takes, from its own folder
         const unsigned int allocs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &own, .object = values, .name = s_allocs);
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const reserved = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = &own, .node = allocs, .length_pointer = &length);
         going = reserved != NULL;
@@ -444,7 +443,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         if (going)
         {
             char expanded[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {expanded, sizeof(expanded), 0ull};
+            VerbaLinea line = {expanded, sizeof(expanded), 0ULL};
             EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = reserved, .length = length,
                        .look = cli_alloc_look, .context = NULL, .out_verba_linea_pointer = &line);
             mmgr_line_finish(&line);
@@ -452,7 +451,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
                 (expanded[0] == '/') || (expanded[0] == '\\') || ((expanded[0] != '\0') && (expanded[1] == ':'));
             char folder[CLI_PATH_MAX_LEN];
             char joined[CLI_PATH_MAX_LEN];
-            VerbaLinea join = {joined, sizeof(joined), 0ull};
+            VerbaLinea join = {joined, sizeof(joined), 0ULL};
             if (!absolute &&
                 EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = next, .out = folder))
             {
@@ -499,7 +498,7 @@ void cli_settings_tree(const CliSettingsPathCfg *args)
     char tidy[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_tidy, SettingsCtx, .path = args->root, .out = tidy);
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, tidy);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, CLI_SETTINGS_TREE);
@@ -514,12 +513,12 @@ void cli_settings_reader(const CliSettingsPathCfg *args)
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         args->chain->files = 0u;
         args->chain->problems = 0u;
         return;
     }
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, home);
     mmgr_line_put(&line, "/settings.json");
     mmgr_line_finish(&line);

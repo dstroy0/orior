@@ -7,8 +7,8 @@
 // the expressions and items a reading stores past its script's bytes, the bytes of texts it stores for each byte of its
 // script, past the bytes it stores for any, as a script's names are put again as the paths it joins
 #define CLI_PY_SLACK 256u
-#define CLI_PY_TEXT_EACH 8ull
-#define CLI_PY_TEXT_ANY (256ull << 10u)
+#define CLI_PY_TEXT_EACH 8ULL
+#define CLI_PY_TEXT_ANY (256ULL << 10u)
 
 CliPy g_cli_py;
 
@@ -22,7 +22,7 @@ typedef struct
 // the first place at or past `at` bytes that is a multiple of eight, where a list of any element starts aligned
 EMBED_INLINE unsigned long long cli_py_align(const PythonPathsReadingCtx *args)
 {
-    return (args->at + 7ull) & ~7ull;
+    return (args->at + 7ULL) & ~7ULL;
 }
 
 int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
@@ -37,11 +37,11 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
     const unsigned long long texts = (CLI_PY_TEXT_EACH * bytes) + CLI_PY_TEXT_ANY;
     const unsigned int text_max = (unsigned int)((texts < CLI_PY_TEXT) ? texts : CLI_PY_TEXT);
     // a logical line is no longer than the script with a space joining each of its lines, and its letters no more
-    const unsigned int line_text = (unsigned int)((2ull * bytes) + 2ull);
+    const unsigned int line_text = (unsigned int)((2ULL * bytes) + 2ULL);
     const unsigned int letters = line_text;
-    const unsigned int lines = (unsigned int)(bytes + 1ull);
+    const unsigned int lines = (unsigned int)(bytes + 1ULL);
     // the lists laid one after another in the cell, each at a place its elements align to
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const unsigned long long expr_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)exprs * sizeof(CliExpr)));
     const unsigned long long item_at = at;

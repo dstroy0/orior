@@ -94,10 +94,10 @@ EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
 EMBED_INLINE int launch_fail(const DebugLaunchCtx *args)
 {
     char complaint[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ull};
+    VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ULL};
     EMBED_CALL(cli_dap.complaint, CliDapCfg, .dap = args->place->dap, .out = &complaint_line);
     EMBED_CALL(cli_dap.stop, CliDapCfg, .dap = args->place->dap);
-    if (complaint_line.at > 0ull)
+    if (complaint_line.at > 0ULL)
     {
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, complaint_line.out, complaint_line.at);
@@ -260,8 +260,8 @@ static void launch_configure(const DebugLaunchCtx *args)
         }
         char full[CLI_PATH_MAX_LEN];
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea positioned = {s_positioned[session_at], sizeof(s_positioned[session_at]), 0ull};
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea positioned = {s_positioned[session_at], sizeof(s_positioned[session_at]), 0ULL};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
         (void)EMBED_CALL(cli_debug_session_internal.set, CliDebugSessionCtx, .session = args->place, .file = full,
                          .json = json, .breakpoints = file, .out = &positioned, .err_msg = &err_msg);
@@ -283,7 +283,7 @@ static void launch_configure(const DebugLaunchCtx *args)
     }
     mmgr_line_put(&answer->args, "]}");
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = args->place,
                      .command = "setExceptionBreakpoints", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
                      .err_msg = &err_msg);
@@ -322,7 +322,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
         EMBED_CALL(launch_position_free, DebugLaunchCtx, .place = place);
         return 0;
     }
-    g_cli_debug.next += 1ull;
+    g_cli_debug.next += 1ULL;
     place->info.id = g_cli_debug.next;
     place->sink = sink;
     const int reached = plan.listening;
@@ -381,7 +381,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     VerbaLinea arguments = mmgr_line_over(written, CLI_DEBUG_ARGS);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &place->start,
                .node = plan.arguments, .out = &arguments, .indent = 0u, .sorted = 0);
-    unsigned long long seq = 0ull;
+    unsigned long long seq = 0ULL;
     const int sent =
         mmgr_line_ok(&arguments) &&
         EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = place->dap, .command = plan.request,
@@ -423,11 +423,11 @@ int cli_debug_start(const CliDebugRootCfg *args)
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
     g_cli_cells->persistent_buf_release(launched.message, &g_cli_debug_cells);
-    if (!info.has_process && (place->pid != 0ull))
+    if (!info.has_process && (place->pid != 0ULL))
     {
         info.has_process = 1;
         // a process's number retains its low 32 bits, as the systems' numbers are
-        info.process = (unsigned int)(place->pid & 0xffffffffull);
+        info.process = (unsigned int)(place->pid & 0xffffffffULL);
     }
     place->info = info;
     memor.cpy(&(MemoriaCfg){.dst = place->program,

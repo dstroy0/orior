@@ -41,7 +41,7 @@ typedef struct
     unsigned int count;
 } CliCallsFound;
 // the bytes the regions, the calls and the usages are each written in
-#define CLI_CALLS_CAPACITY (4ull << 20u)
+#define CLI_CALLS_CAPACITY (4ULL << 20u)
 
 // One call found: the file and line of its definition in effect, or of the function it stands in, a place among the
 // paths, its name's span and where the call stands
@@ -172,7 +172,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     CliCallsFile *file = args->file_out;
     const char *path = args->path;
     *file = (CliCallsFile){
-        NULL, 0ull, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull},
+        NULL, 0ULL, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL},
         0u};
     char *const supplied = (args->open_text != NULL)
                                ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
@@ -257,7 +257,7 @@ EMBED_INLINE unsigned int calls_function_on(const SymbolsCallsCtx *args)
 // the function `one` of the file at `path` handed to `each` with the calls `sites`, `count` of them
 EMBED_INLINE void calls_dispatch(const SymbolsCallsCtx *args)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const name =
         EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx, .read_read = &args->file->read,
                    .leaf = args->one.name, .length_pointer = &length);
@@ -506,7 +506,7 @@ EMBED_INLINE void calls_callees_dispatch(const SymbolsCallsCtx *args)
         }
         if (!earlier)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const unsigned int leaf = EMBED_CALL(calls_leaf_at, SymbolsCallsCtx, .file = args->file,
                                                  .line = one.site.line, .col = one.site.col);
             const char *const name =

@@ -123,7 +123,7 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
         }
         // the Problems tool's mark, a dot in the error's color at the button's top right corner
         if (args->strip_read->problems_marked &&
-            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "problems", .cap = 32ull}))
+            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "problems", .cap = 32ULL}))
         {
             const int mark =
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STRIP_MARK, .scale = scale);

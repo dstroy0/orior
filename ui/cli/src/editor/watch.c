@@ -40,11 +40,11 @@ typedef struct
 } CliBatch;
 // how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
 // most changes waiting and gathered in one bundle; and the bytes of their paths a list of them is taken with
-#define CLI_WATCH_QUIET 150ull
-#define CLI_WATCH_BATCH_MAX 1000ull
+#define CLI_WATCH_QUIET 150ULL
+#define CLI_WATCH_BATCH_MAX 1000ULL
 #define CLI_WATCH_QUEUE 4096u
 #define CLI_WATCH_GATHERED 16384u
-#define CLI_WATCH_TEXT_CAPACITY (256ull << 10u)
+#define CLI_WATCH_TEXT_CAPACITY (256ULL << 10u)
 
 // The watch: the changes waiting, and whether more came than they contain; whether it is stopping, whether it reads the
 // tree itself, how many of its threads have ended; the tree, who takes the bundles, and the threads
@@ -84,15 +84,15 @@ EMBED_INLINE int cli_change_append(const WatchCtx *args)
     {
         return 0;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ULL;
     if (args->changes->text == NULL)
     {
         args->changes->text = g_cli_cells->persistent_buf_alloc(CLI_WATCH_TEXT_CAPACITY, &g_cli_watch_cells);
         args->changes->change =
             g_cli_cells->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliChange), &g_cli_watch_cells);
-        args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_CAPACITY : 0ull;
+        args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_CAPACITY : 0ULL;
         args->changes->change_bytes =
-            (args->changes->change != NULL) ? ((unsigned long long)args->most * sizeof(CliChange)) : 0ull;
+            (args->changes->change != NULL) ? ((unsigned long long)args->most * sizeof(CliChange)) : 0ULL;
     }
     if ((args->changes->change == NULL) || ((args->changes->used + length) > args->changes->bytes))
     {
@@ -118,14 +118,14 @@ EMBED_INLINE void cli_changes_free(const WatchCtx *args)
     CliChanges *changes = args->changes;
     g_cli_cells->persistent_buf_release(changes->change, &g_cli_watch_cells);
     g_cli_cells->persistent_buf_release(changes->text, &g_cli_watch_cells);
-    *changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
+    *changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
 }
 
 // a list emptied, its cells standing for the next round
 EMBED_INLINE void cli_changes_clear(const WatchCtx *args)
 {
     args->changes->count = 0u;
-    args->changes->used = 0ull;
+    args->changes->used = 0ULL;
 }
 
 int cli_watch_stopping(void)
@@ -209,10 +209,10 @@ static int cli_gather(const WatchCtx *args)
             continue;
         }
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-        relist = relist || ((length >= 10ull) &&
-                            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = path + length - 10ull,
-                                       .other_pointer = ".gitignore", .size = 10ull) &&
-                            ((length == 10ull) || (path[length - 11ull] == '/')));
+        relist = relist || ((length >= 10ULL) &&
+                            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = path + length - 10ULL,
+                                       .other_pointer = ".gitignore", .size = 10ULL) &&
+                            ((length == 10ULL) || (path[length - 11ULL] == '/')));
         char full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
         const int dir = EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = full);
@@ -236,7 +236,7 @@ static int cli_gather(const WatchCtx *args)
                 .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
             // the slash lies in the path, at or past its start
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
-                       .path = path, .length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ull);
+                       .path = path, .length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL);
             if ((kind == CLI_CHANGE_ADDED) && !dir)
             {
                 EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->written,
@@ -281,7 +281,7 @@ static void cli_batch(void *context)
     CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     if (batch != NULL)
     {
-        batch->changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
+        batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     }
     while (batch != NULL)
     {
@@ -408,7 +408,7 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     {
         return 0;
     }
-    batch->changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
+    batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     batch->lost = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {

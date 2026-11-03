@@ -135,8 +135,8 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
     static unsigned char s_flags[CLI_OUTLINE_POINTS];
     static float s_xs[CLI_OUTLINE_POINTS];
     static float s_ys[CLI_OUTLINE_POINTS];
-    unsigned long long at = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long to = 0ULL;
     if (!EMBED_CALL(cli_font_glyph_table.glyph_range, CliFontGlyphCfg, .font = args->font, .glyph = args->glyph,
                     .from = &at, .to = &to))
     {
@@ -154,7 +154,7 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         ((unsigned int)contours < CLI_OUTLINE_CONTOURS) ? (unsigned int)contours : CLI_OUTLINE_CONTOURS;
     for (unsigned int index = 0u; index < count; index += 1u)
     {
-        s_ends[index] = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = at + 10u + (index * 2ull));
+        s_ends[index] = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = at + 10u + (index * 2ULL));
     }
     const unsigned int points = (count != 0u) ? (s_ends[count - 1u] + 1u) : 0u;
     if (points > CLI_OUTLINE_POINTS)
@@ -162,19 +162,19 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         return;
     }
     const unsigned int instructions =
-        EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = at + 10u + (count * 2ull));
-    unsigned long long cursor = at + 12u + (count * 2ull) + instructions;
+        EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = at + 10u + (count * 2ULL));
+    unsigned long long cursor = at + 12u + (count * 2ULL) + instructions;
     unsigned int flag_count = 0u;
     while (flag_count < points)
     {
         const unsigned char flag = (cursor < args->font->size) ? args->font->data[cursor] : 0u;
-        cursor += 1ull;
+        cursor += 1ULL;
         s_flags[flag_count] = flag;
         flag_count += 1u;
         if ((flag & 8u) != 0u)
         {
             const unsigned int repeats = (cursor < args->font->size) ? args->font->data[cursor] : 0u;
-            cursor += 1ull;
+            cursor += 1ULL;
             for (unsigned int each = 0u; (each < repeats) && (flag_count < points); each += 1u)
             {
                 s_flags[flag_count] = flag;
@@ -196,13 +196,13 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
             if ((flag & short_flag) != 0u)
             {
                 const int delta = (cursor < args->font->size) ? args->font->data[cursor] : 0;
-                cursor += 1ull;
+                cursor += 1ULL;
                 value += ((flag & same_flag) != 0u) ? delta : -delta;
             }
             else if ((flag & same_flag) == 0u)
             {
                 value += EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = args->font, .at = cursor);
-                cursor += 2ull;
+                cursor += 2ULL;
             }
             values[index] = (float)value;
         }
@@ -302,10 +302,10 @@ EMBED_INLINE void cli_line(const FontOutlineCtx *args)
     const unsigned long long first = (unsigned long long)((from[1] > 0.0f) ? from[1] : 0.0f);
     const unsigned long long ceiling = (unsigned long long)ceilf(to[1]);
     const unsigned long long last = (ceiling < args->height) ? ceiling : args->height;
-    for (unsigned long long y = first; y < last; y += 1ull)
+    for (unsigned long long y = first; y < last; y += 1ULL)
     {
         const long long start = (long long)(y * args->width);
-        const float top = ((float)(y + 1ull) < to[1]) ? (float)(y + 1ull) : to[1];
+        const float top = ((float)(y + 1ULL) < to[1]) ? (float)(y + 1ULL) : to[1];
         const float bottom = ((float)y > from[1]) ? (float)y : from[1];
         const float dy = top - bottom;
         const float next = x + (dxdy * dy);
@@ -316,12 +316,12 @@ EMBED_INLINE void cli_line(const FontOutlineCtx *args)
         const long long x0i = (long long)x0_floor;
         const float x1_ceil = ceilf(x1_cell);
         const long long x1i = (long long)x1_ceil;
-#define CLI_AT(column_) ((unsigned long long)(((start + (column_)) > 0ll) ? (start + (column_)) : 0ll))
-        if (x1i <= (x0i + 1ll))
+#define CLI_AT(column_) ((unsigned long long)(((start + (column_)) > 0LL) ? (start + (column_)) : 0LL))
+        if (x1i <= (x0i + 1LL))
         {
             const float middle = (0.5f * (x + next)) - x0_floor;
             args->area[CLI_AT(x0i)] += d - (d * middle);
-            args->area[CLI_AT(x0i + 1ll)] += d * middle;
+            args->area[CLI_AT(x0i + 1LL)] += d * middle;
         }
         else
         {
@@ -331,20 +331,20 @@ EMBED_INLINE void cli_line(const FontOutlineCtx *args)
             const float x1f = (x1_cell - x1_ceil) + 1.0f;
             const float am = 0.5f * s * x1f * x1f;
             args->area[CLI_AT(x0i)] += d * a0;
-            if (x1i == (x0i + 2ll))
+            if (x1i == (x0i + 2LL))
             {
-                args->area[CLI_AT(x0i + 1ll)] += d * (1.0f - a0 - am);
+                args->area[CLI_AT(x0i + 1LL)] += d * (1.0f - a0 - am);
             }
             else
             {
                 const float a1 = s * (1.5f - x0f);
-                args->area[CLI_AT(x0i + 1ll)] += d * (a1 - a0);
-                for (long long column = x0i + 2ll; column < (x1i - 1ll); column += 1ll)
+                args->area[CLI_AT(x0i + 1LL)] += d * (a1 - a0);
+                for (long long column = x0i + 2LL; column < (x1i - 1LL); column += 1LL)
                 {
                     args->area[CLI_AT(column)] += d * s;
                 }
-                const float a2 = a1 + ((float)(x1i - x0i - 3ll) * s);
-                args->area[CLI_AT(x1i - 1ll)] += d * (1.0f - a2 - am);
+                const float a2 = a1 + ((float)(x1i - x0i - 3LL) * s);
+                args->area[CLI_AT(x1i - 1LL)] += d * (1.0f - a2 - am);
             }
             args->area[CLI_AT(x1i)] += d * am;
         }
@@ -367,8 +367,8 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
         min_y = (args->contours->y[at] < min_y) ? args->contours->y[at] : min_y;
         max_y = (args->contours->y[at] > max_y) ? args->contours->y[at] : max_y;
     }
-    args->mask->width = 0ull;
-    args->mask->height = 0ull;
+    args->mask->width = 0ULL;
+    args->mask->height = 0ULL;
     args->mask->left = 0;
     args->mask->top = 0;
     args->mask->cover = cover;
@@ -381,7 +381,7 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
     const int top = (int)ceilf(max_y);
     const int span = (int)ceilf(max_x) - left;
     const int rows = top - (int)floorf(min_y);
-    const unsigned long long width = (unsigned long long)((span > 1) ? span : 1) + 1ull;
+    const unsigned long long width = (unsigned long long)((span > 1) ? span : 1) + 1ULL;
     const unsigned long long height = (unsigned long long)((rows > 1) ? rows : 1);
     if (cover == NULL)
     {
@@ -391,11 +391,11 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
         args->mask->top = top;
         return;
     }
-    if (((width * height) + 4ull) > args->capacity)
+    if (((width * height) + 4ULL) > args->capacity)
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = cover, .val = 0, .bytes = ((width * height) + 4ull) * sizeof(cover[0])});
+    memor.set(&(MemoriaCfg){.dst = cover, .val = 0, .bytes = ((width * height) + 4ULL) * sizeof(cover[0])});
     unsigned int first = 0u;
     for (unsigned int contour = 0u; contour < args->contours->contours; contour += 1u)
     {
@@ -412,10 +412,10 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
         first = end;
     }
     // the areas summed along each row in place, each pixel's coverage at most 1
-    for (unsigned long long row = 0ull; row < height; row += 1ull)
+    for (unsigned long long row = 0ULL; row < height; row += 1ULL)
     {
         float sum = 0.0f;
-        for (unsigned long long column = 0ull; column < width; column += 1ull)
+        for (unsigned long long column = 0ULL; column < width; column += 1ULL)
         {
             sum += cover[(row * width) + column];
             const float magnitude = fabsf(sum);

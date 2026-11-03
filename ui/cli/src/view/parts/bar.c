@@ -26,7 +26,7 @@ void gui_bar_draw(const GuiChromeRasterCfg *args)
                                      .face = GUI_FACE_HEAD, .size = size);
     const int baseline =
         args->frame->bar.y + (int)((((float)args->frame->bar.height - ascent - descent) / 2.0f) + ascent + 0.5f);
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_CELLS_POOL});
     const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BAR_NAME_WIDTH,
                                 .scale = args->frame->scale);

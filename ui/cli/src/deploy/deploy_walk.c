@@ -51,7 +51,7 @@ EMBED_INLINE const char *walk_path(const DeployWalkCtx *args)
 {
     CliDeployPool *pool = args->pool;
     char path[CLI_PATH_MAX_LEN + 2u];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_put(&line, (args->folder[0] != '\0') ? "/" : "");
     mmgr_line_put(&line, args->name);
@@ -70,7 +70,7 @@ static void walk_entry(const CliEachNameIsFolderCfg *args)
     const char *const path =
         EMBED_CALL(walk_path, DeployWalkCtx, .pool = &s_pool, .folder = folder, .name = name, .after = "");
     char probe[CLI_PATH_MAX_LEN + 4u];
-    VerbaLinea probe_line = {probe, sizeof(probe), 0ull};
+    VerbaLinea probe_line = {probe, sizeof(probe), 0ULL};
     mmgr_line_put(&probe_line, path);
     mmgr_line_put(&probe_line, "/x");
     mmgr_line_finish(&probe_line);
@@ -112,8 +112,8 @@ static void walk_entry(const CliEachNameIsFolderCfg *args)
     {
         char in_tree[(2u * CLI_PATH_MAX_LEN) + 2u];
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea tree_line = {in_tree, sizeof(in_tree), 0ull};
-        VerbaLinea full_line = {full, sizeof(full), 0ull};
+        VerbaLinea tree_line = {in_tree, sizeof(in_tree), 0ULL};
+        VerbaLinea full_line = {full, sizeof(full), 0ULL};
         mmgr_line_put(&tree_line, s_from);
         mmgr_line_put(&tree_line, (s_from[0] != '\0') ? "/" : "");
         mmgr_line_put(&tree_line, path);
@@ -147,7 +147,7 @@ void cli_deploy_full(const CliDeployOutIndexCtx *args)
 // the path of the folder sent in the tree, its `.` and empty parts taken out, into s_from
 EMBED_INLINE void walk_from(const DeployWalkCtx *args)
 {
-    VerbaLinea line = {s_from, sizeof(s_from), 0ull};
+    VerbaLinea line = {s_from, sizeof(s_from), 0ULL};
     for (const char *part = args->from; *part != '\0';)
     {
         size_t length = 0u;
@@ -232,11 +232,11 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         const char *const folder = s_folders->path;
         s_folders = s_folders->below;
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea line = {full, sizeof(full), 0ull};
+        VerbaLinea line = {full, sizeof(full), 0ULL};
         mmgr_line_put(&line, s_top);
         mmgr_line_put(&line, (folder[0] != '\0') ? "/" : "");
         mmgr_line_put(&line, folder);
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = full,
                              .each = walk_entry, .context_bytess = (void *)folder);
@@ -274,16 +274,16 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
     for (unsigned int at = 0u; at < run->sents; at += 1u)
     {
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea line = {full, sizeof(full), 0ull};
+        VerbaLinea line = {full, sizeof(full), 0ULL};
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = at, .out = &line);
-        unsigned long long size = 0ull;
-        const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
+        unsigned long long size = 0ULL;
+        const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                                ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                             .size_pointer = &size, .owner = &g_cli_deploy_cells)
                                                : NULL;
         if (bytes != NULL)
         {
-            VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ull};
+            VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ULL};
             EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &hash);
             mmgr_line_finish(&hash);
             EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,

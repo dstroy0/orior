@@ -21,14 +21,14 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 // the durations in milliseconds: the pane's minimum visible time; the flight; TABVLA's slide up, the delay before it
 // fades out and the fade out; the delay before it fades in as the name appears and that fade in; and the frame time
 // while any of it moves
-#define GUI_WORDMARK_MIN_VISIBLE_MS 6000ull
-#define GUI_WORDMARK_FLIGHT_MS 900ull
-#define GUI_WORDMARK_SLIDE_MS 540ull
-#define GUI_WORDMARK_FADE_OUT_DELAY_MS 500ull
-#define GUI_WORDMARK_FADE_OUT_MS 360ull
-#define GUI_WORDMARK_FADE_IN_DELAY_MS 300ull
-#define GUI_WORDMARK_FADE_IN_MS 500ull
-#define GUI_WORDMARK_FRAME_MS 16ull
+#define GUI_WORDMARK_MIN_VISIBLE_MS 6000ULL
+#define GUI_WORDMARK_FLIGHT_MS 900ULL
+#define GUI_WORDMARK_SLIDE_MS 540ULL
+#define GUI_WORDMARK_FADE_OUT_DELAY_MS 500ULL
+#define GUI_WORDMARK_FADE_OUT_MS 360ULL
+#define GUI_WORDMARK_FADE_IN_DELAY_MS 300ULL
+#define GUI_WORDMARK_FADE_IN_MS 500ULL
+#define GUI_WORDMARK_FRAME_MS 16ULL
 // the repository a press on the name opens, and the entry orior's folder saves the session last started in under
 
 // Where the large name stands in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
@@ -88,7 +88,7 @@ typedef struct
     unsigned int *flight_first;
     GuiWordmarkSpan *flight_span;
     unsigned char *flight_cover;
-    short under_down[GUI_WORDMARK_SLIDE_MS / GUI_WORDMARK_FRAME_MS + 1ull];
+    short under_down[GUI_WORDMARK_SLIDE_MS / GUI_WORDMARK_FRAME_MS + 1ULL];
     GuiRaster under;
 } GuiWordmark;
 

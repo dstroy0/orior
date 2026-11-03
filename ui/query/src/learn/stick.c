@@ -38,7 +38,7 @@ typedef struct
 // `folder`/`name` into `path`
 EMBED_INLINE void query_in(const StickCtx *args)
 {
-    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
@@ -63,12 +63,12 @@ void query_stick_paths(const QueryLoopsContextCfg *args)
 // 1 where the stick's text at `fresh` differs from the one at `cu` nvcc compiled, or no container is there
 int query_stick_change(const QueryLoopsCuCfg *args)
 {
-    unsigned long long old_size = 0ull;
-    unsigned long long new_size = 0ull;
+    unsigned long long old_size = 0ULL;
+    unsigned long long new_size = 0ULL;
     const unsigned char *const before = qry_member_file_mapped(args->cu, &old_size);
     const unsigned char *const after = qry_member_file_mapped(args->fresh, &new_size);
     const int same = (before != NULL) && (after != NULL) && (old_size == new_size) &&
-                     ((old_size == 0ull) ||
+                     ((old_size == 0ULL) ||
                       (memor.cmp(&(MemoriaCfg){.src = before, .other = after, .bytes = (size_t)old_size}) == 0));
     qry_member_file_unmapped(before, old_size);
     qry_member_file_unmapped(after, new_size);
@@ -90,7 +90,7 @@ EMBED_INLINE int query_blob_file(const StickCtx *args)
     const char *path = args->path_read;
     VerbaLinea *err_msg = args->err_msg;
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                     .name = name, .bytes_u8s = &bytes, .size_pointer = &size))
     {
@@ -129,14 +129,14 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_NVIDIA "/measuring_stick.py", .path_out = generator);
     const char *const generate[5] = {s_python, generator, s_paths.cu_new, s_paths.tsv, NULL};
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "measuring_stick", .words = generate, .code = &code,
                     .err_msg = err_msg))
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "the stick was not written");
         return 0;
@@ -170,7 +170,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
 #if defined(_WIN32)
     char cl[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
     if (EMBED_CALL(query_program, StickCtx, .context_read = context, .role = QUERY_ROLE_CL, .path = cl,
                    .err_msg = &ignored))
     {
@@ -204,7 +204,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "nvcc did not compile the stick");
         return 0;
@@ -216,7 +216,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "cuobjdump did not read the stick");
         return 0;
@@ -262,18 +262,18 @@ static void query_code_walk(const CliEachNameIsFolderCfg *args)
 EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     for (unsigned int at = 0u; at < args->codes->count; at += 1u)
     {
         size += cellul.len(&(CatenaFinitaCfg){.src = args->codes->path[at], .cap = QUERY_PATH_MAX_LEN}) + 1u;
     }
-    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_query_cells);
+    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_query_cells);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "the codes the vendor reads could not be stored");
         return 0;
     }
-    VerbaLinea list = {text, size + 1ull, 0ull};
+    VerbaLinea list = {text, size + 1ULL, 0ULL};
     for (unsigned int at = 0u; at < args->codes->count; at += 1u)
     {
         mmgr_line_put(&list, args->codes->path[at]);
@@ -305,14 +305,14 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
     }
     const char *const words[7] = {
         s_listing, args->pattern, args->prefix, args->architecture, s_nvdisasm, "cubin_listing_codes.txt", NULL};
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "orior_cubin_listing", .words = words, .code = &code,
                     .err_msg = err_msg))
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "the vendor did not read the codes");
         return 0;
@@ -327,11 +327,11 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
         name = (name != NULL) ? (name + 1) : code;
         char blob[QUERY_PATH_MAX_LEN];
         char dis[QUERY_PATH_MAX_LEN];
-        VerbaLinea blob_line = {blob, sizeof(blob), 0ull};
+        VerbaLinea blob_line = {blob, sizeof(blob), 0ULL};
         mmgr_line_put_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) - 4u);
         mmgr_line_put(&blob_line, ".dis");
         mmgr_line_finish(&blob_line);
-        VerbaLinea dis_line = {dis, sizeof(dis), 0ull};
+        VerbaLinea dis_line = {dis, sizeof(dis), 0ULL};
         mmgr_line_put_most(&dis_line, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}) - 4u);
         mmgr_line_put(&dis_line, ".dis");
         mmgr_line_finish(&dis_line);
@@ -380,7 +380,7 @@ EMBED_INLINE int query_stick_vendor(const StickCtx *args)
                .under = QUERY_TABLE "/sass.krs", .path_out = krs);
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_NVIDIA "/measuring_stick.md", .path_out = record);
-    long long code = -1ll;
+    long long code = -1LL;
     int whole = EMBED_CALL(query_vendor_read, StickCtx, .context = context, .run = &s_run, .err_msg = err_msg);
     if (whole)
     {
@@ -479,7 +479,7 @@ EMBED_INLINE int query_stick_engine(const StickCtx *args)
                            .paths_letters = read, .count = 7u, .err_msg = err_msg);
     EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = left,
                .count = 3u);
-    long long code = -1ll;
+    long long code = -1LL;
     if (whole)
     {
         const char *const words[5] = {s_engine, s_paths.cu, s_paths.sass, out, NULL};
@@ -487,7 +487,7 @@ EMBED_INLINE int query_stick_engine(const StickCtx *args)
                            .context = context, .run = &s_run, .name = "assembler.log", .words = words, .code = &code,
                            .err_msg = err_msg);
     }
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         // the engine's refusal ends the loop: the leaves handed as the run contains them, exit 1
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
@@ -542,7 +542,7 @@ EMBED_INLINE int query_stick_read(const StickCtx *args)
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                    .word = words[at]);
     }
-    long long code = -1ll;
+    long long code = -1LL;
     const int whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                  .context = context, .run = &s_run, .name = "orior_measuring_stick_read",
                                  .words = s_words.word, .code = &code, .err_msg = err_msg);

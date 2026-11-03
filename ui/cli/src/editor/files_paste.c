@@ -36,19 +36,19 @@ EMBED_INLINE int cli_parts(const FilesPasteCtx *args)
 int cli_paste_name(const CliFilesPathNameCtx *args)
 {
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    while ((end > 0ull) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[end - 1ull]))
+    while ((end > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[end - 1ULL]))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     unsigned long long start = end;
-    while ((start > 0ull) && !EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[start - 1ull]))
+    while ((start > 0ULL) && !EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[start - 1ULL]))
     {
-        start -= 1ull;
+        start -= 1ULL;
     }
     const unsigned long long length = end - start;
-    const int up = (length == 2ull) && (args->path[start] == '.') && (args->path[start + 1ull] == '.');
-    const int drive = (start == 0ull) && (length == 2ull) && (args->path[1] == ':');
-    if ((length == 0ull) || (length >= CLI_PATH_MAX_LEN) || up || drive)
+    const int up = (length == 2ULL) && (args->path[start] == '.') && (args->path[start + 1ULL] == '.');
+    const int drive = (start == 0ULL) && (length == 2ULL) && (args->path[1] == ':');
+    if ((length == 0ULL) || (length >= CLI_PATH_MAX_LEN) || up || drive)
     {
         return 0;
     }
@@ -60,11 +60,11 @@ int cli_paste_name(const CliFilesPathNameCtx *args)
 int cli_paste_under(const CliFilesPathFolderCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
-    while ((length > 0ull) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[length - 1ull]))
+    while ((length > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[length - 1ULL]))
     {
-        length -= 1ull;
+        length -= 1ULL;
     }
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         if ((args->folder[at] != args->path[at]) &&
             !(EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[at]) &&
@@ -86,7 +86,7 @@ EMBED_INLINE int cli_there(const FilesPasteCtx *args)
 
 void cli_paste_free(const CliFilesFolderCtx *args)
 {
-    VerbaLinea first = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea first = {args->path_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&first, args->folder);
     mmgr_line_ch(&first, '/');
     mmgr_line_put(&first, args->name_read);
@@ -108,7 +108,7 @@ void cli_paste_free(const CliFilesFolderCtx *args)
     char numbered[CLI_PATH_MAX_LEN];
     for (unsigned int number = 2u; number < CLI_FREE_MAX; number += 1u)
     {
-        VerbaLinea line = {numbered, sizeof(numbered), 0ull};
+        VerbaLinea line = {numbered, sizeof(numbered), 0ULL};
         mmgr_line_put(&line, args->folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put_n(&line, args->name_read, stem);
@@ -116,7 +116,7 @@ void cli_paste_free(const CliFilesFolderCtx *args)
         mmgr_line_decimal(&line, number, 0u);
         mmgr_line_ch(&line, ')');
         mmgr_line_put(&line, split ? dot : "");
-        if ((mmgr_line_finish(&line) != 0ull) && !EMBED_CALL(cli_there, FilesPasteCtx, .path = numbered))
+        if ((mmgr_line_finish(&line) != 0ULL) && !EMBED_CALL(cli_there, FilesPasteCtx, .path = numbered))
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = args->path_out,
@@ -149,9 +149,9 @@ static CliPending *s_pending;
 EMBED_INLINE int cli_pending_append(const FilesPasteCtx *args)
 {
     const unsigned long long source_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->source, .cap = CLI_CELLS_POOL}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = args->source, .cap = CLI_CELLS_POOL}) + 1ULL;
     const unsigned long long target_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->target, .cap = CLI_CELLS_POOL}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = args->target, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((s_pending->count >= CLI_PENDING_MAX) || ((s_pending->used + source_length + target_length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
@@ -168,7 +168,7 @@ EMBED_INLINE int cli_pending_append(const FilesPasteCtx *args)
 
 static void cli_pending_name(const CliEachNameIsFolderCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((s_pending->name_count >= CLI_PENDING_MAX) || ((s_pending->names_used + length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
@@ -184,7 +184,7 @@ static void cli_pending_name(const CliEachNameIsFolderCfg *args)
 EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
 {
     s_pending->name_count = 0u;
-    s_pending->names_used = 0ull;
+    s_pending->names_used = 0ULL;
     if (!EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->source,
                     .each = cli_pending_name, .context_bytess = NULL))
     {
@@ -197,16 +197,16 @@ EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
         const char *const name = s_pending->names + s_pending->name_start[index - 1u];
         char from[CLI_PATH_MAX_LEN];
         char to[CLI_PATH_MAX_LEN];
-        VerbaLinea from_line = {from, sizeof(from), 0ull};
-        VerbaLinea to_line = {to, sizeof(to), 0ull};
+        VerbaLinea from_line = {from, sizeof(from), 0ULL};
+        VerbaLinea to_line = {to, sizeof(to), 0ULL};
         mmgr_line_put(&from_line, args->source);
         mmgr_line_ch(&from_line, '/');
         mmgr_line_put(&from_line, name);
         mmgr_line_put(&to_line, args->target);
         mmgr_line_ch(&to_line, '/');
         mmgr_line_put(&to_line, name);
-        s_pending->full = s_pending->full || (mmgr_line_finish(&from_line) == 0ull) ||
-                          (mmgr_line_finish(&to_line) == 0ull) ||
+        s_pending->full = s_pending->full || (mmgr_line_finish(&from_line) == 0ULL) ||
+                          (mmgr_line_finish(&to_line) == 0ULL) ||
                           !EMBED_CALL(cli_pending_append, FilesPasteCtx, .source = from, .target = to);
     }
     if (s_pending->full)
@@ -227,7 +227,7 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
         return 0;
     }
     s_pending->count = 0u;
-    s_pending->used = 0ull;
+    s_pending->used = 0ULL;
     s_pending->full = 0;
     int walked = EMBED_CALL(cli_pending_append, FilesPasteCtx, .source = args->source, .target = args->target);
     while (walked && (s_pending->count > 0u))
@@ -343,14 +343,14 @@ int cli_files_write_part(const CliFilesRootPathCfg *args)
     }
     // the parts go to a file beside the target, begun afresh by the part at 0
     char part[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {part, sizeof(part), 0ull};
+    VerbaLinea line = {part, sizeof(part), 0ULL};
     mmgr_line_put(&line, parent);
     mmgr_line_put(&line, "/.");
     mmgr_line_put(&line, name);
     mmgr_line_put(&line, ".orior-part");
-    unsigned long long has = 0ull;
-    if ((mmgr_line_finish(&line) == 0ull) ||
-        ((args->at != 0ull) &&
+    unsigned long long has = 0ULL;
+    if ((mmgr_line_finish(&line) == 0ULL) ||
+        ((args->at != 0ULL) &&
          !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = part, .size_pointer = &has)))
     {
         mmgr_line_put(args->err_msg, part);
@@ -368,7 +368,7 @@ int cli_files_write_part(const CliFilesRootPathCfg *args)
         return 0;
     }
     if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = part, .bytes = args->data,
-                    .size = args->size, .fresh = args->at == 0ull))
+                    .size = args->size, .fresh = args->at == 0ULL))
     {
         mmgr_line_put(args->err_msg, part);
         mmgr_line_put(args->err_msg, ": it could not be written");

@@ -35,28 +35,28 @@ static void cli_version(const ReportPageCtx *args)
     const char *const status[5] = {"git", "status", "--porcelain", "--untracked-files=no", NULL};
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = commit, .folder = args->root, .settings = NULL,
                    .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
-        (run_result->code == 0ll))
+        (run_result->code == 0LL))
     {
         const char *from = run_result->out;
         const char *to = run_result->out + run_result->out_size;
-        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         char short_commit[64];
-        VerbaLinea line = {short_commit, sizeof(short_commit), 0ull};
+        VerbaLinea line = {short_commit, sizeof(short_commit), 0ULL};
         mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
         mmgr_line_finish(&line);
-        unstarted.at = 0ull;
+        unstarted.at = 0ULL;
         int changed = 0;
         if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = status, .folder = args->root, .settings = NULL,
                        .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
-            (run_result->code == 0ll))
+            (run_result->code == 0LL))
         {
-            for (unsigned long long at = 0ull; !changed && (at < run_result->out_size); at += 1ull)
+            for (unsigned long long at = 0ULL; !changed && (at < run_result->out_size); at += 1ULL)
             {
                 changed =
                     !((run_result->out[at] == ' ') || ((run_result->out[at] >= '\t') && (run_result->out[at] <= '\r')));
@@ -96,7 +96,7 @@ EMBED_INLINE void cli_field(const ReportPageCtx *args)
     const char *text = args->text;
     const char *from = text;
     const char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
@@ -126,7 +126,7 @@ void cli_report_body(const CliReportCtx *args)
     const char *from = args->report->logs;
     const char *to =
         args->report->logs + cellul.len(&(CatenaFinitaCfg){.src = args->report->logs, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
@@ -150,7 +150,7 @@ void cli_report_body(const CliReportCtx *args)
 EMBED_INLINE void cli_encode(const ReportPageCtx *args)
 {
     static const char s_hex[17] = "0123456789ABCDEF";
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
         const int unreserved = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
@@ -172,14 +172,14 @@ EMBED_INLINE void cli_encode(const ReportPageCtx *args)
 // the length `length` bytes of `text` take encoded
 EMBED_INLINE unsigned long long cli_encoded_length(const ReportPageCtx *args)
 {
-    unsigned long long size = 0ull;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    unsigned long long size = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
         const int unreserved = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
                                ((byte >= '0') && (byte <= '9')) || (byte == '-') || (byte == '_') || (byte == '.') ||
                                (byte == '~');
-        size += unreserved ? 1ull : 3ull;
+        size += unreserved ? 1ULL : 3ULL;
     }
     return size;
 }
@@ -188,8 +188,8 @@ void cli_report_page(const CliReportRootOutCfg *args)
 {
     char version[CLI_PATH_MAX_LEN];
     char system[CLI_NAME_MAX_LEN];
-    VerbaLinea versioned = {version, sizeof(version), 0ull};
-    VerbaLinea systems = {system, sizeof(system), 0ull};
+    VerbaLinea versioned = {version, sizeof(version), 0ULL};
+    VerbaLinea systems = {system, sizeof(system), 0ULL};
     EMBED_CALL(cli_version, ReportPageCtx, .root = args->root, .out = &versioned);
     mmgr_line_finish(&versioned);
     EMBED_CALL(cli_system, ReportPageCtx, .out = &systems);
@@ -206,33 +206,33 @@ void cli_report_page(const CliReportRootOutCfg *args)
     unsigned long long without = args->out->at - start;
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        without += cellul.len(&(CatenaFinitaCfg){.src = names[at], .cap = CLI_CELLS_POOL}) + 2ull +
+        without += cellul.len(&(CatenaFinitaCfg){.src = names[at], .cap = CLI_CELLS_POOL}) + 2ULL +
                    EMBED_CALL(cli_encoded_length, ReportPageCtx, .text = texts[at],
                               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[at], .cap = CLI_CELLS_POOL}));
     }
     // the logs cut to three quarters of their letters at a time until the address fits within its limit
     unsigned long long logs = cellul.len(&(CatenaFinitaCfg){.src = args->report->logs, .cap = CLI_CELLS_POOL});
     while (
-        (logs != 0ull) &&
-        ((without + 6ull + EMBED_CALL(cli_encoded_length, ReportPageCtx, .text = args->report->logs, .length = logs)) >
+        (logs != 0ULL) &&
+        ((without + 6ULL + EMBED_CALL(cli_encoded_length, ReportPageCtx, .text = args->report->logs, .length = logs)) >
          CLI_REPORT_ADDRESS))
     {
-        unsigned long long letters = 0ull;
-        for (unsigned long long at = 0ull; at < logs; at += 1ull)
+        unsigned long long letters = 0ULL;
+        for (unsigned long long at = 0ULL; at < logs; at += 1ULL)
         {
-            letters += (((unsigned char)args->report->logs[at] & 0xc0u) != 0x80u) ? 1ull : 0ull;
+            letters += (((unsigned char)args->report->logs[at] & 0xc0u) != 0x80u) ? 1ULL : 0ULL;
         }
-        const unsigned long long budget = (letters * 3ull) / 4ull;
-        unsigned long long count = 0ull;
-        unsigned long long at = 0ull;
-        for (; at < logs; at += 1ull)
+        const unsigned long long budget = (letters * 3ULL) / 4ULL;
+        unsigned long long count = 0ULL;
+        unsigned long long at = 0ULL;
+        for (; at < logs; at += 1ULL)
         {
             const int starts = ((unsigned char)args->report->logs[at] & 0xc0u) != 0x80u;
             if (starts && (count == budget))
             {
                 break;
             }
-            count += starts ? 1ull : 0ull;
+            count += starts ? 1ULL : 0ULL;
         }
         logs = at;
     }
@@ -247,7 +247,7 @@ void cli_report_page(const CliReportRootOutCfg *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = texts[at], .cap = CLI_CELLS_POOL}));
         }
     }
-    if (logs != 0ull)
+    if (logs != 0ULL)
     {
         mmgr_line_put(args->out, "&logs=");
         EMBED_CALL(cli_encode, ReportPageCtx, .out = args->out, .text = args->report->logs, .length = logs);

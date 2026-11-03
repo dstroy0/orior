@@ -84,7 +84,7 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
         mmgr_line_put(args->err_msg, "the system gave no secret");
         return 0;
     }
-    VerbaLinea named = {name, sizeof(name), 0ull};
+    VerbaLinea named = {name, sizeof(name), 0ULL};
     mmgr_line_put(&named, "orior-comms-");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '-');
@@ -198,12 +198,12 @@ int cli_ipc_connect(const CliIpcCtx *args)
 int cli_ipc_read(const CliIpcEndBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const long long got =
             EMBED_CALL(cli_socket_receive, CliTransferSocketCfg, .socket = (int)args->end->handle, .buffer = into + at,
                        .capacity = args->size - at, .pending = &args->end->pending);
-        if (got <= 0ll)
+        if (got <= 0LL)
         {
             return 0;
         }
@@ -225,7 +225,7 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
 #else
     const int flags = 0;
 #endif
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const ssize_t wrote = send((int)args->end->handle, from + at, (size_t)(args->size - at), flags);
         if ((wrote < 0) && (errno == EINTR))
@@ -262,6 +262,6 @@ void cli_ipc_close(const CliIpcCtx *args)
         EMBED_CALL(cli_descriptors_close, CliTransferSocketCfg, .pending = &args->end->pending);
     }
     args->end->open = 0;
-    args->end->handle = 0ull;
+    args->end->handle = 0ULL;
 }
 #endif

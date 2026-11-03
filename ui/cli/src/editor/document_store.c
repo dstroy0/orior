@@ -14,13 +14,13 @@
 #define CLI_DOC_LINES (1u << 18u)
 
 // the words each line saves beside its text: the states it is colored from and ends in, its regions and its runs' place
-#define CLI_DOC_LINE_WORDS 4ull
+#define CLI_DOC_LINE_WORDS 4ULL
 
 // the least units and lines a text's capacity is given past what it contains, and the share of what it contains added
 // as well, the capacity an edit fits in where it stands
-#define CLI_DOC_RESERVE_UNITS 1024ull
+#define CLI_DOC_RESERVE_UNITS 1024ULL
 #define CLI_DOC_RESERVE_LINES 64u
-#define CLI_DOC_RESERVE_SHARE 8ull
+#define CLI_DOC_RESERVE_SHARE 8ULL
 
 // the first of the texts stored, the lock they are read and written under, and the last serial a text took
 static CliStoredText *s_stored;
@@ -33,7 +33,7 @@ CliStoredText *cli_document_texts(void)
 
 void cli_document_serial_move(const CliDocumentCtx *args)
 {
-    s_serial += 1ull;
+    s_serial += 1ULL;
     args->one->serial = s_serial;
 }
 
@@ -72,8 +72,8 @@ typedef struct
 // how many lines `size` bytes of `text` make, one more than its newlines
 EMBED_INLINE unsigned int stored_lines_in(const DocumentStoreCtx *args)
 {
-    unsigned long long count = 1ull;
-    for (unsigned long long at = 0ull; at < args->size; count += 1ull)
+    unsigned long long count = 1ULL;
+    for (unsigned long long at = 0ULL; at < args->size; count += 1ULL)
     {
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '\n', .bytes = args->size - at});
@@ -82,7 +82,7 @@ EMBED_INLINE unsigned int stored_lines_in(const DocumentStoreCtx *args)
             break;
         }
         // the newline lies in the text, at or past `at`
-        at = (unsigned long long)(newline - args->text) + 1ull;
+        at = (unsigned long long)(newline - args->text) + 1ULL;
     }
     // the lines are bounded by CLI_DOC_LINES, which an unsigned int stores
     return (unsigned int)((count < CLI_DOC_LINES) ? count : CLI_DOC_LINES);
@@ -96,23 +96,23 @@ EMBED_INLINE int stored_capacity_enter(const DocumentStoreCtx *args)
     const unsigned long long units = (args->units_max < CLI_DOC_UNITS) ? args->units_max : CLI_DOC_UNITS;
     const unsigned int count = (args->lines_max < CLI_DOC_LINES) ? args->lines_max : CLI_DOC_LINES;
     // the units' bytes rounded up to a boundary of the starts after them
-    const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ull) & ~7ull;
+    const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ULL) & ~7ULL;
     // each line's start and length, then the two states it is colored from and ends in, its regions and its runs' place
-    const unsigned long long bytes = unit_bytes + (2ull * (unsigned long long)count * sizeof(unsigned long long)) +
+    const unsigned long long bytes = unit_bytes + (2ULL * (unsigned long long)count * sizeof(unsigned long long)) +
                                      (CLI_DOC_LINE_WORDS * (unsigned long long)count * sizeof(unsigned int));
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
-    *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
+    *lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
     if (cell == NULL)
     {
         return 0;
     }
     unsigned long long *const start = (unsigned long long *)(void *)(cell + unit_bytes);
-    unsigned int *const begun = (unsigned int *)(void *)(start + (2ull * count));
-    *lines = (CliLines){(unsigned short *)(void *)cell, units, 0ull, start, start + count, count, 0u, 0};
+    unsigned int *const begun = (unsigned int *)(void *)(start + (2ULL * count));
+    *lines = (CliLines){(unsigned short *)(void *)cell, units, 0ULL, start, start + count, count, 0u, 0};
     lines->begun = begun;
     lines->ended = begun + count;
-    lines->regions = begun + (2ull * count);
-    lines->runs = begun + (3ull * count);
+    lines->regions = begun + (2ULL * count);
+    lines->runs = begun + (3ULL * count);
     return 1;
 }
 
@@ -122,7 +122,7 @@ EMBED_INLINE void stored_capacity_exit(const DocumentStoreCtx *args)
     CliLines *lines = args->lines;
     g_cli_cells->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun,
                                         &g_cli_editor_cells);
-    *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
+    *lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
 }
 
 // a paged text's capacity grown to hold the states of `count` lines with capacity to grow past them, its states saved,
@@ -131,7 +131,7 @@ EMBED_INLINE void stored_capacity_exit(const DocumentStoreCtx *args)
 static int stored_states_grow(const DocumentStoreCtx *args)
 {
     CliLines *lines = args->lines;
-    if (args->count > 0xffffffffull)
+    if (args->count > 0xffffffffULL)
     {
         return 0;
     }
@@ -139,7 +139,7 @@ static int stored_states_grow(const DocumentStoreCtx *args)
     {
         const unsigned long long capacity = args->count + (args->count / CLI_DOC_RESERVE_SHARE) + CLI_DOC_RESERVE_LINES;
         // the lines a capacity holds are counted by an unsigned int
-        const unsigned int most = (capacity < 0xffffffffull) ? (unsigned int)capacity : 0xffffffffu;
+        const unsigned int most = (capacity < 0xffffffffULL) ? (unsigned int)capacity : 0xffffffffu;
         unsigned int *const begun =
             g_cli_cells->persistent_buf_alloc(CLI_DOC_LINE_WORDS * most * sizeof(unsigned int), &g_cli_editor_cells);
         if (begun == NULL)
@@ -152,16 +152,16 @@ static int stored_states_grow(const DocumentStoreCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = begun + most, .src = lines->ended, .bytes = lines->lines * sizeof(unsigned int)});
             memor.cpy(&(MemoriaCfg){
-                .dst = begun + (2ull * most), .src = lines->regions, .bytes = lines->lines * sizeof(unsigned int)});
+                .dst = begun + (2ULL * most), .src = lines->regions, .bytes = lines->lines * sizeof(unsigned int)});
             memor.cpy(&(MemoriaCfg){
-                .dst = begun + (3ull * most), .src = lines->runs, .bytes = lines->lines * sizeof(unsigned int)});
+                .dst = begun + (3ULL * most), .src = lines->runs, .bytes = lines->lines * sizeof(unsigned int)});
         }
         const unsigned int counted = lines->lines;
         EMBED_CALL(stored_capacity_exit, DocumentStoreCtx, .lines = lines);
         lines->begun = begun;
         lines->ended = begun + most;
-        lines->regions = begun + (2ull * most);
-        lines->runs = begun + (3ull * most);
+        lines->regions = begun + (2ULL * most);
+        lines->runs = begun + (3ULL * most);
         lines->lines_max = most;
         lines->lines = counted;
     }
@@ -179,7 +179,7 @@ static int stored_states_grow(const DocumentStoreCtx *args)
 
 int cli_document_paged_count(const CliDocumentCtx *args)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     int whole = 0;
     if (!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = args->one->key, .lines = &count, .whole = &whole))
     {
@@ -256,7 +256,7 @@ EMBED_INLINE void cli_stored_let_go(const DocumentStoreCtx *args)
     {
         link = &(*link)->next;
     }
-    if (*link == args->one)
+    if (*link != NULL)
     {
         *link = args->one->next;
     }
@@ -294,7 +294,7 @@ EMBED_INLINE int stored_lines_init(const DocumentStoreCtx *args)
                .lines_out = &one->lines);
     EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
     one->head_known = 0;
-    one->changes = 0ull;
+    one->changes = 0ULL;
     one->paged = 0;
     one->whole = 1;
     one->regions_moved = 1;
@@ -314,7 +314,7 @@ EMBED_INLINE CliStoredText *stored_full_text_get(const DocumentStoreCtx *args)
 
 int cli_document_page(const CliDocumentKeyFromCfg *args)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     int whole = 0;
     if (!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = args->key, .lines = &count, .whole = &whole))
     {
@@ -327,7 +327,7 @@ int cli_document_page(const CliDocumentKeyFromCfg *args)
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->paged = 1;
         one->whole = whole;
-        one->changes = 0ull;
+        one->changes = 0ULL;
         one->head_known = 0;
         one->regions_moved = 1;
         // a line the page holds is one the pages count, which an unsigned int counts
@@ -349,17 +349,17 @@ int cli_document_page(const CliDocumentKeyFromCfg *args)
 EMBED_INLINE int stored_states_edit(const DocumentStoreCtx *args)
 {
     CliLines *lines = args->lines;
-    unsigned long long written = 1ull;
+    unsigned long long written = 1ULL;
     for (const char *at = memor.chr(&(MemoriaCfg){.src = args->edit->text, .val = '\n', .bytes = args->edit->length});
          at != NULL;
          at = memor.chr(&(MemoriaCfg){.src = at + 1,
                                       .val = '\n',
                                       .bytes = args->edit->length - (unsigned long long)(at + 1 - args->edit->text)}))
     {
-        written += 1ull;
+        written += 1ULL;
     }
     const unsigned long long first = args->edit->from.line;
-    const unsigned long long after = args->edit->to.line + 1ull;
+    const unsigned long long after = args->edit->to.line + 1ULL;
     if ((first > args->edit->to.line) || (after > lines->lines))
     {
         return 1;
@@ -393,7 +393,7 @@ EMBED_INLINE int stored_states_edit(const DocumentStoreCtx *args)
         memor.move_up(
             &(MemoriaCfg){.dst = lines->runs + to, .src = lines->runs + after, .bytes = moved * sizeof(unsigned int)});
     }
-    for (unsigned long long line = first; line < to; line += 1ull)
+    for (unsigned long long line = first; line < to; line += 1ULL)
     {
         lines->begun[line] = CLI_DOC_UNCOLORED;
         lines->ended[line] = CLI_DOC_UNCOLORED;
@@ -479,7 +479,7 @@ EMBED_INLINE void cli_units_append(const DocumentStoreCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = args->lines->unit + args->lines->used,
                             .src = args->units,
                             .bytes = args->count * sizeof(unsigned short)});
-    for (unsigned long long at = 0ull; at < args->count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->count; at += 1ULL)
     {
         EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = args->lines,
                    .unit = args->units[at]);
@@ -498,7 +498,7 @@ EMBED_INLINE void cli_line_begin(const DocumentStoreCtx *args)
         return;
     }
     lines->start[lines->lines] = lines->used;
-    lines->length[lines->lines] = 0ull;
+    lines->length[lines->lines] = 0ULL;
     lines->begun[lines->lines] = CLI_DOC_UNCOLORED;
     lines->ended[lines->lines] = CLI_DOC_UNCOLORED;
     lines->regions[lines->lines] = 0u;
@@ -578,16 +578,16 @@ EMBED_INLINE void cli_line_states_move(const DocumentStoreCtx *args)
 EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
 {
     // the units and the line breaks the edit's text puts in, counted on a first pass over it
-    unsigned long long units = 0ull;
-    unsigned long long breaks = 0ull;
-    for (unsigned long long at = 0ull; at < args->edit->length;)
+    unsigned long long units = 0ULL;
+    unsigned long long breaks = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->edit->length;)
     {
         unsigned int letter = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                          .text_bytes = (const unsigned char *)args->edit->text, .length = args->edit->length, .at = at,
                          .letter = &letter);
-        breaks += (letter == '\n') ? 1ull : 0ull;
-        units += (letter == '\n') ? 0ull : ((letter > 0xffffu) ? 2ull : 1ull);
+        breaks += (letter == '\n') ? 1ULL : 0ULL;
+        units += (letter == '\n') ? 0ULL : ((letter > 0xffffu) ? 2ULL : 1ULL);
     }
     const unsigned long long from = args->now->start[args->edit->from.line] + args->edit->from.col;
     const unsigned long long to = args->now->start[args->edit->to.line] + args->edit->to.col;
@@ -598,18 +598,18 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
     {
         return 0;
     }
-    for (unsigned long long at = from; at < to; at += 1ull)
+    for (unsigned long long at = from; at < to; at += 1ULL)
     {
-        args->now->histogram.occurrences[args->now->unit[at] & 0xffu] -= 1ull;
-        args->now->histogram.occurrences[args->now->unit[at] >> 8u] -= 1ull;
-        args->now->histogram.total -= 2ull;
+        args->now->histogram.occurrences[args->now->unit[at] & 0xffu] -= 1ULL;
+        args->now->histogram.occurrences[args->now->unit[at] >> 8u] -= 1ULL;
+        args->now->histogram.total -= 2ULL;
     }
     const unsigned long long tail = args->now->length[args->edit->to.line] - args->edit->to.col;
     EMBED_CALL(cli_units_move, DocumentStoreCtx, .unit = args->now->unit, .from = to, .to = from + units,
                .count = args->now->used - to);
     // the lines after the edit moved to stand after the lines it writes, each starting as many units on
-    const unsigned long long after = args->edit->to.line + 1ull;
-    const unsigned long long after_to = args->edit->from.line + breaks + 1ull;
+    const unsigned long long after = args->edit->to.line + 1ULL;
+    const unsigned long long after_to = args->edit->from.line + breaks + 1ULL;
     const unsigned long long after_count = args->now->lines - after;
     EMBED_CALL(cli_line_positions_move, DocumentStoreCtx, .place = args->now->start, .from = after, .to = after_to,
                .count = after_count);
@@ -623,14 +623,14 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
                .count = after_count);
     EMBED_CALL(cli_line_states_move, DocumentStoreCtx, .state = args->now->runs, .from = after, .to = after_to,
                .count = after_count);
-    for (unsigned long long line = after_to; line < lines; line += 1ull)
+    for (unsigned long long line = after_to; line < lines; line += 1ULL)
     {
         args->now->start[line] = args->now->start[line] + (from + units) - to;
     }
     // the edit's text put in, each line it writes begun where the one before it ends and not colored
     unsigned long long line = args->edit->from.line;
     unsigned long long put = from;
-    for (unsigned long long at = 0ull; at <= args->edit->length;)
+    for (unsigned long long at = 0ULL; at <= args->edit->length;)
     {
         unsigned int letter = '\n';
         if (at < args->edit->length)
@@ -641,7 +641,7 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
         }
         else
         {
-            at += 1ull;
+            at += 1ULL;
         }
         if (letter == '\n')
         {
@@ -651,7 +651,7 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
             args->now->ended[line] = CLI_DOC_UNCOLORED;
             args->now->regions[line] = 0u;
             args->now->runs[line] = CLI_DOC_NO_RUNS;
-            line += 1ull;
+            line += 1ULL;
             if (at <= args->edit->length)
             {
                 args->now->start[line] = put;
@@ -663,13 +663,13 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
             (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
         args->now->unit[put] = first;
         EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = args->now, .unit = first);
-        put += 1ull;
+        put += 1ULL;
         if (letter > 0xffffu)
         {
             const unsigned short second = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
             args->now->unit[put] = second;
             EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = args->now, .unit = second);
-            put += 1ull;
+            put += 1ULL;
         }
     }
     args->now->used = used;
@@ -686,7 +686,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
 {
     CliLines *reserve = args->reserve;
     CliLines *const now = &args->one->lines;
-    for (unsigned long long line = 0ull; line < args->edit->from.line; line += 1ull)
+    for (unsigned long long line = 0ULL; line < args->edit->from.line; line += 1ULL)
     {
         EMBED_CALL(cli_line_begin, DocumentStoreCtx, .lines = reserve);
         EMBED_CALL(cli_line_machine_transfer, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
@@ -698,7 +698,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
     EMBED_CALL(cli_line_begin, DocumentStoreCtx, .lines = reserve);
     EMBED_CALL(cli_units_append, DocumentStoreCtx, .lines = reserve,
                .units = now->unit + now->start[args->edit->from.line], .count = args->edit->from.col);
-    for (unsigned long long at = 0ull; at < args->edit->length;)
+    for (unsigned long long at = 0ULL; at < args->edit->length;)
     {
         unsigned int letter = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
@@ -711,7 +711,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
             continue;
         }
         unsigned short units[2];
-        const unsigned long long count = (letter > 0xffffu) ? 2ull : 1ull;
+        const unsigned long long count = (letter > 0xffffu) ? 2ULL : 1ULL;
         // each unit of a letter is below 2^16
         units[0] = (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
         units[1] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
@@ -722,7 +722,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
                .units = now->unit + now->start[tail_line] + args->edit->to.col,
                .count = now->length[tail_line] - args->edit->to.col);
     EMBED_CALL(cli_line_end, DocumentStoreCtx, .lines = reserve);
-    for (unsigned long long line = tail_line + 1ull; line < now->lines; line += 1ull)
+    for (unsigned long long line = tail_line + 1ULL; line < now->lines; line += 1ULL)
     {
         EMBED_CALL(cli_line_begin, DocumentStoreCtx, .lines = reserve);
         EMBED_CALL(cli_line_machine_transfer, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
@@ -757,7 +757,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
     {
         EMBED_CALL(stored_capacity_exit, DocumentStoreCtx, .lines = now);
         *now = *reserve;
-        *reserve = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
+        *reserve = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
     }
     now->full = full;
 }
@@ -843,7 +843,7 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
 int cli_document_histogram(const CliDocumentCfg *args)
 {
     CliHistogram *histogram = args->histogram;
-    CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
+    const CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
     if (one != NULL)
     {
         *histogram = one->lines.histogram;

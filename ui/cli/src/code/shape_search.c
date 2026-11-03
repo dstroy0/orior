@@ -54,7 +54,7 @@ EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
     unsigned long long size = args->size;
     while (args->walk->at < args->byte)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->src, .size = size,
                                                .at = args->walk->at, .length = &length);
         args->walk->at += length;
@@ -164,8 +164,8 @@ static void search_release(void)
 EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
 {
     // the starts and ends of both and each part's hole, then the kinds of both, then their roles
-    const unsigned long long words = (2ull * args->code_capacity) + (3ull * args->part_capacity);
-    const unsigned long long bytes = 2ull * ((unsigned long long)args->code_capacity + args->part_capacity);
+    const unsigned long long words = (2ULL * args->code_capacity) + (3ULL * args->part_capacity);
+    const unsigned long long bytes = 2ULL * ((unsigned long long)args->code_capacity + args->part_capacity);
     s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
                                                      &g_cli_shape_cells);
     if (s_work_state == NULL)
@@ -181,12 +181,12 @@ EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
         (CliShapeTokens){kinds, roles, list_entries, list_entries + args->code_capacity, 0u, args->code_capacity, 0};
     s_work_state->parts = (CliShapeTokens){kinds + args->code_capacity,
                                            roles + args->code_capacity,
-                                           list_entries + (2ull * args->code_capacity),
-                                           list_entries + (2ull * args->code_capacity) + args->part_capacity,
+                                           list_entries + (2ULL * args->code_capacity),
+                                           list_entries + (2ULL * args->code_capacity) + args->part_capacity,
                                            0u,
                                            args->part_capacity,
                                            0};
-    s_work_state->hole_of = list_entries + (2ull * args->code_capacity) + (2ull * args->part_capacity);
+    s_work_state->hole_of = list_entries + (2ULL * args->code_capacity) + (2ULL * args->part_capacity);
     s_work_state->matcher.ends = NULL;
     s_work_state->matcher.ends_top = 0u;
     s_work_state->matcher.ends_capacity = 0u;
@@ -197,8 +197,8 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
 {
     const char *src = args->src;
     const char *pattern = args->pattern;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = pattern,
                .size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), .from_u64s = &from,
                .to_u64s = &to);
@@ -229,7 +229,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
     }
     s_work_state->matcher.src = src;
     s_work_state->matcher.tokens = &s_work_state->code;
-    CliShapeWalk walk = {0ull, 0u, 0u, 0ull};
+    CliShapeWalk walk = {0ULL, 0u, 0u, 0ULL};
     for (unsigned int at = 0u; at < s_work_state->code.count;)
     {
         unsigned int end = 0u;
@@ -251,18 +251,18 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
             at += 1u;
             continue;
         }
-        CliShapeFound found = {{0u, 0u}, {0u, 0u}, NULL, 0ull, NULL, 0ull, 0};
+        CliShapeFound found = {{0u, 0u}, {0u, 0u}, NULL, 0ULL, NULL, 0ULL, 0};
         found.from = EMBED_CALL(search_walk, ShapeSearchCtx, .src = src, .size = args->size, .walk = &walk,
                                 .byte = s_work_state->code.start[at]);
         found.line = src + walk.line_start;
         const unsigned long long line_size = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = found.line,
-                                                        .at = 0ull, .size = args->size - walk.line_start)
+                                                        .at = 0ULL, .size = args->size - walk.line_start)
                                                  .stop;
         found.line_size =
             EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = found.line, .size = line_size);
         found.to = EMBED_CALL(search_walk, ShapeSearchCtx, .src = src, .size = args->size, .walk = &walk,
                               .byte = s_work_state->code.end[end - 1u]);
-        VerbaLinea with = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+        VerbaLinea with = {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
         if (args->template_text != NULL)
         {
             // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at most
@@ -271,7 +271,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
             const unsigned long long span =
                 (unsigned long long)(s_work_state->code.end[end - 1u] - s_work_state->code.start[at]);
             const unsigned long long with_capacity =
-                template_length + (((template_length / 3ull) + 1ull) * span) + 1ull;
+                template_length + (((template_length / 3ULL) + 1ULL) * span) + 1ULL;
             char *const with_cell = g_cli_cells->temporary_buf_alloc(with_capacity, &g_cli_shape_cells);
             with = mmgr_line_over(with_cell, with_capacity);
             EMBED_CALL(search_fill, ShapeSearchCtx, .template_text = args->template_text, .out = &with);

@@ -42,13 +42,13 @@ int cli_big_from_be(const CliMysqlCtx *args)
 {
     const unsigned char *bytes = args->bytes;
     memor.set(&(MemoriaCfg){.dst = args->big_out, .val = 0, .bytes = sizeof(*args->big_out)});
-    if (args->size > (unsigned long long)CLI_BIG_WORDS * 4ull)
+    if (args->size > (unsigned long long)CLI_BIG_WORDS * 4ULL)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        const unsigned long long place = args->size - 1ull - at;
+        const unsigned long long place = args->size - 1ULL - at;
         args->big_out->word[place / 4u] |= (unsigned int)bytes[at] << (8u * (unsigned int)(place % 4u));
     }
     args->big_out->count = (unsigned int)((args->size + 3u) / 4u);
@@ -64,10 +64,10 @@ void cli_big_to_be(const CliMysqlBigOutCtx *args)
     {
         for (unsigned int shift = 0u; shift < 4u; shift += 1u)
         {
-            const unsigned long long at = ((unsigned long long)index * 4ull) + shift;
+            const unsigned long long at = ((unsigned long long)index * 4ULL) + shift;
             if (at < args->length)
             {
-                args->out[args->length - 1ull - at] = (unsigned char)((args->big->word[index] >> (8u * shift)) & 0xffu);
+                args->out[args->length - 1ULL - at] = (unsigned char)((args->big->word[index] >> (8u * shift)) & 0xffu);
             }
         }
     }
@@ -105,18 +105,18 @@ int cli_big_mul(const CliMysqlACtx *args)
     }
     for (unsigned int i = 0u; i < args->a->count; i += 1u)
     {
-        unsigned long long carry = 0ull;
+        unsigned long long carry = 0ULL;
         for (unsigned int j = 0u; j < args->b->count; j += 1u)
         {
             const unsigned long long sum = (unsigned long long)args->out_big_pointer->word[i + j] +
                                            ((unsigned long long)args->a->word[i] * args->b->word[j]) + carry;
-            args->out_big_pointer->word[i + j] = (unsigned int)(sum & 0xffffffffull);
+            args->out_big_pointer->word[i + j] = (unsigned int)(sum & 0xffffffffULL);
             carry = sum >> 32u;
         }
-        for (unsigned int at = i + args->b->count; carry > 0ull; at += 1u)
+        for (unsigned int at = i + args->b->count; carry > 0ULL; at += 1u)
         {
             const unsigned long long sum = (unsigned long long)args->out_big_pointer->word[at] + carry;
-            args->out_big_pointer->word[at] = (unsigned int)(sum & 0xffffffffull);
+            args->out_big_pointer->word[at] = (unsigned int)(sum & 0xffffffffULL);
             carry = sum >> 32u;
         }
     }
@@ -144,16 +144,16 @@ EMBED_INLINE int big_at_min(const MysqlRsaCtx *args)
 // `b` taken from `a`, which is at least `b`
 EMBED_INLINE void big_sub(const MysqlRsaCtx *args)
 {
-    long long borrow = 0ll;
+    long long borrow = 0LL;
     for (unsigned int index = 0u; index < args->a_out->count; index += 1u)
     {
         long long value = (long long)args->a_out->word[index] - borrow -
                           (long long)((index < args->b->count) ? args->b->word[index] : 0u);
-        borrow = 0ll;
-        if (value < 0ll)
+        borrow = 0LL;
+        if (value < 0LL)
         {
-            value += 4294967296ll;
-            borrow = 1ll;
+            value += 4294967296LL;
+            borrow = 1LL;
         }
         args->a_out->word[index] = (unsigned int)value;
     }
@@ -247,10 +247,10 @@ EMBED_INLINE int rsa_element(const MysqlRsaCtx *args)
     if ((count & 0x80u) != 0u)
     {
         const unsigned long long width = count & 0x7fu;
-        count = 0ull;
-        for (unsigned long long one = 0ull; one < width; one += 1ull)
+        count = 0ULL;
+        for (unsigned long long one = 0ULL; one < width; one += 1ULL)
         {
-            if ((*at >= args->size) || (count > 0xffffffffull))
+            if ((*at >= args->size) || (count > 0xffffffffULL))
             {
                 return 0;
             }
@@ -276,8 +276,8 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
     unsigned long long *length = args->length;
     static char s_body[CLI_RSA_DER * 2u];
     static unsigned char s_der[CLI_RSA_DER];
-    VerbaLinea body = {s_body, sizeof(s_body), 0ull};
-    for (unsigned long long at = 0ull; at < size;)
+    VerbaLinea body = {s_body, sizeof(s_body), 0ULL};
+    for (unsigned long long at = 0ULL; at < size;)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->pem, .at = at, .size = size).stop;
@@ -285,9 +285,9 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
         {
             mmgr_line_put_n(&body, args->pem + at, end - at);
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
-    unsigned long long der_size = 0ull;
+    unsigned long long der_size = 0ULL;
     if (!mmgr_line_ok(&body) ||
         !EMBED_CALL(cli_base64_text.unbase64, CliBase64TextCfg, .text = body.out, .length = body.at, .out_bytes = s_der,
                     .capacity = sizeof(s_der), .size_pointer = &der_size))
@@ -295,18 +295,18 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
         return 0;
     }
     unsigned char tag = 0u;
-    unsigned long long outer = 0ull;
-    unsigned long long outer_size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long outer = 0ULL;
+    unsigned long long outer_size = 0ULL;
+    unsigned long long at = 0ULL;
     if (!EMBED_CALL(rsa_element, MysqlRsaCtx, .der = s_der, .size = der_size, .at_u64s = &at, .tag = &tag,
                     .start = &outer, .length = &outer_size))
     {
         return 0;
     }
     const unsigned char *const inner = s_der + outer;
-    unsigned long long inner_at = 0ull;
-    unsigned long long first = 0ull;
-    unsigned long long first_size = 0ull;
+    unsigned long long inner_at = 0ULL;
+    unsigned long long first = 0ULL;
+    unsigned long long first_size = 0ULL;
     if (!EMBED_CALL(rsa_element, MysqlRsaCtx, .der = inner, .size = outer_size, .at_u64s = &inner_at, .tag = &tag,
                     .start = &first, .length = &first_size))
     {
@@ -317,10 +317,10 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
     if (tag == 0x30u)
     {
         // a SubjectPublicKeyInfo: the algorithm, then the key as a bit string, its first byte the unused bits
-        unsigned long long bits = 0ull;
-        unsigned long long bits_size = 0ull;
-        unsigned long long key_at = 0ull;
-        unsigned long long key = 0ull;
+        unsigned long long bits = 0ULL;
+        unsigned long long bits_size = 0ULL;
+        unsigned long long key_at = 0ULL;
+        unsigned long long key = 0ULL;
         if (!EMBED_CALL(rsa_element, MysqlRsaCtx, .der = inner, .size = outer_size, .at_u64s = &inner_at, .tag = &tag,
                         .start = &bits, .length = &bits_size) ||
             (bits_size < 1u) ||
@@ -331,11 +331,11 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
         }
         pair = inner + bits + 1u + key;
     }
-    unsigned long long pair_at = 0ull;
-    unsigned long long modulus_at = 0ull;
-    unsigned long long modulus_size = 0ull;
-    unsigned long long exponent_at = 0ull;
-    unsigned long long exponent_size = 0ull;
+    unsigned long long pair_at = 0ULL;
+    unsigned long long modulus_at = 0ULL;
+    unsigned long long modulus_size = 0ULL;
+    unsigned long long exponent_at = 0ULL;
+    unsigned long long exponent_size = 0ULL;
     if (!EMBED_CALL(rsa_element, MysqlRsaCtx, .der = pair, .size = pair_size, .at_u64s = &pair_at, .tag = &tag,
                     .start = &modulus_at, .length = &modulus_size) ||
         !EMBED_CALL(rsa_element, MysqlRsaCtx, .der = pair, .size = pair_size, .at_u64s = &pair_at, .tag = &tag,
@@ -363,7 +363,7 @@ void cli_mysql_mgf1(const CliMysqlSizeOutCtx *args)
     unsigned char input[CLI_RSA_BYTES + 4u];
     unsigned char digest[20];
     memor.cpy(&(MemoriaCfg){.dst = input, .src = args->seed, .bytes = (size_t)args->size});
-    for (unsigned int counter = 0u; ((unsigned long long)counter * 20ull) < args->length; counter += 1u)
+    for (unsigned int counter = 0u; ((unsigned long long)counter * 20ULL) < args->length; counter += 1u)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
         {
@@ -371,8 +371,8 @@ void cli_mysql_mgf1(const CliMysqlSizeOutCtx *args)
         }
         EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = input, .size = args->size + 4u,
                    .digest = digest);
-        const unsigned long long at = (unsigned long long)counter * 20ull;
-        const unsigned long long piece = ((args->length - at) < 20u) ? (args->length - at) : 20ull;
+        const unsigned long long at = (unsigned long long)counter * 20ULL;
+        const unsigned long long piece = ((args->length - at) < 20u) ? (args->length - at) : 20ULL;
         memor.cpy(&(MemoriaCfg){.dst = args->out + at, .src = digest, .bytes = (size_t)piece});
     }
 }
@@ -384,17 +384,17 @@ void cli_mysql_oaep(const CliMysqlSizeLengthCtx *args)
     // the block: the empty label's hash, zeros, a one, then the message
     const unsigned long long block_size = args->length - 21u;
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
-    EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = "", .size = 0ull, .digest = block);
+    EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = "", .size = 0ULL, .digest = block);
     block[block_size - args->size - 1u] = 1u;
     memor.cpy(&(MemoriaCfg){.dst = block + block_size - args->size, .src = args->message, .bytes = (size_t)args->size});
-    EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->seed, .size = 20ull, .out = mask,
+    EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->seed, .size = 20ULL, .out = mask,
                .length = block_size);
-    for (unsigned long long at = 0ull; at < block_size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < block_size; at += 1ULL)
     {
         args->padded[21u + at] = (unsigned char)(block[at] ^ mask[at]);
     }
     EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->padded + 21u, .size = block_size,
-               .out = mask, .length = 20ull);
+               .out = mask, .length = 20ULL);
     args->padded[0] = 0u;
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
@@ -411,7 +411,7 @@ int cli_mysql_rsa_seal(const CliMysqlSizeCtx *args)
     static CliBig s_sealed;
     unsigned char padded[CLI_RSA_BYTES];
     unsigned char seed[20];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     if (!EMBED_CALL(rsa_public_key, MysqlRsaCtx, .pem = args->pem, .size = args->pem_size, .modulus = &s_modulus,
                     .exponent = &s_exponent, .length = &length))
     {

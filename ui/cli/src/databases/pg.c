@@ -19,18 +19,18 @@ typedef struct
 // `size` bytes read whole off the connection, through its capacity: 1, or 0 where it broke
 EMBED_INLINE int pg_read(const PgCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         if (args->pg->start == args->pg->end)
         {
             const long long got =
                 EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &args->pg->socket,
                            .bytes_out = args->pg->in, .capacity = sizeof(args->pg->in));
-            if (got <= 0ll)
+            if (got <= 0LL)
             {
                 return 0;
             }
-            args->pg->start = 0ull;
+            args->pg->start = 0ULL;
             args->pg->end = (unsigned long long)got;
         }
         const unsigned long long have = args->pg->end - args->pg->start;
@@ -59,13 +59,13 @@ int cli_pg_message(const CliPgKindCtx *args)
     }
     const unsigned long long length = ((unsigned long long)head[1] << 24u) | ((unsigned long long)head[2] << 16u) |
                                       ((unsigned long long)head[3] << 8u) | (unsigned long long)head[4];
-    const unsigned long long size = (length > 4ull) ? length - 4ull : 0ull;
+    const unsigned long long size = (length > 4ULL) ? length - 4ULL : 0ULL;
     if (size > sizeof(args->pg->message))
     {
         // a message past the capacity is read past, so that the connection reads on from the next
         (void)EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = NULL, .size = size);
         char msg_buf[160];
-        VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+        VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ULL};
         mmgr_line_put(&line, "a message of ");
         mmgr_line_decimal(&line, size, 1u);
         mmgr_line_put(&line, " bytes is past the capacity of the buffer orior_cli reads one in");
@@ -87,7 +87,7 @@ int cli_pg_message(const CliPgKindCtx *args)
 int cli_pg_send(const CliPgFailureKindCtx *args)
 {
     CliDbFailure *failure = args->failure;
-    unsigned long long length = 4ull;
+    unsigned long long length = 4ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         length += args->sizes[at];
@@ -112,8 +112,12 @@ int cli_pg_send(const CliPgFailureKindCtx *args)
 
 void cli_pg_failure_get(const CliPgCtx *args)
 {
+    if (args->failure == NULL)
+    {
+        return;
+    }
     memor.set(&(MemoriaCfg){.dst = args->failure, .val = 0, .bytes = sizeof(*args->failure)});
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned char *const nul =
             memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (size_t)(args->size - at)});
@@ -129,7 +133,7 @@ void cli_pg_failure_get(const CliPgCtx *args)
                 (args->body[at] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
             if (field != NULL)
             {
-                VerbaLinea line = {field, capacity, 0ull};
+                VerbaLinea line = {field, capacity, 0ULL};
                 EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                            .text_bytes = args->body + at + 1u, .length = end - at - 1u);
                 mmgr_line_finish(&line);
@@ -137,17 +141,17 @@ void cli_pg_failure_get(const CliPgCtx *args)
             if (args->body[at] == 'P')
             {
                 // the place, where the field is a number alone, else 0
-                unsigned long long value = 0ull;
-                int whole = (end > at + 1u) && (end - at - 1u <= 19ull);
-                for (unsigned long long digit = at + 1u; whole && (digit < end); digit += 1ull)
+                unsigned long long value = 0ULL;
+                int whole = (end > at + 1u) && (end - at - 1u <= 19ULL);
+                for (unsigned long long digit = at + 1u; whole && (digit < end); digit += 1ULL)
                 {
                     whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
-                    value = (value * 10ull) + (unsigned long long)(args->body[digit] - '0');
+                    value = (value * 10ULL) + (unsigned long long)(args->body[digit] - '0');
                 }
-                args->failure->position = whole ? value : 0ull;
+                args->failure->position = whole ? value : 0ULL;
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
 }
 
@@ -172,11 +176,11 @@ void cli_pg_parameter_store(const CliPgBodyCtx *args)
                     ? at
                     : place;
     }
-    VerbaLinea name = {args->pg->names[place], CLI_PG_PARAMETER, 0ull};
+    VerbaLinea name = {args->pg->names[place], CLI_PG_PARAMETER, 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name, .text_bytes = args->body,
                .length = key);
     mmgr_line_finish(&name);
-    VerbaLinea value_line = {args->pg->values[place], CLI_PG_PARAMETER, 0ull};
+    VerbaLinea value_line = {args->pg->values[place], CLI_PG_PARAMETER, 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &value_line, .text_bytes = value,
                .length = value_size);
     mmgr_line_finish(&value_line);
@@ -190,7 +194,7 @@ void cli_pg_notice_store(const CliPgFailurePasswordCtx *args)
                .failure = &notice);
     if (args->pg->notice_count < CLI_PG_NOTICES)
     {
-        VerbaLinea line = {args->pg->notices[args->pg->notice_count], CLI_PG_NOTICE, 0ull};
+        VerbaLinea line = {args->pg->notices[args->pg->notice_count], CLI_PG_NOTICE, 0ULL};
         EMBED_CALL(cli_db_wire_out.db_failure_write, CliDbWireOutCfg, .failure_read = &notice, .out = &line);
         mmgr_line_finish(&line);
         args->pg->notice_count += 1u;
@@ -202,8 +206,8 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     CliDbFailure *failure = args->failure;
     char address[CLI_NAME_MAX_LEN + 16u];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea named = {address, sizeof(address), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    VerbaLinea named = {address, sizeof(address), 0ULL};
     mmgr_line_put(&named, args->host);
     mmgr_line_ch(&named, ':');
     mmgr_line_decimal(&named, args->port, 1u);
@@ -233,8 +237,8 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
                    .message = "orior_cli has as many PostgreSQL connections as it can");
         return NULL;
     }
-    pg->start = 0ull;
-    pg->end = 0ull;
+    pg->start = 0ULL;
+    pg->end = 0ULL;
     pg->has_cancel = 0;
     pg->status = 'I';
     pg->parameters = 0u;
@@ -242,7 +246,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     pg->read_state = 0;
     pg->has_failed = 0;
     // the wait is at most what a socket's wait counts, in milliseconds
-    const unsigned int within = (args->wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)args->wait;
+    const unsigned int within = (args->wait > 0xffffffffULL) ? 0xffffffffu : (unsigned int)args->wait;
     if (!EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &pg->socket,
                     .host = args->host, .port = args->port, .milliseconds = within, .err_msg = &err_msg))
     {

@@ -10,13 +10,13 @@
 
 unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
 {
-    unsigned long long count = 1ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long count = 1ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        count += (args->text[at] == '\n') ? 1ull : 0ull;
+        count += (args->text[at] == '\n') ? 1ULL : 0ULL;
     }
     unsigned int *const starts =
-        (count <= 0xffffffffull) ? g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
+        (count <= 0xffffffffULL) ? g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
                                  : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = args->text, .size = args->size,
@@ -38,7 +38,7 @@ void cli_build_lines_get(const CliBuildsTextSizeCfg *args)
     }
     args->starts[0] = 0u;
     args->lines_out->count = 1u;
-    for (unsigned long long at = 0ull; (at < size) && (args->lines_out->count < args->most);)
+    for (unsigned long long at = 0ULL; (at < size) && (args->lines_out->count < args->most);)
     {
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
@@ -69,7 +69,7 @@ CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args)
         }
     }
     unsigned int line = (low > 0u) ? low - 1u : 0u;
-    unsigned long long start = (args->lines->count > 0u) ? args->lines->start[line] : 0ull;
+    unsigned long long start = (args->lines->count > 0u) ? args->lines->start[line] : 0ULL;
     const unsigned long long end = (args->at < args->lines->size) ? args->at : args->lines->size;
     for (unsigned long long walk = start; walk < end; walk += 1u)
     {
@@ -81,7 +81,7 @@ CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args)
     }
     const unsigned long long units = (start <= end) ? EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg,
                                                                  .text = args->lines->text + start, .size = end - start)
-                                                    : 0ull;
+                                                    : 0ULL;
     return (CliTextPosition){line, (unsigned int)units};
 }
 
@@ -91,7 +91,7 @@ unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
     {
         return args->lines->start[args->line];
     }
-    unsigned long long at = (args->lines->count > 0u) ? args->lines->start[args->lines->count - 1u] : 0ull;
+    unsigned long long at = (args->lines->count > 0u) ? args->lines->start[args->lines->count - 1u] : 0ULL;
     for (unsigned int walk = (args->lines->count > 0u) ? args->lines->count - 1u : 0u; walk < args->line; walk += 1u)
     {
         const char *const newline =
@@ -138,8 +138,8 @@ void cli_build_findings_free(const CliBuildsLinesCfg *args)
 VerbaLinea cli_build_msg_line(const CliBuildsLinesCfg *args)
 {
     return (args->found->text != NULL) ? (VerbaLinea){args->found->text + args->found->used,
-                                                      args->found->text_capacity - args->found->used, 0ull}
-                                       : (VerbaLinea){NULL, 0ull, 0ull};
+                                                      args->found->text_capacity - args->found->used, 0ULL}
+                                       : (VerbaLinea){NULL, 0ULL, 0ULL};
 }
 
 typedef struct
@@ -162,7 +162,7 @@ EMBED_INLINE unsigned int help_text_store(const BuildsHelpCtx *args)
     const char *bytes = args->bytes;
     // a line written in place already has its capacity; any other is copied in
     const int in_position = (args->found->text != NULL) && (bytes == args->found->text + args->found->used);
-    if ((args->found->used + args->size + 1ull) > args->found->text_capacity)
+    if ((args->found->text == NULL) || ((args->found->used + args->size + 1ULL) > args->found->text_capacity))
     {
         args->found->full = 1;
         return CLI_BUILD_TEXT;
@@ -375,7 +375,7 @@ void cli_build_findings_write(const CliBuildsCfg *args)
 
 unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args)
 {
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     for (unsigned int walk = 0u; walk < args->line; walk += 1u)
     {
         const char *const newline =
@@ -413,7 +413,7 @@ unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args)
     unsigned long long start = at;
     while (start > line_start)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter =
             EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = text + line_start,
                        .end_value = start - line_start, .length = &length);
@@ -463,7 +463,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
 
 void cli_build_inside(const CliBuildsRootCfg *args)
 {
-    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ULL};
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
     const char after = args->folder[length];
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
@@ -475,9 +475,9 @@ void cli_build_inside(const CliBuildsRootCfg *args)
         return;
     }
     const char *rest = args->folder + length;
-    rest += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
+    rest += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
     line.at = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->out_capacity,
                          .at = line.at, .set = "/");
     (void)mmgr_line_finish(&line);
@@ -485,8 +485,8 @@ void cli_build_inside(const CliBuildsRootCfg *args)
 
 int cli_build_snapshot(const CliBuildsSizeVersionCfg *args)
 {
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->version, .size = args->size,
                .from_u64s = &from, .to_u64s = &to);
     return EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = args->version + from, .size = to - from,

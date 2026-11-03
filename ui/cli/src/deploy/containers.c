@@ -62,7 +62,7 @@ EMBED_INLINE int cli_tool_run(const ContainersCtx *args)
     }
     s_words.word[s_words.count] = NULL;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started =
         !s_words.full && EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words.word, .folder = NULL,
                                     .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &unstarted);
@@ -80,7 +80,7 @@ EMBED_INLINE int cli_first_line(const ContainersCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const unsigned long long end =
@@ -97,7 +97,7 @@ EMBED_INLINE int cli_first_line(const ContainersCtx *args)
                        .text_bytes = (const unsigned char *)text + from, .length = to - from);
             return 1;
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return 0;
 }
@@ -110,7 +110,7 @@ int cli_containers_tool(const CliContainersVariableCtx *args)
     {
         return 0;
     }
-    if (args->run_result->code == 0ll)
+    if (args->run_result->code == 0LL)
     {
         return 1;
     }
@@ -130,7 +130,7 @@ CliContainers g_cli_containers;
 void cli_containers_release(void)
 {
     g_cli_cells->persistent_buf_release(g_cli_containers.item, &g_cli_deploy_cells);
-    g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ull, 0ull};
+    g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ULL, 0ULL};
 }
 
 int cli_containers_act(const CliContainersCfg *args)
@@ -155,7 +155,7 @@ int cli_containers_act(const CliContainersCfg *args)
 int cli_containers_logs(const CliContainersOutLineCfg *args)
 {
     char lines[16];
-    VerbaLinea count = {lines, sizeof(lines), 0ull};
+    VerbaLinea count = {lines, sizeof(lines), 0ULL};
     mmgr_line_decimal(&count, CLI_LOG_LINES, 0u);
     mmgr_line_finish(&count);
     const char *const arguments[4] = {"logs", "--tail", lines, args->name};
@@ -166,25 +166,25 @@ int cli_containers_logs(const CliContainersOutLineCfg *args)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    if (run_result->code != 0ll)
+    if (run_result->code != 0LL)
     {
         // the first line of what it wrote and then printed, an empty one where it starts with a newline
-        if ((run_result->out_size == 0ull) && (run_result->err_size == 0ull))
+        if ((run_result->out_size == 0ULL) && (run_result->err_size == 0ULL))
         {
             mmgr_line_put(args->err_msg, "docker logs failed");
             EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
             return 0;
         }
         // the output's first line, and the error's first after it where the output's has no newline
-        const CliTextLine out_line = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->out, .at = 0ull,
+        const CliTextLine out_line = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->out, .at = 0ULL,
                                                 .size = run_result->out_size);
-        const CliTextLine err_line = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->err, .at = 0ull,
+        const CliTextLine err_line = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->err, .at = 0ULL,
                                                 .size = run_result->err_size);
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
                    .text_bytes = (const unsigned char *)run_result->out, .length = out_line.cut);
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
                    .text_bytes = (const unsigned char *)run_result->err,
-                   .length = (out_line.stop < run_result->out_size) ? 0ull : err_line.cut);
+                   .length = (out_line.stop < run_result->out_size) ? 0ULL : err_line.cut);
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
@@ -209,7 +209,7 @@ int cli_containers_run_in(const CliContainersOutLineCfg *args)
         return 0;
     }
     // a run a signal ended gives what it wrote as why it failed
-    if (run_result->code < 0ll)
+    if (run_result->code < 0LL)
     {
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
                    .text_bytes = (const unsigned char *)run_result->out, .length = run_result->out_size);
@@ -223,7 +223,7 @@ int cli_containers_run_in(const CliContainersOutLineCfg *args)
                .text_bytes = (const unsigned char *)run_result->out, .length = run_result->out_size);
     EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)run_result->err, .length = run_result->err_size);
-    if (run_result->code != 0ll)
+    if (run_result->code != 0LL)
     {
         mmgr_line_put(args->out, "\\nexit code ");
         mmgr_line_decimal_signed(args->out, run_result->code);

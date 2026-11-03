@@ -9,9 +9,9 @@
 // what a record contains is read for at most so many of its bytes, and in whole where it is at most so many; the most
 // records one read hands, a read of a run of any size taking a bounded capacity and going on from where it stopped at
 // the next; and the most runs viewed at once
-#define CLI_TEXT_SMALL 4096ull
+#define CLI_TEXT_SMALL 4096ULL
 
-#define CLI_TEXT_MAX 65536ull
+#define CLI_TEXT_MAX 65536ULL
 
 #define CLI_READ_MAX 4096u
 
@@ -110,24 +110,24 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
     const QryRecord *record = NULL;
     if (run != NULL)
     {
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while (qry_member_viewed_read(run, &at, &record))
         {
             mmgr_line_put_n(args->out, (const char *)QRY_RECORD_BLOB(record),
                             EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
-                                                                                                  : 0ull);
+                                                                                                  : 0ULL);
         }
         return 1;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_runs_cells);
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
         mmgr_line_put_n(args->out, (const char *)QRY_RECORD_BLOB(record),
                         EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
-                                                                                              : 0ull);
+                                                                                              : 0ULL);
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_runs_cells);
     if ((bytes == NULL) || (at != size))
@@ -142,12 +142,12 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
 unsigned int cli_qry_member_names(const CliQryDataCfg *args)
 {
     unsigned int count = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while (qry_record_read(args->data, args->size, &at, &record))
     {
         char name[CLI_NAME_MAX_LEN];
-        VerbaLinea line = {name, sizeof(name), 0ull};
+        VerbaLinea line = {name, sizeof(name), 0ULL};
         mmgr_line_put_n(&line, QRY_RECORD_NAME(record), record->name_length);
         mmgr_line_finish(&line);
         int seen = 0;
@@ -168,25 +168,25 @@ unsigned int cli_qry_member_names(const CliQryDataCfg *args)
 
 unsigned long long cli_qry_member_size(const CliQryOutCfg *args)
 {
-    unsigned long long at = 0ull;
-    unsigned long long joined = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long joined = 0ULL;
     const QryRecord *record = NULL;
     while (qry_record_read(args->data, args->size, &at, &record))
     {
-        joined += EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length : 0ull;
+        joined += EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length : 0ULL;
     }
     return joined;
 }
 
 void cli_qry_member_join(const CliQryOutCfg *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while (qry_record_read(args->data, args->size, &at, &record))
     {
         mmgr_line_put_n(args->out, (const char *)QRY_RECORD_BLOB(record),
                         EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
-                                                                                              : 0ull);
+                                                                                              : 0ULL);
     }
 }
 
@@ -219,7 +219,7 @@ int cli_qry_append(const CliQryPathCfg *args)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
         s_membered = 1;
     }
-    const int appended = qry_member_append(args->name, bytes, args->size, args->priority) != 0ull;
+    const int appended = qry_member_append(args->name, bytes, args->size, args->priority) != 0ULL;
     if (!appended)
     {
         mmgr_line_put(args->err_msg, args->name);
@@ -298,6 +298,6 @@ int cli_qry_existing(const CliQryPathPanickedCfg *args)
 {
     unsigned long long *panicked = args->panicked;
     QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
-    *panicked = (run != NULL) ? qry_member_viewed_panicked(run) : 0ull;
+    *panicked = (run != NULL) ? qry_member_viewed_panicked(run) : 0ULL;
     return run != NULL;
 }

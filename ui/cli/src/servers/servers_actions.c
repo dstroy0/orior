@@ -9,9 +9,6 @@
 #include "../command_line/cells.h"
 #include "servers_internal.h"
 
-// what is read, under the reading's lock
-static CliServersReadState s_read_state = {0};
-
 typedef struct
 {
     CliKeyed *keyed;

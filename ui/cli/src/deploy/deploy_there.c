@@ -114,10 +114,10 @@ int cli_deploy_record_path(const CliDeployIndexPathCtx *args)
     const CliDeployRun *const run = &g_cli_deploy;
     char home[CLI_PATH_MAX_LEN];
     char key[(3u * CLI_PATH_MAX_LEN) + 8u];
-    VerbaLinea key_line = {key, sizeof(key), 0ull};
+    VerbaLinea key_line = {key, sizeof(key), 0ULL};
     mmgr_line_put(&key_line, run->root);
 #if defined(_WIN32)
-    for (unsigned long long at = 0ull; at < key_line.at; at += 1u)
+    for (unsigned long long at = 0ULL; at < key_line.at; at += 1u)
     {
         key[at] = (key[at] == '/') ? '\\' : key[at];
     }
@@ -132,15 +132,15 @@ int cli_deploy_record_path(const CliDeployIndexPathCtx *args)
         return 0;
     }
     char digest[65];
-    VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
+    VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = key, .size = key_line.at,
                .text = &digest_line);
-    VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, home);
     mmgr_line_put(&line, "/deployed/");
     mmgr_line_put_n(&line, digest, 16u);
     mmgr_line_put(&line, ".json");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // the record of the hashes last sent to the place at `index` read into g_cli_deploy_last, placed in the place's pool at
@@ -152,12 +152,12 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_record);
     char path[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea none = {why, sizeof(why), 0ULL};
     const unsigned int top =
         EMBED_CALL(cli_deploy_index_path_internal.record_path, CliDeployIndexPathCtx, .index = args->index,
                    .path_out = path)
             ? EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &s_record, .path = path,
-                         .nodes_more = 0u, .text_more = 0ull, .err_msg = &none, .owner = &g_cli_deploy_cells)
+                         .nodes_more = 0u, .text_more = 0ULL, .err_msg = &none, .owner = &g_cli_deploy_cells)
             : CLI_JSON_NONE;
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_record, .node = top,
                     .kind = CFG_JSON_OBJECT))
@@ -198,21 +198,21 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
 // one entry of a folder of this machine hashed: a folder read in turn, a file's bytes hashed
 static void there_walk(const CliEachNameIsFolderCfg *args)
 {
-    void *context = args->context;
+    const void *context = args->context;
     const char *const folder = (const char *)context;
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea path_line = {path, sizeof(path), 0ull};
+    VerbaLinea path_line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&path_line, folder);
     mmgr_line_put(&path_line, (folder[0] != '\0') ? "/" : "");
     mmgr_line_put(&path_line, args->name);
     // the path ended before the whole path is written from it
     const unsigned long long ended = mmgr_line_finish(&path_line);
     char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-    VerbaLinea full_line = {full, sizeof(full), 0ull};
+    VerbaLinea full_line = {full, sizeof(full), 0ULL};
     mmgr_line_put(&full_line, s_walk_top);
     mmgr_line_ch(&full_line, '/');
-    mmgr_line_put(&full_line, (ended != 0ull) ? path : "");
-    if ((ended == 0ull) || (mmgr_line_finish(&full_line) == 0ull))
+    mmgr_line_put(&full_line, (ended != 0ULL) ? path : "");
+    if ((ended == 0ULL) || (mmgr_line_finish(&full_line) == 0ULL))
     {
         s_walk_full = 1;
         return;
@@ -224,7 +224,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
                                                               .pool = &s_pool, .text = path, .size = path_line.at));
         return;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                   .size_pointer = &size, .owner = &g_cli_deploy_cells);
     if (bytes == NULL)
@@ -232,7 +232,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
         return;
     }
     char digest[65];
-    VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
+    VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
     EMBED_CALL(there_pair_append, DeployThereCtx,
@@ -258,7 +258,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
     else
     {
         char line[(2u * CLI_PATH_MAX_LEN) + 128u];
-        VerbaLinea command = {line, sizeof(line), 0ull};
+        VerbaLinea command = {line, sizeof(line), 0ULL};
         mmgr_line_put(&command, "cd ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = args->folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}), .out = &command);
@@ -268,24 +268,25 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
         VerbaLinea listing = mmgr_line_over(s_listing, CLI_DEPLOY_HASHES);
         const int run_result =
             EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                       .input = NULL, .size = 0ull, .out = &listing, .err_msg = args->err_msg);
+                       .input = NULL, .size = 0ULL, .out = &listing, .err_msg = args->err_msg);
         if (!run_result)
         {
             return 0;
         }
         s_walk_full = !mmgr_line_ok(&listing);
-        const unsigned long long size = s_walk_full ? 0ull : listing.at;
+        const unsigned long long size = s_walk_full ? 0ULL : listing.at;
         static const char s_split[] = "  ";
         // a line is ended by a 0 from its first write, and a line with none holds nothing to walk
-        for (char *at = (size > 0ull) ? s_listing : NULL; (at != NULL) && (*at != '\0');)
+        for (char *at = (size > 0ULL) ? s_listing : NULL; (at != NULL) && (*at != '\0');)
         {
-            char *const newline = (char *)memor.chr(
+            const char *const newline = memor.chr(
                 &(MemoriaCfg){.src = at, .bytes = (size_t)(size - (unsigned long long)(at - s_listing)), .val = '\n'});
-            char *const end = (newline != NULL) ? newline : (s_listing + size);
+            char *const end = (newline != NULL) ? (at + (newline - at)) : (s_listing + size);
             const int more = (newline != NULL);
             *end = '\0';
-            char *const split = (char *)cellul.find(&(CatenaFinitaCfg){
+            const char *const split_read = cellul.find(&(CatenaFinitaCfg){
                 .src = at, .cap = (size_t)(end - at) + 1u, .other = s_split, .other_cap = sizeof(s_split)});
+            char *const split = (split_read != NULL) ? (at + (split_read - at)) : NULL;
             if (split != NULL)
             {
                 *split = '\0';
@@ -296,7 +297,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
                 }
                 const char *hash = at;
                 hash +=
-                    EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ull,
+                    EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ULL,
                                .size = cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_CELLS_POOL}), .set = "\\");
                 EMBED_CALL(there_pair_append, DeployThereCtx, .path = path, .hash = hash);
             }
@@ -314,7 +315,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
         mmgr_line_put(args->err_msg, "it has more files than orior_cli supports");
         return 0;
     }
-    for (unsigned int at = g_cli_deploy_there_count; s_pairs != NULL; s_pairs = s_pairs->before)
+    for (unsigned int at = g_cli_deploy_there_count; (there != NULL) && (s_pairs != NULL); s_pairs = s_pairs->before)
     {
         at -= 1u;
         there[at] = s_pairs->pair;

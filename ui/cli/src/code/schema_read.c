@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_read.c: a JSON file read with the place of each of its values: spaces and comments, `//` and `/* */`, passed
-// over; a string's escapes read; each fault reported with its span and the reading carried on past it, so one file
-// gives all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the read
-// fits are not stored, and it is marked full
+// schema_read.c: a JSON file read with the place of each of its values: spaces, line comments and block comments,
+// passed over; a string's escapes read; each fault reported with its span and the reading carried on past it, so one
+// file gives all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the
+// read fits are not stored, and it is marked full
 #include "../text/text.h"
 #include "schema_internal.h"
 
@@ -48,7 +48,7 @@ EMBED_INLINE int read_peek(const SchemaReadCtx *args)
 EMBED_INLINE unsigned int read_store(const SchemaReadCtx *args)
 {
     const char *bytes = args->bytes;
-    if ((args->read->used + args->size + 1ull) > args->read->pool_max)
+    if ((args->read->pool == NULL) || ((args->read->used + args->size + 1ULL) > args->read->pool_max))
     {
         args->read->full = 1;
         return CLI_SCHEMA_POOL;
@@ -65,7 +65,7 @@ EMBED_INLINE void read_error(const SchemaReadCtx *args)
 {
     CliSchemaRead *const read = args->reader->read;
     static char s_err_buf[1u << 14u];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     mmgr_line_put(&err_msg, args->before);
     mmgr_line_put_n(&err_msg, args->middle, args->size);
     mmgr_line_put(&err_msg, args->after);
@@ -88,7 +88,7 @@ EMBED_INLINE void read_blank(const SchemaReadCtx *args)
     {
         args->reader->at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text,
                                       .at = args->reader->at, .size = size, .set = " \t\n\r\f");
-        unsigned long long end = 0ull;
+        unsigned long long end = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + args->reader->at,
                        .size = size - args->reader->at, .prefix = "//"))
         {
@@ -138,7 +138,7 @@ static void read_string(const SchemaReadCtx *args)
     args->reader->at += 1u;
     while (args->reader->at < size)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size,
                                                .at = args->reader->at, .length = &length);
         if (letter == '"')
@@ -166,7 +166,7 @@ static void read_string(const SchemaReadCtx *args)
         static const char s_from[5] = {'n', 't', 'r', 'b', 'f'};
         static const char s_to[5] = {'\n', '\t', '\r', '\b', '\f'};
         const char *const escape =
-            (next < 0x80u) ? memor.chr(&(MemoriaCfg){.src = s_from, .val = (int)next, .bytes = 5u}) : NULL;
+            (next < 0x80u) ? memor.chr(&(MemoriaCfg){.src = s_from, .val = (unsigned char)next, .bytes = 5u}) : NULL;
         if (escape != NULL)
         {
             mmgr_line_ch(args->out, s_to[escape - s_from]);
@@ -256,7 +256,7 @@ static unsigned int read_members(const SchemaReadCtx *args)
             continue;
         }
         const unsigned long long from = args->reader->at;
-        VerbaLinea key = {s_key, sizeof(s_key), 0ull};
+        VerbaLinea key = {s_key, sizeof(s_key), 0ULL};
         EMBED_CALL(read_string, SchemaReadCtx, .reader = args->reader, .out = &key);
         const unsigned long long to = args->reader->at;
         const unsigned int key_at = EMBED_CALL(read_store, SchemaReadCtx, .read = read, .bytes = s_key, .size = key.at);
@@ -514,7 +514,7 @@ static unsigned int read_value(const SchemaReadCtx *args)
     if (byte == '"')
     {
         static char s_string[1u << 20u];
-        VerbaLinea text = {s_string, sizeof(s_string), 0ull};
+        VerbaLinea text = {s_string, sizeof(s_string), 0ULL};
         EMBED_CALL(read_string, SchemaReadCtx, .reader = args->reader, .out = &text);
         const unsigned int node =
             EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader, .kind = CLI_SCHEMA_TEXT, .from = from);
@@ -543,7 +543,7 @@ static unsigned int read_value(const SchemaReadCtx *args)
 }
 
 // the most bytes of the error messages a read writes
-#define CLI_SCHEMA_READ_MORE (64ull << 10u)
+#define CLI_SCHEMA_READ_MORE (64ULL << 10u)
 
 void cli_schema_read(const CliSchemaReadTextCtx *args)
 {
@@ -552,10 +552,10 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     cli_schema_read_text_internal.read_free(args);
     // a value takes two bytes of the text at the least with its comma, a member five, a text no more than its own bytes
     // and its end; the values a check makes stand past those the read makes, one for each value and member
-    const unsigned long long values = (size / 2ull) + 2ull;
-    const unsigned long long keyed = (size / 5ull) + 2ull;
+    const unsigned long long values = (size / 2ULL) + 2ULL;
+    const unsigned long long keyed = (size / 5ULL) + 2ULL;
     const unsigned long long nodes = values + keyed + CLI_SCHEMA_CHECK_NODES;
-    const unsigned long long pool = (2ull * size) + CLI_SCHEMA_READ_MORE;
+    const unsigned long long pool = (2ULL * size) + CLI_SCHEMA_READ_MORE;
     args->read_out->nodes_max = (nodes < CLI_SCHEMA_NODES) ? (unsigned int)nodes : CLI_SCHEMA_NODES;
     args->read_out->members_max = (keyed < CLI_SCHEMA_MEMBERS) ? (unsigned int)keyed : CLI_SCHEMA_MEMBERS;
     args->read_out->pool_max = (pool < CLI_SCHEMA_POOL) ? (unsigned int)pool : CLI_SCHEMA_POOL;
@@ -584,7 +584,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     args->read_out->errors = 0u;
     args->read_out->used = 0u;
     args->read_out->full = 0;
-    CliSchemaReader reader = {args->read_out, 0ull, 0u};
+    CliSchemaReader reader = {args->read_out, 0ULL, 0u};
     EMBED_CALL(read_blank, SchemaReadCtx, .reader = &reader);
     args->read_out->root = EMBED_CALL(read_value, SchemaReadCtx, .reader = &reader);
     EMBED_CALL(read_blank, SchemaReadCtx, .reader = &reader);

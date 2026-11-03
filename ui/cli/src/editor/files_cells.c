@@ -37,7 +37,7 @@ const char *cli_files_at(const CliFilesCfg *args)
 int cli_files_append(const CliFilesPathLengthCtx *args)
 {
     if ((args->files->count >= args->files->most) ||
-        ((args->files->used + args->length + 1ull) > args->files->text_max))
+        ((args->files->used + args->length + 1ULL) > args->files->text_max))
     {
         return 0;
     }
@@ -45,7 +45,7 @@ int cli_files_append(const CliFilesPathLengthCtx *args)
     args->files->start[args->files->count] = (unsigned int)args->files->used;
     memor.cpy(&(MemoriaCfg){.dst = args->files->text + args->files->used, .src = args->path, .bytes = args->length});
     args->files->text[args->files->used + args->length] = '\0';
-    args->files->used += args->length + 1ull;
+    args->files->used += args->length + 1ULL;
     args->files->count += 1u;
     return 1;
 }
@@ -150,14 +150,14 @@ void cli_files_clear(const CliFilesBytesCtx *args)
     CliFiles *files = args->files;
     EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = files->start);
     EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = files->text);
-    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
+    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
 }
 
 int cli_files_init(const CliFilesBytesCtx *args)
 {
     CliFiles *files = args->files;
-    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
-    if (args->count == 0ull)
+    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
+    if (args->count == 0ULL)
     {
         return 1;
     }
@@ -178,8 +178,8 @@ int cli_files_init(const CliFilesBytesCtx *args)
 int cli_files_work_init(const CliFilesBytesCtx *args)
 {
     CliFiles *files = args->files;
-    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
-    if (args->count == 0ull)
+    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
+    if (args->count == 0ULL)
     {
         return 1;
     }
@@ -204,7 +204,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
     *picked = (CliPicked){NULL, 0u};
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
     unsigned int count = 0u;
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
     // the most the tree holds, one straight take: a filter admits no more than every file
     CliFiles *const files =
@@ -215,7 +215,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
         return 0;
     }
     unsigned int *const start = (unsigned int *)(void *)(files + 1);
-    *files = (CliFiles){start, 0u, count, (char *)(start + count), 0ull, bytes};
+    *files = (CliFiles){start, 0u, count, (char *)(start + count), 0ULL, bytes};
     char path[CLI_PATH_MAX_LEN];
     unsigned int at = 0u;
     while (EMBED_CALL(cli_symbols_at.tree_next_file, CliSymbolsAtCfg, .at = &at, .path_out = path))

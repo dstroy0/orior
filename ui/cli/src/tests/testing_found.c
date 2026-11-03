@@ -64,7 +64,7 @@ EMBED_INLINE void *found_part(const TestingFoundCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -106,7 +106,7 @@ EMBED_INLINE void *found_part_alloc(const TestingFoundCtx *args)
         (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
-        (2ull * counted.functions * sizeof(unsigned int)) + (12ull * 8ull);
+        (2ULL * counted.functions * sizeof(unsigned int)) + (12ULL * 8ULL);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_tests_cells);
     if (cell == NULL)
     {
@@ -168,7 +168,7 @@ EMBED_INLINE void found_bodies(const TestingFoundCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned int lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (lines < s_work_state->lines); lines += 1u)
+    for (unsigned long long at = 0ULL; (at < size) && (lines < s_work_state->lines); lines += 1u)
     {
         s_work_state->line_start[lines] = (unsigned int)at;
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).next;
@@ -358,7 +358,7 @@ static void found_in(const TestingFoundCtx *args)
         const CliInspectFunction *const function = &s_work_state->facts.function[s_work_state->test_function[at]];
         const unsigned int class_at = s_work_state->test_class[at];
         char id[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea line = {id, sizeof(id), 0ull};
+        VerbaLinea line = {id, sizeof(id), 0ULL};
         mmgr_line_put(&line, args->file);
         mmgr_line_put(&line, "::");
         if (class_at != CLI_TESTS_NONE)
@@ -454,17 +454,17 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
         }
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = file, .joined = path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size))
         {
             continue;
         }
-        unsigned char *const bytes = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_tests_cells);
+        unsigned char *const bytes = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_tests_cells);
         if (bytes == NULL)
         {
             continue;
         }
-        const unsigned long long read = qry_member_file_read(path, bytes, size + 1ull);
+        const unsigned long long read = qry_member_file_read(path, bytes, size + 1ULL);
         const char *const text = (const char *)bytes;
         if ((read != QRY_MEMBER_UNREAD) &&
             EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = read))

@@ -11,9 +11,9 @@
 // parent's header, the metadata and the content; and the bytes the shell's queue is written in
 #define CLI_KERNEL_MARK "<IDS|MSG>"
 #define CLI_KERNEL_PARTS 5u
-#define CLI_KERNEL_QUEUE_CAPACITY (16ull << 20u)
+#define CLI_KERNEL_QUEUE_CAPACITY (16ULL << 20u)
 
-static unsigned long long s_next = 1ull;
+static unsigned long long s_next = 1ULL;
 
 void cli_kernel_key_init(const CliJupyterKeyCtx *args)
 {
@@ -26,7 +26,7 @@ void cli_kernel_key_init(const CliJupyterKeyCtx *args)
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = seed, .size = sizeof(seed),
                    .digest = bytes);
     }
-    VerbaLinea line = {args->key, 65ull, 0ull};
+    VerbaLinea line = {args->key, 65ULL, 0ULL};
     static const char s_hex[17] = "0123456789abcdef";
     for (unsigned int at = 0u; at < sizeof(bytes); at += 1u)
     {
@@ -39,13 +39,13 @@ void cli_kernel_key_init(const CliJupyterKeyCtx *args)
 unsigned long long cli_kernel_next(void)
 {
     const unsigned long long next = s_next;
-    s_next += 1ull;
+    s_next += 1ULL;
     return next;
 }
 
 void cli_kernel_id_init(const CliJupyterSessionCtx *args)
 {
-    VerbaLinea line = {args->id, CLI_KERNEL_ID, 0ull};
+    VerbaLinea line = {args->id, CLI_KERNEL_ID, 0ULL};
     mmgr_line_put(&line, args->session);
     mmgr_line_ch(&line, '_');
     mmgr_line_decimal(&line, cli_kernel_next(), 1u);
@@ -55,34 +55,34 @@ void cli_kernel_id_init(const CliJupyterSessionCtx *args)
 void cli_kernel_now_write(const CliJupyterOutCtx *args)
 {
     const unsigned long long milliseconds = cli_wall_milliseconds();
-    const unsigned long long seconds = milliseconds / 1000ull;
+    const unsigned long long seconds = milliseconds / 1000ULL;
     // the civil date of a day count from 1970, by eras of 400 years, as Howard Hinnant's days_from_civil inverts it
-    const unsigned long long shifted = (seconds / 86400ull) + 719468ull;
-    const unsigned long long era = shifted / 146097ull;
-    const unsigned long long of_era = shifted - (era * 146097ull);
+    const unsigned long long shifted = (seconds / 86400ULL) + 719468ULL;
+    const unsigned long long era = shifted / 146097ULL;
+    const unsigned long long of_era = shifted - (era * 146097ULL);
     const unsigned long long year_of_era =
-        (of_era - (of_era / 1460ull) + (of_era / 36524ull) - (of_era / 146096ull)) / 365ull;
+        (of_era - (of_era / 1460ULL) + (of_era / 36524ULL) - (of_era / 146096ULL)) / 365ULL;
     const unsigned long long day_of_year =
-        of_era - ((365ull * year_of_era) + (year_of_era / 4ull) - (year_of_era / 100ull));
-    const unsigned long long month_index = ((5ull * day_of_year) + 2ull) / 153ull;
-    const unsigned long long day = day_of_year - (((153ull * month_index) + 2ull) / 5ull) + 1ull;
-    const unsigned long long month = (month_index < 10ull) ? month_index + 3ull : month_index - 9ull;
-    const unsigned long long year = year_of_era + (era * 400ull) + ((month <= 2ull) ? 1ull : 0ull);
-    const unsigned long long rest = seconds % 86400ull;
+        of_era - ((365ULL * year_of_era) + (year_of_era / 4ULL) - (year_of_era / 100ULL));
+    const unsigned long long month_index = ((5ULL * day_of_year) + 2ULL) / 153ULL;
+    const unsigned long long day = day_of_year - (((153ULL * month_index) + 2ULL) / 5ULL) + 1ULL;
+    const unsigned long long month = (month_index < 10ULL) ? month_index + 3ULL : month_index - 9ULL;
+    const unsigned long long year = year_of_era + (era * 400ULL) + ((month <= 2ULL) ? 1ULL : 0ULL);
+    const unsigned long long rest = seconds % 86400ULL;
     mmgr_line_decimal(args->out, year, 4u);
     mmgr_line_ch(args->out, '-');
     mmgr_line_decimal(args->out, month, 2u);
     mmgr_line_ch(args->out, '-');
     mmgr_line_decimal(args->out, day, 2u);
     mmgr_line_ch(args->out, 'T');
-    mmgr_line_decimal(args->out, rest / 3600ull, 2u);
+    mmgr_line_decimal(args->out, rest / 3600ULL, 2u);
     mmgr_line_ch(args->out, ':');
-    mmgr_line_decimal(args->out, (rest % 3600ull) / 60ull, 2u);
+    mmgr_line_decimal(args->out, (rest % 3600ULL) / 60ULL, 2u);
     mmgr_line_ch(args->out, ':');
-    mmgr_line_decimal(args->out, rest % 60ull, 2u);
+    mmgr_line_decimal(args->out, rest % 60ULL, 2u);
     mmgr_line_ch(args->out, '.');
     // the wall clock reads milliseconds, written to the microsecond as Jupyter's headers are
-    mmgr_line_decimal(args->out, (milliseconds % 1000ull) * 1000ull, 6u);
+    mmgr_line_decimal(args->out, (milliseconds % 1000ULL) * 1000ULL, 6u);
     mmgr_line_ch(args->out, 'Z');
 }
 
@@ -163,7 +163,7 @@ EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
     }
     char named[CLI_KERNEL_ID];
     memor.set(&(MemoriaCfg){.dst = named, .val = 0, .bytes = sizeof(named)});
-    VerbaLinea name = {named, sizeof(named), 0ull};
+    VerbaLinea name = {named, sizeof(named), 0ULL};
     mmgr_line_put(&name, args->id);
     mmgr_line_put_n(&args->kernel->shell_queue, named, sizeof(named));
     mmgr_line_put_n(&args->kernel->shell_queue, (const char *)&args->size, sizeof(args->size));
@@ -184,7 +184,7 @@ void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
                (args->kernel->shell_queue_from < args->kernel->shell_queue.at))
         {
             const char *const named = args->kernel->shell_queue.out + args->kernel->shell_queue_from;
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             memor.cpy(&(MemoriaCfg){.dst = &size, .src = named + CLI_KERNEL_ID, .bytes = sizeof(size)});
             const unsigned char *const message = (const unsigned char *)(named + CLI_KERNEL_ID + sizeof(size));
             if (EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->kernel->shell,
@@ -196,7 +196,7 @@ void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
         }
         if (args->kernel->shell_queue_from >= args->kernel->shell_queue.at)
         {
-            args->kernel->shell_queue_from = 0ull;
+            args->kernel->shell_queue_from = 0ULL;
             args->kernel->shell_queue.at = 0u;
         }
     }
@@ -205,7 +205,7 @@ void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
 int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
 {
     char header[2048];
-    VerbaLinea line = {header, sizeof(header), 0ull};
+    VerbaLinea line = {header, sizeof(header), 0ULL};
     mmgr_line_put(&line, "{\"msg_id\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->id_read,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->id_read, .cap = CLI_CELLS_POOL}));
@@ -224,18 +224,18 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
         return 0;
     }
     CliZmtpFrame frames[2u + 4u] = {
-        {(const unsigned char *)CLI_KERNEL_MARK, sizeof(CLI_KERNEL_MARK) - 1ull},
-        {NULL, 64ull},
+        {(const unsigned char *)CLI_KERNEL_MARK, sizeof(CLI_KERNEL_MARK) - 1ULL},
+        {NULL, 64ULL},
         {(const unsigned char *)header, line.at},
-        {(const unsigned char *)"{}", 2ull},
-        {(const unsigned char *)"{}", 2ull},
+        {(const unsigned char *)"{}", 2ULL},
+        {(const unsigned char *)"{}", 2ULL},
         {(const unsigned char *)args->content, args->length},
     };
     char signature[72];
     EMBED_CALL(jupyter_sign, JupyterWireCtx, .key = args->kernel->key, .parts = frames + 2, .count = 4u,
                .hex = signature);
     frames[1].bytes = (const unsigned char *)signature;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     unsigned char *const message =
         EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = frames, .count = 6u, .size = &size);
     if (message == NULL)
@@ -250,7 +250,7 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
                                       .message = message, .size = size);
     if (shell && now && sent)
     {
-        VerbaLinea flight = {args->kernel->shell_flight, sizeof(args->kernel->shell_flight), 0ull};
+        VerbaLinea flight = {args->kernel->shell_flight, sizeof(args->kernel->shell_flight), 0ULL};
         mmgr_line_put(&flight, args->id_read);
         (void)mmgr_line_finish(&flight);
     }
@@ -270,7 +270,7 @@ EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
                .node_json_node_pointer = args->reader->nodes, .nodes_max = CLI_KERNEL_HEADER_NODES,
                .text_out = args->reader->text, .text_max = CLI_KERNEL_HEADER_TEXT);
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const char *const text = (const char *)args->header->bytes;
     const unsigned int root =
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = args->header->size)
@@ -282,7 +282,7 @@ EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
     {
         return 0;
     }
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const value =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -294,15 +294,15 @@ EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
     {
         const int fits = (value != NULL) && (length < args->capacity) &&
                          (memor.chr(&(MemoriaCfg){.src = value, .val = '\0', .bytes = length}) == NULL);
-        memor.cpy(&(MemoriaCfg){.dst = args->copy, .src = fits ? value : "", .bytes = fits ? length : 0ull});
-        args->copy[fits ? length : 0ull] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = args->copy, .src = fits ? value : "", .bytes = fits ? length : 0ULL});
+        args->copy[fits ? length : 0ULL] = '\0';
     }
     return 1;
 }
 
 int cli_kernel_message_write(const CliJupyterOutCtx *args)
 {
-    const unsigned long long mark = sizeof(CLI_KERNEL_MARK) - 1ull;
+    const unsigned long long mark = sizeof(CLI_KERNEL_MARK) - 1ULL;
     unsigned int at = 0u;
     while ((at < args->count) &&
            !((args->frames[at].size == mark) &&
@@ -320,7 +320,7 @@ int cli_kernel_message_write(const CliJupyterOutCtx *args)
     {
         char signature[72];
         EMBED_CALL(jupyter_sign, JupyterWireCtx, .key = key, .parts = parts + 1, .count = 4u, .hex = signature);
-        if ((parts[0].size != 64ull) ||
+        if ((parts[0].size != 64ULL) ||
             (memor.cmp(&(MemoriaCfg){.src = parts[0].bytes, .other = signature, .bytes = 64u}) != 0))
         {
             return 0;
@@ -333,11 +333,11 @@ int cli_kernel_message_write(const CliJupyterOutCtx *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->reader->channel, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(args->out, ",\"msg_type\":");
     const int header = EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
-                                  .name = "msg_type", .out = args->out, .copy = NULL, .capacity = 0ull);
+                                  .name = "msg_type", .out = args->out, .copy = NULL, .capacity = 0ULL);
     mmgr_line_put(args->out, ",\"msg_id\":");
     const int id =
         header && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
-                             .name = "msg_id", .out = args->out, .copy = NULL, .capacity = 0ull);
+                             .name = "msg_id", .out = args->out, .copy = NULL, .capacity = 0ULL);
     mmgr_line_put(args->out, ",\"parent\":");
     const int parented =
         id && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[2],

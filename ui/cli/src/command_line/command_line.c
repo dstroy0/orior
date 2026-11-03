@@ -14,14 +14,14 @@ void cli_out_line(const CliCommandLineTextSizeCtx *args)
 {
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = args->text,
                .length = args->size);
-    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = "\n", .length = 1ull);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = "\n", .length = 1ULL);
 }
 
 void cli_err_line(const CliCommandLineTextSizeCtx *args)
 {
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = args->text,
                .length = args->size);
-    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = "\n", .length = 1ull);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = "\n", .length = 1ULL);
 }
 
 void cli_out(const CliCommandLineCtx *args)
@@ -41,17 +41,17 @@ void cli_err(const CliCommandLineCtx *args)
 unsigned int cli_width(void)
 {
     char columns[32];
-    unsigned long long width = 0ull;
+    unsigned long long width = 0ULL;
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "COLUMNS",
                    .value_out = columns, .capacity = sizeof(columns)))
     {
         const unsigned long long read =
-            EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = columns, .at = 0ull,
+            EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = columns, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = columns, .cap = CLI_CELLS_POOL}), .end = NULL);
-        width = (read < 100000ull) ? read : 100ull;
+        width = (read < 100000ULL) ? read : 100ULL;
     }
     // the width is under 100000 here, as checked as it was read
-    return (width >= 40ull) ? (unsigned int)width : 100u;
+    return (width >= 40ULL) ? (unsigned int)width : 100u;
 }
 
 void cli_cut(const CliCommandLineTextSizeCtx *args)
@@ -63,13 +63,13 @@ void cli_cut(const CliCommandLineTextSizeCtx *args)
         mmgr_line_put_n(args->out, text, size);
         return;
     }
-    const unsigned long long displayed = (args->most > 3ull) ? args->most - 3ull : 0ull;
-    unsigned long long at = 0ull;
-    for (unsigned long long letter = 0ull; letter < displayed; letter += 1ull)
+    const unsigned long long displayed = (args->most > 3ULL) ? args->most - 3ULL : 0ULL;
+    unsigned long long at = 0ULL;
+    for (unsigned long long letter = 0ULL; letter < displayed; letter += 1ULL)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
-        at += (length > 0ull) ? length : 1ull;
+        at += (length > 0ULL) ? length : 1ULL;
     }
     mmgr_line_put_n(args->out, text,
                     EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = text, .size = at));
@@ -83,16 +83,16 @@ void cli_wrap(const CliCommandLineTextCtx *args)
     static char s_line[1u << 16u];
     const unsigned long long comment_prefix_size =
         cellul.len(&(CatenaFinitaCfg){.src = args->lead, .cap = CLI_CELLS_POOL});
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, args->lead);
-    unsigned long long at = 0ull;
-    unsigned long long word = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long word = 0ULL;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size, .at_pointer = &at,
                       .word = &word, .length = &length))
     {
         const int started = (line.at > comment_prefix_size);
-        if (started && (line.at + 1ull + length > args->most))
+        if (started && (line.at + 1ULL + length > args->most))
         {
             EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = s_line, .size = line.at);
             line.at = comment_prefix_size;
@@ -273,7 +273,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
                 return 0;
             }
             static char s_free[1u << 16u];
-            VerbaLinea free = {s_free, sizeof(s_free), 0ull};
+            VerbaLinea free = {s_free, sizeof(s_free), 0ULL};
             for (unsigned int word = at + 1u; word < count; word += 1u)
             {
                 mmgr_line_put(&free, (word > at + 1u) ? " " : "");

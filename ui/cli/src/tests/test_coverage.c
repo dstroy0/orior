@@ -134,12 +134,12 @@ typedef struct
 EMBED_INLINE void cover_count(const TestCoverageCtx *args)
 {
     int in_digits = 0;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const char letter = args->text[at];
         const int digit = (letter >= '0') && (letter <= '9');
-        args->counts->quotes += (letter == '"') ? 1ull : 0ull;
-        args->counts->numbers += (digit && !in_digits) ? 1ull : 0ull;
+        args->counts->quotes += (letter == '"') ? 1ULL : 0ULL;
+        args->counts->numbers += (digit && !in_digits) ? 1ULL : 0ULL;
         in_digits = digit;
     }
     args->counts->bytes += args->size;
@@ -150,17 +150,17 @@ EMBED_INLINE void *cover_part(const TestCoverageCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
 // the coverage's capacity taken for `counts` and its parts set into it: 1, or 0 with no capacity
 EMBED_INLINE int cover_work_state_alloc(const TestCoverageCtx *args)
 {
-    const unsigned long long files = (args->counts_read->quotes / 2ull) + 1ull;
-    const unsigned long long lines = args->counts_read->numbers + 1ull;
+    const unsigned long long files = (args->counts_read->quotes / 2ULL) + 1ULL;
+    const unsigned long long lines = args->counts_read->numbers + 1ULL;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
-                                     (lines * sizeof(CliCoverLine)) + args->counts_read->bytes + 1ull + (4ull * 8ull);
+                                     (lines * sizeof(CliCoverLine)) + args->counts_read->bytes + 1ULL + (4ULL * 8ULL);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_tests_cells);
     if (cell == NULL)
     {
@@ -174,8 +174,8 @@ EMBED_INLINE int cover_work_state_alloc(const TestCoverageCtx *args)
     s_cover->files_max = (unsigned int)files;
     s_cover->lines = EMBED_CALL(cover_part, TestCoverageCtx, .at = &at, .bytes = lines * sizeof(CliCoverLine));
     s_cover->lines_max = (unsigned int)lines;
-    s_cover->text = EMBED_CALL(cover_part, TestCoverageCtx, .at = &at, .bytes = args->counts_read->bytes + 1ull);
-    s_cover->text_max = args->counts_read->bytes + 1ull;
+    s_cover->text = EMBED_CALL(cover_part, TestCoverageCtx, .at = &at, .bytes = args->counts_read->bytes + 1ULL);
+    s_cover->text_max = args->counts_read->bytes + 1ULL;
     return 1;
 }
 
@@ -185,7 +185,7 @@ EMBED_INLINE void cover_white(const TestCoverageCtx *args)
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->read->text[args->read->at]}) != NULL))
     {
-        args->read->at += 1ull;
+        args->read->at += 1ULL;
     }
 }
 
@@ -199,15 +199,15 @@ static int cover_string(const TestCoverageCtx *args)
     }
     char quoted[CLI_PATH_MAX_LEN + 2u];
     const unsigned long long start = args->read->at;
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     args->read->at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->read->text,
                                 .at = args->read->at, .size = args->read->size, .set = "\"\\");
     while ((args->read->at < args->read->size) && (args->read->text[args->read->at] == '\\'))
     {
         args->read->at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->read->text,
-                                    .at = args->read->at + 2ull, .size = args->read->size, .set = "\"\\");
+                                    .at = args->read->at + 2ULL, .size = args->read->size, .set = "\"\\");
     }
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     // the string read back from its JSON, through the tree's own reading of one string
     const unsigned long long length = args->read->at - start;
     if ((args->read->at > args->read->size) || (length > sizeof(quoted)))
@@ -222,11 +222,11 @@ static int cover_string(const TestCoverageCtx *args)
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
                .node_json_node_pointer = node, .nodes_max = 1u, .text_out = letters, .text_max = sizeof(letters));
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
                    .text = quoted, .size = length, .tokens = token, .tokens_max = 1u, .err_msg = &unread);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const value = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                          .json_read = &json, .node = root, .length_pointer = &size);
     if (value == NULL)
@@ -250,14 +250,14 @@ EMBED_INLINE unsigned int cover_file(const TestCoverageCtx *args)
             return at;
         }
     }
-    if ((s_cover->files == s_cover->files_max) || (s_cover->used + args->length + 1ull > s_cover->text_max))
+    if ((s_cover->files == s_cover->files_max) || (s_cover->used + args->length + 1ULL > s_cover->text_max))
     {
         return s_cover->files_max;
     }
     s_cover->names[s_cover->files] = s_cover->used;
     memor.cpy(&(MemoriaCfg){.dst = s_cover->text + s_cover->used, .src = args->name, .bytes = args->length});
     s_cover->text[s_cover->used + args->length] = '\0';
-    s_cover->used += args->length + 1ull;
+    s_cover->used += args->length + 1ULL;
     s_cover->files += 1u;
     return s_cover->files - 1u;
 }
@@ -274,31 +274,31 @@ static void cover_skip(const TestCoverageCtx *args)
     if ((first == '[') || (first == '{'))
     {
         const char close = (first == '[') ? ']' : '}';
-        args->read->at += 1ull;
+        args->read->at += 1ULL;
         cover_white(args);
         while ((args->read->at < args->read->size) && (args->read->text[args->read->at] != close))
         {
             if (first == '{')
             {
                 char key[CLI_PATH_MAX_LEN];
-                VerbaLinea line = {key, sizeof(key), 0ull};
+                VerbaLinea line = {key, sizeof(key), 0ULL};
                 (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = args->read, .out = &line);
                 cover_white(args);
-                args->read->at += 1ull;
+                args->read->at += 1ULL;
             }
             cover_skip(args);
             cover_white(args);
             args->read->at +=
-                ((args->read->at < args->read->size) && (args->read->text[args->read->at] == ',')) ? 1ull : 0ull;
+                ((args->read->at < args->read->size) && (args->read->text[args->read->at] == ',')) ? 1ULL : 0ULL;
             cover_white(args);
         }
-        args->read->at += 1ull;
+        args->read->at += 1ULL;
         return;
     }
     if (first == '"')
     {
         char ignored[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {ignored, sizeof(ignored), 0ull};
+        VerbaLinea line = {ignored, sizeof(ignored), 0ULL};
         (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = args->read, .out = &line);
         return;
     }
@@ -306,7 +306,7 @@ static void cover_skip(const TestCoverageCtx *args)
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = ",]} \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->read->text[args->read->at]}) == NULL))
     {
-        args->read->at += 1ull;
+        args->read->at += 1ULL;
     }
 }
 
@@ -320,35 +320,35 @@ EMBED_INLINE void cover_lines(const TestCoverageCtx *args)
         cover_skip(args);
         return;
     }
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     cover_white(args);
     while ((args->read->at < args->read->size) && (args->read->text[args->read->at] != ']'))
     {
         const unsigned long long start = args->read->at;
         cover_skip(args);
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         const unsigned long long end =
             start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                .text = args->read->text + start, .at = args->read->at - start, .set = " \t\r\n");
         const int whole =
-            (end > start) && ((end - start) <= 19ull) &&
+            (end > start) && ((end - start) <= 19ULL) &&
             (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->read->text,
                         .at = start, .size = end, .classes = CLI_TEXT_DIGITS, .set = "") == end);
         value = whole ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->read->text, .at = start,
                                    .size = end, .end = NULL)
-                      : 0ull;
+                      : 0ULL;
         if (whole && (args->file < s_cover->files_max) && (s_cover->line_count < s_cover->lines_max))
         {
             s_cover->lines[s_cover->line_count] =
-                (CliCoverLine){args->file, args->could, (unsigned int)((value > 0ull) ? value - 1ull : 0ull)};
+                (CliCoverLine){args->file, args->could, (unsigned int)((value > 0ULL) ? value - 1ULL : 0ULL)};
             s_cover->line_count += 1u;
         }
         cover_white(args);
         args->read->at +=
-            ((args->read->at < args->read->size) && (args->read->text[args->read->at] == ',')) ? 1ull : 0ull;
+            ((args->read->at < args->read->size) && (args->read->text[args->read->at] == ',')) ? 1ULL : 0ULL;
         cover_white(args);
     }
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
 }
 
 // one coverage file a process wrote, JSON whole and an object, each file it names recorded with the lines it marks
@@ -357,41 +357,41 @@ EMBED_INLINE void cover_read(const TestCoverageCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     char tiny[1];
-    VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
-    CliCoverRead read = {text, size, 0ull};
+    VerbaLinea checked = {tiny, sizeof(tiny), 0ULL};
+    CliCoverRead read = {text, size, 0ULL};
     EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
     if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = text, .size = size, .out = &checked) ||
         (read.at >= size) || (text[read.at] != '{'))
     {
         return;
     }
-    read.at += 1ull;
+    read.at += 1ULL;
     EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
     while ((read.at < size) && (text[read.at] != '}'))
     {
         char name[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {name, sizeof(name), 0ull};
+        VerbaLinea line = {name, sizeof(name), 0ULL};
         (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = &read, .out = &line);
-        for (unsigned long long at = 0ull; at < line.at; at += 1ull)
+        for (unsigned long long at = 0ULL; at < line.at; at += 1ULL)
         {
             name[at] = (name[at] == '\\') ? '/' : name[at];
         }
         const unsigned int file = EMBED_CALL(cover_file, TestCoverageCtx, .name = name, .length = line.at);
         EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-        read.at += 1ull;
+        read.at += 1ULL;
         EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
         if ((read.at < size) && (text[read.at] == '{'))
         {
-            read.at += 1ull;
+            read.at += 1ULL;
             EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
             while ((read.at < size) && (text[read.at] != '}'))
             {
                 char key[16];
-                VerbaLinea key_line = {key, sizeof(key), 0ull};
+                VerbaLinea key_line = {key, sizeof(key), 0ULL};
                 (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = &read, .out = &key_line);
                 mmgr_line_finish(&key_line);
                 EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-                read.at += 1ull;
+                read.at += 1ULL;
                 const int run_result =
                     (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_CELLS_POOL}));
                 const int could = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "could", .cap = CLI_CELLS_POOL}));
@@ -404,17 +404,17 @@ EMBED_INLINE void cover_read(const TestCoverageCtx *args)
                     EMBED_CALL(cover_skip, TestCoverageCtx, .read = &read);
                 }
                 EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-                read.at += ((read.at < size) && (text[read.at] == ',')) ? 1ull : 0ull;
+                read.at += ((read.at < size) && (text[read.at] == ',')) ? 1ULL : 0ULL;
                 EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
             }
-            read.at += 1ull;
+            read.at += 1ULL;
         }
         else
         {
             EMBED_CALL(cover_skip, TestCoverageCtx, .read = &read);
         }
         EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-        read.at += ((read.at < size) && (text[read.at] == ',')) ? 1ull : 0ull;
+        read.at += ((read.at < size) && (text[read.at] == ',')) ? 1ULL : 0ULL;
         EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
     }
 }
@@ -500,11 +500,11 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
 {
     s_cover = &s_capacity;
     // the files counted on one pass and read on the next, into a capacity the counts size
-    CliCoverCounts counts = {0ull, 0ull, 0ull};
+    CliCoverCounts counts = {0ULL, 0ULL, 0ULL};
     for (unsigned int at = 0u; at < args->run->worker_count; at += 1u)
     {
         const CliTestWorker *const worker = &args->run->workers[at];
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = worker->cargo
                                      ? NULL
                                      : EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
@@ -522,12 +522,12 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
         return;
     }
     s_cover->files = 0u;
-    s_cover->used = 0ull;
+    s_cover->used = 0ULL;
     s_cover->line_count = 0u;
     for (unsigned int at = 0u; at < args->run->worker_count; at += 1u)
     {
         const CliTestWorker *const worker = &args->run->workers[at];
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = worker->cargo
                                      ? NULL
                                      : EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
@@ -540,8 +540,8 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
                    .size = size);
     }
     // a name's byte is escaped to at most 6, a line's number takes at most 11 and its comma, and a file's words are few
-    const unsigned long long out_capacity = (s_cover->used * 6ull) + ((unsigned long long)s_cover->files * 64ull) +
-                                            ((unsigned long long)s_cover->line_count * 12ull) + 64ull;
+    const unsigned long long out_capacity = (s_cover->used * 6ULL) + ((unsigned long long)s_cover->files * 64ULL) +
+                                            ((unsigned long long)s_cover->line_count * 12ULL) + 64ULL;
     char *const out_cell =
         (s_cover->files > 0u) ? g_cli_cells->temporary_buf_alloc(out_capacity, &g_cli_tests_cells) : NULL;
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);

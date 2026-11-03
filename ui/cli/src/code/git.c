@@ -36,18 +36,18 @@ int cli_git_head(const CliGitRootCommitCfg *args)
     const char *to = result->out + result->out_size;
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     const char *space = from;
-    space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = space, .at = 0ull,
+    space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = space, .at = 0ULL,
                         .size = (unsigned long long)(to - space), .set = " ");
     found = found && (space < to) && (space[1] >= '0') && (space[1] <= '9');
-    long long seconds = 0ll;
+    long long seconds = 0LL;
     for (const char *digit = space + 1; found && (digit < to); digit += 1)
     {
         found = (digit[0] >= '0') && (digit[0] <= '9');
-        seconds = (seconds * 10ll) + (long long)(digit[0] - '0');
+        seconds = (seconds * 10LL) + (long long)(digit[0] - '0');
     }
     if (found)
     {
-        VerbaLinea line = {args->commit, CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea line = {args->commit, CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put_n(&line, from, (unsigned long long)(space - from));
         mmgr_line_finish(&line);
         *when = seconds;
@@ -55,7 +55,7 @@ int cli_git_head(const CliGitRootCommitCfg *args)
         if (EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = s_status,
                        .count = 3u, .result = result))
         {
-            for (unsigned long long at = 0ull; all_white && (at < result->out_size); at += 1ull)
+            for (unsigned long long at = 0ULL; all_white && (at < result->out_size); at += 1ULL)
             {
                 const char letter = result->out[at];
                 all_white = (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
@@ -95,8 +95,8 @@ EMBED_INLINE int cli_query_line(const GitCtx *args)
     const char *from = result->out;
     const char *to = result->out + result->out_size;
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
-    VerbaLinea line = {args->out, args->capacity, 0ull};
-    mmgr_line_put_n(&line, from, found ? (unsigned long long)(to - from) : 0ull);
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
+    mmgr_line_put_n(&line, from, found ? (unsigned long long)(to - from) : 0ULL);
     mmgr_line_finish(&line);
     EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return found;
@@ -131,14 +131,14 @@ void cli_git_name(const CliGitCfg *args)
     unsigned long long start = length;
     start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = remote, .at = start,
                        .set = "/:\\");
-    if (((length - start) >= 4ull) &&
-        (memor.cmp(&(MemoriaCfg){.src = remote + length - 4ull, .other = ".git", .bytes = 4u}) == 0))
+    if (((length - start) >= 4ULL) &&
+        (memor.cmp(&(MemoriaCfg){.src = remote + length - 4ULL, .other = ".git", .bytes = 4u}) == 0))
     {
-        length -= 4ull;
+        length -= 4ULL;
     }
     if (length > start)
     {
-        VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put_n(&line, remote + start, length - start);
         mmgr_line_finish(&line);
         return;
@@ -150,9 +150,9 @@ void cli_git_name(const CliGitCfg *args)
     unsigned long long first = end;
     first = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root, .at = first,
                        .set = "/\\");
-    const int is_drive = ((end - first) == 2ull) && (args->root[first + 1ull] == ':');
-    VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ull};
-    mmgr_line_put_n(&line, args->root + first, is_drive ? 0ull : (end - first));
+    const int is_drive = ((end - first) == 2ULL) && (args->root[first + 1ULL] == ':');
+    VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ULL};
+    mmgr_line_put_n(&line, args->root + first, is_drive ? 0ULL : (end - first));
     mmgr_line_finish(&line);
 }
 
@@ -161,14 +161,14 @@ int cli_git_stage_text(const CliGitRootFileStageCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char displayed[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
                     .folder = folder, .displayed = displayed, .err_msg = &err_msg))
     {
         return 0;
     }
     char named[CLI_PATH_MAX_LEN + 8u];
-    VerbaLinea line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ULL};
     mmgr_line_ch(&line, ':');
     mmgr_line_decimal(&line, args->stage, 1u);
     mmgr_line_ch(&line, ':');
@@ -190,12 +190,12 @@ int cli_git_stage_text(const CliGitRootFileStageCfg *args)
 const char *cli_git_owner(const CliGitCountCtx *args)
 {
     const char *owner = NULL;
-    unsigned long long longest = 0ull;
+    unsigned long long longest = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const repo = args->repos[at];
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = repo, .cap = CLI_CELLS_POOL});
-        const int contains = (size == 0ull) ||
+        const int contains = (size == 0ULL) ||
                              ((size == args->length) &&
                               (memor.cmp(&(MemoriaCfg){.src = args->path, .other = repo, .bytes = size}) == 0)) ||
                              ((size < args->length) &&
@@ -241,7 +241,7 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = record, .cap = CLI_CELLS_POOL});
         const char *const next = record + length + 1;
-        if (length == 0ull)
+        if (length == 0ULL)
         {
             record = next;
             continue;
@@ -252,7 +252,7 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
             record = next;
             continue;
         }
-        if (length < 4ull)
+        if (length < 4ULL)
         {
             record = next;
             continue;
@@ -266,9 +266,9 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
             (args->found->count < CLI_GIT_CHANGED))
         {
             char path[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {path, sizeof(path), 0ull};
+            VerbaLinea line = {path, sizeof(path), 0ULL};
             mmgr_line_put(&line, args->repo);
-            mmgr_line_put(&line, (repo_length != 0ull) ? "/" : "");
+            mmgr_line_put(&line, (repo_length != 0ULL) ? "/" : "");
             mmgr_line_put(&line, record + 3 + prefix_length);
             unsigned long long size = mmgr_line_finish(&line);
             // a repository under this one shows in its changes as a folder of new files
@@ -277,7 +277,7 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
                                  .at = trimmed, .set = "/");
             const char *const owner = EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = repos,
                                                  .count = count, .path = path, .length = trimmed);
-            if ((size != 0ull) && (owner != NULL) &&
+            if ((size != 0ULL) && (owner != NULL) &&
                 (cellul.eq(&(CatenaFinitaCfg){.src = owner, .other = args->repo, .cap = CLI_CELLS_POOL})))
             {
                 args->found->item[args->found->count].path = EMBED_CALL(
@@ -315,14 +315,14 @@ void cli_git_change(const CliGitRootReposCfg *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char folder[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {folder, sizeof(folder), 0ull};
+        VerbaLinea line = {folder, sizeof(folder), 0ULL};
         mmgr_line_put(&line, args->root);
         if (repos[at][0] != '\0')
         {
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, repos[at]);
         }
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             EMBED_CALL(cli_changed_at, GitCtx, .folder = folder, .repo = repos[at], .repos = repos, .count = count,
                        .found = args->found_changed_list_pointer);

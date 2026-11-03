@@ -24,7 +24,7 @@ static int s_full;
 int cli_plan_description_read(const CliDevcontainerCtx *args)
 {
     s_full = 0;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const raw = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                 .size_pointer = &size, .owner = &g_cli_devcontainer_cells);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
@@ -36,8 +36,8 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
         return 0;
     }
     // plain JSON is the description with its comments and trailing commas left out, never longer
-    s_plain = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_devcontainer_cells);
-    VerbaLinea plain = mmgr_line_over(s_plain, size + 1ull);
+    s_plain = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_devcontainer_cells);
+    VerbaLinea plain = mmgr_line_over(s_plain, size + 1ULL);
     // the description's bytes read as the text they are
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)raw, .size = size,
                .plain = &plain);
@@ -203,7 +203,7 @@ EMBED_INLINE unsigned int cli_members(const DevcontainerPlanCtx *args)
 // The empty text at 0 where `text` does not fit
 unsigned int cli_plan_append(const CliDevcontainerPlanTextCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((args->plan->used + size) > CLI_PLAN_TEXT)
     {
         s_full = 1;
@@ -239,7 +239,7 @@ EMBED_INLINE const char *cli_last_part(const DevcontainerPlanCtx *args)
 // A variable the description does not know, and `${` with no `}` after it, stand as they are
 void cli_plan_expand(const CliDevcontainerOutCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_STRING_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_STRING_MAX_LEN, 0ULL};
     const char *rest = args->text;
     const char *open =
         cellul.find(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL});
@@ -253,7 +253,7 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
             break;
         }
         char named[CLI_STRING_MAX_LEN];
-        VerbaLinea name_line = {named, sizeof(named), 0ull};
+        VerbaLinea name_line = {named, sizeof(named), 0ULL};
         mmgr_line_put_n(&name_line, open + 2, (unsigned long long)(close - open - 2));
         mmgr_line_finish(&name_line);
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolder", .cap = CLI_CELLS_POOL}))
@@ -281,7 +281,7 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = named, .other = "localEnv:", .cap = CLI_CELLS_POOL}))
         {
-            char *const name = named + 9;
+            const char *const name = named + 9;
             char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL, .byte = ':'});
             const char *const fallback = (colon != NULL) ? (colon + 1) : "";
             if (colon != NULL)
@@ -295,7 +295,7 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
         }
         else
         {
-            mmgr_line_put_n(&line, open, (unsigned long long)(close - open) + 1ull);
+            mmgr_line_put_n(&line, open, (unsigned long long)(close - open) + 1ULL);
         }
         rest = close + 1;
         open = cellul.find(
@@ -311,7 +311,7 @@ void cli_plan_join(const CliDevcontainerOutBaseCtx *args)
 {
     const int whole =
         (args->path[0] == '/') || (args->path[0] == '\\') || ((args->path[0] != '\0') && (args->path[1] == ':'));
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     if (!whole)
     {
         const char *const forward = EMBED_CALL(
@@ -433,7 +433,7 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
     {
         return;
     }
-    VerbaLinea line = {s_mount, sizeof(s_mount), 0ull};
+    VerbaLinea line = {s_mount, sizeof(s_mount), 0ULL};
     unsigned int keys[CLI_PLAN_LIST_MAX];
     unsigned int values[CLI_PLAN_LIST_MAX];
     const unsigned int members = EMBED_CALL(cli_members, DevcontainerPlanCtx, .object = value, .keys = keys,

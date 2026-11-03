@@ -55,8 +55,8 @@ void cli_json_quote(const CliJsonTreeTextLengthCfg *args)
     mmgr_line_ch(args->out, '"');
     // each run of bytes that stand as they are is written in one piece; the quote, the backslash and the controls
     // are the bytes escaped
-    unsigned long long run = 0ull;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    unsigned long long run = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned char letter = (unsigned char)args->text[at];
         if ((letter >= 0x20u) && (letter != '"') && (letter != '\\'))
@@ -65,7 +65,7 @@ void cli_json_quote(const CliJsonTreeTextLengthCfg *args)
         }
         mmgr_line_put_n(args->out, args->text + run, at - run);
         (void)EMBED_CALL(json_letter_escape, JsonTreeWriteCtx, .out = args->out, .letter = letter);
-        run = at + 1ull;
+        run = at + 1ULL;
     }
     mmgr_line_put_n(args->out, args->text + run, args->length - run);
     mmgr_line_ch(args->out, '"');
@@ -75,27 +75,27 @@ void cli_json_quote(const CliJsonTreeTextLengthCfg *args)
 EMBED_INLINE unsigned long long cli_sequence(const JsonTreeWriteCtx *args)
 {
     const unsigned char lead = args->text[args->at];
-    const unsigned long long bytes = (lead < 0x80u)                         ? 1ull
-                                     : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2ull
-                                     : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ull
-                                     : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ull
-                                                                            : 0ull;
-    if ((bytes == 0ull) || ((args->at + bytes) > args->length))
+    const unsigned long long bytes = (lead < 0x80u)                         ? 1ULL
+                                     : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2ULL
+                                     : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ULL
+                                     : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ULL
+                                                                            : 0ULL;
+    if ((bytes == 0ULL) || ((args->at + bytes) > args->length))
     {
-        return 0ull;
+        return 0ULL;
     }
-    for (unsigned long long step = 1ull; step < bytes; step += 1ull)
+    for (unsigned long long step = 1ULL; step < bytes; step += 1ULL)
     {
         if ((args->text[args->at + step] & 0xc0u) != 0x80u)
         {
-            return 0ull;
+            return 0ULL;
         }
     }
-    const unsigned char second = (bytes > 1ull) ? args->text[args->at + 1u] : 0x80u;
+    const unsigned char second = (bytes > 1ULL) ? args->text[args->at + 1u] : 0x80u;
     // the overlong, the surrogates and the letters past U+10FFFF are no letters
     const int shortest = !((lead == 0xe0u) && (second < 0xa0u)) && !((lead == 0xedu) && (second >= 0xa0u)) &&
                          !((lead == 0xf0u) && (second < 0x90u)) && !((lead == 0xf4u) && (second >= 0x90u));
-    return shortest ? bytes : 0ull;
+    return shortest ? bytes : 0ULL;
 }
 
 unsigned long long cli_lossy_letter(const CliJsonTreeLengthCfg *args)
@@ -103,14 +103,14 @@ unsigned long long cli_lossy_letter(const CliJsonTreeLengthCfg *args)
     unsigned int *letter = args->letter;
     const unsigned long long bytes =
         EMBED_CALL(cli_sequence, JsonTreeWriteCtx, .text = args->text_bytes, .length = args->length, .at = args->at);
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         *letter = 0xfffdu;
-        return 1ull;
+        return 1ULL;
     }
     static const unsigned int s_prefix_bits[5] = {0u, 0x7fu, 0x1fu, 0x0fu, 0x07u};
     unsigned int value = args->text_bytes[args->at] & s_prefix_bits[bytes];
-    for (unsigned long long step = 1ull; step < bytes; step += 1ull)
+    for (unsigned long long step = 1ULL; step < bytes; step += 1ULL)
     {
         value = (value << 6u) | (args->text_bytes[args->at + step] & 0x3fu);
     }
@@ -124,7 +124,7 @@ EMBED_INLINE void cli_lossy_run_append(const JsonTreeWriteCtx *args)
 {
     // a byte of the line is saved back for the terminator
     const unsigned long long capacity =
-        (args->out->at < args->out->capacity) ? (args->out->capacity - args->out->at - 1ull) : 0ull;
+        (args->out->at < args->out->capacity) ? (args->out->capacity - args->out->at - 1ULL) : 0ULL;
     unsigned long long fits = args->to;
     if ((args->out->flush == NULL) && ((args->to - args->from) > capacity))
     {
@@ -132,7 +132,7 @@ EMBED_INLINE void cli_lossy_run_append(const JsonTreeWriteCtx *args)
         fits = args->from + capacity;
         while ((fits > args->from) && ((args->text[fits] & 0xc0u) == 0x80u))
         {
-            fits -= 1ull;
+            fits -= 1ULL;
         }
     }
     mmgr_line_put_n(args->out, (const char *)(args->text + args->from), fits - args->from);
@@ -150,24 +150,24 @@ EMBED_INLINE void cli_lossy_run_append(const JsonTreeWriteCtx *args)
 void cli_lossy(const CliJsonTreeLengthOutCfg *args)
 {
     // the letters from `run` on put together once a byte that starts none, written as U+FFFD, or the end comes
-    unsigned long long run = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long run = 0ULL;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
         if (args->text_bytes[at] < 0x80u)
         {
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         const unsigned long long bytes =
             EMBED_CALL(cli_sequence, JsonTreeWriteCtx, .text = args->text_bytes, .length = args->length, .at = at);
-        if (bytes == 0ull)
+        if (bytes == 0ULL)
         {
             EMBED_CALL(cli_lossy_run_append, JsonTreeWriteCtx, .out = args->out, .text = args->text_bytes, .from = run,
                        .to = at);
             EMBED_CALL(cli_lossy_run_append, JsonTreeWriteCtx, .out = args->out,
-                       .text = (const unsigned char *)"\xef\xbf\xbd", .from = 0ull, .to = 3ull);
-            at += 1ull;
+                       .text = (const unsigned char *)"\xef\xbf\xbd", .from = 0ULL, .to = 3ULL);
+            at += 1ULL;
             run = at;
             continue;
         }
@@ -186,16 +186,16 @@ void cli_json_quoted_lossy(const CliJsonTreeLengthOutCfg *args)
 
 void cli_json_escaped_lossy(const CliJsonTreeLengthOutCfg *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
         const unsigned long long bytes =
             EMBED_CALL(cli_sequence, JsonTreeWriteCtx, .text = args->text_bytes, .length = args->length, .at = at);
-        if (bytes == 0ull)
+        if (bytes == 0ULL)
         {
             // a byte that starts no letter read as U+FFFD, as from_utf8_lossy reads it
             mmgr_line_put(args->out, "\xef\xbf\xbd");
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         if (!EMBED_CALL(json_letter_escape, JsonTreeWriteCtx, .out = args->out, .letter = args->text_bytes[at]))
@@ -210,7 +210,7 @@ void cli_json_escaped_lossy(const CliJsonTreeLengthOutCfg *args)
 EMBED_INLINE void cli_line_begin(const JsonTreeWriteCtx *args)
 {
     mmgr_line_ch(args->out, '\n');
-    for (unsigned long long space = 0ull; space < ((unsigned long long)args->indent * args->level); space += 1ull)
+    for (unsigned long long space = 0ULL; space < ((unsigned long long)args->indent * args->level); space += 1ULL)
     {
         mmgr_line_ch(args->out, ' ');
     }
@@ -316,13 +316,13 @@ void cli_json_write(const CliJsonTreeNodeOutCfg *args)
 }
 
 // the deepest level a pretty writing's capacity counts
-#define CLI_JSON_PRETTY_DEPTH 16ull
+#define CLI_JSON_PRETTY_DEPTH 16ULL
 
 unsigned long long cli_json_write_capacity(const CliJsonTreeNodeOutCfg *args)
 {
     // a text's byte is escaped to at most 6, and a node adds at most its quotes, its key's colon, its comma and a
     // literal
-    return (args->json_read->used * 6ull) + ((unsigned long long)args->json_read->nodes * 16ull) + 16ull;
+    return (args->json_read->used * 6ULL) + ((unsigned long long)args->json_read->nodes * 16ULL) + 16ULL;
 }
 
 unsigned long long cli_json_pretty_capacity(const CliJsonTreeNodeOutCfg *args)
@@ -330,5 +330,5 @@ unsigned long long cli_json_pretty_capacity(const CliJsonTreeNodeOutCfg *args)
     // a node adds its line's end, its key's space and its level's spaces
     return cli_json_tree_node_out.json_write_capacity(args) +
            ((unsigned long long)args->json_read->nodes *
-            (((unsigned long long)args->indent * CLI_JSON_PRETTY_DEPTH) + 2ull));
+            (((unsigned long long)args->indent * CLI_JSON_PRETTY_DEPTH) + 2ULL));
 }

@@ -48,19 +48,19 @@ int cli_home_folder(const CliFolderCtx *args)
         {
             return 0;
         }
-        VerbaLinea line = {base, sizeof(base), 0ull};
+        VerbaLinea line = {base, sizeof(base), 0ULL};
         mmgr_line_put(&line, home);
         mmgr_line_put(&line, "/.config");
-        if (mmgr_line_finish(&line) == 0ull)
+        if (mmgr_line_finish(&line) == 0ULL)
         {
             return 0;
         }
     }
 #endif
-    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, base);
     mmgr_line_put(&line, "/orior");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 typedef struct
@@ -79,11 +79,11 @@ EMBED_INLINE int cli_home_by_name(const HomeCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 int cli_home_plugins(const CliFolderCtx *args)

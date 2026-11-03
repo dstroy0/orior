@@ -11,7 +11,7 @@
 #define CLI_GIT_MESSAGE (1u << 16u)
 
 // the bytes the line of what git reports of a commit is taken with
-#define CLI_GIT_OUTPUT_CAPACITY (1ull << 20u)
+#define CLI_GIT_OUTPUT_CAPACITY (1ULL << 20u)
 
 // What a commit is made of, guarded by the lock in one cell sized to the files chosen and the message: the files of one
 // repository in part and whole, the words git is run with, the chosen paths, each chosen path's
@@ -68,10 +68,10 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     // the trimmed message's length, a difference of two places in it, `to` never before `from`
     const unsigned long long length = (unsigned long long)(to - from);
-    const unsigned long long capacity = (length < CLI_GIT_MESSAGE) ? (length + 1ull) : CLI_GIT_MESSAGE;
+    const unsigned long long capacity = (length < CLI_GIT_MESSAGE) ? (length + 1ULL) : CLI_GIT_MESSAGE;
     const unsigned long long many = args->count;
     const unsigned long long parts = many * sizeof(CliGitPart);
-    const unsigned long long pointers = ((many + 8ull) + (many * 2ull)) * sizeof(const char *);
+    const unsigned long long pointers = ((many + 8ULL) + (many * 2ULL)) * sizeof(const char *);
     const unsigned long long marks = many * (sizeof(unsigned int) + sizeof(int));
     char *const cell = g_cli_cells->persistent_buf_alloc(
         parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + capacity, &g_cli_git_cells);
@@ -84,7 +84,7 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
     // lengths multiples of a pointer's, and the marks' of an int's
     s_committing.own_parts = (CliGitPart *)(void *)cell;
     s_committing.words = (const char **)(void *)(cell + parts);
-    s_committing.own_full_files = s_committing.words + (many + 8ull);
+    s_committing.own_full_files = s_committing.words + (many + 8ULL);
     s_committing.paths = s_committing.own_full_files + many;
     s_committing.owner = (unsigned int *)(void *)(cell + parts + pointers);
     s_committing.done = (int *)(void *)(s_committing.owner + many);
@@ -107,9 +107,9 @@ EMBED_INLINE int cli_message(const GitCommitCtx *args)
     const char *from = args->message;
     const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL});
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
-    VerbaLinea line = {s_committing.message, s_committing.message_capacity, 0ull};
+    VerbaLinea line = {s_committing.message, s_committing.message_capacity, 0ULL};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
-    if ((from == to) || (mmgr_line_finish(&line) == 0ull))
+    if ((from == to) || (mmgr_line_finish(&line) == 0ULL))
     {
         mmgr_line_put(args->err_msg, (from == to) ? "a commit needs a message" : "the commit's message is too long");
         return 0;
@@ -124,7 +124,7 @@ EMBED_INLINE unsigned int cli_displayed_words(const GitCommitCtx *args)
     for (unsigned int index = 0u; index < args->count; index += 1u)
     {
         char *const displayed = s_committing.displayed[args->first + index];
-        VerbaLinea line = {displayed, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {displayed, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, "./");
         mmgr_line_put(&line, args->paths[index]);
         mmgr_line_finish(&line);
@@ -171,7 +171,7 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
                           .request = s_committing.words, .count = words, .out = &run_result, .err_msg = err_msg);
     if (made)
     {
-        run_result.at = 0ull;
+        run_result.at = 0ULL;
         s_committing.words[0] = "commit";
         s_committing.words[1] = "-m";
         s_committing.words[2] = s_committing.message;
@@ -217,16 +217,16 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     }
     static const char *const s_where[3] = {"rev-parse", "--git-path", "orior-commit-index"};
     char named[CLI_PATH_MAX_LEN];
-    VerbaLinea where = {named, sizeof(named), 0ull};
+    VerbaLinea where = {named, sizeof(named), 0ULL};
     if (!EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->folder,
                     .request = s_where, .count = 3u, .out = &where, .err_msg = err_msg) ||
-        (mmgr_line_finish(&where) == 0ull))
+        (mmgr_line_finish(&where) == 0ULL))
     {
         return 0;
     }
     char index[CLI_PATH_MAX_LEN];
     const int absolute = (named[0] == '/') || (named[0] == '\\') || ((named[0] != '\0') && (named[1] == ':'));
-    VerbaLinea joined = {index, sizeof(index), 0ull};
+    VerbaLinea joined = {index, sizeof(index), 0ULL};
     mmgr_line_put(&joined, absolute ? "" : args->folder);
     mmgr_line_put(&joined, absolute ? "" : "/");
     mmgr_line_put(&joined, named);
@@ -241,50 +241,50 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     static const char *const s_head[2] = {"read-tree", "HEAD"};
     static const char *const s_empty[2] = {"read-tree", "--empty"};
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ULL};
     int made =
         EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = s_head, .count = 2u,
-                   .index = index, .input = NULL, .length = 0ull, .out = &run_result, .err_msg = &ignored) ||
+                   .index = index, .input = NULL, .length = 0ULL, .out = &run_result, .err_msg = &ignored) ||
         EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = s_empty, .count = 2u,
-                   .index = index, .input = NULL, .length = 0ull, .out = &run_result, .err_msg = err_msg);
+                   .index = index, .input = NULL, .length = 0ULL, .out = &run_result, .err_msg = err_msg);
     if (made && (args->full_files_count != 0u))
     {
-        run_result.at = 0ull;
+        run_result.at = 0ULL;
         s_committing.words[0] = "add";
         s_committing.words[1] = "-A";
         s_committing.words[2] = "--";
         const unsigned int words = EMBED_CALL(cli_displayed_words, GitCommitCtx, .paths = args->whole,
                                               .count = args->full_files_count, .first = 0u, .at = 3u);
         made = EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = s_committing.words,
-                          .count = words, .index = index, .input = NULL, .length = 0ull, .out = &run_result,
+                          .count = words, .index = index, .input = NULL, .length = 0ULL, .out = &run_result,
                           .err_msg = err_msg);
     }
     for (unsigned int at = 0u; made && (at < args->part_count); at += 1u)
     {
         static const char *const s_hash[3] = {"hash-object", "-w", "--stdin"};
         char blob[CLI_NAME_MAX_LEN];
-        VerbaLinea hashed = {blob, sizeof(blob), 0ull};
+        VerbaLinea hashed = {blob, sizeof(blob), 0ULL};
         made = EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = s_hash,
                           .count = 3u, .index = index, .input = args->parts[at].text, .length = args->parts[at].length,
                           .out = &hashed, .err_msg = err_msg) &&
-               (mmgr_line_finish(&hashed) != 0ull);
+               (mmgr_line_finish(&hashed) != 0ULL);
         char list_entries[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea listing = {list_entries, sizeof(list_entries), 0ull};
+        VerbaLinea listing = {list_entries, sizeof(list_entries), 0ULL};
         const char *const ls[4] = {"ls-files", "-s", "--", args->parts[at].path};
         made = made &&
                EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = ls, .count = 4u,
-                          .index = index, .input = NULL, .length = 0ull, .out = &listing, .err_msg = err_msg);
+                          .index = index, .input = NULL, .length = 0ULL, .out = &listing, .err_msg = err_msg);
         mmgr_line_finish(&listing);
         // the mode the index gives the file, its first word, else a plain file's
-        unsigned long long mode_length = 0ull;
+        unsigned long long mode_length = 0ULL;
         mode_length = EMBED_CALL(
             cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = list_entries, .at = mode_length,
             .size =
                 mode_length + cellul.len(&(CatenaFinitaCfg){.src = list_entries + mode_length, .cap = CLI_CELLS_POOL}),
             .set = " \t\n");
         char info[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
-        VerbaLinea cacheinfo = {info, sizeof(info), 0ull};
-        if (mode_length != 0ull)
+        VerbaLinea cacheinfo = {info, sizeof(info), 0ULL};
+        if (mode_length != 0ULL)
         {
             mmgr_line_put_n(&cacheinfo, list_entries, mode_length);
         }
@@ -298,17 +298,17 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
         mmgr_line_put(&cacheinfo, args->parts[at].path);
         const char *const update[4] = {"update-index", "--add", "--cacheinfo", info};
         made =
-            made && (mmgr_line_finish(&cacheinfo) != 0ull) &&
+            made && (mmgr_line_finish(&cacheinfo) != 0ULL) &&
             EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = update, .count = 4u,
-                       .index = index, .input = NULL, .length = 0ull, .out = &run_result, .err_msg = err_msg);
+                       .index = index, .input = NULL, .length = 0ULL, .out = &run_result, .err_msg = err_msg);
     }
     if (made)
     {
-        run_result.at = 0ull;
+        run_result.at = 0ULL;
         const char *const commit[3] = {"commit", "-m", s_committing.message};
         made =
             EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = commit, .count = 3u,
-                       .index = index, .input = NULL, .length = 0ull, .out = &run_result, .err_msg = err_msg);
+                       .index = index, .input = NULL, .length = 0ULL, .out = &run_result, .err_msg = err_msg);
     }
     EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = index);
     if (made)
@@ -325,7 +325,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
                                .first = args->full_files_count + at, .at = words);
         }
         char reset_buf[CLI_PATH_MAX_LEN];
-        VerbaLinea reset = {reset_buf, sizeof(reset_buf), 0ull};
+        VerbaLinea reset = {reset_buf, sizeof(reset_buf), 0ULL};
         made = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->folder,
                           .request = s_committing.words, .count = words, .out = &reset, .err_msg = err_msg);
     }
@@ -376,7 +376,7 @@ EMBED_INLINE int cli_own(const GitCommitCtx *args)
 // the folder of repository `repo` of the tree into `folder`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void cli_repo_folder(const GitCommitCtx *args)
 {
-    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->root);
     if (s_repos[args->repo][0] != '\0')
     {
@@ -390,7 +390,7 @@ EMBED_INLINE void cli_repo_folder(const GitCommitCtx *args)
 EMBED_INLINE const char *cli_short(const GitCommitCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_repos[args->repo], .cap = CLI_CELLS_POOL});
-    return (length == 0ull) ? args->path : (args->path + length + 1ull);
+    return (length == 0ULL) ? args->path : (args->path + length + 1ULL);
 }
 
 int cli_git_commit(const CliGitRootOutCountCfg *args)
@@ -426,14 +426,14 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
         char folder[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_repo_folder, GitCommitCtx, .root = args->root, .repo = repo, .folder_out = folder);
         char error[CLI_PATH_MAX_LEN];
-        VerbaLinea why = {error, sizeof(error), 0ull};
+        VerbaLinea why = {error, sizeof(error), 0ULL};
         mmgr_line_put(args->out, (args->out->at != from) ? "\n" : "");
         const unsigned long long line_at = args->out->at;
         if (!EMBED_CALL(cli_message, GitCommitCtx, .message = args->message, .err_msg = &why) ||
             !EMBED_CALL(cli_commit_in, GitCommitCtx, .folder = folder, .paths = s_committing.own_full_files,
                         .count = group, .out = args->out, .err_msg = &why))
         {
-            args->out->at = (line_at > from) ? (line_at - 1ull) : line_at;
+            args->out->at = (line_at > from) ? (line_at - 1ULL) : line_at;
             EMBED_CALL(cli_git_length_internal.failed_after, CliGitLengthCtx, .out_read = args->out, .from_u64 = from,
                        .error = error, .length = why.at, .err_msg = args->err_msg);
             ok = 0;
@@ -504,7 +504,7 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         char folder[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_repo_folder, GitCommitCtx, .root = args->root, .repo = repo, .folder_out = folder);
         char error[CLI_PATH_MAX_LEN];
-        VerbaLinea why = {error, sizeof(error), 0ull};
+        VerbaLinea why = {error, sizeof(error), 0ULL};
         mmgr_line_put(args->out, (args->out->at != from) ? "\n" : "");
         const unsigned long long line_at = args->out->at;
         if (!EMBED_CALL(cli_message, GitCommitCtx, .message = args->message, .err_msg = &why) ||
@@ -512,7 +512,7 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
                         .full_files_count = own_full_files, .parts = s_committing.own_parts, .part_count = own_parts,
                         .out = args->out, .err_msg = &why))
         {
-            args->out->at = (line_at > from) ? (line_at - 1ull) : line_at;
+            args->out->at = (line_at > from) ? (line_at - 1ULL) : line_at;
             EMBED_CALL(cli_git_length_internal.failed_after, CliGitLengthCtx, .out_read = args->out, .from_u64 = from,
                        .error = error, .length = why.at, .err_msg = args->err_msg);
             ok = 0;
@@ -534,7 +534,7 @@ int cli_git_resolve(const CliGitRootErrMsgPathCfg *args)
     }
     const char *const arguments[3] = {"add", "--", displayed};
     char out_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = folder,
                       .request = arguments, .count = 3u, .out = &out, .err_msg = args->err_msg);
 }
@@ -549,7 +549,7 @@ int cli_git_rollback(const CliGitRootErrMsgPathCfg *args)
         return 0;
     }
     char head[CLI_PATH_MAX_LEN + 8u];
-    VerbaLinea named = {head, sizeof(head), 0ull};
+    VerbaLinea named = {head, sizeof(head), 0ULL};
     mmgr_line_put(&named, "HEAD:");
     mmgr_line_put(&named, displayed);
     mmgr_line_finish(&named);
@@ -566,7 +566,7 @@ int cli_git_rollback(const CliGitRootErrMsgPathCfg *args)
     }
     const char *const arguments[6] = {"restore", "--source=HEAD", "--staged", "--worktree", "--", displayed};
     char out_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = folder,
                       .request = arguments, .count = 6u, .out = &out, .err_msg = args->err_msg);
 }

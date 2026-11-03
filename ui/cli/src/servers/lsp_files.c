@@ -42,14 +42,14 @@ EMBED_INLINE void files_saved_path(const LspFilesCtx *args)
     char temporary[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char name[64];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, "orior-lsp-");
     mmgr_line_decimal(&name_line, cli_process_own(), 1u);
     mmgr_line_finish(&name_line);
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = folder);
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
-    name_line.at = 0ull;
+    name_line.at = 0ULL;
     mmgr_line_decimal(&name_line, args->place, 1u);
     mmgr_line_put(&name_line, ".txt");
     mmgr_line_finish(&name_line);
@@ -116,14 +116,14 @@ EMBED_INLINE unsigned int files_position_alloc(const LspFilesCtx *args)
         vacant += 1u;
     }
     char *const text_cell = ((vacant < s_files_capacity) || files_init())
-                                ? g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_lsp_files_cells)
+                                ? g_cli_cells->persistent_buf_alloc(length + 1ULL, &g_cli_lsp_files_cells)
                                 : NULL;
     if (text_cell == NULL)
     {
         return CLI_LSP_FILES;
     }
     memor.cpy(&(MemoriaCfg){.dst = text_cell, .src = args->uri, .bytes = length + 1u});
-    s_files[vacant] = (CliLspFile){1, args->lsp->number, text_cell, 1ull};
+    s_files[vacant] = (CliLspFile){1, args->lsp->number, text_cell, 1ULL};
     return vacant;
 }
 
@@ -150,7 +150,7 @@ int cli_lsp_open(const CliLspErrMsgTextCfg *args)
     const unsigned int place = EMBED_CALL(files_position_alloc, LspFilesCtx, .lsp = args->lsp, .uri = uri);
     if (place < CLI_LSP_FILES)
     {
-        s_files[place].version = 1ull;
+        s_files[place].version = 1ULL;
     }
     const int saved =
         (place < CLI_LSP_FILES) && EMBED_CALL(files_text_save, LspFilesCtx, .place = place, .text = args->text,
@@ -188,10 +188,10 @@ int cli_lsp_change(const CliLspErrMsgTextCfg *args)
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->path, .uri_out = uri,
                .capacity = sizeof(uri));
     const unsigned int place = EMBED_CALL(files_position_alloc, LspFilesCtx, .lsp = args->lsp, .uri = uri);
-    unsigned long long version = 0ull;
+    unsigned long long version = 0ULL;
     if (place < CLI_LSP_FILES)
     {
-        s_files[place].version += 1ull;
+        s_files[place].version += 1ULL;
         version = s_files[place].version;
     }
     const int saved =
@@ -207,7 +207,7 @@ int cli_lsp_change(const CliLspErrMsgTextCfg *args)
         return 0;
     }
     char number[24];
-    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    VerbaLinea number_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&number_line, version, 1u);
     const CliLspPart message[7] = {
         CLI_LSP_RAW(
@@ -234,7 +234,7 @@ int cli_lsp_text_size(const CliLspSizePathCfg *args)
     {
         EMBED_CALL(files_saved_path, LspFilesCtx, .place = place, .path = saved_path);
     }
-    *size = 0ull;
+    *size = 0ULL;
     return (place < CLI_LSP_FILES) &&
            EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = saved_path, .size_pointer = size);
 }
@@ -250,7 +250,7 @@ int cli_lsp_text(const CliLspPathOutCfg *args)
     {
         char saved_path[CLI_PATH_MAX_LEN];
         EMBED_CALL(files_saved_path, LspFilesCtx, .place = place, .path = saved_path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
                                                       .size_pointer = &size, .owner = &g_cli_lsp_files_cells);
         mmgr_line_put_n(args->out, (bytes != NULL) ? (const char *)bytes : "", size);
@@ -276,7 +276,7 @@ int cli_lsp_read_again(const CliLspErrMsgTextCfg *args)
     {
         return 1;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
                                                   .size_pointer = &size, .owner = &g_cli_lsp_files_cells);
     const int changed =
@@ -311,7 +311,7 @@ unsigned long long cli_lsp_version(const CliLspPathOutCfg *args)
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->path, .uri_out = uri,
                .capacity = sizeof(uri));
     const unsigned int place = EMBED_CALL(files_position, LspFilesCtx, .lsp = args->lsp, .uri = uri);
-    const unsigned long long version = (place < CLI_LSP_FILES) ? s_files[place].version : 0ull;
+    const unsigned long long version = (place < CLI_LSP_FILES) ? s_files[place].version : 0ULL;
     return version;
 }
 
@@ -328,19 +328,19 @@ char *cli_lsp_open_uris_alloc(const CliLspSizeCfg *args)
 {
     unsigned long long *size = args->size;
     // each file the server has open holds a URI of at most CLI_LSP_URI bytes
-    unsigned long long open = 0ull;
+    unsigned long long open = 0ULL;
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
-        open += (s_files[at].reserved && (s_files[at].server == args->lsp->number)) ? 1ull : 0ull;
+        open += (s_files[at].reserved && (s_files[at].server == args->lsp->number)) ? 1ULL : 0ULL;
     }
-    char *const uris = (open > 0ull) ? g_cli_cells->temporary_buf_alloc(open * CLI_LSP_URI, args->owner) : NULL;
-    unsigned long long used = 0ull;
+    char *const uris = (open > 0ULL) ? g_cli_cells->temporary_buf_alloc(open * CLI_LSP_URI, args->owner) : NULL;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (uris != NULL) && (at < s_files_capacity); at += 1u)
     {
         if (s_files[at].reserved && (s_files[at].server == args->lsp->number))
         {
             const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = uris + used, .src = s_files[at].uri, .bytes = (size_t)length});
             used += length;
         }
@@ -354,27 +354,27 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
     // the server's files are copied as they stand under the lock into cells of their count and their URIs' bytes, and
     // each is handed on with the lock given back, so that `each` may open it in another server
     unsigned int count = 0u;
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
         if (s_files[at].reserved && (s_files[at].server == args->lsp->number))
         {
             count += 1u;
-            bytes += cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
+            bytes += cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ULL;
         }
     }
     unsigned int *const positions = g_cli_cells->temporary_buf_alloc(
-        ((unsigned long long)count + 1ull) * sizeof(unsigned int), &g_cli_lsp_files_cells);
-    char *const uris = g_cli_cells->persistent_buf_alloc(bytes + 1ull, &g_cli_lsp_files_cells);
+        ((unsigned long long)count + 1ULL) * sizeof(unsigned int), &g_cli_lsp_files_cells);
+    char *const uris = g_cli_cells->persistent_buf_alloc(bytes + 1ULL, &g_cli_lsp_files_cells);
     count = ((positions != NULL) && (uris != NULL)) ? count : 0u;
     unsigned int copied = 0u;
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (copied < count) && (at < s_files_capacity); at += 1u)
     {
         if (s_files[at].reserved && (s_files[at].server == args->lsp->number))
         {
             const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ULL;
             positions[copied] = at;
             memor.cpy(&(MemoriaCfg){.dst = uris + used, .src = s_files[at].uri, .bytes = (size_t)length});
             used += length;
@@ -386,7 +386,7 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_LSP_URI});
         const char *const this_uri = uri;
-        uri += length + 1ull;
+        uri += length + 1ULL;
         char path[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = this_uri, .length = length,
                         .path_out = path))
@@ -395,11 +395,11 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
         }
         char saved_path[CLI_PATH_MAX_LEN];
         EMBED_CALL(files_saved_path, LspFilesCtx, .place = positions[one], .path = saved_path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
                                                       .size_pointer = &size, .owner = &g_cli_lsp_files_cells);
         EMBED_CALL(args->each, CliEachPathTextLengthCfg, .context = args->context, .path = path,
-                   .text = (bytes != NULL) ? (const char *)bytes : "", .length = (bytes != NULL) ? size : 0ull);
+                   .text = (bytes != NULL) ? (const char *)bytes : "", .length = (bytes != NULL) ? size : 0ULL);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
                    .owner = &g_cli_lsp_files_cells);
     }

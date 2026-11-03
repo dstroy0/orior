@@ -111,7 +111,7 @@ EMBED_INLINE int children_is(const DbChildrenCtx *args)
 EMBED_INLINE int children_equal(const DbChildrenCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    const unsigned long long have = children_is(args) ? args->values[args->at].size : 0ull;
+    const unsigned long long have = children_is(args) ? args->values[args->at].size : 0ULL;
     return (have == size) &&
            ((size == 0u) ||
             (memor.cmp(&(MemoriaCfg){.src = args->values[args->at].text, .other = args->text, .bytes = (size_t)size}) ==
@@ -174,9 +174,9 @@ static int children_row(const CliDbRowCfg *args)
     char first[CLI_PATH_MAX_LEN];
     char second[CLI_DB_FIELD];
     char detail[CLI_DB_FIELD * 2u];
-    VerbaLinea first_line = {first, sizeof(first), 0ull};
-    VerbaLinea second_line = {second, sizeof(second), 0ull};
-    VerbaLinea detail_line = {detail, sizeof(detail), 0ull};
+    VerbaLinea first_line = {first, sizeof(first), 0ULL};
+    VerbaLinea second_line = {second, sizeof(second), 0ULL};
+    VerbaLinea detail_line = {detail, sizeof(detail), 0ULL};
     EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 0u, .out = &first_line);
     mmgr_line_finish(&first_line);
     EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 1u, .out = &second_line);
@@ -203,7 +203,7 @@ static int children_row(const CliDbRowCfg *args)
         if (how == CHILDREN_LITE_KEY)
         {
             char third[CLI_PATH_MAX_LEN];
-            VerbaLinea third_line = {third, sizeof(third), 0ull};
+            VerbaLinea third_line = {third, sizeof(third), 0ULL};
             EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 2u, .out = &third_line);
             mmgr_line_finish(&third_line);
             mmgr_line_put(&detail_line, "references ");
@@ -239,7 +239,7 @@ static int children_row(const CliDbRowCfg *args)
             ? EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "NO")
             : EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "1");
     EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = "not null",
-               .size = not_null ? 8ull : 0ull);
+               .size = not_null ? 8ULL : 0ULL);
     const int has_default = (how == CHILDREN_PG_COLUMN)
                                 ? (EMBED_CALL(children_is, DbChildrenCtx, .values = values, .count = count, .at = 3u) &&
                                    (values[3].size > 0u))
@@ -247,7 +247,7 @@ static int children_row(const CliDbRowCfg *args)
     if (has_default)
     {
         char value[CLI_DB_FIELD];
-        VerbaLinea value_line = {value, sizeof(value), 0ull};
+        VerbaLinea value_line = {value, sizeof(value), 0ULL};
         mmgr_line_put(&value_line, "default ");
         EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 3u, .out = &value_line);
         EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = value_line.out, .size = value_line.at);
@@ -255,14 +255,14 @@ static int children_row(const CliDbRowCfg *args)
     if (how == CHILDREN_MY_COLUMN)
     {
         char extra[CLI_DB_FIELD];
-        VerbaLinea extra_line = {extra, sizeof(extra), 0ull};
+        VerbaLinea extra_line = {extra, sizeof(extra), 0ULL};
         EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 4u, .out = &extra_line);
         EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = extra_line.out, .size = extra_line.at);
     }
     if ((how == CHILDREN_LITE_COLUMN) &&
         !EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 4u, .text = "0"))
     {
-        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = "primary key", .size = 11ull);
+        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = "primary key", .size = 11ULL);
     }
     mmgr_line_finish(&detail_line);
     EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = "column",
@@ -289,7 +289,7 @@ EMBED_INLINE int children_query(const DbChildrenCtx *args)
 EMBED_INLINE void children_question(const DbChildrenCtx *args)
 {
     unsigned int dialect = args->dialect;
-    args->query->at = 0ull;
+    args->query->at = 0ULL;
     mmgr_line_put(args->query, args->before);
     EMBED_CALL(cli_db_out_internal.literal, CliDbOutCtx, .text = args->first, .dialect = dialect, .out = args->query);
     if (args->between != NULL)
@@ -338,7 +338,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
     }
     // the relation as a regclass, its schema's and its own names quoted and joined, as a literal
     char named[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea name_line = {named, sizeof(named), 0ull};
+    VerbaLinea name_line = {named, sizeof(named), 0ULL};
     EMBED_CALL(cli_db_out_name_internal.quoted_name, CliDbOutNameCtx, .name = schema, .dialect = dialect,
                .out = &name_line);
     mmgr_line_ch(&name_line, '.');
@@ -346,7 +346,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
                .out = &name_line);
     mmgr_line_finish(&name_line);
     char relation[CLI_PATH_MAX_LEN * 3u];
-    VerbaLinea relation_line = {relation, sizeof(relation), 0ull};
+    VerbaLinea relation_line = {relation, sizeof(relation), 0ULL};
     EMBED_CALL(cli_db_out_internal.literal, CliDbOutCtx, .text = named, .dialect = dialect, .out = &relation_line);
     mmgr_line_put(&relation_line, "::regclass");
     mmgr_line_finish(&relation_line);
@@ -362,7 +362,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
          "trigger"}};
     for (unsigned int part = 0u; part < 4u; part += 1u)
     {
-        args->query->at = 0ull;
+        args->query->at = 0ULL;
         mmgr_line_put(args->query, s_parts[part][0]);
         mmgr_line_put(args->query, relation);
         mmgr_line_put(args->query, s_parts[part][1]);
@@ -449,7 +449,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
     }
     const char *const schema = args->level->path[0];
     char master[CLI_PATH_MAX_LEN];
-    VerbaLinea master_line = {master, sizeof(master), 0ull};
+    VerbaLinea master_line = {master, sizeof(master), 0ULL};
     EMBED_CALL(cli_db_out_name_internal.quoted_name, CliDbOutNameCtx, .name = schema, .dialect = dialect,
                .out = &master_line);
     mmgr_line_put(&master_line, ".sqlite_master");
@@ -477,7 +477,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
     {
         return 0;
     }
-    args->query->at = 0ull;
+    args->query->at = 0ULL;
     mmgr_line_put(args->query, "SELECT name, type, sql FROM ");
     mmgr_line_put(args->query, master);
     mmgr_line_put(args->query, " WHERE type IN ('index', 'trigger') AND tbl_name = ");
@@ -501,7 +501,7 @@ static int children_work(const CliEachLinkFailureCfg *args)
     CliDbFailure *failure = args->failure;
     CliDbLevel *const level = (CliDbLevel *)args->context;
     char question[CLI_PATH_MAX_LEN * 8u];
-    VerbaLinea query = {question, sizeof(question), 0ull};
+    VerbaLinea query = {question, sizeof(question), 0ULL};
     if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "postgres", .cap = CLI_CELLS_POOL}))
     {
         return EMBED_CALL(children_postgres, DbChildrenCtx, .level = level, .link = link, .query = &query,

@@ -9,7 +9,7 @@
 #include "../text/text.h"
 
 // the largest file checked
-#define CLI_SCHEMA_LARGEST (2ull << 20u)
+#define CLI_SCHEMA_LARGEST (2ULL << 20u)
 
 CliSchemaRead *g_cli_schema_read;
 CliSchemaStore *g_cli_schema_store;
@@ -134,7 +134,7 @@ EMBED_INLINE void schema_missing(const SchemaCtx *args)
     mmgr_line_put(&title, "Fetch the schema to ");
     mmgr_line_put(&title, place);
     char line[CLI_PATH_MAX_LEN * 3u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, "curl -fsSL --create-dirs -o '");
     mmgr_line_put(&command, place);
     mmgr_line_put(&command, "' '");
@@ -179,8 +179,8 @@ void cli_schema_check(const CliSchemaCfg *args)
     }
     char key[CLI_PATH_MAX_LEN];
     int named = 0;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     if ((read->root != CLI_SCHEMA_NONE) &&
         EMBED_CALL(cli_schema_read_internal.get, CliSchemaReadCtx, .path = args->path, .read = read, .key = key,
                    .named = &named, .from = &from, .to = &to))
@@ -191,7 +191,7 @@ void cli_schema_check(const CliSchemaCfg *args)
         if (schema != CLI_SCHEMA_NONE)
         {
             CliSchemaCheck check = {g_cli_schema_store, read, &lines, text, &s_found};
-            const CliSchemaKey none = {0, 0ull, 0ull};
+            const CliSchemaKey none = {0, 0ULL, 0ULL};
             EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = &check, .node = read->root,
                        .schema = schema, .base = key, .key_schema_key = none, .depth = 0u);
         }

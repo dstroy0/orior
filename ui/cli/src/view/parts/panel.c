@@ -98,13 +98,13 @@ EMBED_INLINE void layout_code_line(const PanelCtx *args)
 {
     const char *text = args->text;
     unsigned long long length = args->length;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     args->layout->x = (float)args->layout->left;
     while (at < length)
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at, .length = &consumed);
-        consumed = (consumed != 0ull) ? consumed : 1ull;
+        consumed = (consumed != 0ULL) ? consumed : 1ULL;
         const float letter_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
                        .face = GUI_FACE_CODE, .size = args->layout->code_size, .text = text + at, .length = consumed);
@@ -145,12 +145,12 @@ EMBED_INLINE void layout_word(const PanelCtx *args)
                    .pixel_height = args->layout->text_line, .text = text, .length = length, .color = args->color);
         return;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < length)
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at, .length = &consumed);
-        consumed = (consumed != 0ull) ? consumed : 1ull;
+        consumed = (consumed != 0ULL) ? consumed : 1ULL;
         const float letter_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
                        .face = face, .size = size, .text = text + at, .length = consumed);
@@ -173,23 +173,23 @@ EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
     const char *text = args->text;
     unsigned long long length = args->length;
     const GuiColor type = EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = args->layout->palette,
-                                     .name_read = "type", .length = 4ull);
+                                     .name_read = "type", .length = 4ULL);
     int code = 0;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < length)
     {
         if (text[at] == '`')
         {
             code = !code;
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         if (text[at] == ' ')
         {
             args->layout->x +=
                 EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
-                           .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ull);
-            at += 1ull;
+                           .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ULL);
+            at += 1ULL;
             continue;
         }
         unsigned long long end = at;
@@ -209,24 +209,24 @@ EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
         at = end;
     }
     args->layout->x += EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
-                                  .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ull);
+                                  .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ULL);
 }
 
 // whether `length` bytes of a line are `fence`, the three backticks, or three dashes, with blanks about them
 EMBED_INLINE int layout_line_is(const PanelCtx *args)
 {
     const char *text = args->text;
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     unsigned long long to = args->length;
     from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = from, .size = to,
                       .set = " \t\r");
     to = (from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text + from,
                             .at = to - from, .set = " \t\r"));
-    if (to - from < 3ull)
+    if (to - from < 3ULL)
     {
         return 0;
     }
-    for (unsigned long long at = from; at < from + 3ull; at += 1ull)
+    for (unsigned long long at = from; at < from + 3ULL; at += 1ULL)
     {
         if (text[at] != args->mark)
         {
@@ -234,7 +234,7 @@ EMBED_INLINE int layout_line_is(const PanelCtx *args)
         }
     }
     // a fence may name its language after the backticks; a rule is its dashes alone
-    return (args->mark == '`') || (to - from == 3ull);
+    return (args->mark == '`') || (to - from == 3ULL);
 }
 
 int gui_panel_markdown(const GuiPanelRasterCfg *args)
@@ -260,7 +260,7 @@ int gui_panel_markdown(const GuiPanelRasterCfg *args)
         scale};
     int fenced = 0;
     int in_paragraph = 0;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
         unsigned long long end = at;
@@ -268,9 +268,9 @@ int gui_panel_markdown(const GuiPanelRasterCfg *args)
                          .size = args->length, .set = "\n");
         unsigned long long line_length = end - at;
         line_length =
-            ((line_length > 0ull) && (args->text[at + line_length - 1ull] == '\r')) ? line_length - 1ull : line_length;
+            ((line_length > 0ULL) && (args->text[at + line_length - 1ULL] == '\r')) ? line_length - 1ULL : line_length;
         const char *const line = args->text + at;
-        at = (end < args->length) ? end + 1ull : end;
+        at = (end < args->length) ? end + 1ULL : end;
         if (EMBED_CALL(layout_line_is, PanelCtx, .text = line, .length = line_length, .mark = '`'))
         {
             if (in_paragraph)
@@ -312,7 +312,7 @@ int gui_panel_markdown(const GuiPanelRasterCfg *args)
                 (2 * margin) + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
             continue;
         }
-        if (line_length == 0ull)
+        if (line_length == 0ULL)
         {
             if (in_paragraph)
             {

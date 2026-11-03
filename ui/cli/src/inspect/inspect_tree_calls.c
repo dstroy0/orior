@@ -51,14 +51,14 @@ EMBED_INLINE void calls_count(const InspectTreeCallsCtx *args)
 {
     unsigned long long *functions = args->functions;
     unsigned long long *calls = args->calls;
-    *functions = 0ull;
-    *calls = 0ull;
+    *functions = 0ULL;
+    *calls = 0ULL;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
         for (unsigned int at = 0u; tree_file->used && (at < tree_file->facts.functions); at += 1u)
         {
-            *functions += 1ull;
+            *functions += 1ULL;
             *calls = (tree_file->facts.function[at].calls > *calls) ? tree_file->facts.function[at].calls : *calls;
         }
     }
@@ -68,14 +68,14 @@ EMBED_INLINE void calls_count(const InspectTreeCallsCtx *args)
 EMBED_INLINE unsigned int *calls_reached_alloc(const InspectTreeCallsCtx *args)
 {
     unsigned int *const cell = g_cli_cells->persistent_buf_alloc(
-        (5ull * args->functions_value + 5ull) * sizeof(unsigned int), &g_cli_inspect_cells);
+        (5ULL * args->functions_value + 5ULL) * sizeof(unsigned int), &g_cli_inspect_cells);
     if (cell != NULL)
     {
         s_reached_file = cell;
-        s_reached_at = s_reached_file + args->functions_value + 1ull;
-        s_order = s_reached_at + args->functions_value + 1ull;
-        s_sorted_file = s_order + args->functions_value + 1ull;
-        s_sorted_at = s_sorted_file + args->functions_value + 1ull;
+        s_reached_at = s_reached_file + args->functions_value + 1ULL;
+        s_order = s_reached_at + args->functions_value + 1ULL;
+        s_sorted_file = s_order + args->functions_value + 1ULL;
+        s_sorted_at = s_sorted_file + args->functions_value + 1ULL;
     }
     return cell;
 }
@@ -198,18 +198,18 @@ EMBED_INLINE unsigned int calls_callee(const InspectTreeCallsCtx *args)
 // cannot be taken
 EMBED_INLINE unsigned char *calls_callees_alloc(const InspectTreeCallsCtx *args)
 {
-    const unsigned long long numbers = (5ull * args->sites + 5ull) * sizeof(unsigned int);
+    const unsigned long long numbers = (5ULL * args->sites + 5ULL) * sizeof(unsigned int);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        numbers + ((2ull * args->sites + 2ull) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
+        numbers + ((2ULL * args->sites + 2ULL) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
     if (cell != NULL)
     {
         s_callee_file = (unsigned int *)(void *)cell;
-        s_callee_at = s_callee_file + args->sites + 1ull;
-        s_callee_sites = s_callee_at + args->sites + 1ull;
-        s_callee_first = s_callee_sites + args->sites + 1ull;
-        s_site_callee = s_callee_first + args->sites + 1ull;
+        s_callee_at = s_callee_file + args->sites + 1ULL;
+        s_callee_sites = s_callee_at + args->sites + 1ULL;
+        s_callee_first = s_callee_sites + args->sites + 1ULL;
+        s_site_callee = s_callee_first + args->sites + 1ULL;
         s_site = (CliInspectSpan *)(void *)(cell + numbers);
-        s_grouped = s_site + args->sites + 1ull;
+        s_grouped = s_site + args->sites + 1ULL;
     }
     return cell;
 }
@@ -271,8 +271,8 @@ void cli_inspect_tree_callees(const CliInspectTreePathCfg *args)
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     const CliFacts *const facts = (file != CLI_TREE_NONE) ? &CLI_TREE_FILE(file).facts : NULL;
-    unsigned long long functions = 0ull;
-    unsigned long long calls_max = 0ull;
+    unsigned long long functions = 0ULL;
+    unsigned long long calls_max = 0ULL;
     EMBED_CALL(calls_count, InspectTreeCallsCtx, .functions = &functions, .calls = &calls_max);
     unsigned int *const reached =
         ((facts != NULL) && (args->at < facts->functions))
@@ -282,7 +282,7 @@ void cli_inspect_tree_callees(const CliInspectTreePathCfg *args)
     {
         // the calls counted by what each reaches, then the callees' cell taken at that count
         const CliInspectFunction *const function = &facts->function[args->at];
-        unsigned long long sites = 0ull;
+        unsigned long long sites = 0ULL;
         for (unsigned int call = 0u; call < function->calls; call += 1u)
         {
             const CliInspectName *const name = &facts->name[function->call_first + call];
@@ -317,18 +317,18 @@ void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
     }
     // the files in the order of their paths, and the calls of one caller, a cell sized to the files and the most calls
     // one function makes
-    unsigned long long functions = 0ull;
-    unsigned long long calls_max = 0ull;
+    unsigned long long functions = 0ULL;
+    unsigned long long calls_max = 0ULL;
     EMBED_CALL(calls_count, InspectTreeCallsCtx, .functions = &functions, .calls = &calls_max);
-    const unsigned long long numbers = (g_cli_tree_files + 1ull) * sizeof(unsigned int);
+    const unsigned long long numbers = (g_cli_tree_files + 1ULL) * sizeof(unsigned int);
     unsigned char *const cell =
-        g_cli_cells->temporary_buf_alloc(numbers + ((calls_max + 1ull) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
+        g_cli_cells->temporary_buf_alloc(numbers + ((calls_max + 1ULL) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return;
     }
     unsigned int *const sorted_files = (unsigned int *)(void *)cell;
-    CliInspectSpan *const grouped = (CliInspectSpan *)(void *)(cell + ((numbers + 7ull) & ~7ull));
+    CliInspectSpan *const grouped = (CliInspectSpan *)(void *)(cell + ((numbers + 7ULL) & ~7ULL));
     const CliFacts *const facts = &CLI_TREE_FILE(file).facts;
     const CliInspectFunction *const function = &facts->function[args->at];
     const char *const name = facts->text + function->name.at;

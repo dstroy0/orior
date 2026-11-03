@@ -137,7 +137,7 @@ EMBED_INLINE int cli_step_arguments(const RunnerCommandCtx *args)
             if (EMBED_CALL(cli_first, RunnerCommandCtx, .values = values, .key = b) != NULL)
             {
                 char word[CLI_PATH_MAX_LEN * 4u];
-                VerbaLinea line = {word, sizeof(word), 0ull};
+                VerbaLinea line = {word, sizeof(word), 0ULL};
                 mmgr_line_put(&line, a);
                 mmgr_line_put(&line, EMBED_CALL(cli_first, RunnerCommandCtx, .values = values, .key = b));
                 mmgr_line_put(&line, c);
@@ -171,7 +171,7 @@ EMBED_INLINE int cli_step_arguments(const RunnerCommandCtx *args)
             for (unsigned int key = 0u; key < values->keys; key += 1u)
             {
                 char marker[CLI_NAME_MAX_LEN + 2u];
-                VerbaLinea named = {marker, sizeof(marker), 0ull};
+                VerbaLinea named = {marker, sizeof(marker), 0ULL};
                 mmgr_line_ch(&named, '{');
                 mmgr_line_put(&named, values->key[key]);
                 mmgr_line_ch(&named, '}');
@@ -181,7 +181,7 @@ EMBED_INLINE int cli_step_arguments(const RunnerCommandCtx *args)
                         ? EMBED_CALL(cli_catalog_text_values.values_at, CliCatalogTextValuesCfg, .values = values,
                                      .text_u32 = values->item[values->first[key]])
                         : "";
-                VerbaLinea next = {s_filled[1u - now], CLI_PATH_MAX_LEN * 4u, 0ull};
+                VerbaLinea next = {s_filled[1u - now], CLI_PATH_MAX_LEN * 4u, 0ULL};
                 const char *rest = s_filled[now];
                 for (const char *found = cellul.find(&(CatenaFinitaCfg){
                          .src = rest, .cap = CLI_CELLS_POOL, .other = marker, .other_cap = CLI_CELLS_POOL});
@@ -229,7 +229,7 @@ EMBED_INLINE void cli_setting(const RunnerCommandCtx *args)
     const char *value = args->value;
     EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = name,
                .value = value);
-    mmgr_line_put(args->set, (args->set->at != 0ull) ? "\n" : "");
+    mmgr_line_put(args->set, (args->set->at != 0ULL) ? "\n" : "");
     mmgr_line_put(args->set, name);
     mmgr_line_ch(args->set, '=');
     mmgr_line_put(args->set, value);
@@ -308,7 +308,7 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = a, .joined = folder);
             EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = command,
                        .folder = folder);
-            args->moved->at = 0ull;
+            args->moved->at = 0ULL;
             mmgr_line_put(args->moved, "cd ");
             mmgr_line_put(args->moved, a);
             mmgr_line_put(args->moved, " &&");
@@ -317,14 +317,14 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
         {
             char epoch[32];
             char commit[CLI_NAME_MAX_LEN];
-            long long when = 0ll;
+            long long when = 0LL;
             int clean = 0;
             if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "SOURCE_DATE_EPOCH",
                             .value_out = epoch, .capacity = sizeof(epoch)) &&
                 EMBED_CALL(cli_git_root_commit.head, CliGitRootCommitCfg, .root = root, .commit = commit, .when = &when,
                            .clean = &clean))
             {
-                VerbaLinea line = {epoch, sizeof(epoch), 0ull};
+                VerbaLinea line = {epoch, sizeof(epoch), 0ULL};
                 mmgr_line_decimal_signed(&line, when);
                 mmgr_line_finish(&line);
                 EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set,
@@ -358,9 +358,9 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
                 {
                     char folder[CLI_PATH_MAX_LEN];
                     char found[CLI_PATH_MAX_LEN];
-                    VerbaLinea named = {folder, sizeof(folder), 0ull};
+                    VerbaLinea named = {folder, sizeof(folder), 0ULL};
                     mmgr_line_put_n(&named, from, (unsigned long long)(place - from));
-                    if ((place > from) && (mmgr_line_finish(&named) != 0ull) && (count < 256u) &&
+                    if ((place > from) && (mmgr_line_finish(&named) != 0ULL) && (count < 256u) &&
                         !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names,
                                     .count = 1u, .path = found))
                     {
@@ -382,7 +382,7 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
                        .path_out = s_path, .size = sizeof(s_path));
             EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
                        .value = s_path);
-            mmgr_line_put(args->set, (args->set->at != 0ull) ? "\nPATH=<PATH without " : "PATH=<PATH without ");
+            mmgr_line_put(args->set, (args->set->at != 0ULL) ? "\nPATH=<PATH without " : "PATH=<PATH without ");
             mmgr_line_put(args->set, a);
             mmgr_line_ch(args->set, '>');
         }
@@ -397,7 +397,7 @@ EMBED_INLINE void cli_displayed_word(const RunnerCommandCtx *args)
     mmgr_line_put(args->displayed, *first ? "" : " ");
     *first = 0;
     int spaced = 0;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         spaced = spaced || (args->word[at] == ' ');
     }
@@ -514,9 +514,9 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     }
     EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = args->command,
                .folder = args->root);
-    VerbaLinea set = {s_set, sizeof(s_set), 0ull};
+    VerbaLinea set = {s_set, sizeof(s_set), 0ULL};
     char moved_text[CLI_PATH_MAX_LEN + 8u];
-    VerbaLinea moved = {moved_text, sizeof(moved_text), 0ull};
+    VerbaLinea moved = {moved_text, sizeof(moved_text), 0ULL};
     EMBED_CALL(cli_settings, RunnerCommandCtx, .root = args->root, .catalog = args->catalog, .step = args->step,
                .values = args->values, .command = args->command, .set = &set, .moved = &moved);
     // the tree's own tools come first on the PATH every step runs with, and the line shows so
@@ -536,7 +536,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
                                            .cap = CLI_CELLS_POOL})));
     }
     int first = 1;
-    if (moved.at != 0ull)
+    if (moved.at != 0ULL)
     {
         EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word = moved_text,
                    .length = moved.at, .first = &first);
@@ -544,7 +544,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     if ((tools != 0u) && !path_set)
     {
         char line[CLI_PATH_MAX_LEN * 4u];
-        VerbaLinea tools_line = {line, sizeof(line), 0ull};
+        VerbaLinea tools_line = {line, sizeof(line), 0ULL};
         mmgr_line_put(&tools_line, "PATH=");
         for (unsigned int at = 0u; at < tools; at += 1u)
         {
@@ -555,21 +555,21 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
             mmgr_line_put(&tools_line, relative);
         }
         mmgr_line_put(&tools_line, ":$PATH");
-        const unsigned long long length = mmgr_line_ok(&tools_line) ? tools_line.at : 0ull;
+        const unsigned long long length = mmgr_line_ok(&tools_line) ? tools_line.at : 0ULL;
         EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word = line, .length = length,
                    .first = &first);
     }
     // each setting, one to a line of the set, then the program and its words
-    const unsigned long long set_length = mmgr_line_ok(&set) ? set.at : 0ull;
-    unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at <= set_length; at += 1ull)
+    const unsigned long long set_length = mmgr_line_ok(&set) ? set.at : 0ULL;
+    unsigned long long from = 0ULL;
+    for (unsigned long long at = 0ULL; at <= set_length; at += 1ULL)
     {
         if (((at == set_length) || (s_set[at] == '\n')) && (at > from))
         {
             EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word = s_set + from,
                        .length = at - from, .first = &first);
         }
-        from = ((at < set_length) && (s_set[at] == '\n')) ? (at + 1ull) : from;
+        from = ((at < set_length) && (s_set[at] == '\n')) ? (at + 1ULL) : from;
     }
     EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word = displayed_program,
                .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_CELLS_POOL}),
@@ -613,7 +613,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
         {
             continue;
         }
-        VerbaLinea displayed = {s_shown, sizeof(s_shown), 0ull};
+        VerbaLinea displayed = {s_shown, sizeof(s_shown), 0ULL};
         if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
                         .step = step, .values = values, .command = &s_command, .displayed = &displayed,
                         .err_msg = err_msg))

@@ -19,11 +19,11 @@ int cli_test_python(const CliTestRunsCfg *args)
     }
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int manifest =
         found ? CLI_JSON_NONE
               : EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json,
-                           .nodes_more = 0u, .text_more = 0ull);
+                           .nodes_more = 0u, .text_more = 0ULL);
     for (unsigned int index = 0u;
          !found && (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
                                .array = manifest, .index = index) != CLI_JSON_NONE);
@@ -64,10 +64,10 @@ int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
     const char *const words[4] = {args->python, "-c", "import pytest", NULL};
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int has = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->root,
                                .settings = settings, .count = 1u, .run_result = run_result, .err_msg = &err_msg) &&
-                    (run_result->code == 0ll);
+                    (run_result->code == 0LL);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return has;
 }
@@ -201,7 +201,7 @@ EMBED_INLINE void python_result_visit(const TestPythonCtx *args)
     const char *id = args->id;
     const char *outcome = args->outcome;
     char named[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ULL};
     mmgr_line_put_n(&line, id, args->size);
     mmgr_line_finish(&line);
     if (EMBED_CALL(cli_test_runs_run_length_internal.test_visit, CliTestRunsRunLengthCtx, .run = worker->run,
@@ -211,7 +211,7 @@ EMBED_INLINE void python_result_visit(const TestPythonCtx *args)
                    .outcome = outcome);
     }
     EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = named,
-               .outcome = outcome, .message = "", .message_size = 0ull, .file = NULL, .line_i64 = -1ll, .seconds = 0.0);
+               .outcome = outcome, .message = "", .message_size = 0ULL, .file = NULL, .line_i64 = -1LL, .seconds = 0.0);
 }
 
 // a line of pytest's verbose report received
@@ -219,8 +219,8 @@ static void python_line(const CliWorkerTextSizeCfg *args)
 {
     CliTestWorker *worker = args->worker;
     unsigned long long size = args->size;
-    unsigned long long id = 0ull;
-    unsigned long long id_size = 0ull;
+    unsigned long long id = 0ULL;
+    unsigned long long id_size = 0ULL;
     const char *outcome = NULL;
     if (worker->pytest &&
         EMBED_CALL(cli_test_runs_size_internal.test_pytest_line, CliTestRunsSizeCtx, .line = args->text, .size = size,
@@ -242,7 +242,7 @@ EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
     const unsigned long long text_sizes[2] = {args->seen_size, args->errors_size};
     for (unsigned int which = 0u; which < 2u; which += 1u)
     {
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while (at < text_sizes[which])
         {
             const char *const text = texts[which];
@@ -255,7 +255,7 @@ EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
             while ((letter < end) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = text[letter]}) != NULL))
             {
-                letter += 1ull;
+                letter += 1ULL;
             }
             if (letter < end)
             {
@@ -266,10 +266,10 @@ EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
         }
     }
     char message_buf[CLI_TEST_MESSAGE_MAX_LEN];
-    VerbaLinea line = {message_buf, sizeof(message_buf), 0ull};
+    VerbaLinea line = {message_buf, sizeof(message_buf), 0ULL};
     for (unsigned int one = (line_count > 3u) ? line_count - 3u : 0u; one < line_count; one += 1u)
     {
-        mmgr_line_put(&line, (line.at > 0ull) ? "\n" : "");
+        mmgr_line_put(&line, (line.at > 0ULL) ? "\n" : "");
         mmgr_line_put_n(&line, starts[one % 3u], sizes[one % 3u]);
     }
     EMBED_CALL(cli_test_runs_run_text_internal.test_message_set, CliTestRunsRunTextCtx, .run = args->worker->run,
@@ -284,12 +284,12 @@ static void python_worker(void *context)
     EMBED_CALL(cli_test_runs_worker_line_internal.test_lines_read, CliTestRunsWorkerLineCtx, .worker = worker,
                .line_callback = python_line);
     EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_wait, CliTestRunsWorkerLineCtx, .worker = worker);
-    unsigned long long errors_size = 0ull;
+    unsigned long long errors_size = 0ULL;
     const char *const errors = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
                                           .path = worker->errors, .size_pointer = &errors_size);
     if (!worker->pytest && (errors != NULL))
     {
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while (at < errors_size)
         {
             const CliTextLine bounds =
@@ -314,7 +314,7 @@ static void python_worker(void *context)
     }
     else if (worker->pytest)
     {
-        unsigned long long report_size = 0ull;
+        unsigned long long report_size = 0ULL;
         const char *const report = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
                                               .path = worker->report, .size_pointer = &report_size);
         if (report != NULL)
@@ -329,11 +329,12 @@ static void python_worker(void *context)
                     .worker_u32 = worker->index) &&
         !cli_test_stop())
     {
-        unsigned long long seen_size = 0ull;
+        unsigned long long seen_size = 0ULL;
         const char *const seen = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
                                             .path = worker->seen, .size_pointer = &seen_size);
         EMBED_CALL(python_tail_message, TestPythonCtx, .worker = worker, .seen = (seen != NULL) ? seen : "",
-                   .seen_size = seen_size, .errors = (errors != NULL) ? errors : "", .errors_size = errors_size);
+                   .seen_size = (seen != NULL) ? seen_size : 0ULL, .errors = (errors != NULL) ? errors : "",
+                   .errors_size = (errors != NULL) ? errors_size : 0ULL);
         EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = seen,
                    .size = seen_size);
     }
@@ -348,7 +349,7 @@ static void python_worker(void *context)
 EMBED_INLINE void python_file(const TestPythonCtx *args)
 {
     char name[64];
-    VerbaLinea line = {name, sizeof(name), 0ull};
+    VerbaLinea line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&line, args->stem);
     mmgr_line_decimal(&line, args->share, 1u);
     mmgr_line_put(&line, args->extension);

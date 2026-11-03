@@ -80,19 +80,19 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     const unsigned long long end_ms =
         EMBED_CALL(gui_autohide.animation_end_ms, GuiAutohideCfg, .autohide_read = claim, .time_ms = args->time_ms);
     // the stages are the slide's time over a stage's, and one for the end: far fewer than an int counts
-    const unsigned int count = (unsigned int)((end_ms - args->time_ms + GUI_STAGE_MS - 1ull) / GUI_STAGE_MS) + 1u;
+    const unsigned int count = (unsigned int)((end_ms - args->time_ms + GUI_STAGE_MS - 1ULL) / GUI_STAGE_MS) + 1u;
     const StagesSlats from = EMBED_CALL(stages_bands_read, StagesCtx, .autohide_read = claim);
     GuiFrame laid = *frame;
-    unsigned long long words = 0ull;
-    unsigned long long runs = 0ull;
-    unsigned long long titles = 0ull;
+    unsigned long long words = 0ULL;
+    unsigned long long runs = 0ULL;
+    unsigned long long titles = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .base = args->base,
                    .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
                    .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
                                         .end_ms = end_ms));
-        words += (2ull * (unsigned long long)args->base->bands) + 2ull;
+        words += (2ULL * (unsigned long long)args->base->bands) + 2ULL;
         runs += args->base->run_first[args->base->bands];
         titles += args->menubar->titles;
     }
@@ -101,7 +101,7 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     const unsigned long long run_bytes = runs * sizeof(GuiBaseRun);
     const unsigned long long title_bytes = titles * sizeof(GuiTitle);
     // the runs and the titles lie on the stages' alignment, the words being padded up to it
-    const unsigned long long word_capacity = (word_bytes + 7ull) & ~7ull;
+    const unsigned long long word_capacity = (word_bytes + 7ULL) & ~7ULL;
     unsigned char *const cell =
         g_cli_cells->persistent_buf_alloc(stage_bytes + word_capacity + run_bytes + title_bytes, &g_gui_cells);
     EMBED_CALL(stages_bands_append, StagesCtx, .claim = claim, .panel_bands = &from);
@@ -127,10 +127,10 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
         const unsigned int band_runs = args->base->run_first[bands];
         memor.cpy(&(MemoriaCfg){.dst = word,
                                 .src = args->base->band_from,
-                                .bytes = ((unsigned long long)bands + 1ull) * sizeof(unsigned int)});
+                                .bytes = ((unsigned long long)bands + 1ULL) * sizeof(unsigned int)});
         memor.cpy(&(MemoriaCfg){.dst = word + bands + 1u,
                                 .src = args->base->run_first,
-                                .bytes = ((unsigned long long)bands + 1ull) * sizeof(unsigned int)});
+                                .bytes = ((unsigned long long)bands + 1ULL) * sizeof(unsigned int)});
         memor.cpy(&(MemoriaCfg){
             .dst = run, .src = args->base->run, .bytes = (unsigned long long)band_runs * sizeof(GuiBaseRun)});
         memor.cpy(&(MemoriaCfg){.dst = title,

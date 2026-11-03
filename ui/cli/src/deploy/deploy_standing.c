@@ -49,7 +49,7 @@ EMBED_INLINE unsigned int existing_lines(const DeployStandingCtx *args)
 {
     const char *const text = args->lines->text;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = text + at, .bytes = (size_t)(args->size - at), .val = (uint8_t)'\n'});
@@ -85,7 +85,7 @@ EMBED_INLINE int existing_same(const DeployStandingCtx *args)
 EMBED_INLINE void existing_line_print(const DeployStandingCtx *args)
 {
     char line[CLI_DEPLOY_COMPARED + 16u];
-    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line, "  ");
     mmgr_line_put(&print_line, args->mark);
     mmgr_line_put_n(&print_line, args->text, args->size);
@@ -106,7 +106,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     }
     // each line's start and length, the old text's then the new's, in one cell of their count
     unsigned long long *const counted = g_cli_cells->persistent_buf_alloc(
-        2ull * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), &g_cli_deploy_cells);
+        2ULL * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), &g_cli_deploy_cells);
     if (counted == NULL)
     {
         return;
@@ -132,7 +132,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         tail += 1u;
     }
     char mark[32];
-    VerbaLinea mark_line = {mark, sizeof(mark), 0ull};
+    VerbaLinea mark_line = {mark, sizeof(mark), 0ULL};
     mmgr_line_put(&mark_line, "@@ line ");
     mmgr_line_decimal(&mark_line, head + 1u, 1u);
     EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "", .text = mark, .size = mark_line.at);
@@ -156,13 +156,13 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     const char *path = args->path;
     unsigned long long *size = args->size_pointer;
     const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
-    const unsigned long long capacity = CLI_DEPLOY_COMPARED + 2ull;
+    const unsigned long long capacity = CLI_DEPLOY_COMPARED + 2ULL;
     char *const theirs = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
     VerbaLinea text = mmgr_line_over(theirs, capacity);
     int read = 0;
     if (place->here)
     {
-        unsigned long long mapped = 0ull;
+        unsigned long long mapped = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                       .size_pointer = &mapped, .owner = &g_cli_deploy_cells);
         read = (bytes != NULL) && (mapped <= CLI_DEPLOY_COMPARED);
@@ -176,15 +176,15 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     else
     {
         char line[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea command = {line, sizeof(line), 0ull};
+        VerbaLinea command = {line, sizeof(line), 0ULL};
         mmgr_line_put(&command, "head -c 65537 ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .out = &command);
         mmgr_line_finish(&command);
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea none = {why, sizeof(why), 0ull};
+        VerbaLinea none = {why, sizeof(why), 0ULL};
         read = EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                          .input = NULL, .size = 0ull, .out = &text, .err_msg = &none);
+                          .input = NULL, .size = 0ULL, .out = &text, .err_msg = &none);
     }
     *size = text.at;
     if (!read || !mmgr_line_ok(&text) || (*size > CLI_DEPLOY_COMPARED) ||
@@ -202,11 +202,11 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
     unsigned int index = args->index;
     const char *path = args->path;
     char place[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea position_line = {place, sizeof(place), 0ull};
+    VerbaLinea position_line = {place, sizeof(place), 0ULL};
     EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[index],
                .out = &position_line);
     char line[CLI_PATH_MAX_LEN * 4u];
-    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line, path);
     mmgr_line_put(&print_line, " changed at ");
     mmgr_line_put_n(&print_line, place, position_line.at);
@@ -214,12 +214,12 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
                                              : " since it was last sent there, and is retained:");
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_line);
     char there[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea there_line = {there, sizeof(there), 0ull};
+    VerbaLinea there_line = {there, sizeof(there), 0ULL};
     mmgr_line_put(&there_line, args->folder);
     mmgr_line_ch(&there_line, '/');
     mmgr_line_put(&there_line, path);
     mmgr_line_finish(&there_line);
-    unsigned long long theirs_size = 0ull;
+    unsigned long long theirs_size = 0ULL;
     char *const theirs =
         EMBED_CALL(existing_theirs, DeployStandingCtx, .index = index, .path = there, .size_pointer = &theirs_size);
     const CliDeployRun *const run = &g_cli_deploy;
@@ -230,10 +230,10 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
             continue;
         }
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea full_line = {full, sizeof(full), 0ull};
+        VerbaLinea full_line = {full, sizeof(full), 0ULL};
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = sent, .out = &full_line);
         mmgr_line_finish(&full_line);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const ours_index = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                            .size_pointer = &size, .owner = &g_cli_deploy_cells);
         if ((ours_index != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
@@ -253,11 +253,11 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
 EMBED_INLINE void existing_remove(const DeployStandingCtx *args)
 {
     char place[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea position_line = {place, sizeof(place), 0ull};
+    VerbaLinea position_line = {place, sizeof(place), 0ULL};
     EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[args->index],
                .out = &position_line);
     char line[CLI_PATH_MAX_LEN * 4u];
-    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line, args->path);
     mmgr_line_put(&print_line, " is at ");
     mmgr_line_put_n(&print_line, place, position_line.at);

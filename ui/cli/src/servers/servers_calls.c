@@ -25,10 +25,6 @@ typedef struct
     int written;
 } CliServersCalls;
 
-// what the server answers, under the reading's lock
-static CliServersReadState s_read_state = {0};
-static CliServersReadState s_item = {0};
-
 typedef struct
 {
     const char *tree;

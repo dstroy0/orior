@@ -33,7 +33,7 @@ EMBED_INLINE void cli_append(const ArchivePackCtx *args)
         {
             // the low eight bits retained, a byte
             args->writer->out[args->writer->size] = (unsigned char)args->writer->bit_buf;
-            args->writer->size += 1ull;
+            args->writer->size += 1ULL;
         }
         else
         {
@@ -85,7 +85,7 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
     };
     static unsigned long long s_head[1u << 15u];
     static unsigned long long s_previous[CLI_WINDOW];
-    const unsigned long long none = ~0ull;
+    const unsigned long long none = ~0ULL;
     for (unsigned int at = 0u; at < (1u << 15u); at += 1u)
     {
         s_head[at] = none;
@@ -94,28 +94,28 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
     {
         s_previous[at] = none;
     }
-    CliWriter writer = {args->out, args->capacity, 0ull, 0ull, 0u, 0};
+    CliWriter writer = {args->out, args->capacity, 0ULL, 0ULL, 0u, 0};
     EMBED_CALL(cli_append, ArchivePackCtx, .writer = &writer, .value = 1u, .bits = 1u);
     EMBED_CALL(cli_append, ArchivePackCtx, .writer = &writer, .value = 1u, .bits = 2u);
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
-        unsigned long long best = 0ull;
-        unsigned long long back = 0ull;
-        if ((at + 3ull) <= args->size)
+        unsigned long long best = 0ULL;
+        unsigned long long back = 0ULL;
+        if ((at + 3ULL) <= args->size)
         {
             const unsigned long long key = (((unsigned long long)args->data[at] << 10u) ^
-                                            ((unsigned long long)args->data[at + 1ull] << 5u) ^ args->data[at + 2ull]) &
-                                           ((1ull << 15u) - 1ull);
+                                            ((unsigned long long)args->data[at + 1ULL] << 5u) ^ args->data[at + 2ULL]) &
+                                           ((1ULL << 15u) - 1ULL);
             unsigned long long candidate = s_head[key];
             unsigned int tries = 0u;
             while ((candidate != none) && ((at - candidate) <= CLI_WINDOW) && (tries < CLI_CHAIN))
             {
-                const unsigned long long most = ((args->size - at) < 258ull) ? (args->size - at) : 258ull;
-                unsigned long long length = 0ull;
+                const unsigned long long most = ((args->size - at) < 258ULL) ? (args->size - at) : 258ULL;
+                unsigned long long length = 0ULL;
                 while ((length < most) && (args->data[candidate + length] == args->data[at + length]))
                 {
-                    length += 1ull;
+                    length += 1ULL;
                 }
                 if (length > best)
                 {
@@ -130,8 +130,8 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
                 tries += 1u;
             }
         }
-        unsigned long long reserved = 1ull;
-        if (best >= 3ull)
+        unsigned long long reserved = 1ULL;
+        if (best >= 3ULL)
         {
             unsigned int code = 0u;
             for (unsigned int each = 0u; each < 29u; each += 1u)
@@ -158,14 +158,14 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
         {
             EMBED_CALL(cli_literal, ArchivePackCtx, .writer = &writer, .symbol = args->data[at]);
         }
-        for (unsigned long long step = at; step < (at + reserved); step += 1ull)
+        for (unsigned long long step = at; step < (at + reserved); step += 1ULL)
         {
-            if ((step + 3ull) <= args->size)
+            if ((step + 3ULL) <= args->size)
             {
                 const unsigned long long key =
                     (((unsigned long long)args->data[step] << 10u) ^
-                     ((unsigned long long)args->data[step + 1ull] << 5u) ^ args->data[step + 2ull]) &
-                    ((1ull << 15u) - 1ull);
+                     ((unsigned long long)args->data[step + 1ULL] << 5u) ^ args->data[step + 2ULL]) &
+                    ((1ULL << 15u) - 1ULL);
                 s_previous[step % CLI_WINDOW] = s_head[key];
                 s_head[key] = step;
             }
@@ -177,5 +177,5 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
     {
         EMBED_CALL(cli_append, ArchivePackCtx, .writer = &writer, .value = 0u, .bits = 8u - writer.count);
     }
-    return writer.full ? 0ull : writer.size;
+    return writer.full ? 0ULL : writer.size;
 }

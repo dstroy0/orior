@@ -21,7 +21,7 @@ void cli_xml_free(const CliMavenXmlTextCtx *args)
 {
     CliXml *xml = args->xml_out;
     g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
-    *xml = (CliXml){xml->text, 0ull, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+    *xml = (CliXml){xml->text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }
 
 typedef struct
@@ -54,21 +54,21 @@ EMBED_INLINE unsigned int xml_capacity(const MavenXmlCtx *args)
 EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 {
     CliXml *xml = args->xml;
-    unsigned long long tags = 0ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long tags = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        tags += (args->text[at] == '<') ? 1ull : 0ull;
+        tags += (args->text[at] == '<') ? 1ULL : 0ULL;
     }
     const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
     const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
-    const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ull, .most = CLI_XML_ERRORS);
+    const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ULL, .most = CLI_XML_ERRORS);
     // the lists laid one after another, the widest first, so that each starts where its kind may stand
     const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        element_bytes + (2ull * comment_bytes) + error_bytes + open_bytes + 1ull, &g_cli_xml_cells);
+        element_bytes + (2ULL * comment_bytes) + error_bytes + open_bytes + 1ULL, &g_cli_xml_cells);
     *xml = (CliXml){args->text, args->size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)
     {
@@ -80,9 +80,9 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     xml->comment_from = (unsigned long long *)(void *)(cell + element_bytes);
     xml->comment_to = (unsigned long long *)(void *)(cell + element_bytes + comment_bytes);
     xml->comment_capacity = comments;
-    xml->error = (CliXmlError *)(void *)(cell + element_bytes + (2ull * comment_bytes));
+    xml->error = (CliXmlError *)(void *)(cell + element_bytes + (2ULL * comment_bytes));
     xml->error_capacity = errors;
-    xml->open = (unsigned int *)(void *)(cell + element_bytes + (2ull * comment_bytes) + error_bytes);
+    xml->open = (unsigned int *)(void *)(cell + element_bytes + (2ULL * comment_bytes) + error_bytes);
     return 1;
 }
 
@@ -159,7 +159,7 @@ EMBED_INLINE void xml_closing(const MavenXmlCtx *args)
     {
         const CliXmlElement *const element = &args->xml->element[args->xml->open[left]];
         EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml, .from = element->from, .to = element->to,
-                   .kind = CLI_XML_NOT_CLOSED, .element = args->xml->open[left], .name_from = 0ull, .name_to = 0ull);
+                   .kind = CLI_XML_NOT_CLOSED, .element = args->xml->open[left], .name_from = 0ULL, .name_to = 0ULL);
     }
     CliXmlElement *const element = &args->xml->element[args->xml->open[depth]];
     args->xml->opens = depth;
@@ -183,8 +183,8 @@ EMBED_INLINE void xml_opening(const MavenXmlCtx *args)
                                                 args->to,
                                                 args->gt + 1u,
                                                 args->gt + 1u,
-                                                lone ? args->from : 0ull,
-                                                lone ? args->to : 0ull,
+                                                lone ? args->from : 0ULL,
+                                                lone ? args->to : 0ULL,
                                                 lone,
                                                 parent,
                                                 CLI_XML_NONE,
@@ -219,7 +219,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
     {
         return;
     }
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const found =
             memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '<', .bytes = (size_t)(args->size - at)});
@@ -243,12 +243,12 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
                 cellul.len(&(CatenaFinitaCfg){.src = s_skip_open[skip], .cap = CLI_CELLS_POOL});
             const unsigned long long close =
                 cellul.len(&(CatenaFinitaCfg){.src = s_skip_close[skip], .cap = CLI_CELLS_POOL});
-            unsigned long long end = 0ull;
+            unsigned long long end = 0ULL;
             if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = found + open, .length_value = left - open,
                             .required = s_skip_close[skip], .size = close, .at_pointer = &end))
             {
                 EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + open, .kind = skip,
-                           .element = CLI_XML_NONE, .name_from = 0ull, .name_to = 0ull);
+                           .element = CLI_XML_NONE, .name_from = 0ULL, .name_to = 0ULL);
                 return;
             }
             at = lt + open + end + close;
@@ -266,7 +266,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         unsigned long long name_to = name_from;
         while (name_to < args->size)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
                             .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
                                                  .size = args->size, .at = name_to, .length = &length)))
@@ -275,19 +275,19 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
             }
             name_to += length;
         }
-        unsigned long long gt = 0ull;
+        unsigned long long gt = 0ULL;
         if (!EMBED_CALL(xml_tag_end, MavenXmlCtx, .xml_read = args->xml_out, .from = name_to, .end = &gt))
         {
             EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt,
                        .to = (name_to > lt + 1u) ? name_to : lt + 1u, .kind = CLI_XML_TAG_OPEN, .element = CLI_XML_NONE,
-                       .name_from = 0ull, .name_to = 0ull);
+                       .name_from = 0ULL, .name_to = 0ULL);
             return;
         }
         at = gt + 1u;
         if (name_to == name_from)
         {
             EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + 1u,
-                       .kind = CLI_XML_NO_ELEMENT, .element = CLI_XML_NONE, .name_from = 0ull, .name_to = 0ull);
+                       .kind = CLI_XML_NO_ELEMENT, .element = CLI_XML_NONE, .name_from = 0ULL, .name_to = 0ULL);
             continue;
         }
         if (closing)
@@ -373,8 +373,8 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
     {
         return 0;
     }
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->xml->text + element->inner_from,
                .size = element->inner_to - element->inner_from, .from_u64s = &from, .to_u64s = &to);
     const char *raw = args->xml->text + element->inner_from + from;
@@ -389,7 +389,7 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
     }
     static const char *const s_entities[5] = {"&lt;", "&gt;", "&quot;", "&apos;", "&amp;"};
     static const char s_letters[5] = {'<', '>', '"', '\'', '&'};
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ULL; at < size;)
     {
         unsigned int entity = 5u;
         for (unsigned int one = 0u; (entity == 5u) && (one < 5u); one += 1u)

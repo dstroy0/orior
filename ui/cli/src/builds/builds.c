@@ -17,7 +17,7 @@ unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     char lower[CLI_NAME_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(lower))
@@ -129,7 +129,7 @@ typedef struct
 // `from` copied into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void builds_copy(const BuildsCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->from);
     (void)mmgr_line_finish(&line);
 }
@@ -171,7 +171,7 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
         }
         char build[CLI_PATH_MAX_LEN];
         char program[CLI_PATH_MAX_LEN];
-        VerbaLinea command = {args->line_capacity, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea command = {args->line_capacity, CLI_PATH_MAX_LEN, 0ULL};
         if (kind == CLI_BUILD_MAVEN)
         {
             if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = positions[at],

@@ -21,7 +21,7 @@
 #define CLI_VIEW_ORDER_SEGMENT 256u
 #define CLI_VIEW_HIT_BUFFERS 3u
 // the bit that says a map waits to be taken, over the index of its buffer
-#define CLI_VIEW_HITS_FRESH 4ull
+#define CLI_VIEW_HITS_FRESH 4ULL
 EMBED_STATIC_ASSERT(sizeof(CliViewEvent) <= CLI_VIEW_EVENT_SEGMENT,
                     "a CliViewEvent fits one segment of the event ring");
 EMBED_STATIC_ASSERT(sizeof(CliViewOrder) <= CLI_VIEW_ORDER_SEGMENT,
@@ -121,7 +121,7 @@ unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
 unsigned int cli_view_hit(unsigned int surface, int x, int y)
 {
     CliViewHitsTransfer *const transfer = &s_view.hits[surface];
-    if ((EMBED_ATOMIC_LOAD(&transfer->shared) & CLI_VIEW_HITS_FRESH) != 0ull)
+    if ((EMBED_ATOMIC_LOAD(&transfer->shared) & CLI_VIEW_HITS_FRESH) != 0ULL)
     {
         // an index of three buffers is far inside what an unsigned int counts
         transfer->front = (unsigned int)(EMBED_ATOMIC_EXCHANGE_64(&transfer->shared, (embed_u64)transfer->front) &
@@ -146,8 +146,8 @@ void cli_view_event(const CliViewEvent *event)
     const int typed = (event->kind == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_TEXT);
     const char *const bytes = keyed ? event->input.name : (typed ? event->input.text : NULL);
     const unsigned long long length =
-        keyed ? cellul.len(&(CatenaFinitaCfg){.src = bytes, .cap = CLI_VIEW_EVENT_TEXT - 1ull}) + 1ull
-              : (typed ? event->input.size : 0ull);
+        keyed ? cellul.len(&(CatenaFinitaCfg){.src = bytes, .cap = CLI_VIEW_EVENT_TEXT - 1ULL}) + 1ULL
+              : (typed ? event->input.size : 0ULL);
     size_t at = 0u;
     // the bytes a name or a typing takes are far inside what a size_t counts
     if ((length < CLI_VIEW_EVENT_TEXT) &&
@@ -378,7 +378,7 @@ static void view_preferences_follow(void)
 // a part of the raster shown, drawn over it, ordered shown again
 static void view_part_order(GuiRect part)
 {
-    GuiWindow *const window = &s_view.window;
+    const GuiWindow *const window = &s_view.window;
     if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part))
     {
         return;
@@ -445,9 +445,9 @@ static void view_run(void *context)
         view_events_take();
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         const unsigned long long now_ms = cli_clock_milliseconds();
-        if ((s_view.tick_at_ms != 0ull) && (now_ms >= s_view.tick_at_ms))
+        if ((s_view.tick_at_ms != 0ULL) && (now_ms >= s_view.tick_at_ms))
         {
-            s_view.tick_at_ms = 0ull;
+            s_view.tick_at_ms = 0ULL;
             EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = window);
         }
         view_preferences_follow();
@@ -464,14 +464,14 @@ static void view_run(void *context)
         }
         const unsigned long long after =
             EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = window);
-        if (after == 0ull)
+        if (after == 0ULL)
         {
-            s_view.tick_at_ms = 0ull;
+            s_view.tick_at_ms = 0ULL;
             EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
             continue;
         }
         const unsigned long long since_ms = cli_clock_milliseconds() - s_view.presented_ms;
-        const unsigned long long refresh_ms = (since_ms < s_view.frame_ms) ? s_view.frame_ms - since_ms : 0ull;
+        const unsigned long long refresh_ms = (since_ms < s_view.frame_ms) ? s_view.frame_ms - since_ms : 0ULL;
         const unsigned long long wait_ms = (after > refresh_ms) ? after : refresh_ms;
         s_view.tick_at_ms = cli_clock_milliseconds() + wait_ms;
         (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &s_view.wake, .seen = seen,
@@ -584,7 +584,7 @@ void cli_view_end(void)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
     while (EMBED_ATOMIC_LOAD(&s_view.running) != 0u)
     {
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_view.ended, .milliseconds_u64 = 1ull);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_view.ended, .milliseconds_u64 = 1ULL);
     }
     cli_controller_tree_end();
     g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);

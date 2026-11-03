@@ -9,7 +9,7 @@
 #include "carry_internal.h"
 
 // the most a file of the reader's that travels carries
-#define CLI_MACHINE_TRANSFER_LARGEST (16ull << 20u)
+#define CLI_MACHINE_TRANSFER_LARGEST (16ULL << 20u)
 
 // the files that travel, each a file or a folder of orior's own folder, by its place there; and the settings that
 // name this machine's own and stay on it, each a key or the start of keys that ends in `.`: the part of settings.json
@@ -62,7 +62,7 @@ void cli_machine_transfer_work_state_free(const CliMachineTransferWorkStateObjec
 void cli_machine_transfer_work_state_begin(const CliMachineTransferWorkStateObjectCtx *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->work_state->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 typedef struct
@@ -91,7 +91,7 @@ EMBED_INLINE void machine_transfer_release(const CarryCtx *args)
 EMBED_INLINE char *cli_transferred_cell(const CarryCtx *args)
 {
     char *const cell = (args->size < CLI_TRANSFERRED_TEXT)
-                           ? g_cli_cells->persistent_buf_alloc(args->size + 1ull, &g_cli_machine_cells)
+                           ? g_cli_cells->persistent_buf_alloc(args->size + 1ULL, &g_cli_machine_cells)
                            : NULL;
     if (cell != NULL)
     {
@@ -104,10 +104,10 @@ EMBED_INLINE char *cli_transferred_cell(const CarryCtx *args)
 
 unsigned long long cli_transferred_sent_capacity(const CliMachineTransferTransferredCtx *args)
 {
-    unsigned long long capacity = 128ull;
+    unsigned long long capacity = 128ULL;
     for (unsigned int at = 0u; at < args->carried->count; at += 1u)
     {
-        capacity += (args->carried->size[at] * 6ull) + (CLI_NAME_MAX_LEN * 6ull) + 16ull;
+        capacity += (args->carried->size[at] * 6ULL) + (CLI_NAME_MAX_LEN * 6ULL) + 16ULL;
     }
     return capacity;
 }
@@ -169,7 +169,7 @@ int cli_machine_transfer_machine(const CliMachineTransferCtx *args)
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_machine[at], .cap = CLI_CELLS_POOL});
-        const int start = (s_machine[at][length - 1ull] == '.') &&
+        const int start = (s_machine[at][length - 1ULL] == '.') &&
                           EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->key,
                                      .other_pointer = s_machine[at], .size = length);
         if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine[at], .cap = CLI_CELLS_POOL})) || start)
@@ -189,11 +189,11 @@ static unsigned int machine_transfer_plain_read(const CarryCtx *args)
     unsigned long long size = args->size;
     unsigned int nodes_more = args->nodes_more;
     unsigned long long text_more = args->text_more;
-    char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_machine_cells);
-    VerbaLinea plain = mmgr_line_over(plain_text, size + 1ull);
+    char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_machine_cells);
+    VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = text, .size = size, .plain = &plain);
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     unsigned int root = CLI_JSON_NONE;
     if (args->fresh)
     {
@@ -241,14 +241,14 @@ unsigned int cli_machine_transfer_settings_get(const CliMachineTransferWorkState
     // a text read beside makes at most as many nodes as its bytes, and at most twice them in text with a 0 after each,
     // and a copy of what it read takes as much again; the four over are the empty objects either side may be made
     return EMBED_CALL(machine_transfer_plain_read, CarryCtx, .work_state = args->work_state, .text = args->text,
-                      .size = args->size, .fresh = 1, .nodes_more = (unsigned int)((2ull * args->adjacent) + 4ull),
-                      .text_more = (4ull * args->adjacent) + 64ull);
+                      .size = args->size, .fresh = 1, .nodes_more = (unsigned int)((2ULL * args->adjacent) + 4ULL),
+                      .text_more = (4ULL * args->adjacent) + 64ULL);
 }
 
 unsigned int cli_machine_transfer_settings_adjacent(const CliMachineTransferWorkStateCtx *args)
 {
     return EMBED_CALL(machine_transfer_plain_read, CarryCtx, .work_state = args->work_state, .text = args->text,
-                      .size = args->size, .fresh = 0, .nodes_more = 0u, .text_more = 0ull);
+                      .size = args->size, .fresh = 0, .nodes_more = 0u, .text_more = 0ULL);
 }
 
 void cli_machine_transfer_settings_write(const CliMachineTransferWorkStateObjectCtx *args)
@@ -269,8 +269,8 @@ int cli_machine_transfer_allow(const CliMachineTransferTransferredCtx *args)
         {
             // the part lies before `at`, its end at or past its start
             const unsigned long long size = (unsigned long long)(at - part);
-            if ((size == 0ull) || ((size == 1ull) && (part[0] == '.')) ||
-                ((size == 2ull) && (part[0] == '.') && (part[1] == '.')))
+            if ((size == 0ULL) || ((size == 1ULL) && (part[0] == '.')) ||
+                ((size == 2ULL) && (part[0] == '.') && (part[1] == '.')))
             {
                 return 0;
             }
@@ -285,7 +285,7 @@ int cli_machine_transfer_allow(const CliMachineTransferTransferredCtx *args)
     {
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = s_transferred[at], .cap = CLI_CELLS_POOL});
-        const int under = (s_transferred[at][length - 1ull] == '/') &&
+        const int under = (s_transferred[at][length - 1ULL] == '/') &&
                           EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->place,
                                      .other_pointer = s_transferred[at], .size = length);
         if ((cellul.eq(&(CatenaFinitaCfg){.src = args->place, .other = s_transferred[at], .cap = CLI_CELLS_POOL})) ||
@@ -307,7 +307,7 @@ typedef struct
 
 static void cli_under_each(const CliEachNameIsFolderCfg *args)
 {
-    void *context = args->context;
+    const void *context = args->context;
     const CliUnder *const walk = (const CliUnder *)context;
     if (args->name[0] == '.')
     {
@@ -316,14 +316,14 @@ static void cli_under_each(const CliEachNameIsFolderCfg *args)
     char path[CLI_PATH_MAX_LEN];
     char place[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = walk->folder, .relative = args->name, .joined = path);
-    VerbaLinea line = {place, sizeof(place), 0ull};
+    VerbaLinea line = {place, sizeof(place), 0ULL};
     mmgr_line_put(&line, walk->under);
     mmgr_line_put(&line, args->name);
     if (args->is_folder)
     {
         mmgr_line_ch(&line, '/');
     }
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -348,14 +348,14 @@ void cli_machine_transfer_files(const CliMachineTransferFolderCtx *args)
         char path[CLI_PATH_MAX_LEN];
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = s_transferred[at], .cap = CLI_CELLS_POOL});
-        if (s_transferred[at][length - 1ull] == '/')
+        if (s_transferred[at][length - 1ULL] == '/')
         {
             char dir[CLI_NAME_MAX_LEN];
             memor.cpy(&(MemoriaCfg){
                 .dst = dir,
                 .src = s_transferred[at],
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_transferred[at], .cap = CLI_CELLS_POOL}) + 1u});
-            dir[length - 1ull] = '\0';
+            dir[length - 1ULL] = '\0';
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = dir, .joined = path);
             const CliUnder walk = {path, s_transferred[at], args->found};
             EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path,
@@ -390,7 +390,7 @@ int cli_machine_transfer_pack(const CliMachineTransferCfg *args)
                                              CliMachineTransferTransferredAtCtx, .carried = &s_paths, .at = at);
         const char *const path = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
                                             CliMachineTransferTransferredAtCtx, .carried = &s_paths, .at = at);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size) &&
             (size > CLI_MACHINE_TRANSFER_LARGEST))
         {
@@ -409,7 +409,7 @@ int cli_machine_transfer_pack(const CliMachineTransferCfg *args)
         {
             const unsigned int object =
                 EMBED_CALL(cli_machine_transfer_capacity_internal.settings_get, CliMachineTransferWorkStateCtx,
-                           .work_state = &s_work_state, .text = (const char *)bytes, .size = size, .adjacent = 0ull);
+                           .work_state = &s_work_state, .text = (const char *)bytes, .size = size, .adjacent = 0ULL);
             for (unsigned int member = (object != CLI_JSON_NONE) ? s_work_state.json.node[object].first : CLI_JSON_NONE;
                  member != CLI_JSON_NONE;)
             {
@@ -459,11 +459,11 @@ EMBED_INLINE int cli_has_remote(const CarryCtx *args)
     static const char *const s_remote[1] = {"remote"};
     char remotes[CLI_NAME_MAX_LEN * 4u];
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea out = {remotes, sizeof(remotes), 0ull};
-    VerbaLinea unrun = {why, sizeof(why), 0ull};
+    VerbaLinea out = {remotes, sizeof(remotes), 0ULL};
+    VerbaLinea unrun = {why, sizeof(why), 0ULL};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->folder,
                       .request = s_remote, .count = 1u, .out = &out, .err_msg = &unrun) &&
-           (out.at > 0ull);
+           (out.at > 0ULL);
 }
 
 int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
@@ -479,7 +479,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
         char git[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->from, .relative = ".git", .joined = git);
         char words[CLI_NAME_MAX_LEN * 4u];
-        VerbaLinea pulled = {words, sizeof(words), 0ull};
+        VerbaLinea pulled = {words, sizeof(words), 0ULL};
         if ((EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
              EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git)) &&
             EMBED_CALL(cli_has_remote, CarryCtx, .folder = args->from) &&
@@ -493,7 +493,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
                    .found = &s_paths);
         for (unsigned int at = 0u; at < s_paths.count; at += 1u)
         {
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             const unsigned char *const bytes =
                 EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx,
                            .path = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
@@ -513,7 +513,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
         EMBED_CALL(machine_transfer_release, CarryCtx, .paths = &s_paths, .work_state = &s_work_state);
         return 1;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = args->from,
                                                   .size_pointer = &size, .owner = &g_cli_machine_cells);
     if (bytes == NULL)
@@ -524,10 +524,10 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
         return 0;
     }
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_work_state.json,
-                   .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread,
+                   .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
                    .owner = &g_cli_machine_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
     const char *const mark =
@@ -545,7 +545,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
     for (unsigned int member = read ? s_work_state.json.node[files].first : CLI_JSON_NONE; member != CLI_JSON_NONE;
          member = s_work_state.json.node[member].next)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = &s_work_state.json, .node = member, .length_pointer = &length);
         const char *const place = s_work_state.json.text + s_work_state.json.node[member].key;

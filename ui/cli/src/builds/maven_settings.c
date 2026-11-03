@@ -11,7 +11,7 @@
 #include "maven_internal.h"
 
 // the most bytes of a settings file read
-#define CLI_MAVEN_SETTINGS_TEXT (1ull << 20u)
+#define CLI_MAVEN_SETTINGS_TEXT (1ULL << 20u)
 
 const char *const g_cli_maven_compiler[4][4] = {
     {"release", "Java release", "maven.compiler.release", "release"},
@@ -33,7 +33,7 @@ unsigned int cli_maven_compiler_plugin(const CliMavenXmlProjectCtx *args)
         for (unsigned int one = (lists[list] != CLI_XML_NONE) ? args->xml->element[lists[list]].first : CLI_XML_NONE;
              one != CLI_XML_NONE; one = args->xml->element[one].next)
         {
-            VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ull};
+            VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ULL};
             if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = args->xml,
                            .element = one, .name = "plugin") &&
                 EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = args->xml, .of = one,
@@ -106,5 +106,3 @@ typedef struct
     unsigned long long size[2];
     int read[2];
 } CliMavenSettingsFiles;
-
-static CliMavenSettingsFiles s_files;

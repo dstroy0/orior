@@ -11,7 +11,7 @@ static void step_across_clear(void *context)
 {
     CliDebugSession *const session = (CliDebugSession *)context;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliDebugSession *const native = EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx,
                                                .id = session->cleared, .err_msg = &err_msg);
     if (native != NULL)
@@ -68,7 +68,7 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
                                           .json_read = json, .array = hit, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
-        long long number = 0ll;
+        long long number = 0LL;
         if (!EMBED_CALL(cli_debug_json_node_internal.debug_sign, CliDebugJsonNodeCtx, .json = json,
                         .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                            .json_read = json, .array = hit, .index = at),
@@ -89,11 +89,11 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->root,
                .name = "reason",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                   .json = json, .text = "data breakpoint", .length = 15ull));
+                                   .json = json, .text = "data breakpoint", .length = 15ULL));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->root,
                .name = "description",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                   .json = json, .text = "data changed", .length = 12ull));
+                                   .json = json, .text = "data changed", .length = 12ULL));
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = args->root,
                .out = out, .indent = 0u, .sorted = 0);
     return !json->full && mmgr_line_ok(out);
@@ -106,7 +106,7 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
     unsigned long long size = args->size;
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->body, .size = size, .nodes_more = CLI_DEBUG_EVENT_MORE_NODES,
@@ -129,11 +129,11 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     {
         CliJson json = {0};
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        unsigned long long pid = 0ull;
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        unsigned long long pid = 0ULL;
         const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                              .json = &json, .text = body, .size = size, .nodes_more = 0u,
-                                             .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+                                             .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
         if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                        .json = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -163,7 +163,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     }
     // a stop rewritten is the body with two members written again, in a cell of the body's size and some over
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
-    const unsigned long long rewritten_capacity = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ull;
+    const unsigned long long rewritten_capacity = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ULL;
     char *const rewritten_cell =
         stopped ? g_cli_cells->temporary_buf_alloc(rewritten_capacity, &g_cli_debug_cells) : NULL;
     VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_capacity);

@@ -84,7 +84,7 @@ const char *cli_notebook_line(const CliNotebookAtCtx *args)
 {
     const char **stop = args->stop;
     const char *next = args->at;
-    next += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = next, .at = 0ull,
+    next += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = next, .at = 0ULL,
                        .size = (unsigned long long)(args->end - next), .set = "\n");
     *stop = ((next > args->at) && (next[-1] == '\r')) ? (next - 1) : next;
     return (next < args->end) ? (next + 1) : next;
@@ -114,7 +114,7 @@ int cli_notebook_is(const CliNotebookPathCfg *args)
         return 1;
     }
     char mark[8];
-    VerbaLinea line = {mark, sizeof(mark), 0ull};
+    VerbaLinea line = {mark, sizeof(mark), 0ULL};
     mmgr_line_put(&line, EMBED_CALL(cli_notebook_internal.comment, CliNotebookCtx, .path = args->path));
     mmgr_line_put(&line, " %%");
     mmgr_line_finish(&line);
@@ -145,7 +145,7 @@ int cli_notebook_ends(const CliNotebookTextCtx *args)
 // `length` bytes of `text` put after the text being made at the end of the tree's texts
 EMBED_INLINE void cli_piece(const NotebookCtx *args)
 {
-    if ((args->json->used + args->length + 1ull) > args->json->text_max)
+    if ((args->json->used + args->length + 1ULL) > args->json->text_max)
     {
         args->json->full = 1;
         return;
@@ -168,7 +168,7 @@ EMBED_INLINE unsigned int cli_pieces_init(const NotebookCtx *args)
     json->text[json->used] = '\0';
     json->node[made].text = args->start;
     json->node[made].length = json->used - args->start;
-    json->used += 1ull;
+    json->used += 1ULL;
     return made;
 }
 
@@ -207,7 +207,7 @@ const char *cli_notebook_source(const CliNotebookJsonCellCtx *args)
                    .length_pointer = length);
     if (source == NULL)
     {
-        *length = 0ull;
+        *length = 0ULL;
         return "";
     }
     return source;
@@ -218,13 +218,13 @@ unsigned int cli_notebook_lines_get(const CliNotebookJsonCtx *args)
 {
     const unsigned int lines =
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_ARRAY);
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     while (from < args->length)
     {
         unsigned long long to = from;
         to = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = to,
                         .size = args->length, .set = "\n");
-        to += (to < args->length) ? 1ull : 0ull;
+        to += (to < args->length) ? 1ULL : 0ULL;
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->json, .array = lines,
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = args->json, .text = args->text + from, .length = to - from));
@@ -304,7 +304,7 @@ static void cli_cell_finish(const NotebookCtx *args)
         }
         if (!first)
         {
-            EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = "\n", .length = 1ull);
+            EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = "\n", .length = 1ULL);
         }
         first = 0;
         EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = line, .length = (unsigned long long)(stop - line));
@@ -361,7 +361,7 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
             found = at;
             word = "markdown";
             after = at;
-            after += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = after, .at = 0ull,
+            after += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = after, .at = 0ULL,
                                 .size = (unsigned long long)(end - after), .set = "]");
             after += (after < end) ? 1 : 0;
         }
@@ -387,11 +387,11 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
     unsigned long long to = json->used;
     while ((from < to) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = json->text[from]))
     {
-        from += 1ull;
+        from += 1ULL;
     }
     while ((to > from) && EMBED_CALL(cli_is_space, NotebookCtx, .letter = json->text[to - 1u]))
     {
-        to -= 1ull;
+        to -= 1ULL;
     }
     json->used = to;
     *title = EMBED_CALL(cli_pieces_init, NotebookCtx, .json = json, .start = from);
@@ -405,7 +405,7 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
     const char *text = args->text;
     const char *const comment = EMBED_CALL(cli_notebook_internal.comment, CliNotebookCtx, .path = path);
     char mark[8];
-    VerbaLinea line = {mark, sizeof(mark), 0ull};
+    VerbaLinea line = {mark, sizeof(mark), 0ULL};
     mmgr_line_put(&line, comment);
     mmgr_line_put(&line, " %%");
     mmgr_line_finish(&line);
@@ -464,7 +464,7 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
         const char *const next =
             EMBED_CALL(cli_notebook_at_internal.line, CliNotebookAtCtx, .at = at, .end = header_end, .stop = &stop);
         EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = at, .length = (unsigned long long)(stop - at));
-        EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = "\n", .length = 1ull);
+        EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = "\n", .length = 1ULL);
         at = next;
     }
     const unsigned int header = EMBED_CALL(cli_pieces_init, NotebookCtx, .json = json, .start = start);
@@ -509,7 +509,7 @@ unsigned int cli_notebook_read(const CliNotebookPathCfg *args)
         return book;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea reason = {why, sizeof(why), 0ull};
+    VerbaLinea reason = {why, sizeof(why), 0ULL};
     const unsigned int book = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                                          .json = args->json, .text = args->text, .size = args->size,
                                          .tokens = args->tokens, .tokens_max = args->tokens_max, .err_msg = &reason);

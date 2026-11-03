@@ -229,6 +229,12 @@ int cli_file_runnable(const CliPathFileCtx *args)
     return EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path);
 }
 
+int cli_file_runs(const CliPathFileCtx *args)
+{
+    (void)args;
+    return 0;
+}
+
 int cli_is_link(const CliPathFileCtx *args)
 {
     const DWORD attributes = GetFileAttributesA(args->path);

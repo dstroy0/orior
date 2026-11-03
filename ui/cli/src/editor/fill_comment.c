@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fill_comment.c: a `/** */` comment written again whole. Its lines are read without their stars, the opening and the
-// closing lines' text retained where they contain any; split into paragraphs at blank lines and at each tag; each
-// paragraph's words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in braces, the
-// names of those that name one, and their descriptions each in one column, a description that runs past the margin
-// going on under its own first word. A run's tags are joined from their lines into a work state sized to the comment's
-// bytes it left out of the run
+// fill_comment.c: a block comment of documentation written again whole. Its lines are read without their stars, the
+// opening and the closing lines' text retained where they contain any; split into paragraphs at blank lines and at each
+// tag; each paragraph's words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in
+// braces, the names of those that name one, and their descriptions each in one column, a description that runs past the
+// margin going on under its own first word. A run's tags are joined from their lines into a work state sized to the
+// comment's bytes it left out of the run
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "fill_internal.h"
@@ -24,9 +24,6 @@ typedef struct
 } CliFillTag;
 // the bytes a tag line's head, its hanging lead and the comment's lead each occupy
 #define CLI_FILL_LINE_CAPACITY (1u << 16u)
-
-// the tags whose first word after a type is a name
-static const char *const s_named_tags[7] = {"param", "arg", "argument", "property", "prop", "template", "typedef"};
 
 // A fill's work state, parts of one cell taken for the comment filled, sized to its lines and bytes, and given back as
 // the fill ends: each part's first line among the comment's lines and its count, 0 for a blank line between parts; each

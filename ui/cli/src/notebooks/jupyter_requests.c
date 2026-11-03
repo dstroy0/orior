@@ -10,7 +10,7 @@
 
 void cli_kernel_end(const CliJupyterAtCtx *args)
 {
-    if (!args->kernel->ended && (args->kernel->spawned.process != 0ull))
+    if (!args->kernel->ended && (args->kernel->spawned.process != 0ULL))
     {
 #if defined(_WIN32)
         EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = args->kernel->spawned.id);
@@ -30,7 +30,7 @@ void cli_kernel_forgotten(const CliJupyterAtCtx *args)
         args->kernel->connection[0] = '\0';
     }
     EMBED_CALL(cli_event_internal.event_close, CliEventCtx, .event = args->kernel->interrupt_event);
-    args->kernel->interrupt_event = 0ull;
+    args->kernel->interrupt_event = 0ULL;
 }
 
 typedef struct
@@ -115,7 +115,7 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
 
 int cli_jupyter_execute(const CliJupyterErrMsgKernelLengthCfg *args)
 {
-    VerbaLinea content = {args->kernel->content, CLI_KERNEL_CONTENT, 0ull};
+    VerbaLinea content = {args->kernel->content, CLI_KERNEL_CONTENT, 0ULL};
     mmgr_line_put(&content, "{\"code\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &content, .text = args->code,
                .length = args->length);
@@ -144,10 +144,10 @@ int cli_jupyter_interrupt(const CliJupyterErrMsgKernelFileCfg *args)
                                .cap = CLI_CELLS_POOL}))
     {
         char answer[65536];
-        VerbaLinea reply = {answer, sizeof(answer), 0ull};
+        VerbaLinea reply = {answer, sizeof(answer), 0ULL};
         return EMBED_CALL(cli_jupyter_err_msg.request, CliJupyterErrMsgCfg, .kernel = args->kernel,
-                          .channel = "control", .msg_type = "interrupt_request", .content = "{}", .length = 2ull,
-                          .wait = 5000ull, .reply = &reply, .err_msg = args->err_msg);
+                          .channel = "control", .msg_type = "interrupt_request", .content = "{}", .length = 2ULL,
+                          .wait = 5000ULL, .reply = &reply, .err_msg = args->err_msg);
     }
 #if defined(_WIN32)
     if (!EMBED_CALL(cli_event_internal.event_set, CliEventCtx, .event = args->kernel->interrupt_event))
@@ -164,7 +164,7 @@ int cli_jupyter_interrupt(const CliJupyterErrMsgKernelFileCfg *args)
 
 int cli_jupyter_alive(const CliJupyterErrMsgCfg *args)
 {
-    long long code = 0ll;
+    long long code = 0LL;
     if (!args->kernel->ended &&
         EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &args->kernel->spawned, .code = &code))
     {
@@ -179,10 +179,10 @@ int cli_jupyter_stop(const CliJupyterErrMsgCfg *args)
 {
     char id[CLI_KERNEL_ID];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unsent = {why, sizeof(why), 0ull};
+    VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_jupyter_err_msg_kernel.send, CliJupyterErrMsgKernelCfg, .kernel = args->kernel,
                      .channel = "control", .msg_type = "shutdown_request", .content = "{\"restart\":false}",
-                     .length = 17ull, .id = id, .err_msg = &unsent);
+                     .length = 17ULL, .id = id, .err_msg = &unsent);
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
     while (cli_clock_milliseconds() < until)
     {

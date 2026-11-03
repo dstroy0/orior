@@ -21,19 +21,19 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args)
                                         .json_read = args->json, .node = args->node, .kind = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->node].text
                                  : NULL;
-    const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ull;
-    const int negative = (length > 0ull) && (text[0] == '-');
-    const unsigned long long first = negative ? 1ull : 0ull;
-    unsigned long long whole = 0ull;
-    int read = (length > first) && (length - first <= 19ull);
-    for (unsigned long long at = first; read && (at < length); at += 1ull)
+    const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ULL;
+    const int negative = (length > 0ULL) && (text[0] == '-');
+    const unsigned long long first = negative ? 1ULL : 0ULL;
+    unsigned long long whole = 0ULL;
+    int read = (length > first) && (length - first <= 19ULL);
+    for (unsigned long long at = first; read && (at < length); at += 1ULL)
     {
         read = (text[at] >= '0') && (text[at] <= '9');
-        whole = (whole * 10ull) + (unsigned long long)(text[at] - '0');
+        whole = (whole * 10ULL) + (unsigned long long)(text[at] - '0');
     }
-    read = read && (whole <= (negative ? 9223372036854775808ull : 9223372036854775807ull));
+    read = read && (whole <= (negative ? 9223372036854775808ULL : 9223372036854775807ULL));
     // the least number is its own negative's bits, as two's complement writes it
-    *value = read ? (negative ? (long long)(0ull - whole) : (long long)whole) : 0ll;
+    *value = read ? (negative ? (long long)(0ULL - whole) : (long long)whole) : 0LL;
     return read;
 }
 
@@ -44,16 +44,16 @@ int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args)
                                         .json_read = args->json, .node = args->node, .kind = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->node].text
                                  : NULL;
-    const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ull;
-    unsigned long long whole = 0ull;
-    int read = (length > 0ull) && (length <= 20ull);
-    for (unsigned long long at = 0ull; read && (at < length); at += 1ull)
+    const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ULL;
+    unsigned long long whole = 0ULL;
+    int read = (length > 0ULL) && (length <= 20ULL);
+    for (unsigned long long at = 0ULL; read && (at < length); at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        read = (text[at] >= '0') && (text[at] <= '9') && (whole <= (18446744073709551615ull - digit) / 10ull);
-        whole = (whole * 10ull) + digit;
+        read = (text[at] >= '0') && (text[at] <= '9') && (whole <= (18446744073709551615ULL - digit) / 10ULL);
+        whole = (whole * 10ULL) + digit;
     }
-    *value = read ? whole : 0ull;
+    *value = read ? whole : 0ULL;
     return read;
 }
 
@@ -113,10 +113,10 @@ int cli_debug_allocs(const CliDebugFileCtx *args)
 
 unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     unsigned int accum = 0u;
     unsigned int bits = 0u;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const char one = args->text[at];
         const int value = ((one >= 'A') && (one <= 'Z'))   ? (one - 'A')
@@ -137,7 +137,7 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
             if (count < args->capacity)
             {
                 args->out_bytes[count] = (unsigned char)((accum >> bits) & 0xffu);
-                count += 1ull;
+                count += 1ULL;
             }
             accum &= (1u << bits) - 1u;
         }
@@ -150,21 +150,21 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
 EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
 {
     unsigned long long *size = args->size;
-    VerbaLinea first = {s_filled[0], sizeof(s_filled[0]), 0ull};
+    VerbaLinea first = {s_filled[0], sizeof(s_filled[0]), 0ULL};
     mmgr_line_put_n(&first, args->text, args->length);
     unsigned int from = 0u;
     unsigned long long at_end = first.at;
     for (unsigned int one = 0u; one < args->count; one += 1u)
     {
         char mark[CLI_NAME_MAX_LEN];
-        VerbaLinea marked = {mark, sizeof(mark), 0ull};
+        VerbaLinea marked = {mark, sizeof(mark), 0ULL};
         mmgr_line_ch(&marked, '{');
         mmgr_line_put(&marked, args->names[one]);
         mmgr_line_ch(&marked, '}');
         const unsigned long long mark_size = marked.at;
-        VerbaLinea next = {s_filled[1u - from], sizeof(s_filled[0]), 0ull};
+        VerbaLinea next = {s_filled[1u - from], sizeof(s_filled[0]), 0ULL};
         const char *const was = s_filled[from];
-        for (unsigned long long at = 0ull; at < at_end;)
+        for (unsigned long long at = 0ULL; at < at_end;)
         {
             if ((at + mark_size <= at_end) &&
                 (memor.cmp(&(MemoriaCfg){.src = was + at, .other = mark, .bytes = mark_size}) == 0))
@@ -175,7 +175,7 @@ EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
             else
             {
                 mmgr_line_ch(&next, was[at]);
-                at += 1ull;
+                at += 1ULL;
             }
         }
         at_end = next.at;
@@ -189,14 +189,14 @@ EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
 EMBED_INLINE int arguments_digits(const DebugArgumentsCtx *args)
 {
     unsigned long long *value = args->value;
-    unsigned long long whole = 0ull;
-    int digits = (args->length > 0ull);
-    for (unsigned long long at = 0ull; digits && (at < args->length); at += 1ull)
+    unsigned long long whole = 0ULL;
+    int digits = (args->length > 0ULL);
+    for (unsigned long long at = 0ULL; digits && (at < args->length); at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[at] - '0');
         digits =
-            (args->text[at] >= '0') && (args->text[at] <= '9') && (whole <= (18446744073709551615ull - digit) / 10ull);
-        whole = (whole * 10ull) + digit;
+            (args->text[at] >= '0') && (args->text[at] <= '9') && (whole <= (18446744073709551615ULL - digit) / 10ULL);
+        whole = (whole * 10ULL) + digit;
     }
     *value = whole;
     return digits;
@@ -210,19 +210,19 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = from,
                    .kind = CFG_JSON_STRING))
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = from, .length_pointer = &length);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const filled =
             EMBED_CALL(arguments_string_fill, DebugArgumentsCtx, .text = text, .length = length, .names = args->names,
                        .withs = args->withs, .count = args->count, .size = &size);
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         if (args->numbered &&
             EMBED_CALL(arguments_digits, DebugArgumentsCtx, .text = filled, .length = size, .value = &value))
         {
             char number[32];
-            VerbaLinea written = {number, sizeof(number), 0ull};
+            VerbaLinea written = {number, sizeof(number), 0ULL};
             mmgr_line_decimal(&written, value, 1u);
             mmgr_line_finish(&written);
             return EMBED_CALL(cli_json_tree_text_length_kind.json_number_init, CliJsonTreeTextLengthKindCfg, .json = to,
@@ -279,16 +279,16 @@ EMBED_INLINE const char *arguments_trim(const DebugArgumentsCtx *args)
 {
     unsigned long long *length = args->length_pointer;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = args->text[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ull]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     *length = end - start;
     return args->text + start;
@@ -300,9 +300,9 @@ EMBED_INLINE int arguments_names_path(const DebugArgumentsCtx *args)
     int marked = 0;
     int dotted = 1;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
-    marked = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ull,
+    marked = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
                         .size = size, .set = "/\\*.") < size;
-    dotted = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ull,
+    dotted = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
                         .size = size, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
                         .set = "_.") == size;
     return marked && !dotted;
@@ -340,10 +340,10 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
                            .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                               .json_read = args->json, .array = skip, .index = at),
                            .fallback = "");
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const trimmed =
                 EMBED_CALL(arguments_trim, DebugArgumentsCtx, .text = one, .length_pointer = &length);
-            if (length == 0ull)
+            if (length == 0ULL)
             {
                 continue;
             }
@@ -370,14 +370,14 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
         return;
     }
     char patterns[CLI_DEBUG_FILLED];
-    VerbaLinea joined = {patterns, sizeof(patterns), 0ull};
+    VerbaLinea joined = {patterns, sizeof(patterns), 0ULL};
     mmgr_line_put(&joined, "settings set target.process.thread.step-avoid-regexp ");
     unsigned int count = 0u;
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = args->json, .array = skip, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const trimmed =
             EMBED_CALL(arguments_trim, DebugArgumentsCtx,
                        .text = EMBED_CALL(
@@ -386,7 +386,7 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
                                               .json_read = args->json, .array = skip, .index = at),
                            .fallback = ""),
                        .length_pointer = &length);
-        if (length > 0ull)
+        if (length > 0ULL)
         {
             mmgr_line_put(&joined, (count > 0u) ? "|" : "");
             mmgr_line_put_n(&joined, trimmed, length);
@@ -423,17 +423,17 @@ void cli_debug_breakpoints_write(const CliDebugSessionCtx *args)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = args->json, .array = args->breakpoints, .index = at);
-        unsigned long long line = 0ull;
+        unsigned long long line = 0ULL;
         (void)EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                          .json = args->json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                             .json_read = args->json, .object = one, .name = "line"),
                          .value_u64s = &line);
         mmgr_line_put(args->out, (at > 0u) ? ",{\"line\":" : "{\"line\":");
-        mmgr_line_decimal(args->out, (line & 0xffffffffull) + 1ull, 1u);
+        mmgr_line_decimal(args->out, (line & 0xffffffffULL) + 1ULL, 1u);
         for (unsigned int field = 0u; field < 3u; field += 1u)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const trimmed = EMBED_CALL(
                 arguments_trim, DebugArgumentsCtx,
                 .text = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
@@ -442,7 +442,7 @@ void cli_debug_breakpoints_write(const CliDebugSessionCtx *args)
                                                       .json_read = args->json, .object = one, .name = s_fields[field]),
                                    .fallback = ""),
                 .length_pointer = &length);
-            if (length > 0ull)
+            if (length > 0ULL)
             {
                 mmgr_line_put(args->out, ",\"");
                 mmgr_line_put(args->out, s_keys[field]);

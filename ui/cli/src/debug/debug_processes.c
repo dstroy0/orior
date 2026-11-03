@@ -27,7 +27,7 @@ typedef struct
 } CliDebugListing;
 // the most processes listed, and the most bytes their names and lines take
 #define CLI_DEBUG_PROCESSES 16384u
-#define CLI_DEBUG_PROCESS_TEXT (1ull << 23u)
+#define CLI_DEBUG_PROCESS_TEXT (1ULL << 23u)
 
 // the processes a listing's capacity is taken with, and the bytes its text's is
 
@@ -43,10 +43,10 @@ typedef struct
 // a text stored in the listing's text: where it starts, or where an empty one does where it does not fit
 EMBED_INLINE unsigned long long processes_text_store(const DebugProcessesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
     if (args->listing->used + size > args->listing->text_capacity)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long at = args->listing->used;
     memor.cpy(&(MemoriaCfg){.dst = args->listing->text + at, .src = args->text, .bytes = size});
@@ -113,7 +113,7 @@ static void processes_sort(const DebugProcessesCtx *args)
 
 void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
 {
-    CliDebugListing listing = {NULL, 0u, CLI_DEBUG_PROCESSES, NULL, 1ull, CLI_DEBUG_PROCESS_TEXT, cli_process_own(),
+    CliDebugListing listing = {NULL, 0u, CLI_DEBUG_PROCESSES, NULL, 1ULL, CLI_DEBUG_PROCESS_TEXT, cli_process_own(),
                                NULL};
     listing.process =
         g_cli_cells->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
@@ -124,7 +124,7 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
         EMBED_CALL(cli_context_internal.processes_each, CliContextCtx, .each_callback = processes_list,
                    .context = &listing);
         listing.sorted = g_cli_cells->persistent_buf_alloc(
-            ((unsigned long long)listing.count + 1ull) * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
+            ((unsigned long long)listing.count + 1ULL) * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
     }
     const unsigned int count = (listing.sorted != NULL) ? listing.count : 0u;
     EMBED_CALL(processes_sort, DebugProcessesCtx, .listing = &listing, .from = 0u, .to = count);

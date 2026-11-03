@@ -143,8 +143,8 @@ typedef struct
 
 // each color named for what it colors, in the form an editor's theme names a color: the fuse's fire also lines the
 // shown tab, and a file icon's color goes by its hue, as a terminal's does
-#define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ull}
-#define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ull}
+#define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ULL}
+#define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ULL}
 static const PaletteNamed s_named[] = {
     PALETTE_NAMED("window.background", background_fill),
     PALETTE_NAMED("widget.background", surface),
@@ -191,17 +191,17 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("fuse.burn", fuse_burn),
     {"fuse.fire", offsetof(GuiPalette, fuse_fire), offsetof(GuiPalette, tab_line)},
     PALETTE_NAMED("lattice.background", deep),
-    PALETTE_NAMED_AT("lattice.inPlace", lattice, 0ull),
-    PALETTE_NAMED_AT("lattice.moving", lattice, 1ull),
-    PALETTE_NAMED_AT("lattice.displaced", lattice, 2ull),
-    PALETTE_NAMED_AT("fileIcon.red", mark, 0ull),
-    PALETTE_NAMED_AT("fileIcon.green", mark, 1ull),
-    PALETTE_NAMED_AT("fileIcon.yellow", mark, 2ull),
-    PALETTE_NAMED_AT("fileIcon.blue", mark, 3ull),
-    PALETTE_NAMED_AT("fileIcon.violet", mark, 4ull),
-    PALETTE_NAMED_AT("fileIcon.cyan", mark, 5ull),
-    PALETTE_NAMED_AT("fileIcon.white", mark, 6ull),
-    PALETTE_NAMED_AT("fileIcon.gray", mark, 7ull),
+    PALETTE_NAMED_AT("lattice.inPlace", lattice, 0ULL),
+    PALETTE_NAMED_AT("lattice.moving", lattice, 1ULL),
+    PALETTE_NAMED_AT("lattice.displaced", lattice, 2ULL),
+    PALETTE_NAMED_AT("fileIcon.red", mark, 0ULL),
+    PALETTE_NAMED_AT("fileIcon.green", mark, 1ULL),
+    PALETTE_NAMED_AT("fileIcon.yellow", mark, 2ULL),
+    PALETTE_NAMED_AT("fileIcon.blue", mark, 3ULL),
+    PALETTE_NAMED_AT("fileIcon.violet", mark, 4ULL),
+    PALETTE_NAMED_AT("fileIcon.cyan", mark, 5ULL),
+    PALETTE_NAMED_AT("fileIcon.white", mark, 6ULL),
+    PALETTE_NAMED_AT("fileIcon.gray", mark, 7ULL),
 };
 #define PALETTE_NAMED_COUNT ((unsigned int)(sizeof(s_named) / sizeof(s_named[0])))
 
@@ -212,7 +212,7 @@ unsigned int gui_palette_color_count(const GuiPaletteLengthCfg *args)
 
 void gui_palette_color_name(const GuiPaletteAtCfg *args)
 {
-    VerbaLinea line = {args->name, args->size, 0ull};
+    VerbaLinea line = {args->name, args->size, 0ULL};
     if (args->at < PALETTE_NAMED_COUNT)
     {
         mmgr_line_put(&line, s_named[args->at].name);
@@ -261,7 +261,7 @@ void gui_palette_color_set(const GuiPaletteOwnCfg *args)
         return;
     }
     *(GuiColor *)(void *)((unsigned char *)&args->own->colors + s_named[args->at].offset) = color;
-    if (s_named[args->at].also != 0ull)
+    if (s_named[args->at].also != 0ULL)
     {
         *(GuiColor *)(void *)((unsigned char *)&args->own->colors + s_named[args->at].also) = color;
     }
@@ -280,7 +280,7 @@ EMBED_INLINE char palette_digit(const PaletteCtx *args)
 
 void gui_palette_value_text(const GuiPaletteSizeColorCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
+    VerbaLinea line = {args->text, args->size, 0ULL};
     mmgr_line_ch(&line, '#');
     const unsigned int opaque = GUI_ALPHA_OF(args->color) == 0xffu;
     // red, green and blue, and the alpha where it is not opaque, the high digit of each first
@@ -297,14 +297,14 @@ void gui_palette_value_text(const GuiPaletteSizeColorCfg *args)
 int gui_palette_value_read(const GuiPaletteTextCfg *args)
 {
     GuiColor *color = args->color_pointer;
-    const unsigned long long skip = ((args->length != 0ull) && (args->text_read[0] == '#')) ? 1ull : 0ull;
+    const unsigned long long skip = ((args->length != 0ULL) && (args->text_read[0] == '#')) ? 1ULL : 0ULL;
     const unsigned long long digits = args->length - skip;
-    if ((digits != 6ull) && (digits != 8ull))
+    if ((digits != 6ULL) && (digits != 8ULL))
     {
         return 0;
     }
     unsigned int value = 0u;
-    for (unsigned long long at = 0ull; at < digits; at += 1ull)
+    for (unsigned long long at = 0ULL; at < digits; at += 1ULL)
     {
         const char digit = args->text_read[skip + at];
         unsigned int read = 16u;
@@ -328,7 +328,7 @@ int gui_palette_value_read(const GuiPaletteTextCfg *args)
         value = (value << 4u) | read;
     }
     // six digits are red, green and blue under the current alpha; eight end in their own alpha
-    *color = (digits == 6ull) ? (value | (args->current & 0xff000000u)) : ((value >> 8u) | (value << 24u));
+    *color = (digits == 6ULL) ? (value | (args->current & 0xff000000u)) : ((value >> 8u) | (value << 24u));
     return 1;
 }
 
@@ -415,7 +415,7 @@ EMBED_INLINE int palette_low(const PaletteCtx *args)
     {
         if (s_named[at].offset == back)
         {
-            VerbaLinea line = {args->under, args->size, 0ull};
+            VerbaLinea line = {args->under, args->size, 0ULL};
             mmgr_line_put(&line, s_named[at].name);
             (void)mmgr_line_finish(&line);
         }
@@ -449,7 +449,7 @@ int gui_palette_color_low(const GuiPaletteAtSizeCfg *args)
 
 void gui_palette_contrast_text(const GuiPaletteSizeCfg *args)
 {
-    VerbaLinea line = {args->text, args->size, 0ull};
+    VerbaLinea line = {args->text, args->size, 0ULL};
     mmgr_line_decimal(&line, args->tenths_value / 10u, 1u);
     mmgr_line_ch(&line, '.');
     mmgr_line_decimal(&line, args->tenths_value % 10u, 1u);

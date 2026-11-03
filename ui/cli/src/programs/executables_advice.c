@@ -55,7 +55,7 @@ EMBED_INLINE const char *cli_id_parts(const ExecutablesAdviceCtx *args)
     {
         return NULL;
     }
-    VerbaLinea line = {args->script, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->script, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, args->id + 11, (unsigned long long)(colon - (args->id + 11)));
     mmgr_line_finish(&line);
     return colon + 1;
@@ -87,7 +87,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
         const char *const arguments[5] = {"nuget", "list", "source", "--format", "short"};
         CliRunResult *const run_result = cli_run_result_alloc();
         char why[CLI_PATH_MAX_LEN];
-        VerbaLinea failed = {why, sizeof(why), 0ull};
+        VerbaLinea failed = {why, sizeof(why), 0ULL};
         const int list_entries =
             EMBED_CALL(cli_executables_name_internal.output, CliExecutablesNameCtx, .tool = "dotnet", .name = "dotnet",
                        .request = arguments, .count = 5u, .folder = NULL, .run_result = run_result, .err_msg = &failed);
@@ -96,7 +96,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
         if (list_entries &&
-            ((length == 0ull) || (cellul.find(&(CatenaFinitaCfg){.src = run_result->out,
+            ((length == 0ULL) || (cellul.find(&(CatenaFinitaCfg){.src = run_result->out,
                                                                  .cap = CLI_CELLS_POOL,
                                                                  .other = "No sources found",
                                                                  .other_cap = CLI_CELLS_POOL}) != NULL)))
@@ -112,7 +112,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
     {
         // the target Rust's standard library is missing for, as the line that reports so names it
         const char *target = NULL;
-        unsigned long long target_length = 0ull;
+        unsigned long long target_length = 0ULL;
         for (unsigned int at = 0u; (target == NULL) && (at < lines->count); at += 1u)
         {
             const char *const line =
@@ -132,7 +132,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
             target_length = (closed != NULL) ? (unsigned long long)(closed - target)
                                              : cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL});
         }
-        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
         if (target != NULL)
         {
             mmgr_line_put(&line, "Rust's standard library for ");
@@ -159,7 +159,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
     {
         char python[CLI_PATH_MAX_LEN];
         char why[CLI_NAME_MAX_LEN];
-        VerbaLinea failed = {why, sizeof(why), 0ull};
+        VerbaLinea failed = {why, sizeof(why), 0ULL};
         if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "python", .name = "python",
                         .path = python, .err_msg = &failed))
         {
@@ -168,7 +168,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                               .src = "python",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
         }
-        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
         mmgr_line_put(&line, "PyInstaller is not in the Python that runs it, ");
         mmgr_line_put(&line, python);
         mmgr_line_put(&line, "; `\"");
@@ -209,23 +209,23 @@ char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args)
         (base[0] != '\0')
             ? EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = base + 1,
                          .at = cellul.len(&(CatenaFinitaCfg){.src = base + 1, .cap = CLI_CELLS_POOL}), .set = ".")
-            : 0ull;
-    dot = (dot_end != 0ull) ? (base + dot_end) : NULL;
+            : 0ULL;
+    dot = (dot_end != 0ULL) ? (base + dot_end) : NULL;
     char stem[CLI_NAME_MAX_LEN];
-    VerbaLinea stemmed = {stem, sizeof(stem), 0ull};
+    VerbaLinea stemmed = {stem, sizeof(stem), 0ULL};
     mmgr_line_put_n(&stemmed, base,
                     (dot != NULL) ? (unsigned long long)(dot - base)
                                   : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}));
     mmgr_line_finish(&stemmed);
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->folder_out);
     mmgr_line_put(&line, "/build/");
     mmgr_line_put(&line, stem);
     mmgr_line_put(&line, "/warn-");
     mmgr_line_put(&line, stem);
     mmgr_line_put(&line, ".txt");
-    return (mmgr_line_finish(&line) != 0ull)
+    return (mmgr_line_finish(&line) != 0ULL)
                ? EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path)
                : NULL;
 }
@@ -238,7 +238,7 @@ void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args)
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *const end = ((stop > line) && (stop[-1] == '\r')) ? (stop - 1) : stop;
         const unsigned long long length = (unsigned long long)(end - line);
@@ -261,7 +261,7 @@ void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args)
                 {
                     const unsigned long long lead =
                         EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = module,
-                                   .at = 0ull, .size = module_length, .set = "'");
+                                   .at = 0ULL, .size = module_length, .set = "'");
                     module += lead;
                     module_length -= lead;
                 }
@@ -315,8 +315,8 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
     CliFullest *const fullest = (CliFullest *)args->context;
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     char path[CLI_PATH_MAX_LEN];
-    if (args->is_folder || (name_length < 3ull) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + name_length - 3ull, .other = ".py", .cap = CLI_CELLS_POOL})) ||
+    if (args->is_folder || (name_length < 3ULL) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = name + name_length - 3ULL, .other = ".py", .cap = CLI_CELLS_POOL})) ||
         !EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
                     .folder = fullest->folder, .name = name, .out = path))
     {
@@ -341,7 +341,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
                                                   ? (unsigned long long)(end - piece)
                                                   : cellul.len(&(CatenaFinitaCfg){.src = piece, .cap = CLI_CELLS_POOL});
             int named = 1;
-            for (unsigned long long letter = 0ull; named && (letter < length); letter += 1ull)
+            for (unsigned long long letter = 0ULL; named && (letter < length); letter += 1ULL)
             {
                 const char one = piece[letter];
                 named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
@@ -354,7 +354,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
             if (named && starts &&
                 (length > cellul.len(&(CatenaFinitaCfg){.src = fullest->best, .cap = CLI_CELLS_POOL})))
             {
-                VerbaLinea line = {fullest->best, sizeof(fullest->best), 0ull};
+                VerbaLinea line = {fullest->best, sizeof(fullest->best), 0ULL};
                 mmgr_line_put_n(&line, piece, length);
                 mmgr_line_finish(&line);
             }
@@ -382,7 +382,7 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
                                   : NULL;
     if (reason != NULL)
     {
-        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
         mmgr_line_put(&line, "the program did not start: ");
         mmgr_line_put(&line, reason);
         mmgr_line_put(&line, "; the build's end shows which DLLs it loads from where");
@@ -395,9 +395,9 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
     const unsigned long long spec_length =
         (EMBED_CALL(cli_id_parts, ExecutablesAdviceCtx, .id = args->id, .script = spec) != NULL)
             ? cellul.len(&(CatenaFinitaCfg){.src = spec, .cap = CLI_CELLS_POOL})
-            : 0ull;
-    if ((spec_length < 5ull) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = spec + spec_length - 5ull, .other = ".spec", .cap = CLI_CELLS_POOL})))
+            : 0ULL;
+    if ((spec_length < 5ULL) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = spec + spec_length - 5ULL, .other = ".spec", .cap = CLI_CELLS_POOL})))
     {
         return;
     }
@@ -426,7 +426,7 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
                    .length_pointer = &length);
         {
             const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                       .text = module, .at = 0ull, .size = length, .set = "'");
+                                                       .text = module, .at = 0ULL, .size = length, .set = "'");
             module += lead;
             length -= lead;
         }
@@ -434,23 +434,23 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
                             .set = "'");
         {
             const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                       .text = module, .at = 0ull, .size = length, .set = "\"");
+                                                       .text = module, .at = 0ULL, .size = length, .set = "\"");
             module += lead;
             length -= lead;
         }
         length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = module, .at = length,
                             .set = "\"");
-        if (length == 0ull)
+        if (length == 0ULL)
         {
             continue;
         }
-        unsigned long long top = 0ull;
+        unsigned long long top = 0ULL;
         top = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = module, .at = top,
                          .size = length, .set = ".");
         CliUnfound unfound = {module, length, module, top, 0};
         EMBED_CALL(cli_executables_text_each_internal.pyinstaller_missing, CliExecutablesTextEachCtx, .text = warn,
                    .each_callback = cli_unfound_each, .context = &unfound);
-        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
         if (unfound.found)
         {
             mmgr_line_put_n(&line, module, length);
@@ -463,7 +463,7 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
             s_fullest.folder = folder;
             s_fullest.module = module;
             s_fullest.length = length;
-            VerbaLinea best = {s_fullest.best, sizeof(s_fullest.best), 0ull};
+            VerbaLinea best = {s_fullest.best, sizeof(s_fullest.best), 0ULL};
             mmgr_line_put_n(&best, module, length);
             mmgr_line_finish(&best);
             EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,

@@ -12,10 +12,10 @@
 
 // the size past which a text file opens as a window, the most bytes of a file that is not text shown, and the bytes
 // looked through for a 0 that marks a file as no text
-#define CLI_WINDOW_FROM (1024ull * 1024ull)
-#define CLI_DISPLAYED_BYTES (64ull * 1024ull)
-#define CLI_SLICE_SLACK (1ull << 20u)
-#define CLI_PROBE_BYTES 8192ull
+#define CLI_WINDOW_FROM (1024ULL * 1024ULL)
+#define CLI_DISPLAYED_BYTES (64ULL * 1024ULL)
+#define CLI_SLICE_SLACK (1ULL << 20u)
+#define CLI_PROBE_BYTES 8192ULL
 
 typedef struct
 {
@@ -50,22 +50,22 @@ typedef struct
 EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
 {
     const unsigned char lead = args->rest[0];
-    const unsigned long long need = ((lead >= 0xc2u) && (lead <= 0xdfu))   ? 2ull
-                                    : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ull
-                                    : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ull
-                                                                           : 0ull;
-    if ((need == 0ull) || (args->size >= need))
+    const unsigned long long need = ((lead >= 0xc2u) && (lead <= 0xdfu))   ? 2ULL
+                                    : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ULL
+                                    : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ULL
+                                                                           : 0ULL;
+    if ((need == 0ULL) || (args->size >= need))
     {
         return 0;
     }
-    for (unsigned long long at = 1ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 1ULL; at < args->size; at += 1ULL)
     {
         if ((args->rest[at] & 0xc0u) != 0x80u)
         {
             return 0;
         }
     }
-    const unsigned char second = (args->size > 1ull) ? args->rest[1] : 0x80u;
+    const unsigned char second = (args->size > 1ULL) ? args->rest[1] : 0x80u;
     return !((lead == 0xe0u) && (second < 0xa0u)) && !((lead == 0xedu) && (second >= 0xa0u)) &&
            !((lead == 0xf0u) && (second < 0x90u)) && !((lead == 0xf4u) && (second >= 0x90u));
 }
@@ -73,14 +73,14 @@ EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
 // whether `size` bytes are UTF-8 whole, or where `cut` is 1, UTF-8 but for a letter their end cuts short
 EMBED_INLINE int cli_utf8(const FilesReadCtx *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
         unsigned int letter = 0u;
         const unsigned long long step =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = args->bytes,
                        .length = args->size, .at = at, .letter = &letter);
-        if ((step == 1ull) && (args->bytes[at] >= 0x80u))
+        if ((step == 1ULL) && (args->bytes[at] >= 0x80u))
         {
             return args->cut &&
                    EMBED_CALL(cli_cut_short, FilesReadCtx, .rest = args->bytes + at, .size = args->size - at);
@@ -95,7 +95,7 @@ EMBED_INLINE int cli_probe_zero(const FilesReadCtx *args)
 {
     const unsigned char *bytes = args->bytes;
     const unsigned long long look = (args->size < CLI_PROBE_BYTES) ? args->size : CLI_PROBE_BYTES;
-    return (look != 0ull) && (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) != NULL);
+    return (look != 0ULL) && (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) != NULL);
 }
 
 // that a file could not be read, reported
@@ -146,7 +146,7 @@ EMBED_INLINE const unsigned char *cli_piece(const FilesReadCtx *args)
         EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = err_msg);
         return NULL;
     }
-    const unsigned long long capacity = (from < *args->whole) ? *args->whole - from : 0ull;
+    const unsigned long long capacity = (from < *args->whole) ? *args->whole - from : 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = path,
                                                   .from = from, .count_u64 = (count < capacity) ? count : capacity,
                                                   .size_pointer = args->got, .owner = &g_cli_editor_cells);
@@ -165,7 +165,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
                                     .file = archive, .inner = inner) &&
                          (inner[0] != '\0');
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!archived)
     {
         if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->file,
@@ -181,9 +181,9 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
         if (size > CLI_WINDOW_FROM)
         {
             // a file the window pages: its first bytes alone tell whether it is text
-            unsigned long long got = 0ull;
+            unsigned long long got = 0ULL;
             const unsigned char *const first =
-                EMBED_CALL(cli_piece, FilesReadCtx, .root = args->root, .file = args->file, .path = path, .from = 0ull,
+                EMBED_CALL(cli_piece, FilesReadCtx, .root = args->root, .file = args->file, .path = path, .from = 0ULL,
                            .count = CLI_DISPLAYED_BYTES, .got = &got, .whole = &size, .err_msg = args->err_msg);
             if (first == NULL)
             {

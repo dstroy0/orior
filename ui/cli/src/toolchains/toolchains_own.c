@@ -90,7 +90,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
         return 0;
     }
     char line[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea made = {line, sizeof(line), 0ull};
+    VerbaLinea made = {line, sizeof(line), 0ULL};
     mmgr_line_put(&made, "export PATH=\"$PATH:");
     EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .out = &made, .text = folder, .set = "\"",
                .mark = '\\');
@@ -100,7 +100,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        VerbaLinea named = {path, sizeof(path), 0ull};
+        VerbaLinea named = {path, sizeof(path), 0ULL};
         mmgr_line_put(&named, home);
         mmgr_line_put(&named, s_names[at]);
         mmgr_line_finish(&named);
@@ -116,7 +116,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
         }
         unsigned long long size =
             qry_member_file_read(path, (unsigned char *)s_file, sizeof(s_file) - line_length - 4u);
-        size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
+        size = (size == QRY_MEMBER_UNREAD) ? 0ULL : size;
         // a line already there, trimmed, is retained as it is
         int there = 0;
         const char *from = s_file;
@@ -127,7 +127,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
                 const char *start = from;
                 const char *end = place;
                 start += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = start,
-                                    .at = 0ull, .size = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
+                                    .at = 0ULL, .size = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
                 end = start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = start,
                                          .at = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
                 there = ((unsigned long long)(end - start) == line_length) &&
@@ -140,7 +140,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
             continue;
         }
         VerbaLinea text = {s_file, sizeof(s_file), size};
-        if ((size != 0ull) && (s_file[size - 1u] != '\n'))
+        if ((size != 0ULL) && (s_file[size - 1u] != '\n'))
         {
             mmgr_line_ch(&text, '\n');
         }
@@ -176,7 +176,7 @@ int cli_toolchains_add_to_path(const CliToolchainsErrMsgFolderCfg *args)
         const unsigned int tool =
             EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                        .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                              .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                              .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                        .id = args->what, .err_msg = args->err_msg);
         if (tool == CLI_JSON_NONE)
         {

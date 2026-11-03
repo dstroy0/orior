@@ -12,7 +12,7 @@
 
 // the most windows stored that are read, and how long a command line waits for the window's answer in milliseconds
 #define CLI_REACH_WINDOWS 64u
-#define CLI_REACH_WAIT 10000ull
+#define CLI_REACH_WAIT 10000ULL
 
 // A window stored: its process, the tree it has open, its door's address, and its key
 typedef struct
@@ -62,7 +62,7 @@ EMBED_INLINE void reach_folder(const ReachCtx *args)
 EMBED_INLINE void reach_file(const ReachCtx *args)
 {
     char name[64];
-    VerbaLinea named = {name, sizeof(name), 0ull};
+    VerbaLinea named = {name, sizeof(name), 0ULL};
     mmgr_line_put(&named, args->before);
     mmgr_line_decimal(&named, args->process, 1u);
     mmgr_line_put(&named, ".window");
@@ -85,7 +85,7 @@ int cli_reach_store_in(const CliReachCfg *args)
     }
     EMBED_CALL(reach_file, ReachCtx, .folder_read = folder, .before = "", .process = args->process, .path = path);
     EMBED_CALL(reach_file, ReachCtx, .folder_read = folder, .before = ".", .process = args->process, .path = adjacent);
-    VerbaLinea out = {text, sizeof(text), 0ull};
+    VerbaLinea out = {text, sizeof(text), 0ULL};
     mmgr_line_decimal(&out, args->process, 1u);
     mmgr_line_ch(&out, '\0');
     mmgr_line_put(&out, (args->root != NULL) ? args->root : "");
@@ -145,7 +145,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
         return;
     }
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = read->folder, .relative = name, .joined = path);
     const char *const bytes = (const char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                        .size_pointer = &size, .owner = &g_cli_machine_cells);
@@ -155,30 +155,30 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
     }
     const char *field[4];
     unsigned int fields = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((fields < 4u) && (at < size))
     {
         field[fields] = bytes + at;
         fields += 1u;
-        at += cellul.len(&(CatenaFinitaCfg){.src = bytes + at, .cap = size - at}) + 1ull;
+        at += cellul.len(&(CatenaFinitaCfg){.src = bytes + at, .cap = size - at}) + 1ULL;
     }
-    if ((fields == 4u) && (at <= size) && (bytes[size - 1ull] == '\0'))
+    if ((fields == 4u) && (at <= size) && (bytes[size - 1ULL] == '\0'))
     {
         CliReachEntry *const one = &read->entries[read->count];
         const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = field[0], .cap = size});
         // a process's id is no more than an unsigned int stores
-        one->process = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = field[0], .at = 0ull,
+        one->process = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = field[0], .at = 0ULL,
                                                 .size = digits, .end = NULL);
         one->has_root = field[1][0] != '\0';
-        VerbaLinea root = {one->root, sizeof(one->root), 0ull};
+        VerbaLinea root = {one->root, sizeof(one->root), 0ULL};
         mmgr_line_put(&root, field[1]);
-        VerbaLinea address = {one->address, sizeof(one->address), 0ull};
+        VerbaLinea address = {one->address, sizeof(one->address), 0ULL};
         mmgr_line_put(&address, field[2]);
-        VerbaLinea key = {one->key, sizeof(one->key), 0ull};
+        VerbaLinea key = {one->key, sizeof(one->key), 0ULL};
         mmgr_line_put(&key, field[3]);
-        if ((mmgr_line_finish(&root) != 0ull) || !one->has_root)
+        if ((mmgr_line_finish(&root) != 0ULL) || !one->has_root)
         {
-            read->count += ((mmgr_line_finish(&address) != 0ull) && (mmgr_line_finish(&key) != 0ull)) ? 1u : 0u;
+            read->count += ((mmgr_line_finish(&address) != 0ULL) && (mmgr_line_finish(&key) != 0ULL)) ? 1u : 0u;
         }
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
@@ -214,14 +214,14 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
         mmgr_line_put(err_msg, "the system gave no secret");
         return 0;
     }
-    VerbaLinea id_line = {id, sizeof(id), 0ull};
+    VerbaLinea id_line = {id, sizeof(id), 0ULL};
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
         mmgr_line_ch(&id_line, "0123456789abcdef"[secret[at] >> 4u]);
         mmgr_line_ch(&id_line, "0123456789abcdef"[secret[at] & 15u]);
     }
     mmgr_line_finish(&id_line);
-    VerbaLinea channel_line = {channel, sizeof(channel), 0ull};
+    VerbaLinea channel_line = {channel, sizeof(channel), 0ULL};
     mmgr_line_put(&channel_line, "answer/");
     mmgr_line_put(&channel_line, id);
     mmgr_line_finish(&channel_line);
@@ -229,7 +229,7 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
     {
         return 0;
     }
-    VerbaLinea request_line = {s_request_buf, sizeof(s_request_buf), 0ull};
+    VerbaLinea request_line = {s_request_buf, sizeof(s_request_buf), 0ULL};
     mmgr_line_put(&request_line, id);
     mmgr_line_ch(&request_line, '\0');
     mmgr_line_put(&request_line, args->menu);
@@ -246,7 +246,7 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
         mmgr_line_put(err_msg, "the command does not fit what is sent");
         return 0;
     }
-    unsigned long long delivered = 0ull;
+    unsigned long long delivered = 0ULL;
     if (!EMBED_CALL(cli_ipc_err_msg.send, CliIpcErrMsgCfg, .client = client, .channel = "command",
                     .body = request_line.out, .size = request_line.at, .delivered = &delivered, .err_msg = err_msg))
     {
@@ -256,7 +256,7 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
     // window received and did not answer
     char from[CLI_NAME_MAX_LEN];
     char reply_channel[CLI_NAME_MAX_LEN];
-    VerbaLinea body = {s_body, sizeof(s_body), 0ull};
+    VerbaLinea body = {s_body, sizeof(s_body), 0ULL};
     if (!EMBED_CALL(cli_ipc_client.next, CliIpcClientCfg, .client = client, .wait = CLI_REACH_WAIT,
                     .channel_out = reply_channel, .from = from, .body_verba_linea_pointer = &body))
     {
@@ -264,13 +264,13 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
         mmgr_line_decimal(err_msg, delivered, 1u);
         return 0;
     }
-    args->answer->done = (body.at != 0ull) && (body.out[0] == CLI_REACH_DONE);
-    VerbaLinea answer = {args->answer->text, sizeof(args->answer->text), 0ull};
-    if (body.at > 1ull)
+    args->answer->done = (body.at != 0ULL) && (body.out[0] == CLI_REACH_DONE);
+    VerbaLinea answer = {args->answer->text, sizeof(args->answer->text), 0ULL};
+    if (body.at > 1ULL)
     {
-        mmgr_line_put_n(&answer, body.out + 1, body.at - 1ull);
+        mmgr_line_put_n(&answer, body.out + 1, body.at - 1ULL);
     }
-    if (mmgr_line_finish(&answer) == 0ull)
+    if (mmgr_line_finish(&answer) == 0ULL)
     {
         args->answer->text[0] = '\0';
     }
@@ -300,7 +300,7 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
             continue;
         }
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea refused = {why, sizeof(why), 0ull};
+        VerbaLinea refused = {why, sizeof(why), 0ULL};
         CliIpcClient *const client = EMBED_CALL(cli_ipc_err_msg_address.join, CliIpcErrMsgAddressCfg,
                                                 .address_read = entry->address, .key = entry->key, .err_msg = &refused);
         if (client == NULL)

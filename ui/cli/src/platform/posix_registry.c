@@ -26,6 +26,7 @@ int cli_registry_set_user_value(const CliErrMsgNameCtx *args)
 
 void cli_registry_announce(void)
 {
+    // this system has no registry whose change is announced
 }
 
 void cli_registry_expand(const CliOutCtx *args)

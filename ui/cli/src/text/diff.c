@@ -20,7 +20,7 @@ typedef struct
     long long m;
 } CliRuns;
 // the most edits a shortest edit takes before the texts read as too far apart, and the most lines of each text
-#define CLI_MAX_EDITS 3000ll
+#define CLI_MAX_EDITS 3000LL
 #define CLI_DIFF_LINES (1u << 20u)
 
 // The diff's capacity, laid out in a cell sized to the two texts' lines, taken with the diff's lock and given back with
@@ -82,7 +82,7 @@ EMBED_INLINE void *diff_part(const DiffCtx *args)
 {
     unsigned long long *at = args->at;
     void *const part = s_diff->cell + *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -90,29 +90,29 @@ EMBED_INLINE void *diff_part(const DiffCtx *args)
 // where the cells cannot meet it; and the capacity given back with the lock
 EMBED_INLINE int diff_reserve(const DiffCtx *args)
 {
-    const unsigned long long both = args->then_lines + args->now_lines + 1ull;
+    const unsigned long long both = args->then_lines + args->now_lines + 1ULL;
     const unsigned long long most =
         (both < (unsigned long long)CLI_MAX_EDITS) ? both : (unsigned long long)CLI_MAX_EDITS;
-    const unsigned long long bytes = (8ull * (args->then_lines + args->now_lines + (2ull * most) + 3ull)) +
-                                     (5ull * both) + (4ull * (args->now_lines * 3ull + args->then_lines)) +
-                                     (16ull * both) + (8ull * 12ull);
+    const unsigned long long bytes = (8ULL * (args->then_lines + args->now_lines + (2ULL * most) + 3ULL)) +
+                                     (5ULL * both) + (4ULL * (args->now_lines * 3ULL + args->then_lines)) +
+                                     (16ULL * both) + (8ULL * 12ULL);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     s_diff->cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_text_cells);
     if (s_diff->cell == NULL)
     {
         return 0;
     }
-    unsigned long long at = 0ull;
-    s_diff->hash_then = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ull * args->then_lines);
-    s_diff->hash_now = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ull * args->now_lines);
-    s_diff->v = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ull * ((2ull * most) + 3ull));
+    unsigned long long at = 0ULL;
+    s_diff->hash_then = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->then_lines);
+    s_diff->hash_now = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->now_lines);
+    s_diff->v = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * ((2ULL * most) + 3ULL));
     s_diff->step_kind = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = both);
-    s_diff->step_index = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ull * both);
-    s_diff->added = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ull * args->now_lines);
-    s_diff->changed = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ull * args->now_lines);
-    s_diff->removed = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ull * args->then_lines);
-    s_diff->hunk = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 16ull * both);
-    s_diff->put = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ull * args->now_lines);
+    s_diff->step_index = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * both);
+    s_diff->added = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * args->now_lines);
+    s_diff->changed = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * args->now_lines);
+    s_diff->removed = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * args->then_lines);
+    s_diff->hunk = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 16ULL * both);
+    s_diff->put = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * args->now_lines);
     return 1;
 }
 
@@ -140,12 +140,12 @@ EMBED_INLINE long long cli_run(const DiffCtx *args)
         EMBED_CALL(cli_vector_a_length.common, CliVectorALengthCfg, .a_u64s = s_diff->hash_then + args->x,
                    .a_length = (unsigned long long)(args->runs->n - args->x), .b_u64s = s_diff->hash_now + args->y,
                    .b_length = (unsigned long long)(args->runs->m - args->y));
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at < alike) && EMBED_CALL(cli_same_line, DiffCtx, .a = args->runs->a,
                                       .one = args->runs->a_from + (unsigned long long)args->x + at, .b = args->runs->b,
                                       .other = args->runs->b_from + (unsigned long long)args->y + at))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     // a run is at most the lines left, which a long long represents
     return (long long)at;
@@ -154,7 +154,7 @@ EMBED_INLINE long long cli_run(const DiffCtx *args)
 long long cli_diff_run_get(const CliDocumentThenCfg *args)
 {
     // the lines of each are below CLI_DIFF_LINES, which a long long represents
-    const CliRuns runs = {args->then, args->now, 0ull, 0ull, (long long)args->then->lines, (long long)args->now->lines};
+    const CliRuns runs = {args->then, args->now, 0ULL, 0ULL, (long long)args->then->lines, (long long)args->now->lines};
     if ((args->then->lines > CLI_DIFF_LINES) || (args->now->lines > CLI_DIFF_LINES) ||
         !EMBED_CALL(diff_reserve, DiffCtx, .then_lines = args->then->lines, .now_lines = args->now->lines))
     {

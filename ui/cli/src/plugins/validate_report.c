@@ -14,9 +14,9 @@ void cli_validate_finding_append(const CliValidateLengthCtx *args)
     const char *message = args->message_text;
     const char *lifted = args->lifted;
     const unsigned long long lifted_size =
-        (lifted != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}) + 1ull : 0ull;
+        (lifted != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}) + 1ULL : 0ULL;
     if ((g_cli_validate->finding_count == CLI_VALIDATE_FINDINGS) ||
-        (g_cli_validate->finding_used + args->length + 1ull + lifted_size > CLI_VALIDATE_FINDING_TEXT))
+        (g_cli_validate->finding_used + args->length + 1ULL + lifted_size > CLI_VALIDATE_FINDING_TEXT))
     {
         return;
     }
@@ -25,7 +25,7 @@ void cli_validate_finding_append(const CliValidateLengthCtx *args)
     put->message = g_cli_validate->finding_used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_validate->finding_text + put->message, .src = message, .bytes = args->length});
     g_cli_validate->finding_text[put->message + args->length] = '\0';
-    g_cli_validate->finding_used += args->length + 1ull;
+    g_cli_validate->finding_used += args->length + 1ULL;
     put->lifted = CLI_VALIDATE_NONE;
     if (lifted != NULL)
     {
@@ -93,7 +93,7 @@ static void report_barriers(void)
                         .src = tool->barriers[again_barrier].name, .other = stopping->name, .cap = CLI_CELLS_POOL}));
         }
         char lifted[1024];
-        VerbaLinea lifted_line = {lifted, sizeof(lifted), 0ull};
+        VerbaLinea lifted_line = {lifted, sizeof(lifted), 0ULL};
         if (g_cli_validate->stuck[key])
         {
             mmgr_line_put(&lifted_line, "still stops the check at its ceiling, ");
@@ -112,11 +112,11 @@ static void report_barriers(void)
         mmgr_line_finish(&lifted_line);
         const char *const text = first->text + message->text;
         const CliTextLine bounds =
-            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = 0ull, .size = message->text_size);
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = 0ULL, .size = message->text_size);
         unsigned long long first_line = bounds.stop;
         first_line -= bounds.stop - bounds.cut;
         char msg_buf[8192];
-        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
         mmgr_line_put(&msg, stopping->name);
         mmgr_line_put(&msg, ": ");
         mmgr_line_put(&msg, stopping->about);
@@ -124,7 +124,7 @@ static void report_barriers(void)
         mmgr_line_put_n(&msg, text, first_line);
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, still ? 1u : 3u, "barrier", barrier,
-            0ull,          0ull};
+            0ULL,          0ULL};
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = msg_buf, .length = msg.at, .lifted = lifted);
     }
@@ -191,10 +191,10 @@ static void report_sort(const ValidateReportCtx *args)
 // a count and its noun, `one` where it is 1 and `many` otherwise, a "; " before it where the verdict reports something
 EMBED_INLINE void report_on_count(const ValidateReportCtx *args)
 {
-    mmgr_line_put(args->out, (args->out->at > 0ull) ? "; " : "");
+    mmgr_line_put(args->out, (args->out->at > 0ULL) ? "; " : "");
     mmgr_line_decimal(args->out, args->count, 1u);
     mmgr_line_ch(args->out, ' ');
-    mmgr_line_put(args->out, (args->count == 1ull) ? args->one : args->many);
+    mmgr_line_put(args->out, (args->count == 1ULL) ? args->one : args->many);
     mmgr_line_put(args->out, args->after);
 }
 
@@ -219,12 +219,12 @@ EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
         mmgr_line_decimal(args->out, g_cli_validate->theorem_count, 1u);
         mmgr_line_put(args->out, " theorems check");
     }
-    if (args->math > 0ull)
+    if (args->math > 0ULL)
     {
         EMBED_CALL(report_on_count, ValidateReportCtx, .out = args->out, .count = args->math, .one = "error",
                    .many = "errors", .after = " in the mathematics");
     }
-    if (args->blocked > 0ull)
+    if (args->blocked > 0ULL)
     {
         EMBED_CALL(report_on_count, ValidateReportCtx, .out = args->out, .count = args->blocked, .one = "place",
                    .many = "places", .after = " a limit stops past its ceiling");
@@ -250,7 +250,7 @@ EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
     }
     if (lifted > 0u)
     {
-        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; once lifted to " : "once lifted to ");
+        mmgr_line_put(args->out, (args->out->at > 0ULL) ? "; once lifted to " : "once lifted to ");
         int printed = 0;
         for (unsigned int at = 0u; at < lifted; at += 1u)
         {
@@ -262,14 +262,14 @@ EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
             }
         }
     }
-    if (g_cli_validate->own_size > 0ull)
+    if (g_cli_validate->own_size > 0ULL)
     {
-        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; the file's own " : "the file's own ");
+        mmgr_line_put(args->out, (args->out->at > 0ULL) ? "; the file's own " : "the file's own ");
         mmgr_line_put_n(args->out, g_cli_validate->own, g_cli_validate->own_size);
     }
-    if (args->untrusted->at > 0ull)
+    if (args->untrusted->at > 0ULL)
     {
-        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; " : "");
+        mmgr_line_put(args->out, (args->out->at > 0ULL) ? "; " : "");
         mmgr_line_put_n(args->out, args->untrusted->out, args->untrusted->at);
         mmgr_line_put(args->out, " rest on axioms past ");
         for (unsigned int index = 0u;
@@ -337,7 +337,7 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
 void cli_validate_report(const CliValidateProjectCtx *args)
 {
     static char s_untrusted[1u << 16u];
-    VerbaLinea untrusted = {s_untrusted, sizeof(s_untrusted), 0ull};
+    VerbaLinea untrusted = {s_untrusted, sizeof(s_untrusted), 0ULL};
     report_barriers();
     const unsigned int answers = cli_validate_mathematics();
     cli_validate_flags_in();
@@ -348,29 +348,29 @@ void cli_validate_report(const CliValidateProjectCtx *args)
                    .untrusted = &untrusted);
     }
     EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count);
-    unsigned long long math = 0ull;
-    unsigned long long blocked = 0ull;
-    unsigned long long gaps = 0ull;
+    unsigned long long math = 0ULL;
+    unsigned long long blocked = 0ULL;
+    unsigned long long gaps = 0ULL;
     for (unsigned int at = 0u; at < g_cli_validate->finding_count; at += 1u)
     {
         const CliFinding *const finding = &g_cli_validate->findings[at];
         const int error = (finding->severity == 1u);
         math += (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_CELLS_POOL})))
-                    ? 1ull
-                    : 0ull;
+                    ? 1ULL
+                    : 0ULL;
         blocked +=
             (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "barrier", .cap = CLI_CELLS_POOL})))
-                ? 1ull
-                : 0ull;
+                ? 1ULL
+                : 0ULL;
         gaps +=
             (error && ((cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "flag", .cap = CLI_CELLS_POOL})) ||
                        (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "axiom", .cap = CLI_CELLS_POOL}))))
-                ? 1ull
-                : 0ull;
+                ? 1ULL
+                : 0ULL;
     }
-    const int passed = !g_cli_validate->late && (math == 0ull) && (blocked == 0ull) && (gaps == 0ull);
+    const int passed = !g_cli_validate->late && (math == 0ULL) && (blocked == 0ULL) && (gaps == 0ULL);
     static char s_verdict[1u << 18u];
-    VerbaLinea verdict = {s_verdict, sizeof(s_verdict), 0ull};
+    VerbaLinea verdict = {s_verdict, sizeof(s_verdict), 0ULL};
     EMBED_CALL(report_verdict, ValidateReportCtx, .out = &verdict, .passed = passed, .math = math, .blocked = blocked,
                .untrusted = &untrusted);
     const char *const name = g_cli_validate->tool.name;

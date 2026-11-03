@@ -70,7 +70,7 @@ EMBED_INLINE void write_indent(const InspectJsWriteCtx *args)
     unsigned long long size = args->size_u64;
     unsigned long long *start = args->start;
     unsigned long long *end = args->end;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (unsigned int index = 0u; (index < args->line) && (at < size); index += 1u)
     {
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->src, .at = at, .size = size).next;
@@ -148,8 +148,8 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
     for (unsigned int at = 0u; at < g_cli_inspect_comments; at += 1u)
     {
         const unsigned int to_line = g_cli_inspect_comment[at].to.line;
-        unsigned long long line_start = 0ull;
-        unsigned long long line_end = 0ull;
+        unsigned long long line_start = 0ULL;
+        unsigned long long line_end = 0ULL;
         EMBED_CALL(write_indent, InspectJsWriteCtx, .src = src, .size_u64 = args->size, .line = to_line,
                    .start = &line_start, .end = &line_end);
         unsigned long long end = line_start;
@@ -228,8 +228,8 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
         }
         at += 1u;
     }
-    unsigned long long indent_start = 0ull;
-    unsigned long long indent_end = 0ull;
+    unsigned long long indent_start = 0ULL;
+    unsigned long long indent_end = 0ULL;
     EMBED_CALL(write_indent, InspectJsWriteCtx, .src = src, .size_u64 = args->size, .line = first_line,
                .start = &indent_start, .end = &indent_end);
     const char *const indent = src + indent_start;

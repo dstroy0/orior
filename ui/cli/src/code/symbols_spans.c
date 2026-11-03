@@ -54,8 +54,8 @@ EMBED_INLINE unsigned long long spans_byte_get(const SymbolsSpansCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long start = 0ull;
-    for (unsigned int line = 0u; (line < args->place.line) && (start < size); start += 1ull)
+    unsigned long long start = 0ULL;
+    for (unsigned int line = 0u; (line < args->place.line) && (start < size); start += 1ULL)
     {
         line += (text[start] == '\n') ? 1u : 0u;
     }
@@ -70,7 +70,7 @@ EMBED_INLINE unsigned long long spans_byte_get(const SymbolsSpansCtx *args)
 // the line ends between
 EMBED_INLINE CliSymbolPosition spans_position(const SymbolsSpansCtx *args)
 {
-    if (args->byte == 0ull)
+    if (args->byte == 0ULL)
     {
         return (CliSymbolPosition){0u, 0u};
     }
@@ -79,12 +79,12 @@ EMBED_INLINE CliSymbolPosition spans_position(const SymbolsSpansCtx *args)
     unsigned long long start = args->spans_read->read->leaf[args->leaf].from;
     start =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = start, .set = "\n");
-    for (unsigned long long at = args->spans_read->read->leaf[args->leaf].from; at < args->byte; at += 1ull)
+    for (unsigned long long at = args->spans_read->read->leaf[args->leaf].from; at < args->byte; at += 1ULL)
     {
         if (text[at] == '\n')
         {
             line += 1u;
-            start = at + 1ull;
+            start = at + 1ULL;
         }
     }
     // a line's units are below 2^32
@@ -403,7 +403,7 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
             open = outer;
         }
         EMBED_CALL(spans_statement_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .leaf = inner);
-        EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .from = 0ull, .last = read.count - 1u,
+        EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .from = 0ULL, .last = read.count - 1u,
                    .to = args->size);
     }
     const int refused = (languages != NULL) && read.refused;
@@ -477,7 +477,7 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
     const int paired = EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = &read, .leaf = peer);
     if (paired)
     {
-        const CliSpans spans = {&read, args->size, 0ull, 0ull, NULL, NULL};
+        const CliSpans spans = {&read, args->size, 0ULL, 0ULL, NULL, NULL};
         args->pair[0] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = bracket,
                                    .byte = read.leaf[bracket].from);
         args->pair[1] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = peer,

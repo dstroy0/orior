@@ -18,18 +18,18 @@ typedef struct
 // it broke
 EMBED_INLINE int mysql_read(const MysqlCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         if (args->mysql->start == args->mysql->end)
         {
             const long long got =
                 EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &args->mysql->socket,
                            .bytes_out = args->mysql->in, .capacity = sizeof(args->mysql->in));
-            if (got <= 0ll)
+            if (got <= 0LL)
             {
                 return 0;
             }
-            args->mysql->start = 0ull;
+            args->mysql->start = 0ULL;
             args->mysql->end = (unsigned long long)got;
         }
         const unsigned long long have = args->mysql->end - args->mysql->start;
@@ -48,7 +48,7 @@ EMBED_INLINE int mysql_read(const MysqlCtx *args)
 int cli_mysql_packet(const CliMysqlFailureCtx *args)
 {
     CliDbFailure *failure = args->failure;
-    args->mysql->size = 0ull;
+    args->mysql->size = 0ULL;
     int fits = 1;
     for (;;)
     {
@@ -70,8 +70,8 @@ int cli_mysql_packet(const CliMysqlFailureCtx *args)
                        .message = "the connection broke: the server closed it or did not answer");
             return 0;
         }
-        args->mysql->size += fits ? length : 0ull;
-        if (length < 0xffffffull)
+        args->mysql->size += fits ? length : 0ULL;
+        if (length < 0xffffffULL)
         {
             break;
         }
@@ -87,18 +87,18 @@ int cli_mysql_packet(const CliMysqlFailureCtx *args)
 int cli_mysql_send(const CliMysqlFailureCtx *args)
 {
     CliDbFailure *failure = args->failure;
-    unsigned long long last = 0ull;
+    unsigned long long last = 0ULL;
     int sent = 1;
-    if (args->size == 0ull)
+    if (args->size == 0ULL)
     {
         const unsigned char head[4] = {0u, 0u, 0u, args->mysql->sequence};
         sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
                           .bytes = head, .size = sizeof(head));
         args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
-    for (unsigned long long at = 0ull; sent && (at < args->size); at += last)
+    for (unsigned long long at = 0ULL; sent && (at < args->size); at += last)
     {
-        last = ((args->size - at) < 0xffffffull) ? (args->size - at) : 0xffffffull;
+        last = ((args->size - at) < 0xffffffULL) ? (args->size - at) : 0xffffffULL;
         const unsigned char head[4] = {(unsigned char)(last & 0xffu), (unsigned char)((last >> 8u) & 0xffu),
                                        (unsigned char)((last >> 16u) & 0xffu), args->mysql->sequence};
         sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
@@ -108,7 +108,7 @@ int cli_mysql_send(const CliMysqlFailureCtx *args)
         args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
     // a payload whose last piece fills a packet whole is ended by an empty one
-    if (sent && (last == 0xffffffull))
+    if (sent && (last == 0xffffffULL))
     {
         const unsigned char head[4] = {0u, 0u, 0u, args->mysql->sequence};
         sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
@@ -129,19 +129,19 @@ void cli_mysql_failure_get(const CliMysqlFailureCtx *args)
     const unsigned int code =
         ((args->size > 1u) ? args->payload[1] : 0u) | ((args->size > 2u) ? ((unsigned int)args->payload[2] << 8u) : 0u);
     const int has_state = (args->size > 3u) && (args->payload[3] == '#');
-    VerbaLinea message = {args->failure->message, sizeof(args->failure->message), 0ull};
-    const unsigned long long from = has_state ? 9ull : 3ull;
+    VerbaLinea message = {args->failure->message, sizeof(args->failure->message), 0ULL};
+    const unsigned long long from = has_state ? 9ULL : 3ULL;
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &message,
-               .text_bytes = args->payload + from, .length = (args->size > from) ? args->size - from : 0ull);
+               .text_bytes = args->payload + from, .length = (args->size > from) ? args->size - from : 0ULL);
     mmgr_line_finish(&message);
-    VerbaLinea code_line = {args->failure->code, sizeof(args->failure->code), 0ull};
+    VerbaLinea code_line = {args->failure->code, sizeof(args->failure->code), 0ULL};
     mmgr_line_decimal(&code_line, code, 1u);
     if (has_state)
     {
         mmgr_line_ch(&code_line, ' ');
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &code_line,
                    .text_bytes = args->payload + 4u,
-                   .length = (args->size >= 9u) ? 5ull : ((args->size > 4u) ? args->size - 4u : 0ull));
+                   .length = (args->size >= 9u) ? 5ULL : ((args->size > 4u) ? args->size - 4u : 0ULL));
     }
     mmgr_line_finish(&code_line);
 }
@@ -166,7 +166,7 @@ int cli_mysql_lenenc(const CliMysqlSizeBytesAtCtx *args)
         *value = first;
         return 1;
     }
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     for (unsigned int index = 0u; index < width; index += 1u)
     {
         read |= (unsigned long long)((*at + index < args->size) ? args->bytes[*at + index] : 0u) << (8u * index);
@@ -185,7 +185,7 @@ int cli_mysql_lenenc_bytes(const CliMysqlSizeBytesCtx *args)
     unsigned long long *at = args->at;
     unsigned long long *start = args->start;
     unsigned long long *length = args->length_pointer;
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     if (!EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = args->bytes,
                     .size = args->size, .at = at, .value = &count) ||
         (*at + count > args->size))
@@ -211,7 +211,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
     unsigned char mixed[32];
     unsigned char joined[96];
     const unsigned int width = args->caching ? 32u : 20u;
-    const unsigned long long copied_len = (args->size < 64u) ? args->size : 64ull;
+    const unsigned long long copied_len = (args->size < 64u) ? args->size : 64ULL;
     if (args->caching)
     {
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->password,

@@ -20,7 +20,7 @@ typedef struct
 } CliCargoGroup;
 // the longest list of names a run gives the harness, in characters; past it a target runs whole and only the results
 // requested of it are reported
-#define CLI_CARGO_NAMES_MAX 16000ull
+#define CLI_CARGO_NAMES_MAX 16000ULL
 
 // the most targets a run reaches
 #define CLI_CARGO_GROUPS 1024u
@@ -83,7 +83,7 @@ static unsigned int run_group(const CargoRunCtx *args)
     unsigned int count = args->count;
     EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = root, .tests = &s_tests);
     unsigned int groups = 0u;
-    unsigned int group_of[CLI_CARGO_FOUND];
+    unsigned int group_of[CLI_CARGO_FOUND] = {0u};
     for (unsigned int at = 0u; at < s_tests.count; at += 1u)
     {
         unsigned int group = 0u;
@@ -167,8 +167,8 @@ static void run_line(const CliWorkerTextSizeCfg *args)
 {
     CliTestWorker *worker = args->worker;
     unsigned long long size = args->size;
-    unsigned long long name = 0ull;
-    unsigned long long name_size = 0ull;
+    unsigned long long name = 0ULL;
+    unsigned long long name_size = 0ULL;
     const char *outcome = NULL;
     if (!EMBED_CALL(cli_cargo_report_line.cargo_result_line, CliCargoReportLineCfg, .line_text = args->text,
                     .size = size, .name = &name, .name_size = &name_size, .outcome = &outcome))
@@ -191,8 +191,8 @@ static void run_line(const CliWorkerTextSizeCfg *args)
                        .outcome = outcome);
         }
         EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker,
-                   .id = test->id, .outcome = outcome, .message = "", .message_size = 0ull, .file = NULL,
-                   .line_i64 = -1ll, .seconds = 0.0);
+                   .id = test->id, .outcome = outcome, .message = "", .message_size = 0ULL, .file = NULL,
+                   .line_i64 = -1LL, .seconds = 0.0);
         return;
     }
 }
@@ -231,7 +231,7 @@ static void run_failure_emit(const CliEachNameMessagePathLineCfg *args)
             EMBED_CALL(run_tree_path, CargoRunCtx, .worker = worker, .path = path, .out = file);
             reported = file;
             // a line of a panic counts from 1, and is reported from 0
-            reported_line = (line > 0ll) ? line - 1ll : 0ll;
+            reported_line = (line > 0LL) ? line - 1LL : 0LL;
         }
         EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker,
                    .id = test->id, .outcome = "failed", .message = message, .message_size = message_size,
@@ -247,14 +247,14 @@ EMBED_INLINE void run_build_fail(const CargoRunCtx *args)
     unsigned long long size = args->size;
     char message[8192];
     char path[CLI_PATH_MAX_LEN];
-    long long line = -1ll;
-    unsigned long long length = 0ull;
+    long long line = -1LL;
+    unsigned long long length = 0ULL;
     if (!EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = args->errors,
                     .size = size, .error = message, .capacity = sizeof(message), .length = &length, .path = path,
                     .line = &line))
     {
         path[0] = '\0';
-        line = -1ll;
+        line = -1LL;
         EMBED_CALL(cli_cargo_report_size_text.cargo_last_line, CliCargoReportSizeTextCfg, .text = args->errors,
                    .size = size, .none = "cargo test ran no test", .out_out = message, .capacity = sizeof(message),
                    .length = &length);
@@ -272,7 +272,7 @@ EMBED_INLINE void run_build_fail(const CargoRunCtx *args)
         EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker,
                    .id = run->named[at].id, .outcome = "failed", .message = message, .message_size = length,
                    .file = (path[0] != '\0') ? file : NULL,
-                   .line_i64 = (path[0] != '\0') ? ((line > 0ll) ? line - 1ll : 0ll) : -1ll, .seconds = 0.0);
+                   .line_i64 = (path[0] != '\0') ? ((line > 0LL) ? line - 1LL : 0LL) : -1LL, .seconds = 0.0);
     }
     EMBED_CALL(cli_test_runs_run_text_internal.test_message_set, CliTestRunsRunTextCtx, .run = run, .text = message,
                .length = length);
@@ -286,8 +286,8 @@ static void run_worker(void *context)
     EMBED_CALL(cli_test_runs_worker_line_internal.test_lines_read, CliTestRunsWorkerLineCtx, .worker = worker,
                .line_callback = run_line);
     EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_wait, CliTestRunsWorkerLineCtx, .worker = worker);
-    unsigned long long errors_size = 0ull;
-    unsigned long long seen_size = 0ull;
+    unsigned long long errors_size = 0ULL;
+    unsigned long long seen_size = 0ULL;
     const char *const errors = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
                                           .path = worker->errors, .size_pointer = &errors_size);
     const char *const seen = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
@@ -345,7 +345,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     char manifest[CLI_PATH_MAX_LEN];
     const size_t folder_size = cellul.len(&(CatenaFinitaCfg){.src = first->manifest, .cap = CLI_CELLS_POOL}) - 10u;
-    VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put_n(&folder_line, first->manifest, folder_size);
     mmgr_line_finish(&folder_line);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = run->root, .relative = folder, .joined = package);
@@ -372,7 +372,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "--");
     worker->named = run->named_count;
-    unsigned long long names = 0ull;
+    unsigned long long names = 0ULL;
     for (unsigned int at = 0u; (at < args->group->count) && (run->named_count < CLI_TEST_NAMED); at += 1u)
     {
         const CliCargoFound *const one = &s_tests.found[s_order[args->group->first_at + at]];
@@ -420,7 +420,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     worker->pytest = 0;
     worker->seen_count = 0u;
     char name[64];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, "cargo-");
     mmgr_line_decimal(&name_line, worker->index, 1u);
     const unsigned long long stem = name_line.at;

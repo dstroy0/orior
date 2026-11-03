@@ -38,7 +38,7 @@ EMBED_INLINE const char *answer_text(const RecordingAnswerCtx *args)
                                  : NULL;
     if (text == NULL)
     {
-        *length = 0ull;
+        *length = 0ULL;
         return "";
     }
     return text;
@@ -71,7 +71,7 @@ EMBED_INLINE void answer_threads(const RecordingAnswerCtx *args)
 EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
-    unsigned long long thread = 0ull;
+    unsigned long long thread = 0ULL;
     if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = json,
                     .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                      .object = args->arguments, .name = "threadId"),
@@ -109,14 +109,14 @@ EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
 EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
-    unsigned long long serial = 0ull;
+    unsigned long long serial = 0ULL;
     if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = json,
                     .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                      .object = args->arguments, .name = "variablesReference"),
                     .value = &serial) ||
         (serial >= g_cli_replay->recording.frame_max))
     {
-        serial = 0ull;
+        serial = 0ULL;
     }
     CliRecordedValue *values = NULL;
     const unsigned int count =
@@ -144,11 +144,11 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
     const CliRecording *const recording = &g_cli_replay->recording;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *name = EMBED_CALL(answer_text, RecordingAnswerCtx, .json = json, .arguments = args->arguments,
                                   .name = "expression", .length = &length);
     const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name,
-                                               .at = 0ull, .size = length, .set = " \t\n\r");
+                                               .at = 0ULL, .size = length, .set = " \t\n\r");
     name += lead;
     length -= lead;
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = name, .at = length,
@@ -228,7 +228,7 @@ EMBED_INLINE void answer_move(const RecordingAnswerCtx *args)
                                           .how = args->command, .step_pointer = &step);
     g_cli_replay->at = step;
     char out_buf[256];
-    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
     mmgr_line_put(&out, "{\"type\":\"event\",\"event\":\"continued\",\"body\":{\"threadId\":");
     mmgr_line_decimal(&out, cli_replay_thread(), 1u);
     mmgr_line_put(&out, ",\"allThreadsContinued\":true}}");
@@ -276,10 +276,10 @@ EMBED_INLINE void answer_history(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
     char name[CLI_PATH_MAX_LEN];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(answer_text, RecordingAnswerCtx, .json = json, .arguments = args->arguments,
                                         .name = "name", .length = &length);
-    VerbaLinea needle = {name, sizeof(name), 0ull};
+    VerbaLinea needle = {name, sizeof(name), 0ULL};
     mmgr_line_put_n(&needle, text, length);
     mmgr_line_finish(&needle);
     const unsigned int serial =
@@ -310,7 +310,7 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepOut", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepBack", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "reverseContinue", .cap = CLI_CELLS_POOL}));
-    unsigned long long step = 0ull;
+    unsigned long long step = 0ULL;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "threads", .cap = CLI_CELLS_POOL}))
     {
         EMBED_CALL(answer_threads, RecordingAnswerCtx, .body = args->body);

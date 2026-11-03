@@ -91,7 +91,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             s_offered[offered] = name;
             offered += 1u;
             static char s_detail[1u << 12u];
-            VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+            VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
             EMBED_CALL(cli_schema_json_out_internal.detail, CliSchemaJsonOutCtx, .json = json, .schema = one,
                        .out = &detail);
             if (g_cli_schema_spot.in_string)
@@ -103,7 +103,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
                                  .snippet = 0);
                 continue;
             }
-            unsigned long long kind_size = 0ull;
+            unsigned long long kind_size = 0ULL;
             const char *const kind = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                                 .map = one, .name = "type", .size_pointer = &kind_size);
             const char *shape = "$0";
@@ -123,12 +123,12 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
                 shape = "[$0]";
             }
             static char s_quoted[1u << 13u];
-            VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
+            VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ULL};
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted, .text = name,
                        .length = size);
             static char s_insert[1u << 14u];
-            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
-            for (unsigned long long letter = 0ull; letter < quoted.at; letter += 1u)
+            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ULL};
+            for (unsigned long long letter = 0ULL; letter < quoted.at; letter += 1u)
             {
                 mmgr_line_put(&insert, (s_quoted[letter] == '$') ? "\\$" : "");
                 if (s_quoted[letter] != '$')
@@ -164,10 +164,10 @@ static void offer_value(const SchemaOfferCtx *args)
 {
     const CliJson *json = args->json;
     static char s_text[1u << 14u];
-    VerbaLinea line = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea line = {s_text, sizeof(s_text), 0ULL};
     if (g_cli_schema_spot.in_string)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = args->value, .length_pointer = &size);
         if (text == NULL)
@@ -196,7 +196,7 @@ static void offer_value(const SchemaOfferCtx *args)
     }
     s_values.at[s_values.count] = s_values.used;
     s_values.size[s_values.count] = (unsigned int)line.at;
-    memor.cpy(&(MemoriaCfg){.dst = s_values.text + s_values.used, .src = s_text, .bytes = (size_t)line.at});
+    memor.cpy(&(MemoriaCfg){.dst = s_values.text + s_values.used, .src = s_text, .bytes = line.at});
     s_values.used += (unsigned int)line.at;
     s_values.detail_at[s_values.count] = s_values.used;
     s_values.detail_size[s_values.count] = (unsigned int)args->detail_size;
@@ -213,7 +213,7 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
     const char *kind = args->kind;
     const unsigned int types =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "type");
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const single = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                           .json_read = json, .node = types, .length_pointer = &size);
     if (single != NULL)
@@ -251,7 +251,7 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
     {
         const unsigned int one = g_cli_schema_reached[reached];
         static char s_detail[1u << 12u];
-        VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+        VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
         EMBED_CALL(cli_schema_json_out_internal.detail, CliSchemaJsonOutCtx, .json = json, .schema = one,
                    .out = &detail);
         const unsigned int choices =
@@ -334,8 +334,8 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
                .read_out = g_cli_schema_read);
     char key[CLI_PATH_MAX_LEN];
     int named = 0;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     if (EMBED_CALL(cli_schema_read_internal.get, CliSchemaReadCtx, .path = args->path, .read = g_cli_schema_read,
                    .key = key, .named = &named, .from = &from, .to = &to))
     {

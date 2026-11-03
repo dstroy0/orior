@@ -74,11 +74,11 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unknown = {why, sizeof(why), 0ull};
+    VerbaLinea unknown = {why, sizeof(why), 0ULL};
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = id, .err_msg = &unknown);
     if (tool == CLI_JSON_NONE)
     {
@@ -117,7 +117,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
                .size = sizeof(s_work_state->path));
     const CliSetting settings[2] = {{"PATH", s_work_state->path}, {"PIPENV_IGNORE_VIRTUALENVS", "1"}};
     CliRunResult *const run_result = cli_run_result_alloc();
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = folder, .settings = settings,
                     .count = 2u, .run_result = run_result, .err_msg = &unstarted))
     {
@@ -127,7 +127,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
     }
-    if (run_result->code != 0ll)
+    if (run_result->code != 0LL)
     {
         // the last line of what it printed, trimmed, or that it failed
         unsigned long long end = run_result->err_size;
@@ -136,7 +136,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         unsigned long long start = end;
         start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = run_result->err,
                            .at = start, .set = "\n");
-        unsigned long long first = 0ull;
+        unsigned long long first = 0ULL;
         first = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = run_result->err,
                            .at = first, .size = end, .set = CLI_TEXT_WHITE);
         start = (start > first) ? start : first;
@@ -155,10 +155,10 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         return 0;
     }
     g_cli_cells->persistent_buf_release(s_work_state->output, &g_cli_toolchains_cells);
-    s_work_state->output = g_cli_cells->persistent_buf_alloc(run_result->out_size + 1ull, &g_cli_toolchains_cells);
+    s_work_state->output = g_cli_cells->persistent_buf_alloc(run_result->out_size + 1ULL, &g_cli_toolchains_cells);
     if (s_work_state->output == NULL)
     {
-        s_work_state->output_size = 0ull;
+        s_work_state->output_size = 0ULL;
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": its answer could not be stored");
@@ -177,10 +177,10 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = s_work_state->output, .size = s_work_state->output_size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = s_work_state->output, .size = s_work_state->output_size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &unread, .owner = &g_cli_toolchains_cells);
     if (root == CLI_JSON_NONE)
     {
@@ -193,12 +193,13 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
                                          .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                               .json_read = &json, .object = root, .name = "variables"),
                                          .name = "PATH");
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *folders =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                       .object = path, .name = "value"),
                    .length_pointer = &length);
+    length = (folders != NULL) ? length : 0ULL;
     folders = (folders != NULL) ? folders : "";
 #if defined(_WIN32)
     const char parting = ';';
@@ -207,8 +208,8 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
 #endif
     args->environment->bins = 0u;
     args->environment->has_python = 0;
-    unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at <= length; at += 1ull)
+    unsigned long long from = 0ULL;
+    for (unsigned long long at = 0ULL; at <= length; at += 1ULL)
     {
         if ((at < length) && (folders[at] != parting))
         {
@@ -217,7 +218,7 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
         char folder[CLI_PATH_MAX_LEN];
         const unsigned long long size = at - from;
         const char *const start = folders + from;
-        from = at + 1ull;
+        from = at + 1ULL;
         if ((size >= CLI_PATH_MAX_LEN) || (args->environment->bins >= CLI_ENVIRONMENT_BINS))
         {
             continue;
@@ -270,7 +271,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
         return 0;
     }
     s_work_state->output = NULL;
-    s_work_state->output_size = 0ull;
+    s_work_state->output_size = 0ULL;
     int made = 0;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "venv", .cap = CLI_CELLS_POOL}))
     {
@@ -285,7 +286,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
         if (made)
         {
             // the folder Pipenv gave, trimmed
-            unsigned long long start = 0ull;
+            unsigned long long start = 0ULL;
             unsigned long long end = s_work_state->output_size;
             start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = s_work_state->output,
                                .at = start, .size = end, .set = CLI_TEXT_WHITE);

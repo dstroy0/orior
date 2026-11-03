@@ -117,7 +117,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = context->root, .part = args->mode->part,
                .files = &s_files);
     static char s_writer[QUERY_PATH_MAX_LEN];
-    long long code = -1ll;
+    long long code = -1LL;
     int whole =
         EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                    .name = "orior_khw_machine_write", .binary = s_writer, .err_msg = err_msg);
@@ -133,7 +133,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                            .context = context, .run = &s_run, .name = "orior_khw_machine_write", .words = s_kernel.word,
                            .code = &code, .err_msg = err_msg);
-        if (whole && (code != 0ll))
+        if (whole && (code != 0LL))
         {
             mmgr_line_put(err_msg, "the vendor's writer handed the run no kernel");
             whole = 0;
@@ -156,7 +156,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                                 .folder = run_folder, .files = carried, .count = 3u,
                                 .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (whole && (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "frame", .cap = CLI_CELLS_POOL})) &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "fixed", .cap = CLI_CELLS_POOL})) &&
         !EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_run.writer,
@@ -202,7 +202,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                            .context = context, .run = &s_run, .name = "orior_khw_machine_write", .words = positioned,
                            .code = &code, .err_msg = err_msg);
-        if (whole && (code != 0ll))
+        if (whole && (code != 0LL))
         {
             mmgr_line_put(err_msg, "the vendor's writer placed no forms");
             whole = 0;
@@ -218,7 +218,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                        .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word,
                        .count = s_words.count, .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         return EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context,
                           .run_out = &s_run, .err_msg = err_msg)
@@ -295,7 +295,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     {
         return -1;
     }
-    long long code = -1ll;
+    long long code = -1LL;
     int stopped = 0;
     int whole = EMBED_CALL(query_pairs_part_context_internal.configs, QueryPairsPartContextCtx, .context = context,
                            .run_out = &s_run, .part = args->mode->part, .err_msg = err_msg);
@@ -303,7 +303,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                                 .context = context, .run = &s_run, .identity = args->identity, .words_letters = sliced,
                                 .count = 6u, .code = &code, .err_msg = err_msg);
-    stopped = whole && (code != 0ll);
+    stopped = whole && (code != 0LL);
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_internal.host_answer, QueryPairsContextCtx, .context = context,
                        .run = &s_run, .out = work, .err_msg = err_msg);
@@ -328,13 +328,13 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                        .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_read.word,
                        .count = s_read.count, .code = &code, .err_msg = err_msg);
-    stopped = stopped || (whole && (code != 0ll));
+    stopped = stopped || (whole && (code != 0LL));
     const char *const permuted[4] = {"permute", sass, tsv, work};
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                        .context = context, .run = &s_run, .identity = args->identity, .words_letters = permuted,
                        .count = 4u, .code = &code, .err_msg = err_msg);
-    stopped = stopped || (whole && (code != 0ll));
+    stopped = stopped || (whole && (code != 0LL));
     int read_back = 0;
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = engine, .each = query_dis_find,
                .context_bytess = &read_back);
@@ -344,7 +344,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
         whole = EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                            .context = context, .run = &s_run, .identity = args->identity, .words_letters = known,
                            .count = 5u, .code = &code, .err_msg = err_msg);
-        stopped = whole && (code != 0ll);
+        stopped = whole && (code != 0LL);
         static QueryWords s_broken;
         memor.set(&(MemoriaCfg){.dst = &s_broken, .val = 0, .bytes = sizeof(s_broken)});
         static const char *const s_head[2] = {"broken", NULL};
@@ -376,7 +376,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     }
     else if (whole && !stopped)
     {
-        code = 0ll;
+        code = 0LL;
     }
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||

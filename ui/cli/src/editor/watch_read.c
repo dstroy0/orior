@@ -31,12 +31,12 @@ EMBED_INLINE void cli_git_stamp(const WatchReadCtx *args)
     {
         char full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = s_git_paths[at], .joined = full);
-        unsigned long long size = 0ull;
-        unsigned long long written = 0ull;
+        unsigned long long size = 0ULL;
+        unsigned long long written = 0ULL;
         const unsigned long long stamp = EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = full,
                                                     .size_pointer = &size, .changed = &written)
                                              ? written
-                                             : 0ull;
+                                             : 0ULL;
         if ((stamp != s_git_stamps[at]) && (args->emit != NULL))
         {
             EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = s_git_paths[at],

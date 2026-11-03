@@ -25,27 +25,27 @@ EMBED_INLINE unsigned long long cells_max(const VersionCatalogCellsCtx *args)
 int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
 {
     CliVersionsParsed *const parsed = &g_cli_versions;
-    unsigned long long opens = 0ull;
-    unsigned long long equals = 0ull;
-    unsigned long long quotes = 0ull;
-    unsigned long long braces = 0ull;
-    unsigned long long commas = 0ull;
-    unsigned long long lines = 1ull;
-    unsigned long long line_from = 0ull;
-    parsed->longest = 0ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1u)
+    unsigned long long opens = 0ULL;
+    unsigned long long equals = 0ULL;
+    unsigned long long quotes = 0ULL;
+    unsigned long long braces = 0ULL;
+    unsigned long long commas = 0ULL;
+    unsigned long long lines = 1ULL;
+    unsigned long long line_from = 0ULL;
+    parsed->longest = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1u)
     {
         const char here = args->text[at];
-        opens += (here == '[') ? 1ull : 0ull;
-        equals += (here == '=') ? 1ull : 0ull;
-        quotes += ((here == '"') || (here == '\'')) ? 1ull : 0ull;
-        braces += (here == '{') ? 1ull : 0ull;
-        commas += (here == ',') ? 1ull : 0ull;
+        opens += (here == '[') ? 1ULL : 0ULL;
+        equals += (here == '=') ? 1ULL : 0ULL;
+        quotes += ((here == '"') || (here == '\'')) ? 1ULL : 0ULL;
+        braces += (here == '{') ? 1ULL : 0ULL;
+        commas += (here == ',') ? 1ULL : 0ULL;
         if (here == '\n')
         {
             parsed->longest = (at - line_from > parsed->longest) ? at - line_from : parsed->longest;
             line_from = at + 1u;
-            lines += 1ull;
+            lines += 1ULL;
         }
     }
     parsed->longest = (args->size - line_from > parsed->longest) ? args->size - line_from : parsed->longest;
@@ -57,27 +57,27 @@ int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
     parsed->items_capacity =
         (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = quotes / 2u, .most = CLI_VERSIONS_ITEMS);
     parsed->errors_capacity =
-        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = (4ull * lines) + braces + commas + 1ull,
+        (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx, .count = (4ULL * lines) + braces + commas + 1ULL,
                                  .most = CLI_VERSIONS_ERRORS);
     const unsigned long long capacities_total =
-        parsed->sections_capacity + (2ull * parsed->fields_capacity) + parsed->items_capacity + parsed->errors_capacity;
+        parsed->sections_capacity + (2ULL * parsed->fields_capacity) + parsed->items_capacity + parsed->errors_capacity;
     parsed->pool_capacity =
         (unsigned int)EMBED_CALL(cells_max, VersionCatalogCellsCtx,
                                  .count = args->size + capacities_total +
                                           ((unsigned long long)parsed->errors_capacity * CLI_VERSIONS_MSG_MAX_LEN),
                                  .most = CLI_VERSIONS_POOL);
     // a part of none is a cell of one, so every part is a cell
-    parsed->section = g_cli_cells->persistent_buf_alloc((parsed->sections_capacity + 1ull) * sizeof(CliVersionsSection),
+    parsed->section = g_cli_cells->persistent_buf_alloc((parsed->sections_capacity + 1ULL) * sizeof(CliVersionsSection),
                                                         &g_cli_versions_cells);
-    parsed->field = g_cli_cells->persistent_buf_alloc((parsed->fields_capacity + 1ull) * sizeof(CliVersionsField),
+    parsed->field = g_cli_cells->persistent_buf_alloc((parsed->fields_capacity + 1ULL) * sizeof(CliVersionsField),
                                                       &g_cli_versions_cells);
-    parsed->item = g_cli_cells->persistent_buf_alloc((parsed->items_capacity + 1ull) * sizeof(CliVersionsItem),
+    parsed->item = g_cli_cells->persistent_buf_alloc((parsed->items_capacity + 1ULL) * sizeof(CliVersionsItem),
                                                      &g_cli_versions_cells);
-    parsed->error = g_cli_cells->persistent_buf_alloc((parsed->errors_capacity + 1ull) * sizeof(CliVersionsError),
+    parsed->error = g_cli_cells->persistent_buf_alloc((parsed->errors_capacity + 1ULL) * sizeof(CliVersionsError),
                                                       &g_cli_versions_cells);
-    parsed->pool = g_cli_cells->persistent_buf_alloc(parsed->pool_capacity + 1ull, &g_cli_versions_cells);
+    parsed->pool = g_cli_cells->persistent_buf_alloc(parsed->pool_capacity + 1ULL, &g_cli_versions_cells);
     // a key or a string the line contains, and after it a message naming a key
-    parsed->line = g_cli_cells->persistent_buf_alloc((2ull * (parsed->longest + 1ull)) + CLI_VERSIONS_MSG_MAX_LEN,
+    parsed->line = g_cli_cells->persistent_buf_alloc((2ULL * (parsed->longest + 1ULL)) + CLI_VERSIONS_MSG_MAX_LEN,
                                                      &g_cli_versions_cells);
     if ((parsed->section == NULL) || (parsed->field == NULL) || (parsed->item == NULL) || (parsed->error == NULL) ||
         (parsed->pool == NULL) || (parsed->line == NULL))
@@ -129,5 +129,5 @@ void cli_versions_release(void)
     parsed->errors_capacity = 0u;
     parsed->used = 0u;
     parsed->pool_capacity = 0u;
-    parsed->longest = 0ull;
+    parsed->longest = 0ULL;
 }

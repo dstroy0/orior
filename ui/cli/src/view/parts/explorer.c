@@ -295,7 +295,7 @@ EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
     char *text = args->text;
     char lower[EXPLORER_NAME_MOST];
     const unsigned long long saved =
-        (args->length < EXPLORER_NAME_MOST - 1ull) ? args->length : EXPLORER_NAME_MOST - 1ull;
+        (args->length < EXPLORER_NAME_MOST - 1ULL) ? args->length : EXPLORER_NAME_MOST - 1ULL;
     memor.cpy(&(MemoriaCfg){.dst = lower, .src = args->name, .bytes = saved});
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .size = saved, .text_out = lower);
     lower[saved] = '\0';
@@ -303,24 +303,24 @@ EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_named[at].type, .cap = EXPLORER_NAME_MOST}))
         {
-            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ull};
+            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
             mmgr_line_put(&line, s_named[at].text);
             (void)mmgr_line_finish(&line);
             return s_named[at].color;
         }
     }
     // the type is what follows the last dot after the first letter; a name of dots alone has none
-    const unsigned long long past_dot = (saved > 1ull)
+    const unsigned long long past_dot = (saved > 1ULL)
                                             ? EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                                                         .text = lower + 1, .at = saved - 1ull, .set = ".")
-                                            : 0ull;
-    const char *const type = (past_dot != 0ull) ? (lower + 1ull + past_dot) : "";
+                                                         .text = lower + 1, .at = saved - 1ULL, .set = ".")
+                                            : 0ULL;
+    const char *const type = (past_dot != 0ULL) ? (lower + 1ULL + past_dot) : "";
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
         if ((type[0] != '\0') &&
             cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_marks[at].type, .cap = EXPLORER_NAME_MOST}))
         {
-            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ull};
+            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
             mmgr_line_put(&line, s_marks[at].text);
             (void)mmgr_line_finish(&line);
             return s_marks[at].color;
@@ -328,11 +328,11 @@ EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
     }
     // the quieter mark: the first two letters of the type, or of the name past its leading dots
     const char *from = (type[0] != '\0') ? type : lower;
-    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = ".");
-    VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ull};
+    VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
     mmgr_line_put_n(&line, from,
-                    (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = EXPLORER_NAME_MOST}) < 2ull) ? 1ull : 2ull);
+                    (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = EXPLORER_NAME_MOST}) < 2ULL) ? 1ULL : 2ULL);
     (void)mmgr_line_finish(&line);
     return 0u;
 }
@@ -362,7 +362,7 @@ EMBED_INLINE void explorer_arrow_draw(const ExplorerCtx *args)
 // a baseline that centers a face's letters in a row from `top`, `pixel_height` pixels
 EMBED_INLINE int explorer_baseline(const ExplorerCtx *args)
 {
-    GuiGlyphs *glyphs = args->glyphs;
+    const GuiGlyphs *glyphs = args->glyphs;
     unsigned int face = args->face;
     unsigned int size = args->size;
     const float ascent =
@@ -502,7 +502,7 @@ void gui_explorer_draw(const GuiExplorerFrameXYCfg *args)
         .x_f32 = (float)(side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 15, .scale = scale)),
         .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = head_size,
                         .top = side.y, .pixel_height = head),
-        .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ull}),
+        .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ULL}),
         .color = args->palette->text_2, .clip = inside);
     if (!args->folders)
     {

@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // posix_system.c: what the command line requests of Linux and macOS themselves: their randomness from /dev/urandom,
-// the folder TMPDIR names, else /tmp, when the machine started, and the reader's log in; an event a started process
+// the folder TMPDIR or XDG_RUNTIME_DIR names, else one of the reader's own, when the machine started, and the reader's
+// log in; an event a started process
 // inherits is Windows' alone
 #if !defined(_WIN32)
 // O_CLOEXEC is POSIX, outside strict C11
@@ -41,7 +42,7 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
         return 0;
     }
     unsigned char *const into = (unsigned char *)args->bytes_out;
-    unsigned long long supplied = 0ull;
+    unsigned long long supplied = 0ULL;
     while (supplied < args->size)
     {
         const ssize_t read_now = read(source, into + supplied, (size_t)(args->size - supplied));
@@ -69,13 +70,29 @@ void cli_pages_free(const CliSizeBytesCtx *args)
 
 void cli_temp_folder(const CliFolderCtx *args)
 {
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR",
-                    .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN) ||
-        (args->folder_out[0] == '\0'))
+    static const char *const s_named[2] = {"TMPDIR", "XDG_RUNTIME_DIR"};
+    int found = 0;
+    for (unsigned int at = 0u; !found && (at < 2u); at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = args->folder_out,
-                                .src = "/tmp",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "/tmp", .cap = CLI_CELLS_POOL}) + 1u});
+        found = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_named[at],
+                           .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN) &&
+                (args->folder_out[0] != '\0');
+    }
+    if (!found)
+    {
+        // a folder of this reader's own, since in a folder every user writes in another user can set a name first
+        char home[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
+        mmgr_line_put(&line,
+                      EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home) ? home : ".");
+        mmgr_line_put(&line, "/temp");
+        if ((mmgr_line_finish(&line) == 0ULL) ||
+            !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->folder_out) ||
+            (chmod(args->folder_out, 0700) != 0))
+        {
+            args->folder_out[0] = '.';
+            args->folder_out[1] = '\0';
+        }
         return;
     }
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
@@ -86,7 +103,7 @@ void cli_temp_folder(const CliFolderCtx *args)
 
 unsigned long long cli_event_inheritable(void)
 {
-    return 0ull;
+    return 0ULL;
 }
 
 int cli_event_set(const CliEventCtx *args)
@@ -114,7 +131,7 @@ int cli_private_file_write(const CliPathBytesCtx *args)
         return 0;
     }
     const unsigned char *const from = (const unsigned char *)args->bytes;
-    unsigned long long written = 0ull;
+    unsigned long long written = 0ULL;
     while (written < args->size)
     {
         const ssize_t wrote = write(file, from + written, (size_t)(args->size - written));
@@ -136,11 +153,13 @@ int cli_private_file_write(const CliPathBytesCtx *args)
 EMBED_INLINE unsigned long long system_read(const PosixSystemCtx *args)
 {
     const int file = open(args->path, O_RDONLY | O_CLOEXEC);
-    unsigned long long used = 0ull;
-    while ((file >= 0) && (used + 1ull < args->capacity))
+    unsigned long long used = 0ULL;
+    while ((file >= 0) && (used + 1ULL < args->capacity))
     {
-        const ssize_t count = read(file, args->out + used, (size_t)(args->capacity - 1ull - used));
-        if (count <= 0)
+        const unsigned long long capacity = args->capacity - 1ULL - used;
+        const ssize_t count = read(file, args->out + used, (size_t)capacity);
+        // a count that is positive fits an unsigned long long
+        if ((count <= 0) || ((unsigned long long)count > capacity))
         {
             break;
         }
@@ -161,11 +180,11 @@ unsigned long long cli_booted_seconds(void)
     (void)EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/stat", .out = s_stat, .capacity = sizeof(s_stat));
     const char *at = cellul.find(
         &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_CELLS_POOL});
-    unsigned long long seconds = 0ull;
-    seconds = (at != NULL) ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at + 7, .at = 0ull,
+    unsigned long long seconds = 0ULL;
+    seconds = (at != NULL) ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at + 7, .at = 0ULL,
                                         .size = cellul.len(&(CatenaFinitaCfg){.src = at + 7, .cap = CLI_CELLS_POOL}),
                                         .end = NULL)
-                           : 0ull;
+                           : 0ULL;
     return seconds;
 }
 
@@ -179,8 +198,8 @@ void cli_logon_by_name(const CliCapacityLogonCtx *args)
                         .set = "\n ");
     session[length] = '\0';
     const int saved =
-        (length > 0ull) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
-    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
+        (length > 0ULL) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ULL};
     if (saved)
     {
         mmgr_line_put(&named, session);
@@ -199,24 +218,24 @@ unsigned long long cli_booted_seconds(void)
     struct timeval booted;
     size_t size = sizeof(booted);
     // a start the system gives is after 1970, never below 0
-    return (sysctlbyname("kern.boottime", &booted, &size, NULL, 0u) == 0) ? (unsigned long long)booted.tv_sec : 0ull;
+    return (sysctlbyname("kern.boottime", &booted, &size, NULL, 0u) == 0) ? (unsigned long long)booted.tv_sec : 0ULL;
 }
 
 // the reader's log in is not named on macOS; the machine's start alone marks a session there
 void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ULL};
     (void)mmgr_line_finish(&named);
 }
 #else
 unsigned long long cli_booted_seconds(void)
 {
-    return 0ull;
+    return 0ULL;
 }
 
 void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ULL};
     (void)mmgr_line_finish(&named);
 }
 #endif

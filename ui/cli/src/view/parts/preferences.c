@@ -101,10 +101,10 @@ unsigned int gui_preference_opacity_move(const GuiPreferencesPercentCfg *args)
 
 void gui_preference_sentence(const GuiPreferencesValuesCfg *args)
 {
-    VerbaLinea words = {args->output, args->size, 0ull};
+    VerbaLinea words = {args->output, args->size, 0ULL};
     mmgr_line_put(&words, s_output[(args->row < GUI_PREFERENCE_ROWS) ? args->row : 0u]);
     (void)mmgr_line_finish(&words);
-    VerbaLinea line = {args->value, args->size, 0ull};
+    VerbaLinea line = {args->value, args->size, 0ULL};
     if (args->row == GUI_PREFERENCE_REDUCE)
     {
         mmgr_line_put(&line, args->values->reduced ? "on" : "off");
@@ -425,7 +425,7 @@ int gui_preferences_type(const GuiPreferencesSizeCfg *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const char letter = args->text[at];
         const int digit = ((letter >= '0') && (letter <= '9')) || ((letter >= 'a') && (letter <= 'f')) ||
@@ -566,7 +566,7 @@ int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
 // the baseline of a row of text of `size` in the middle of `rect`
 EMBED_INLINE int preferences_baseline(const PreferencesCtx *args)
 {
-    GuiGlyphs *glyphs = args->glyphs;
+    const GuiGlyphs *glyphs = args->glyphs;
     unsigned int face = args->face;
     unsigned int size = args->size;
     const float ascent =
@@ -728,7 +728,7 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
     EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = GUI_PALETTE_CONTRAST_MIN, .text = min,
                .size = sizeof(min));
     char output[GUI_PREFERENCES_CONTRASTS];
-    VerbaLinea line = {output, sizeof(output), 0ull};
+    VerbaLinea line = {output, sizeof(output), 0ULL};
     mmgr_line_put(&line, "Under ");
     mmgr_line_put(&line, min);
     mmgr_line_put(&line, ", the contrast WCAG 2 asks of text: ");

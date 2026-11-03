@@ -158,16 +158,16 @@ typedef struct
 // the most pairs and quotes a language has, and the work state for its pattern of a line that opens a block
 #define CLI_VIEWS 64u
 // the columns a frame cuts its rows at while nothing has told the view its size
-#define CLI_VIEW_UNSIZED_COLUMNS 256ull
+#define CLI_VIEW_UNSIZED_COLUMNS 256ULL
 #define CLI_VIEW_STEP_EDITS 256u
 #define CLI_VIEW_FOLDS 65536u
 #define CLI_VIEW_STEPS 4096u
-#define CLI_VIEW_UNITS_MIN 256ull
-#define CLI_VIEW_FIND_UNITS 65536ull
-#define CLI_VIEW_PAIR_LINES 3000ull
+#define CLI_VIEW_UNITS_MIN 256ULL
+#define CLI_VIEW_FIND_UNITS 65536ULL
+#define CLI_VIEW_PAIR_LINES 3000ULL
 #define CLI_VIEW_STATE 1024u
 // the matches find saves at the most
-#define CLI_VIEW_MATCHES 100000ull
+#define CLI_VIEW_MATCHES 100000ULL
 #define CLI_VIEW_KIND_NONE 0u
 #define CLI_VIEW_KIND_TYPE 1u
 #define CLI_VIEW_KIND_SPACE 2u
@@ -298,7 +298,7 @@ EMBED_INLINE CliView *view_get(const ViewCtx *args)
 // whether a key's own name is `required`
 EMBED_INLINE int view_by_name(const ViewCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 64ull});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 64ULL});
 }
 
 // the steps from `from` on let go, their cells given back
@@ -334,12 +334,12 @@ EMBED_INLINE unsigned int view_letter_get(const ViewCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int node = args->node;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = node, .length_pointer = &length);
-    unsigned long long consumed = 0ull;
-    return ((text != NULL) && (length != 0ull)) ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
-                                                             .size = length, .at = 0ull, .length = &consumed)
+    unsigned long long consumed = 0ULL;
+    return ((text != NULL) && (length != 0ULL)) ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
+                                                             .size = length, .at = 0ULL, .length = &consumed)
                                                 : 0u;
 }
 
@@ -351,12 +351,12 @@ EMBED_INLINE void view_comment_read(const ViewCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int node = args->node;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = node, .length_pointer = &length);
-    VerbaLinea line = {args->mark, args->capacity, 0ull};
-    mmgr_line_put_n(&line, (text != NULL) ? text : "", (text != NULL) ? length : 0ull);
-    if (mmgr_line_finish(&line) == 0ull)
+    VerbaLinea line = {args->mark, args->capacity, 0ULL};
+    mmgr_line_put_n(&line, (text != NULL) ? text : "", (text != NULL) ? length : 0ULL);
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         args->mark[0] = '\0';
     }
@@ -371,13 +371,13 @@ static void view_plugin_read(const CliEachPluginCfg *args)
         return;
     }
     char error_text[256];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &why, .owner = &g_cli_views_cells);
     if (root == CLI_JSON_NONE)
     {
@@ -412,16 +412,16 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     {
         for (unsigned int at = 0u; (at < json.node[pairs].count) && (view->pairs < CLI_VIEW_PAIRS); at += 1u)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const text =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                            .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                               .json_read = &json, .array = pairs, .index = at),
                            .length_pointer = &length);
-            unsigned long long consumed = 0ull;
-            const unsigned int open = ((text != NULL) && (length != 0ull))
+            unsigned long long consumed = 0ULL;
+            const unsigned int open = ((text != NULL) && (length != 0ULL))
                                           ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
-                                                       .at = 0ull, .length = &consumed)
+                                                       .at = 0ULL, .length = &consumed)
                                           : 0u;
             const unsigned int close = ((open != 0u) && (consumed < length))
                                            ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
@@ -467,8 +467,8 @@ static void view_plugin_read(const CliEachPluginCfg *args)
         view->quote[1] = '\'';
         view->quotes = 2u;
     }
-    VerbaLinea pattern = {view->indent_after, sizeof(view->indent_after), 0ull};
-    unsigned long long length = 0ull;
+    VerbaLinea pattern = {view->indent_after, sizeof(view->indent_after), 0ULL};
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = &json, .node = after, .length_pointer = &length);
     if (text != NULL)
@@ -479,7 +479,7 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     {
         mmgr_line_put(&pattern, "[{[(]\\s*$");
     }
-    if (mmgr_line_finish(&pattern) == 0ull)
+    if (mmgr_line_finish(&pattern) == 0ULL)
     {
         view->indent_after[0] = '\0';
     }
@@ -544,10 +544,10 @@ int cli_view_open(const CliViewCfg *args)
     }
     memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
     view->used = 1;
-    VerbaLinea named = {view->key, sizeof(view->key), 0ull};
+    VerbaLinea named = {view->key, sizeof(view->key), 0ULL};
     mmgr_line_put(&named, key);
     (void)mmgr_line_finish(&named);
-    VerbaLinea pathed = {view->path, sizeof(view->path), 0ull};
+    VerbaLinea pathed = {view->path, sizeof(view->path), 0ULL};
     mmgr_line_put(&pathed, path);
     (void)mmgr_line_finish(&pathed);
     view->rows = 1u;
@@ -577,16 +577,16 @@ EMBED_INLINE unsigned long long view_lines(const ViewCtx *args)
 {
     if (args->view_read->paged)
     {
-        unsigned long long lines = 0ull;
+        unsigned long long lines = 0ULL;
         int whole = 0;
         return EMBED_CALL(cli_pages.count, CliPagesCfg, .key = args->view_read->key, .lines = &lines, .whole = &whole)
                    ? lines
-                   : 0ull;
+                   : 0ULL;
     }
     CliShape shape;
     return EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->view_read->key, .shape = &shape)
                ? shape.lines
-               : 0ull;
+               : 0ULL;
 }
 
 // the closed fold that hides `line`, its first line above the line and its last at or below it, the outermost where
@@ -622,7 +622,7 @@ EMBED_INLINE unsigned long long view_displayed_down(const ViewCtx *args)
 {
     unsigned long long line = args->line;
     const unsigned long long lines = view_lines(args);
-    const unsigned long long last = (lines != 0ull) ? lines - 1ull : 0ull;
+    const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
     for (const CliViewFold *hide_timer =
              EMBED_CALL(view_hide_timer, ViewCtx, .view_read = args->view_read, .line = line);
          hide_timer != NULL;
@@ -632,7 +632,7 @@ EMBED_INLINE unsigned long long view_displayed_down(const ViewCtx *args)
         {
             return EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view_read, .line = last);
         }
-        line = hide_timer->last + 1ull;
+        line = hide_timer->last + 1ULL;
     }
     return (line > last) ? EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view_read, .line = last) : line;
 }
@@ -643,10 +643,10 @@ EMBED_INLINE unsigned long long view_down(const ViewCtx *args)
 {
     const unsigned long long lines = view_lines(args);
     unsigned long long at = view_displayed_up(args);
-    for (unsigned long long step = 0ull; (step < args->count) && (at + 1ull < lines); step += 1ull)
+    for (unsigned long long step = 0ULL; (step < args->count) && (at + 1ULL < lines); step += 1ULL)
     {
         const unsigned long long next =
-            EMBED_CALL(view_displayed_down, ViewCtx, .view_read = args->view_read, .line = at + 1ull);
+            EMBED_CALL(view_displayed_down, ViewCtx, .view_read = args->view_read, .line = at + 1ULL);
         if (next <= at)
         {
             break;
@@ -659,9 +659,9 @@ EMBED_INLINE unsigned long long view_down(const ViewCtx *args)
 EMBED_INLINE unsigned long long view_up(const ViewCtx *args)
 {
     unsigned long long at = view_displayed_up(args);
-    for (unsigned long long step = 0ull; (step < args->count) && (at > 0ull); step += 1ull)
+    for (unsigned long long step = 0ULL; (step < args->count) && (at > 0ULL); step += 1ULL)
     {
-        at = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view_read, .line = at - 1ull);
+        at = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view_read, .line = at - 1ULL);
     }
     return at;
 }
@@ -669,18 +669,18 @@ EMBED_INLINE unsigned long long view_up(const ViewCtx *args)
 // how many lines shown stand from `top` to before `line`, `most` at the most
 EMBED_INLINE unsigned long long view_rows_to(const ViewCtx *args)
 {
-    unsigned long long rows = 0ull;
+    unsigned long long rows = 0ULL;
     unsigned long long at = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view_read, .line = args->top);
     while ((at < args->line) && (rows < args->most))
     {
         const unsigned long long next =
-            EMBED_CALL(view_down, ViewCtx, .view_read = args->view_read, .line = at, .count = 1ull);
+            EMBED_CALL(view_down, ViewCtx, .view_read = args->view_read, .line = at, .count = 1ULL);
         if (next <= at)
         {
             break;
         }
         at = next;
-        rows += 1ull;
+        rows += 1ULL;
     }
     return rows;
 }
@@ -768,7 +768,7 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
             g_cli_cells->persistent_buf_alloc(CLI_VIEW_FOLDS * sizeof(*args->view->fold), &g_cli_views_cells);
         args->view->folds_capacity = (args->view->fold != NULL) ? CLI_VIEW_FOLDS : 0u;
     }
-    if (args->view->folds == args->view->folds_capacity)
+    if ((args->view->fold == NULL) || (args->view->folds == args->view->folds_capacity))
     {
         return 0;
     }
@@ -785,10 +785,10 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
 // takes out; one it touches, its first line with lines added or taken, or the lines it hides, opened
 EMBED_INLINE void view_folds_edit(const ViewCtx *args)
 {
-    unsigned long long added = 0ull;
-    for (unsigned long long at = 0ull; at < args->edit->length; at += 1ull)
+    unsigned long long added = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->edit->length; at += 1ULL)
     {
-        added += (args->edit->text[at] == '\n') ? 1ull : 0ull;
+        added += (args->edit->text[at] == '\n') ? 1ULL : 0ULL;
     }
     const unsigned long long removed = args->edit->to.line - args->edit->from.line;
     unsigned int saved = 0u;
@@ -804,7 +804,7 @@ EMBED_INLINE void view_folds_edit(const ViewCtx *args)
         else if ((args->edit->from.line < fold.first) || (args->edit->from.line <= fold.last))
         {
             const int on_first =
-                (args->edit->from.line == fold.first) && (args->edit->to.line == fold.first) && (added == 0ull);
+                (args->edit->from.line == fold.first) && (args->edit->to.line == fold.first) && (added == 0ULL);
             if (!on_first)
             {
                 continue;
@@ -822,30 +822,30 @@ EMBED_INLINE unsigned long long view_units_get(const ViewCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
-    unsigned long long count = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long count = 0ULL;
     while ((at < size) && (count < args->capacity))
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter =
             EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &consumed);
-        at += (consumed != 0ull) ? consumed : 1ull;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
         if (letter >= 0x10000u)
         {
-            if (count + 2ull > args->capacity)
+            if (count + 2ULL > args->capacity)
             {
                 break;
             }
             // a letter past the basic plane as its two surrogates, each a unit
             args->units[count] = (unsigned short)(0xd800u + ((letter - 0x10000u) >> 10u));
-            args->units[count + 1ull] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
-            count += 2ull;
+            args->units[count + 1ULL] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
+            count += 2ULL;
         }
         else
         {
             // a letter of the basic plane is one unit
             args->units[count] = (unsigned short)letter;
-            count += 1ull;
+            count += 1ULL;
         }
     }
     return count;
@@ -863,7 +863,7 @@ EMBED_INLINE int view_units_capacity(const ViewCtx *args)
     g_cli_cells->persistent_buf_release(args->view->line_units, &g_cli_views_cells);
     args->view->line_units =
         g_cli_cells->persistent_buf_alloc(capacity * sizeof(*args->view->line_units), &g_cli_views_cells);
-    args->view->units_capacity = (args->view->line_units != NULL) ? capacity : 0ull;
+    args->view->units_capacity = (args->view->line_units != NULL) ? capacity : 0ULL;
     return args->view->line_units != NULL;
 }
 
@@ -878,14 +878,14 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
     }
     args->view->line_known = 1;
     args->view->line_cached = line;
-    args->view->line_length = 0ull;
+    args->view->line_length = 0ULL;
     if (args->view->paged)
     {
         const char *text = NULL;
-        unsigned long long count = 0ull;
+        unsigned long long count = 0ULL;
         char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = args->view->key, .from = line,
-                                      .to = line + 1ull, .line = &text, .count = &count, .owner = &g_cli_views_cells);
-        if ((cell != NULL) && (count != 0ull))
+                                      .to = line + 1ULL, .line = &text, .count = &count, .owner = &g_cli_views_cells);
+        if ((cell != NULL) && (count != 0ULL))
         {
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
             if (EMBED_CALL(view_units_capacity, ViewCtx, .view = args->view, .units_u64 = size))
@@ -935,12 +935,12 @@ EMBED_INLINE unsigned int view_tab(const ViewCtx *args)
 EMBED_INLINE unsigned long long view_cell_get(const ViewCtx *args)
 {
     const unsigned int tab = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
-    unsigned long long cell = 0ull;
-    for (unsigned long long at = 0ull; at < args->col; at += 1ull)
+    unsigned long long cell = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->col; at += 1ULL)
     {
         cell += (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = at) == '\t')
                     ? (tab - (cell % tab))
-                    : 1ull;
+                    : 1ULL;
     }
     return cell;
 }
@@ -949,21 +949,21 @@ EMBED_INLINE unsigned long long view_col_at(const ViewCtx *args)
 {
     const unsigned int tab = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
     const unsigned long long length = view_length(args);
-    unsigned long long at = 0ull;
-    unsigned long long here = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long here = 0ULL;
     while (at < length)
     {
         const unsigned long long next =
             here + ((EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = at) == '\t')
                         ? (tab - (here % tab))
-                        : 1ull);
+                        : 1ULL);
         if (next > args->cell)
         {
             // the cell inside a letter's span goes to its nearer side
-            return ((args->cell - here) * 2ull >= (next - here)) ? at + 1ull : at;
+            return ((args->cell - here) * 2ULL >= (next - here)) ? at + 1ULL : at;
         }
         here = next;
-        at += 1ull;
+        at += 1ULL;
     }
     return length;
 }
@@ -983,18 +983,18 @@ EMBED_INLINE int view_blank_unit(const ViewCtx *args)
 // start of the line shown after it at a line's end
 EMBED_INLINE CliPosition view_leave(const ViewCtx *args)
 {
-    if (args->place.col == 0ull)
+    if (args->place.col == 0ULL)
     {
         const unsigned long long above =
-            EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->place.line, .count = 1ull);
+            EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->place.line, .count = 1ULL);
         return (above == args->place.line)
                    ? args->place
                    : (CliPosition){above, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = above)};
     }
     const unsigned int before =
-        EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = args->place.col - 1ull);
-    const int pair = (args->place.col >= 2ull) && (before >= 0xdc00u) && (before <= 0xdfffu);
-    return (CliPosition){args->place.line, args->place.col - (pair ? 2ull : 1ull)};
+        EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = args->place.col - 1ULL);
+    const int pair = (args->place.col >= 2ULL) && (before >= 0xdc00u) && (before <= 0xdfffu);
+    return (CliPosition){args->place.line, args->place.col - (pair ? 2ULL : 1ULL)};
 }
 
 EMBED_INLINE CliPosition view_right(const ViewCtx *args)
@@ -1003,42 +1003,42 @@ EMBED_INLINE CliPosition view_right(const ViewCtx *args)
     if (args->place.col >= length)
     {
         const unsigned long long below =
-            EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->place.line, .count = 1ull);
-        return (below == args->place.line) ? args->place : (CliPosition){below, 0ull};
+            EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->place.line, .count = 1ULL);
+        return (below == args->place.line) ? args->place : (CliPosition){below, 0ULL};
     }
     const unsigned int here =
         EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = args->place.col);
-    const int pair = (args->place.col + 1ull < length) && (here >= 0xd800u) && (here <= 0xdbffu);
-    return (CliPosition){args->place.line, args->place.col + (pair ? 2ull : 1ull)};
+    const int pair = (args->place.col + 1ULL < length) && (here >= 0xd800u) && (here <= 0xdbffu);
+    return (CliPosition){args->place.line, args->place.col + (pair ? 2ULL : 1ULL)};
 }
 
 // the place the word left of `place` starts at, and the place past the word right of it: blanks skipped, then a run of
 // a word's letters or of other letters
 EMBED_INLINE CliPosition view_word_leave(const ViewCtx *args)
 {
-    if (args->place.col == 0ull)
+    if (args->place.col == 0ULL)
     {
         return view_leave(args);
     }
     unsigned long long col = args->place.col;
-    while ((col > 0ull) && EMBED_CALL(view_blank_unit, ViewCtx,
+    while ((col > 0ULL) && EMBED_CALL(view_blank_unit, ViewCtx,
                                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
-                                                         .line = args->place.line, .col = col - 1ull)))
+                                                         .line = args->place.line, .col = col - 1ULL)))
     {
-        col -= 1ull;
+        col -= 1ULL;
     }
-    const int word = (col > 0ull) && EMBED_CALL(view_word_unit, ViewCtx,
+    const int word = (col > 0ULL) && EMBED_CALL(view_word_unit, ViewCtx,
                                                 .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
-                                                                   .line = args->place.line, .col = col - 1ull));
-    while ((col > 0ull) &&
+                                                                   .line = args->place.line, .col = col - 1ULL));
+    while ((col > 0ULL) &&
            !EMBED_CALL(view_blank_unit, ViewCtx,
                        .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line,
-                                          .col = col - 1ull)) &&
+                                          .col = col - 1ULL)) &&
            (EMBED_CALL(view_word_unit, ViewCtx,
                        .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line,
-                                          .col = col - 1ull)) == word))
+                                          .col = col - 1ULL)) == word))
     {
-        col -= 1ull;
+        col -= 1ULL;
     }
     return (CliPosition){args->place.line, col};
 }
@@ -1055,7 +1055,7 @@ EMBED_INLINE CliPosition view_word_right(const ViewCtx *args)
            EMBED_CALL(view_blank_unit, ViewCtx,
                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = col)))
     {
-        col += 1ull;
+        col += 1ULL;
     }
     const int word = (col < length) && EMBED_CALL(view_word_unit, ViewCtx,
                                                   .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
@@ -1068,7 +1068,7 @@ EMBED_INLINE CliPosition view_word_right(const ViewCtx *args)
                     .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = col)) ==
          word))
     {
-        col += 1ull;
+        col += 1ULL;
     }
     return (CliPosition){args->place.line, col};
 }
@@ -1077,12 +1077,12 @@ EMBED_INLINE CliPosition view_word_right(const ViewCtx *args)
 EMBED_INLINE unsigned long long view_first_letter(const ViewCtx *args)
 {
     const unsigned long long length = view_length(args);
-    unsigned long long col = 0ull;
+    unsigned long long col = 0ULL;
     while ((col < length) &&
            EMBED_CALL(view_blank_unit, ViewCtx,
                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = col)))
     {
-        col += 1ull;
+        col += 1ULL;
     }
     return col;
 }
@@ -1125,7 +1125,7 @@ EMBED_INLINE void view_follow(const ViewCtx *args)
                         .line = args->view->cursor.line, .most = rows) >= rows)
     {
         args->view->top = EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->cursor.line,
-                                     .count = rows - 1ull);
+                                     .count = rows - 1ULL);
     }
 }
 
@@ -1156,7 +1156,7 @@ EMBED_INLINE void view_vertical(const ViewCtx *args)
     }
     // a move's count is not negative either way
     const unsigned long long line =
-        (args->by < 0ll) ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->cursor.line,
+        (args->by < 0LL) ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->cursor.line,
                                       .count = (unsigned long long)(-args->by))
                          : EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->view->cursor.line,
                                       .count = (unsigned long long)args->by);
@@ -1170,11 +1170,11 @@ EMBED_INLINE void view_vertical(const ViewCtx *args)
 // could not be taken or they do not fit
 EMBED_INLINE int view_query_capacity(const ViewCtx *args)
 {
-    if (args->view->find_capacity == 0ull)
+    if (args->view->find_capacity == 0ULL)
     {
         args->view->find_query = g_cli_cells->persistent_buf_alloc(
             CLI_VIEW_FIND_UNITS * sizeof(*args->view->find_query), &g_cli_views_cells);
-        args->view->find_capacity = (args->view->find_query != NULL) ? CLI_VIEW_FIND_UNITS : 0ull;
+        args->view->find_capacity = (args->view->find_query != NULL) ? CLI_VIEW_FIND_UNITS : 0ULL;
     }
     return (args->view->find_length + args->more) <= args->view->find_capacity;
 }
@@ -1183,13 +1183,13 @@ EMBED_INLINE int view_query_capacity(const ViewCtx *args)
 // taken out of it, the cursor at `from`; each makes the matches stale
 EMBED_INLINE void view_query_append(const ViewCtx *args)
 {
-    if ((args->count == 0ull) || !EMBED_CALL(view_query_capacity, ViewCtx, .view = args->view, .more = args->count))
+    if ((args->count == 0ULL) || !EMBED_CALL(view_query_capacity, ViewCtx, .view = args->view, .more = args->count))
     {
         return;
     }
-    for (unsigned long long at = args->view->find_length; at > args->view->find_at; at -= 1ull)
+    for (unsigned long long at = args->view->find_length; at > args->view->find_at; at -= 1ULL)
     {
-        args->view->find_query[at + args->count - 1ull] = args->view->find_query[at - 1ull];
+        args->view->find_query[at + args->count - 1ULL] = args->view->find_query[at - 1ULL];
     }
     memor.cpy(&(MemoriaCfg){.dst = args->view->find_query + args->view->find_at,
                             .src = args->units_read,
@@ -1201,7 +1201,7 @@ EMBED_INLINE void view_query_append(const ViewCtx *args)
 
 EMBED_INLINE void view_query_cut(const ViewCtx *args)
 {
-    for (unsigned long long at = args->to_u64; at < args->view->find_length; at += 1ull)
+    for (unsigned long long at = args->to_u64; at < args->view->find_length; at += 1ULL)
     {
         args->view->find_query[args->from_u64 + at - args->to_u64] = args->view->find_query[at];
     }
@@ -1221,7 +1221,7 @@ static void view_match_save(const CliFound3Cfg *args)
     view->match[view->matches][0] = args->line;
     view->match[view->matches][1] = args->from;
     view->match[view->matches][2] = args->to;
-    view->matches += 1ull;
+    view->matches += 1ULL;
 }
 
 // the matches of a paged text read off `size` bytes of the `[[line, from, to], ...]` the pages' find writes
@@ -1229,10 +1229,10 @@ EMBED_INLINE void view_matches_read(const ViewCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long number[3] = {0ull, 0ull, 0ull};
+    unsigned long long number[3] = {0ULL, 0ULL, 0ULL};
     unsigned int part = 0u;
     for (unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text,
-                                            .at = 0ull, .size = size, .set = "0123456789");
+                                            .at = 0ULL, .size = size, .set = "0123456789");
          at < size; at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
                                     .size = size, .set = "0123456789"))
     {
@@ -1255,8 +1255,8 @@ EMBED_INLINE void view_current_settle(const ViewCtx *args)
     CliPosition from;
     CliPosition to;
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-    args->view->current = (args->view->matches != 0ull) ? 0ll : -1ll;
-    for (unsigned long long at = 0ull; at < args->view->matches; at += 1ull)
+    args->view->current = (args->view->matches != 0ULL) ? 0LL : -1LL;
+    for (unsigned long long at = 0ULL; at < args->view->matches; at += 1ULL)
     {
         const CliPosition start = {args->view->match[at][0], args->view->match[at][1]};
         if (!EMBED_CALL(view_before, ViewCtx, .one = start, .other = from))
@@ -1277,38 +1277,38 @@ static void view_search(const ViewCtx *args)
         return;
     }
     args->view->find_stale = 0;
-    args->view->matches = 0ull;
+    args->view->matches = 0ULL;
     if (args->view->match == NULL)
     {
         args->view->match =
             g_cli_cells->persistent_buf_alloc(CLI_VIEW_MATCHES * sizeof(*args->view->match), &g_cli_views_cells);
-        args->view->match_capacity = (args->view->match != NULL) ? CLI_VIEW_MATCHES : 0ull;
+        args->view->match_capacity = (args->view->match != NULL) ? CLI_VIEW_MATCHES : 0ULL;
     }
-    args->view->current = -1ll;
-    if (args->view->find_length == 0ull)
+    args->view->current = -1LL;
+    if (args->view->find_length == 0ULL)
     {
         return;
     }
-    const unsigned long long query_capacity = (args->view->find_length * 4ull) + 1ull;
+    const unsigned long long query_capacity = (args->view->find_length * 4ULL) + 1ULL;
     char *const query = g_cli_cells->temporary_buf_alloc(query_capacity, &g_cli_views_cells);
     if (query == NULL)
     {
         return;
     }
-    VerbaLinea line = {query, query_capacity, 0ull};
+    VerbaLinea line = {query, query_capacity, 0ULL};
     EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &line,
                .units = args->view->find_query, .count = args->view->find_length);
     (void)mmgr_line_finish(&line);
     const CliDocNeedle needle = {query, args->view->find_regex, args->view->find_case, args->view->find_word};
     char error_text[256];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     if (args->view->paged)
     {
-        const unsigned long long capacity = CLI_VIEW_MATCHES * 24ull;
+        const unsigned long long capacity = CLI_VIEW_MATCHES * 24ULL;
         char *const cell = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_views_cells);
         if (cell != NULL)
         {
-            VerbaLinea out = {cell, capacity, 0ull};
+            VerbaLinea out = {cell, capacity, 0ULL};
             if (EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = args->view->key,
                            .needle = &needle, .most = CLI_VIEW_MATCHES, .out = &out, .err_msg = &why) &&
                 mmgr_line_ok(&out))
@@ -1337,15 +1337,15 @@ static void view_search(const ViewCtx *args)
 EMBED_INLINE void view_find_step(const ViewCtx *args)
 {
     view_search(args);
-    if (args->view->matches == 0ull)
+    if (args->view->matches == 0ULL)
     {
         return;
     }
     CliPosition from;
     CliPosition to;
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-    unsigned long long chosen = args->forward ? 0ull : args->view->matches - 1ull;
-    for (unsigned long long at = 0ull; args->forward && (at < args->view->matches); at += 1ull)
+    unsigned long long chosen = args->forward ? 0ULL : args->view->matches - 1ULL;
+    for (unsigned long long at = 0ULL; args->forward && (at < args->view->matches); at += 1ULL)
     {
         const CliPosition start = {args->view->match[at][0], args->view->match[at][1]};
         if (EMBED_CALL(view_before, ViewCtx, .one = from, .other = start))
@@ -1354,12 +1354,12 @@ EMBED_INLINE void view_find_step(const ViewCtx *args)
             break;
         }
     }
-    for (unsigned long long at = args->view->matches; !args->forward && (at > 0ull); at -= 1ull)
+    for (unsigned long long at = args->view->matches; !args->forward && (at > 0ULL); at -= 1ULL)
     {
-        const CliPosition start = {args->view->match[at - 1ull][0], args->view->match[at - 1ull][1]};
+        const CliPosition start = {args->view->match[at - 1ULL][0], args->view->match[at - 1ULL][1]};
         if (EMBED_CALL(view_before, ViewCtx, .one = start, .other = from))
         {
-            chosen = at - 1ull;
+            chosen = at - 1ULL;
             break;
         }
     }
@@ -1381,8 +1381,8 @@ EMBED_INLINE void view_find_open(const ViewCtx *args)
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
     if ((from.line == to.line) && (from.col < to.col))
     {
-        args->view->find_length = 0ull;
-        args->view->find_at = 0ull;
+        args->view->find_length = 0ULL;
+        args->view->find_at = 0ULL;
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = from.line);
         const unsigned long long end = (to.col < length) ? to.col : length;
         EMBED_CALL(view_query_append, ViewCtx, .view = args->view, .units_read = args->view->line_units + from.col,
@@ -1419,7 +1419,7 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
     }
     if (!args->mod && !args->alt && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "F3"))
     {
-        if (args->view->find_length != 0ull)
+        if (args->view->find_length != 0ULL)
         {
             EMBED_CALL(view_find_step, ViewCtx, .view = args->view, .forward = !args->shift);
         }
@@ -1465,15 +1465,15 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Left"))
     {
-        args->view->find_at -= (args->view->find_at > 0ull) ? 1ull : 0ull;
+        args->view->find_at -= (args->view->find_at > 0ULL) ? 1ULL : 0ULL;
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Right"))
     {
-        args->view->find_at += (args->view->find_at < args->view->find_length) ? 1ull : 0ull;
+        args->view->find_at += (args->view->find_at < args->view->find_length) ? 1ULL : 0ULL;
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Home"))
     {
-        args->view->find_at = 0ull;
+        args->view->find_at = 0ULL;
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "End"))
     {
@@ -1481,9 +1481,9 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Backspace"))
     {
-        if (args->view->find_at > 0ull)
+        if (args->view->find_at > 0ULL)
         {
-            EMBED_CALL(view_query_cut, ViewCtx, .view = args->view, .from_u64 = args->view->find_at - 1ull,
+            EMBED_CALL(view_query_cut, ViewCtx, .view = args->view, .from_u64 = args->view->find_at - 1ULL,
                        .to_u64 = args->view->find_at);
         }
     }
@@ -1492,7 +1492,7 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
         if (args->view->find_at < args->view->find_length)
         {
             EMBED_CALL(view_query_cut, ViewCtx, .view = args->view, .from_u64 = args->view->find_at,
-                       .to_u64 = args->view->find_at + 1ull);
+                       .to_u64 = args->view->find_at + 1ULL);
         }
     }
     else
@@ -1508,7 +1508,7 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
 // opened again: 1, or 0 where none is closed there
 EMBED_INLINE int view_fold(const ViewCtx *args)
 {
-    CliViewFoldNeedle needle = {args->line, 0ull, 0ull, 0};
+    CliViewFoldNeedle needle = {args->line, 0ULL, 0ULL, 0};
     (void)EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = args->view->key,
                      .each_fold_each = args->exact ? view_fold_match : view_fold_innermost, .context = &needle);
     if (!needle.found ||
@@ -1560,7 +1560,7 @@ EMBED_INLINE int view_write(const ViewCtx *args)
     if (args->view->paged)
     {
         char shape_text[128];
-        VerbaLinea shape = {shape_text, sizeof(shape_text), 0ull};
+        VerbaLinea shape = {shape_text, sizeof(shape_text), 0ULL};
         written = EMBED_CALL(cli_document_out.paged_edit, CliDocumentOutCfg, .key = args->view->key, .changes = edits,
                              .edits = args->counts, .count_u32 = 1u, .out = &shape, .err_msg = err_msg);
     }
@@ -1582,18 +1582,18 @@ EMBED_INLINE int view_write(const ViewCtx *args)
 // the bytes of UTF-8 the span from `from` to `to` of the text takes, each line but the last with a byte for its break
 EMBED_INLINE unsigned long long view_span_bytes(const ViewCtx *args)
 {
-    unsigned long long bytes = 0ull;
-    for (unsigned long long line = args->from.line; line <= args->to.line; line += 1ull)
+    unsigned long long bytes = 0ULL;
+    for (unsigned long long line = args->from.line; line <= args->to.line; line += 1ULL)
     {
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line);
-        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ull;
+        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ULL;
         const unsigned long long end = ((line == args->to.line) && (args->to.col < length)) ? args->to.col : length;
-        for (unsigned long long at = start; at < end; at += 1ull)
+        for (unsigned long long at = start; at < end; at += 1ULL)
         {
             const unsigned int unit = args->view->line_units[at];
-            bytes += (unit < 0x80u) ? 1ull : ((unit < 0x800u) ? 2ull : 3ull);
+            bytes += (unit < 0x80u) ? 1ULL : ((unit < 0x800u) ? 2ULL : 3ULL);
         }
-        bytes += (line < args->to.line) ? 1ull : 0ull;
+        bytes += (line < args->to.line) ? 1ULL : 0ULL;
     }
     return bytes;
 }
@@ -1603,13 +1603,13 @@ EMBED_INLINE CliPosition view_position_end(const ViewCtx *args)
 {
     const char *text = args->text;
     CliPosition place = args->from;
-    unsigned long long start = 0ull;
-    for (unsigned long long at = 0ull; at < args->bytes; at += 1ull)
+    unsigned long long start = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->bytes; at += 1ULL)
     {
         if (text[at] == '\n')
         {
-            place.line += 1ull;
-            start = at + 1ull;
+            place.line += 1ULL;
+            start = at + 1ULL;
         }
     }
     const unsigned long long units =
@@ -1628,17 +1628,17 @@ EMBED_INLINE CliViewEdit *view_edit_cell(const ViewCtx *args)
     const unsigned long long consumed_capacity = view_span_bytes(args);
     const unsigned long long append_capacity = args->append_bytes + (args->append_spans * consumed_capacity);
     CliViewEdit *const made = g_cli_cells->persistent_buf_alloc(
-        sizeof(CliViewEdit) + append_capacity + 1ull + consumed_capacity + 1ull, &g_cli_views_cells);
+        sizeof(CliViewEdit) + append_capacity + 1ULL + consumed_capacity + 1ULL, &g_cli_views_cells);
     if (made == NULL)
     {
         mmgr_line_put(args->err_msg, "the edit's cell could not be taken");
         return NULL;
     }
     char *const cell = (char *)(made + 1);
-    VerbaLinea consumed = {cell + append_capacity + 1ull, consumed_capacity + 1ull, 0ull};
+    VerbaLinea consumed = {cell + append_capacity + 1ULL, consumed_capacity + 1ULL, 0ULL};
     EMBED_CALL(view_span_write, ViewCtx, .view = args->view, .from = args->from, .to = args->to, .out = &consumed);
     const unsigned long long consumed_length = mmgr_line_finish(&consumed);
-    *made = (CliViewEdit){args->from, args->to, args->from, cell, 0ull, consumed.out, consumed_length, NULL, NULL};
+    *made = (CliViewEdit){args->from, args->to, args->from, cell, 0ULL, consumed.out, consumed_length, NULL, NULL};
     return made;
 }
 
@@ -1669,7 +1669,7 @@ static int view_edit_cell_write(const ViewCtx *args)
                        (now - step->at_ms <= CLI_VIEW_JOINED) && (step->edits < CLI_VIEW_STEP_EDITS);
     if (!joined)
     {
-        if (args->view->steps_capacity == 0u)
+        if (args->view->step == NULL)
         {
             args->view->step =
                 g_cli_cells->persistent_buf_alloc(CLI_VIEW_STEPS * sizeof(*args->view->step), &g_cli_views_cells);
@@ -1720,7 +1720,7 @@ EMBED_INLINE int view_edit(const ViewCtx *args)
 {
     CliViewEdit *const made =
         EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = args->from, .to = args->to,
-                   .append_bytes = args->length, .append_spans = 0ull, .err_msg = args->err_msg);
+                   .append_bytes = args->length, .append_spans = 0ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -1739,7 +1739,7 @@ EMBED_INLINE int view_undone(const ViewCtx *args)
     {
         return 1;
     }
-    CliViewStep *const step = &args->view->step[args->view->done - 1u];
+    const CliViewStep *const step = &args->view->step[args->view->done - 1u];
     for (const CliViewEdit *edit = step->last; edit != NULL; edit = edit->before)
     {
         const CliEdit back = {edit->from, edit->end, edit->consumed, edit->consumed_length};
@@ -1765,7 +1765,7 @@ EMBED_INLINE int view_redone(const ViewCtx *args)
     {
         return 1;
     }
-    CliViewStep *const step = &args->view->step[args->view->done];
+    const CliViewStep *const step = &args->view->step[args->view->done];
     for (const CliViewEdit *edit = step->first; edit != NULL; edit = edit->after)
     {
         const CliEdit again = {edit->from, edit->to, edit->put, edit->append_length};
@@ -1889,7 +1889,7 @@ EMBED_INLINE unsigned int view_open_before(const ViewCtx *args)
 {
     unsigned int open[64];
     unsigned int depth = 0u;
-    for (unsigned long long at = 0ull; at < args->col; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->col; at += 1ULL)
     {
         const unsigned int unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = at);
         const unsigned int closer = EMBED_CALL(view_closer_get, ViewCtx, .view_read = args->view, .unit = unit);
@@ -1919,25 +1919,25 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     const unsigned long long length = view_length(args);
     const unsigned long long count = (args->col < length) ? args->col : length;
     unsigned char *const cell = g_cli_cells->temporary_buf_alloc(
-        sizeof(CliRegexpWorkState) + ((count + 1ull) * sizeof(unsigned int)), &g_cli_views_cells);
+        sizeof(CliRegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), &g_cli_views_cells);
     if (cell == NULL)
     {
         return 0;
     }
     unsigned int *const letters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
     // the units read as letters, a surrogate pair one letter
-    unsigned long long read = 0ull;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    unsigned long long read = 0ULL;
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         const unsigned int unit = args->view->line_units[at];
-        const int pair = (unit >= 0xd800u) && (unit <= 0xdbffu) && (at + 1ull < count);
+        const int pair = (unit >= 0xd800u) && (unit <= 0xdbffu) && (at + 1ULL < count);
         letters[read] =
-            pair ? (0x10000u + ((unit - 0xd800u) << 10u) + (args->view->line_units[at + 1ull] - 0xdc00u)) : unit;
-        at += pair ? 1ull : 0ull;
-        read += 1ull;
+            pair ? (0x10000u + ((unit - 0xd800u) << 10u) + (args->view->line_units[at + 1ULL] - 0xdc00u)) : unit;
+        at += pair ? 1ULL : 0ULL;
+        read += 1ULL;
     }
     char error_text[256];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     CliRegexp regexp;
     EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
                .work_state = (CliRegexpWorkState *)(void *)cell);
@@ -1945,17 +1945,17 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
                         .source = args->view->indent_after, .flags = "u", .err_msg = &why);
     if (!ok)
     {
-        why.at = 0ull;
+        why.at = 0ULL;
         EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
                    .work_state = (CliRegexpWorkState *)(void *)cell);
         ok = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp,
                         .source = args->view->indent_after, .flags = "", .err_msg = &why);
     }
     int matched = 0;
-    for (unsigned long long at = 0ull; ok && !matched && (at <= read); at += 1ull)
+    for (unsigned long long at = 0ULL; ok && !matched && (at <= read); at += 1ULL)
     {
         CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
-        const int starts = (!regexp.anchored || (at == 0ull)) &&
+        const int starts = (!regexp.anchored || (at == 0ULL)) &&
                            ((at == read) || regexp.first.empty ||
                             EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &regexp.first, .letter = letters[at]));
         matched = starts && EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
@@ -1975,7 +1975,7 @@ EMBED_INLINE unsigned long long view_step_write(const ViewCtx *args)
     }
     else
     {
-        for (unsigned long long at = 0ull; at < view_tab(args); at += 1ull)
+        for (unsigned long long at = 0ULL; at < view_tab(args); at += 1ULL)
         {
             mmgr_line_ch(args->out, ' ');
         }
@@ -1999,22 +1999,22 @@ EMBED_INLINE int view_newline(const ViewCtx *args)
     const int deeper =
         (open != 0u) || EMBED_CALL(view_opens_block, ViewCtx, .view = args->view, .line = from.line, .col = from.col);
     unsigned long long before = from.col;
-    while ((before > 0ull) && EMBED_CALL(view_blank_unit, ViewCtx,
+    while ((before > 0ULL) && EMBED_CALL(view_blank_unit, ViewCtx,
                                          .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
-                                                            .col = before - 1ull)))
+                                                            .col = before - 1ULL)))
     {
-        before -= 1ull;
+        before -= 1ULL;
     }
     const unsigned int prev =
-        (before > 0ull) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = before - 1ull)
+        (before > 0ULL) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = before - 1ULL)
                         : 0u;
     const unsigned long long remainder_length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = to.line);
-    unsigned long long gap = 0ull;
+    unsigned long long gap = 0ULL;
     while ((to.col + gap < remainder_length) &&
            EMBED_CALL(view_blank_unit, ViewCtx,
                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = to.line, .col = to.col + gap)))
     {
-        gap += 1ull;
+        gap += 1ULL;
     }
     const unsigned int next = (to.col + gap < remainder_length) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view,
                                                                              .line = to.line, .col = to.col + gap)
@@ -2024,15 +2024,15 @@ EMBED_INLINE int view_newline(const ViewCtx *args)
          EMBED_CALL(view_on_pair, ViewCtx, .view_read = args->view, .open = prev, .close = next, .quoted = 0)) ||
         ((open != 0u) && (next == open));
     char text[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_ch(&line, '\n');
-    for (unsigned long long at = 0ull; (at < saved) && (line.at + 4ull < sizeof(text)); at += 1ull)
+    for (unsigned long long at = 0ULL; (at < saved) && (line.at + 4ULL < sizeof(text)); at += 1ULL)
     {
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                    .letter = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = at));
     }
-    const unsigned long long prefix_bytes = line.at - 1ull;
-    unsigned long long step_bytes = 0ull;
+    const unsigned long long prefix_bytes = line.at - 1ULL;
+    unsigned long long step_bytes = 0ULL;
     if (deeper)
     {
         step_bytes = EMBED_CALL(view_step_write, ViewCtx, .view_read = args->view, .out = &line);
@@ -2049,7 +2049,7 @@ EMBED_INLINE int view_newline(const ViewCtx *args)
         {
             return 0;
         }
-        const CliPosition between = {from.line + 1ull, cursor_col};
+        const CliPosition between = {from.line + 1ULL, cursor_col};
         EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = between, .anchor = between);
         return 1;
     }
@@ -2063,48 +2063,48 @@ EMBED_INLINE int view_backspace(const ViewCtx *args)
 {
     if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
-        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ull,
+        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ULL,
                           .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
     }
     const CliPosition at = args->view->cursor;
-    if (at.col == 0ull)
+    if (at.col == 0ULL)
     {
-        return (at.line == 0ull)
+        return (at.line == 0ULL)
                    ? 1
                    : EMBED_CALL(view_edit, ViewCtx, .view = args->view,
                                 .from = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = at), .to = at,
-                                .text = "", .length = 0ull, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                                .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
     }
     if ((at.col < EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = at.line)) &&
         EMBED_CALL(view_on_pair, ViewCtx, .view_read = args->view,
-                   .open = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = at.line, .col = at.col - 1ull),
+                   .open = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = at.line, .col = at.col - 1ULL),
                    .close = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = at.line, .col = at.col),
                    .quoted = 1))
     {
-        return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){at.line, at.col - 1ull},
-                          .to = (CliPosition){at.line, at.col + 1ull}, .text = "", .length = 0ull,
+        return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){at.line, at.col - 1ULL},
+                          .to = (CliPosition){at.line, at.col + 1ULL}, .text = "", .length = 0ULL,
                           .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
     }
     if (!args->view->indent.tabs || (args->view->indent.tabs == -1))
     {
-        unsigned long long col = 0ull;
+        unsigned long long col = 0ULL;
         while ((col < at.col) &&
                (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = at.line, .col = col) == ' '))
         {
-            col += 1ull;
+            col += 1ULL;
         }
         if (col == at.col)
         {
             const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
-            const unsigned long long back = (at.col % step != 0ull) ? at.col % step : step;
+            const unsigned long long back = (at.col % step != 0ULL) ? at.col % step : step;
             return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){at.line, at.col - back},
-                              .to = at, .text = "", .length = 0ull, .kind = CLI_VIEW_KIND_DELETE,
+                              .to = at, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
                               .err_msg = args->err_msg);
         }
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view,
                       .from = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = at), .to = at, .text = "",
-                      .length = 0ull, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                      .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
 }
 
 // the letter at the cursor taken out, or the selection; at a line's end the next line joined to it
@@ -2112,7 +2112,7 @@ EMBED_INLINE int view_delete(const ViewCtx *args)
 {
     if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
-        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ull,
+        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ULL,
                           .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
     }
     const CliPosition at = args->view->cursor;
@@ -2121,7 +2121,7 @@ EMBED_INLINE int view_delete(const ViewCtx *args)
     {
         return 1;
     }
-    return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = at, .to = next, .text = "", .length = 0ull,
+    return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = at, .to = next, .text = "", .length = 0ULL,
                       .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
 }
 
@@ -2130,7 +2130,7 @@ EMBED_INLINE int view_on_tab(const ViewCtx *args)
 {
     if (args->view->indent.tabs == 1)
     {
-        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "\t", .length = 1ull,
+        return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "\t", .length = 1ULL,
                           .kind = CLI_VIEW_KIND_SPACE, .err_msg = args->err_msg);
     }
     const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
@@ -2141,7 +2141,7 @@ EMBED_INLINE int view_on_tab(const ViewCtx *args)
         EMBED_CALL(view_cell_get, ViewCtx, .view = args->view, .line = from.line, .col = from.col);
     const unsigned long long spaces = step - (cell % step);
     char text[64];
-    const unsigned long long count = (spaces < sizeof(text)) ? spaces : sizeof(text) - 1ull;
+    const unsigned long long count = (spaces < sizeof(text)) ? spaces : sizeof(text) - 1ULL;
     memor.set(&(MemoriaCfg){.dst = text, .val = ' ', .bytes = count});
     return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = text, .length = count,
                       .kind = CLI_VIEW_KIND_SPACE, .err_msg = args->err_msg);
@@ -2151,10 +2151,10 @@ EMBED_INLINE int view_on_tab(const ViewCtx *args)
 EMBED_INLINE void view_span_write(const ViewCtx *args)
 {
     VerbaLinea *out = args->out;
-    for (unsigned long long line = args->from.line; line <= args->to.line; line += 1ull)
+    for (unsigned long long line = args->from.line; line <= args->to.line; line += 1ULL)
     {
         const unsigned long long line_length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line);
-        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ull;
+        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ULL;
         const unsigned long long end =
             (line == args->to.line) ? ((args->to.col < line_length) ? args->to.col : line_length) : line_length;
         if (start < end)
@@ -2183,30 +2183,30 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
     const unsigned long long to_length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = to.line);
     const unsigned int next =
         (to.col < to_length) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = to.line, .col = to.col) : 0u;
-    const unsigned int prev = (from.col > 0ull) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
-                                                             .col = from.col - 1ull)
+    const unsigned int prev = (from.col > 0ULL) ? EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
+                                                             .col = from.col - 1ULL)
                                                 : 0u;
     if (empty && EMBED_CALL(view_closes, ViewCtx, .view_read = args->view, .unit = letter) && (next == letter))
     {
-        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){to.line, to.col + 1ull}, .extend = 0,
+        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){to.line, to.col + 1ULL}, .extend = 0,
                    .saved = 0);
         return 1;
     }
     const unsigned int close = EMBED_CALL(view_closer_get, ViewCtx, .view_read = args->view, .unit = letter);
     if ((close != 0u) && !empty)
     {
-        unsigned long long capacity = 0ull;
-        for (unsigned long long line = from.line; line <= to.line; line += 1ull)
+        unsigned long long capacity = 0ULL;
+        for (unsigned long long line = from.line; line <= to.line; line += 1ULL)
         {
-            capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ull) + 1ull;
+            capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ULL) + 1ULL;
         }
-        char *const cell = g_cli_cells->temporary_buf_alloc(capacity + args->length + 8ull, &g_cli_views_cells);
+        char *const cell = g_cli_cells->temporary_buf_alloc(capacity + args->length + 8ULL, &g_cli_views_cells);
         if (cell == NULL)
         {
             mmgr_line_put(args->err_msg, "the wrap's cell could not be taken");
             return 0;
         }
-        VerbaLinea wrapped = {cell, capacity + args->length + 8ull, 0ull};
+        VerbaLinea wrapped = {cell, capacity + args->length + 8ULL, 0ULL};
         mmgr_line_put_n(&wrapped, args->text, args->length);
         EMBED_CALL(view_span_write, ViewCtx, .view = args->view, .from = from, .to = to, .out = &wrapped);
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &wrapped, .letter = close);
@@ -2218,8 +2218,8 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
             return 0;
         }
         const CliPosition end = args->view->cursor;
-        EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = (CliPosition){end.line, end.col - 1ull},
-                   .anchor = (CliPosition){from.line, from.col + 1ull});
+        EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = (CliPosition){end.line, end.col - 1ULL},
+                   .anchor = (CliPosition){from.line, from.col + 1ULL});
         return 1;
     }
     if (close != 0u)
@@ -2235,7 +2235,7 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
         if (next_ok && prev_ok)
         {
             char both[16];
-            VerbaLinea line = {both, sizeof(both), 0ull};
+            VerbaLinea line = {both, sizeof(both), 0ULL};
             mmgr_line_put_n(&line, args->text, args->length);
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = close);
             if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = both,
@@ -2244,41 +2244,41 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
                 return 0;
             }
             const CliPosition end = args->view->cursor;
-            const CliPosition between = {end.line, end.col - 1ull};
+            const CliPosition between = {end.line, end.col - 1ULL};
             EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = between, .anchor = between);
             return 1;
         }
     }
     if (EMBED_CALL(view_closes_bracket, ViewCtx, .view_read = args->view, .unit = letter) && empty &&
-        (from.col > 0ull) &&
+        (from.col > 0ULL) &&
         (EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = from.line) >= from.col))
     {
         // the lead less a step: a tab, the step's spaces where the lead ends in them, else the run of blanks it ends in
         unsigned long long less = from.col;
         const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
-        if (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = less - 1ull) == '\t')
+        if (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = less - 1ULL) == '\t')
         {
-            less -= 1ull;
+            less -= 1ULL;
         }
         else
         {
-            unsigned long long spaces = 0ull;
+            unsigned long long spaces = 0ULL;
             while ((spaces < less) && (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
-                                                  .col = less - 1ull - spaces) == ' '))
+                                                  .col = less - 1ULL - spaces) == ' '))
             {
-                spaces += 1ull;
+                spaces += 1ULL;
             }
             less -= (spaces >= step) ? step : spaces;
         }
         char lead[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {lead, sizeof(lead), 0ull};
-        for (unsigned long long at = 0ull; (at < less) && (line.at + 4ull < sizeof(lead)); at += 1ull)
+        VerbaLinea line = {lead, sizeof(lead), 0ULL};
+        for (unsigned long long at = 0ULL; (at < less) && (line.at + 4ULL < sizeof(lead)); at += 1ULL)
         {
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                        .letter = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = at));
         }
         mmgr_line_put_n(&line, args->text, args->length);
-        return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){from.line, 0ull}, .to = to,
+        return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){from.line, 0ULL}, .to = to,
                           .text = lead, .length = line.at, .kind = args->kind, .err_msg = args->err_msg);
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = args->text,
@@ -2297,7 +2297,7 @@ EMBED_INLINE void view_lines_cover(const ViewCtx *args)
     CliPosition to;
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view_read, .from_pointer = &from, .to_pointer = &to);
     *first = from.line;
-    *last = ((to.line > from.line) && (to.col == 0ull)) ? to.line - 1ull : to.line;
+    *last = ((to.line > from.line) && (to.col == 0ULL)) ? to.line - 1ULL : to.line;
 }
 
 // a place carried through the edit of the span from `from` to `to` by text ending at `end`: before it it stays, inside
@@ -2329,17 +2329,17 @@ static int view_edit_trim(const ViewCtx *args)
     const unsigned long long shorter = (args->made->append_length < args->made->consumed_length)
                                            ? args->made->append_length
                                            : args->made->consumed_length;
-    unsigned long long head = 0ull;
-    unsigned long long head_lines = 0ull;
-    unsigned long long same = 0ull;
+    unsigned long long head = 0ULL;
+    unsigned long long head_lines = 0ULL;
+    unsigned long long same = 0ULL;
     while ((same < shorter) && (args->made->put[same] == args->made->consumed[same]))
     {
         if (args->made->put[same] == '\n')
         {
-            head_lines += 1ull;
-            head = same + 1ull;
+            head_lines += 1ULL;
+            head = same + 1ULL;
         }
-        same += 1ull;
+        same += 1ULL;
     }
     if ((same == shorter) && (args->made->append_length == args->made->consumed_length))
     {
@@ -2350,29 +2350,29 @@ static int view_edit_trim(const ViewCtx *args)
     args->made->consumed += head;
     args->made->append_length -= head;
     args->made->consumed_length -= head;
-    if (head_lines != 0ull)
+    if (head_lines != 0ULL)
     {
-        args->made->from = (CliPosition){args->made->from.line + head_lines, 0ull};
+        args->made->from = (CliPosition){args->made->from.line + head_lines, 0ULL};
     }
     const unsigned long long rest = (args->made->append_length < args->made->consumed_length)
                                         ? args->made->append_length
                                         : args->made->consumed_length;
-    unsigned long long foot = 0ull;
-    unsigned long long foot_lines = 0ull;
-    unsigned long long back = 0ull;
-    while ((back < rest) && (args->made->put[args->made->append_length - 1ull - back] ==
-                             args->made->consumed[args->made->consumed_length - 1ull - back]))
+    unsigned long long foot = 0ULL;
+    unsigned long long foot_lines = 0ULL;
+    unsigned long long back = 0ULL;
+    while ((back < rest) && (args->made->put[args->made->append_length - 1ULL - back] ==
+                             args->made->consumed[args->made->consumed_length - 1ULL - back]))
     {
-        if (args->made->put[args->made->append_length - 1ull - back] == '\n')
+        if (args->made->put[args->made->append_length - 1ULL - back] == '\n')
         {
-            foot_lines += 1ull;
-            foot = back + 1ull;
+            foot_lines += 1ULL;
+            foot = back + 1ULL;
         }
-        back += 1ull;
+        back += 1ULL;
     }
     args->made->append_length -= foot;
     args->made->consumed_length -= foot;
-    if (foot_lines != 0ull)
+    if (foot_lines != 0ULL)
     {
         const unsigned long long line = args->made->to.line - foot_lines;
         args->made->to = (CliPosition){line, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line)};
@@ -2421,16 +2421,16 @@ static int view_lines_join(const ViewCtx *args)
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
     const unsigned long long count = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
     const unsigned long long first = from.line;
-    const unsigned long long required = (to.line > first + 1ull) ? to.line : first + 1ull;
-    const unsigned long long last = ((count != 0ull) && (required > count - 1ull)) ? count - 1ull : required;
+    const unsigned long long required = (to.line > first + 1ULL) ? to.line : first + 1ULL;
+    const unsigned long long last = ((count != 0ULL) && (required > count - 1ULL)) ? count - 1ULL : required;
     if (last == first)
     {
         return 1;
     }
     CliViewEdit *const made =
-        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ull},
+        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ULL},
                    .to = (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
-                   .append_bytes = 0ull, .append_spans = 1ull, .err_msg = args->err_msg);
+                   .append_bytes = 0ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -2439,35 +2439,35 @@ static int view_lines_join(const ViewCtx *args)
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
     char *const put = made->put;
-    unsigned long long at = 0ull;
-    unsigned long long read = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long read = 0ULL;
     while ((read < size) && (consumed[read] != '\n'))
     {
         put[at] = consumed[read];
-        at += 1ull;
-        read += 1ull;
+        at += 1ULL;
+        read += 1ULL;
     }
     while (read < size)
     {
-        read += 1ull;
+        read += 1ULL;
         while ((read < size) && ((consumed[read] == ' ') || (consumed[read] == '\t')))
         {
-            read += 1ull;
+            read += 1ULL;
         }
-        while ((at > 0ull) && ((put[at - 1ull] == ' ') || (put[at - 1ull] == '\t')))
+        while ((at > 0ULL) && ((put[at - 1ULL] == ' ') || (put[at - 1ULL] == '\t')))
         {
-            at -= 1ull;
+            at -= 1ULL;
         }
-        if ((at != 0ull) && (read < size) && (consumed[read] != '\n'))
+        if ((at != 0ULL) && (read < size) && (consumed[read] != '\n'))
         {
             put[at] = ' ';
-            at += 1ull;
+            at += 1ULL;
         }
         while ((read < size) && (consumed[read] != '\n'))
         {
             put[at] = consumed[read];
-            at += 1ull;
-            read += 1ull;
+            at += 1ULL;
+            read += 1ULL;
         }
     }
     made->append_length = at;
@@ -2477,20 +2477,20 @@ static int view_lines_join(const ViewCtx *args)
 // the selection's lines moved a line up or down over their neighbour, the selection with them
 static int view_lines_move(const ViewCtx *args)
 {
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
     const unsigned long long count = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
-    if ((args->up && (first == 0ull)) || (!args->up && (last + 1ull >= count)))
+    if ((args->up && (first == 0ULL)) || (!args->up && (last + 1ULL >= count)))
     {
         return 1;
     }
-    const unsigned long long from_line = args->up ? first - 1ull : first;
-    const unsigned long long to_line = args->up ? last : last + 1ull;
+    const unsigned long long from_line = args->up ? first - 1ULL : first;
+    const unsigned long long to_line = args->up ? last : last + 1ULL;
     CliViewEdit *const made =
-        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){from_line, 0ull},
+        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){from_line, 0ULL},
                    .to = (CliPosition){to_line, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = to_line)},
-                   .append_bytes = 0ull, .append_spans = 1ull, .err_msg = args->err_msg);
+                   .append_bytes = 0ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -2498,19 +2498,19 @@ static int view_lines_move(const ViewCtx *args)
     // the neighbour's line and the block change places: up, the first line goes to the foot; down, the last to the head
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
-    unsigned long long split = args->up ? 0ull : size - 1ull;
+    unsigned long long split = args->up ? 0ULL : size - 1ULL;
     while (consumed[split] != '\n')
     {
-        split = args->up ? split + 1ull : split - 1ull;
+        split = args->up ? split + 1ULL : split - 1ULL;
     }
-    const unsigned long long after = size - split - 1ull;
-    memor.cpy(&(MemoriaCfg){.dst = made->put, .src = consumed + split + 1ull, .bytes = after});
+    const unsigned long long after = size - split - 1ULL;
+    memor.cpy(&(MemoriaCfg){.dst = made->put, .src = consumed + split + 1ULL, .bytes = after});
     made->put[after] = '\n';
-    memor.cpy(&(MemoriaCfg){.dst = made->put + after + 1ull, .src = consumed, .bytes = split});
+    memor.cpy(&(MemoriaCfg){.dst = made->put + after + 1ULL, .src = consumed, .bytes = split});
     made->append_length = size;
-    const CliPosition cursor = {args->up ? args->view->cursor.line - 1ull : args->view->cursor.line + 1ull,
+    const CliPosition cursor = {args->up ? args->view->cursor.line - 1ULL : args->view->cursor.line + 1ULL,
                                 args->view->cursor.col};
-    const CliPosition anchor = {args->up ? args->view->anchor.line - 1ull : args->view->anchor.line + 1ull,
+    const CliPosition anchor = {args->up ? args->view->anchor.line - 1ULL : args->view->anchor.line + 1ULL,
                                 args->view->anchor.col};
     if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
                     .err_msg = args->err_msg))
@@ -2524,20 +2524,20 @@ static int view_lines_move(const ViewCtx *args)
 // the selection's lines copied above or below themselves: below, the selection goes with the copy; above, it stays
 EMBED_INLINE int view_lines_copy(const ViewCtx *args)
 {
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
-    const CliPosition head = {first, 0ull};
+    const CliPosition head = {first, 0ULL};
     const CliPosition foot = {last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)};
     const unsigned long long bytes = EMBED_CALL(view_span_bytes, ViewCtx, .view = args->view, .from = head, .to = foot);
     const CliPosition place = args->up ? head : foot;
     CliViewEdit *const made = EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = place, .to = place,
-                                         .append_bytes = bytes + 1ull, .append_spans = 0ull, .err_msg = args->err_msg);
+                                         .append_bytes = bytes + 1ULL, .append_spans = 0ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
     }
-    VerbaLinea copy = {made->put, bytes + 2ull, 0ull};
+    VerbaLinea copy = {made->put, bytes + 2ULL, 0ULL};
     if (!args->up)
     {
         mmgr_line_ch(&copy, '\n');
@@ -2548,10 +2548,10 @@ EMBED_INLINE int view_lines_copy(const ViewCtx *args)
         mmgr_line_ch(&copy, '\n');
     }
     made->append_length = copy.at;
-    const unsigned long long by = last - first + 1ull;
-    const CliPosition cursor = {args->view->cursor.line + (((args->view->cursor.line > last) || !args->up) ? by : 0ull),
+    const unsigned long long by = last - first + 1ULL;
+    const CliPosition cursor = {args->view->cursor.line + (((args->view->cursor.line > last) || !args->up) ? by : 0ULL),
                                 args->view->cursor.col};
-    const CliPosition anchor = {args->view->anchor.line + (((args->view->anchor.line > last) || !args->up) ? by : 0ull),
+    const CliPosition anchor = {args->view->anchor.line + (((args->view->anchor.line > last) || !args->up) ? by : 0ULL),
                                 args->view->anchor.col};
     if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
                     .err_msg = args->err_msg))
@@ -2566,20 +2566,20 @@ EMBED_INLINE int view_lines_copy(const ViewCtx *args)
 // cursor left on what comes up into their place, at its column as far as that line reaches
 EMBED_INLINE int view_lines_delete(const ViewCtx *args)
 {
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
     const unsigned long long count = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
     const unsigned long long col = args->view->cursor.col;
-    const int follows = last + 1ull < count;
+    const int follows = last + 1ULL < count;
     const CliPosition from =
-        (follows || (first == 0ull))
-            ? (CliPosition){first, 0ull}
-            : (CliPosition){first - 1ull, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = first - 1ull)};
+        (follows || (first == 0ULL))
+            ? (CliPosition){first, 0ULL}
+            : (CliPosition){first - 1ULL, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = first - 1ULL)};
     const CliPosition to =
-        follows ? (CliPosition){last + 1ull, 0ull}
+        follows ? (CliPosition){last + 1ULL, 0ULL}
                 : (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)};
-    if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = "", .length = 0ull,
+    if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = "", .length = 0ULL,
                     .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg))
     {
         return 0;
@@ -2595,17 +2595,17 @@ EMBED_INLINE int view_lines_delete(const ViewCtx *args)
 // where a selection stands
 static int view_lines_indent(const ViewCtx *args)
 {
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
     const int tabs = args->view->indent.tabs == 1;
     const unsigned long long stop = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
-    const unsigned long long step = tabs ? 1ull : stop;
-    const unsigned long long lines = last - first + 1ull;
+    const unsigned long long step = tabs ? 1ULL : stop;
+    const unsigned long long lines = last - first + 1ULL;
     CliViewEdit *const made =
-        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ull},
+        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ULL},
                    .to = (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
-                   .append_bytes = args->deeper ? lines * step : 0ull, .append_spans = 1ull, .err_msg = args->err_msg);
+                   .append_bytes = args->deeper ? lines * step : 0ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -2616,60 +2616,60 @@ static int view_lines_indent(const ViewCtx *args)
     const int selected = EMBED_CALL(view_select, ViewCtx, .view_read = args->view);
     CliPosition cursor = args->view->cursor;
     CliPosition anchor = args->view->anchor;
-    unsigned long long at = 0ull;
-    unsigned long long read = 0ull;
-    for (unsigned long long line = first; line <= last; line += 1ull)
+    unsigned long long at = 0ULL;
+    unsigned long long read = 0ULL;
+    for (unsigned long long line = first; line <= last; line += 1ULL)
     {
         unsigned long long end = read;
         int filled = 0;
         while ((end < size) && (consumed[end] != '\n'))
         {
             filled = filled || ((consumed[end] != ' ') && (consumed[end] != '\t'));
-            end += 1ull;
+            end += 1ULL;
         }
-        unsigned long long cut = 0ull;
-        unsigned long long added = 0ull;
+        unsigned long long cut = 0ULL;
+        unsigned long long added = 0ULL;
         if (args->deeper)
         {
-            added = (filled || (lines == 1ull)) ? step : 0ull;
+            added = (filled || (lines == 1ULL)) ? step : 0ULL;
             memor.set(&(MemoriaCfg){.dst = put + at, .val = tabs ? '\t' : ' ', .bytes = added});
             at += added;
         }
         else if ((read < end) && (consumed[read] == '\t'))
         {
-            cut = 1ull;
+            cut = 1ULL;
         }
         else
         {
             while ((cut < stop) && (read + cut < end) && (consumed[read + cut] == ' '))
             {
-                cut += 1ull;
+                cut += 1ULL;
             }
         }
         memor.cpy(&(MemoriaCfg){.dst = put + at, .src = consumed + read + cut, .bytes = end - read - cut});
         at += end - read - cut;
-        if ((added != 0ull) || (cut != 0ull))
+        if ((added != 0ULL) || (cut != 0ULL))
         {
-            const CliPosition from = {line, 0ull};
+            const CliPosition from = {line, 0ULL};
             const CliPosition to = {line, cut};
             const CliPosition ends = {line, added};
             if (args->view->cursor.line == line)
             {
                 cursor = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = args->view->cursor, .from = from,
-                                    .to = to, .end = ends, .after = (args->view->cursor.col > 0ull) || !selected);
+                                    .to = to, .end = ends, .after = (args->view->cursor.col > 0ULL) || !selected);
             }
             if (args->view->anchor.line == line)
             {
                 anchor = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = args->view->anchor, .from = from,
-                                    .to = to, .end = ends, .after = (args->view->anchor.col > 0ull) || !selected);
+                                    .to = to, .end = ends, .after = (args->view->anchor.col > 0ULL) || !selected);
             }
         }
         if (end < size)
         {
             put[at] = '\n';
-            at += 1ull;
+            at += 1ULL;
         }
-        read = end + 1ull;
+        read = end + 1ULL;
     }
     made->append_length = at;
     if (!EMBED_CALL(view_edit_trim, ViewCtx, .view = args->view, .made = made))
@@ -2692,14 +2692,14 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
 {
     const unsigned long long token =
         cellul.len(&(CatenaFinitaCfg){.src = args->view->comment_line, .cap = sizeof(args->view->comment_line)});
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
-    const unsigned long long lines = last - first + 1ull;
+    const unsigned long long lines = last - first + 1ULL;
     CliViewEdit *const made =
-        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ull},
+        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ULL},
                    .to = (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
-                   .append_bytes = lines * (token + 1ull), .append_spans = 1ull, .err_msg = args->err_msg);
+                   .append_bytes = lines * (token + 1ULL), .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -2710,19 +2710,19 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
     // the filled lines read: whether each begins with the mark past its blanks, and the least of their blanks
     int any = 0;
     int marked = 1;
-    unsigned long long lead = ~0ull;
-    unsigned long long read = 0ull;
+    unsigned long long lead = ~0ULL;
+    unsigned long long read = 0ULL;
     while (read <= size)
     {
         unsigned long long end = read;
         while ((end < size) && (consumed[end] != '\n'))
         {
-            end += 1ull;
+            end += 1ULL;
         }
         unsigned long long blanks = read;
         while ((blanks < end) && ((consumed[blanks] == ' ') || (consumed[blanks] == '\t')))
         {
-            blanks += 1ull;
+            blanks += 1ULL;
         }
         if (blanks < end)
         {
@@ -2732,7 +2732,7 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
                      (memor.cmp(&(MemoriaCfg){
                           .src = consumed + blanks, .other = args->view->comment_line, .bytes = token}) == 0);
         }
-        read = end + 1ull;
+        read = end + 1ULL;
     }
     if (!any)
     {
@@ -2745,30 +2745,30 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
         EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = args->view->comment_line, .size = token);
     CliPosition cursor = args->view->cursor;
     CliPosition anchor = args->view->anchor;
-    unsigned long long at = 0ull;
-    read = 0ull;
-    for (unsigned long long line = first; line <= last; line += 1ull)
+    unsigned long long at = 0ULL;
+    read = 0ULL;
+    for (unsigned long long line = first; line <= last; line += 1ULL)
     {
         unsigned long long end = read;
         while ((end < size) && (consumed[end] != '\n'))
         {
-            end += 1ull;
+            end += 1ULL;
         }
         unsigned long long blanks = read;
         while ((blanks < end) && ((consumed[blanks] == ' ') || (consumed[blanks] == '\t')))
         {
-            blanks += 1ull;
+            blanks += 1ULL;
         }
         if (blanks < end)
         {
             // the blanks are a byte a unit: a place among them is their count
             const unsigned long long place = marked ? blanks - read : lead;
             const unsigned long long cut = (marked && (blanks + token < end) && (consumed[blanks + token] == ' '))
-                                               ? token + 1ull
-                                               : (marked ? token : 0ull);
+                                               ? token + 1ULL
+                                               : (marked ? token : 0ULL);
             const CliPosition from = {line, place};
-            const CliPosition to = {line, place + (marked ? (cut - token) + token_units : 0ull)};
-            const CliPosition ends = {line, marked ? place : place + token_units + 1ull};
+            const CliPosition to = {line, place + (marked ? (cut - token) + token_units : 0ULL)};
+            const CliPosition ends = {line, marked ? place : place + token_units + 1ULL};
             if (args->view->cursor.line == line)
             {
                 cursor = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = args->view->cursor, .from = from,
@@ -2786,7 +2786,7 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
                 memor.cpy(&(MemoriaCfg){.dst = put + at, .src = args->view->comment_line, .bytes = token});
                 at += token;
                 put[at] = ' ';
-                at += 1ull;
+                at += 1ULL;
             }
             const unsigned long long rest = read + place + cut;
             memor.cpy(&(MemoriaCfg){.dst = put + at, .src = consumed + rest, .bytes = end - rest});
@@ -2800,9 +2800,9 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
         if (end < size)
         {
             put[at] = '\n';
-            at += 1ull;
+            at += 1ULL;
         }
-        read = end + 1ull;
+        read = end + 1ULL;
     }
     made->append_length = at;
     if (!EMBED_CALL(view_edit_trim, ViewCtx, .view = args->view, .made = made))
@@ -2831,7 +2831,7 @@ EMBED_INLINE int view_block_comment(const ViewCtx *args)
         cellul.len(&(CatenaFinitaCfg){.src = args->view->comment_close, .cap = sizeof(args->view->comment_close)});
     CliViewEdit *const made =
         EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = from, .to = to,
-                   .append_bytes = open + close + 2ull, .append_spans = 1ull, .err_msg = args->err_msg);
+                   .append_bytes = open + close + 2ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
@@ -2844,14 +2844,14 @@ EMBED_INLINE int view_block_comment(const ViewCtx *args)
         (memor.cmp(&(MemoriaCfg){.src = consumed, .other = args->view->comment_open, .bytes = open}) == 0) &&
         (memor.cmp(&(MemoriaCfg){.src = consumed + size - close, .other = args->view->comment_close, .bytes = close}) ==
          0);
-    unsigned long long saved_from = 0ull;
-    unsigned long long saved_bytes = 0ull;
+    unsigned long long saved_from = 0ULL;
+    unsigned long long saved_bytes = 0ULL;
     if (wrapped)
     {
         unsigned long long inner = open;
         unsigned long long stop = size - close;
-        inner += ((inner < stop) && (consumed[inner] == ' ')) ? 1ull : 0ull;
-        stop -= ((inner < stop) && (consumed[stop - 1ull] == ' ')) ? 1ull : 0ull;
+        inner += ((inner < stop) && (consumed[inner] == ' ')) ? 1ULL : 0ULL;
+        stop -= ((inner < stop) && (consumed[stop - 1ULL] == ' ')) ? 1ULL : 0ULL;
         saved_bytes = stop - inner;
         memor.cpy(&(MemoriaCfg){.dst = put, .src = consumed + inner, .bytes = saved_bytes});
         made->append_length = saved_bytes;
@@ -2860,11 +2860,11 @@ EMBED_INLINE int view_block_comment(const ViewCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = put, .src = args->view->comment_open, .bytes = open});
         put[open] = ' ';
-        memor.cpy(&(MemoriaCfg){.dst = put + open + 1ull, .src = consumed, .bytes = size});
-        put[open + 1ull + size] = ' ';
-        memor.cpy(&(MemoriaCfg){.dst = put + open + 2ull + size, .src = args->view->comment_close, .bytes = close});
-        made->append_length = open + 2ull + size + close;
-        saved_from = open + 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = put + open + 1ULL, .src = consumed, .bytes = size});
+        put[open + 1ULL + size] = ' ';
+        memor.cpy(&(MemoriaCfg){.dst = put + open + 2ULL + size, .src = args->view->comment_close, .bytes = close});
+        made->append_length = open + 2ULL + size + close;
+        saved_from = open + 1ULL;
         saved_bytes = size;
     }
     const CliPosition start = EMBED_CALL(view_position_end, ViewCtx, .from = from, .text = put, .bytes = saved_from);
@@ -2886,31 +2886,31 @@ EMBED_INLINE int view_line_insert(const ViewCtx *args)
     const unsigned long long lead = EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = line);
     const CliPosition place =
         args->below ? (CliPosition){line, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line)}
-                    : (CliPosition){line, 0ull};
+                    : (CliPosition){line, 0ULL};
     // the lead is blanks, a byte a unit
     CliViewEdit *const made = EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = place, .to = place,
-                                         .append_bytes = lead + 1ull, .append_spans = 0ull, .err_msg = args->err_msg);
+                                         .append_bytes = lead + 1ULL, .append_spans = 0ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
     }
     char *const put = made->put;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     if (args->below)
     {
         put[0] = '\n';
-        at = 1ull;
+        at = 1ULL;
     }
-    for (unsigned long long col = 0ull; col < lead; col += 1ull)
+    for (unsigned long long col = 0ULL; col < lead; col += 1ULL)
     {
         // a blank unit is a byte
         put[at] = (char)EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = line, .col = col);
-        at += 1ull;
+        at += 1ULL;
     }
     if (!args->below)
     {
         put[at] = '\n';
-        at += 1ull;
+        at += 1ULL;
     }
     made->append_length = at;
     if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
@@ -2934,15 +2934,15 @@ EMBED_INLINE void view_line_select(const ViewCtx *args)
     CliPosition to;
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
     const unsigned long long count = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
-    if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view) && (from.col == 0ull) && (to.col == 0ull))
+    if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view) && (from.col == 0ULL) && (to.col == 0ULL))
     {
-        to.col = 1ull;
+        to.col = 1ULL;
     }
-    const unsigned long long last = ((to.col == 0ull) && (to.line > from.line)) ? to.line - 1ull : to.line;
-    args->view->anchor = (CliPosition){from.line, 0ull};
+    const unsigned long long last = ((to.col == 0ULL) && (to.line > from.line)) ? to.line - 1ULL : to.line;
+    args->view->anchor = (CliPosition){from.line, 0ULL};
     EMBED_CALL(view_move, ViewCtx, .view = args->view,
-               .place = (last + 1ull < count)
-                            ? (CliPosition){last + 1ull, 0ull}
+               .place = (last + 1ULL < count)
+                            ? (CliPosition){last + 1ULL, 0ULL}
                             : (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
                .extend = 1, .saved = 0);
 }
@@ -2986,8 +2986,8 @@ static void view_ranks_init(void)
 static int view_lines_collated(const CliCompareCfg *args)
 {
     const char *other = args->other;
-    unsigned long long left = 0ull;
-    unsigned long long right = 0ull;
+    unsigned long long left = 0ULL;
+    unsigned long long right = 0ULL;
     while ((left < args->one_length) && (right < args->other_length))
     {
         const unsigned char a = (unsigned char)args->one[left];
@@ -2998,29 +2998,29 @@ static int view_lines_collated(const CliCompareCfg *args)
             unsigned long long b_end = right;
             while ((a_end < args->one_length) && ((unsigned int)((unsigned char)args->one[a_end] - '0') < 10u))
             {
-                a_end += 1ull;
+                a_end += 1ULL;
             }
             while ((b_end < args->other_length) && ((unsigned int)((unsigned char)other[b_end] - '0') < 10u))
             {
-                b_end += 1ull;
+                b_end += 1ULL;
             }
-            while ((left + 1ull < a_end) && (args->one[left] == '0'))
+            while ((left + 1ULL < a_end) && (args->one[left] == '0'))
             {
-                left += 1ull;
+                left += 1ULL;
             }
-            while ((right + 1ull < b_end) && (other[right] == '0'))
+            while ((right + 1ULL < b_end) && (other[right] == '0'))
             {
-                right += 1ull;
+                right += 1ULL;
             }
             if (a_end - left != b_end - right)
             {
                 return (a_end - left < b_end - right) ? -1 : 1;
             }
-            const int digits =
+            const embed_iword digits =
                 memor.cmp(&(MemoriaCfg){.src = args->one + left, .other = other + right, .bytes = a_end - left});
             if (digits != 0)
             {
-                return digits;
+                return (digits < 0) ? -1 : 1;
             }
             left = a_end;
             right = b_end;
@@ -3030,8 +3030,8 @@ static int view_lines_collated(const CliCompareCfg *args)
         {
             return (s_view_ranks[a] < s_view_ranks[b]) ? -1 : 1;
         }
-        left += 1ull;
-        right += 1ull;
+        left += 1ULL;
+        right += 1ULL;
     }
     if ((left < args->one_length) || (right < args->other_length))
     {
@@ -3039,7 +3039,7 @@ static int view_lines_collated(const CliCompareCfg *args)
     }
     // level but for case: a small letter, the greater byte, first
     const unsigned long long shorter = (args->one_length < args->other_length) ? args->one_length : args->other_length;
-    for (unsigned long long at = 0ull; at < shorter; at += 1ull)
+    for (unsigned long long at = 0ULL; at < shorter; at += 1ULL)
     {
         if (args->one[at] != other[at])
         {
@@ -3054,12 +3054,16 @@ static int view_lines_bytes(const CliCompareCfg *args)
 {
     const char *other = args->other;
     const unsigned long long shorter = (args->one_length < args->other_length) ? args->one_length : args->other_length;
-    const int bytes = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = shorter});
+    const embed_iword bytes = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = shorter});
     if (bytes != 0)
     {
-        return bytes;
+        return (bytes < 0) ? -1 : 1;
     }
-    return (args->one_length == args->other_length) ? 0 : ((args->one_length < args->other_length) ? -1 : 1);
+    if (args->one_length == args->other_length)
+    {
+        return 0;
+    }
+    return (args->one_length < args->other_length) ? -1 : 1;
 }
 
 // the `count` lines of `text`, each at its `start` and ending a byte before the next, their numbers in `order` merge
@@ -3085,9 +3089,9 @@ EMBED_INLINE void view_lines_merge(const ViewCtx *args)
                     const unsigned int other = from[right];
                     const int compared =
                         EMBED_CALL(args->compare, CliCompareCfg, .one = args->text + args->start[one],
-                                   .one_length = args->start[one + 1u] - args->start[one] - 1ull,
+                                   .one_length = args->start[one + 1u] - args->start[one] - 1ULL,
                                    .other = args->text + args->start[other],
-                                   .other_length = args->start[other + 1u] - args->start[other] - 1ull);
+                                   .other_length = args->start[other + 1u] - args->start[other] - 1ULL);
                     take_left = (args->descending ? -compared : compared) <= 0;
                 }
                 into[at] = take_left ? from[left] : from[right];
@@ -3111,26 +3115,26 @@ EMBED_INLINE void view_lines_merge(const ViewCtx *args)
 // the call, the text being the edit's own
 static int view_lines_sort(const ViewCtx *args)
 {
-    unsigned long long first = 0ull;
-    unsigned long long last = (EMBED_CALL(view_lines, ViewCtx, .view_read = args->view) != 0ull)
-                                  ? EMBED_CALL(view_lines, ViewCtx, .view_read = args->view) - 1ull
-                                  : 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = (EMBED_CALL(view_lines, ViewCtx, .view_read = args->view) != 0ULL)
+                                  ? EMBED_CALL(view_lines, ViewCtx, .view_read = args->view) - 1ULL
+                                  : 0ULL;
     if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
         EMBED_CALL(view_lines_cover, ViewCtx, .view_read = args->view, .first_pointer = &first, .last_pointer = &last);
     }
     // the lines a text holds are counted by an unsigned int
-    const unsigned int count = (unsigned int)(last - first + 1ull);
+    const unsigned int count = (unsigned int)(last - first + 1ULL);
     if (count < 2u)
     {
         return 1;
     }
     CliViewEdit *const made =
-        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ull},
+        EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = (CliPosition){first, 0ULL},
                    .to = (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
-                   .append_bytes = 0ull, .append_spans = 1ull, .err_msg = args->err_msg);
-    const unsigned long long table = (((unsigned long long)count + 1ull) * sizeof(unsigned long long)) +
-                                     ((unsigned long long)count * ((2ull * sizeof(unsigned int)) + 1ull));
+                   .append_bytes = 0ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
+    const unsigned long long table = (((unsigned long long)count + 1ULL) * sizeof(unsigned long long)) +
+                                     ((unsigned long long)count * ((2ULL * sizeof(unsigned int)) + 1ULL));
     unsigned long long *const start =
         (made != NULL) ? g_cli_cells->temporary_buf_alloc(table, &g_cli_views_cells) : NULL;
     if (start == NULL)
@@ -3144,22 +3148,22 @@ static int view_lines_sort(const ViewCtx *args)
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
     unsigned int line = 0u;
-    start[0] = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    start[0] = 0ULL;
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
         if (consumed[at] == '\n')
         {
             line += 1u;
-            start[line] = at + 1ull;
+            start[line] = at + 1ULL;
         }
     }
-    start[count] = size + 1ull;
+    start[count] = size + 1ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         order[at] = at;
     }
     char *const put = made->put;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     if (args->unique)
     {
         EMBED_CALL(view_lines_merge, ViewCtx, .text = consumed, .start = start, .order = order, .work = work,
@@ -3170,8 +3174,8 @@ static int view_lines_sort(const ViewCtx *args)
             const unsigned int one = order[sorted - 1u];
             const unsigned int other = order[sorted];
             if (EMBED_CALL(view_lines_bytes, CliCompareCfg, .one = consumed + start[one],
-                           .one_length = start[one + 1u] - start[one] - 1ull, .other = consumed + start[other],
-                           .other_length = start[other + 1u] - start[other] - 1ull) == 0)
+                           .one_length = start[one + 1u] - start[one] - 1ULL, .other = consumed + start[other],
+                           .other_length = start[other + 1u] - start[other] - 1ULL) == 0)
             {
                 repeats[other] = 1u;
             }
@@ -3188,12 +3192,12 @@ static int view_lines_sort(const ViewCtx *args)
         const unsigned int each = args->unique ? written : order[written];
         if (!args->unique || !repeats[each])
         {
-            if (at != 0ull)
+            if (at != 0ULL)
             {
                 put[at] = '\n';
-                at += 1ull;
+                at += 1ULL;
             }
-            const unsigned long long length = start[each + 1u] - start[each] - 1ull;
+            const unsigned long long length = start[each + 1u] - start[each] - 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = put + at, .src = consumed + start[each], .bytes = length});
             at += length;
         }
@@ -3266,8 +3270,8 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
     if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
-        unsigned long long start = 0ull;
-        unsigned long long end = 0ull;
+        unsigned long long start = 0ULL;
+        unsigned long long end = 0ULL;
         if (!EMBED_CALL(view_word_span, ViewCtx, .view = args->view, .line = args->view->cursor.line,
                         .col = args->view->cursor.col, .from_u64s = &start, .to_u64s = &end))
         {
@@ -3277,16 +3281,16 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
         to = (CliPosition){args->view->cursor.line, end};
     }
     CliViewEdit *const made = EMBED_CALL(view_edit_cell, ViewCtx, .view = args->view, .from = from, .to = to,
-                                         .append_bytes = 0ull, .append_spans = 1ull, .err_msg = args->err_msg);
+                                         .append_bytes = 0ULL, .append_spans = 1ULL, .err_msg = args->err_msg);
     if (made == NULL)
     {
         return 0;
     }
-    VerbaLinea cased = {made->put, made->consumed_length + 1ull, 0ull};
+    VerbaLinea cased = {made->put, made->consumed_length + 1ULL, 0ULL};
     int in_word = 0;
-    for (unsigned long long at = 0ull; at < made->consumed_length;)
+    for (unsigned long long at = 0ULL; at < made->consumed_length;)
     {
-        unsigned long long bytes = 0ull;
+        unsigned long long bytes = 0ULL;
         const unsigned int unit = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = made->consumed,
                                              .size = made->consumed_length, .at = at, .length = &bytes);
         at += bytes;
@@ -3329,7 +3333,7 @@ EMBED_INLINE void view_bracket_jump(const ViewCtx *args)
     CliPosition pair[2];
     if (EMBED_CALL(view_pair, ViewCtx, .view_read = args->view, .pair = pair))
     {
-        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){pair[1].line, pair[1].col + 1ull},
+        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){pair[1].line, pair[1].col + 1ULL},
                    .extend = 0, .saved = 0);
     }
 }
@@ -3370,7 +3374,7 @@ EMBED_INLINE int view_still_grow(const ViewCtx *args)
 static int view_selection_grow(const ViewCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char *const text = args->view->paged
                            ? NULL
                            : EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->view->key,
@@ -3526,8 +3530,8 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
             // Mod and an arrow scroll a line, the cursor staying; with Alt they would add a cursor, which the view has
             // not
             args->view->top =
-                up ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ull)
-                   : EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ull);
+                up ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ULL)
+                   : EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ULL);
         }
         else if (args->alt && !args->mod)
         {
@@ -3593,12 +3597,12 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
         }
         if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
             EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Backspace") &&
-            (args->view->cursor.col != 0ull))
+            (args->view->cursor.col != 0ULL))
         {
             *reserved = EMBED_CALL(
                 view_edit, ViewCtx, .view = args->view,
                 .from = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor),
-                .to = args->view->cursor, .text = "", .length = 0ull, .kind = CLI_VIEW_KIND_DELETE,
+                .to = args->view->cursor, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
                 .err_msg = args->err_msg);
             return 1;
         }
@@ -3610,7 +3614,7 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
             *reserved =
                 EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = args->view->cursor,
                            .to = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor),
-                           .text = "", .length = 0ull, .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
+                           .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
             return 1;
         }
     }
@@ -3678,7 +3682,7 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     const char *const name = EMBED_CALL(view_key_read, ViewCtx, .name = args->supplied, .mod_pointer = &mod,
                                         .shift_pointer = &shift, .alt_pointer = &alt);
     const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
-    const unsigned long long last = (lines != 0ull) ? lines - 1ull : 0ull;
+    const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
     const unsigned int rows = (args->view->rows > 1u) ? args->view->rows : 1u;
     if (EMBED_CALL(view_find_key, ViewCtx, .view = args->view, .name = name, .mod = mod, .shift = shift, .alt = alt))
     {
@@ -3718,17 +3722,17 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Up"))
     {
-        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = -1ll, .extend = shift);
+        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = -1LL, .extend = shift);
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Down"))
     {
-        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = 1ll, .extend = shift);
+        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = 1LL, .extend = shift);
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Home"))
     {
         if (mod)
         {
-            EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){0ull, 0ull}, .extend = shift,
+            EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){0ULL, 0ULL}, .extend = shift,
                        .saved = 0);
         }
         else
@@ -3737,7 +3741,7 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
                 EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = args->view->cursor.line);
             EMBED_CALL(view_move, ViewCtx, .view = args->view,
                        .place =
-                           (CliPosition){args->view->cursor.line, (args->view->cursor.col == first) ? 0ull : first},
+                           (CliPosition){args->view->cursor.line, (args->view->cursor.col == first) ? 0ULL : first},
                        .extend = shift, .saved = 0);
         }
     }
@@ -3793,7 +3797,7 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     }
     else if (mod && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "A"))
     {
-        args->view->anchor = (CliPosition){0ull, 0ull};
+        args->view->anchor = (CliPosition){0ULL, 0ULL};
         EMBED_CALL(view_move, ViewCtx, .view = args->view,
                    .place = (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)},
                    .extend = 1, .saved = 0);
@@ -3839,10 +3843,10 @@ EMBED_INLINE void view_point(const ViewCtx *args)
     if (args->input->clicks >= 3u)
     {
         const unsigned long long below =
-            EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = line, .count = 1ull);
-        args->view->anchor = (CliPosition){line, 0ull};
+            EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = line, .count = 1ULL);
+        args->view->anchor = (CliPosition){line, 0ULL};
         EMBED_CALL(view_move, ViewCtx, .view = args->view,
-                   .place = (below > line) ? (CliPosition){below, 0ull}
+                   .place = (below > line) ? (CliPosition){below, 0ULL}
                                            : (CliPosition){line, EMBED_CALL(view_length, ViewCtx, .view = args->view,
                                                                             .line = line)},
                    .extend = 1, .saved = 0);
@@ -3880,29 +3884,29 @@ int cli_view_input(const CliViewInputCfg *args)
     }
     else if (args->input->kind == CLI_VIEW_TEXT)
     {
-        const int one = (args->input->length != 0ull) &&
+        const int one = (args->input->length != 0ULL) &&
                         (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->input->text,
-                                    .size = args->input->length) == 1ull);
+                                    .size = args->input->length) == 1ULL);
         const int blank =
-            (args->input->length != 0ull) &&
+            (args->input->length != 0ULL) &&
             ((args->input->text[0] == ' ') || (args->input->text[0] == '\t') || (args->input->text[0] == '\n'));
         const unsigned int kind =
             (one && !blank) ? CLI_VIEW_KIND_TYPE : (one ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_NONE);
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter = one ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->input->text,
-                                                     .size = args->input->length, .at = 0ull, .length = &consumed)
+                                                     .size = args->input->length, .at = 0ULL, .length = &consumed)
                                         : 0u;
         if (view->find_open && view->find_focus)
         {
             // text typed goes into the query, a byte a unit at the most
             unsigned short *const units =
-                g_cli_cells->temporary_buf_alloc((args->input->length + 1ull) * sizeof(*units), &g_cli_views_cells);
+                g_cli_cells->temporary_buf_alloc((args->input->length + 1ULL) * sizeof(*units), &g_cli_views_cells);
             if (units != NULL)
             {
                 EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units,
                            .count = EMBED_CALL(view_units_get, ViewCtx, .text = args->input->text,
                                                .size = args->input->length, .units = units,
-                                               .capacity = args->input->length + 1ull));
+                                               .capacity = args->input->length + 1ULL));
                 g_cli_cells->persistent_buf_release(units, &g_cli_views_cells);
             }
         }
@@ -3923,7 +3927,7 @@ int cli_view_input(const CliViewInputCfg *args)
     else if (args->input->kind == CLI_VIEW_SCROLL)
     {
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
-        const unsigned long long last = (lines != 0ull) ? lines - 1ull : 0ull;
+        const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
         const unsigned long long top = (args->input->top > last) ? last : args->input->top;
         // a top a closed fold hides goes past the fold the way the view scrolls
         view->top = (top > view->top) ? EMBED_CALL(view_displayed_down, ViewCtx, .view_read = view, .line = top)
@@ -3955,7 +3959,7 @@ int cli_view_input(const CliViewInputCfg *args)
         // the cursor placed at the line `row` and the unit `column`, each cut to the text, the top following it
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
         const unsigned long long line =
-            (args->input->row < lines) ? args->input->row : ((lines > 0ull) ? lines - 1ull : 0ull);
+            (args->input->row < lines) ? args->input->row : ((lines > 0ULL) ? lines - 1ULL : 0ULL);
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
         EMBED_CALL(view_move, ViewCtx, .view = view,
                    .place = (CliPosition){line, (args->input->column < length) ? args->input->column : length},
@@ -3964,9 +3968,9 @@ int cli_view_input(const CliViewInputCfg *args)
     // a paged text's pages are told where the view stands and cache the lines about it
     if (view->paged)
     {
-        const unsigned long long rows = (view->rows != 0u) ? view->rows : 1ull;
-        const CliPagesView positioned_view = {view->top,        rows, view->columns, 0ull, 0ull, view->top,
-                                              view->top + rows, 0ull, 0ull};
+        const unsigned long long rows = (view->rows != 0u) ? view->rows : 1ULL;
+        const CliPagesView positioned_view = {view->top,        rows, view->columns, 0ULL, 0ULL, view->top,
+                                              view->top + rows, 0ULL, 0ULL};
         CliPagesPositioned positioned;
         (void)EMBED_CALL(cli_pages_view.view, CliPagesViewCfg, .key = view->key, .view = &positioned_view,
                          .positioned = &positioned);
@@ -3981,19 +3985,19 @@ int cli_view_input(const CliViewInputCfg *args)
 EMBED_INLINE int view_pair(const ViewCtx *args)
 {
     CliPosition *pair = args->pair;
-    unsigned long long low = 0ull;
-    unsigned long long high = 0ull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0ULL;
     (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = args->view_read->key, .low = &low,
                      .high = &high);
     const unsigned long long line = args->view_read->cursor.line;
-    const unsigned long long reach = (line > CLI_VIEW_PAIR_LINES) ? (line - CLI_VIEW_PAIR_LINES) : 0ull;
+    const unsigned long long reach = (line > CLI_VIEW_PAIR_LINES) ? (line - CLI_VIEW_PAIR_LINES) : 0ULL;
     const unsigned long long start = (reach > low) ? reach : low;
     const unsigned long long end =
-        ((high != 0ull) && ((line + CLI_VIEW_PAIR_LINES) >= high)) ? (high - 1ull) : (line + CLI_VIEW_PAIR_LINES);
+        ((high != 0ULL) && ((line + CLI_VIEW_PAIR_LINES) >= high)) ? (high - 1ULL) : (line + CLI_VIEW_PAIR_LINES);
     const unsigned long long first = (start < line) ? start : line;
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = args->view_read->key,
                                   .first = first, .last = last, .size_pointer = &size, .state = state,
                                   .capacity = sizeof(state), .owner = &g_cli_views_cells);
@@ -4023,14 +4027,14 @@ EMBED_INLINE int view_pair(const ViewCtx *args)
 static void view_fold_visit(const CliFoldEachCfg *args)
 {
     CliViewFoldsSeen *const folds = args->context;
-    unsigned long long low = 0ull;
+    unsigned long long low = 0ULL;
     unsigned long long high = folds->displayed->count;
     while (low < high)
     {
-        const unsigned long long middle = low + ((high - low) / 2ull);
+        const unsigned long long middle = low + ((high - low) / 2ULL);
         if (folds->displayed->number[middle] < args->first)
         {
-            low = middle + 1ull;
+            low = middle + 1ULL;
         }
         else
         {
@@ -4041,7 +4045,7 @@ static void view_fold_visit(const CliFoldEachCfg *args)
         (folds->count < folds->displayed->count))
     {
         folds->seen[folds->count] = (CliViewFoldSeen){args->first, args->last, args->displayed};
-        folds->count += 1ull;
+        folds->count += 1ULL;
     }
 }
 
@@ -4061,11 +4065,11 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     {
         return NULL;
     }
-    view->seq += 1ull;
+    view->seq += 1ULL;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
     const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
     view->top = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view,
-                           .line = (view->top < lines) ? view->top : ((lines != 0ull) ? lines - 1ull : 0ull));
+                           .line = (view->top < lines) ? view->top : ((lines != 0ULL) ? lines - 1ULL : 0ULL));
     const unsigned long long from = view->top;
     const unsigned long long rows = (view->rows != 0u) ? view->rows : 1u;
     if (view->find_open)
@@ -4082,29 +4086,29 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     }
     const char **const text = (const char **)(void *)(number + rows);
     CliViewFoldSeen *const seen = (CliViewFoldSeen *)(void *)(text + rows);
-    CliViewRows displayed = {number, text, 0ull};
+    CliViewRows displayed = {number, text, 0ULL};
     for (unsigned long long line = from; (displayed.count < rows) && (line < lines);)
     {
         displayed.number[displayed.count] = line;
-        displayed.count += 1ull;
-        const unsigned long long next = EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = line, .count = 1ull);
+        displayed.count += 1ULL;
+        const unsigned long long next = EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = line, .count = 1ULL);
         if (next <= line)
         {
             break;
         }
         line = next;
     }
-    const unsigned long long to = (displayed.count != 0ull) ? displayed.number[displayed.count - 1ull] + 1ull : from;
+    const unsigned long long to = (displayed.count != 0ULL) ? displayed.number[displayed.count - 1ULL] + 1ULL : from;
     // the folds that open on the rows
-    CliViewFoldsSeen folds = {&displayed, seen, 0ull};
+    CliViewFoldsSeen folds = {&displayed, seen, 0ULL};
     (void)EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = view->key,
                      .each_fold_each = view_fold_visit, .context = &folds);
     // the frame in one cell: the rows, the folds, the matches among the rows, find's query, and the rows' text and the
     // closers, a row or a closer the view's columns at the most and three bytes a unit
     const unsigned long long columns = (view->columns != 0u) ? view->columns : CLI_VIEW_UNSIZED_COLUMNS;
-    const unsigned long long matches_most = view->find_open ? view->matches : 0ull;
-    const unsigned long long query_bytes = view->find_open ? ((3ull * view->find_length) + 1ull) : 1ull;
-    const unsigned long long text_bytes = (displayed.count + folds.count) * columns * 3ull;
+    const unsigned long long matches_most = view->find_open ? view->matches : 0ULL;
+    const unsigned long long query_bytes = view->find_open ? ((3ULL * view->find_length) + 1ULL) : 1ULL;
+    const unsigned long long text_bytes = (displayed.count + folds.count) * columns * 3ULL;
     CliViewFrame *const frame = g_cli_cells->persistent_buf_alloc(
         sizeof(*frame) + (displayed.count * sizeof(CliViewFrameRow)) + (folds.count * sizeof(CliViewFrameFold)) +
             (matches_most * sizeof(*frame->match)) + query_bytes + text_bytes,
@@ -4123,24 +4127,24 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     frame->seq = view->seq;
     frame->top = view->top;
     frame->lines = lines;
-    frame->from = (displayed.count != 0ull) ? displayed.number[0] : from;
+    frame->from = (displayed.count != 0ULL) ? displayed.number[0] : from;
     // a count of rows a window shows is far inside what an unsigned int represents
     frame->count = (unsigned int)displayed.count;
-    VerbaLinea bytes = {frame->bytes, text_bytes, 0ull};
+    VerbaLinea bytes = {frame->bytes, text_bytes, 0ULL};
     if (view->paged)
     {
-        for (unsigned long long at = 0ull; at < displayed.count;)
+        for (unsigned long long at = 0ULL; at < displayed.count;)
         {
             unsigned long long end = at;
-            while ((end + 1ull < displayed.count) && (displayed.number[end + 1ull] == displayed.number[end] + 1ull))
+            while ((end + 1ULL < displayed.count) && (displayed.number[end + 1ULL] == displayed.number[end] + 1ULL))
             {
-                end += 1ull;
+                end += 1ULL;
             }
-            unsigned long long count = 0ull;
+            unsigned long long count = 0ULL;
             char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = view->key,
-                                          .from = displayed.number[at], .to = displayed.number[end] + 1ull,
+                                          .from = displayed.number[at], .to = displayed.number[end] + 1ULL,
                                           .line = displayed.text + at, .count = &count, .owner = &g_cli_views_cells);
-            for (unsigned long long each = at; each <= end; each += 1ull)
+            for (unsigned long long each = at; each <= end; each += 1ULL)
             {
                 const char *const row_text = ((cell != NULL) && ((each - at) < count)) ? displayed.text[each] : "";
                 const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = row_text, .cap = CLI_CELLS_POOL});
@@ -4153,21 +4157,21 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
                 bytes.at += cut;
             }
             g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
-            at = end + 1ull;
+            at = end + 1ULL;
         }
     }
     else
     {
         const CliStoredText *const one =
             EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
-        for (unsigned long long at = 0ull; at < displayed.count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < displayed.count; at += 1ULL)
         {
             const unsigned long long line = displayed.number[at];
             const unsigned long long whole =
-                ((one != NULL) && (line < one->lines.lines)) ? one->lines.length[line] : 0ull;
+                ((one != NULL) && (line < one->lines.lines)) ? one->lines.length[line] : 0ULL;
             const unsigned long long units = (whole < columns) ? whole : columns;
-            frame->row[at] = (CliViewFrameRow){line, bytes.at, 0ull};
-            if (units != 0ull)
+            frame->row[at] = (CliViewFrameRow){line, bytes.at, 0ULL};
+            if (units != 0ULL)
             {
                 const unsigned long long began = bytes.at;
                 EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &bytes,
@@ -4179,7 +4183,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     // the closers after the rows' text; a count of folds among the rows is far inside what an unsigned int represents
     frame->folds = (unsigned int)folds.count;
     frame->closers = bytes.at;
-    for (unsigned long long at = 0ull; at < folds.count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < folds.count; at += 1ULL)
     {
         const CliViewFoldSeen *const one_fold = &folds.seen[at];
         int closed = 0;
@@ -4188,19 +4192,19 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
             closed = closed || (view->fold[each].first == one_fold->first);
         }
         frame->fold[at] = (CliViewFrameFold){
-            one_fold->first, one_fold->last, one_fold->displayed, closed, bytes.at - frame->closers, 0ull};
+            one_fold->first, one_fold->last, one_fold->displayed, closed, bytes.at - frame->closers, 0ULL};
         if (one_fold->displayed)
         {
             const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = one_fold->last);
-            unsigned long long start = 0ull;
+            unsigned long long start = 0ULL;
             unsigned long long end = length;
             while ((start < end) && EMBED_CALL(view_blank_unit, ViewCtx, .unit = view->line_units[start]))
             {
-                start += 1ull;
+                start += 1ULL;
             }
-            while ((end > start) && EMBED_CALL(view_blank_unit, ViewCtx, .unit = view->line_units[end - 1ull]))
+            while ((end > start) && EMBED_CALL(view_blank_unit, ViewCtx, .unit = view->line_units[end - 1ULL]))
             {
-                end -= 1ull;
+                end -= 1ULL;
             }
             const unsigned long long shown = ((end - start) < columns) ? (end - start) : columns;
             const unsigned long long began = bytes.at;
@@ -4215,10 +4219,10 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     frame->indent_tabs = (view->indent.tabs == 1) ? 1 : ((view->indent.tabs == 0) ? 0 : -1);
     frame->indent_size = EMBED_CALL(view_tab, ViewCtx, .view_read = view);
     frame->find.open = view->find_open;
-    frame->find.current = -1ll;
+    frame->find.current = -1LL;
     if (view->find_open)
     {
-        VerbaLinea query_line = {frame->find.query, query_bytes, 0ull};
+        VerbaLinea query_line = {frame->find.query, query_bytes, 0ULL};
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &query_line,
                    .units = view->find_query, .count = view->find_length);
         frame->find.query_length = query_line.at;
@@ -4229,16 +4233,16 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
         frame->find.word = view->find_word;
         frame->find.count = view->matches;
         frame->find.current = view->current;
-        for (unsigned long long at = 0ull; at < view->matches; at += 1ull)
+        for (unsigned long long at = 0ULL; at < view->matches; at += 1ULL)
         {
-            unsigned long long low = 0ull;
+            unsigned long long low = 0ULL;
             unsigned long long high = displayed.count;
             while (low < high)
             {
-                const unsigned long long middle = low + ((high - low) / 2ull);
+                const unsigned long long middle = low + ((high - low) / 2ULL);
                 if (displayed.number[middle] < view->match[at][0])
                 {
-                    low = middle + 1ull;
+                    low = middle + 1ULL;
                 }
                 else
                 {
@@ -4250,7 +4254,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
                 frame->match[frame->matches][0] = view->match[at][0];
                 frame->match[frame->matches][1] = view->match[at][1];
                 frame->match[frame->matches][2] = view->match[at][2];
-                frame->matches += 1ull;
+                frame->matches += 1ULL;
             }
         }
     }
@@ -4279,7 +4283,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
 unsigned long long cli_view_top(const char *key)
 {
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
-    return (view != NULL) ? view->top : 0ull;
+    return (view != NULL) ? view->top : 0ULL;
 }
 
 int cli_view_cursor(const CliViewCursorCfg *args)
@@ -4303,7 +4307,7 @@ int cli_view_cursor(const CliViewCursorCfg *args)
 }
 
 // the bytes the runs of the minimap's lines may take as they are read for their bars
-#define CLI_VIEW_MAP_CAPACITY (1024ull * 1024ull)
+#define CLI_VIEW_MAP_CAPACITY (1024ULL * 1024ULL)
 
 CliDocumentMap *cli_view_map_alloc(const char *key, unsigned long long first, unsigned long long last)
 {
@@ -4327,7 +4331,7 @@ int cli_view_path(const CliViewPathKindCfg *args)
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
-        VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, view->path);
         (void)mmgr_line_finish(&line);
     }
@@ -4339,7 +4343,7 @@ int cli_view_served_set(const CliViewFullCfg *args)
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
-        VerbaLinea line = {view->served, sizeof(view->served), 0ull};
+        VerbaLinea line = {view->served, sizeof(view->served), 0ULL};
         mmgr_line_put(&line, args->full);
         (void)mmgr_line_finish(&line);
         view->changed = 0;
@@ -4353,7 +4357,7 @@ int cli_view_serve(const CliViewFullKindCfg *args)
     const int served = (view != NULL) && (view->served[0] != '\0');
     if (served)
     {
-        VerbaLinea line = {args->full_out, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->full_out, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, view->served);
         (void)mmgr_line_finish(&line);
     }
@@ -4392,17 +4396,17 @@ EMBED_INLINE int view_word_span(const ViewCtx *args)
     const unsigned long long length = view_length(args);
     unsigned long long start = (args->col < length) ? args->col : length;
     unsigned long long end = start;
-    while ((start > 0ull) && EMBED_CALL(view_word_unit, ViewCtx,
+    while ((start > 0ULL) && EMBED_CALL(view_word_unit, ViewCtx,
                                         .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line,
-                                                           .col = start - 1ull)))
+                                                           .col = start - 1ULL)))
     {
-        start -= 1ull;
+        start -= 1ULL;
     }
     while ((end < length) &&
            EMBED_CALL(view_word_unit, ViewCtx,
                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = end)))
     {
-        end += 1ull;
+        end += 1ULL;
     }
     *from = start;
     *to = end;
@@ -4430,7 +4434,7 @@ int cli_view_word_at(const CliViewLineCfg *args)
                                      .col = args->col_value, .from_u64s = args->from, .to_u64s = args->to);
     if (found)
     {
-        VerbaLinea text = {args->word, args->capacity, 0ull};
+        VerbaLinea text = {args->word, args->capacity, 0ULL};
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &text,
                    .units = view->line_units + *args->from, .count = *args->to - *args->from);
         (void)mmgr_line_finish(&text);
@@ -4451,14 +4455,14 @@ int cli_view_prefix(const CliViewFromCfg *args)
     unsigned long long start = (end < EMBED_CALL(view_length, ViewCtx, .view = view, .line = line))
                                    ? end
                                    : EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
-    while ((start > 0ull) &&
+    while ((start > 0ULL) &&
            EMBED_CALL(view_word_unit, ViewCtx,
-                      .unit = EMBED_CALL(view_unit, ViewCtx, .view = view, .line = line, .col = start - 1ull)))
+                      .unit = EMBED_CALL(view_unit, ViewCtx, .view = view, .line = line, .col = start - 1ULL)))
     {
-        start -= 1ull;
+        start -= 1ULL;
     }
     *from = start;
-    VerbaLinea text = {args->prefix, args->capacity, 0ull};
+    VerbaLinea text = {args->prefix, args->capacity, 0ULL};
     if (end > start)
     {
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &text,
@@ -4470,7 +4474,7 @@ int cli_view_prefix(const CliViewFromCfg *args)
 
 // the hash table's entries, a power of two above the most words, each a word's offset in the text plus one, 0 for an
 // empty entry, and its length
-#define CLI_VIEW_WORD_TABLE 8192ull
+#define CLI_VIEW_WORD_TABLE 8192ULL
 
 CliDocumentWords *cli_view_words_alloc(const char *key)
 {
@@ -4480,7 +4484,7 @@ CliDocumentWords *cli_view_words_alloc(const char *key)
         return NULL;
     }
     const CliPosition cursor = view->cursor;
-    const unsigned long long first = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ull;
+    const unsigned long long first = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ULL;
     return EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = key, .first = first,
                       .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .owner = &g_cli_views_cells);
 }

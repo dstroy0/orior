@@ -35,8 +35,8 @@ unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args
         }
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    if ((length >= 5ull) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 5ull, .other = ".spec", .cap = CLI_CELLS_POOL})))
+    if ((length >= 5ULL) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 5ULL, .other = ".spec", .cap = CLI_CELLS_POOL})))
     {
         return CLI_KIND_PYINSTALLER;
     }
@@ -57,8 +57,9 @@ unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args
 int cli_text_read(const CliExecutablesCapacityCtx *args)
 {
     const unsigned long long size =
-        qry_member_file_read(args->path, (unsigned char *)args->bytes, args->capacity - 1ull);
-    if (size == QRY_MEMBER_UNREAD)
+        qry_member_file_read(args->path, (unsigned char *)args->bytes, args->capacity - 1ULL);
+    // QRY_MEMBER_UNREAD stands above every size
+    if (size >= args->capacity)
     {
         args->bytes[0] = '\0';
         return 0;
@@ -69,13 +70,13 @@ int cli_text_read(const CliExecutablesCapacityCtx *args)
 
 char *cli_text_alloc(const CliExecutablesWalkCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char *const text =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
-            ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_executables_cells)
+            ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_executables_cells)
             : NULL;
     if ((text != NULL) && !EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
-                                      .path = args->path, .bytes = text, .capacity = size + 1ull))
+                                      .path = args->path, .bytes = text, .capacity = size + 1ULL))
     {
         g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
         return NULL;
@@ -138,11 +139,11 @@ void cli_executables_walk_free(const CliExecutablesWalkCtx *args)
 
 int cli_executables_join(const CliExecutablesNameOutFolderCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 int cli_executables_pass(const CliExecutablesNameOutFolderCtx *args)
@@ -232,7 +233,7 @@ EMBED_INLINE const char *cli_base(const ExecutablesReadCtx *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     return name;
 }
 
@@ -435,10 +436,10 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
             const char *const entry = s_scripts->names.value[at];
             const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL});
             one->commonjs =
-                ((length >= 4ull) && (cellul.eq(&(CatenaFinitaCfg){
-                                         .src = entry + length - 4ull, .other = ".cjs", .cap = CLI_CELLS_POOL}))) ||
-                ((length >= 3ull) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = entry + length - 3ull, .other = ".js", .cap = CLI_CELLS_POOL})) &&
+                ((length >= 4ULL) && (cellul.eq(&(CatenaFinitaCfg){
+                                         .src = entry + length - 4ULL, .other = ".cjs", .cap = CLI_CELLS_POOL}))) ||
+                ((length >= 3ULL) &&
+                 (cellul.eq(&(CatenaFinitaCfg){.src = entry + length - 3ULL, .other = ".js", .cap = CLI_CELLS_POOL})) &&
                  !module);
             const char *trimmed = entry;
             while (cellul.starts(&(CatenaFinitaCfg){.src = trimmed, .other = "./", .cap = CLI_CELLS_POOL}))

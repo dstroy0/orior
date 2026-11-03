@@ -41,7 +41,7 @@ EMBED_INLINE unsigned long long references_word(const GradleReferencesCtx *args)
     unsigned long long end = at;
     while (end < g_cli_gradle.size)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
                         .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = g_cli_gradle.text,
                                              .size = g_cli_gradle.size, .at = end, .length = &length)))
@@ -158,7 +158,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
         {
             continue;
         }
-        VerbaLinea known = {s_known, sizeof(s_known), 0ull};
+        VerbaLinea known = {s_known, sizeof(s_known), 0ULL};
         EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                    .alias = args->aliases->text + alias->alias_at, .size = alias->alias_size, .out = &known);
         if ((known.at == path_size) &&
@@ -181,13 +181,13 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
         cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = found, .message = &msg, .lines = lines,
         .from = from[path_from], .to = to[args->count - 1u], .severity = CLI_BUILD_ERROR, .code = "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
-    const unsigned long long capacity = args->aliases->used + 1ull;
+    const unsigned long long capacity = args->aliases->used + 1ULL;
     char *const accessors = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_gradle_cells);
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (accessors != NULL) && (at < args->aliases->count); at += 1u)
     {
         const CliVersionsAlias *const alias = &args->aliases->alias[at];
-        VerbaLinea known = {accessors + used, capacity - used, 0ull};
+        VerbaLinea known = {accessors + used, capacity - used, 0ULL};
         if (alias->section != section)
         {
             continue;
@@ -225,14 +225,14 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
     const char *const text = g_cli_gradle.text;
     const unsigned long long size = g_cli_gradle.size;
     const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at + name_size + 1u <= size; at += 1u)
+    for (unsigned long long at = 0ULL; at + name_size + 1u <= size; at += 1u)
     {
         if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = (size_t)name_size}) != 0) ||
             (text[at + name_size] != '.') || (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE))
         {
             continue;
         }
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int before = (at > 0u) ? EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
                                                            .text = text, .end_value = at, .length = &length)
                                               : ' ';

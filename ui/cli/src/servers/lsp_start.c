@@ -8,7 +8,7 @@
 #include "lsp_internal.h"
 
 // how long the server has to answer that it started, in milliseconds
-#define CLI_LSP_STARTING 30000ull
+#define CLI_LSP_STARTING 30000ULL
 
 // what orior_cli can do, as it informs a server it starts
 static const char s_capabilities[] =
@@ -70,12 +70,12 @@ static CliLsp *lsp_position_alloc(void)
         lsp->ended = 0;
         memor.set(&(MemoriaCfg){.dst = &lsp->spawned, .val = 0, .bytes = sizeof(lsp->spawned)});
         lsp->wake = (CliWake)CLI_WAKE_INIT;
-        lsp->next = 1ull;
+        lsp->next = 1ULL;
         memor.set(&(MemoriaCfg){.dst = lsp->waiters, .val = 0, .bytes = sizeof(lsp->waiters)});
-        lsp->complaint_size = 0ull;
+        lsp->complaint_size = 0ULL;
         lsp->read_state = 0u;
         lsp->capabilities = NULL;
-        lsp->capabilities_size = 0ull;
+        lsp->capabilities_size = 0ULL;
         lsp->input = (CliLspWriter){lsp_input_write, lsp};
     }
     return lsp;
@@ -117,7 +117,7 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     mmgr_line_put(out, "}],\"capabilities\":");
     mmgr_line_put(out, s_capabilities);
     mmgr_line_put(out, ",\"initializationOptions\":");
-    mmgr_line_put_n(out, (length > 0ull) ? args->options : "null", (length > 0ull) ? length : 4ull);
+    mmgr_line_put_n(out, (length > 0ULL) ? args->options : "null", (length > 0ULL) ? length : 4ULL);
     mmgr_line_put(out, ",\"clientInfo\":{\"name\":\"orior\"}}");
 }
 
@@ -158,12 +158,12 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     // the params in a cell of the most they hold: the tree's URI twice, its folder's name escaped, what orior can do,
     // the server's options and the members around them
     const unsigned long long params_capacity =
-        (CLI_PATH_MAX_LEN * 12ull) + sizeof(s_capabilities) + args->length + 256ull;
+        (CLI_PATH_MAX_LEN * 12ULL) + sizeof(s_capabilities) + args->length + 256ULL;
     char *const params_text = g_cli_cells->temporary_buf_alloc(params_capacity, &g_cli_servers_cells);
     VerbaLinea params = mmgr_line_over(params_text, params_capacity);
     EMBED_CALL(lsp_initialize_params, LspStartCtx, .root = args->root, .options = args->options, .length = args->length,
                .out = &params);
-    CliLspAnswer answer = {NULL, NULL, 0ull};
+    CliLspAnswer answer = {NULL, NULL, 0ULL};
     const unsigned long long err_from = args->err_msg->at;
     if (!mmgr_line_ok(&params))
     {
@@ -178,9 +178,9 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 200u);
         char complaint[CLI_LSP_COMPLAINT];
-        VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ull};
+        VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ULL};
         EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = lsp, .out = &complaint_line);
-        if ((complaint_line.at > 0ull) && (args->err_msg->at > err_from))
+        if ((complaint_line.at > 0ULL) && (args->err_msg->at > err_from))
         {
             mmgr_line_put(args->err_msg, ": ");
             mmgr_line_put_n(args->err_msg, complaint, complaint_line.at);
@@ -189,12 +189,12 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
         return NULL;
     }
     // what the server reported it can do, in a cell of its size
-    unsigned long long at = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long size = 0ULL;
     const int has = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer.text, .size_value = answer.size,
                                .name = "capabilities", .start = &at, .length_pointer = &size);
-    lsp->capabilities_size = has ? size : 4ull;
-    lsp->capabilities = g_cli_cells->persistent_buf_alloc(lsp->capabilities_size + 1ull, &g_cli_servers_cells);
+    lsp->capabilities_size = has ? size : 4ULL;
+    lsp->capabilities = g_cli_cells->persistent_buf_alloc(lsp->capabilities_size + 1ULL, &g_cli_servers_cells);
     if (lsp->capabilities != NULL)
     {
         // a member of the reply, which a size_t counts
@@ -204,8 +204,8 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     }
     g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unsent = {why, sizeof(why), 0ull};
+    VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = lsp, .method = "initialized",
-                     .params = "{}", .length = 2ull, .err_msg = &unsent);
+                     .params = "{}", .length = 2ULL, .err_msg = &unsent);
     return lsp;
 }

@@ -36,7 +36,7 @@ void cli_run_line(const CliRunnerRunStreamCtx *args)
     }
     cli_runs_release();
     const CliRunEvent event = {
-        CLI_RUN_EVENT_LINE, args->run->run, NULL, args->stream, text, 0, 0ll, 0, NULL, 0u, NULL, ms};
+        CLI_RUN_EVENT_LINE, args->run->run, NULL, args->stream, text, 0, 0LL, 0, NULL, 0u, NULL, ms};
     EMBED_CALL(args->run->sink.emit, CliEachEventCfg, .context = args->run->sink.context, .event = &event);
 }
 
@@ -86,13 +86,13 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     unsigned long long length = args->length;
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
                         .set = "\n\r");
-    const unsigned long long capacity = (3ull * length) + 1ull;
+    const unsigned long long capacity = (3ULL * length) + 1ULL;
     char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_runs_cells);
     if (text == NULL)
     {
         return;
     }
-    VerbaLinea line = {text, capacity, 0ull};
+    VerbaLinea line = {text, capacity, 0ULL};
     const unsigned char *at = (const unsigned char *)args->bytes;
     const unsigned char *const end = at + length;
     while (at < end)
@@ -118,7 +118,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
 {
     const char *bytes = args->bytes;
-    if (args->transport->pending_size == 0ull)
+    if (args->transport->pending_size == 0ULL)
     {
         EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = bytes, .length = args->size);
         return;
@@ -127,7 +127,7 @@ EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
         .dst = args->transport->pending + args->transport->pending_size, .src = bytes, .bytes = (size_t)args->size});
     EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = args->transport->pending,
                .length = args->transport->pending_size + args->size);
-    args->transport->pending_size = 0ull;
+    args->transport->pending_size = 0ULL;
 }
 
 static CliWake s_transferred_wake = CLI_WAKE_INIT;
@@ -142,19 +142,19 @@ EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
         const unsigned long long got =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = args->transport->pipe, .piece = piece, .capacity = sizeof(piece));
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
-        unsigned long long from = 0ull;
-        for (unsigned long long at = 0ull; at < got; at += 1ull)
+        unsigned long long from = 0ULL;
+        for (unsigned long long at = 0ULL; at < got; at += 1ULL)
         {
-            const unsigned long long pending_size = args->transport->pending_size + (at + 1ull - from);
+            const unsigned long long pending_size = args->transport->pending_size + (at + 1ULL - from);
             if ((piece[at] == '\n') || (pending_size == CLI_TRANSFERRED_LINE))
             {
                 EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = piece + from,
-                           .size = at + 1ull - from);
-                from = at + 1ull;
+                           .size = at + 1ULL - from);
+                from = at + 1ULL;
             }
         }
         if ((got > from) && (args->transport->pending != NULL))
@@ -171,9 +171,9 @@ EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
                        .length = got - from);
         }
     }
-    if (args->transport->pending_size != 0ull)
+    if (args->transport->pending_size != 0ULL)
     {
-        EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = "", .size = 0ull);
+        EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = "", .size = 0ULL);
     }
 }
 
@@ -188,8 +188,8 @@ static void cli_errors_machine_transfer(void *context)
 void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
 {
     // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
-    CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ull};
-    CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ull};
+    CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ULL};
+    CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ULL};
     out_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
     err_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
     CliTransport *const out = &out_transport;
@@ -276,11 +276,11 @@ static void cli_page_each(const CliEachNameIsFolderCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".html", .cap = CLI_CELLS_POOL})))
     {
         char path[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {path, sizeof(path), 0ull};
+        VerbaLinea line = {path, sizeof(path), 0ULL};
         mmgr_line_put(&line, walk->folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, args->name);
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = walk->root, .path = path, .views = walk->views,
                        .count = walk->count);
@@ -303,11 +303,11 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index);
         while (at[0] != '\0')
         {
-            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                              .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
                              .set = CLI_TEXT_WHITE);
             const char *end = at;
-            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                               .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
                               .set = CLI_TEXT_WHITE);
             // the word trimmed of the quotes, commas and colons about it
@@ -327,9 +327,9 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             {
                 char word[CLI_PATH_MAX_LEN];
                 char path[CLI_PATH_MAX_LEN];
-                VerbaLinea line = {word, sizeof(word), 0ull};
+                VerbaLinea line = {word, sizeof(word), 0ULL};
                 mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
-                if (mmgr_line_finish(&line) != 0ull)
+                if (mmgr_line_finish(&line) != 0ULL)
                 {
                     const int whole = (word[0] == '/') || (word[0] == '\\') || ((word[0] != '\0') && (word[1] == ':'));
                     if (whole)

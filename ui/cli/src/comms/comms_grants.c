@@ -13,7 +13,7 @@ int cli_comms_grants(const CliCommsGrantCfg *args)
         return 1;
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->grant, .cap = CLI_CELLS_POOL});
-    // a grant ending in /* names every channel under the name before it
+    // a grant ending in a slash and a star names every channel under the name before it
     if ((length < 2u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->grant + length - 2u, .other = "/*", .cap = CLI_CELLS_POOL})))
     {
@@ -53,10 +53,10 @@ int cli_comms_within(const CliCommsInnerCfg *args)
     {
         return EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = args->outer, .channel = args->inner);
     }
-    VerbaLinea inner_line = {inner_under, sizeof(inner_under), 0ull};
+    VerbaLinea inner_line = {inner_under, sizeof(inner_under), 0ULL};
     mmgr_line_put_n(&inner_line, args->inner, inner_length - 2u);
     mmgr_line_finish(&inner_line);
-    VerbaLinea outer_line = {outer_under, sizeof(outer_under), 0ull};
+    VerbaLinea outer_line = {outer_under, sizeof(outer_under), 0ULL};
     mmgr_line_put_n(&outer_line, args->outer, outer_length - 2u);
     mmgr_line_finish(&outer_line);
     return (cellul.eq(&(CatenaFinitaCfg){.src = inner_under, .other = outer_under, .cap = CLI_CELLS_POOL})) ||

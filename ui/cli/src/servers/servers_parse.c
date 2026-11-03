@@ -36,14 +36,6 @@ typedef struct
     CliInspectSpan *range;
 } CliServersParseWorkState;
 
-// the parse's storage, the parse and whether it is orior's own, the text it is of, and what the servers answer, under
-// the reading's lock
-static CliServersParseWorkState s_work_state;
-static CliParsed s_parsed;
-static int s_coordinates;
-static char *s_text;
-static CliServersReadState s_read_state = {0};
-
 typedef struct
 {
     unsigned int count;
@@ -77,10 +69,10 @@ typedef struct
 } ServersParseCtx;
 unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args)
 {
-    unsigned long long hash = 14695981039346656037ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long hash = 14695981039346656037ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        hash = (hash ^ (unsigned char)args->text[at]) * 1099511628211ull;
+        hash = (hash ^ (unsigned char)args->text[at]) * 1099511628211ULL;
     }
     return hash;
 }
@@ -91,7 +83,7 @@ void cli_servers_forget_tokens(void)
     {
         CliKeyedEntry *const one =
             EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_parses, .at = at);
-        CliServersParseHead head = {0ull, 1u, 0u, 0u, 0u, 0u};
+        CliServersParseHead head = {0ULL, 1u, 0u, 0u, 0u, 0u};
         const unsigned long long text_at = (unsigned long long)one->key_size + 1u + one->adjacent_size + 1u;
         if (one->used && (one->size - text_at - 1u >= sizeof(head)))
         {

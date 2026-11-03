@@ -140,7 +140,7 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
     EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx, .text = args->folder_read, .out = dir,
                .capacity = sizeof(dir));
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ULL);
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
                    .manifest = manifest, .id = args->id, .err_msg = args->err_msg);
@@ -214,11 +214,11 @@ int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args)
         return 0;
     }
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = args->id, .err_msg = &err_msg);
     const int found =
         (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg,
@@ -232,9 +232,9 @@ EMBED_INLINE unsigned long long found_hash(const ToolchainsChosenCtx *args)
 {
     unsigned long long hash = args->hash;
     const unsigned char *const at = args->bytes;
-    for (unsigned long long one = 0ull; one < args->size; one += 1ull)
+    for (unsigned long long one = 0ULL; one < args->size; one += 1ULL)
     {
-        hash = (hash ^ at[one]) * 1099511628211ull;
+        hash = (hash ^ at[one]) * 1099511628211ULL;
     }
     return hash;
 }
@@ -246,8 +246,8 @@ EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
     const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
     static unsigned long long s_manifest;
     // the manifest is built into the program, and is hashed once
-    s_manifest = (s_manifest != 0ull) ? s_manifest
-                                      : EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = 14695981039346656037ull,
+    s_manifest = (s_manifest != 0ULL) ? s_manifest
+                                      : EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = 14695981039346656037ULL,
                                                    .bytes = g_cli_toolchains_json, .size = g_cli_toolchains_json_size);
     unsigned long long hash = s_manifest;
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -259,13 +259,20 @@ EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         char file[CLI_PATH_MAX_LEN];
-        unsigned long long stamp[2] = {0ull, 0ull};
+        unsigned long long stamp[2] = {0ULL, 0ULL};
         if (EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = s_files[at], .path = file))
         {
             (void)EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = file, .size_pointer = &stamp[0],
                              .changed = &stamp[1]);
         }
-        hash = EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = hash, .bytes = stamp, .size = sizeof(stamp));
+        // each number's bytes taken low to high
+        for (unsigned int word = 0u; word < 2u; word += 1u)
+        {
+            for (unsigned int shift = 0u; shift < 64u; shift += 8u)
+            {
+                hash = (hash ^ ((stamp[word] >> shift) & 0xffULL)) * 1099511628211ULL;
+            }
+        }
     }
     return hash;
 }
@@ -341,7 +348,7 @@ static void found_current(const ToolchainsChosenCtx *args)
             EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "toolchains_found.json", .path = path);
         const unsigned int root_node =
             EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &json,
-                       .path_read = named ? path : "", .nodes_more = 0u, .text_more = 0ull);
+                       .path_read = named ? path : "", .nodes_more = 0u, .text_more = 0ULL);
         const char *const hex =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -352,7 +359,7 @@ static void found_current(const ToolchainsChosenCtx *args)
             // a hex digit read as its value, which an unsigned long long represents
             const unsigned long long digit =
                 (*at >= 'a') ? (unsigned long long)(*at - 'a' + 10) : (unsigned long long)(*at - '0');
-            s_found.against = (s_found.against << 4u) | (digit & 0xFull);
+            s_found.against = (s_found.against << 4u) | (digit & 0xFULL);
         }
         const unsigned int tools = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = root_node, .name = "tools");
@@ -407,7 +414,7 @@ static void found_write(void)
     char hex[17];
     for (unsigned int at = 0u; at < 16u; at += 1u)
     {
-        hex[at] = "0123456789abcdef"[(s_found.against >> ((15u - at) * 4u)) & 0xFull];
+        hex[at] = "0123456789abcdef"[(s_found.against >> ((15u - at) * 4u)) & 0xFULL];
     }
     hex[16] = '\0';
     CliFileWriting file;
@@ -416,7 +423,7 @@ static void found_write(void)
     {
         return;
     }
-    VerbaLinea out = {piece, sizeof(piece), 0ull, cli_file_write_chunk, &file, 0ull};
+    VerbaLinea out = {piece, sizeof(piece), 0ULL, cli_file_write_chunk, &file, 0ULL};
     mmgr_line_put(&out, "{\n  \"against\": \"");
     mmgr_line_put(&out, hex);
     mmgr_line_put(&out, "\",\n  \"tools\": {");
@@ -464,7 +471,7 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
         const unsigned long long cut_end = EMBED_CALL(
             cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->found->folder,
             .at = cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        cut = (cut_end != 0ull) ? (args->found->folder + (cut_end - 1ull)) : cut;
+        cut = (cut_end != 0ULL) ? (args->found->folder + (cut_end - 1ULL)) : cut;
         *cut = '\0';
     }
     return cached;

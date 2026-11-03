@@ -79,23 +79,23 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
 
 void query_part_read(const QueryPairsPartNameCtx *args)
 {
-    VerbaLinea line = {args->name, args->capacity, 0ull};
+    VerbaLinea line = {args->name, args->capacity, 0ULL};
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at < whole;)
+    for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->part, .at = at, .size = whole, .set = "_");
         const size_t from = line.at;
         const size_t reserved = mmgr_line_put_n(&line, args->part + at, (size_t)(stop - at));
         EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = line.out + from, .size = reserved);
-        at = stop + 1ull;
+        at = stop + 1ULL;
     }
     mmgr_line_finish(&line);
 }
 
 int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args)
 {
-    QueryContext *context = args->context;
+    const QueryContext *context = args->context;
     VerbaLinea *err_msg = args->err_msg;
     static char s_transport[QUERY_PATH_MAX_LEN];
     static char s_cross[QUERY_PATH_MAX_LEN];
@@ -112,7 +112,7 @@ int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args)
     char machine[QUERY_PATH_MAX_LEN];
     char layout[QUERY_PATH_MAX_LEN];
     char name[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {name, sizeof(name), 0ull};
+    VerbaLinea line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&line, QUERY_TABLE "/");
     mmgr_line_put(&line, args->part);
     mmgr_line_put(&line, ".khw");
@@ -186,7 +186,7 @@ void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args)
 
 int query_pairs_configs(const QueryPairsPartContextCtx *args)
 {
-    QueryContext *context = args->context;
+    const QueryContext *context = args->context;
     QueryRun *run = args->run_out;
     VerbaLinea *err_msg = args->err_msg;
     static const char *const s_kinds[3] = {"khw", "ksc", "kqr"};
@@ -195,7 +195,7 @@ int query_pairs_configs(const QueryPairsPartContextCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         char name[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {name, sizeof(name), 0ull};
+        VerbaLinea line = {name, sizeof(name), 0ULL};
         mmgr_line_put(&line, QUERY_TABLE "/");
         mmgr_line_put(&line, args->part);
         mmgr_line_ch(&line, '.');
@@ -226,7 +226,7 @@ int query_host_answer(const QueryPairsContextCtx *args)
     const QueryRun *run = args->run;
     VerbaLinea *err_msg = args->err_msg;
     const unsigned char *questions = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &run->writer,
                     .name = "host_questions.cpp", .bytes_u8s = &questions, .size_pointer = &size))
     {
@@ -236,13 +236,13 @@ int query_host_answer(const QueryPairsContextCtx *args)
     char source[QUERY_PATH_MAX_LEN];
     char program[QUERY_PATH_MAX_LEN];
     char base[64];
-    VerbaLinea source_line = {source, sizeof(source), 0ull};
+    VerbaLinea source_line = {source, sizeof(source), 0ULL};
     mmgr_line_put(&source_line, args->out);
     mmgr_line_put(&source_line, "/host_questions.cpp");
     mmgr_line_finish(&source_line);
     EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "host_questions", .binary = base,
                .capacity = sizeof(base));
-    VerbaLinea program_line = {program, sizeof(program), 0ull};
+    VerbaLinea program_line = {program, sizeof(program), 0ULL};
     mmgr_line_put(&program_line, args->out);
     mmgr_line_ch(&program_line, '/');
     mmgr_line_put(&program_line, base);
@@ -266,14 +266,14 @@ int query_host_answer(const QueryPairsContextCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = s_compile, .src = compile, .bytes = sizeof(compile)});
     s_compile[7] = source;
     s_compile[8] = NULL;
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "host_questions_compile", .words = s_compile, .code = &code,
                     .err_msg = err_msg))
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "the host questions did not compile");
         return 0;
@@ -285,7 +285,7 @@ int query_host_answer(const QueryPairsContextCtx *args)
     {
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "the host questions did not run");
         return 0;
@@ -345,7 +345,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
     {
         char name[QUERY_PATH_MAX_LEN];
         char path[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {name, sizeof(name), 0ull};
+        VerbaLinea line = {name, sizeof(name), 0ULL};
         mmgr_line_put(&line, QUERY_TABLE "/");
         mmgr_line_put(&line, mode->part);
         mmgr_line_ch(&line, '.');
@@ -378,9 +378,9 @@ static int query_pairs_mode_run(const PairsCtx *args)
         for (unsigned int at = 0u; at < 8u; at += 1u)
         {
             // the seed's bytes, the low first
-            s_seed_setting[at] = (unsigned char)((seed >> (8u * at)) & 0xffull);
+            s_seed_setting[at] = (unsigned char)((seed >> (8u * at)) & 0xffULL);
         }
-        context->setting[context->settings] = (QuerySetting){"identity.seed", s_seed_setting, 8ull};
+        context->setting[context->settings] = (QuerySetting){"identity.seed", s_seed_setting, 8ULL};
         context->settings += 1u;
     }
     // the vendor's writer, which assembles every text of the vendor's language the identity puts, and its words but
@@ -402,7 +402,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
     context->setting[context->settings] = (QuerySetting){"identity.writer", s_writer_setting, sizeof(s_writer_setting)};
     context->settings += 1u;
     // the ruleset of the language the mode writes forms in, which the identity reads its forms from
-    VerbaLinea ruleset = {s_ruleset_setting, sizeof(s_ruleset_setting), 0ull};
+    VerbaLinea ruleset = {s_ruleset_setting, sizeof(s_ruleset_setting), 0ULL};
     mmgr_line_put(&ruleset, mode->to);
     mmgr_line_put(&ruleset, ".krs");
     context->setting[context->settings] = (QuerySetting){"identity.ruleset", s_ruleset_setting, ruleset.at};

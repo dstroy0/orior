@@ -26,7 +26,7 @@ EMBED_INLINE void query_work_by_name(const LearnStepsCtx *args)
     char work[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_LEARN_WORK, .path_out = work);
-    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, work);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
@@ -63,7 +63,7 @@ EMBED_INLINE int query_learn_clock(const LearnStepsCtx *args)
     }
     const char *const read[1] = {args->files->costs};
     const char *const words[6] = {s_clock, args->files->costs, args->step->word, args->step->base, "10", NULL};
-    long long code = -1ll;
+    long long code = -1LL;
     const int run_result = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                                       .paths_letters = read, .count = 1u, .err_msg = err_msg) &&
                            EMBED_CALL(query_loops_context_err_msg_name_run.context_teed,
@@ -104,7 +104,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     EMBED_CALL(query_learn_words_words_internal.teacher_words, QueryLearnWordsWordsCtx, .words_words_pointer = &s_words,
                .machine = files->machine, .files = files, .writer = writer);
     char step_word[64];
-    VerbaLinea step_line = {step_word, sizeof(step_word), 0ull};
+    VerbaLinea step_line = {step_word, sizeof(step_word), 0ULL};
     mmgr_line_put(&step_line, "--");
     mmgr_line_put(&step_line, (args->step->kind == QUERY_LEARN_PASS) ? args->step->word : "discover");
     mmgr_line_finish(&step_line);
@@ -121,14 +121,14 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     {
         static char s_seeds[QUERY_PATH_MAX_LEN];
         const char *const seeds[4] = {s_seeds, args->step->word, "--modifiers", NULL};
-        long long seeded = -1ll;
+        long long seeded = -1LL;
         whole =
             EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                        .name = "orior_sass_listing_seeds", .binary = s_seeds, .err_msg = err_msg) &&
             EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
                        .context = context, .run = &s_run, .name = "seeds.txt", .words = seeds, .code = &seeded,
                        .err_msg = err_msg);
-        if (whole && (seeded != 0ll))
+        if (whole && (seeded != 0LL))
         {
             mmgr_line_put(err_msg, "the seeds were not handed");
             whole = 0;
@@ -143,7 +143,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
         whole = EMBED_CALL(query_loops_context_err_msg.base_compile, QueryLoopsContextErrMsgCfg, .context = context,
                            .run = &s_run, .base = args->step->base, .err_msg = err_msg);
     }
-    long long code = -1ll;
+    long long code = -1LL;
     if (whole)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
@@ -239,7 +239,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     EMBED_CALL(query_learn_words_words_internal.teacher_words, QueryLearnWordsWordsCtx, .words_words_pointer = &s_words,
                .machine = machine, .files = files, .writer = writer);
     char rounds[32];
-    VerbaLinea rounds_line = {rounds, sizeof(rounds), 0ull};
+    VerbaLinea rounds_line = {rounds, sizeof(rounds), 0ULL};
     mmgr_line_decimal(&rounds_line, args->step->rounds, 0u);
     mmgr_line_finish(&rounds_line);
     if (args->step->kind == QUERY_LEARN_ENUMERATE)
@@ -260,12 +260,12 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                        .word = forms);
             char line[128];
-            VerbaLinea print_line = {line, sizeof(line), 0ull};
+            VerbaLinea print_line = {line, sizeof(line), 0ULL};
             mmgr_line_put(&print_line, "  seeding from the ");
             mmgr_line_decimal(&print_line, seeded, 0u);
             mmgr_line_put(&print_line, " forms in ");
             mmgr_line_put(&print_line, forms);
-            if (mmgr_line_finish(&print_line) != 0ull)
+            if (mmgr_line_finish(&print_line) != 0ULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
             }
@@ -294,13 +294,13 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     s_teacher[0] = args->teacher;
     memor.cpy(&(MemoriaCfg){
         .dst = &s_teacher[1], .src = s_words.word, .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
-    long long code = -1ll;
+    long long code = -1LL;
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                 .context = context, .run = &s_run, .name = "orior_khw_learn", .words = s_teacher,
                                 .code = &code, .err_msg = err_msg);
     if (whole && (args->step->kind != QUERY_LEARN_ROUNDS))
     {
-        if (code != 0ll)
+        if (code != 0LL)
         {
             mmgr_line_put(err_msg, (args->step->kind == QUERY_LEARN_DRY) ? "the protocol did not run dry"
                                                                          : "the enumerate did not run");
@@ -315,24 +315,24 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             whole = 0;
         }
         char line[QUERY_PATH_MAX_LEN + 128u];
-        VerbaLinea print_line = {line, sizeof(line), 0ull};
+        VerbaLinea print_line = {line, sizeof(line), 0ULL};
         if (whole && (args->step->kind == QUERY_LEARN_DRY))
         {
             // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
             mmgr_line_put(&print_line, "  the protocol put ");
             mmgr_line_decimal(&print_line, questions, 0u);
             mmgr_line_put(&print_line, " questions; each checked by cubin_safe with the part taken out:");
-            if (mmgr_line_finish(&print_line) != 0ull)
+            if (mmgr_line_finish(&print_line) != 0ULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
             }
             const char *const carried[7] = {transport,       "--dry", files->machine, files->layout, "--list",
                                             "questions.txt", NULL};
-            long long transferred_code = -1ll;
+            long long transferred_code = -1LL;
             whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                .context = context, .run = &s_run, .name = "orior_cubin_run", .words = carried,
                                .code = &transferred_code, .err_msg = err_msg);
-            if (whole && (transferred_code != 0ll))
+            if (whole && (transferred_code != 0LL))
             {
                 mmgr_line_put(err_msg, "the carrier did not read the list");
                 whole = 0;
@@ -352,14 +352,14 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             mmgr_line_put(&print_line, ", ");
             mmgr_line_decimal(&print_line, questions, 0u);
             mmgr_line_put(&print_line, " of them");
-            if (mmgr_line_finish(&print_line) != 0ull)
+            if (mmgr_line_finish(&print_line) != 0ULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
             }
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                        .text = "  cross-check them: orior_cli protocol cross [--base <cu>]");
         }
-        code = 0ll;
+        code = 0LL;
     }
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||

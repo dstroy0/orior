@@ -51,27 +51,24 @@ static void cli_search_each(const CliEachNameIsFolderCfg *args)
     }
     char path[CLI_PATH_MAX_LEN];
     char git[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, search->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
     // the folder's path ended before its .git is written from it
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
-    VerbaLinea marked = {git, sizeof(git), 0ull};
+    VerbaLinea marked = {git, sizeof(git), 0ULL};
     mmgr_line_put(&marked, path);
     mmgr_line_put(&marked, "/.git");
-    if (mmgr_line_finish(&marked) == 0ull)
+    if (mmgr_line_finish(&marked) == 0ULL)
     {
         return;
     }
     const int is_repository = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
                               EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git);
-    if (is_repository)
-    {
-    }
     if (is_repository && (search->nested_count < search->nested_capacity))
     {
         memor.cpy(&(MemoriaCfg){.dst = search->nested[search->nested_count],

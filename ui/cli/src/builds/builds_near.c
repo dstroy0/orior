@@ -14,13 +14,13 @@ unsigned long long cli_build_distance(const CliBuildsACfg *args)
     unsigned int letters[CLI_BUILD_ADJACENT_MAX_LEN];
     unsigned long long row[CLI_BUILD_ADJACENT_MAX_LEN + 1u];
     unsigned int count = 0u;
-    for (unsigned long long at = 0ull; at < args->b_size; count += 1u)
+    for (unsigned long long at = 0ULL; at < args->b_size; count += 1u)
     {
         if (count == CLI_BUILD_ADJACENT_MAX_LEN)
         {
-            return ~0ull;
+            return ~0ULL;
         }
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         letters[count] = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->b, .size = args->b_size, .at = at,
                                     .length = &length);
         at += length;
@@ -29,10 +29,10 @@ unsigned long long cli_build_distance(const CliBuildsACfg *args)
     {
         row[at] = at;
     }
-    unsigned long long index = 0ull;
-    for (unsigned long long at = 0ull; at < args->a_size; index += 1u)
+    unsigned long long index = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->a_size; index += 1u)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->a, .size = args->a_size,
                                                .at = at, .length = &length);
         at += length;
@@ -76,7 +76,7 @@ EMBED_INLINE int help_before(const BuildsNearCtx *args)
     }
     const unsigned long long min =
         (args->size < args->adjacent->adjacent_size[args->at]) ? args->size : args->adjacent->adjacent_size[args->at];
-    const int order =
+    const embed_iword order =
         memor.cmp(&(MemoriaCfg){.src = args->one, .other = args->adjacent->adjacent[args->at], .bytes = (size_t)min});
     return (order != 0) ? (order < 0) : (args->size < args->adjacent->adjacent_size[args->at]);
 }

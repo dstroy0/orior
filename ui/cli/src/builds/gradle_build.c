@@ -92,7 +92,7 @@ EMBED_INLINE int gradle_has_file(const GradleBuildCtx *args)
 // `from` copied into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void gradle_copy(const GradleBuildCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->from);
     (void)mmgr_line_finish(&line);
 }

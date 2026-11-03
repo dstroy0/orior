@@ -35,8 +35,8 @@ EMBED_INLINE CliSpan cli_trim(const PythonPathsCtx *args)
 {
     const unsigned char *const bytes = (const unsigned char *)args->span.at;
     unsigned long long start = args->span.length;
-    unsigned long long end = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long end = 0ULL;
+    unsigned long long at = 0ULL;
     while (at < args->span.length)
     {
         unsigned int letter = 0u;
@@ -50,16 +50,16 @@ EMBED_INLINE CliSpan cli_trim(const PythonPathsCtx *args)
         }
         at += step;
     }
-    return (start < end) ? (CliSpan){args->span.at + start, end - start} : (CliSpan){args->span.at, 0ull};
+    return (start < end) ? (CliSpan){args->span.at + start, end - start} : (CliSpan){args->span.at, 0ULL};
 }
 
 // the span with every `letter` at its end left off
 EMBED_INLINE CliSpan cli_trimmed_get(const PythonPathsCtx *args)
 {
     CliSpan span = args->span;
-    while ((span.length > 0ull) && (span.at[span.length - 1ull] == args->letter))
+    while ((span.length > 0ULL) && (span.at[span.length - 1ULL] == args->letter))
     {
-        span.length -= 1ull;
+        span.length -= 1ULL;
     }
     return span;
 }
@@ -68,7 +68,7 @@ EMBED_INLINE CliSpan cli_trimmed_get(const PythonPathsCtx *args)
 EMBED_INLINE unsigned long long cli_on_find(const PythonPathsCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; (at + length) <= args->span.length; at += 1ull)
+    for (unsigned long long at = 0ULL; (at + length) <= args->span.length; at += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->span.at + at, .other = args->text, .bytes = length}) == 0)
         {
@@ -81,12 +81,12 @@ EMBED_INLINE unsigned long long cli_on_find(const PythonPathsCtx *args)
 EMBED_INLINE unsigned long long cli_found_last(const PythonPathsCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = args->span.length + 1ull; at > length; at -= 1ull)
+    for (unsigned long long at = args->span.length + 1ULL; at > length; at -= 1ULL)
     {
         if (memor.cmp(
-                &(MemoriaCfg){.src = args->span.at + (at - 1ull - length), .other = args->text, .bytes = length}) == 0)
+                &(MemoriaCfg){.src = args->span.at + (at - 1ULL - length), .other = args->text, .bytes = length}) == 0)
         {
-            return at - 1ull - length;
+            return at - 1ULL - length;
         }
     }
     return args->span.length;
@@ -102,7 +102,7 @@ EMBED_INLINE int cli_starts(const PythonPathsCtx *args)
 
 EMBED_INLINE int cli_wordy_all(const PythonPathsCtx *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->span.length)
     {
         unsigned int letter = 0u;
@@ -158,18 +158,18 @@ EMBED_INLINE void cli_logical_lines(const PythonPathsCtx *args)
     s_lines.used = 0u;
     s_lines.count = 0u;
     unsigned int line_start = 0u;
-    long long open = 0ll;
-    unsigned long long at = 0ull;
+    long long open = 0LL;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
         CliSpan raw = {text + at, end - at};
         raw.length -= bounds.stop - bounds.cut;
-        at = end + 1ull;
+        at = end + 1ULL;
         const CliSpan code = {raw.at, EMBED_CALL(cli_on_find, PythonPathsCtx, .span = raw, .text = " #")};
         const CliSpan trimmed_line = EMBED_CALL(cli_trimmed_get, PythonPathsCtx, .span = code, .letter = '\\');
-        if ((s_lines.used + trimmed_line.length + 1ull) > s_lines.text_max)
+        if ((s_lines.used + trimmed_line.length + 1ULL) > s_lines.text_max)
         {
             return;
         }
@@ -182,18 +182,18 @@ EMBED_INLINE void cli_logical_lines(const PythonPathsCtx *args)
             &(MemoriaCfg){.dst = s_lines.text + s_lines.used, .src = trimmed_line.at, .bytes = trimmed_line.length});
         // a line is below the lines' capacity, which an unsigned int stores
         s_lines.used += (unsigned int)trimmed_line.length;
-        for (unsigned long long place = 0ull; place < code.length; place += 1ull)
+        for (unsigned long long place = 0ULL; place < code.length; place += 1ULL)
         {
             const char letter = code.at[place];
-            open += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1ll : 0ll;
-            open -= ((letter == ')') || (letter == ']') || (letter == '}')) ? 1ll : 0ll;
+            open += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1LL : 0LL;
+            open -= ((letter == ')') || (letter == ']') || (letter == '}')) ? 1LL : 0LL;
         }
         const CliSpan trimmed = EMBED_CALL(cli_trim, PythonPathsCtx, .span = code);
-        const int joined = (trimmed.length > 0ull) && (trimmed.at[trimmed.length - 1ull] == '\\');
-        if ((open <= 0ll) && !joined)
+        const int joined = (trimmed.length > 0ULL) && (trimmed.at[trimmed.length - 1ULL] == '\\');
+        if ((open <= 0LL) && !joined)
         {
             EMBED_CALL(cli_line_end, PythonPathsCtx, .line_start = &line_start);
-            open = 0ll;
+            open = 0LL;
         }
     }
     if (s_lines.used != line_start)
@@ -245,7 +245,7 @@ EMBED_INLINE CliValues cli_loop(const PythonPathsCtx *args)
         return EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = expr);
     }
     char dotted[CLI_NAME_MAX_LEN];
-    VerbaLinea line = {dotted, sizeof(dotted), 0ull};
+    VerbaLinea line = {dotted, sizeof(dotted), 0ULL};
     const int named =
         EMBED_CALL(cli_python_paths_expr_internal.py_dot, CliPythonPathsExprCtx, .expr = one->left, .out = &line);
     mmgr_line_finish(&line);
@@ -296,7 +296,7 @@ EMBED_INLINE void cli_for_read(const PythonPathsCtx *args)
                    .span = EMBED_CALL(
                        cli_trimmed_get, PythonPathsCtx,
                        .span = EMBED_CALL(cli_trim, PythonPathsCtx,
-                                          .span = (CliSpan){args->rest.at + in + 4u, args->rest.length - in - 4ull}),
+                                          .span = (CliSpan){args->rest.at + in + 4u, args->rest.length - in - 4ULL}),
                        .letter = ':'));
     const unsigned int expr = EMBED_CALL(cli_span_parse, PythonPathsCtx, .span = iterable);
     if (expr == CLI_PY_NONE)
@@ -350,8 +350,8 @@ EMBED_INLINE void cli_calls_read(const PythonPathsCtx *args)
         if (lead == 0u)
         {
             const unsigned long long comma = EMBED_CALL(cli_on_find, PythonPathsCtx, .span = supplied, .text = ",");
-            supplied = (comma < supplied.length) ? (CliSpan){supplied.at + comma + 1u, supplied.length - comma - 1ull}
-                                                 : (CliSpan){supplied.at, 0ull};
+            supplied = (comma < supplied.length) ? (CliSpan){supplied.at + comma + 1u, supplied.length - comma - 1ULL}
+                                                 : (CliSpan){supplied.at, 0ULL};
         }
         EMBED_CALL(cli_found_append, PythonPathsCtx,
                    .span = EMBED_CALL(cli_trim, PythonPathsCtx,
@@ -364,8 +364,8 @@ EMBED_INLINE void cli_calls_read(const PythonPathsCtx *args)
 // whether `target` stands as a word in `value`
 EMBED_INLINE int cli_reads_itself(const PythonPathsCtx *args)
 {
-    unsigned long long start = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long at = 0ULL;
     while (at <= args->value.length)
     {
         unsigned int letter = ' ';
@@ -373,7 +373,7 @@ EMBED_INLINE int cli_reads_itself(const PythonPathsCtx *args)
                                             ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                                          .text_bytes = (const unsigned char *)args->value.at,
                                                          .length = args->value.length, .at = at, .letter = &letter)
-                                            : 1ull;
+                                            : 1ULL;
         if (!EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter))
         {
             if (((at - start) == args->target.length) &&
@@ -401,8 +401,8 @@ EMBED_INLINE void cli_set_read(const PythonPathsCtx *args)
     const CliSpan target =
         EMBED_CALL(cli_trim, PythonPathsCtx,
                    .span = (CliSpan){whole.at, EMBED_CALL(cli_on_find, PythonPathsCtx, .span = whole, .text = ":")});
-    const CliSpan value = {args->code.at + equals + 1u, args->code.length - equals - 1ull};
-    if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = value, .text = "=") || (target.length == 0ull) ||
+    const CliSpan value = {args->code.at + equals + 1u, args->code.length - equals - 1ULL};
+    if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = value, .text = "=") || (target.length == 0ULL) ||
         !EMBED_CALL(cli_wordy_all, PythonPathsCtx, .span = target))
     {
         return;
@@ -469,19 +469,19 @@ void cli_py_paths_in(const CliPythonPathsSizeCtx *args)
                                         .span = (CliSpan){s_lines.text + s_lines.start[index], s_lines.length[index]});
         if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = code, .text = "for "))
         {
-            EMBED_CALL(cli_for_read, PythonPathsCtx, .rest = (CliSpan){code.at + 4u, code.length - 4ull});
+            EMBED_CALL(cli_for_read, PythonPathsCtx, .rest = (CliSpan){code.at + 4u, code.length - 4ULL});
             continue;
         }
         EMBED_CALL(cli_calls_read, PythonPathsCtx, .code = code);
         if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = code, .text = "sys.path["))
         {
-            const CliSpan rest = {code.at + 9u, code.length - 9ull};
+            const CliSpan rest = {code.at + 9u, code.length - 9ULL};
             const unsigned long long set = EMBED_CALL(cli_on_find, PythonPathsCtx, .span = rest, .text = "] =");
             if (set < rest.length)
             {
                 EMBED_CALL(cli_found_append, PythonPathsCtx,
                            .span = EMBED_CALL(cli_trim, PythonPathsCtx,
-                                              .span = (CliSpan){rest.at + set + 3u, rest.length - set - 3ull}));
+                                              .span = (CliSpan){rest.at + set + 3u, rest.length - set - 3ULL}));
             }
         }
         EMBED_CALL(cli_set_read, PythonPathsCtx, .code = code);

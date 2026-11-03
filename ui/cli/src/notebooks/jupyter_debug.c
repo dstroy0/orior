@@ -6,7 +6,7 @@
 #include "jupyter_internal.h"
 
 // how long the kernel has to ready the run, in milliseconds
-#define CLI_KERNEL_DEBUG_WAIT 30000ull
+#define CLI_KERNEL_DEBUG_WAIT 30000ULL
 
 // The kernel's next run of the code `{file}` contains named by that file, in place of the name the kernel gives a cell:
 // a breakpoint set in the file stops it. A run of other code retains the kernel's own name, and the first run of that
@@ -69,15 +69,15 @@ EMBED_INLINE int jupyter_port_read(const JupyterDebugCtx *args)
 {
     const char *text = args->text;
     unsigned int *port = args->port;
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = start,
                        .size = end, .set = " \t\n\r");
     end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text + start,
                               .at = end - start, .set = " \t\n\r"));
-    start += ((start < end) && (text[start] == '+')) ? 1ull : 0ull;
+    start += ((start < end) && (text[start] == '+')) ? 1ULL : 0ULL;
     unsigned int value = 0u;
-    for (unsigned long long at = start; at < end; at += 1ull)
+    for (unsigned long long at = start; at < end; at += 1ULL)
     {
         if ((text[at] < '0') || (text[at] > '9'))
         {
@@ -169,14 +169,14 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     char text[16384];
     char content[32768];
-    VerbaLinea code = {text, sizeof(text), 0ull};
+    VerbaLinea code = {text, sizeof(text), 0ULL};
     const char *const mark = cellul.find(
         &(CatenaFinitaCfg){.src = s_debug_next, .cap = CLI_CELLS_POOL, .other = "{file}", .other_cap = CLI_CELLS_POOL});
     mmgr_line_put_n(&code, s_debug_next, (unsigned long long)(mark - s_debug_next));
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &code, .text = args->file,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&code, mark + 6);
-    VerbaLinea content_line = {content, sizeof(content), 0ull};
+    VerbaLinea content_line = {content, sizeof(content), 0ULL};
     mmgr_line_put(&content_line, "{\"code\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &content_line, .text = code.out,
                .length = code.at);
@@ -191,7 +191,7 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
         mmgr_line_put(err_msg, " is a longer path than orior_cli supports");
         return 0;
     }
-    VerbaLinea reply = {kernel->debug_reply, CLI_KERNEL_REPLY_CAPACITY, 0ull};
+    VerbaLinea reply = {kernel->debug_reply, CLI_KERNEL_REPLY_CAPACITY, 0ULL};
     if (!EMBED_CALL(cli_jupyter_err_msg.request, CliJupyterErrMsgCfg, .kernel = kernel, .channel = "shell",
                     .msg_type = "execute_request", .content = content, .length = length, .wait = CLI_KERNEL_DEBUG_WAIT,
                     .reply = &reply, .err_msg = err_msg))
@@ -201,10 +201,10 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     // the reply read into a tree taken to its size and given back
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = reply.out, .size = reply.at, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_notebook_cells);
+                                         .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_notebook_cells);
     const int read = EMBED_CALL(jupyter_reply_read, JupyterDebugCtx, .kernel = kernel, .reply_json = &json,
                                 .root = root, .port = args->port, .err_msg = err_msg);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);

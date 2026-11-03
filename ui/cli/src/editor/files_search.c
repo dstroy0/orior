@@ -12,9 +12,9 @@
 
 // the bytes past which a search of a tree git cannot read passes a file over; the most workers a search starts; and
 // the bytes a file's start is looked through for a 0 that marks it as no text
-#define CLI_SEARCHED_BYTES (4ull * 1024ull * 1024ull)
+#define CLI_SEARCHED_BYTES (4ULL * 1024ULL * 1024ULL)
 #define CLI_WORKERS_MAX 256u
-#define CLI_BINARY_LOOK 8192ull
+#define CLI_BINARY_LOOK 8192ULL
 
 // One search: the files searched, picked off the tree for the search's length, and the most bytes of one
 // read, what is looked for and its letters in lower case; the next file to read; the workers searching; the lines
@@ -74,7 +74,7 @@ EMBED_INLINE void cli_search(const FilesSearchCtx *args)
     const unsigned char *bytes = args->bytes;
     unsigned long long size = args->size;
     const unsigned long long look = (size < CLI_BINARY_LOOK) ? size : CLI_BINARY_LOOK;
-    if ((look == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) == NULL))
+    if ((look == 0ULL) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) == NULL))
     {
         CliFileHits file = {args->index, 0u};
         EMBED_CALL(cli_files_context_internal.hits_in, CliFilesContextCtx, .bytes_bytes = bytes, .size = size,
@@ -95,19 +95,19 @@ static void cli_worker(void *context)
             break;
         }
         char full[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {full, sizeof(full), 0ull};
+        VerbaLinea line = {full, sizeof(full), 0ULL};
         mmgr_line_put(&line, s_search.root);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx,
                                         .picked_read = &s_search.paths, .index = index));
-        unsigned long long size = 0ull;
-        if ((mmgr_line_finish(&line) != 0ull) &&
+        unsigned long long size = 0ULL;
+        if ((mmgr_line_finish(&line) != 0ULL) &&
             EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &size) &&
             (size <= s_search.most))
         {
-            unsigned long long got = 0ull;
+            unsigned long long got = 0ULL;
             const unsigned char *const bytes =
-                EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = full, .from = 0ull,
+                EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = full, .from = 0ULL,
                            .count_u64 = size, .size_pointer = &got, .owner = &g_cli_editor_cells);
             if (bytes != NULL)
             {
@@ -151,7 +151,7 @@ EMBED_INLINE void cli_search_paths(const FilesSearchCtx *args)
         (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = s_search.paths.files);
         s_search.paths.count = s_search.paths.files->count;
     }
-    s_search.most = cli_tree_git() ? ~0ull : CLI_SEARCHED_BYTES;
+    s_search.most = cli_tree_git() ? ~0ULL : CLI_SEARCHED_BYTES;
 }
 
 // the files read and searched, a worker on each core the work may take, and the lines found written

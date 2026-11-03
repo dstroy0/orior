@@ -69,7 +69,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
         return;
     }
     // the catalog read where it lies, mapped while its aliases are read and let go after
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     const unsigned char *const catalog =
         EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_catalogs.path[chosen], .size_pointer = &read,
                    .owner = &g_cli_gradle_cells);
@@ -97,7 +97,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
             {
                 continue;
             }
-            VerbaLinea value = {s_value, sizeof(s_value), 0ull};
+            VerbaLinea value = {s_value, sizeof(s_value), 0ULL};
             mmgr_line_put(&value, s_leads[one]);
             EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                        .alias = aliases.text + alias->alias_at, .size = alias->alias_size, .out = &value);
@@ -121,7 +121,7 @@ EMBED_INLINE int complete_settings(const GradleCompleteCtx *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     static const char s_settings[] = "settings.gradle";
     for (unsigned int at = 0u; at < sizeof(s_settings) - 1u; at += 1u)
     {
@@ -158,7 +158,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         return;
     }
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before = g_cli_cells->temporary_buf_alloc(args->at + 1ull, &g_cli_gradle_cells);
+    unsigned char *const before = g_cli_cells->temporary_buf_alloc(args->at + 1ULL, &g_cli_gradle_cells);
     if (before == NULL)
     {
         return;
@@ -186,8 +186,8 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     unsigned long long line_start = token;
     line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = line_start,
                             .set = "\n");
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + line_start,
                .size = token - line_start, .from_u64s = &from, .to_u64s = &to);
     const char last = (to > from) ? text[line_start + to - 1u] : '\0';
@@ -224,10 +224,10 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
                    .words = g_cli_gradle_helpers, .count = 12u, .kind = "function", .detail = "dependencies");
         // the script's lines a cell of their count, each line's start, given back once the declared are read
-        unsigned long long count = 1ull;
-        for (unsigned long long byte = 0ull; byte < size; byte += 1ull)
+        unsigned long long count = 1ULL;
+        for (unsigned long long byte = 0ULL; byte < size; byte += 1ULL)
         {
-            count += (text[byte] == '\n') ? 1ull : 0ull;
+            count += (text[byte] == '\n') ? 1ULL : 0ULL;
         }
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
         unsigned int *const starts =
@@ -247,7 +247,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     {
         const CliGradleBlock *const block = &g_cli_gradle.block[inner];
         static char s_name[1u << 12u];
-        const unsigned long long name_size = (block->name_size < sizeof(s_name)) ? block->name_size : 0ull;
+        const unsigned long long name_size = (block->name_size < sizeof(s_name)) ? block->name_size : 0ULL;
         memor.cpy(&(MemoriaCfg){.dst = s_name, .src = text + block->name, .bytes = (size_t)name_size});
         s_name[name_size] = '\0';
         unsigned int count = 0u;

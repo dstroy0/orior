@@ -14,16 +14,5 @@ typedef struct
     unsigned int count;
     VerbaLinea *out;
     unsigned int *order;
-    const char *(*name_of)(const CliEachPositionCfg *args);
     const char *name;
 } CommsViewCtx;
-
-static const char *view_part_name(const CliEachPositionCfg *args)
-{
-    return g_cli_comms.parts[args->place].name;
-}
-
-static const char *view_channel_name(const CliEachPositionCfg *args)
-{
-    return g_cli_comms.traffic[args->place].name;
-}

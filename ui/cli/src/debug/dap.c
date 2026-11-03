@@ -10,7 +10,7 @@
 CliDap g_cli_daps[CLI_DAPS_MAX];
 
 // the sequence number the adapter's own requests are refused from, past any the client sends
-#define CLI_DAP_REFUSED 1000000ull
+#define CLI_DAP_REFUSED 1000000ULL
 
 CliDap *cli_dap_position_alloc(void)
 {
@@ -28,11 +28,11 @@ CliDap *cli_dap_position_alloc(void)
     {
         dap->ended = 0;
         memor.set(&(MemoriaCfg){.dst = &dap->spawned, .val = 0, .bytes = sizeof(dap->spawned)});
-        dap->socket.handle = 0ull;
+        dap->socket.handle = 0ULL;
         dap->wake = (CliWake)CLI_WAKE_INIT;
-        dap->next = 1ull;
+        dap->next = 1ULL;
         memor.set(&(MemoriaCfg){.dst = dap->waiters, .val = 0, .bytes = sizeof(dap->waiters)});
-        dap->complaint_size = 0ull;
+        dap->complaint_size = 0ULL;
         dap->read_state = 0u;
     }
     return dap;
@@ -62,8 +62,8 @@ EMBED_INLINE int dap_member_string(const DapCtx *args)
     const char *name = args->name;
     char *out = args->out;
     unsigned long long capacity = args->capacity;
-    unsigned long long at = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long size = 0ULL;
     return EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->object, .size_value = length, .name = name,
                       .start = &at, .length_pointer = &size) &&
            EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->object + at, .length = size,
@@ -105,29 +105,29 @@ EMBED_INLINE int dap_answer(const DapCtx *args)
 EMBED_INLINE int dap_response(const DapCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
-    unsigned long long length = 0ull;
-    unsigned long long seq = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long length = 0ULL;
+    unsigned long long seq = 0ULL;
     int whole = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message, .size_value = size,
                            .name = "request_seq", .start = &at, .length_pointer = &length) &&
-                (length > 0ull);
-    for (unsigned long long letter = at; whole && (letter < at + length); letter += 1ull)
+                (length > 0ULL);
+    for (unsigned long long letter = at; whole && (letter < at + length); letter += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->message[letter] - '0');
-        whole = (args->message[letter] >= '0') && (args->message[letter] <= '9') && (seq <= (~0ull - digit) / 10ull);
-        seq = whole ? (seq * 10ull) + digit : seq;
+        whole = (args->message[letter] >= '0') && (args->message[letter] <= '9') && (seq <= (~0ULL - digit) / 10ULL);
+        seq = whole ? (seq * 10ULL) + digit : seq;
     }
     if (!whole)
     {
         return 0;
     }
-    unsigned long long body = 0ull;
-    unsigned long long body_size = 0ull;
+    unsigned long long body = 0ULL;
+    unsigned long long body_size = 0ULL;
     const int has_body = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message, .size_value = size,
                                     .name = "body", .start = &body, .length_pointer = &body_size);
     const int success = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message, .size_value = size,
                                    .name = "success", .start = &at, .length_pointer = &length) &&
-                        (length == 4ull) &&
+                        (length == 4ULL) &&
                         (memor.cmp(&(MemoriaCfg){.src = args->message + at, .other = "true", .bytes = 4u}) == 0);
     if (success)
     {
@@ -137,12 +137,12 @@ EMBED_INLINE int dap_response(const DapCtx *args)
             args->message[body + body_size] = '\0';
         }
         return EMBED_CALL(dap_answer, DapCtx, .dap = args->dap, .seq = seq, .message = args->message,
-                          .body = has_body ? args->message + body : "null", .length = has_body ? body_size : 4ull,
+                          .body = has_body ? args->message + body : "null", .length = has_body ? body_size : 4ULL,
                           .error = NULL);
     }
     char error[1024];
-    unsigned long long inner = 0ull;
-    unsigned long long inner_size = 0ull;
+    unsigned long long inner = 0ULL;
+    unsigned long long inner_size = 0ULL;
     const int formatted =
         has_body &&
         EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message + body, .size_value = body_size,
@@ -157,7 +157,7 @@ EMBED_INLINE int dap_response(const DapCtx *args)
             .src = "the adapter refused",
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter refused", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    return EMBED_CALL(dap_answer, DapCtx, .dap = args->dap, .seq = seq, .message = NULL, .body = NULL, .length = 0ull,
+    return EMBED_CALL(dap_answer, DapCtx, .dap = args->dap, .seq = seq, .message = NULL, .body = NULL, .length = 0ULL,
                       .error = error);
 }
 
@@ -165,15 +165,15 @@ EMBED_INLINE int dap_response(const DapCtx *args)
 EMBED_INLINE void dap_reject(const DapCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long length = 0ULL;
     char number[24];
-    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    VerbaLinea number_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&number_line, args->seq, 1u);
     const int has_seq = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message_read, .size_value = size,
                                    .name = "seq", .start = &at, .length_pointer = &length);
-    unsigned long long command = 0ull;
-    unsigned long long command_size = 0ull;
+    unsigned long long command = 0ULL;
+    unsigned long long command_size = 0ULL;
     const int has_command =
         EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message_read, .size_value = size,
                    .name = "command", .start = &command, .length_pointer = &command_size);
@@ -181,13 +181,13 @@ EMBED_INLINE void dap_reject(const DapCtx *args)
         CLI_LSP_RAW("{\"seq\":"),
         {number, number_line.at, 0},
         CLI_LSP_RAW(",\"type\":\"response\",\"request_seq\":"),
-        {has_seq ? args->message_read + at : "null", has_seq ? length : 4ull, 0},
+        {has_seq ? args->message_read + at : "null", has_seq ? length : 4ULL, 0},
         CLI_LSP_RAW(",\"success\":false,\"command\":"),
-        {has_command ? args->message_read + command : "null", has_command ? command_size : 4ull, 0},
+        {has_command ? args->message_read + command : "null", has_command ? command_size : 4ULL, 0},
         CLI_LSP_RAW(",\"message\":\"orior_cli runs the program through the adapter\"}"),
     };
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unsent = {why, sizeof(why), 0ull};
+    VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input, .parts = sent,
                      .count = 7u, .err_msg = &unsent);
 }
@@ -198,7 +198,7 @@ static void dap_read(void *context)
 {
     CliDap *const dap = (CliDap *)context;
     unsigned long long refused = CLI_DAP_REFUSED;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char *message = NULL;
     // each message read into a cell of its length, given back here unless it went with an answer
     while ((message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &dap->reader,
@@ -219,11 +219,11 @@ static void dap_read(void *context)
             {
                 event[0] = '\0';
             }
-            unsigned long long body = 0ull;
-            unsigned long long body_size = 0ull;
+            unsigned long long body = 0ULL;
+            unsigned long long body_size = 0ULL;
             const int has_body = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = message, .size_value = size,
                                             .name = "body", .start = &body, .length_pointer = &body_size);
-            dap->emit(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ull);
+            dap->emit(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ULL);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_CELLS_POOL}))
         {
@@ -231,7 +231,7 @@ static void dap_read(void *context)
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "request", .cap = CLI_CELLS_POOL}))
         {
-            refused += 1ull;
+            refused += 1ULL;
             EMBED_CALL(dap_reject, DapCtx, .dap = dap, .message_read = message, .size = size, .seq = refused);
         }
         if (!transferred)
@@ -251,7 +251,7 @@ static void dap_read(void *context)
         }
     }
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
-    dap->emit(dap->context, "adapterStopped", "null", 4ull);
+    dap->emit(dap->context, "adapterStopped", "null", 4ULL);
     dap->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }
@@ -260,29 +260,29 @@ static void dap_read(void *context)
 // CLI_DAP_COMPLAINT bytes at a letter's start
 EMBED_INLINE void dap_complaint_store(const DapCtx *args)
 {
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = args->used;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
                                  .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ull]}) != NULL))
+                                 .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     memor.cpy(&(MemoriaCfg){
         .dst = args->dap->complaint + args->dap->complaint_size, .src = args->line + start, .bytes = end - start});
     args->dap->complaint_size += end - start;
     args->dap->complaint[args->dap->complaint_size] = '\n';
-    args->dap->complaint_size += 1ull;
+    args->dap->complaint_size += 1ULL;
     if (args->dap->complaint_size > CLI_DAP_COMPLAINT)
     {
         unsigned long long cut = args->dap->complaint_size - CLI_DAP_COMPLAINT;
         while ((cut < args->dap->complaint_size) && (((unsigned char)args->dap->complaint[cut] & 0xc0u) == 0x80u))
         {
-            cut += 1ull;
+            cut += 1ULL;
         }
         memor.move_down(&(MemoriaCfg){
             .dst = args->dap->complaint, .src = args->dap->complaint + cut, .bytes = args->dap->complaint_size - cut});
@@ -296,32 +296,32 @@ static void dap_complaints_read(void *context)
 {
     CliDap *const dap = (CliDap *)context;
     char line[CLI_DAP_COMPLAINT];
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     char piece[4096];
     for (;;)
     {
         const unsigned long long count =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = dap->spawned.err, .piece = piece, .capacity = sizeof(piece));
-        if (count == 0ull)
+        if (count == 0ULL)
         {
             break;
         }
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             if ((piece[at] == '\n') || (used == sizeof(line)))
             {
                 EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
-                used = 0ull;
+                used = 0ULL;
             }
             if (piece[at] != '\n')
             {
                 line[used] = piece[at];
-                used += 1ull;
+                used += 1ULL;
             }
         }
     }
-    if (used > 0ull)
+    if (used > 0ULL)
     {
         EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
     }
@@ -348,11 +348,11 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
 {
     unsigned long long *seq = args->seq_pointer;
     // a request with no arguments sends an empty object, which every adapter takes
-    const int none = (args->length == 0ull) ||
-                     ((args->length == 4ull) &&
+    const int none = (args->length == 0ULL) ||
+                     ((args->length == 4ULL) &&
                       (memor.cmp(&(MemoriaCfg){.src = args->arguments, .other = "null", .bytes = 4u}) == 0));
     *seq = args->dap->next;
-    args->dap->next += 1ull;
+    args->dap->next += 1ULL;
     CliDapWaiter *waiter = NULL;
     for (unsigned int at = 0u; (at < CLI_DAP_WAITERS) && (waiter == NULL); at += 1u)
     {
@@ -364,7 +364,7 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         waiter->seq = *seq;
         waiter->answered = 0;
         waiter->error[0] = '\0';
-        waiter->answer = (CliLspAnswer){NULL, NULL, 0ull};
+        waiter->answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     if (waiter == NULL)
     {
@@ -372,7 +372,7 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         return 0;
     }
     char number[24];
-    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    VerbaLinea number_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&number_line, *seq, 1u);
     const CliLspPart parts[7] = {
         CLI_LSP_RAW("{\"seq\":"),
@@ -380,7 +380,7 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         CLI_LSP_RAW(",\"type\":\"request\",\"command\":\""),
         {args->command, cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL}), 1},
         CLI_LSP_RAW("\",\"arguments\":"),
-        {none ? "{}" : args->arguments, none ? 2ull : args->length, 0},
+        {none ? "{}" : args->arguments, none ? 2ULL : args->length, 0},
         CLI_LSP_RAW("}")};
     if (!EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input, .parts = parts,
                     .count = 7u, .err_msg = args->err_msg))
@@ -394,7 +394,7 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
 int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
 {
     CliLspAnswer *answer = args->answer;
-    *answer = (CliLspAnswer){NULL, NULL, 0ull};
+    *answer = (CliLspAnswer){NULL, NULL, 0ULL};
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
     CliDapWaiter *waiter = NULL;
     for (unsigned int at = 0u; (at < CLI_DAP_WAITERS) && (waiter == NULL); at += 1u)
@@ -416,7 +416,7 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     else if (answered)
     {
         *answer = waiter->answer;
-        waiter->answer = (CliLspAnswer){NULL, NULL, 0ull};
+        waiter->answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     if (waiter != NULL)
     {
@@ -426,7 +426,7 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     {
         mmgr_line_put(args->err_msg, args->command);
         mmgr_line_put(args->err_msg, " had no answer in ");
-        mmgr_line_decimal(args->err_msg, args->wait / 1000ull, 1u);
+        mmgr_line_decimal(args->err_msg, args->wait / 1000ULL, 1u);
         mmgr_line_put(args->err_msg, " s");
     }
     return answered && !failed;
@@ -435,8 +435,8 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
 int cli_dap_request(const CliDapErrMsgCfg *args)
 {
     CliLspAnswer *answer = args->answer;
-    *answer = (CliLspAnswer){NULL, NULL, 0ull};
-    unsigned long long seq = 0ull;
+    *answer = (CliLspAnswer){NULL, NULL, 0ULL};
+    unsigned long long seq = 0ULL;
     return EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = args->dap, .command = args->command,
                       .arguments = args->arguments, .length = args->length, .seq_pointer = &seq,
                       .err_msg = args->err_msg) &&
@@ -448,11 +448,11 @@ int cli_dap_request(const CliDapErrMsgCfg *args)
 void cli_dap_complaint(const CliDapCfg *args)
 {
     unsigned long long end = args->dap->complaint_size;
-    while ((end > 0ull) &&
+    while ((end > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->dap->complaint[end - 1ull]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->dap->complaint[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     unsigned long long start = end;
     start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->dap->complaint,
@@ -462,11 +462,11 @@ void cli_dap_complaint(const CliDapCfg *args)
 
 void cli_dap_end(const CliDapCtx *args)
 {
-    if (args->dap->socket.handle != 0ull)
+    if (args->dap->socket.handle != 0ULL)
     {
         EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &args->dap->socket);
     }
-    if ((args->dap->kind == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ull))
+    if ((args->dap->kind == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ULL))
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->dap->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->dap->spawned);
@@ -482,12 +482,12 @@ void cli_dap_stop(const CliDapCfg *args)
 {
     CliLspAnswer answer;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_buf = {why, sizeof(why), 0ull};
+    VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     const char *const arguments =
         args->dap->ends_program ? "{\"terminateDebuggee\":true}" : "{\"terminateDebuggee\":false}";
     (void)EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->dap, .command = "disconnect",
                      .arguments = arguments,
-                     .length = cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), .wait = 3000ull,
+                     .length = cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), .wait = 3000ULL,
                      .answer = &answer, .err_msg = &err_buf);
     g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
@@ -508,7 +508,7 @@ void cli_dap_unref(const CliDapCfg *args)
         return;
     }
     EMBED_CALL(cli_dap_internal.end, CliDapCtx, .dap = args->dap);
-    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    const unsigned long long until = cli_clock_milliseconds() + 5000ULL;
     while ((args->dap->read_state > 0u) && (cli_clock_milliseconds() < until))
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->dap->wake,
@@ -523,7 +523,7 @@ void cli_dap_unref(const CliDapCfg *args)
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         g_cli_cells->persistent_buf_release(args->dap->waiters[at].answer.message, &g_cli_debug_cells);
-        args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
+        args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->dap->socket);
     if (args->dap->kind == CLI_DAP_PROGRAM)

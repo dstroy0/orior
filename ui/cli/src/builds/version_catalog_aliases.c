@@ -121,7 +121,7 @@ void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args)
 
 void cli_versions_accessor(const CliVersionCatalogSizeOutAliasCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size; at += 1u)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1u)
     {
         mmgr_line_ch(args->out, ((args->alias[at] == '-') || (args->alias[at] == '_')) ? '.' : args->alias[at]);
     }
@@ -166,19 +166,19 @@ EMBED_INLINE unsigned int aliases_kind(const VersionCatalogAliasesCtx *args)
 EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
 {
     CliVersionsAliases *aliases = args->aliases;
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
         count += (EMBED_CALL(aliases_kind, VersionCatalogAliasesCtx, .section = section) < 4u) ? section->count : 0u;
     }
     count = (count < CLI_VERSIONS_ALIASES) ? count : CLI_VERSIONS_ALIASES;
-    const unsigned long long capacity = g_cli_versions.used + (16ull * count) + (2ull * g_cli_versions.items);
+    const unsigned long long capacity = g_cli_versions.used + (16ULL * count) + (2ULL * g_cli_versions.items);
     // the capacity is under CLI_VERSIONS_ALIASES_TEXT, so it fits an unsigned int
     aliases->capacity = (unsigned int)((capacity < CLI_VERSIONS_ALIASES_TEXT) ? capacity : CLI_VERSIONS_ALIASES_TEXT);
     aliases->alias =
-        g_cli_cells->persistent_buf_alloc((count + 1ull) * sizeof(CliVersionsAlias), &g_cli_versions_cells);
-    aliases->text = g_cli_cells->persistent_buf_alloc(aliases->capacity + 1ull, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_alloc((count + 1ULL) * sizeof(CliVersionsAlias), &g_cli_versions_cells);
+    aliases->text = g_cli_cells->persistent_buf_alloc(aliases->capacity + 1ULL, &g_cli_versions_cells);
     if ((aliases->alias == NULL) || (aliases->text == NULL))
     {
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
@@ -229,7 +229,7 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
                            .size = field->key_size);
             // the description written where the texts end, and stored with its terminator where it fit
             VerbaLinea about = {args->aliases->text + args->aliases->used,
-                                args->aliases->capacity - args->aliases->used, 0ull};
+                                args->aliases->capacity - args->aliases->used, 0ULL};
             EMBED_CALL(cli_version_catalog_field_out_internal.versions_describe, CliVersionCatalogFieldOutCtx,
                        .field = field, .out = &about);
             if ((args->aliases->count < CLI_VERSIONS_ALIASES) && (alias != CLI_VERSIONS_ALIASES_TEXT) &&

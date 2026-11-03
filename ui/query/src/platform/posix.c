@@ -30,8 +30,8 @@ extern char **environ;
 int query_process_start(const QueryStartedCtx *args)
 {
     int output = args->output;
-    args->started->process = 0ull;
-    args->started->output = 0ull;
+    args->started->process = 0ULL;
+    args->started->output = 0ULL;
     int pipe_ends[2] = {-1, -1};
     if (((output == QUERY_OUTPUT_PIPED) || (output == QUERY_OUTPUT_PIPED_ALONE)) && (pipe(pipe_ends) != 0))
     {
@@ -50,6 +50,10 @@ int query_process_start(const QueryStartedCtx *args)
     if (child == 0)
     {
         const int nothing = open("/dev/null", O_RDWR);
+        if (nothing < 0)
+        {
+            _exit(127);
+        }
         dup2(nothing, 0);
         if (output == QUERY_OUTPUT_PIPED)
         {
@@ -75,7 +79,7 @@ int query_process_start(const QueryStartedCtx *args)
             _exit(127);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)args->words);
+        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
         _exit(127);
     }
     if (pipe_ends[1] >= 0)
@@ -84,38 +88,38 @@ int query_process_start(const QueryStartedCtx *args)
     }
     // a process number and a descriptor are not negative here, and an unsigned long long represents each
     args->started->process = (unsigned long long)child;
-    args->started->output = (pipe_ends[0] >= 0) ? ((unsigned long long)pipe_ends[0] + 1ull) : 0ull;
+    args->started->output = (pipe_ends[0] >= 0) ? ((unsigned long long)pipe_ends[0] + 1ULL) : 0ULL;
     return 1;
 }
 
 unsigned long long query_process_read(const QueryProcessPieceCtx *args)
 {
-    if (args->process->output == 0ull)
+    if (args->process->output == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     // the descriptor is stored one past itself, so that 0 stands for none
-    const ssize_t got = read((int)(args->process->output - 1ull), args->piece, (size_t)args->capacity_u64);
-    return (got > 0) ? (unsigned long long)got : 0ull;
+    const ssize_t got = read((int)(args->process->output - 1ULL), args->piece, (size_t)args->capacity_u64);
+    return (got > 0) ? (unsigned long long)got : 0ULL;
 }
 
 long long query_process_wait(const QueryProcessCtx *args)
 {
     QueryProcess *process = args->process_out;
-    if (process->process == 0ull)
+    if (process->process == 0ULL)
     {
-        return -1ll;
+        return -1LL;
     }
     int status = 0;
     // the process number came from fork, which a pid_t represents
     const pid_t waited = waitpid((pid_t)process->process, &status, 0);
-    if (process->output != 0ull)
+    if (process->output != 0ULL)
     {
-        close((int)(process->output - 1ull));
+        close((int)(process->output - 1ULL));
     }
-    process->process = 0ull;
-    process->output = 0ull;
-    return ((waited > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1ll;
+    process->process = 0ULL;
+    process->output = 0ULL;
+    return ((waited > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1LL;
 }
 
 int query_environment_set(const QueryNameCtx *args)
@@ -164,7 +168,7 @@ int query_folder_each(const QueryFolderEachCtx *args)
     {
         return 0;
     }
-    for (struct dirent *entry = readdir(walk); entry != NULL; entry = readdir(walk))
+    for (const struct dirent *entry = readdir(walk); entry != NULL; entry = readdir(walk))
     {
         if ((cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = ".", .cap = CLI_CELLS_POOL})) ||
             (cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = "..", .cap = CLI_CELLS_POOL})))
@@ -172,12 +176,12 @@ int query_folder_each(const QueryFolderEachCtx *args)
             continue;
         }
         char path[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {path, sizeof(path), 0ull};
+        VerbaLinea line = {path, sizeof(path), 0ULL};
         mmgr_line_put(&line, args->folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, entry->d_name);
         EMBED_CALL(args->each, CliEachNameIsFolderCfg, .context = args->context_bytess, .name = entry->d_name,
-                   .is_folder = (mmgr_line_finish(&line) != 0ull) &&
+                   .is_folder = (mmgr_line_finish(&line) != 0ULL) &&
                                 EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path));
     }
     closedir(walk);
@@ -199,7 +203,7 @@ int query_folder_init(const QueryFolderContextCtx *args)
         {
             const char saved_char = path[at];
             path[at] = '\0';
-            mkdir(path, 0755);
+            mkdir(path, 0750);
             path[at] = saved_char;
         }
     }
@@ -217,11 +221,11 @@ static void query_entry_remove(const CliEachNameIsFolderCfg *args)
 {
     QueryRemoval *const removal = (QueryRemoval *)args->context;
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, removal->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    removal->whole = (mmgr_line_finish(&line) != 0ull) &&
+    removal->whole = (mmgr_line_finish(&line) != 0ULL) &&
                      EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path) &&
                      removal->whole;
 }
@@ -250,7 +254,7 @@ int query_file_copy(const QueryFromCtx *args)
     {
         return 0;
     }
-    const int target = open(args->to, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    const int target = open(args->to, O_WRONLY | O_CREAT | O_TRUNC, 0640);
     int whole = target >= 0;
     char piece[65536];
     ssize_t got = whole ? read(source, piece, sizeof(piece)) : 0;
@@ -277,19 +281,19 @@ int query_file_rename(const QueryFromCtx *args)
 
 int query_file_write(const QueryPathBytesSizeCtx *args)
 {
-    const int file = open(args->path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    const int file = open(args->path, O_WRONLY | O_CREAT | O_TRUNC, 0640);
     if (file < 0)
     {
         return 0;
     }
-    unsigned long long put = 0ull;
+    unsigned long long put = 0ULL;
     int whole = 1;
     while (whole && (put < args->size))
     {
         const ssize_t wrote = write(file, (const unsigned char *)args->bytes + put, (size_t)(args->size - put));
         whole = wrote > 0;
         // a write that put bytes put a positive count
-        put += whole ? (unsigned long long)wrote : 0ull;
+        put += whole ? (unsigned long long)wrote : 0ULL;
     }
     return (close(file) == 0) && whole;
 }
@@ -315,7 +319,7 @@ int query_modify(const QueryPathSecondsCtx *args)
         return 0;
     }
     // a time a file changed is after 1970 here
-    *seconds = (st.st_mtime > 0) ? (unsigned long long)st.st_mtime : 0ull;
+    *seconds = (st.st_mtime > 0) ? (unsigned long long)st.st_mtime : 0ULL;
     return 1;
 }
 
@@ -335,7 +339,7 @@ unsigned long long query_now(void)
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
     // the clock reads after 1970
-    return (now.tv_sec > 0) ? (unsigned long long)now.tv_sec : 0ull;
+    return (now.tv_sec > 0) ? (unsigned long long)now.tv_sec : 0ULL;
 }
 
 void query_pause(const QueryMillisecondsCtx *args)
@@ -368,11 +372,11 @@ int query_path_full(const QueryCapacityPathCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->full, args->capacity, 0ull};
+    VerbaLinea line = {args->full, args->capacity, 0ULL};
     mmgr_line_put(&line, here);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->path);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 int query_terminal_is(void)
@@ -383,7 +387,7 @@ int query_terminal_is(void)
 unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 {
     size_t length = 0u;
-    unsigned long long whole = 0ull;
+    unsigned long long whole = 0ULL;
     int read_any = 0;
     for (;;)
     {
@@ -403,7 +407,7 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
         }
         if (letter != '\r')
         {
-            whole += 1ull;
+            whole += 1ULL;
             if ((length + 1u) < args->capacity)
             {
                 args->line[length] = letter;
@@ -417,7 +421,7 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 
 void query_terminal_write(const QueryErrorsCtx *args)
 {
-    unsigned long long put = 0ull;
+    unsigned long long put = 0ULL;
     while (put < args->length)
     {
         const ssize_t wrote = write(args->errors ? 2 : 1, args->text + put, (size_t)(args->length - put));

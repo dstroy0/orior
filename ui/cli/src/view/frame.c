@@ -41,7 +41,7 @@ EMBED_INLINE int frame_share(const FrameCtx *args)
 {
     // a share of a size in pixels is within a long long and, rounded, far inside what an int represents
     const long long scaled = (long long)args->share * (long long)args->pixels;
-    return (int)((scaled + ((scaled >= 0ll) ? (GUI_FIXED_ONE / 2) : -(GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
+    return (int)((scaled + ((scaled >= 0LL) ? (GUI_FIXED_ONE / 2) : -(GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
 }
 
 // `share`, a number of GUI_FIXED_ONE, of `pixels`, a count of pixels in the frame's words, saved in those words

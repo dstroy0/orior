@@ -34,9 +34,6 @@ typedef struct
     unsigned long long length;
 } CliServersUsageRead;
 
-// the usages read, sorted under their own lock
-static const CliServersUsagesRead *s_sorting;
-
 typedef struct
 {
     const CliServersUsagesRead *read_read;

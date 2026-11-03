@@ -5,7 +5,7 @@
 #include "text.h"
 
 // no key: a node that is no object's member
-#define CLI_JSON_NO_KEY 0xffffffffffffffffull
+#define CLI_JSON_NO_KEY 0xffffffffffffffffULL
 
 void cli_json_begin(const CliJsonTreeNodeNodeCfg *args)
 {
@@ -17,7 +17,7 @@ void cli_json_begin(const CliJsonTreeNodeNodeCfg *args)
     args->json->nodes = 0u;
     args->json->nodes_max = nodes_max;
     args->json->text = text;
-    args->json->used = 0ull;
+    args->json->used = 0ULL;
     args->json->text_max = text_max;
     args->json->full = 0;
     args->json->what = NULL;
@@ -45,26 +45,26 @@ EMBED_INLINE unsigned long long cli_text_store(const JsonTreeCtx *args)
     CliJson *json = args->json;
     const char *text = args->text;
     if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
-                    .text_u64 = args->length + 1ull))
+                    .text_u64 = args->length + 1ULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long at = json->used;
     memor.cpy(&(MemoriaCfg){.dst = json->text + at, .src = text, .bytes = args->length});
     json->text[at + args->length] = '\0';
-    json->used += args->length + 1ull;
+    json->used += args->length + 1ULL;
     return at;
 }
 
 unsigned int cli_json_init(const CliJsonTreeKindCfg *args)
 {
     if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = args->json, .nodes = 1u,
-                    .text_u64 = 0ull))
+                    .text_u64 = 0ULL))
     {
         return CLI_JSON_NONE;
     }
     const unsigned int made = args->json->nodes;
-    const CliJsonNode node = {args->kind, CLI_JSON_NO_KEY, 0ull, 0ull, CLI_JSON_NONE, CLI_JSON_NONE, CLI_JSON_NONE, 0u};
+    const CliJsonNode node = {args->kind, CLI_JSON_NO_KEY, 0ULL, 0ULL, CLI_JSON_NONE, CLI_JSON_NONE, CLI_JSON_NONE, 0u};
     args->json->node[made] = node;
     args->json->nodes += 1u;
     return made;
@@ -80,7 +80,7 @@ unsigned int cli_json_string_init(const CliJsonTreeTextLengthKindCfg *args)
     {
         args->json->node[made].text =
             EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->json, .text = text, .length = length);
-        args->json->node[made].length = args->json->full ? 0ull : length;
+        args->json->node[made].length = args->json->full ? 0ULL : length;
     }
     return made;
 }
@@ -95,7 +95,7 @@ unsigned int cli_json_number_init(const CliJsonTreeTextLengthKindCfg *args)
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
         args->json->node[made].text =
             EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->json, .text = text, .length = length);
-        args->json->node[made].length = args->json->full ? 0ull : length;
+        args->json->node[made].length = args->json->full ? 0ULL : length;
     }
     return made;
 }
@@ -356,7 +356,7 @@ unsigned int cli_json_copy_from(const CliJsonTreeNodeCfg *args)
     {
         args->to->node[made].text = EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->to,
                                                .text = args->from->text + src_node->text, .length = src_node->length);
-        args->to->node[made].length = args->to->full ? 0ull : src_node->length;
+        args->to->node[made].length = args->to->full ? 0ULL : src_node->length;
     }
     for (unsigned int child = src_node->first; child != CLI_JSON_NONE; child = args->from->node[child].next)
     {
@@ -440,7 +440,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
     {
         // a string's letters as stored are at most its letters as written
         if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
-                        .text_u64 = (unsigned long long)(at->end - at->start) + 1ull))
+                        .text_u64 = (unsigned long long)(at->end - at->start) + 1ULL))
         {
             return CLI_JSON_NONE;
         }
@@ -454,7 +454,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             cellul.len(&(CatenaFinitaCfg){.src = json->text + json->used, .cap = CLI_CELLS_POOL});
         json->node[made].text = json->used;
         json->node[made].length = length;
-        json->used += length + 1ull;
+        json->used += length + 1ULL;
     }
     else if (at->kind == CFG_JSON_NUMBER)
     {

@@ -106,7 +106,7 @@ int query_course_run(const QueryLoopCfg *args)
                       .src = s_run.writer.qry,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_run.writer.qry, .cap = CLI_CELLS_POOL}) + 1u});
     char line[QUERY_LINE_MAX_LEN];
-    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line, "course: ");
     mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
     mmgr_line_put(&print_line, " steps: ");
@@ -117,7 +117,7 @@ int query_course_run(const QueryLoopCfg *args)
     for (unsigned int index = first; index < g_query_course_steps; index += 1u)
     {
         const unsigned int number = index + 1u;
-        print_line.at = 0ull;
+        print_line.at = 0ULL;
         mmgr_line_put(&print_line, "course: step ");
         mmgr_line_decimal(&print_line, number, 0u);
         mmgr_line_put(&print_line, " of ");
@@ -127,7 +127,7 @@ int query_course_run(const QueryLoopCfg *args)
         mmgr_line_finish(&print_line);
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         char step_err_buf[QUERY_LINE_MAX_LEN];
-        VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ull};
+        VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ULL};
         const char *const supplied[1] = {s_steps[index].word};
         const int code = EMBED_CALL(s_steps[index].loop, QueryLoopCfg, .context = context, .words = supplied,
                                     .count = 1u, .err_msg = &step_err_msg);
@@ -137,7 +137,7 @@ int query_course_run(const QueryLoopCfg *args)
         {
             continue;
         }
-        print_line.at = 0ull;
+        print_line.at = 0ULL;
         mmgr_line_put(&print_line, "course: stopped at step ");
         mmgr_line_decimal(&print_line, number, 0u);
         mmgr_line_put(&print_line, ", ");
@@ -161,7 +161,7 @@ int query_course_run(const QueryLoopCfg *args)
     }
     if (ended == 0)
     {
-        print_line.at = 0ull;
+        print_line.at = 0ULL;
         mmgr_line_put(&print_line, "course: ended, ");
         mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
         mmgr_line_put(&print_line, " steps");

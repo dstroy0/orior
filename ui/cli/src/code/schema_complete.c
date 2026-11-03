@@ -90,9 +90,9 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
     s_keys = 0u;
     g_cli_schema_spot.steps = 0u;
     g_cli_schema_spot.in_string = 0;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
-        unsigned long long end = 0ull;
+        unsigned long long end = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->text + at,
                        .size = args->size - at, .prefix = "//"))
         {
@@ -151,9 +151,9 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
             }
             else if ((last != NULL) && !last->object)
             {
-                EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ull, .to = 0ull, .index = last->index);
+                EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ULL, .to = 0ULL, .index = last->index);
             }
-            s_frame[frames] = (CliSchemaFrame){byte == '{', 0, 0ull, 0ull, 0, s_keys, 0u};
+            s_frame[frames] = (CliSchemaFrame){byte == '{', 0, 0ULL, 0ULL, 0, s_keys, 0u};
             frames += 1u;
         }
         else if (((byte == '}') || (byte == ']')) && (frames > 0u))
@@ -173,15 +173,15 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
     {
         if (last->colon)
         {
-            EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 1, .from = last->has_key ? last->key_from : 0ull,
-                       .to = last->has_key ? last->key_to : 0ull, .index = 0u);
+            EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 1, .from = last->has_key ? last->key_from : 0ULL,
+                       .to = last->has_key ? last->key_to : 0ULL, .index = 0u);
         }
         g_cli_schema_spot.at_key = !last->colon;
         g_cli_schema_spot.keys_first = last->keys_first;
         g_cli_schema_spot.keys = s_keys - last->keys_first;
         return 1;
     }
-    EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ull, .to = 0ull, .index = last->index);
+    EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ULL, .to = 0ULL, .index = last->index);
     g_cli_schema_spot.at_key = 0;
     g_cli_schema_spot.keys_first = 0u;
     g_cli_schema_spot.keys = 0u;
@@ -205,7 +205,7 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
     {
         return;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                              .map = args->schema, .name = "$ref", .size_pointer = &size);
     // the base a reference is read in, a cell retained while the schemas under it are reached
@@ -330,7 +330,7 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
 
 void cli_schema_detail(const CliSchemaJsonOutCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *description = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = args->json,
                                          .map = args->schema, .name = "description", .size_pointer = &size);
     description = (description != NULL)
@@ -340,7 +340,7 @@ void cli_schema_detail(const CliSchemaJsonOutCtx *args)
     if (description != NULL)
     {
         unsigned long long line =
-            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = description, .at = 0ull, .size = size).stop;
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = description, .at = 0ULL, .size = size).stop;
         line -= ((line > 0u) && (description[line - 1u] == '\r')) ? 1u : 0u;
         mmgr_line_put_n(args->out, description, line);
         return;

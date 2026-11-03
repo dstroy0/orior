@@ -7,12 +7,12 @@
 void cli_base64(const CliBase64Cfg *args)
 {
     static const char s_letters[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    for (unsigned long long at = 0ull; at < args->size; at += 3ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 3ULL)
     {
-        const unsigned long long length = ((args->size - at) < 3ull) ? (args->size - at) : 3ull;
+        const unsigned long long length = ((args->size - at) < 3ULL) ? (args->size - at) : 3ULL;
         const unsigned int group = ((unsigned int)args->bytes[at] << 16u) |
-                                   ((length > 1ull) ? ((unsigned int)args->bytes[at + 1ull] << 8u) : 0u) |
-                                   ((length > 2ull) ? (unsigned int)args->bytes[at + 2ull] : 0u);
+                                   ((length > 1ULL) ? ((unsigned int)args->bytes[at + 1ULL] << 8u) : 0u) |
+                                   ((length > 2ULL) ? (unsigned int)args->bytes[at + 2ULL] : 0u);
         for (unsigned int place = 0u; place < 4u; place += 1u)
         {
             const char letter = s_letters[(group >> (18u - (6u * place))) & 63u];
@@ -46,12 +46,12 @@ EMBED_INLINE unsigned int cli_sextet(const Base64Ctx *args)
 int cli_unbase64(const CliBase64TextCfg *args)
 {
     unsigned long long *size = args->size_pointer;
-    *size = 0ull;
+    *size = 0ULL;
     unsigned int group = 0u;
     unsigned int bits = 0u;
     unsigned int reserved = 0u;
     int padded = 0;
-    for (unsigned long long at = 0ull; at <= args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
     {
         const int ended = at == args->length;
         const char letter = ended ? '\0' : args->text[at];
@@ -89,7 +89,7 @@ int cli_unbase64(const CliBase64TextCfg *args)
             {
                 // each byte is eight bits of the group
                 args->out_bytes[*size] = (unsigned char)(group >> (16u - (8u * place)));
-                *size += 1ull;
+                *size += 1ULL;
             }
             group = 0u;
             bits = 0u;

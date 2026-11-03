@@ -10,6 +10,8 @@ the compiler and the linker's tools.
     harness.py build image                    the Linux test image, from ui/test/docker
     harness.py source tidy                    clang-tidy with the static analyzer, and cppcheck, in that image, the
                                               reports under build/sonarqube for the SonarQube scan
+    harness.py source analyze <source>...     the clang static analyzer over C sources or folders, its findings to
+                                              build/harness/out/analyze.txt
     harness.py source syntax <source>...      each C source checked by the compiler alone, nothing built
     harness.py source tests-syntax            every ui test's C file checked, the errors to build/harness/out
     harness.py source frames                  each CLI function whose stack frame is 64 KB or more
@@ -135,6 +137,48 @@ def cmd_source_tidy(a):
     if ran.returncode != 0:
         return 1
     print("clang-tidy: %s, cppcheck: %s" % (TIDY_OUT, CPPCHECK_OUT))
+    return 0
+
+
+def cmd_source_analyze(a):
+    """The clang static analyzer over the C sources named, or each under the folders named, nothing built: every
+    finding written to build/harness/out/analyze.txt and the count of each checker's printed."""
+    os.makedirs(OUT, exist_ok=True)
+    listed = os.path.join(OUT, "analyze.txt")
+    checkers = subprocess.run(["clang", "-cc1", "-analyzer-checker-help"], capture_output=True, text=True, errors="replace").stdout
+    bound = "security.ArrayBound" if "security.ArrayBound" in checkers else "alpha.security.ArrayBoundV2"
+    sources = []
+    for named in a.sources:
+        full = os.path.join(ROOT, named)
+        if os.path.isdir(full):
+            sources.extend(os.path.join(folder, name) for folder, _, names in os.walk(full) for name in names if name.endswith(".c"))
+        else:
+            sources.append(full)
+
+    def findings_of(source):
+        said = subprocess.run(
+            ["clang", "--analyze", "--analyzer-output", "text", "-Xclang", "-analyzer-checker=" + bound, "-std=c11", "-o", os.devnull, *MMGR_FLAGS, "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", source],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
+        kinds = r"warning|error|note" if a.notes else r"warning|error"
+        return [line for line in (said.stdout + said.stderr).splitlines() if re.search(r":\d+:\d+: (%s):" % kinds, line)]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=FRAME_JOBS) as pool:
+        written = [line for lines in pool.map(findings_of, sources) for line in lines]
+    found = written if a.notes else sorted(set(written))
+    with open(listed, "w", encoding="utf-8") as out:
+        out.write("".join(line + "\n" for line in found))
+    counts = {}
+    for line in found:
+        named = re.search(r"\[([\w.-]+)\]$", line)
+        key = named.group(1) if named else "error"
+        counts[key] = counts.get(key, 0) + 1
+    for key in sorted(counts, key=counts.get, reverse=True):
+        print(counts[key], key)
+    print("%d findings over %d sources: %s" % (len(found), len(sources), listed))
     return 0
 
 
@@ -529,6 +573,10 @@ def register(sub):
     p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")
     p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")
     p.set_defaults(fn=cmd_source_page_names)
+    p = source.add_parser("analyze", help="the clang static analyzer over the sources or folders named, its findings under build/harness/out")
+    p.add_argument("sources", nargs="+", help="C sources or folders, from the top of the tree")
+    p.add_argument("--notes", action="store_true", help="each finding's path through the code written after it")
+    p.set_defaults(fn=cmd_source_analyze)
     p = source.add_parser("tidy", help="clang-tidy with the static analyzer, and cppcheck, in the Linux image, their reports under build/sonarqube")
     p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src"], help="the folders read, from the top of the tree")
     p.set_defaults(fn=cmd_source_tidy)

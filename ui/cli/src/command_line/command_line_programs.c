@@ -53,7 +53,7 @@ typedef struct
 EMBED_INLINE int programs_fail(const CommandLineProgramsCtx *args)
 {
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->err_msg->out,
-               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
+               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
     return args->code;
 }
 
@@ -73,7 +73,7 @@ EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
         return CLI_WRONG;
     }
     static char s_root[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if ((named != NULL) ? !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
                                       .root = s_root, .err_msg = &err_msg)
                         : !EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = s_root,
@@ -146,7 +146,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
         }
         part = (end != NULL) ? end + 1 : NULL;
     }
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const int read = EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->words[1],
                                 .orior_path = (const char (*)[CLI_PATH_MAX_LEN])folder, .count = folders,
                                 .report = &read_state->report, .err_msg = &err_msg);
@@ -160,14 +160,14 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     for (unsigned int at = 0u; at < report->libraries; at += 1u)
     {
         const CliLibrary *const one = &report->library[at];
-        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, one->name);
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, (one->found < (sizeof(s_found) / sizeof(s_found[0]))) ? s_found[one->found] : "");
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, one->has_at ? one->at : "");
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     }
     const QuerySink sink = {programs_err, NULL};
     EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = report, .sink = sink);
@@ -189,7 +189,7 @@ EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
                        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "module", .cap = CLI_CELLS_POOL}));
     char node[CLI_PATH_MAX_LEN];
     char made[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const QuerySink sink = {programs_out, NULL};
     if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "node", .name = "node", .path = node,
                     .err_msg = &err_msg) ||
@@ -198,11 +198,11 @@ EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
     {
         return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, "made ");
     mmgr_line_put(&line, made);
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     return 0;
 }
 
@@ -218,7 +218,7 @@ int cli_line_program(const CliCommandLineWordsCtx *args)
             *code = CLI_WRONG;
             return 1;
         }
-        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
         *code = EMBED_CALL(cli_raised_from.copy_over, CliRaisedFromCfg, .from = args->words[1], .to = args->words[2],
                            .err_msg = &err_msg)
                     ? 0

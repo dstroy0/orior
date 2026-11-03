@@ -83,7 +83,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
         mmgr_line_put(args->err_msg, "a part has at most 16 grants to listen and 16 to send");
         return 0;
     }
-    VerbaLinea written = {args->key_out, CLI_COMMS_KEY, 0ull};
+    VerbaLinea written = {args->key_out, CLI_COMMS_KEY, 0ULL};
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
         mmgr_line_ch(&written, "0123456789abcdef"[secret[at] >> 4u]);
@@ -323,7 +323,7 @@ EMBED_INLINE CliCommsTraffic *comms_traffic_get(const CommsCtx *args)
         }
     }
     comms_tables_init();
-    if (g_cli_comms.channels >= g_cli_comms.channels_capacity)
+    if ((g_cli_comms.traffic == NULL) || (g_cli_comms.channels >= g_cli_comms.channels_capacity))
     {
         return NULL;
     }
@@ -344,7 +344,7 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     const char *body = args->body;
     unsigned long long size = args->size;
     char sized[64];
-    VerbaLinea sized_line = {sized, sizeof(sized), 0ull};
+    VerbaLinea sized_line = {sized, sizeof(sized), 0ULL};
     mmgr_line_put(&sized_line, "\"a body of ");
     mmgr_line_decimal(&sized_line, size, 1u);
     mmgr_line_put(&sized_line, " bytes\"");
@@ -409,24 +409,24 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     CliCommsTraffic *const traffic = EMBED_CALL(comms_traffic_get, CommsCtx, .channel = args->channel);
     if (!granted)
     {
-        part->refused += 1ull;
+        part->refused += 1ULL;
         if (traffic != NULL)
         {
-            traffic->refused += 1ull;
+            traffic->refused += 1ULL;
         }
         mmgr_line_put(args->err_msg, name);
         mmgr_line_put(args->err_msg, " may not send on ");
         mmgr_line_put(args->err_msg, args->channel);
         return 0;
     }
-    part->sent_count += 1ull;
+    part->sent_count += 1ULL;
     if (traffic != NULL)
     {
-        traffic->messages += 1ull;
+        traffic->messages += 1ULL;
         traffic->bytes += args->size;
         EMBED_CALL(comms_store, CommsCtx, .traffic = traffic, .from = name, .body = args->body, .size = args->size);
     }
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     unsigned int calls = 0u;
     for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
     {
@@ -441,13 +441,13 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
             recv_fns[calls] = listener->recv;
             calls_context[calls] = listener->context;
             calls += 1u;
-            count += 1ull;
+            count += 1ULL;
         }
         else
         {
             const int got = EMBED_CALL(listener->recv, CliCommsRecvCfg, .context = listener->context,
                                        .channel = args->channel, .from = name, .body = args->body, .size = args->size);
-            count += (got > 0) ? 1ull : 0ull;
+            count += (got > 0) ? 1ULL : 0ULL;
             // a listener whose reader is gone is let go
             listener->reserved = (got == 0) ? 0 : listener->reserved;
         }

@@ -8,7 +8,7 @@
 
 int cli_reply_read(const CliReplyPathCfg *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_text_cells);
     args->reply_out->text = (const char *)bytes;
@@ -21,7 +21,7 @@ void cli_reply_let_go(const CliReplyPathCfg *args)
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
                .bytes_bytes_other = (const unsigned char *)args->reply_out->text, .owner = &g_cli_text_cells);
     args->reply_out->text = NULL;
-    args->reply_out->size = 0ull;
+    args->reply_out->size = 0ULL;
 }
 
 typedef struct
@@ -43,7 +43,7 @@ EMBED_INLINE unsigned long long reply_dark(const ReplyCtx *args)
 EMBED_INLINE unsigned long long reply_string_end(const ReplyCtx *args)
 {
     unsigned long long at = args->at;
-    unsigned long long from = at + 1ull;
+    unsigned long long from = at + 1ULL;
     while (from < args->reply->size)
     {
         const char *const quote = memor.chr(
@@ -53,15 +53,15 @@ EMBED_INLINE unsigned long long reply_string_end(const ReplyCtx *args)
             return args->reply->size;
         }
         const unsigned long long place = (unsigned long long)(quote - args->reply->text);
-        unsigned long long backslashes = 0ull;
-        backslashes = (place - (at + 1ull)) - EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
-                                                         .text = args->reply->text + at + 1ull,
-                                                         .at = place - (at + 1ull), .set = "\\");
-        if ((backslashes % 2ull) == 0ull)
+        unsigned long long backslashes = 0ULL;
+        backslashes = (place - (at + 1ULL)) - EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                                         .text = args->reply->text + at + 1ULL,
+                                                         .at = place - (at + 1ULL), .set = "\\");
+        if ((backslashes % 2ULL) == 0ULL)
         {
             return place;
         }
-        from = place + 1ull;
+        from = place + 1ULL;
     }
     return args->reply->size;
 }
@@ -77,12 +77,12 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
     if (first == '"')
     {
         const unsigned long long end = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = at);
-        return (end < args->reply->size) ? end + 1ull : args->reply->size;
+        return (end < args->reply->size) ? end + 1ULL : args->reply->size;
     }
     if ((first == '{') || (first == '['))
     {
-        unsigned long long depth = 1ull;
-        for (at += 1ull; at < args->reply->size; at += 1ull)
+        unsigned long long depth = 1ULL;
+        for (at += 1ULL; at < args->reply->size; at += 1ULL)
         {
             const char letter = args->reply->text[at];
             if (letter == '"')
@@ -91,14 +91,14 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
             }
             else if ((letter == '{') || (letter == '['))
             {
-                depth += 1ull;
+                depth += 1ULL;
             }
             else if ((letter == '}') || (letter == ']'))
             {
-                depth -= 1ull;
-                if (depth == 0ull)
+                depth -= 1ULL;
+                if (depth == 0ULL)
                 {
-                    return at + 1ull;
+                    return at + 1ULL;
                 }
             }
         }
@@ -111,7 +111,7 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
 
 unsigned long long cli_reply_root(const CliReplyCfg *args)
 {
-    const unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = 0ull);
+    const unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = 0ULL);
     return (at < args->reply->size) ? at : CLI_REPLY_NONE;
 }
 
@@ -123,7 +123,7 @@ unsigned long long cli_reply_member(const CliReplyObjectCfg *args)
         return CLI_REPLY_NONE;
     }
     const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
-    unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = args->object + 1ull);
+    unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = args->object + 1ULL);
     while ((at < args->reply->size) && (args->reply->text[at] == '"'))
     {
         const unsigned long long end = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = at);
@@ -132,15 +132,15 @@ unsigned long long cli_reply_member(const CliReplyObjectCfg *args)
             return CLI_REPLY_NONE;
         }
         const int same =
-            ((end - at - 1ull) == key_size) &&
-            (memor.cmp(&(MemoriaCfg){.src = args->reply->text + at + 1ull, .other = args->key, .bytes = key_size}) ==
+            ((end - at - 1ULL) == key_size) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->reply->text + at + 1ULL, .other = args->key, .bytes = key_size}) ==
              0);
-        at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = end + 1ull);
+        at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = end + 1ULL);
         if ((at >= args->reply->size) || (args->reply->text[at] != ':'))
         {
             return CLI_REPLY_NONE;
         }
-        at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ull);
+        at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ULL);
         if (same)
         {
             return (at < args->reply->size) ? at : CLI_REPLY_NONE;
@@ -149,7 +149,7 @@ unsigned long long cli_reply_member(const CliReplyObjectCfg *args)
                         .at = EMBED_CALL(cli_reply_at.value_end, CliReplyAtCfg, .reply = args->reply, .at = at));
         if ((at < args->reply->size) && (args->reply->text[at] == ','))
         {
-            at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ull);
+            at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ULL);
         }
     }
     return CLI_REPLY_NONE;
@@ -162,7 +162,7 @@ unsigned long long cli_reply_first(const CliReplyArrayCfg *args)
     {
         return CLI_REPLY_NONE;
     }
-    const unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = args->array + 1ull);
+    const unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = args->array + 1ULL);
     return ((at < args->reply->size) && (args->reply->text[at] != ']')) ? at : CLI_REPLY_NONE;
 }
 
@@ -179,7 +179,7 @@ unsigned long long cli_reply_next(const CliReplyCfg *args)
     {
         return CLI_REPLY_NONE;
     }
-    at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ull);
+    at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = at + 1ULL);
     return ((at < args->reply->size) && (args->reply->text[at] != ']')) ? at : CLI_REPLY_NONE;
 }
 
@@ -187,7 +187,7 @@ unsigned long long cli_reply_item(const CliReplyArrayCfg *args)
 {
     unsigned long long index = args->index;
     unsigned long long at = cli_reply_array.first(args);
-    for (; (at != CLI_REPLY_NONE) && (index > 0ull); index -= 1ull)
+    for (; (at != CLI_REPLY_NONE) && (index > 0ULL); index -= 1ULL)
     {
         at = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->reply, .item = at);
     }
@@ -198,10 +198,10 @@ unsigned long long cli_reply_string_span(const CliReplyAtCfg *args)
 {
     if ((args->at == CLI_REPLY_NONE) || (args->at >= args->reply->size) || (args->reply->text[args->at] != '"'))
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long end = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = args->at);
-    return (end < args->reply->size) ? (end - args->at - 1ull) : 0ull;
+    return (end < args->reply->size) ? (end - args->at - 1ULL) : 0ULL;
 }
 
 int cli_reply_string(const CliReplyAtOutCfg *args)
@@ -215,7 +215,7 @@ int cli_reply_string(const CliReplyAtOutCfg *args)
     {
         return 0;
     }
-    const CfgJsonToken token = {CFG_JSON_STRING, (size_t)(args->at + 1ull), (size_t)end, 0u, 0u};
+    const CfgJsonToken token = {CFG_JSON_STRING, (size_t)(args->at + 1ULL), (size_t)end, 0u, 0u};
     return cfg_json_string(args->reply->text, &token, args->out, (size_t)args->capacity);
 }
 
@@ -224,17 +224,17 @@ unsigned long long cli_reply_integer(const CliReplyAtCfg *args)
     if ((args->at == CLI_REPLY_NONE) || (args->at >= args->reply->size) || (args->reply->text[args->at] < '0') ||
         (args->reply->text[args->at] > '9'))
     {
-        return ~0ull;
+        return ~0ULL;
     }
     // a number whose digits but the last fit 32 bits is read, and any longer is not
     const unsigned long long value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->reply->text,
                                                 .at = args->at, .size = args->reply->size, .end = NULL);
-    return (value > ((0xffffffffull * 10ull) + 9ull)) ? ~0ull : value;
+    return (value > ((0xffffffffULL * 10ULL) + 9ULL)) ? ~0ULL : value;
 }
 
 int cli_reply_true(const CliReplyAtCfg *args)
 {
-    return (args->at != CLI_REPLY_NONE) && (args->at + 4ull <= args->reply->size) &&
+    return (args->at != CLI_REPLY_NONE) && (args->at + 4ULL <= args->reply->size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->reply->text + args->at, .other = "true", .bytes = 4u}) == 0);
 }
 

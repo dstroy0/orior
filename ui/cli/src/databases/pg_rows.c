@@ -21,7 +21,7 @@ typedef struct
 // a big-endian number of `width` bytes at `at`
 EMBED_INLINE unsigned long long rows_number(const PgRowsCtx *args)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < args->width; byte += 1u)
     {
         value = (value << 8u) | args->at[byte];
@@ -64,25 +64,25 @@ EMBED_INLINE void rows_columns(const PgRowsCtx *args)
 {
     const unsigned char *const body = args->pg->message;
     const unsigned long long size = args->pg->size;
-    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ull;
-    unsigned long long at = 2ull;
+    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ULL;
+    unsigned long long at = 2ULL;
     args->pg->head.column_count = 0u;
-    for (unsigned long long one = 0ull; (one < count) && (args->pg->head.column_count < CLI_DB_COLUMNS); one += 1ull)
+    for (unsigned long long one = 0ULL; (one < count) && (args->pg->head.column_count < CLI_DB_COLUMNS); one += 1ULL)
     {
         const unsigned char *const nul =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
         CliDbColumn *const column = &args->pg->head.columns[args->pg->head.column_count];
-        VerbaLinea name = {column->name, sizeof(column->name), 0ull};
+        VerbaLinea name = {column->name, sizeof(column->name), 0ULL};
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name, .text_bytes = body + at,
                    .length = end - at);
         mmgr_line_finish(&name);
-        at = end + 1ull;
+        at = end + 1ULL;
         const unsigned long long oid =
-            (at + 10u <= size) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body + at + 6u, .width = 4u) : 0ull;
-        at += 18ull;
+            (at + 10u <= size) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body + at + 6u, .width = 4u) : 0ULL;
+        at += 18ULL;
         const char *const kind = EMBED_CALL(rows_type_name, PgRowsCtx, .oid = oid, .numeric = &column->numeric);
-        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ull};
+        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ULL};
         if (kind[0] == '\0')
         {
             mmgr_line_put(&kind_line, "oid ");
@@ -102,17 +102,17 @@ EMBED_INLINE unsigned int rows_row(const PgRowsCtx *args)
 {
     const unsigned char *const body = args->pg->message;
     const unsigned long long size = args->pg->size;
-    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ull;
-    unsigned long long at = 2ull;
+    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ULL;
+    unsigned long long at = 2ULL;
     unsigned int values = 0u;
-    for (unsigned long long one = 0ull; (one < count) && (values < CLI_DB_COLUMNS) && (at + 4u <= size); one += 1ull)
+    for (unsigned long long one = 0ULL; (one < count) && (values < CLI_DB_COLUMNS) && (at + 4u <= size); one += 1ULL)
     {
         // the length is a signed number of four bytes, -1 for NULL
         const unsigned long long raw = EMBED_CALL(rows_number, PgRowsCtx, .at = body + at, .width = 4u);
-        at += 4ull;
+        at += 4ULL;
         CliDbValue *const value = &args->pg->row[values];
-        value->null = (raw & 0x80000000ull) != 0ull;
-        const unsigned long long length = value->null ? 0ull : raw;
+        value->null = (raw & 0x80000000ULL) != 0ULL;
+        const unsigned long long length = value->null ? 0ULL : raw;
         const unsigned long long end = (at + length < size) ? at + length : size;
         value->text = (const char *)body + at;
         value->size = end - at;
@@ -129,7 +129,7 @@ EMBED_INLINE void rows_tag(const PgRowsCtx *args)
         ((args->pg_read->size > 0u) && (args->pg_read->message[args->pg_read->size - 1u] == 0u))
             ? args->pg_read->size - 1u
             : args->pg_read->size;
-    VerbaLinea line = {args->tag, CLI_DB_TAG, 0ull};
+    VerbaLinea line = {args->tag, CLI_DB_TAG, 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                .text_bytes = args->pg_read->message, .length = size);
     mmgr_line_finish(&line);
@@ -147,7 +147,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
     args->pg->notice_count = 0u;
     args->pg->has_failed = 0;
     const void *const parts[2] = {args->sql, ""};
-    const unsigned long long sizes[2] = {args->size, 1ull};
+    const unsigned long long sizes[2] = {args->size, 1ULL};
     if (!EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'Q',
                     .parts = parts, .sizes = sizes, .count = 2u, .failure = failure))
     {
@@ -233,7 +233,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
 {
     int *done = args->done;
     CliDbFailure *failure = args->failure;
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     int has_tag = 0;
     *done = 0;
     args->tag[0] = '\0';
@@ -253,7 +253,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
         if (kind == 'D')
         {
             const unsigned int values = EMBED_CALL(rows_row, PgRowsCtx, .pg = args->pg);
-            read += 1ull;
+            read += 1ULL;
             if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->pg->row,
                             .count = values))
             {
@@ -266,7 +266,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
             size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->pg->message,
                               .at = size, .set = "\n");
             args->pg->row[0] = (CliDbValue){(const char *)args->pg->message, size, 0};
-            read += 1ull;
+            read += 1ULL;
             if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->pg->row,
                             .count = 1u))
             {
@@ -324,7 +324,7 @@ int cli_pg_finish(const CliPgFailureCfg *args)
     while (args->pg->read_state)
     {
         int done = 0;
-        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ull, .each_row = rows_pass,
+        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ULL, .each_row = rows_pass,
                         .context = NULL, .done = &done, .tag = done_tag, .failure = args->failure))
         {
             return 0;
@@ -349,7 +349,7 @@ int cli_pg_all(const CliPgFailureSqlCfg *args)
     }
     for (int done = !args->pg->head.rows; !done;)
     {
-        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ull,
+        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ULL,
                         .each_row = args->each_row, .context = args->context, .done = &done, .tag = tag,
                         .failure = args->failure))
         {

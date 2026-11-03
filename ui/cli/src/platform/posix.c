@@ -78,7 +78,7 @@ int cli_started_outside(const CliWordsIdCtx *args)
             (void)close(none);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)args->words);
+        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
         _exit(127);
     }
     // a process number from fork is positive, and an unsigned int stores it
@@ -131,16 +131,17 @@ static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
         return;
     }
     char path[64];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, "/proc/");
     mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, "/stat");
     char stat[1024];
     // the file's bytes are read as bytes into text that is read as letters
-    const unsigned long long size = (mmgr_line_finish(&line) != 0ull)
+    const unsigned long long size = (mmgr_line_finish(&line) != 0ULL)
                                         ? qry_member_file_read(path, (unsigned char *)stat, sizeof(stat) - 1u)
                                         : QRY_MEMBER_UNREAD;
-    if ((size == QRY_MEMBER_UNREAD) || (size == 0ull))
+    // QRY_MEMBER_UNREAD stands above every size
+    if ((size == 0ULL) || (size >= sizeof(stat)))
     {
         return;
     }
@@ -157,8 +158,8 @@ static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
     at += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = at, .set = " ");
     at += EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = at, .set = " ");
     at += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = at, .set = " ");
-    unsigned long long parent = 0ull;
-    unsigned long long id = 0ull;
+    unsigned long long parent = 0ULL;
+    unsigned long long id = 0ULL;
     const char *id_at = args->name;
     if (!line_number(&at, 0, &parent) || !line_number(&id_at, 0, &id))
     {
@@ -226,11 +227,11 @@ int cli_program_own(const CliPathCapacityCtx *args)
 {
 #if defined(__linux__)
     const ssize_t length = readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u);
-    if (length <= 0)
+    // a length read that is positive fits an unsigned long long
+    if ((length <= 0) || ((unsigned long long)length >= args->capacity_bytes))
     {
         return 0;
     }
-    // a link's length read is positive and under the capacity
     args->path_out[length] = '\0';
     return 1;
 #elif defined(__APPLE__)
@@ -270,11 +271,13 @@ EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
 #if defined(__linux__)
     static char s_text[CLI_ARGUMENTS_TEXT];
     const int file = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
-    unsigned long long used = 0ull;
-    while ((file >= 0) && (used + 1ull < sizeof(s_text)))
+    unsigned long long used = 0ULL;
+    while ((file >= 0) && (used + 1ULL < sizeof(s_text)))
     {
-        const ssize_t count = read(file, s_text + used, sizeof(s_text) - 1u - used);
-        if (count <= 0)
+        const unsigned long long capacity = sizeof(s_text) - 1u - used;
+        const ssize_t count = read(file, s_text + used, (size_t)capacity);
+        // a count that is positive fits an unsigned long long
+        if ((count <= 0) || ((unsigned long long)count > capacity))
         {
             break;
         }
@@ -286,12 +289,12 @@ EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
     }
     s_text[used] = '\0';
     // the program's own name first, passed over
-    unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = s_text, .cap = sizeof(s_text)}) + 1ull;
+    unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = s_text, .cap = sizeof(s_text)}) + 1ULL;
     while ((at < used) && (reserved < args->capacity))
     {
         args->words[reserved] = s_text + at;
         reserved += 1u;
-        at += cellul.len(&(CatenaFinitaCfg){.src = s_text + at, .cap = sizeof(s_text)}) + 1ull;
+        at += cellul.len(&(CatenaFinitaCfg){.src = s_text + at, .cap = sizeof(s_text)}) + 1ULL;
     }
 #elif defined(__APPLE__)
     const int count = *_NSGetArgc();
@@ -323,6 +326,7 @@ unsigned int cli_arguments(const CliCapacityCountCtx *args)
 
 void cli_console_let_go(void)
 {
+    // this system gives a program no console of its own to let go of
 }
 
 int cli_folder_current(const CliPathCapacityCtx *args)
@@ -332,7 +336,16 @@ int cli_folder_current(const CliPathCapacityCtx *args)
 
 int cli_file_runnable(const CliPathFileCtx *args)
 {
-    return chmod(args->path, 0755) == 0;
+    // whoever may read the file may run it, and no one gains a read
+    struct stat st;
+    return (stat(args->path, &st) == 0) &&
+           (chmod(args->path, (st.st_mode & 07777u) | ((st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH)) >> 2u)) == 0);
+}
+
+int cli_file_runs(const CliPathFileCtx *args)
+{
+    struct stat st;
+    return (stat(args->path, &st) == 0) && ((st.st_mode & S_IXUSR) != 0u);
 }
 
 int cli_is_link(const CliPathFileCtx *args)
@@ -346,7 +359,7 @@ unsigned long long cli_clock_milliseconds(void)
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * 1000ull) + ((unsigned long long)now.tv_nsec / 1000000ull);
+    return ((unsigned long long)now.tv_sec * 1000ULL) + ((unsigned long long)now.tv_nsec / 1000000ULL);
 }
 
 int cli_raised_platform(const CliErrMsgFromCtx *args)
@@ -355,14 +368,14 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
     // the script `do shell script "/bin/cp '<from>' '<to>'" with administrator privileges`, each path quoted for the
     // shell and the script's quotes escaped
     static char s_script[(4u * CLI_PATH_MAX_LEN) + 128u];
-    VerbaLinea script = {s_script, sizeof(s_script), 0ull};
+    VerbaLinea script = {s_script, sizeof(s_script), 0ULL};
     mmgr_line_put(&script, "do shell script \"/bin/cp ");
     const char *const paths[2] = {args->from_text, args->to};
     for (unsigned int path = 0u; path < 2u; path += 1u)
     {
         mmgr_line_put(&script, (path == 0u) ? "'" : " '");
         const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = paths[path], .cap = CLI_CELLS_POOL});
-        for (unsigned long long at = 0ull; at < whole;)
+        for (unsigned long long at = 0ULL; at < whole;)
         {
             const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                        .text = paths[path], .at = at, .size = whole, .set = "'\"");
@@ -371,12 +384,12 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
             {
                 mmgr_line_put(&script, (paths[path][stop] == '\'') ? "'\\\\''" : "\\\"");
             }
-            at = stop + 1ull;
+            at = stop + 1ULL;
         }
         mmgr_line_ch(&script, '\'');
     }
     mmgr_line_put(&script, "\" with administrator privileges");
-    if (mmgr_line_finish(&script) == 0ull)
+    if (mmgr_line_finish(&script) == 0ULL)
     {
         return 0;
     }
@@ -384,7 +397,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
     QueryProcess child;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
-        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child) != 0ll))
+        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child) != 0LL))
     {
         mmgr_line_put(args->err_msg, "the system's authorization did not write ");
         mmgr_line_put(args->err_msg, args->to);
@@ -401,12 +414,12 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
         return 0;
     }
     const long long code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child);
-    if ((code == 126ll) || (code == 127ll))
+    if ((code == 126LL) || (code == 127LL))
     {
         mmgr_line_put(args->err_msg, "the reader did not give the rights");
         return 0;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(args->err_msg, "pkexec did not write ");
         mmgr_line_put(args->err_msg, args->to);
@@ -418,9 +431,9 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
 
 int cli_socket_connect(const CliErrMsgCtx *args)
 {
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
     char service[16];
-    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    VerbaLinea service_line = {service, sizeof(service), 0ULL};
     mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     struct addrinfo hints;
@@ -458,14 +471,14 @@ int cli_socket_connect(const CliErrMsgCtx *args)
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
     // a descriptor is not negative; one past it so that 0 stands for none
-    args->sock_out->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
 int cli_socket_write(const CliBytesSizeCtx *args)
 {
-    const int fd = (int)(args->sock->handle - 1ull);
-    unsigned long long put = 0ull;
+    const int fd = (int)(args->sock->handle - 1ULL);
+    unsigned long long put = 0ULL;
     while (put < args->size)
     {
         const ssize_t sent = send(fd, (const char *)args->bytes + put, (size_t)(args->size - put), 0);
@@ -480,8 +493,8 @@ int cli_socket_write(const CliBytesSizeCtx *args)
 
 int cli_socket_read(const CliSizeBytesCtx *args)
 {
-    const int fd = (int)(args->sock->handle - 1ull);
-    unsigned long long got = 0ull;
+    const int fd = (int)(args->sock->handle - 1ULL);
+    unsigned long long got = 0ULL;
     while (got < args->size)
     {
         const ssize_t read = recv(fd, (char *)args->bytes_out + got, (size_t)(args->size - got), 0);
@@ -496,7 +509,7 @@ int cli_socket_read(const CliSizeBytesCtx *args)
 
 long long cli_socket_some(const CliCapacityCtx *args)
 {
-    const ssize_t read = recv((int)(args->sock->handle - 1ull), (char *)args->bytes_out, (size_t)args->capacity, 0);
+    const ssize_t read = recv((int)(args->sock->handle - 1ULL), (char *)args->bytes_out, (size_t)args->capacity, 0);
     if (read > 0)
     {
         return (long long)read;
@@ -511,30 +524,30 @@ long long cli_socket_some(const CliCapacityCtx *args)
 void cli_socket_wait(const CliSockCtx *args)
 {
     struct timeval wait = {(time_t)(args->milliseconds / 1000u), (suseconds_t)((args->milliseconds % 1000u) * 1000u)};
-    setsockopt((int)(args->sock->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, &wait, sizeof(wait));
+    setsockopt((int)(args->sock->handle - 1ULL), SOL_SOCKET, SO_RCVTIMEO, &wait, sizeof(wait));
 }
 
 void cli_socket_write_wait(const CliSockCtx *args)
 {
     struct timeval wait = {(time_t)(args->milliseconds / 1000u), (suseconds_t)((args->milliseconds % 1000u) * 1000u)};
-    setsockopt((int)(args->sock->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, &wait, sizeof(wait));
+    setsockopt((int)(args->sock->handle - 1ULL), SOL_SOCKET, SO_SNDTIMEO, &wait, sizeof(wait));
 }
 
 void cli_socket_end(const CliSockCtx *args)
 {
-    if (args->sock->handle != 0ull)
+    if (args->sock->handle != 0ULL)
     {
-        shutdown((int)(args->sock->handle - 1ull), SHUT_RDWR);
+        shutdown((int)(args->sock->handle - 1ULL), SHUT_RDWR);
     }
 }
 
 void cli_socket_close(const CliErrMsgCtx *args)
 {
-    if (args->sock_out->handle != 0ull)
+    if (args->sock_out->handle != 0ULL)
     {
-        close((int)(args->sock_out->handle - 1ull));
+        close((int)(args->sock_out->handle - 1ULL));
     }
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
 }
 
 int cli_port_free(const CliErrMsgPortCtx *args)

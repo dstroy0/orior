@@ -103,7 +103,7 @@ EMBED_INLINE int window_tool_by_name(const GuiWindowCtx *args)
     // the tool shown is among the tools
     return (args->window_read->strip.displayed >= 0) &&
            cellul.eq(&(CatenaFinitaCfg){
-               .src = g_cli_tools[args->window_read->strip.displayed].name, .other = args->key, .cap = 32ull});
+               .src = g_cli_tools[args->window_read->strip.displayed].name, .other = args->key, .cap = 32ULL});
 }
 
 // the rows the editor shows, and the columns
@@ -172,8 +172,8 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     EMBED_CALL(gui_minimap_position.place, GuiMinimapPositionCfg, .map = &window->minimap, .place = window->frame.map,
                .scale = window->frame.scale, .editor = &window->editor,
                .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = window));
-    unsigned long long first = 0ull;
-    unsigned long long last = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
     if (!EMBED_CALL(gui_minimap_first.span, GuiMinimapFirstCfg, .map_read = &window->minimap, .first = &first,
                     .last = &last) ||
         (window->map_sent && (window->map_sent_first == first) && (window->map_sent_last == last)))
@@ -331,14 +331,12 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     // capacity for the largest monitor, and the base's tile tables where it has none yet; none of them from the shared
     // cells at any size after the first. A window past the rasters' capacity, or a take refused, saves the size it has,
     // whole
-    if (args->window->framebuffer.pages == NULL)
+    if ((args->window->framebuffer.pages == NULL) &&
+        !EMBED_CALL(gui_framebuffer_max_width.init, GuiFramebufferMaxWidthCfg,
+                    .framebuffer = &args->window->framebuffer, .width = width, .height = height,
+                    .max_width = args->window->display_width, .max_height = args->window->display_height))
     {
-        if (!EMBED_CALL(gui_framebuffer_max_width.init, GuiFramebufferMaxWidthCfg,
-                        .framebuffer = &args->window->framebuffer, .width = width, .height = height,
-                        .max_width = args->window->display_width, .max_height = args->window->display_height))
-        {
-            return 0;
-        }
+        return 0;
     }
     if (!EMBED_CALL(cli_framebuffer.fits, GuiFramebufferCfg, .framebuffer_read = &args->window->framebuffer,
                     .width = width, .height = height))
@@ -423,7 +421,7 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
 }
 
 // the milliseconds each rest of the caret's breath takes, at full ink and at dim ink alike
-#define GUI_CARET_STEADY_MS ((GUI_CARET_BLINK_PERIOD_MS - (2ull * GUI_CARET_FADE_MS)) / 2ull)
+#define GUI_CARET_STEADY_MS ((GUI_CARET_BLINK_PERIOD_MS - (2ULL * GUI_CARET_FADE_MS)) / 2ULL)
 
 // the ink of a slide `through` its milliseconds, from `from` to `to`, eased on a cosine: still at both ends, moving
 // fastest in the middle
@@ -438,13 +436,13 @@ EMBED_INLINE unsigned int window_caret_slid(const GuiWindowCtx *args)
 
 // the caret's breath, its ink at each stage of it, made once: full through the first rest, sliding down, dim through
 // the second rest, and sliding up again
-#define GUI_CARET_BLINK_STEP_MS 16ull
-static unsigned char s_caret_color[(GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS) + 1ull];
+#define GUI_CARET_BLINK_STEP_MS 16ULL
+static unsigned char s_caret_color[(GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS) + 1ULL];
 static int s_caret_color_created;
 
 static void window_caret_init(void)
 {
-    for (unsigned long long stage = 0ull; stage <= GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS; stage += 1ull)
+    for (unsigned long long stage = 0ULL; stage <= GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS; stage += 1ULL)
     {
         const unsigned long long at = stage * GUI_CARET_BLINK_STEP_MS;
         unsigned int text_color = 255u;
@@ -454,14 +452,14 @@ static void window_caret_init(void)
                                     .to = GUI_CARET_DIM);
         }
         else if ((at >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) &&
-                 (at < (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS))
+                 (at < (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS))
         {
             text_color = GUI_CARET_DIM;
         }
-        else if (at >= (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS)
+        else if (at >= (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS)
         {
             text_color = EMBED_CALL(window_caret_slid, GuiWindowCtx,
-                                    .through = at - (2ull * GUI_CARET_STEADY_MS) - GUI_CARET_FADE_MS,
+                                    .through = at - (2ULL * GUI_CARET_STEADY_MS) - GUI_CARET_FADE_MS,
                                     .from = GUI_CARET_DIM, .to = 255u);
         }
         // an ink is a byte
@@ -494,19 +492,19 @@ EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *arg
     const unsigned long long now_ms = cli_clock_milliseconds();
     if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long phase_ms = (now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS;
     if (phase_ms < GUI_CARET_STEADY_MS)
     {
         return now_ms + GUI_CARET_STEADY_MS - phase_ms;
     }
-    const unsigned long long dim_end_ms = (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS;
+    const unsigned long long dim_end_ms = (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS;
     if ((phase_ms >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) && (phase_ms < dim_end_ms))
     {
         return now_ms + dim_end_ms - phase_ms;
     }
-    return now_ms + 1ull;
+    return now_ms + 1ULL;
 }
 
 void gui_window_tick(const GuiWindowCfg *args)
@@ -633,29 +631,29 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark),
         EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
         // the circle's clock stops while the window is off screen, a publication waking it as any does
-        window->off_screen ? 0ull : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &window->busy),
+        window->off_screen ? 0ULL : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &window->busy),
     };
-    unsigned long long earliest = 0ull;
+    unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
     {
-        if ((deadlines[index] != 0ull) && ((earliest == 0ull) || (deadlines[index] < earliest)))
+        if ((deadlines[index] != 0ULL) && ((earliest == 0ULL) || (deadlines[index] < earliest)))
         {
             earliest = deadlines[index];
         }
     }
-    if (earliest == 0ull)
+    if (earliest == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long now_ms = cli_clock_milliseconds();
-    return (earliest > now_ms) ? earliest - now_ms : 1ull;
+    return (earliest > now_ms) ? earliest - now_ms : 1ULL;
 }
 
 // a setting written to the controller, `key` then a 0 then `value`
 EMBED_INLINE void window_setting_send(const GuiWindowCtx *args)
 {
     char text[GUI_PREFERENCES_TEXT * 3u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, args->key);
     mmgr_line_ch(&line, '\0');
     mmgr_line_put(&line, args->value);
@@ -672,7 +670,7 @@ EMBED_INLINE void window_setting_send(const GuiWindowCtx *args)
 EMBED_INLINE void window_percent_send(const GuiWindowCtx *args)
 {
     char text[8];
-    VerbaLinea value = {text, sizeof(text), 0ull};
+    VerbaLinea value = {text, sizeof(text), 0ULL};
     mmgr_line_decimal(&value, args->percent, 1u);
     (void)mmgr_line_finish(&value);
     EMBED_CALL(window_setting_send, GuiWindowCtx, .key = args->key, .value = text);
@@ -705,7 +703,7 @@ EMBED_INLINE void window_preferences_layout(const GuiWindowCtx *args)
 // a row of Settings moved: what it now stands at written to the controller, which publishes it back
 EMBED_INLINE void window_preference_step(const GuiWindowCtx *args)
 {
-    GuiWindow *window = args->window;
+    const GuiWindow *window = args->window;
     const GuiPreferenceValues *const values = &window->preference_values;
     if (args->change->at == GUI_PREFERENCE_ZOOM)
     {
@@ -753,7 +751,7 @@ EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
         char value[GUI_PREFERENCES_TEXT];
         EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = args->window->palette, .at = args->change->at,
                    .name = name, .size = sizeof(name));
-        VerbaLinea line = {key, sizeof(key), 0ull};
+        VerbaLinea line = {key, sizeof(key), 0ULL};
         mmgr_line_put(&line, "color.");
         mmgr_line_put(&line, name);
         (void)mmgr_line_finish(&line);
@@ -894,7 +892,7 @@ static void window_preferences_key(const GuiInputHandlerCfg *args)
     // the command's own keys close it from its own window as they open it from the main one
     const CliInput keyed = {.kind = CLI_INPUT_PREFERENCES_KEY};
     EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&keyed, .bytes = args->input->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ull}) + 1ull);
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
     GuiPreferenceChange change;
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &window->preferences,
                .palette = window->palette, .name = args->input->name, .change = &change);
@@ -1153,7 +1151,7 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
         EMBED_CALL(gui_explorer_frame_xy.draw, GuiExplorerFrameXYCfg, .explorer_read = &args->window->explorer,
                    .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
                    .frame = frame, .title = tool->label,
-                   .folders = cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ull}),
+                   .folders = cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ULL}),
                    .tree = ((standing != NULL) && (standing->title != NULL)) ? standing->title : "");
         if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "problems"))
         {
@@ -1275,7 +1273,7 @@ void gui_window_draw(const GuiWindowCfg *args)
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
     const CliViewFrame *const shown = args->window->editor.frame;
     const CliStatus *const standing = args->window->status;
-    const CliPosition none = {0ull, 0ull};
+    const CliPosition none = {0ULL, 0ULL};
     const CliPosition cursor = (shown != NULL) ? shown->cursor : none;
     const CliPosition anchor = (shown != NULL) ? shown->anchor : none;
     const GuiStatus status = {(standing != NULL) ? standing->path : "",
@@ -1287,11 +1285,10 @@ void gui_window_draw(const GuiWindowCfg *args)
                               (standing != NULL) && standing->crlf,
                               (shown != NULL) ? shown->indent_tabs : -1,
                               (shown != NULL) ? shown->indent_size : 4u,
-                              (standing != NULL) ? standing->memory_bytes : 0ull};
+                              (standing != NULL) ? standing->memory_bytes : 0ULL};
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = raster, .glyphs = &args->window->glyphs,
                .icons = &args->window->icons, .palette = palette, .frame = frame, .status = &status);
     // the large name as it stands or goes, the funnel over the whole window, and the eye over the bar and the strip
-    const unsigned long long drawn_ms = cli_clock_milliseconds();
     EMBED_CALL(gui_wordmark_frame.draw, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark, .raster = raster,
                .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette, .frame = frame);
     EMBED_CALL(gui_wordmark_frame.logo_draw, GuiWordmarkFrameCfg, .wordmark_read = &args->window->wordmark,
@@ -1531,7 +1528,7 @@ static void window_press(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y, .input = &pressed);
     // a press on the map goes to that part of the text and may begin the slider's drag, the top worked out from what
     // the map shows
-    unsigned long long top = 0ull;
+    unsigned long long top = 0ULL;
     if ((pressed.hit == CLI_HIT_NONE) &&
         EMBED_CALL(gui_minimap_position_scale.press, GuiMinimapPositionScaleCfg, .map = &window->minimap,
                    .place = window->frame.map, .scale = window->frame.scale, .editor = &window->editor,
@@ -1594,7 +1591,7 @@ static void window_move(const GuiInputHandlerCfg *args)
                                         .frame = &window->frame, .x = args->input->x, .y = args->input->y)) ||
                       window->pending;
     // the slider dragged goes to the part of the text it stands over, as a press on the map does
-    unsigned long long top = 0ull;
+    unsigned long long top = 0ULL;
     if (EMBED_CALL(gui_minimap_position_scale.drag, GuiMinimapPositionScaleCfg, .map = &window->minimap,
                    .y = args->input->y, .top = &top))
     {
@@ -1651,10 +1648,10 @@ static void window_release(const GuiInputHandlerCfg *args)
 
 static void window_key(const GuiInputHandlerCfg *args)
 {
-    GuiWindow *window = args->window;
+    const GuiWindow *window = args->window;
     const CliInput keyed = {.kind = CLI_INPUT_KEY, .hit = window->wordmark.exists ? CLI_HIT_WORDMARK : CLI_HIT_NONE};
     EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&keyed, .bytes = args->input->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ull}) + 1ull);
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
 }
 
 static void window_text(const GuiInputHandlerCfg *args)

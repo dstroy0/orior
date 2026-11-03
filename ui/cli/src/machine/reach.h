@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // reach.h: the windows open, as the command line finds them: each window stores a file under windows/ in orior's home,
 // readable by the reader alone, naming its process, the tree it has open, its comms door and a persistent key of the
-// door's that grants the channel `command` to send on and `answer/*` to listen on. A command line run on a tree with a
-// window open sends the command there, and the window runs it as the menu runs it and answers on `answer/` and the
-// command's id. A file whose window is gone is taken away by the first command line that finds the door shut. A
+// door's that grants the channel `command` to send on and those under `answer/` to listen on. A command line run on a
+// tree with a window open sends the command there, and the window runs it as the menu runs it and answers on `answer/`
+// and the command's id. A file whose window is gone is taken away by the first command line that finds the door shut. A
 // window's file is its process in decimal, its tree, empty for none, its address and its key, each ended by a 0. A
 // command's bytes are its id, menu, command and words, each ended by a 0; an answer's are CLI_REACH_DONE or
 // CLI_REACH_REFUSED and then its text (reach.c)

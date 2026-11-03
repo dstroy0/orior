@@ -59,7 +59,7 @@ EMBED_INLINE void check_snapshot(const GradleCheckCtx *args)
     mmgr_line_put(&title, "Update the snapshot ");
     mmgr_line_put_n(&title, args->supplied, args->size);
     char line[CLI_PATH_MAX_LEN + 64u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, args->check->program);
     mmgr_line_put(&command, " --refresh-dependencies dependencies");
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
@@ -77,17 +77,17 @@ EMBED_INLINE unsigned int check_parts(const GradleCheckCtx *args)
     unsigned long long *third = args->third;
     unsigned long long *third_size = args->third_size;
     unsigned int parts = 0u;
-    unsigned long long start = 0ull;
-    *third = 0ull;
-    *third_size = 0ull;
-    for (unsigned long long at = 0ull; at <= size; at += 1u)
+    unsigned long long start = 0ULL;
+    *third = 0ULL;
+    *third_size = 0ULL;
+    for (unsigned long long at = 0ULL; at <= size; at += 1u)
     {
         if ((at < size) && (text[at] != ':'))
         {
             continue;
         }
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start, .size = at - start,
                    .from_u64s = &from, .to_u64s = &to);
         if (to == from)
@@ -149,8 +149,8 @@ EMBED_INLINE void check_notation(const GradleCheckCtx *args)
     }
     const char *const at_sign = memor.chr(&(MemoriaCfg){.src = supplied, .val = '@', .bytes = (size_t)input_size});
     const unsigned long long bare = (at_sign != NULL) ? (unsigned long long)(at_sign - supplied) : input_size;
-    unsigned long long third = 0ull;
-    unsigned long long third_size = 0ull;
+    unsigned long long third = 0ULL;
+    unsigned long long third_size = 0ULL;
     const unsigned int parts = EMBED_CALL(check_parts, GradleCheckCtx, .text = supplied, .size = bare, .third = &third,
                                           .third_size = &third_size);
     if ((parts < 2u) || (parts > 4u))
@@ -322,7 +322,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
     {
         // each catalog read where it lies, mapped while its aliases are read and let go after; a catalog whose
         // aliases the cellblock could not meet is not checked against
-        unsigned long long read = 0ull;
+        unsigned long long read = 0ULL;
         const unsigned char *const catalog =
             EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_catalogs.path[at], .size_pointer = &read,
                        .owner = &g_cli_gradle_cells);

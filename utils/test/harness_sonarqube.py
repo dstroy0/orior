@@ -8,10 +8,12 @@ scanned onto it, and the duplications it holds listed.
     harness.py sonarqube duplications   every group of blocks found the same, to build/sonarqube_duplications.md
     harness.py sonarqube issues [--under ui/cli]
                                         the project's open issues by file, to build/sonarqube_issues.md
+    harness.py sonarqube cloud          every open issue of the project on SonarCloud, to build/sonarcloud_issues.tsv
 
 The token file is where the window's sonarqube test reads the token from."""
 
 import base64
+import collections
 import json
 import os
 import re
@@ -35,6 +37,10 @@ SCANNER_IMAGE = "sonarsource/sonar-scanner-cli"
 SCANNER_CACHE = "orior-sonar-scanner-cache"
 EXCLUSIONS = "**/node_modules/**,**/target/**,**/build/**,**/dist/**,**/*.min.js,**/vendor/**,**/runs/**"
 PAGE = 500
+CLOUD_SERVER = "https://sonarcloud.io"
+CLOUD_PROJECT = "dstroy0_orior"
+CLOUD_MOST = 10000
+CLOUD_SEVERITIES = ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]
 
 
 def token_read():
@@ -208,6 +214,44 @@ def cmd_duplications(a):
     return 0
 
 
+def cloud_asked(path, **params):
+    """A public answer of SonarCloud about the project, which takes no token."""
+    query = urllib.parse.urlencode(dict(params, **{"componentKeys" if path == "issues/search" else "projects": CLOUD_PROJECT}))
+    with urllib.request.urlopen("%s/api/%s?%s" % (CLOUD_SERVER, path, query), timeout=120) as answer:
+        return json.loads(answer.read().decode("utf-8"))
+
+
+def cloud_issues():
+    """Every open issue of the project on SonarCloud, a query of the rule at a time, since one query stops at 10000 of
+    them, and a rule past that a query of the severity within it: each a row of its fields."""
+    found = {}
+    rules = cloud_asked("issues/search", resolved="false", ps=1, facets="rules")["facets"][0]["values"]
+    for rule in rules:
+        page = 1
+        while True:
+            answer = cloud_asked("issues/search", resolved="false", ps=PAGE, p=page, rules=rule["val"], s="FILE_LINE", asc="true")
+            for issue in answer.get("issues", []):
+                found[issue["key"]] = (issue.get("severity", ""), issue.get("type", ""), issue.get("rule", ""),
+                                       issue.get("component", "").split(":", 1)[-1], issue.get("line", 0), issue.get("message", ""))
+            if (page * PAGE >= answer.get("paging", {}).get("total", 0)) or (page * PAGE >= CLOUD_MOST) or not answer.get("issues"):
+                break
+            page += 1
+    return sorted(found.values(), key=lambda row: (CLOUD_SEVERITIES.index(row[0]) if row[0] in CLOUD_SEVERITIES else 9, row[2], row[3], row[4]))
+
+
+def cmd_cloud(a):
+    rows = cloud_issues()
+    listed = os.path.join(BUILD, "sonarcloud_issues.tsv")
+    with open(listed, "w", encoding="utf-8", newline="\n") as out:
+        for row in rows:
+            out.write("\t".join(str(field).replace("\t", " ").replace("\n", " ") for field in row) + "\n")
+    counted = collections.Counter((row[0], row[2]) for row in rows)
+    print("%d open issues, to %s" % (len(rows), listed))
+    for (severity, rule), count in sorted(counted.items(), key=lambda item: (CLOUD_SEVERITIES.index(item[0][0]) if item[0][0] in CLOUD_SEVERITIES else 9, -item[1])):
+        print("%-9s %6d %s" % (severity, count, rule))
+    return 0
+
+
 def register(sub):
     """The sonarqube group's commands added to harness.py's subparsers."""
     group = sub.add_parser("sonarqube", help="the SonarQube server given the project, ui/ scanned onto it, its duplications listed")
@@ -221,6 +265,8 @@ def register(sub):
     p.set_defaults(fn=cmd_profile)
     p = sonarqube.add_parser("duplications", help="every group of blocks found the same, to build/sonarqube_duplications.md")
     p.set_defaults(fn=cmd_duplications)
+    p = sonarqube.add_parser("cloud", help="every open issue of the project on SonarCloud, to build/sonarcloud_issues.tsv, the counts by rule printed")
+    p.set_defaults(fn=cmd_cloud)
     p = sonarqube.add_parser("issues", help="the project's open issues by file, to build/sonarqube_issues.md")
     p.add_argument("--under", default="", help="the issues of files under this path alone, such as ui/cli")
     p.set_defaults(fn=cmd_issues)

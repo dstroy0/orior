@@ -64,7 +64,8 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
     static CliIncluded s_included[5];
     char *const text = s_text[args->depth];
     const unsigned long long size = qry_member_file_read(args->path, (unsigned char *)text, CLI_LD_CONF_BYTES - 1u);
-    if (size == QRY_MEMBER_UNREAD)
+    // QRY_MEMBER_UNREAD stands above every size
+    if (size >= CLI_LD_CONF_BYTES)
     {
         return count;
     }
@@ -73,7 +74,7 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
     while (line[0] != '\0')
     {
         char *end = line;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         char *const next = (end[0] != '\0') ? (end + 1) : end;
         end[0] = '\0';
@@ -84,7 +85,7 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
         }
         char *from = line;
         char *to = line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
-        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = (unsigned long long)(to - from), .set = " \t\r");
         to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = " \t\r");
@@ -107,7 +108,7 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
             continue;
         }
         from += 7;
-        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = " \t");
         char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -139,11 +140,11 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
         for (unsigned int at = 0u; (args->depth < 4u) && (at < included->count); at += 1u)
         {
             char file[CLI_PATH_MAX_LEN];
-            VerbaLinea joined = {file, sizeof(file), 0ull};
+            VerbaLinea joined = {file, sizeof(file), 0ULL};
             mmgr_line_put(&joined, folder);
             mmgr_line_ch(&joined, '/');
             mmgr_line_put(&joined, included->names[at]);
-            if (mmgr_line_finish(&joined) != 0ull)
+            if (mmgr_line_finish(&joined) != 0ULL)
             {
                 count = EMBED_CALL(cli_ld_conf, BinaryLdCtx, .path = file, .folders = args->folders, .count = count,
                                    .depth = args->depth + 1u);

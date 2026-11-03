@@ -125,7 +125,7 @@ static void main_preferences_open(const CliViewOrder *order)
     const CliWindowPosition place = {over.x + (((int)over.width - (int)order->width) / 2),
                                      over.y + (((int)over.height - (int)height) / 2), order->width, height, 0};
     char error_text[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     s_preferences = EMBED_CALL(gui_system_position_title.owner_open, GuiSystemPositionTitleCfg, .owner = s_system,
                                .place = &place, .title = "Preferences", .events = &s_events,
                                .context = (void *)&s_preferences_surface, .err_msg = &why);
@@ -197,12 +197,12 @@ static void main_woken(void *context)
 static void main_err(const VerbaLinea *err_msg)
 {
     char text[CLI_ERR_MSG_MAX_LEN + 8u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "orior: ");
-    mmgr_line_put_n(&line, err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
+    mmgr_line_put_n(&line, err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ULL);
     mmgr_line_ch(&line, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
-               .length = mmgr_line_ok(&line) ? line.at : 0ull);
+               .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 int main(void)
@@ -214,7 +214,7 @@ int main(void)
         return code;
     }
     char error_text[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     unsigned int display_width = 0u;
     unsigned int display_height = 0u;
     EMBED_CALL(gui_system_width.display_max, GuiSystemWidthCfg, .width = &display_width, .height = &display_height);

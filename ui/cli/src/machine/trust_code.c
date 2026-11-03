@@ -16,11 +16,11 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
                                         "eslint.config.mjs"};
 
 // how long a tree's code found is cached before the tree is looked through again, in milliseconds
-#define CLI_TRUST_FOUND_FOR 10000ull
+#define CLI_TRUST_FOUND_FOR 10000ULL
 
 // the most trees whose code found is cached, and the bytes the paths of a tree's code are written in
 #define CLI_TRUST_TREES 8u
-#define CLI_TRUST_PATHS_CAPACITY (1ull << 20u)
+#define CLI_TRUST_PATHS_CAPACITY (1ULL << 20u)
 
 // The code found in a tree looked through, and when
 typedef struct
@@ -37,7 +37,7 @@ void cli_trust_code_free(const CliTrustTreeCodeCfg *args)
 {
     CliTrustCode *code = args->code;
     g_cli_cells->persistent_buf_release(code->paths, &g_cli_trust_cells);
-    *code = (CliTrustCode){NULL, 0ull, 0u};
+    *code = (CliTrustCode){NULL, 0ULL, 0u};
 }
 
 void cli_trust_forget(void)
@@ -72,7 +72,7 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
     unsigned long long size = args->size;
     unsigned int count = args->count;
     CliTrustCode *code = args->code;
-    *code = (CliTrustCode){NULL, 0ull, 0u};
+    *code = (CliTrustCode){NULL, 0ULL, 0u};
     if (count == 0u)
     {
         return 1;
@@ -95,7 +95,7 @@ EMBED_INLINE int cli_same_word(const TrustCodeCtx *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char one = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
                                                                               : args->text[at];
@@ -112,7 +112,7 @@ EMBED_INLINE void cli_trim(const TrustCodeCtx *args)
 {
     const char **from = args->from;
     const char **to = args->to;
-    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ULL,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
     *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
@@ -126,7 +126,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
     while (line[0] != '\0')
     {
         const char *end = line;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *const next = (end[0] != '\0') ? (end + 1) : end;
         const char *from = line;
@@ -135,7 +135,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
         line = next;
         if ((from < to) && (from[0] == '['))
         {
-            from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+            from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                                .size = (unsigned long long)(to - from), .set = "[");
             to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                    .at = (unsigned long long)(to - from), .set = "]");
@@ -145,7 +145,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
             continue;
         }
         const char *equals = from;
-        equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ull,
+        equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ULL,
                              .size = (unsigned long long)(to - equals), .set = "=");
         if (!in_core || (equals == to))
         {
@@ -158,7 +158,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
         const char *value_to = to;
         EMBED_CALL(cli_trim, TrustCodeCtx, .from = &value_from, .to = &value_to);
         value_from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = value_from,
-                                 .at = 0ull, .size = (unsigned long long)(value_to - value_from), .set = "\"");
+                                 .at = 0ULL, .size = (unsigned long long)(value_to - value_from), .set = "\"");
         value_to =
             value_from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = value_from,
                                     .at = (unsigned long long)(value_to - value_from), .set = "\"");
@@ -186,16 +186,16 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
 EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    unsigned long long size = 0ull;
-    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_trust_cells)
                                            : NULL;
-    char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_trust_cells) : NULL;
+    char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_trust_cells) : NULL;
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
@@ -217,10 +217,10 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
         unsigned int count = 0u;
         int longer = 0;
         const unsigned long long stop =
-            EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+            EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = "\n");
         for (unsigned long long piece = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                   .text = at, .at = 0ull, .size = stop, .set = " ");
+                                                   .text = at, .at = 0ULL, .size = stop, .set = " ");
              piece < stop;)
         {
             const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -280,10 +280,10 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "build.rs", .cap = CLI_CELLS_POOL}))
         {
             char adjacent[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {adjacent, sizeof(adjacent), 0ull};
+            VerbaLinea line = {adjacent, sizeof(adjacent), 0ULL};
             mmgr_line_put_n(&line, file, (unsigned long long)(name - file));
             mmgr_line_put(&line, "Cargo.toml");
-            is_code = (mmgr_line_finish(&line) != 0ull) &&
+            is_code = (mmgr_line_finish(&line) != 0ULL) &&
                       EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = files, .path = adjacent);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_CELLS_POOL}))
@@ -323,7 +323,7 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     const unsigned long long now = cli_clock_milliseconds();
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
-        CliTrustFound *const one = &s_found[at];
+        const CliTrustFound *const one = &s_found[at];
         if (one->has && (cellul.eq(&(CatenaFinitaCfg){.src = one->tree, .other = args->tree, .cap = CLI_CELLS_POOL})) &&
             ((now - one->when) < CLI_TRUST_FOUND_FOR))
         {
@@ -333,10 +333,10 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
         }
     }
     // a tree whose code the cellblock could not meet is not cached, and it is looked through again when next requested
-    CliTrustCode looked = {NULL, 0ull, 0u};
+    CliTrustCode looked = {NULL, 0ULL, 0u};
     if (!EMBED_CALL(cli_trust_tree_code.looked_for, CliTrustTreeCodeCfg, .tree = args->tree, .code = &looked))
     {
-        *code = (CliTrustCode){NULL, 0ull, 0u};
+        *code = (CliTrustCode){NULL, 0ULL, 0u};
         return 0;
     }
     // the tree's place, else a free one, else the oldest
@@ -381,7 +381,7 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
         return 0;
     }
     // a tree whose code the cellblock could not meet is disabled, as one that contains code is
-    CliTrustCode code = {NULL, 0ull, 0u};
+    CliTrustCode code = {NULL, 0ULL, 0u};
     const int blocked =
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||
         (code.count != 0u);
@@ -395,7 +395,7 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args)
     {
         return 0;
     }
-    CliTrustCode code = {NULL, 0ull, 0u};
+    CliTrustCode code = {NULL, 0ULL, 0u};
     int blocked = !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code);
     const char *path = code.paths;
     for (unsigned int at = 0u; !blocked && (at < code.count); at += 1u)
@@ -421,10 +421,10 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
     for (;;)
     {
         char git[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {git, sizeof(git), 0ull};
+        VerbaLinea line = {git, sizeof(git), 0ULL};
         mmgr_line_put(&line, folder);
         mmgr_line_put(&line, "/.git");
-        if ((mmgr_line_finish(&line) != 0ull) &&
+        if ((mmgr_line_finish(&line) != 0ULL) &&
             (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
              EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git)))
         {

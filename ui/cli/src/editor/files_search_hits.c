@@ -65,7 +65,7 @@ void cli_hits_init(const CliFilesSearchHitsCfg *args)
     CliSearchHits *hits = args->hits;
     const unsigned long long pool_bytes = (unsigned long long)CLI_POOL_MAX * sizeof(CliSearchHit);
     const unsigned long long list_bytes = (unsigned long long)CLI_POOL_MAX * sizeof(unsigned int);
-    char *const cell = g_cli_cells->temporary_buf_alloc(pool_bytes + (3ull * list_bytes), &g_cli_search_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(pool_bytes + (3ULL * list_bytes), &g_cli_search_cells);
     *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
     if (cell == NULL)
     {

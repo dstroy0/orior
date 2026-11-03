@@ -23,11 +23,11 @@ typedef struct
 // the rows buffered's pending bytes written to their file: 1, or 0 where they could not be
 EMBED_INLINE int results_flush(const DbResultsCtx *args)
 {
-    const int written = (args->results->pending_size == 0ull) ||
+    const int written = (args->results->pending_size == 0ULL) ||
                         EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->results->path,
                                    .bytes = args->results->pending, .size = args->results->pending_size, .fresh = 0);
     args->results->size += args->results->pending_size;
-    args->results->pending_size = 0ull;
+    args->results->pending_size = 0ULL;
     return written;
 }
 
@@ -55,12 +55,12 @@ EMBED_INLINE void results_row_write(const DbResultsCtx *args)
 // whether a value reads as a whole number, as i64 parses one
 EMBED_INLINE int results_integer(const DbResultsCtx *args)
 {
-    unsigned long long at = ((args->size > 0u) && ((args->text[0] == '-') || (args->text[0] == '+'))) ? 1ull : 0ull;
+    unsigned long long at = ((args->size > 0u) && ((args->text[0] == '-') || (args->text[0] == '+'))) ? 1ULL : 0ULL;
     if ((at == args->size) || (args->size - at > 19u))
     {
         return 0;
     }
-    for (; at < args->size; at += 1ull)
+    for (; at < args->size; at += 1ULL)
     {
         if ((args->text[at] < '0') || (args->text[at] > '9'))
         {
@@ -76,13 +76,13 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long at = ((size > 0u) && ((text[0] == '-') || (text[0] == '+'))) ? 1ull : 0ull;
+    unsigned long long at = ((size > 0u) && ((text[0] == '-') || (text[0] == '+'))) ? 1ULL : 0ULL;
     const unsigned long long rest = size - at;
     static const char *const s_words[3] = {"inf", "infinity", "nan"};
     for (unsigned int word = 0u; word < 3u; word += 1u)
     {
         int same = (rest == cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL}));
-        for (unsigned long long one = 0ull; same && (one < rest); one += 1ull)
+        for (unsigned long long one = 0ULL; same && (one < rest); one += 1ULL)
         {
             const char letter = text[at + one];
             same = (((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter) == s_words[word][one];
@@ -92,14 +92,14 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
             return 1;
         }
     }
-    unsigned long long digits = 0ull;
+    unsigned long long digits = 0ULL;
     digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                         .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
              at;
     at += digits;
     if ((at < size) && (text[at] == '.'))
     {
-        at += 1ull;
+        at += 1ULL;
         const unsigned long long more =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                        .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
@@ -109,15 +109,15 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
     }
     if ((digits > 0u) && (at < size) && ((text[at] == 'e') || (text[at] == 'E')))
     {
-        at += ((at + 1u < size) && ((text[at + 1u] == '-') || (text[at + 1u] == '+'))) ? 2ull : 1ull;
-        unsigned long long exponent = 0ull;
+        at += ((at + 1u < size) && ((text[at + 1u] == '-') || (text[at + 1u] == '+'))) ? 2ULL : 1ULL;
+        unsigned long long exponent = 0ULL;
         const unsigned long long more =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                        .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
             at;
         at += more;
         exponent += more;
-        digits = (exponent > 0u) ? digits : 0ull;
+        digits = (exponent > 0u) ? digits : 0ULL;
     }
     return (digits > 0u) && (at == size);
 }
@@ -145,19 +145,19 @@ static int results_row(const CliDbRowCfg *args)
     // them, and buffered as its values' nulls where it does not fit the capacity at all, so that the rows after retain
     // their places
     VerbaLinea line = {results->pending + results->pending_size, sizeof(results->pending) - results->pending_size,
-                       0ull};
+                       0ULL};
     EMBED_CALL(results_row_write, DbResultsCtx, .values = values, .count = count, .out = &line);
     mmgr_line_ch(&line, '\n');
     if (!mmgr_line_ok(&line) && (results->pending_size > 0u))
     {
         (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
-        line = (VerbaLinea){results->pending, sizeof(results->pending), 0ull};
+        line = (VerbaLinea){results->pending, sizeof(results->pending), 0ULL};
         EMBED_CALL(results_row_write, DbResultsCtx, .values = values, .count = count, .out = &line);
         mmgr_line_ch(&line, '\n');
     }
     if (!mmgr_line_ok(&line))
     {
-        line.at = 0ull;
+        line.at = 0ULL;
         mmgr_line_ch(&line, '[');
         for (unsigned int at = 0u; at < count; at += 1u)
         {
@@ -175,12 +175,12 @@ static int results_row(const CliDbRowCfg *args)
     }
     const char *const row = results->pending + results->pending_size;
     results->pending_size += line.at;
-    results->rows += 1ull;
+    results->rows += 1ULL;
     if (reader->out != NULL)
     {
         mmgr_line_put(reader->out, (reader->written > 0u) ? "," : "");
         mmgr_line_put_n(reader->out, row, line.at - 1u);
-        reader->written += 1ull;
+        reader->written += 1ULL;
     }
     for (unsigned int at = 0u; reader->infer && (at < count) && (at < results->column_count); at += 1u)
     {
@@ -215,28 +215,28 @@ int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args)
     results->column_count = head->column_count;
     memor.cpy(&(MemoriaCfg){
         .dst = results->columns, .src = head->columns, .bytes = sizeof(results->columns[0]) * head->column_count});
-    results->rows = 0ull;
-    results->size = 0ull;
-    results->pending_size = 0ull;
+    results->rows = 0ULL;
+    results->size = 0ULL;
+    results->pending_size = 0ULL;
     results->has_done = 0;
-    results->beyond = 0ull;
+    results->beyond = 0ULL;
     if (results->path[0] == '\0')
     {
         char temporary[CLI_PATH_MAX_LEN];
         char name[64];
-        VerbaLinea named = {name, sizeof(name), 0ull};
+        VerbaLinea named = {name, sizeof(name), 0ULL};
         mmgr_line_put(&named, "orior-db-");
         mmgr_line_decimal(&named, cli_process_own(), 1u);
         mmgr_line_ch(&named, '-');
-        mmgr_line_decimal(&named, (unsigned long long)(uintptr_t)args->open % 100000ull, 1u);
+        mmgr_line_decimal(&named, (unsigned long long)(uintptr_t)args->open % 100000ULL, 1u);
         mmgr_line_put(&named, ".jsonl");
         mmgr_line_finish(&named);
         EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = results->path);
     }
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = results->path, .bytes = "",
-                     .size = 0ull, .fresh = 1);
-    CliDbResultsReader reader = {args->open, args->out, 0ull, args->link->kind == CLI_DB_LINK_LITE, {0}};
+                     .size = 0ULL, .fresh = 1);
+    CliDbResultsReader reader = {args->open, args->out, 0ULL, args->link->kind == CLI_DB_LINK_LITE, {0}};
     mmgr_line_ch(args->out, '[');
     const int read = EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = args->link,
                                 .count = args->page, .each_row = results_row, .context = &reader, .done = args->done,
@@ -267,7 +267,7 @@ static int results_read_on(const CliEachLinkFailureCfg *args)
     CliDbLink *link = args->link;
     CliDbFailure *failure = args->failure;
     CliDbReadOn *const read_state = (CliDbReadOn *)context;
-    CliDbResultsReader reader = {read_state->open, NULL, 0ull, 0, {0}};
+    CliDbResultsReader reader = {read_state->open, NULL, 0ULL, 0, {0}};
     return EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = link,
                       .count = read_state->want, .each_row = results_row, .context = &reader, .done = &read_state->done,
                       .tag = read_state->tag, .failure = failure);
@@ -279,7 +279,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
 {
     CliDbResults *results = args->results;
     (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = (args->start < args->end)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = results->path,
                                                         .size_pointer = &size, .owner = &g_cli_db_cells)
@@ -300,8 +300,8 @@ void cli_db_results_lines(const CliDbContextCtx *args)
             EMBED_CALL(args->each_callback, CliEachLineSizeCfg, .context = args->context,
                        .line = (const char *)bytes + at, .size = line_end - at);
         }
-        row += 1ull;
-        at = line_end + 1ull;
+        row += 1ULL;
+        at = line_end + 1ULL;
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
 }
@@ -320,7 +320,7 @@ int cli_db_rows(const CliDbOutFailureOpenCfg *args)
     while ((results->rows < args->from + args->count_u64) && results->has_columns && !results->has_done)
     {
         const unsigned long long short_of = args->from + args->count_u64 - results->rows;
-        CliDbReadOn read_state = {args->open, (short_of > 200u) ? short_of : 200ull, 0, ""};
+        CliDbReadOn read_state = {args->open, (short_of > 200u) ? short_of : 200ULL, 0, ""};
         if (!EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
                         .work = results_read_on, .context = &read_state, .failure = args->failure))
         {

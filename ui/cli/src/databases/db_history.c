@@ -34,13 +34,13 @@ EMBED_INLINE int history_file(const DbHistoryCtx *args)
     {
         return 0;
     }
-    VerbaLinea account_line = {account, sizeof(account), 0ull};
+    VerbaLinea account_line = {account, sizeof(account), 0ULL};
     EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &args->open->config,
                .out = &account_line);
-    VerbaLinea hash_line = {hash, sizeof(hash), 0ull};
+    VerbaLinea hash_line = {hash, sizeof(hash), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = account_line.out, .size = account_line.at,
                .text = &hash_line);
-    hash_line.at = 16ull;
+    hash_line.at = 16ULL;
     mmgr_line_put(&hash_line, ".jsonl");
     mmgr_line_finish(&hash_line);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = hash, .joined = args->path);
@@ -56,11 +56,11 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     {
         return;
     }
-    VerbaLinea next_line = {next, sizeof(next), 0ull};
+    VerbaLinea next_line = {next, sizeof(next), 0ULL};
     mmgr_line_put(&next_line, path);
     mmgr_line_put(&next_line, ".next");
     mmgr_line_finish(&next_line);
-    VerbaLinea entry = {s_entry, sizeof(s_entry), 0ull};
+    VerbaLinea entry = {s_entry, sizeof(s_entry), 0ULL};
     mmgr_line_put(&entry, "{\"at\":");
     mmgr_line_decimal(&entry, cli_wall_milliseconds(), 1u);
     mmgr_line_put(&entry, ",\"sql\":");
@@ -74,11 +74,11 @@ void cli_db_remembered(const CliDbStatementCtx *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->err_text, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&entry, "}\n");
     // the history's newest lines but one retained, then the entry after them
-    unsigned long long history_size = 0ull;
+    unsigned long long history_size = 0ULL;
     const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                     .size_pointer = &history_size, .owner = &g_cli_db_cells);
     // each newline before the last line's end starts one more line retained, counted back from the end
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end =
         ((history_size > 0u) && (history[history_size - 1u] == '\n')) ? history_size - 1u : history_size;
     unsigned int count = 0u;
@@ -91,9 +91,9 @@ void cli_db_remembered(const CliDbStatementCtx *args)
         newline = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = (const char *)history,
                              .length_value = (unsigned long long)(newline - (const char *)history), .byte = '\n');
     }
-    start = (newline != NULL) ? ((unsigned long long)(newline - (const char *)history) + 1ull) : 0ull;
+    start = (newline != NULL) ? ((unsigned long long)(newline - (const char *)history) + 1ULL) : 0ULL;
     int written = mmgr_line_ok(&entry) && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
-                                                     .bytes = "", .size = 0ull, .fresh = 1);
+                                                     .bytes = "", .size = 0ULL, .fresh = 1);
     if (written && (start < history_size))
     {
         written = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
@@ -101,7 +101,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
         if (written && (history[history_size - 1u] != '\n'))
         {
             written = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next, .bytes = "\n",
-                                 .size = 1ull, .fresh = 0);
+                                 .size = 1ULL, .fresh = 0);
         }
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = history, .owner = &g_cli_db_cells);
@@ -116,7 +116,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
 void cli_db_history(const CliDbOutCountCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_db_cells)
@@ -129,7 +129,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
         unsigned long long start = end;
         start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                            .at = start, .set = "\n");
-        VerbaLinea none = {NULL, 0ull, 0ull};
+        VerbaLinea none = {NULL, 0ULL, 0ULL};
         if ((end > start) && EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
                                         .text = (const char *)bytes + start, .size = end - start, .out = &none))
         {
@@ -146,10 +146,10 @@ void cli_db_history(const CliDbOutCountCfg *args)
 // the characters of the first `size` bytes of a text, each counted once at its first byte
 EMBED_INLINE unsigned long long history_characters(const DbHistoryCtx *args)
 {
-    unsigned long long count = 0ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long count = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        count += (((unsigned char)args->text[at] & 0xc0u) != 0x80u) ? 1ull : 0ull;
+        count += (((unsigned char)args->text[at] & 0xc0u) != 0x80u) ? 1ULL : 0ULL;
     }
     return count;
 }
@@ -157,8 +157,8 @@ EMBED_INLINE unsigned long long history_characters(const DbHistoryCtx *args)
 void cli_db_statement_at(const CliDbOutSizeCfg *args)
 {
     // the byte the character at `offset` starts at, the text's end where it is past its last
-    unsigned long long byte = 0ull;
-    for (unsigned long long seen = 0ull; byte < args->size; byte += 1ull)
+    unsigned long long byte = 0ULL;
+    for (unsigned long long seen = 0ULL; byte < args->size; byte += 1ULL)
     {
         if (((unsigned char)args->text[byte] & 0xc0u) != 0x80u)
         {
@@ -166,7 +166,7 @@ void cli_db_statement_at(const CliDbOutSizeCfg *args)
             {
                 break;
             }
-            seen += 1ull;
+            seen += 1ULL;
         }
     }
     CliSqlSpan span;

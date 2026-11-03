@@ -101,7 +101,7 @@ EMBED_INLINE void cli_program_append(const CompileDbProgramCtx *args)
 // `text` copied whole into `out`, sized for `size`
 EMBED_INLINE void cli_copy(const CompileDbProgramCtx *args)
 {
-    VerbaLinea line = {args->out, args->size, 0ull};
+    VerbaLinea line = {args->out, args->size, 0ULL};
     mmgr_line_put(&line, args->text);
     mmgr_line_finish(&line);
 }
@@ -168,11 +168,11 @@ EMBED_INLINE int cli_target_program(const CompileDbProgramCtx *args)
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = args->program_capacity, .cap = CLI_CELLS_POOL});
         const int skipped =
-            (length >= 4ull) &&
+            (length >= 4ULL) &&
             ((cellul.eq(&(CatenaFinitaCfg){
-                 .src = args->program_capacity + length - 4ull, .other = ".pdb", .cap = CLI_CELLS_POOL})) ||
+                 .src = args->program_capacity + length - 4ULL, .other = ".pdb", .cap = CLI_CELLS_POOL})) ||
              (cellul.eq(&(CatenaFinitaCfg){
-                 .src = args->program_capacity + length - 4ull, .other = ".lib", .cap = CLI_CELLS_POOL})));
+                 .src = args->program_capacity + length - 4ULL, .other = ".lib", .cap = CLI_CELLS_POOL})));
         if (!skipped)
         {
             return 1;
@@ -243,7 +243,7 @@ EMBED_INLINE void cli_cmake_target(const CompileDbProgramCtx *args)
                    .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                     .object = matched, .key = "compileGroupIndex"));
     const unsigned long long group =
-        (place != ~0ull)
+        (place != ~0ULL)
             ? EMBED_CALL(cli_reply_array.item, CliReplyArrayCfg, .reply = args->target,
                          .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                              .object = root, .key = "compileGroups"),
@@ -287,7 +287,7 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
 {
     char index[CLI_PATH_MAX_LEN];
     CliStamped stamped;
-    CliReply reply = {NULL, 0ull};
+    CliReply reply = {NULL, 0ULL};
     if (!EMBED_CALL(cli_compile_db_reply_internal.compile_newest_index, CliCompileDbReplyCtx,
                     .reply = args->reply_folder, .index = index) ||
         !EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx, .path = index,
@@ -299,8 +299,8 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
     const unsigned long long answers =
         EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                    .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "reply");
-    CliReply model = {NULL, 0ull};
-    CliReply chains_file = {NULL, 0ull};
+    CliReply model = {NULL, 0ULL};
+    CliReply chains_file = {NULL, 0ULL};
     const int modelled = EMBED_CALL(cli_reply_file_read, CompileDbProgramCtx, .reply = &reply,
                                     .node = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                                                        .object = answers, .key = "codemodel-v2"),
@@ -333,7 +333,7 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
         const unsigned long long named_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        named = (named_end != 0ull) ? (build + named_end) : named;
+        named = (named_end != 0ULL) ? (build + named_end) : named;
         const unsigned long long configurations =
             EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
                        .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &model), .key = "configurations");
@@ -367,7 +367,7 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
                  EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &model, .array = targets);
              at != CLI_REPLY_NONE; at = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &model, .item = at))
         {
-            CliReply target = {NULL, 0ull};
+            CliReply target = {NULL, 0ULL};
             if (EMBED_CALL(cli_reply_file_read, CompileDbProgramCtx, .reply = &model, .node = at,
                            .folder = args->reply_folder, .file = &target))
             {
@@ -389,7 +389,7 @@ EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = name,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (name + name_end) : name;
+    name = (name_end != 0ULL) ? (name + name_end) : name;
     EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = stem, .size = sizeof(stem), .text = name);
     char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
@@ -416,7 +416,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
     char targets_path[CLI_PATH_MAX_LEN];
     char build[CLI_PATH_MAX_LEN];
     CliStamped stamped;
-    CliReply reply = {NULL, 0ull};
+    CliReply reply = {NULL, 0ULL};
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->info, .relative = "intro-targets.json",
                .joined = targets_path);
     if (!EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx,
@@ -430,7 +430,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
     const unsigned long long config_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    config = (config_end != 0ull) ? (build + config_end) : config;
+    config = (config_end != 0ULL) ? (build + config_end) : config;
     for (unsigned long long target = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &reply,
                                                 .array = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply));
          target != CLI_REPLY_NONE; target = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &reply, .item = target))
@@ -478,7 +478,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
                         .at = EMBED_CALL(cli_reply_array.item, CliReplyArrayCfg, .reply = &reply,
                                          .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg,
                                                              .reply = &reply, .object = target, .key = "filename"),
-                                         .index = 0ull),
+                                         .index = 0ULL),
                         .out = found.program, .capacity = sizeof(found.program)))
         {
             continue;
@@ -488,7 +488,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
                         .at = EMBED_CALL(cli_reply_array.item, CliReplyArrayCfg, .reply = &reply,
                                          .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg,
                                                              .reply = &reply, .object = group, .key = "compiler"),
-                                         .index = 0ull),
+                                         .index = 0ULL),
                         .out = compiler, .capacity = sizeof(compiler)))
         {
             compiler[0] = '\0';

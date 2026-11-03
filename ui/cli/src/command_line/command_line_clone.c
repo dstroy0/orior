@@ -25,10 +25,10 @@ static void files_clone_line(const CliEachLineEndedCfg *args)
     const unsigned long long width =
         EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->line,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_CELLS_POOL}));
-    VerbaLinea over = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea over = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_ch(&over, '\r');
     mmgr_line_put(&over, args->line);
-    for (unsigned long long at = width; at < displayed->displayed; at += 1ull)
+    for (unsigned long long at = width; at < displayed->displayed; at += 1ULL)
     {
         mmgr_line_ch(&over, ' ');
     }
@@ -37,8 +37,8 @@ static void files_clone_line(const CliEachLineEndedCfg *args)
         mmgr_line_ch(&over, '\n');
     }
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = s_line,
-               .length = mmgr_line_ok(&over) ? over.at : 0ull);
-    displayed->displayed = args->ended ? 0ull : width;
+               .length = mmgr_line_ok(&over) ? over.at : 0ULL);
+    displayed->displayed = args->ended ? 0ULL : width;
 }
 
 int cli_clone_words(const CliCommandLineWordsCountCtx *args)
@@ -47,7 +47,7 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
     char parent[CLI_PATH_MAX_LEN] = "";
     if (args->count > 1u)
     {
-        VerbaLinea supplied = {parent, sizeof(parent), 0ull};
+        VerbaLinea supplied = {parent, sizeof(parent), 0ULL};
         mmgr_line_put(&supplied, args->words[1]);
         (void)mmgr_line_finish(&supplied);
     }
@@ -58,15 +58,15 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
     }
     char target[CLI_PATH_MAX_LEN];
     static char s_err_buf[4096];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_git_err_msg_folder.clone_folder, CliGitErrMsgFolderCfg, .url = url, .parent = parent,
                     .folder = target, .err_msg = &err_msg))
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_WRONG;
     }
-    CliCloneDisplayed displayed = {0ull, 0};
+    CliCloneDisplayed displayed = {0ULL, 0};
     if (!EMBED_CALL(cli_git_err_msg.clone, CliGitErrMsgCfg, .url = url, .target = target,
                     .progress_line = files_clone_line, .context = &displayed, .err_msg = &err_msg))
     {
@@ -74,21 +74,21 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
         if (!displayed.wrote)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         }
         return CLI_NO_CODE;
     }
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, "Cloned into ");
     mmgr_line_put(&line, target);
     mmgr_line_ch(&line, '.');
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
-    line.at = 0ull;
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
+    line.at = 0ULL;
     mmgr_line_put(&line, "orior_cli --root \"");
     mmgr_line_put(&line, target);
     mmgr_line_put(&line, "\" opens it in the window.");
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     return 0;
 }

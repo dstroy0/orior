@@ -15,7 +15,7 @@ void *cli_inspect_partition(const CliInspectPartitionCtx *args)
 {
     unsigned long long bytes = args->bytes;
     void *const part = (args->partition->at != NULL) ? (void *)(args->partition->at + args->partition->bytes) : NULL;
-    args->partition->bytes += (bytes + 7ull) & ~7ull;
+    args->partition->bytes += (bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -39,38 +39,38 @@ EMBED_INLINE int read_state_name_byte(const InspectReadingCtx *args)
 // byte that is no space, and a reading may put one more on each line
 EMBED_INLINE void read_state_count(const InspectReadingCtx *args)
 {
-    unsigned long long lines = 1ull;
-    unsigned long long names = 0ull;
-    unsigned long long starts = 0ull;
-    unsigned long long opens = 0ull;
-    for (unsigned long long at = 0ull; at < args->size;)
+    unsigned long long lines = 1ULL;
+    unsigned long long names = 0ULL;
+    unsigned long long starts = 0ULL;
+    unsigned long long opens = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned char byte = (unsigned char)args->text[at];
         if (EMBED_CALL(read_state_name_byte, InspectReadingCtx, .byte = byte))
         {
-            names += 1ull;
-            starts += 1ull;
+            names += 1ULL;
+            starts += 1ULL;
             while ((at < args->size) &&
                    EMBED_CALL(read_state_name_byte, InspectReadingCtx, .byte = (unsigned char)args->text[at]))
             {
-                starts += ((unsigned char)args->text[at] >= 0x80u) ? 1ull : 0ull;
-                at += 1ull;
+                starts += ((unsigned char)args->text[at] >= 0x80u) ? 1ULL : 0ULL;
+                at += 1ULL;
             }
             continue;
         }
-        lines += (byte == '\n') ? 1ull : 0ull;
-        starts += ((byte != ' ') && (byte != '\t') && (byte != '\n') && (byte != '\r')) ? 1ull : 0ull;
-        opens += ((byte == '#') || (byte == '/')) ? 1ull : 0ull;
-        at += 1ull;
+        lines += (byte == '\n') ? 1ULL : 0ULL;
+        starts += ((byte != ' ') && (byte != '\t') && (byte != '\n') && (byte != '\r')) ? 1ULL : 0ULL;
+        opens += ((byte == '#') || (byte == '/')) ? 1ULL : 0ULL;
+        at += 1ULL;
     }
     // a count is an unsigned int's, and a text past one's reach is read as one that fills
-    const unsigned long long reach = 0x3fffffffull;
-    const unsigned long long tokens = starts + lines + 16ull;
+    const unsigned long long reach = 0x3fffffffULL;
+    const unsigned long long tokens = starts + lines + 16ULL;
     g_cli_inspect_max.tokens = (unsigned int)((tokens < reach) ? tokens : reach);
-    g_cli_inspect_max.lines = (unsigned int)((lines + 1ull < reach) ? (lines + 1ull) : reach);
-    g_cli_inspect_max.comments = (unsigned int)((opens + 1ull < reach) ? (opens + 1ull) : reach);
-    g_cli_inspect_max.columns = args->size + lines + 1ull;
-    g_cli_inspect_max.names = (unsigned int)((names + 16ull < reach) ? (names + 16ull) : reach);
+    g_cli_inspect_max.lines = (unsigned int)((lines + 1ULL < reach) ? (lines + 1ULL) : reach);
+    g_cli_inspect_max.comments = (unsigned int)((opens + 1ULL < reach) ? (opens + 1ULL) : reach);
+    g_cli_inspect_max.columns = args->size + lines + 1ULL;
+    g_cli_inspect_max.names = (unsigned int)((names + 16ULL < reach) ? (names + 16ULL) : reach);
 }
 
 // every list of a reading in `language` carved, or measured where the carving has no cell
@@ -99,14 +99,14 @@ EMBED_INLINE void read_state_layout(const InspectReadingCtx *args)
 int cli_inspect_read_state_reserve(const CliInspectLanguageCtx *args)
 {
     EMBED_CALL(read_state_count, InspectReadingCtx, .text = args->text_text, .size = args->size);
-    CliInspectPartition measured = {NULL, 0ull};
+    CliInspectPartition measured = {NULL, 0ULL};
     EMBED_CALL(read_state_layout, InspectReadingCtx, .language = args->language, .partition = &measured);
-    s_read_state = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ull, &g_cli_inspect_cells);
+    s_read_state = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ULL, &g_cli_inspect_cells);
     if (s_read_state == NULL)
     {
         return 0;
     }
-    CliInspectPartition partition = {(unsigned char *)s_read_state, 0ull};
+    CliInspectPartition partition = {(unsigned char *)s_read_state, 0ULL};
     EMBED_CALL(read_state_layout, InspectReadingCtx, .language = args->language, .partition = &partition);
     return 1;
 }

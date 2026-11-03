@@ -9,8 +9,8 @@
 
 unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
 {
-    unsigned long long count = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long at = 0ULL;
     while ((at < args->size) && (count < args->capacity_u64))
     {
         const unsigned char byte = (unsigned char)args->text[at];
@@ -24,7 +24,7 @@ unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
             letter = (letter << 6u) | ((unsigned char)args->text[at + more] & 0x3fu);
         }
         args->letters[count] = letter;
-        count += 1ull;
+        count += 1ULL;
         at += length;
     }
     return count;
@@ -124,13 +124,13 @@ int cli_number(const CliRegexpReadValueCtx *args)
 {
     unsigned int *value = args->value;
     const unsigned long long start = args->reader->at;
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     unsigned int letter = 0u;
     while (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
                       .reader_read = args->reader, .letter = &letter) &&
            (letter >= '0') && (letter <= '9'))
     {
-        read = (read * 10ull) + (letter - '0');
+        read = (read * 10ULL) + (letter - '0');
         args->reader->at += 1u;
     }
     // a count past what an unsigned int represents is read as the most
@@ -303,15 +303,15 @@ EMBED_INLINE void cli_ascii_know(const RegexpReadCtx *args)
         {
             continue;
         }
-        node->ascii[0] = 0ull;
-        node->ascii[1] = 0ull;
+        node->ascii[0] = 0ULL;
+        node->ascii[1] = 0ULL;
         node->ascii_known = 0;
         for (unsigned int letter = 0u; letter < 128u; letter += 1u)
         {
             node->ascii[letter / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
                                                      .regexp = regexp, .index = index, .letter = letter) == 1)
-                                             ? (1ull << (letter % 64u))
-                                             : 0ull;
+                                             ? (1ULL << (letter % 64u))
+                                             : 0ULL;
         }
         node->ascii_known = 1;
     }

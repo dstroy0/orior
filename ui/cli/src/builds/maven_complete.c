@@ -108,7 +108,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
     const char *const *names = NULL;
     unsigned int count = 0u;
     static char s_detail[1u << 12u];
-    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
     if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = &s_xml, .element = open,
                    .name = "properties"))
     {
@@ -143,9 +143,9 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
         {
             continue;
         }
-        CliCompletion *const item = &items->item[first];
+        const CliCompletion *const item = &items->item[first];
         static char s_insert[1u << 13u];
-        VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
+        VerbaLinea insert = {s_insert, sizeof(s_insert), 0ULL};
         mmgr_line_put_n(&insert, items->text + item->insert_at, item->insert_size);
         mmgr_line_put(&insert, ">$0</");
         mmgr_line_put_n(&insert, token, base);
@@ -231,8 +231,8 @@ EMBED_INLINE void complete_repository(const MavenCompleteCtx *args)
 EMBED_INLINE void complete_group_path(const MavenCompleteCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
-    for (unsigned long long at = 0ull; at < args->size; at += 1u)
+    VerbaLinea line = {path, sizeof(path), 0ULL};
+    for (unsigned long long at = 0ULL; at < args->size; at += 1u)
     {
         mmgr_line_ch(&line, (args->group[at] == '.') ? '/' : args->group[at]);
     }
@@ -256,8 +256,8 @@ EMBED_INLINE void complete_coordinates(const MavenCompleteCtx *args)
     const unsigned int open = (s_xml.opens > 0u) ? s_xml.open[s_xml.opens - 1u] : CLI_XML_NONE;
     static char s_group[1u << 12u];
     static char s_artifact[1u << 12u];
-    VerbaLinea group = {s_group, sizeof(s_group), 0ull};
-    VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ull};
+    VerbaLinea group = {s_group, sizeof(s_group), 0ULL};
+    VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ULL};
     const int has_group = EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = &s_xml,
                                      .of = open, .name = "groupId", .out = &group) &&
                           mmgr_line_ok(&group);
@@ -289,11 +289,11 @@ EMBED_INLINE void complete_coordinates(const MavenCompleteCtx *args)
         (void)mmgr_line_finish(&artifact);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = s_artifact,
                    .joined = version_folder);
-        EMBED_CALL(complete_repository, MavenCompleteCtx, .folder = version_folder, .base = "", .base_size = 0ull,
+        EMBED_CALL(complete_repository, MavenCompleteCtx, .folder = version_folder, .base = "", .base_size = 0ULL,
                    .token = args->token, .token_size = args->token_size, .items = args->items);
         return;
     }
-    EMBED_CALL(complete_repository, MavenCompleteCtx, .folder = folder, .base = "", .base_size = 0ull,
+    EMBED_CALL(complete_repository, MavenCompleteCtx, .folder = folder, .base = "", .base_size = 0ULL,
                .token = args->token, .token_size = args->token_size, .items = args->items);
 }
 
@@ -341,7 +341,7 @@ EMBED_INLINE int complete_values(const MavenCompleteCtx *args)
         return 0;
     }
     static char s_detail[1u << 12u];
-    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
     mmgr_line_ch(&detail, '<');
     mmgr_line_put_n(&detail, name, args->size);
     mmgr_line_ch(&detail, '>');
@@ -382,7 +382,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
         {
             const CliXmlElement *const open = &s_xml.element[s_xml.open[s_xml.opens - 1u]];
             static char s_insert[1u << 12u];
-            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
+            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ULL};
             mmgr_line_put_n(&insert, args->text + open->from, open->to - open->from);
             mmgr_line_ch(&insert, '>');
             (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
@@ -410,7 +410,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             unsigned long long name_end = tag;
             while (name_end < comment_prefix_size)
             {
-                unsigned long long length = 0ull;
+                unsigned long long length = 0ULL;
                 if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
                                 .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead,
                                                      .size = comment_prefix_size, .at = name_end, .length = &length)))
@@ -420,7 +420,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
                 name_end += length;
             }
             static char s_name[1u << 12u];
-            const unsigned long long name_size = (name_end - tag < sizeof(s_name)) ? name_end - tag : 0ull;
+            const unsigned long long name_size = (name_end - tag < sizeof(s_name)) ? name_end - tag : 0ULL;
             memor.cpy(&(MemoriaCfg){.dst = s_name, .src = lead + tag, .bytes = (size_t)name_size});
             s_name[name_size] = '\0';
             if (!EMBED_CALL(complete_values, MavenCompleteCtx, .name = s_name, .size = name_size, .token = typed,

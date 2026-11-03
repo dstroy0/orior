@@ -21,7 +21,7 @@ typedef struct
 EMBED_INLINE void cli_report_line_print(const BinaryReportCtx *args)
 {
     char line[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea made = {line, sizeof(line), 0ull};
+    VerbaLinea made = {line, sizeof(line), 0ULL};
     mmgr_line_put(&made, args->first);
     mmgr_line_put(&made, args->name);
     if (args->by != NULL)
@@ -117,7 +117,7 @@ int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args)
     QuerySink sink = args->sink;
     static CliBinaryReport s_report;
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     const int read =
         EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->path,
                    .orior_path = args->orior_path, .count = args->count, .report = &s_report, .err_msg = &err_msg);
@@ -151,11 +151,11 @@ int cli_binary_copy_adjacent(const CliBinaryPathCfg *args)
             continue;
         }
         char to[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {to, sizeof(to), 0ull};
+        VerbaLinea line = {to, sizeof(to), 0ULL};
         mmgr_line_put(&line, folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, one->name);
-        if ((mmgr_line_finish(&line) == 0ull) ||
+        if ((mmgr_line_finish(&line) == 0ULL) ||
             !EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = one->at, .to = to))
         {
             mmgr_line_put(args->err_msg, one->at);

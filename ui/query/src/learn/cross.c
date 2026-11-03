@@ -36,7 +36,7 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
 {
     unsigned long long size = args->size;
     mmgr_line_put(args->names, "questions.txt\n");
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const unsigned char *const newline = (const unsigned char *)memor.chr(
@@ -44,7 +44,7 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->list) : size;
         // the line's words: its code first and its cases third
         const char *word[3] = {NULL, NULL, NULL};
-        unsigned long long length[3] = {0ull, 0ull, 0ull};
+        unsigned long long length[3] = {0ULL, 0ULL, 0ULL};
         unsigned int words = 0u;
         unsigned long long walk = at;
         while ((walk < end) && (words < 3u))
@@ -68,7 +68,7 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
             mmgr_line_put_n(args->names, word[2], length[2]);
             mmgr_line_ch(args->names, '\n');
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
 }
 
@@ -126,7 +126,7 @@ int query_cross_run(const QueryLoopCfg *args)
         s_other = s_here.writer;
         s_other.member = 0;
         const unsigned char *list = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (whole)
         {
             memor.cpy(
@@ -149,16 +149,16 @@ int query_cross_run(const QueryLoopCfg *args)
         whole = whole && (names_text != NULL);
         if (whole)
         {
-            VerbaLinea names = {names_text, size + sizeof(s_first), 0ull};
+            VerbaLinea names = {names_text, size + sizeof(s_first), 0ULL};
             EMBED_CALL(query_list_by_name, CrossCtx, .list = list, .size = size, .names = &names);
             mmgr_line_finish(&names);
             char carried[QUERY_LINE_MAX_LEN];
-            VerbaLinea transferred_line = {carried, sizeof(carried), 0ull};
+            VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
             mmgr_line_put(&transferred_line, "  ");
             whole = EMBED_CALL(query_from_writer_internal.writer_machine_transfer_list, QueryFromWriterCtx,
                                .writer = &s_here.writer, .from = latest, .list_entries = names_text,
                                .err_msg = &transferred_line);
-            if (whole && (mmgr_line_finish(&transferred_line) != 0ull))
+            if (whole && (mmgr_line_finish(&transferred_line) != 0ULL))
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = carried);
             }
@@ -175,11 +175,11 @@ int query_cross_run(const QueryLoopCfg *args)
             char forms[QUERY_PATH_MAX_LEN];
             EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                        .under = QUERY_LEARN_WORK, .path_out = work);
-            VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ull};
+            VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ULL};
             mmgr_line_put(&forms_work_line, work);
             mmgr_line_put(&forms_work_line, "/forms_work.txt");
             mmgr_line_finish(&forms_work_line);
-            VerbaLinea forms_line = {forms, sizeof(forms), 0ull};
+            VerbaLinea forms_line = {forms, sizeof(forms), 0ULL};
             mmgr_line_put(&forms_line, work);
             mmgr_line_put(&forms_line, "/forms.txt");
             mmgr_line_finish(&forms_line);
@@ -190,7 +190,7 @@ int query_cross_run(const QueryLoopCfg *args)
         }
     }
     const unsigned char *questions_blob = NULL;
-    unsigned long long questions_size = 0ull;
+    unsigned long long questions_size = 0ULL;
     if (whole && !EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_here.writer,
                              .name = "questions.txt", .bytes_u8s = &questions_blob, .size_pointer = &questions_size))
     {
@@ -200,7 +200,7 @@ int query_cross_run(const QueryLoopCfg *args)
     const char *const read[3] = {s_files.machine, s_files.layout, base};
     whole = whole && EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_here,
                                 .paths_letters = read, .count = (base != NULL) ? 3u : 2u, .err_msg = err_msg);
-    long long code = -1ll;
+    long long code = -1LL;
     if (whole)
     {
         const char *const carried[9] = {s_transport,     "--dry", "--full", s_files.machine, s_files.layout, "--list",
@@ -208,7 +208,7 @@ int query_cross_run(const QueryLoopCfg *args)
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
                            .context = context, .run = &s_here, .name = "cubin_run.txt", .words = carried, .code = &code,
                            .err_msg = err_msg);
-        if (whole && (code != 0ll))
+        if (whole && (code != 0LL))
         {
             mmgr_line_put(err_msg, "the carrier did not read the list");
             whole = 0;
@@ -230,11 +230,11 @@ int query_cross_run(const QueryLoopCfg *args)
     if (whole)
     {
         char line[QUERY_PATH_MAX_LEN + 160u];
-        VerbaLinea print_line = {line, sizeof(line), 0ull};
+        VerbaLinea print_line = {line, sizeof(line), 0ULL};
         mmgr_line_put(&print_line, "  the report is the blob measuring_stick_query.md of ");
         mmgr_line_put(&print_line, s_here.writer.qry);
         mmgr_line_put(&print_line, "; the vendor's feedback is its blob gated.txt");
-        if (mmgr_line_finish(&print_line) != 0ull)
+        if (mmgr_line_finish(&print_line) != 0ULL)
         {
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         }
@@ -247,7 +247,7 @@ int query_cross_run(const QueryLoopCfg *args)
     {
         return -1;
     }
-    if (code == 2ll)
+    if (code == 2LL)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                    .text = "  cross: the vendor's reader was not reached");

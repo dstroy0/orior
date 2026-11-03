@@ -20,7 +20,7 @@
 #define CLI_BUNDLE_OUT (1u << 27u)
 
 // the bundled table of the bundler itself, which runs before plugins_bundled.c exists: empty
-const CliBundled g_cli_bundled[1] = {{NULL, NULL, 0ull, NULL, 0ull}};
+const CliBundled g_cli_bundled[1] = {{NULL, NULL, 0ULL, NULL, 0ULL}};
 const unsigned int g_cli_bundled_count = 0u;
 
 static char s_ids[CLI_BUNDLE_MAX][CLI_NAME_MAX_LEN];
@@ -53,9 +53,9 @@ EMBED_INLINE void cli_bytes_write(const PluginsBundleCtx *args)
     mmgr_line_put(args->out, args->prefix);
     mmgr_line_decimal(args->out, args->at, 1u);
     mmgr_line_put(args->out, "[] = {");
-    for (unsigned long long byte = 0ull; byte < args->size; byte += 1ull)
+    for (unsigned long long byte = 0ULL; byte < args->size; byte += 1ULL)
     {
-        mmgr_line_put(args->out, ((byte % 24ull) == 0ull) ? "\n    0x" : " 0x");
+        mmgr_line_put(args->out, ((byte % 24ULL) == 0ULL) ? "\n    0x" : " 0x");
         mmgr_line_hex(args->out, args->bytes[byte], 2u);
         mmgr_line_ch(args->out, ',');
     }
@@ -69,12 +69,12 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
     unsigned long long size = args->size;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_bundle_cells);
+                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_bundle_cells);
     const char *const kind =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -95,14 +95,14 @@ EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
     VerbaLinea *out = args->out;
     unsigned long long size = args->size;
     char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&line, args->plugins);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, s_ids[args->at]);
-    VerbaLinea code = {s_code, sizeof(s_code), 0ull};
+    VerbaLinea code = {s_code, sizeof(s_code), 0ULL};
     char why[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if ((mmgr_line_finish(&line) == 0ull) ||
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    if ((mmgr_line_finish(&line) == 0ULL) ||
         !EMBED_CALL(cli_plugins_id.code_in, CliPluginsIdCfg, .id = s_ids[args->at], .folder_read = folder,
                     .text = (const char *)s_bytes, .size = size, .out = &code, .err_msg = &err_msg) ||
         !mmgr_line_ok(&code))
@@ -143,12 +143,12 @@ static void cli_folder_each(const CliEachNameIsFolderCfg *args)
 // the file at `folder`/`id`/plugin.json into `path`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE int cli_plugin_path(const PluginsBundleCtx *args)
 {
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->id);
     mmgr_line_put(&line, "/plugin.json");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // the bytes of the file at `path` written as the array `name`, ended by a 0 its size leaves out, and its size as
@@ -163,9 +163,9 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
     mmgr_line_put(args->out, "const unsigned char ");
     mmgr_line_put(args->out, args->name);
     mmgr_line_put(args->out, "[] = {");
-    for (unsigned long long byte = 0ull; byte < size; byte += 1ull)
+    for (unsigned long long byte = 0ULL; byte < size; byte += 1ULL)
     {
-        mmgr_line_put(args->out, ((byte % 24ull) == 0ull) ? "\n    0x" : " 0x");
+        mmgr_line_put(args->out, ((byte % 24ULL) == 0ULL) ? "\n    0x" : " 0x");
         mmgr_line_hex(args->out, s_bytes[byte], 2u);
         mmgr_line_ch(args->out, ',');
     }
@@ -186,7 +186,7 @@ int main(int count, char **words)
     }
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = words[1], .each = cli_folder_each,
                .context_bytess = NULL);
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ULL};
     mmgr_line_put(&out,
                   "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
                   "// plugins_bundled.c: the plugins that come with orior, each one's id and the bytes of its "
@@ -225,7 +225,7 @@ int main(int count, char **words)
             continue;
         }
         EMBED_CALL(cli_plugin_path, PluginsBundleCtx, .folder = words[1], .id = s_ids[at], .path = path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size);
         mmgr_line_put(&out, "    {\"");
         mmgr_line_put(&out, s_ids[at]);

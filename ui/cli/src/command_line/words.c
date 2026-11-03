@@ -6,7 +6,7 @@
 
 void cli_words_append(const CliWordsWordsCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((args->words_words_pointer->count >= CLI_WORDS_MAX) ||
         ((args->words_words_pointer->used + size) > CLI_WORDS_TEXT))
     {

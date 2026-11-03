@@ -118,7 +118,7 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
     const CliInspectTok *const name = &g_cli_inspect_tok[args->name_at];
     const CliInspectTok *const keyword_tok = &g_cli_inspect_tok[keyword];
     char title[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea titled = {title, sizeof(title), 0ull};
+    VerbaLinea titled = {title, sizeof(title), 0ULL};
     if (calls)
     {
         mmgr_line_put(&titled, "Take out `");
@@ -128,7 +128,7 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
         mmgr_line_put(&titled, " =` and retain its value");
         EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
         EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = keyword_tok->from,
-                   .to = g_cli_inspect_tok[args->name_at + 2u].from, .text_text = "", .size = 0ull);
+                   .to = g_cli_inspect_tok[args->name_at + 2u].from, .text_text = "", .size = 0ULL);
         return;
     }
     CliInspectPosition from = {0u, 0u};
@@ -142,7 +142,7 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
     mmgr_line_put_n(&titled, src + name->start, name->end - name->start);
     EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
     EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
-               .text_text = "", .size = 0ull);
+               .text_text = "", .size = 0ULL);
 }
 
 // the `const`, `let` and `var` the function whose body opens at `open` declares and never reads
@@ -214,7 +214,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
             continue;
         }
         char message[CLI_NAME_MAX_LEN * 2u];
-        VerbaLinea msg = {message, sizeof(message), 0ull};
+        VerbaLinea msg = {message, sizeof(message), 0ULL};
         mmgr_line_ch(&msg, '`');
         mmgr_line_put_n(&msg, src + name->start, name->end - name->start);
         mmgr_line_put(&msg, "` is declared and never read.");
@@ -282,7 +282,7 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
         }
         const CliInspectTok *const word = &g_cli_inspect_tok[at];
         char message[CLI_INSPECT_UNREACHED_CAPACITY];
-        VerbaLinea msg = {message, sizeof(message), 0ull};
+        VerbaLinea msg = {message, sizeof(message), 0ULL};
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
         mmgr_line_put_n(&msg, src + word->start, word->end - word->start);
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
@@ -297,7 +297,7 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
             EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,
                        .title_text = "Take out the code no path reaches");
             EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
-                       .text_text = "", .size = 0ull);
+                       .text_text = "", .size = 0ULL);
         }
         at = next;
     }
@@ -400,7 +400,7 @@ EMBED_INLINE void facts_calls(const InspectJsFactsCtx *args)
                         .word = "function"))
         {
             (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
-                             .name = src + tok->start, .size = tok->end - tok->start, .alias = NULL, .alias_size = 0ull,
+                             .name = src + tok->start, .size = tok->end - tok->start, .alias = NULL, .alias_size = 0ULL,
                              .from = tok->from, .to = tok->to);
         }
         at += 1u;

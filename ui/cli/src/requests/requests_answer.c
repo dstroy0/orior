@@ -37,7 +37,7 @@ EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
         if (rest > 0u)
         {
             char last[8];
-            VerbaLinea last_line = {last, sizeof(last), 0ull};
+            VerbaLinea last_line = {last, sizeof(last), 0ULL};
             const unsigned long long left = args->answer->size - (groups * 3u);
             EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &last_line,
                        .bytes = args->answer->body + (groups * 3u), .size = (left < 3u) ? left : 3u);
@@ -46,8 +46,8 @@ EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
         mmgr_line_ch(out, '"');
         return letters < whole;
     }
-    unsigned long long bytes = 0ull;
-    unsigned long long text = 0ull;
+    unsigned long long bytes = 0ULL;
+    unsigned long long text = 0ULL;
     while (bytes < args->answer->size)
     {
         unsigned int letter = 0u;

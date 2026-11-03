@@ -41,13 +41,13 @@ static void query_names_walk(const CliEachNameIsFolderCfg *args)
     for (unsigned int at = 0u; at < walk->kind_count; at += 1u)
     {
         char path[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {path, sizeof(path), 0ull};
+        VerbaLinea line = {path, sizeof(path), 0ULL};
         mmgr_line_put(&line, walk->folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, stem);
         mmgr_line_ch(&line, '.');
         mmgr_line_put(&line, walk->kinds[at]);
-        if ((mmgr_line_finish(&line) == 0ull) ||
+        if ((mmgr_line_finish(&line) == 0ULL) ||
             !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
         {
             return;
@@ -68,12 +68,12 @@ static void query_names_walk(const CliEachNameIsFolderCfg *args)
 unsigned int query_names_of_kinds(const QueryLoopsRootKindsCfg *args)
 {
     char folder[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, QUERY_TABLE);
     QueryNamesWalk walk = {folder, args->kinds, args->kind_count, args->names, 0u};
-    if (mmgr_line_finish(&line) != 0ull)
+    if (mmgr_line_finish(&line) != 0ULL)
     {
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
                    .each = query_names_walk, .context_bytess = &walk);

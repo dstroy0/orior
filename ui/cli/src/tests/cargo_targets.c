@@ -33,32 +33,32 @@ EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
 {
     const char *value = args->value;
     unsigned long long length = args->length;
-    while ((length > 0ull) &&
+    while ((length > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[0]}) != NULL))
     {
         value += 1;
-        length -= 1ull;
+        length -= 1ULL;
     }
-    while ((length > 0ull) && (cellul.chr(&(CatenaFinitaCfg){
-                                   .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[length - 1ull]}) != NULL))
+    while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
+                                   .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[length - 1ULL]}) != NULL))
     {
-        length -= 1ull;
+        length -= 1ULL;
     }
-    VerbaLinea line = {args->out, args->capacity, 0ull};
-    if ((length > 0ull) && ((value[0] == '"') || (value[0] == '\'')))
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
+    if ((length > 0ULL) && ((value[0] == '"') || (value[0] == '\'')))
     {
-        const char *const closed = memor.chr(&(MemoriaCfg){.src = value + 1, .val = value[0], .bytes = length - 1ull});
+        const char *const closed = memor.chr(&(MemoriaCfg){.src = value + 1, .val = value[0], .bytes = length - 1ULL});
         mmgr_line_put_n(&line, value + 1,
-                        (closed != NULL) ? (unsigned long long)(closed - value) - 1ull : length - 1ull);
+                        (closed != NULL) ? (unsigned long long)(closed - value) - 1ULL : length - 1ULL);
         mmgr_line_finish(&line);
         return;
     }
     const char *const comment = memor.chr(&(MemoriaCfg){.src = value, .val = '#', .bytes = length});
     unsigned long long size = (comment != NULL) ? (unsigned long long)(comment - value) : length;
-    while ((size > 0ull) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[size - 1ull]}) != NULL))
+    while ((size > 0ULL) &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[size - 1ULL]}) != NULL))
     {
-        size -= 1ull;
+        size -= 1ULL;
     }
     mmgr_line_put_n(&line, value, size);
     mmgr_line_finish(&line);
@@ -69,18 +69,18 @@ EMBED_INLINE void found_trim(const CargoTargetsCtx *args)
 {
     const char *text = args->text;
     unsigned long long length = args->length;
-    while ((length > 0ull) &&
+    while ((length > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = text[0]}) != NULL))
     {
         text += 1;
-        length -= 1ull;
+        length -= 1ULL;
     }
-    while ((length > 0ull) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = text[length - 1ull]}) != NULL))
+    while ((length > 0ULL) &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = text[length - 1ULL]}) != NULL))
     {
-        length -= 1ull;
+        length -= 1ULL;
     }
-    VerbaLinea line = {args->out, args->capacity, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
     mmgr_line_put_n(&line, text, length);
     mmgr_line_finish(&line);
 }
@@ -102,12 +102,12 @@ int cli_cargo_line(const CliCargoTestsTextCtx *args)
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
                                  .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ull]}) != NULL))
+                                 .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     *line = args->text + start;
     *length = end - start;
@@ -117,16 +117,16 @@ int cli_cargo_line(const CliCargoTestsTextCtx *args)
 int cli_cargo_package_name(const CliCargoTestsCtx *args)
 {
     int in_package = 0;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const char *line = NULL;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(cli_cargo_tests_text_internal.cargo_line, CliCargoTestsTextCtx, .text = args->text,
                       .size = args->size, .at = &at, .line = &line, .length = &length))
     {
-        if ((length > 0ull) && (line[0] == '['))
+        if ((length > 0ULL) && (line[0] == '['))
         {
             in_package =
-                (length == 9ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "[package]", .bytes = 9u}) == 0);
+                (length == 9ULL) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "[package]", .bytes = 9u}) == 0);
             continue;
         }
         const char *const equal =
@@ -136,15 +136,15 @@ int cli_cargo_package_name(const CliCargoTestsCtx *args)
             continue;
         }
         unsigned long long key = (unsigned long long)(equal - line);
-        while ((key > 0ull) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = line[key - 1ull]}) != NULL))
+        while ((key > 0ULL) &&
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = line[key - 1ULL]}) != NULL))
         {
-            key -= 1ull;
+            key -= 1ULL;
         }
-        if ((key == 4ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "name", .bytes = 4u}) == 0))
+        if ((key == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "name", .bytes = 4u}) == 0))
         {
             EMBED_CALL(found_toml_value, CargoTargetsCtx, .value = equal + 1,
-                       .length = length - (unsigned long long)(equal - line) - 1ull, .out = args->name,
+                       .length = length - (unsigned long long)(equal - line) - 1ULL, .out = args->name,
                        .capacity = CLI_NAME_MAX_LEN);
             return 1;
         }
@@ -154,7 +154,7 @@ int cli_cargo_package_name(const CliCargoTestsCtx *args)
 
 void cli_cargo_join(const CliCargoTestsACtx *args)
 {
-    VerbaLinea line = {args->out, args->capacity, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
     mmgr_line_put(&line, args->a);
     mmgr_line_put(&line, ((args->a[0] != '\0') && (args->b[0] != '\0')) ? args->between : "");
     mmgr_line_put(&line, args->b);
@@ -231,7 +231,7 @@ static void found_entry(const CliEachNameIsFolderCfg *args)
     if (!args->is_folder && (length >= 3u) &&
         (memor.cmp(&(MemoriaCfg){.src = args->name + length - 3u, .other = ".rs", .bytes = 3u}) == 0))
     {
-        VerbaLinea line = {entry->name, sizeof(entry->name), 0ull};
+        VerbaLinea line = {entry->name, sizeof(entry->name), 0ULL};
         mmgr_line_put_n(&line, args->name, length - 3u);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = s_targets.dir, .b = args->name,
@@ -349,16 +349,16 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     int autotests = 1;
     char lib[CLI_PATH_MAX_LEN] = "src/lib.rs";
     unsigned int list_entries = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const char *line = NULL;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(cli_cargo_tests_text_internal.cargo_line, CliCargoTestsTextCtx, .text = args->text,
                       .size = args->size, .at = &at, .line = &line, .length = &length))
     {
-        const int doubled = (length >= 2ull) && (line[0] == '[') && (line[1] == '[');
-        if (doubled || ((length >= 1ull) && (line[0] == '[')))
+        const int doubled = (length >= 2ULL) && (line[0] == '[') && (line[1] == '[');
+        if (doubled || ((length >= 1ULL) && (line[0] == '[')))
         {
-            const unsigned long long open = doubled ? 2ull : 1ull;
+            const unsigned long long open = doubled ? 2ULL : 1ULL;
             const char *const closed =
                 doubled ? cellul.find(&(CatenaFinitaCfg){
                               .src = line + open, .cap = CLI_CELLS_POOL, .other = "]]", .other_cap = CLI_CELLS_POOL})
@@ -388,7 +388,7 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
         EMBED_CALL(found_trim, CargoTargetsCtx, .text = line, .length = (unsigned long long)(equal - line), .out = key,
                    .capacity = sizeof(key));
         EMBED_CALL(found_toml_value, CargoTargetsCtx, .value = equal + 1,
-                   .length = length - (unsigned long long)(equal - line) - 1ull, .out = value,
+                   .length = length - (unsigned long long)(equal - line) - 1ULL, .out = value,
                    .capacity = sizeof(value));
         const int listing = (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL}));
@@ -436,13 +436,13 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     const unsigned int listing_first = s_targets.count;
     for (unsigned int one = 0u; one < list_entries; one += 1u)
     {
-        CliCargoListing *const entry = &tables[one];
+        const CliCargoListing *const entry = &tables[one];
         if (!entry->named)
         {
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        VerbaLinea path_line = {path, sizeof(path), 0ull};
+        VerbaLinea path_line = {path, sizeof(path), 0ULL};
         if (entry->pathed)
         {
             mmgr_line_put(&path_line, entry->path);

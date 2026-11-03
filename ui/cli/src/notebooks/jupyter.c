@@ -10,8 +10,8 @@
 
 // how long a kernel has to start and answer that it is ready, and how long each query that it is ready waits, in
 // milliseconds
-#define CLI_KERNEL_START 60000ull
-#define CLI_KERNEL_READY 2000ull
+#define CLI_KERNEL_START 60000ULL
+#define CLI_KERNEL_READY 2000ULL
 
 const char *cli_jupyter_display_name(const CliJupyterCfg *args)
 {
@@ -93,8 +93,8 @@ static CliKernel *jupyter_position_alloc(void)
 {
     // a kernel's buffers stand in its cell, after it
     CliKernel *const kernel = g_cli_cells->persistent_buf_alloc(
-        sizeof(*kernel) + (unsigned long long)CLI_KERNEL_CONTENT + (3ull * CLI_KERNEL_REPLY_CAPACITY) +
-            CLI_KERNEL_IOPUB_CAPACITY + (2ull * CLI_KERNEL_LINE * 8ull),
+        sizeof(*kernel) + (unsigned long long)CLI_KERNEL_CONTENT + (3ULL * CLI_KERNEL_REPLY_CAPACITY) +
+            CLI_KERNEL_IOPUB_CAPACITY + (2ULL * CLI_KERNEL_LINE * 8ULL),
         &g_cli_notebook_cells);
     if (kernel == NULL)
     {
@@ -110,20 +110,20 @@ static CliKernel *jupyter_position_alloc(void)
     kernel->reserved = 1;
     kernel->refs = 1u;
     kernel->ended = 0;
-    kernel->code = 0ll;
+    kernel->code = 0LL;
     memor.set(&(MemoriaCfg){.dst = &kernel->spawned, .val = 0, .bytes = sizeof(kernel->spawned)});
-    kernel->shell.handle = 0ull;
-    kernel->control.handle = 0ull;
-    kernel->iopub.handle = 0ull;
+    kernel->shell.handle = 0ULL;
+    kernel->control.handle = 0ULL;
+    kernel->iopub.handle = 0ULL;
     kernel->shell_flight[0] = '\0';
-    kernel->shell_queue = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    kernel->shell_queue_from = 0ull;
+    kernel->shell_queue = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    kernel->shell_queue_from = 0ULL;
     kernel->wake = (CliWake)CLI_WAKE_INIT;
     memor.set(&(MemoriaCfg){.dst = kernel->waiters, .val = 0, .bytes = sizeof(kernel->waiters)});
     kernel->read_state = 0u;
     kernel->listening = 0;
     kernel->debug_port = 0u;
-    kernel->interrupt_event = 0ull;
+    kernel->interrupt_event = 0ULL;
     kernel->connection[0] = '\0';
     return kernel;
 }
@@ -134,7 +134,7 @@ EMBED_INLINE void jupyter_status_write(const JupyterCtx *args)
 #if defined(_WIN32)
     mmgr_line_put(args->err_msg, "exit code: ");
 #else
-    if (args->code < 0ll)
+    if (args->code < 0LL)
     {
         mmgr_line_put(args->err_msg, "signal");
         return;
@@ -155,13 +155,13 @@ static int jupyter_connected_while(const JupyterCtx *args)
     for (;;)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea refused = {why, sizeof(why), 0ull};
+        VerbaLinea refused = {why, sizeof(why), 0ULL};
         if (EMBED_CALL(cli_zmtp_socket_host.connect, CliZmtpSocketHostCfg, .socket_out = socket, .host = "127.0.0.1",
                        .port = port, .kind = kind, .err_msg = &refused))
         {
             return 1;
         }
-        long long code = 0ll;
+        long long code = 0LL;
         if (!args->kernel->ended && EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx,
                                                .spawned = &args->kernel->spawned, .code = &code))
         {
@@ -195,8 +195,7 @@ EMBED_INLINE void jupyter_replace(const JupyterCtx *args)
     const char *name = args->name;
     const char *value = args->value;
     char *out = args->out;
-    VerbaLinea line = {out, args->capacity, 0ull};
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    VerbaLinea line = {out, args->capacity, 0ULL};
     EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = name,
                .value = value);
     mmgr_line_finish(&line);
@@ -212,7 +211,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     const CliKernelSpec *const spec = &kernel->spec;
     char temporary[CLI_PATH_MAX_LEN];
     char name[96];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, "orior-kernel-");
     mmgr_line_decimal(&name_line, cli_process_own(), 1u);
     mmgr_line_ch(&name_line, '-');
@@ -222,7 +221,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = kernel->connection);
     char info[1024];
-    VerbaLinea line = {info, sizeof(info), 0ull};
+    VerbaLinea line = {info, sizeof(info), 0ULL};
     static const char *const keys[5] = {
         "{\"shell_port\":", ",\"iopub_port\":", ",\"stdin_port\":", ",\"control_port\":", ",\"hb_port\":"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
@@ -285,7 +284,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     count += 1u;
 #if defined(_WIN32)
     kernel->interrupt_event = cli_event_inheritable();
-    VerbaLinea number = {kernel->event_number, sizeof(kernel->event_number), 0ull};
+    VerbaLinea number = {kernel->event_number, sizeof(kernel->event_number), 0ULL};
     mmgr_line_decimal(&number, kernel->interrupt_event, 1u);
     mmgr_line_finish(&number);
     kernel->settings[count] = (CliSetting){"JPY_INTERRUPT_EVENT", kernel->event_number};
@@ -319,7 +318,7 @@ EMBED_INLINE int jupyter_ports_read(const JupyterCtx *args)
     static const char *const s_keys[5] = {"shell_port", "iopub_port", "stdin_port", "control_port", "hb_port"};
     while (cli_clock_milliseconds() < args->until)
     {
-        CliReply file = {NULL, 0ull};
+        CliReply file = {NULL, 0ULL};
         unsigned int read = 0u;
         if (EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = args->kernel->connection, .reply_out = &file))
         {
@@ -331,7 +330,7 @@ EMBED_INLINE int jupyter_ports_read(const JupyterCtx *args)
                                .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &file,
                                                 .object = root, .key = s_keys[at]));
                 // a port is below 65536, which an unsigned int stores
-                args->ports_out[at] = ((port > 0ull) && (port < 65536ull)) ? (unsigned int)port : 0u;
+                args->ports_out[at] = ((port > 0ULL) && (port < 65536ULL)) ? (unsigned int)port : 0u;
                 read += (args->ports_out[at] > 0u) ? 1u : 0u;
             }
             EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &file);
@@ -435,11 +434,11 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
     while (ready && !requested && (cli_clock_milliseconds() < until))
     {
         char answer[65536];
-        VerbaLinea reply = {answer, sizeof(answer), 0ull};
+        VerbaLinea reply = {answer, sizeof(answer), 0ULL};
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea unanswered = {why, sizeof(why), 0ull};
+        VerbaLinea unanswered = {why, sizeof(why), 0ULL};
         requested = EMBED_CALL(cli_jupyter_err_msg.request, CliJupyterErrMsgCfg, .kernel = kernel, .channel = "shell",
-                               .msg_type = "kernel_info_request", .content = "{}", .length = 2ull,
+                               .msg_type = "kernel_info_request", .content = "{}", .length = 2ULL,
                                .wait = CLI_KERNEL_READY, .reply = &reply, .err_msg = &unanswered);
     }
     if (ready && !requested)

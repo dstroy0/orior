@@ -18,8 +18,8 @@ typedef struct
 #define CLI_SYMBOLS_FOUND 1024u
 
 // the most bytes of a declaration's line written with it, and the most bytes of a file read for that line
-#define CLI_SYMBOL_LINE_MAX 240ull
-#define CLI_SYMBOL_LINE_FILE_MAX (1ull << 20u)
+#define CLI_SYMBOL_LINE_MAX 240ULL
+#define CLI_SYMBOL_LINE_FILE_MAX (1ULL << 20u)
 
 typedef struct
 {
@@ -42,14 +42,14 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
 {
     const char *path = args->path;
     VerbaLinea *out = args->out;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_code_cells);
     if (bytes == NULL)
     {
         return;
     }
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned int counted = 0u;
     while ((size <= CLI_SYMBOL_LINE_FILE_MAX) && (counted < args->line) && (start < size))
     {
@@ -154,7 +154,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             const CliDeclaration *const symbol =
                 &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg,
                             .scratch_read = scratch)[each];
-            CliScored scored = {0ll, file, each};
+            CliScored scored = {0LL, file, each};
             if (!EMBED_CALL(cli_symbols_query.score, CliSymbolsQueryCfg, .query = args->query,
                             .name = scratch + symbol->name, .name_length = symbol->length, .points = &scored.points))
             {
@@ -181,7 +181,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
     // each found's name, kind, path and line of text in one line laid after the list, a line of text no longer than its
     // most
     const unsigned long long text_capacity =
-        (count * ((3ull * CLI_PATH_MAX_LEN) + (4ull * CLI_SYMBOL_LINE_MAX))) + 1ull;
+        (count * ((3ULL * CLI_PATH_MAX_LEN) + (4ULL * CLI_SYMBOL_LINE_MAX))) + 1ULL;
     CliFoundDeclarations *const declarations = g_cli_cells->persistent_buf_alloc(
         sizeof(*declarations) + (count * sizeof(CliFoundDeclaration)) + text_capacity, args->owner);
     if (declarations != NULL)
@@ -189,7 +189,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
         declarations->count = count;
         declarations->reading = g_cli_tree_walking;
         declarations->found = (CliFoundDeclaration *)(void *)(declarations + 1);
-        VerbaLinea text = {(char *)(void *)(declarations->found + count), text_capacity, 0ull};
+        VerbaLinea text = {(char *)(void *)(declarations->found + count), text_capacity, 0ULL};
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             const CliTreeBranch *const branch = &g_cli_branches[s_found[at].file];

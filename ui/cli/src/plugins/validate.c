@@ -17,11 +17,11 @@ int cli_validate_lock(void)
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_validate->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_validate->manifest,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_validate->output = NULL;
-    g_cli_validate->output_size = 0ull;
+    g_cli_validate->output_size = 0ULL;
     return 1;
 }
 
@@ -131,9 +131,9 @@ EMBED_INLINE int validate_project_get(const ValidateCtx *args)
 EMBED_INLINE void validate_check_print(const ValidateCtx *args)
 {
     VerbaLinea out = {g_cli_validate->checks + g_cli_validate->checks_size,
-                      CLI_VALIDATE_CHECKS_TEXT - g_cli_validate->checks_size, 0ull};
+                      CLI_VALIDATE_CHECKS_TEXT - g_cli_validate->checks_size, 0ULL};
     const CliProverMessages *const messages = &g_cli_validate->last;
-    mmgr_line_put(&out, (g_cli_validate->checks_size > 0ull) ? ",{\"settings\":[" : "{\"settings\":[");
+    mmgr_line_put(&out, (g_cli_validate->checks_size > 0ULL) ? ",{\"settings\":[" : "{\"settings\":[");
     for (unsigned int at = 0u; at < args->settings; at += 1u)
     {
         mmgr_line_put(&out, (at > 0u) ? "," : "");
@@ -142,10 +142,10 @@ EMBED_INLINE void validate_check_print(const ValidateCtx *args)
             .text = args->words->word[args->from + at],
             .length = cellul.len(&(CatenaFinitaCfg){.src = args->words->word[args->from + at], .cap = CLI_CELLS_POOL}));
     }
-    unsigned long long errors = 0ull;
+    unsigned long long errors = 0ULL;
     for (unsigned int at = 0u; at < messages->count; at += 1u)
     {
-        errors += (messages->message[at].severity == 1u) ? 1ull : 0ull;
+        errors += (messages->message[at].severity == 1u) ? 1ULL : 0ULL;
     }
     mmgr_line_put(&out, "],\"seconds\":");
     EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &out, .value_f64 = args->seconds);
@@ -193,9 +193,9 @@ EMBED_INLINE int validate_grow(const ValidateCtx *args)
             g_cli_validate->stuck_at[key] = barrier->ceiling;
             continue;
         }
-        const unsigned long long step = (barrier->grow > 2ull) ? barrier->grow : 2ull;
+        const unsigned long long step = (barrier->grow > 2ULL) ? barrier->grow : 2ULL;
         // the step saturates where it would wrap, as Rust's saturating_mul does
-        const unsigned long long times = (now > ~0ull / step) ? ~0ull : now * step;
+        const unsigned long long times = (now > ~0ULL / step) ? ~0ULL : now * step;
         const unsigned long long next = (times < barrier->ceiling) ? times : barrier->ceiling;
         if (!g_cli_validate->has_grown[key] || (g_cli_validate->grown[key] != next))
         {
@@ -276,11 +276,11 @@ EMBED_INLINE int validate_checks_run(const ValidateCtx *args)
         {
             names[at] = s_names[at];
         }
-        VerbaLinea own = {g_cli_validate->own, CLI_VALIDATE_OWN, 0ull};
+        VerbaLinea own = {g_cli_validate->own, CLI_VALIDATE_OWN, 0ULL};
         const unsigned long long copied =
             EMBED_CALL(cli_validate_text_size_internal.copy_get, CliValidateTextSizeCtx, .text = text, .size = size,
                        .names = names, .values = values, .count = options, .changed = &own);
-        g_cli_validate->own_size = mmgr_line_ok(&own) ? own.at : 0ull;
+        g_cli_validate->own_size = mmgr_line_ok(&own) ? own.at : 0ULL;
         if ((copied > CLI_VALIDATE_COPY) ||
             !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = args->copy,
                         .bytes = g_cli_validate->copy, .size = copied))
@@ -344,7 +344,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     CliJson *const json = &g_cli_validate->manifest;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = json, .nodes_more = 0u, .text_more = 0ULL);
     unsigned int chain = CLI_JSON_NONE;
     for (unsigned int index = 0u; (chain == CLI_JSON_NONE) &&
                                   (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -400,12 +400,12 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     {
         cli_validate_theorems_in();
     }
-    unsigned long long lines = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    unsigned long long lines = 0ULL;
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
-        lines += (text[at] == '\n') ? 1ull : 0ull;
+        lines += (text[at] == '\n') ? 1ULL : 0ULL;
     }
-    g_cli_validate->lines = lines + (((size > 0ull) && (text[size - 1ull] != '\n')) ? 1ull : 0ull);
+    g_cli_validate->lines = lines + (((size > 0ULL) && (text[size - 1ULL] != '\n')) ? 1ULL : 0ULL);
     char folder[CLI_PATH_MAX_LEN];
     char copy_name[CLI_PATH_MAX_LEN];
     char copy[CLI_PATH_MAX_LEN];
@@ -428,7 +428,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     const size_t stem = ((dot != NULL) && (dot > base))
                             ? (size_t)(dot - base)
                             : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL});
-    VerbaLinea copy_line = {copy_name, sizeof(copy_name), 0ull};
+    VerbaLinea copy_line = {copy_name, sizeof(copy_name), 0ULL};
     mmgr_line_ch(&copy_line, '.');
     mmgr_line_put_n(&copy_line, base, stem);
     mmgr_line_put(&copy_line, ".validate.");
@@ -466,10 +466,10 @@ int cli_on_validate(const CliValidatePathCfg *args)
     memor.set(&(MemoriaCfg){.dst = g_cli_validate->has_grown, .val = 0, .bytes = sizeof(g_cli_validate->has_grown)});
     memor.set(&(MemoriaCfg){.dst = g_cli_validate->stuck, .val = 0, .bytes = sizeof(g_cli_validate->stuck)});
     memor.set(&(MemoriaCfg){.dst = g_cli_validate->lifted, .val = 0, .bytes = sizeof(g_cli_validate->lifted)});
-    g_cli_validate->checks_size = 0ull;
-    g_cli_validate->own_size = 0ull;
+    g_cli_validate->checks_size = 0ULL;
+    g_cli_validate->own_size = 0ULL;
     g_cli_validate->finding_count = 0u;
-    g_cli_validate->finding_used = 0ull;
+    g_cli_validate->finding_used = 0ULL;
     g_cli_validate->first.count = 0u;
     g_cli_validate->last.count = 0u;
     g_cli_validate->run_result = 0;
@@ -482,7 +482,7 @@ int cli_on_validate(const CliValidatePathCfg *args)
     }
     else
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                       .size_pointer = &size, .owner = &g_cli_plugins_cells);
         if ((bytes == NULL) ||

@@ -7,7 +7,7 @@
 #include "compile_db_internal.h"
 
 // how long one look for the database stands before the builds are looked at again, in milliseconds
-#define CLI_COMPILE_LOOKED_FOR 2000ull
+#define CLI_COMPILE_LOOKED_FOR 2000ULL
 
 typedef struct
 {
@@ -26,17 +26,17 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
     const char *root = args->root;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = ".clangd", .joined = path);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_compile_cells);
     int named = 0;
-    for (unsigned long long at = 0ull; (bytes != NULL) && !named && (at < size);)
+    for (unsigned long long at = 0ULL; (bytes != NULL) && !named && (at < size);)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)bytes, .at = at, .size = size).stop;
         const char *from = (const char *)bytes + at;
         const char *to = (const char *)bytes + end;
-        at = end + 1ull;
+        at = end + 1ULL;
         while ((from < to) && EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .letter = from[0]))
         {
             from += 1;
@@ -50,13 +50,13 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
         const char *const hash =
             memor.chr(&(MemoriaCfg){.src = from, .val = '#', .bytes = (unsigned long long)(to - from)});
         to = (hash != NULL) ? hash : to;
-        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE "\"");
         to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE "\"");
         // the folder lies between its quotes, its end at or past its start
         const unsigned long long length = (unsigned long long)(to - from);
-        if ((length > 0ull) && (length < CLI_PATH_MAX_LEN))
+        if ((length > 0ULL) && (length < CLI_PATH_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = args->folder, .src = from, .bytes = length});
             args->folder[length] = '\0';
@@ -136,7 +136,7 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
     }
     EMBED_CALL(cli_compile_db_found_top_internal.compile_found_free, CliCompileDbFoundTopCtx, .found = &found);
     // sorted by path, then time
-    for (unsigned int at = 1u; at < args->inputs->count; at += 1u)
+    for (unsigned int at = 1u; (args->inputs->file != NULL) && (at < args->inputs->count); at += 1u)
     {
         const CliStamped pivot = args->inputs->file[at];
         unsigned int place = at;
@@ -173,7 +173,7 @@ EMBED_INLINE void cli_inputs_save(const CompileDbLookCtx *args)
     CliInputs *saved = args->saved;
     EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = saved);
     const unsigned long long bytes = (unsigned long long)args->read_state->count * sizeof(CliStamped);
-    CliStamped *const file = (bytes != 0ull) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_compile_cells) : NULL;
+    CliStamped *const file = (bytes != 0ULL) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_compile_cells) : NULL;
     if (file != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = file, .src = args->read_state->file, .bytes = bytes});
@@ -243,14 +243,14 @@ int cli_compile_db_is_cl(const CliCompileDbCfg *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->compiler,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->compiler, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->compiler + name_end) : name;
+    name = (name_end != 0ULL) ? (args->compiler + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
     const unsigned long long stem = ((dot != NULL) && (dot != name))
                                         ? (unsigned long long)(dot - name)
                                         : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    return (stem == 2ull) && ((name[0] | 0x20) == 'c') && ((name[1] | 0x20) == 'l');
+    return (stem == 2ULL) && ((name[0] | 0x20) == 'c') && ((name[1] | 0x20) == 'l');
 }
 
 void cli_compile_db_words(const CliCompileDbDatabaseCfg *args)
@@ -258,14 +258,14 @@ void cli_compile_db_words(const CliCompileDbDatabaseCfg *args)
     char word[CLI_PATH_MAX_LEN * 4u];
     if (args->database_read->has_folder)
     {
-        VerbaLinea line = {word, sizeof(word), 0ull};
+        VerbaLinea line = {word, sizeof(word), 0ULL};
         mmgr_line_put(&line, "--compile-commands-dir=");
         mmgr_line_put(&line, args->database_read->folder);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                    .word = word);
     }
-    VerbaLinea line = {word, sizeof(word), 0ull};
+    VerbaLinea line = {word, sizeof(word), 0ULL};
     mmgr_line_put(&line, "--query-driver=");
     unsigned int drivers = 0u;
     for (unsigned int at = 0u; at < args->database_read->compilers; at += 1u)

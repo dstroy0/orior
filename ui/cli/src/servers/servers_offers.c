@@ -5,9 +5,6 @@
 // which is given back to carry it out; and whether a span touches another
 #include "servers_internal.h"
 
-// the most parameters of a signature written
-#define CLI_SERVERS_PARAMS 256u
-
 typedef struct
 {
     const CliJson *json;
@@ -26,7 +23,7 @@ typedef struct
 EMBED_INLINE void offers_documentation_get(const ServersOffersCtx *args)
 {
     const CliJson *json = args->json;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                                   .node = args->value, .length_pointer = &size);
     text = (text != NULL)
@@ -51,12 +48,12 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
     unsigned long long *to = args->to;
     const unsigned int named = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = args->param, .name = "label");
-    unsigned long long part_size = 0ull;
+    unsigned long long part_size = 0ULL;
     const char *const part = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = named, .length_pointer = &part_size);
     if (part != NULL)
     {
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->label, .length_value = size,
                         .required = part, .size = part_size, .at_pointer = &at))
         {
@@ -70,14 +67,14 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
                                           .json_read = json, .array = named, .index = 0u);
     const unsigned int second = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                            .json_read = json, .array = named, .index = 1u);
-    const unsigned long long none = ~0ull;
+    const unsigned long long none = ~0ULL;
     *from = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = first, .otherwise = none);
     *to = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                      .node = second, .otherwise = none);
     // each end is cut to its low word, as the protocol's unsigned integer is read
-    *from &= 0xffffffffull;
-    *to &= 0xffffffffull;
+    *from &= 0xffffffffULL;
+    *to &= 0xffffffffULL;
     return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = named,
                       .kind = CFG_JSON_ARRAY) &&
            (EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
@@ -94,15 +91,15 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
         EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->help, .name = "activeSignature"),
-                   .otherwise = 0ull);
-    unsigned int one = (chosen < 0xffffffffull)
+                   .otherwise = 0ULL);
+    unsigned int one = (chosen < 0xffffffffULL)
                            ? EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                         .json_read = args->json, .array = all, .index = (unsigned int)chosen)
                            : CLI_JSON_NONE;
     one = (one != CLI_JSON_NONE) ? one
                                  : EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                               .json_read = args->json, .array = all, .index = 0u);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const label =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
@@ -124,14 +121,14 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
         most += 1u;
     }
     char doc_text[1u << 16u];
-    VerbaLinea doc = {doc_text, sizeof(doc_text), 0ull};
+    VerbaLinea doc = {doc_text, sizeof(doc_text), 0ULL};
     EMBED_CALL(offers_documentation_get, ServersOffersCtx, .json = args->json,
                .value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                    .object = one, .name = "documentation"),
                .out = &doc);
-    const unsigned long long doc_size = mmgr_line_ok(&doc) ? doc.at : 0ull;
+    const unsigned long long doc_size = mmgr_line_ok(&doc) ? doc.at : 0ULL;
     CliSignaturePanel *const panel = g_cli_cells->persistent_buf_alloc(
-        sizeof(*panel) + (most * sizeof(CliSignatureParameter)) + size + doc_size + 2ull, args->owner);
+        sizeof(*panel) + (most * sizeof(CliSignatureParameter)) + size + doc_size + 2ULL, args->owner);
     if (panel == NULL)
     {
         return NULL;
@@ -141,16 +138,16 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
     char *const text = (char *)(void *)(panel->parameter + most);
     memor.cpy(&(MemoriaCfg){.dst = text, .src = label, .bytes = size});
     text[size] = '\0';
-    memor.cpy(&(MemoriaCfg){.dst = text + size + 1ull, .src = doc_text, .bytes = doc_size});
-    text[size + 1ull + doc_size] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = text + size + 1ULL, .src = doc_text, .bytes = doc_size});
+    text[size + 1ULL + doc_size] = '\0';
     panel->label = text;
     panel->length = size;
-    panel->doc = text + size + 1ull;
+    panel->doc = text + size + 1ULL;
     panel->doc_length = doc_size;
     for (unsigned int param = first; param != CLI_JSON_NONE; param = args->json->node[param].next)
     {
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         if (EMBED_CALL(offers_param_span, ServersOffersCtx, .json = args->json, .param = param, .label = label,
                        .size = size, .from = &from, .to = &to))
         {
@@ -159,7 +156,7 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
             panel->parameters += 1u;
         }
     }
-    const unsigned long long none = ~0ull;
+    const unsigned long long none = ~0ULL;
     unsigned long long active =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,

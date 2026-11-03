@@ -63,14 +63,14 @@ typedef struct
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    if ((s_listing->used + length + 1ull) > s_listing->text_capacity)
+    if ((s_listing->used + length + 1ULL) > s_listing->text_capacity)
     {
         return 0u;
     }
     // a place is below CLI_FILES_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)s_listing->used;
-    memor.cpy(&(MemoriaCfg){.dst = s_listing->text + at, .src = args->text, .bytes = length + 1ull});
-    s_listing->used += length + 1ull;
+    memor.cpy(&(MemoriaCfg){.dst = s_listing->text + at, .src = args->text, .bytes = length + 1ULL});
+    s_listing->used += length + 1ULL;
     return at;
 }
 
@@ -137,12 +137,12 @@ EMBED_INLINE void cli_entries_sort(const FilesListCtx *args)
 // the entries read into one cell of `owner`, sized to them: the cell, or NULL where the cells cannot meet it
 EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
 {
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_listing->count; at += 1u)
     {
         const CliEntry *const one = &s_listing->item[at];
         bytes += cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 2ull;
+                 cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 2ULL;
     }
     CliFileEntries *const entries = g_cli_cells->persistent_buf_alloc(
         sizeof(*entries) + (s_listing->count * sizeof(CliFileEntry)) + bytes, args->owner);
@@ -157,9 +157,9 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
     {
         const CliEntry *const one = &s_listing->item[at];
         const unsigned long long name =
-            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) + 1ULL;
         const unsigned long long full =
-            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_listing->text + one->name, .bytes = name});
         memor.cpy(&(MemoriaCfg){.dst = text + name, .src = s_listing->text + one->path, .bytes = full});
         entries->entry[at] = (CliFileEntry){text, text + name, one->dir, one->ignored};
@@ -174,8 +174,8 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
 {
     const char *root = args->root;
     const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
-    unsigned long long count = 0ull;
-    unsigned long long bytes = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long bytes = 0ULL;
     for (unsigned int pass = 0u; (files != NULL) && (pass < 2u); pass += 1u)
     {
         if ((pass == 1u) && !EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx,
@@ -194,12 +194,12 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
             }
             const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
             for (unsigned long long slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                       .text = file, .at = 0ull, .size = whole, .set = "/");
+                                                       .text = file, .at = 0ULL, .size = whole, .set = "/");
                  slash < whole; slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                   .text = file, .at = slash + 1ull, .size = whole, .set = "/"))
+                                                   .text = file, .at = slash + 1ULL, .size = whole, .set = "/"))
             {
-                count += (pass == 0u) ? 1ull : 0ull;
-                bytes += (pass == 0u) ? (slash + 1ull) : 0ull;
+                count += (pass == 0u) ? 1ULL : 0ULL;
+                bytes += (pass == 0u) ? (slash + 1ULL) : 0ULL;
                 if (pass == 1u)
                 {
                     EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &s_listing->folders,
@@ -228,11 +228,11 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
     const CliListResult *const list_entries = (const CliListResult *)args->context;
     char full[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {full, sizeof(full), 0ull};
+    VerbaLinea line = {full, sizeof(full), 0ULL};
     mmgr_line_put(&line, list_entries->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -295,8 +295,8 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
     s_listing->count = 0u;
     s_listing->item_capacity = 0u;
     s_listing->text = NULL;
-    s_listing->used = 0ull;
-    s_listing->text_capacity = 0ull;
+    s_listing->used = 0ULL;
+    s_listing->text_capacity = 0ULL;
     if (lists != NULL)
     {
         s_listing->item = (CliEntry *)(void *)lists;
@@ -304,7 +304,7 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
         s_listing->text = lists + item_bytes;
         s_listing->text_capacity = CLI_FILES_TEXT;
     }
-    s_listing->folders = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
+    s_listing->folders = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
     CliFileEntries *entries = NULL;
     // an archive, and a folder within one, lists what the archive contains, in its own order
     char file[CLI_PATH_MAX_LEN];

@@ -5,7 +5,7 @@
 #include "plugins.h"
 
 // the widest line a plugin's file is laid out to
-#define CLI_WIDE 110ull
+#define CLI_WIDE 110ULL
 
 typedef struct
 {
@@ -28,7 +28,7 @@ EMBED_INLINE unsigned long long cli_quoted_length(const PluginsTextCtx *args)
     const char *text = args->text;
     unsigned long long length = args->length;
     char buf[4096];
-    VerbaLinea line = {buf, sizeof(buf), 0ull};
+    VerbaLinea line = {buf, sizeof(buf), 0ULL};
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = text,
                .length = length);
     if (mmgr_line_ok(&line))
@@ -36,7 +36,7 @@ EMBED_INLINE unsigned long long cli_quoted_length(const PluginsTextCtx *args)
         return line.at;
     }
     // a text too long for the capacity is longer than any line it would fit
-    return CLI_WIDE + 1ull;
+    return CLI_WIDE + 1ULL;
 }
 
 static void cli_write(const PluginsTextCtx *args)
@@ -55,14 +55,14 @@ static void cli_write(const PluginsTextCtx *args)
         return;
     }
     out->at = begun;
-    const unsigned long long inner = indent + 2ull;
+    const unsigned long long inner = indent + 2ULL;
     int strings = kind == CFG_JSON_ARRAY;
     for (unsigned int item = json->node[node].first; strings && (item != CLI_JSON_NONE); item = json->node[item].next)
     {
         strings = json->node[item].kind == CFG_JSON_STRING;
     }
     mmgr_line_put(out, (kind == CFG_JSON_OBJECT) ? "{\n" : "[\n");
-    unsigned long long line = 0ull;
+    unsigned long long line = 0ULL;
     int first = 1;
     for (unsigned int item = json->node[node].first; item != CLI_JSON_NONE; item = json->node[item].next)
     {
@@ -73,19 +73,19 @@ static void cli_write(const PluginsTextCtx *args)
             const unsigned long long word =
                 EMBED_CALL(cli_quoted_length, PluginsTextCtx, .text = json->text + json->node[item].text,
                            .length = json->node[item].length);
-            if (!first && ((inner + line + word + 2ull) > CLI_WIDE))
+            if (!first && ((inner + line + word + 2ULL) > CLI_WIDE))
             {
                 mmgr_line_put(out, ",\n");
-                line = 0ull;
+                line = 0ULL;
             }
             else if (!first)
             {
                 mmgr_line_put(out, ", ");
-                line += 2ull;
+                line += 2ULL;
             }
-            if (line == 0ull)
+            if (line == 0ULL)
             {
-                for (unsigned long long space = 0ull; space < inner; space += 1ull)
+                for (unsigned long long space = 0ULL; space < inner; space += 1ULL)
                 {
                     mmgr_line_ch(out, ' ');
                 }
@@ -100,7 +100,7 @@ static void cli_write(const PluginsTextCtx *args)
             }
             continue;
         }
-        for (unsigned long long space = 0ull; space < inner; space += 1ull)
+        for (unsigned long long space = 0ULL; space < inner; space += 1ULL)
         {
             mmgr_line_ch(out, ' ');
         }
@@ -114,7 +114,7 @@ static void cli_write(const PluginsTextCtx *args)
         EMBED_CALL(cli_write, PluginsTextCtx, .json = json, .node = item, .out = out, .indent = inner);
         mmgr_line_put(out, last ? "\n" : ",\n");
     }
-    for (unsigned long long space = 0ull; space < indent; space += 1ull)
+    for (unsigned long long space = 0ULL; space < indent; space += 1ULL)
     {
         mmgr_line_ch(out, ' ');
     }
@@ -123,7 +123,7 @@ static void cli_write(const PluginsTextCtx *args)
 
 void cli_plugins_text_get(const CliPluginsJsonOutCfg *args)
 {
-    EMBED_CALL(cli_write, PluginsTextCtx, .json = args->json, .node = args->plugin, .out = args->out, .indent = 0ull);
+    EMBED_CALL(cli_write, PluginsTextCtx, .json = args->json, .node = args->plugin, .out = args->out, .indent = 0ULL);
     mmgr_line_ch(args->out, '\n');
 }
 
@@ -234,15 +234,15 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
                                       .object = plugin, .name = "id"),
                    .length_pointer = NULL);
     char file[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->dir);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, (id != NULL) ? id : "");
-    const int folder_fits = mmgr_line_finish(&line) != 0ull;
-    VerbaLinea named = {file, sizeof(file), 0ull};
+    const int folder_fits = mmgr_line_finish(&line) != 0ULL;
+    VerbaLinea named = {file, sizeof(file), 0ULL};
     mmgr_line_put(&named, folder);
     mmgr_line_put(&named, "/plugin.json");
-    if (!folder_fits || (mmgr_line_finish(&named) == 0ull))
+    if (!folder_fits || (mmgr_line_finish(&named) == 0ULL))
     {
         mmgr_line_put(args->err_msg, "the plugin's folder is a longer path than orior_cli takes");
         return 0;
@@ -276,7 +276,7 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
                                       .index = 0u),
                    .length_pointer = NULL);
     char sample[CLI_PATH_MAX_LEN];
-    VerbaLinea sample_name = {sample, sizeof(sample), 0ull};
+    VerbaLinea sample_name = {sample, sizeof(sample), 0ULL};
     mmgr_line_put(&sample_name, folder);
     mmgr_line_put(&sample_name, "/sample.");
     mmgr_line_put(&sample_name, (extension != NULL) ? extension : "txt");
@@ -287,7 +287,7 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
         VerbaLinea sample_text = mmgr_line_over(sample_text_cell, CLI_PLUGIN_TEXT_CAPACITY);
         EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
                    .out = &sample_text);
-        const int sampled = (mmgr_line_finish(&sample_name) != 0ull) && mmgr_line_ok(&sample_text) &&
+        const int sampled = (mmgr_line_finish(&sample_name) != 0ULL) && mmgr_line_ok(&sample_text) &&
                             EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sample,
                                        .bytes = sample_text.out, .size = sample_text.at);
         g_cli_cells->persistent_buf_release(sample_text.out, &g_cli_plugins_cells);

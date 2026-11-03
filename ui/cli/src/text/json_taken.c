@@ -34,39 +34,39 @@ EMBED_INLINE int json_word_letter(const JsonTakenCtx *args)
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)
 {
     unsigned int count = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
         const char letter = args->text[at];
         if (letter == '"')
         {
-            at += 1ull;
+            at += 1ULL;
             at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
                             .size = args->size, .set = "\"\\");
             while ((at < args->size) && (args->text[at] == '\\'))
             {
                 at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text,
-                                .at = at + 2ull, .size = args->size, .set = "\"\\");
+                                .at = at + 2ULL, .size = args->size, .set = "\"\\");
             }
-            at += 1ull;
+            at += 1ULL;
             count += 1u;
         }
         else if ((letter == '{') || (letter == '['))
         {
-            at += 1ull;
+            at += 1ULL;
             count += 1u;
         }
         else if (EMBED_CALL(json_word_letter, JsonTakenCtx, .letter = letter))
         {
             while ((at < args->size) && EMBED_CALL(json_word_letter, JsonTakenCtx, .letter = args->text[at]))
             {
-                at += 1ull;
+                at += 1ULL;
             }
             count += 1u;
         }
         else
         {
-            at += 1ull;
+            at += 1ULL;
         }
     }
     return count;
@@ -81,19 +81,19 @@ EMBED_INLINE int json_reserved_in(const JsonTakenCtx *args)
     unsigned long long text_max = args->text_max;
     const char *what = args->what;
     const unsigned long long nodes_bytes = (unsigned long long)nodes_max * sizeof(CliJsonNode);
-    const unsigned long long bytes = nodes_bytes + text_max + 1ull;
+    const unsigned long long bytes = nodes_bytes + text_max + 1ULL;
     unsigned char *const cell = args->temporary ? g_cli_cells->temporary_buf_alloc(bytes, args->owner)
                                                 : g_cli_cells->persistent_buf_alloc(bytes, args->owner);
     if (cell != NULL)
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
                    .node_json_node_pointer = (CliJsonNode *)cell, .nodes_max = nodes_max,
-                   .text_out = (char *)(cell + nodes_bytes), .text_max = text_max + 1ull);
+                   .text_out = (char *)(cell + nodes_bytes), .text_max = text_max + 1ULL);
     }
     else
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
     json->what = what;
     return cell != NULL;
@@ -122,7 +122,7 @@ int cli_json_capacity(const CliJsonTreeNodesCfg *args)
 void cli_json_clear(const CliJsonTreeCfg *args)
 {
     args->json->nodes = 0u;
-    args->json->used = 0ull;
+    args->json->used = 0ULL;
     args->json->full = 0;
 }
 
@@ -135,7 +135,7 @@ EMBED_INLINE unsigned int json_alloc_in(const JsonTakenCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     // the tree begun empty before any take: a take refused leaves a tree with no cell for its holder to give back
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
-               .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
     CfgJsonToken *const tokens =
@@ -180,7 +180,7 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args)
     }
     const CliJsonNode *const one = &args->json_read->node[args->node];
     *nodes += 1u;
-    *text += ((one->kind == CFG_JSON_STRING) || (one->kind == CFG_JSON_NUMBER)) ? (one->length + 1ull) : 0ull;
+    *text += ((one->kind == CFG_JSON_STRING) || (one->kind == CFG_JSON_NUMBER)) ? (one->length + 1ULL) : 0ULL;
     for (unsigned int child = one->first; (child != CLI_JSON_NONE) && (child < args->json_read->nodes);
          child = args->json_read->node[child].next)
     {
@@ -188,8 +188,8 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args)
         *text += (one->kind == CFG_JSON_OBJECT)
                      ? (cellul.len(&(CatenaFinitaCfg){.src = args->json_read->text + args->json_read->node[child].key,
                                                       .cap = CLI_CELLS_POOL}) +
-                        1ull)
-                     : 0ull;
+                        1ULL)
+                     : 0ULL;
         EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = args->json_read,
                    .node = child, .nodes_pointer = nodes, .text_u64s = text);
     }
@@ -197,13 +197,13 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args)
 
 unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_text_cells);
     if (bytes == NULL)
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return CLI_JSON_NONE;
@@ -223,5 +223,5 @@ void cli_json_free(const CliJsonTreeCfg *args)
     g_cli_cells->persistent_buf_release(args->json->node,
                                         EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

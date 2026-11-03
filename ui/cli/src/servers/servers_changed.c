@@ -109,14 +109,14 @@ EMBED_INLINE int changed_stem(const ServersChangedCtx *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->file,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->file + name_end) : name;
+    name = (name_end != 0ULL) ? (args->file + name_end) : name;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    if ((length == 0ull) || (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL})))
+    if ((length == 0ULL) || (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
     unsigned long long dot = length;
-    for (unsigned long long at = 1ull; at < length; at += 1ull)
+    for (unsigned long long at = 1ULL; at < length; at += 1ULL)
     {
         dot = (name[at] == '.') ? at : dot;
     }
@@ -130,16 +130,16 @@ EMBED_INLINE int changed_word(const ServersChangedCtx *args)
 {
     unsigned long long length = args->length;
     unsigned long long size = args->size;
-    unsigned long long from = 0ull;
-    unsigned long long at = 0ull;
-    while ((size > 0ull) &&
+    unsigned long long from = 0ULL;
+    unsigned long long at = 0ULL;
+    while ((size > 0ULL) &&
            EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->line + from, .length_value = length - from,
                       .required = args->stem, .size = size, .at_pointer = &at))
     {
         const unsigned long long start = from + at;
         const unsigned long long end = start + size;
-        unsigned long long reserved = 0ull;
-        const unsigned int before = (start > 0ull)
+        unsigned long long reserved = 0ULL;
+        const unsigned int before = (start > 0ULL)
                                         ? EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
                                                      .text = args->line, .end_value = start, .length = &reserved)
                                         : 0u;
@@ -147,7 +147,7 @@ EMBED_INLINE int changed_word(const ServersChangedCtx *args)
                                                                .size = length, .at = end, .length = &reserved)
                                                   : 0u;
         const int bounded_before =
-            (start == 0ull) ||
+            (start == 0ULL) ||
             (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = before) && (before != '_'));
         const int bounded_after =
             (end == length) ||
@@ -156,7 +156,7 @@ EMBED_INLINE int changed_word(const ServersChangedCtx *args)
         {
             return 1;
         }
-        from = start + 1ull;
+        from = start + 1ULL;
     }
     return 0;
 }
@@ -180,13 +180,13 @@ EMBED_INLINE int changed_text_names(const ServersChangedCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         unsigned long long end = at;
         end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = end,
                          .size = size, .set = "\n");
-        const unsigned long long cut = ((end > at) && (text[end - 1ull] == '\r')) ? end - 1ull : end;
+        const unsigned long long cut = ((end > at) && (text[end - 1ULL] == '\r')) ? end - 1ULL : end;
         const char *const line =
             text + at +
             EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + at, .size = cut - at);
@@ -194,7 +194,7 @@ EMBED_INLINE int changed_text_names(const ServersChangedCtx *args)
         for (unsigned int file = 0u; file < args->count; file += 1u)
         {
             const char *stem = NULL;
-            unsigned long long stem_size = 0ull;
+            unsigned long long stem_size = 0ULL;
             if ((s_batch.file_tool[file] == args->tool) &&
                 EMBED_CALL(changed_stem, ServersChangedCtx, .file = args->files[file], .from = &stem,
                            .size_pointer = &stem_size) &&
@@ -204,7 +204,7 @@ EMBED_INLINE int changed_text_names(const ServersChangedCtx *args)
                 return 1;
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return 0;
 }
@@ -213,7 +213,7 @@ EMBED_INLINE int changed_text_names(const ServersChangedCtx *args)
 EMBED_INLINE int changed_names(const ServersChangedCtx *args)
 {
     const char *path = args->path;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                    .size_pointer = &size, .owner = &g_cli_servers_cells);
     if (mapped == NULL)
@@ -244,7 +244,7 @@ static void changed_removed_find(const CliEachKeyAdjacentTextSizeCfg *args)
         !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path))
     {
         mmgr_line_put_n(events->deleted, args->adjacent,
-                        cellul.len(&(CatenaFinitaCfg){.src = args->adjacent, .cap = CLI_CELLS_POOL}) + 1ull);
+                        cellul.len(&(CatenaFinitaCfg){.src = args->adjacent, .cap = CLI_CELLS_POOL}) + 1ULL);
         mmgr_line_put(events->events, events->written ? ",{\"uri\":" : "{\"uri\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = events->events,
                    .text = args->adjacent,
@@ -276,7 +276,7 @@ EMBED_INLINE void changed_servers_send(const ServersChangedCtx *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char quiet[256];
-        VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+        VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
         (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = s_server[at],
                          .method = "workspace/didChangeWatchedFiles", .params = args->events, .length = args->size,
                          .err_msg = &ignored);
@@ -301,10 +301,10 @@ EMBED_INLINE void changed_removed_emit(const ServersChangedCtx *args)
         return;
     }
     char displayed[CLI_PATH_MAX_LEN];
-    VerbaLinea where = {displayed, sizeof(displayed), 0ull};
+    VerbaLinea where = {displayed, sizeof(displayed), 0ULL};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->sink->tree,
                .path = path, .out = &where);
-    if (mmgr_line_finish(&where) != 0ull)
+    if (mmgr_line_finish(&where) != 0ULL)
     {
         EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = displayed,
                    .item = NULL, .count = 0u);
@@ -319,10 +319,10 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     // a change's URI is at most a path's, written with every byte escaped; a URI gone is one stored beside its key
     const unsigned long long stored =
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published);
-    const unsigned long long removed_capacity = stored + 1ull;
-    const unsigned long long capacity = (((unsigned long long)args->count + g_cli_servers_published.entries) * 32ull) +
-                                        ((unsigned long long)args->count * CLI_PATH_MAX_LEN * 6ull) + (stored * 6ull) +
-                                        32ull;
+    const unsigned long long removed_capacity = stored + 1ULL;
+    const unsigned long long capacity = (((unsigned long long)args->count + g_cli_servers_published.entries) * 32ULL) +
+                                        ((unsigned long long)args->count * CLI_PATH_MAX_LEN * 6ULL) + (stored * 6ULL) +
+                                        32ULL;
     char *const uris = g_cli_cells->temporary_buf_alloc(removed_capacity, &g_cli_servers_cells);
     char *const changes_json = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
     VerbaLinea deleted = mmgr_line_over(uris, removed_capacity);
@@ -349,9 +349,9 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
         EMBED_CALL(changed_servers_send, ServersChangedCtx, .events = line.out, .size = line.at);
     }
     g_cli_cells->persistent_buf_release(changes_json, &g_cli_servers_cells);
-    const unsigned long long removed_size = mmgr_line_ok(&deleted) ? deleted.at : 0ull;
-    for (unsigned long long at = 0ull; at < removed_size;
-         at += cellul.len(&(CatenaFinitaCfg){.src = uris + at, .cap = CLI_CELLS_POOL}) + 1ull)
+    const unsigned long long removed_size = mmgr_line_ok(&deleted) ? deleted.at : 0ULL;
+    for (unsigned long long at = 0ULL; at < removed_size;
+         at += cellul.len(&(CatenaFinitaCfg){.src = uris + at, .cap = CLI_CELLS_POOL}) + 1ULL)
     {
         EMBED_CALL(changed_removed_emit, ServersChangedCtx, .uri = uris + at, .sink = args->sink);
     }
@@ -380,14 +380,14 @@ static void changed_free(void)
 EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
 {
     const char *root = args->root;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     s_batch.tree_paths = EMBED_CALL(cli_servers_root_size_internal.check_tree_files, CliServersRootSizeCtx,
                                     .root = root, .size_pointer = &size);
-    for (unsigned long long at = 0ull; (s_batch.tree_paths != NULL) && (at < size); at += 1ull)
+    for (unsigned long long at = 0ULL; (s_batch.tree_paths != NULL) && (at < size); at += 1ULL)
     {
         s_batch.trees += (s_batch.tree_paths[at] == '\0') ? 1u : 0u;
     }
-    const unsigned long long positions = (unsigned long long)s_batch.trees + 1ull;
+    const unsigned long long positions = (unsigned long long)s_batch.trees + 1ULL;
     s_batch.tree = (s_batch.tree_paths != NULL)
                        ? g_cli_cells->temporary_buf_alloc(positions * sizeof(char *), &g_cli_servers_cells)
                        : NULL;
@@ -397,7 +397,7 @@ EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
             : NULL;
     s_batch.file_tool = (s_batch.again != NULL)
                             ? g_cli_cells->temporary_buf_alloc(
-                                  ((unsigned long long)args->count + 1ull) * sizeof(unsigned int), &g_cli_servers_cells)
+                                  ((unsigned long long)args->count + 1ULL) * sizeof(unsigned int), &g_cli_servers_cells)
                             : NULL;
     s_batch.languages = (s_batch.file_tool != NULL)
                             ? g_cli_cells->temporary_buf_alloc(sizeof(CliLanguages), &g_cli_servers_cells)
@@ -408,15 +408,15 @@ EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
     }
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = s_batch.languages);
     s_batch.tools_max = s_batch.languages->count;
-    const unsigned long long names = ((unsigned long long)s_batch.tools_max + 1ull) * CLI_NAME_MAX_LEN;
+    const unsigned long long names = ((unsigned long long)s_batch.tools_max + 1ULL) * CLI_NAME_MAX_LEN;
     s_batch.tool = g_cli_cells->temporary_buf_alloc(names, &g_cli_servers_cells);
     s_batch.tool_language =
         (s_batch.tool != NULL) ? g_cli_cells->temporary_buf_alloc(names, &g_cli_servers_cells) : NULL;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (unsigned int file = 0u; file < s_batch.trees; file += 1u)
     {
         s_batch.tree[file] = s_batch.tree_paths + at;
-        at += cellul.len(&(CatenaFinitaCfg){.src = s_batch.tree_paths + at, .cap = CLI_CELLS_POOL}) + 1ull;
+        at += cellul.len(&(CatenaFinitaCfg){.src = s_batch.tree_paths + at, .cap = CLI_CELLS_POOL}) + 1ULL;
     }
     return s_batch.tool_language != NULL;
 }
@@ -435,20 +435,20 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     {
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[at], .joined = path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                        .size_pointer = &size, .owner = &g_cli_servers_cells);
         const int integer = (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                            .bytes = (const char *)mapped, .size = size);
         EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
-                   .path = path, .text = integer ? (const char *)mapped : NULL, .size = integer ? size : 0ull,
+                   .path = path, .text = integer ? (const char *)mapped : NULL, .size = integer ? size : 0ULL,
                    .sink = &s_emit);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
                    .owner = &g_cli_servers_cells);
         if (integer)
         {
             EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx,
-                       .root = args->root, .path = path, .text = NULL, .size = 0ull, .disk = 1, .sink = &s_emit);
+                       .root = args->root, .path = path, .text = NULL, .size = 0ULL, .disk = 1, .sink = &s_emit);
         }
     }
     if (!EMBED_CALL(changed_alloc, ServersChangedCtx, .root = args->root, .count = args->count))
@@ -470,7 +470,7 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *stem = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         s_batch.file_tool[at] = EMBED_CALL(changed_tool_get, ServersChangedCtx, .file = args->files[at]);
         stems |=
             (s_batch.file_tool[at] != CLI_SERVERS_CHANGED_NONE) &&

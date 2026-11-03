@@ -117,7 +117,7 @@ unsigned int cli_kernel_pythons(const CliJupyterPythonsCtx *args)
     }
     char python[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "python", .name = "python",
                    .path = python, .err_msg = &err_msg) &&
         ((count == 0u) ||
@@ -151,7 +151,7 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
             }
             if (count < CLI_KERNEL_FOLDERS)
             {
-                VerbaLinea line = {folders[count], CLI_PATH_MAX_LEN, 0ull};
+                VerbaLinea line = {folders[count], CLI_PATH_MAX_LEN, 0ULL};
                 for (const char *letter = from; letter < at; letter += 1)
                 {
 #if defined(_WIN32)

@@ -99,7 +99,7 @@ static void tabs_open_run(void *context)
 {
     CliModelOpening *const opening = (CliModelOpening *)context;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     opening->opened = EMBED_CALL(cli_files_opening.open, CliFilesOpenCfg, .root = opening->root, .file = opening->path,
                                  .key = opening->key, .err_msg = &err_msg);
     if ((opening->opened != CLI_FILES_OPEN_WHOLE) && (opening->opened != CLI_FILES_OPEN_PAGED))
@@ -108,13 +108,13 @@ static void tabs_open_run(void *context)
     }
     if (opening->opened == CLI_FILES_OPEN_PAGED)
     {
-        (void)EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = opening->key, .from = 0ull,
-                         .to = opening->rows + 1ull);
+        (void)EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = opening->key, .from = 0ULL,
+                         .to = opening->rows + 1ULL);
     }
     else
     {
-        (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = opening->key, .from = 0ull,
-                         .to = opening->rows + 1ull);
+        (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = opening->key, .from = 0ULL,
+                         .to = opening->rows + 1ULL);
     }
     char id[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
@@ -124,7 +124,7 @@ static void tabs_open_run(void *context)
                                  .languages_read = &languages, .path = opening->path, .id_out = id);
     EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
     grammar[0] = '\0';
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     if (known && !EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar,
                              .err_msg = &err_msg))
     {
@@ -150,7 +150,7 @@ static void tabs_open_done(void *context)
         CliModelTab *const tab = g_cli_model.tab[at];
         tab->viewed = 1;
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = g_cli_model.rows, .columns = g_cli_model.columns};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &sized,
                          .err_msg = &err_msg);
@@ -178,7 +178,7 @@ EMBED_INLINE unsigned long long tabs_relative(const ControllerTabsCtx *args)
 {
     const char *const path = args->path;
     const int whole = (path[0] == '/') || (path[0] == '\\') || ((path[0] != '\0') && (path[1] == ':'));
-    VerbaLinea line = {args->relative, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->relative, CLI_PATH_MAX_LEN, 0ULL};
     char full[CLI_PATH_MAX_LEN];
     if (whole && (g_cli_model.root != NULL) &&
         EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = path, .full = full,
@@ -227,7 +227,7 @@ EMBED_INLINE void tabs_show(const ControllerTabsCtx *args)
         ((g_cli_model.active >= 0) && (g_cli_model.active != at)) ? g_cli_model.active : g_cli_model.last_active;
     g_cli_model.active = at;
     g_cli_model.map_said = 0;
-    g_cli_model.shown += 1ull;
+    g_cli_model.shown += 1ULL;
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_model.shown_dirty, CliModelCtx, .at = 0u);
 }
@@ -258,7 +258,7 @@ void cli_model_file_open(const CliModelCtx *args)
         if (tab->viewed && g_cli_model.position_pending)
         {
             char why[CLI_ERR_MSG_MAX_LEN];
-            VerbaLinea err_msg = {why, sizeof(why), 0ull};
+            VerbaLinea err_msg = {why, sizeof(why), 0ULL};
             const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = args->line, .column = args->col};
             g_cli_model.position_pending = 0;
             (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &placed,
@@ -267,17 +267,17 @@ void cli_model_file_open(const CliModelCtx *args)
         EMBED_CALL(cli_model.session_save, CliModelCtx, .at = 0u);
         return;
     }
-    const unsigned long long head = sizeof(CLI_MODEL_KEY_HEAD) - 1ull;
+    const unsigned long long head = sizeof(CLI_MODEL_KEY_HEAD) - 1ULL;
     CliModelTab *const tab =
         EMBED_CALL(tabs_room, ControllerTabsCtx, .at = 0u)
-            ? g_cli_cells->persistent_buf_alloc(sizeof(*tab) + (2ull * (length + 1ull)) + head, &g_cli_controller_cells)
+            ? g_cli_cells->persistent_buf_alloc(sizeof(*tab) + (2ULL * (length + 1ULL)) + head, &g_cli_controller_cells)
             : NULL;
     const unsigned long long root_size =
         (g_cli_model.root != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN})
-                                   : 0ull;
+                                   : 0ULL;
     CliModelOpening *const opening =
         (tab != NULL)
-            ? g_cli_cells->persistent_buf_alloc(sizeof(*opening) + (2ull * (length + 1ull)) + head + root_size + 1ull,
+            ? g_cli_cells->persistent_buf_alloc(sizeof(*opening) + (2ULL * (length + 1ULL)) + head + root_size + 1ULL,
                                                 &g_cli_controller_cells)
             : NULL;
     if (opening == NULL)
@@ -287,22 +287,22 @@ void cli_model_file_open(const CliModelCtx *args)
     }
     memor.set(&(MemoriaCfg){.dst = tab, .val = 0, .bytes = sizeof(*tab)});
     tab->path = (char *)(void *)(tab + 1);
-    tab->key = tab->path + length + 1ull;
-    memor.cpy(&(MemoriaCfg){.dst = tab->path, .src = relative, .bytes = length + 1ull});
+    tab->key = tab->path + length + 1ULL;
+    memor.cpy(&(MemoriaCfg){.dst = tab->path, .src = relative, .bytes = length + 1ULL});
     memor.cpy(&(MemoriaCfg){.dst = tab->key, .src = CLI_MODEL_KEY_HEAD, .bytes = head});
-    memor.cpy(&(MemoriaCfg){.dst = tab->key + head, .src = relative, .bytes = length + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = tab->key + head, .src = relative, .bytes = length + 1ULL});
     g_cli_model.tab[g_cli_model.tabs] = tab;
     g_cli_model.tabs += 1u;
     char *const copies = (char *)(void *)(opening + 1);
-    memor.cpy(&(MemoriaCfg){.dst = copies, .src = tab->path, .bytes = length + 1ull});
-    memor.cpy(&(MemoriaCfg){.dst = copies + length + 1ull, .src = tab->key, .bytes = head + length + 1ull});
-    char *const root_copy = copies + (2ull * (length + 1ull)) + head;
+    memor.cpy(&(MemoriaCfg){.dst = copies, .src = tab->path, .bytes = length + 1ULL});
+    memor.cpy(&(MemoriaCfg){.dst = copies + length + 1ULL, .src = tab->key, .bytes = head + length + 1ULL});
+    char *const root_copy = copies + (2ULL * (length + 1ULL)) + head;
     if (g_cli_model.root != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = root_copy, .src = g_cli_model.root, .bytes = root_size});
     }
     root_copy[root_size] = '\0';
-    *opening = (CliModelOpening){copies, copies + length + 1ull, root_copy, g_cli_model.rows, CLI_FILES_OPEN_REFUSED};
+    *opening = (CliModelOpening){copies, copies + length + 1ULL, root_copy, g_cli_model.rows, CLI_FILES_OPEN_REFUSED};
     EMBED_CALL(tabs_show, ControllerTabsCtx, .at = g_cli_model.tabs - 1u);
     EMBED_CALL(cli_model.session_save, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_FILES, .run = tabs_open_run,
@@ -379,7 +379,7 @@ static void tabs_save_run(void *context)
     const CliModelSaving *const saving = (const CliModelSaving *)context;
     char folder[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
         (void)cli_state_value_save(
@@ -394,9 +394,9 @@ static void tabs_save_done(void *context)
 
 void cli_model_value_save(const CliModelCtx *args)
 {
-    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ULL;
     const unsigned long long value_size =
-        cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ULL;
     CliModelSaving *const saving =
         g_cli_cells->persistent_buf_alloc(sizeof(*saving) + key_size + value_size, &g_cli_controller_cells);
     if (saving == NULL)
@@ -424,19 +424,19 @@ void cli_model_value_save(const CliModelCtx *args)
 EMBED_INLINE char *tabs_session_text(const ControllerTabsCtx *args)
 {
     (void)args;
-    unsigned long long bytes = 2ull;
+    unsigned long long bytes = 2ULL;
     for (unsigned int at = 0u; at < g_cli_model.tabs; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.tab[at]->path, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.tab[at]->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     bytes +=
         (g_cli_model.active >= 0)
             ? cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.tab[g_cli_model.active]->path, .cap = CLI_PATH_MAX_LEN})
-            : 0ull;
+            : 0ULL;
     char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_controller_cells);
     if (cell != NULL)
     {
-        VerbaLinea text = {cell, bytes, 0ull};
+        VerbaLinea text = {cell, bytes, 0ULL};
         mmgr_line_put(&text, (g_cli_model.active >= 0) ? g_cli_model.tab[g_cli_model.active]->path : "");
         mmgr_line_ch(&text, '\n');
         for (unsigned int at = 0u; at < g_cli_model.tabs; at += 1u)
@@ -456,11 +456,11 @@ void cli_model_session_save(const CliModelCtx *args)
         return;
     }
     char key[CLI_PATH_MAX_LEN + 32u];
-    VerbaLinea keyed = {key, sizeof(key), 0ull};
+    VerbaLinea keyed = {key, sizeof(key), 0ULL};
     mmgr_line_put(&keyed, CLI_MODEL_SESSION_KEY);
     mmgr_line_put(&keyed, g_cli_model.root);
     char *const session = EMBED_CALL(tabs_session_text, ControllerTabsCtx, .at = 0u);
-    if ((session != NULL) && (mmgr_line_finish(&keyed) != 0ull))
+    if ((session != NULL) && (mmgr_line_finish(&keyed) != 0ULL))
     {
         EMBED_CALL(cli_model.value_save, CliModelCtx, .path = key, .value = session, .on = args->on);
     }
@@ -479,7 +479,7 @@ void cli_model_session_restore(const CliModelCtx *args)
     for (unsigned int at = 0u; (group != NULL) && (at < g_cli_tools_count); at += 1u)
     {
         if (g_cli_tools[at].side &&
-            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = group, .cap = 32ull}))
+            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = group, .cap = 32ULL}))
         {
             // the tools are fewer than an int counts
             g_cli_model.tool = (int)at;
@@ -488,33 +488,33 @@ void cli_model_session_restore(const CliModelCtx *args)
         }
     }
     char key[CLI_PATH_MAX_LEN + 32u];
-    VerbaLinea keyed = {key, sizeof(key), 0ull};
+    VerbaLinea keyed = {key, sizeof(key), 0ULL};
     mmgr_line_put(&keyed, CLI_MODEL_SESSION_KEY);
     mmgr_line_put(&keyed, (g_cli_model.root != NULL) ? g_cli_model.root : "");
-    const char *const session = (mmgr_line_finish(&keyed) != 0ull) ? cli_state_entry_value(entries, key) : NULL;
+    const char *const session = (mmgr_line_finish(&keyed) != 0ULL) ? cli_state_entry_value(entries, key) : NULL;
     g_cli_model.session_known = session != NULL;
     if (session != NULL)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = session, .cap = CLI_CELLS_POOL});
         const unsigned long long shown_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                        .text = session, .at = 0ull, .size = size, .set = "\n");
-        for (unsigned long long at = shown_end + 1ull; at < size;)
+                                                        .text = session, .at = 0ULL, .size = size, .set = "\n");
+        for (unsigned long long at = shown_end + 1ULL; at < size;)
         {
             const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                       .text = session, .at = at, .size = size, .set = "\n");
             char path[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {path, sizeof(path), 0ull};
+            VerbaLinea line = {path, sizeof(path), 0ULL};
             mmgr_line_put_n(&line, session + at, end - at);
-            if ((end > at) && (mmgr_line_finish(&line) != 0ull))
+            if ((end > at) && (mmgr_line_finish(&line) != 0ULL))
             {
                 EMBED_CALL(cli_model.file_open, CliModelCtx, .path = path);
             }
-            at = end + 1ull;
+            at = end + 1ULL;
         }
         char shown[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {shown, sizeof(shown), 0ull};
+        VerbaLinea line = {shown, sizeof(shown), 0ULL};
         mmgr_line_put_n(&line, session, shown_end);
-        if ((shown_end != 0ull) && (mmgr_line_finish(&line) != 0ull))
+        if ((shown_end != 0ULL) && (mmgr_line_finish(&line) != 0ULL))
         {
             EMBED_CALL(cli_model.file_open, CliModelCtx, .path = shown);
         }

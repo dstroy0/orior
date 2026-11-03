@@ -32,10 +32,10 @@ int cli_tex_line(const CliLatexTextCtx *args)
         return 1;
     }
     unsigned long long end = (unsigned long long)(found - args->text);
-    *at = end + 1ull;
-    if ((end > *start) && (args->text[end - 1ull] == '\r'))
+    *at = end + 1ULL;
+    if ((end > *start) && (args->text[end - 1ULL] == '\r'))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     *size = end - *start;
     return 1;
@@ -56,7 +56,7 @@ EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char letter =
             ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] - 'A' + 'a') : args->text[at];
@@ -70,7 +70,7 @@ EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
 
 unsigned long long cli_tex_digits(const CliLatexTextLengthAtCtx *args)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     count = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->text,
                        .at = args->at_value, .size = args->length, .classes = CLI_TEXT_DIGITS, .set = "") -
             args->at_value;
@@ -80,7 +80,7 @@ unsigned long long cli_tex_digits(const CliLatexTextLengthAtCtx *args)
 int cli_tex_double(const CliLatexTextLengthValueCtx *args)
 {
     double *value = args->value;
-    unsigned long long at = ((args->length > 0ull) && ((args->text[0] == '+') || (args->text[0] == '-'))) ? 1ull : 0ull;
+    unsigned long long at = ((args->length > 0ULL) && ((args->text[0] == '+') || (args->text[0] == '-'))) ? 1ULL : 0ULL;
     const int word =
         EMBED_CALL(latex_by_name, LatexTextCtx, .text = args->text + at, .length = args->length - at, .with = "inf") ||
         EMBED_CALL(latex_by_name, LatexTextCtx, .text = args->text + at, .length = args->length - at,
@@ -92,25 +92,25 @@ int cli_tex_double(const CliLatexTextLengthValueCtx *args)
             EMBED_CALL(cli_latex_text_length_at_internal.tex_digits, CliLatexTextLengthAtCtx, .text = args->text,
                        .length = args->length, .at_value = at);
         at += whole;
-        unsigned long long part = 0ull;
+        unsigned long long part = 0ULL;
         if ((at < args->length) && (args->text[at] == '.'))
         {
             part = EMBED_CALL(cli_latex_text_length_at_internal.tex_digits, CliLatexTextLengthAtCtx, .text = args->text,
-                              .length = args->length, .at_value = at + 1ull);
-            at += 1ull + part;
+                              .length = args->length, .at_value = at + 1ULL);
+            at += 1ULL + part;
         }
-        if ((whole + part) == 0ull)
+        if ((whole + part) == 0ULL)
         {
             return 0;
         }
         if ((at < args->length) && ((args->text[at] == 'e') || (args->text[at] == 'E')))
         {
-            at += 1ull;
-            at += ((at < args->length) && ((args->text[at] == '+') || (args->text[at] == '-'))) ? 1ull : 0ull;
+            at += 1ULL;
+            at += ((at < args->length) && ((args->text[at] == '+') || (args->text[at] == '-'))) ? 1ULL : 0ULL;
             const unsigned long long power =
                 EMBED_CALL(cli_latex_text_length_at_internal.tex_digits, CliLatexTextLengthAtCtx, .text = args->text,
                            .length = args->length, .at_value = at);
-            if (power == 0ull)
+            if (power == 0ULL)
             {
                 return 0;
             }
@@ -135,22 +135,22 @@ int cli_tex_double(const CliLatexTextLengthValueCtx *args)
 int cli_tex_count(const CliLatexTextLengthCtx *args)
 {
     unsigned long long *value = args->value_u64s;
-    const unsigned long long at = ((args->length > 0ull) && (args->text[0] == '+')) ? 1ull : 0ull;
+    const unsigned long long at = ((args->length > 0ULL) && (args->text[0] == '+')) ? 1ULL : 0ULL;
     if ((at == args->length) ||
         (EMBED_CALL(cli_latex_text_length_at_internal.tex_digits, CliLatexTextLengthAtCtx, .text = args->text,
                     .length = args->length, .at_value = at) != args->length - at))
     {
         return 0;
     }
-    unsigned long long sum = 0ull;
-    for (unsigned long long letter = at; letter < args->length; letter += 1ull)
+    unsigned long long sum = 0ULL;
+    for (unsigned long long letter = at; letter < args->length; letter += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[letter] - '0');
-        if (sum > (args->most - digit) / 10ull)
+        if (sum > (args->most - digit) / 10ULL)
         {
             return 0;
         }
-        sum = (sum * 10ull) + digit;
+        sum = (sum * 10ULL) + digit;
     }
     *value = sum;
     return 1;
@@ -159,11 +159,11 @@ int cli_tex_count(const CliLatexTextLengthCtx *args)
 int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args)
 {
     long long *value = args->value_i64s;
-    const int negative = (args->length > 0ull) && (args->text[0] == '-');
-    const unsigned long long at = (negative || ((args->length > 0ull) && (args->text[0] == '+'))) ? 1ull : 0ull;
-    unsigned long long size = 0ull;
+    const int negative = (args->length > 0ULL) && (args->text[0] == '-');
+    const unsigned long long at = (negative || ((args->length > 0ULL) && (args->text[0] == '+'))) ? 1ULL : 0ULL;
+    unsigned long long size = 0ULL;
     // the most a negative number may be is one past the most a positive one may
-    const unsigned long long most = negative ? 9223372036854775808ull : 9223372036854775807ull;
+    const unsigned long long most = negative ? 9223372036854775808ULL : 9223372036854775807ULL;
     if ((at == args->length) || (args->text[at] == '+') ||
         !EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = args->text + at,
                     .length = args->length - at, .most = most, .value_u64s = &size))
@@ -171,7 +171,7 @@ int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args)
         return 0;
     }
     // the size is in range of the sign, so negating it in 64 bits as unsigned and reading it as signed is exact
-    *value = negative ? (long long)(0ull - size) : (long long)size;
+    *value = negative ? (long long)(0ULL - size) : (long long)size;
     return 1;
 }
 
@@ -179,17 +179,17 @@ int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args)
 EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long cut = 0ull;
-    cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = 0ull,
+    unsigned long long cut = 0ULL;
+    cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = 0ULL,
                      .size = size, .set = "%");
-    while ((cut < size) && (cut != 0ull) && (args->line[cut - 1ull] == '\\'))
+    while ((cut < size) && (cut != 0ULL) && (args->line[cut - 1ULL] == '\\'))
     {
-        cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = cut + 1ull,
+        cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = cut + 1ULL,
                          .size = size, .set = "%");
     }
     static const char word[] = "\\usepackage";
-    const unsigned long long word_size = sizeof(word) - 1ull;
-    for (unsigned long long at = 0ull; at + word_size <= cut; at += 1ull)
+    const unsigned long long word_size = sizeof(word) - 1ULL;
+    for (unsigned long long at = 0ULL; at + word_size <= cut; at += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = word, .bytes = word_size}) != 0)
         {
@@ -199,18 +199,18 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
         unsigned long long from = rest;
         while ((from < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[from]))
         {
-            from += 1ull;
+            from += 1ULL;
         }
         if ((from < cut) && (args->line[from] == '['))
         {
             const char *const closed =
-                memor.chr(&(MemoriaCfg){.src = args->line + from + 1ull, .val = ']', .bytes = cut - from - 1ull});
+                memor.chr(&(MemoriaCfg){.src = args->line + from + 1ULL, .val = ']', .bytes = cut - from - 1ULL});
             // the options never closed leave nothing after them
-            rest = (closed != NULL) ? (unsigned long long)(closed - args->line) + 1ull : cut;
+            rest = (closed != NULL) ? (unsigned long long)(closed - args->line) + 1ULL : cut;
         }
         while ((rest < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[rest]))
         {
-            rest += 1ull;
+            rest += 1ULL;
         }
         const char *const closed =
             ((rest < cut) && (args->line[rest] == '{'))
@@ -218,11 +218,11 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
                 : NULL;
         if (closed == NULL)
         {
-            at += word_size - 1ull;
+            at += word_size - 1ULL;
             continue;
         }
         const unsigned long long end = (unsigned long long)(closed - args->line);
-        unsigned long long name = rest + 1ull;
+        unsigned long long name = rest + 1ULL;
         while (name <= end)
         {
             unsigned long long stop = name;
@@ -232,46 +232,46 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
             unsigned long long last = stop;
             while ((first < last) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[first]))
             {
-                first += 1ull;
+                first += 1ULL;
             }
             while ((last > first) &&
-                   EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[last - 1ull]))
+                   EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[last - 1ULL]))
             {
-                last -= 1ull;
+                last -= 1ULL;
             }
-            if (((last - first == 8ull) &&
+            if (((last - first == 8ULL) &&
                  (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "fontspec", .bytes = 8u}) == 0)) ||
-                ((last - first == 12ull) &&
+                ((last - first == 12ULL) &&
                  (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "unicode-math", .bytes = 12u}) == 0)))
             {
                 return 1;
             }
-            name = stop + 1ull;
+            name = stop + 1ULL;
         }
-        at += word_size - 1ull;
+        at += word_size - 1ULL;
     }
     return 0;
 }
 
 const char *cli_latex_engine_get(const CliLatexCfg *args)
 {
-    unsigned long long at = 0ull;
-    unsigned long long start = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long start = 0ULL;
+    unsigned long long size = 0ULL;
     while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->text, .length = args->length,
                       .at = &at, .start = &start, .size_pointer = &size))
     {
-        while ((size > 0ull) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start]))
+        while ((size > 0ULL) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start]))
         {
-            start += 1ull;
-            size -= 1ull;
+            start += 1ULL;
+            size -= 1ULL;
         }
-        while ((size > 0ull) &&
-               EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start + size - 1ull]))
+        while ((size > 0ULL) &&
+               EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[start + size - 1ULL]))
         {
-            size -= 1ull;
+            size -= 1ULL;
         }
-        if (size == 0ull)
+        if (size == 0ULL)
         {
             continue;
         }
@@ -280,18 +280,18 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
             break;
         }
         char engine_name[32];
-        unsigned long long len = 0ull;
+        unsigned long long len = 0ULL;
         int fits = 1;
-        for (unsigned long long letter = start + 1ull; letter < start + size; letter += 1ull)
+        for (unsigned long long letter = start + 1ULL; letter < start + size; letter += 1ULL)
         {
             if (EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[letter]))
             {
                 continue;
             }
-            if (len + 1ull < sizeof(engine_name))
+            if (len + 1ULL < sizeof(engine_name))
             {
                 engine_name[len] = args->text[letter];
-                len += 1ull;
+                len += 1ULL;
             }
             else
             {
@@ -299,14 +299,14 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
             }
         }
         const unsigned long long head =
-            ((len >= 12ull) &&
-             EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 12ull, .with = "!texprogram="))
-                ? 12ull
-            : ((len >= 15ull) &&
-               EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 15ull, .with = "!texts-program="))
-                ? 15ull
-                : 0ull;
-        if (!fits || (head == 0ull))
+            ((len >= 12ULL) &&
+             EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 12ULL, .with = "!texprogram="))
+                ? 12ULL
+            : ((len >= 15ULL) &&
+               EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 15ULL, .with = "!texts-program="))
+                ? 15ULL
+                : 0ULL;
+        if (!fits || (head == 0ULL))
         {
             continue;
         }
@@ -327,7 +327,7 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
             return "lualatex";
         }
     }
-    at = 0ull;
+    at = 0ULL;
     while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->text, .length = args->length,
                       .at = &at, .start = &start, .size_pointer = &size))
     {

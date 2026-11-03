@@ -27,12 +27,12 @@ int cli_test_stop(void)
 const char *cli_test_append(const CliTestRunsRunTextCtx *args)
 {
     const char *put = "";
-    if (args->run->used + args->length + 1ull <= CLI_TEST_TEXT)
+    if (args->run->used + args->length + 1ULL <= CLI_TEST_TEXT)
     {
         char *const at = args->run->text + args->run->used;
         memor.cpy(&(MemoriaCfg){.dst = at, .src = args->text, .bytes = args->length});
         at[args->length] = '\0';
-        args->run->used += args->length + 1ull;
+        args->run->used += args->length + 1ULL;
         put = at;
     }
     return put;
@@ -41,21 +41,21 @@ const char *cli_test_append(const CliTestRunsRunTextCtx *args)
 void cli_test_outcome_count(const CliTestRunsRunLengthCtx *args)
 {
     args->run->passed +=
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) ? 1ull : 0ull;
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) ? 1ULL : 0ULL;
     args->run->failed +=
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})) ? 1ull : 0ull;
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})) ? 1ULL : 0ULL;
     args->run->skipped +=
         ((!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) &&
          (!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})))
-            ? 1ull
-            : 0ull;
+            ? 1ULL
+            : 0ULL;
 }
 
 void cli_test_message_set(const CliTestRunsRunTextCtx *args)
 {
     if (args->run->message[0] == '\0')
     {
-        VerbaLinea line = {args->run->message, sizeof(args->run->message), 0ull};
+        VerbaLinea line = {args->run->message, sizeof(args->run->message), 0ULL};
         mmgr_line_put_n(&line, args->text, args->length);
         mmgr_line_finish(&line);
     }
@@ -79,18 +79,18 @@ typedef struct
 // where the table is full
 EMBED_INLINE unsigned int test_seen_position(const TestRunsCtx *args)
 {
-    unsigned long long hash = 1469598103934665603ull ^ args->worker;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    unsigned long long hash = 1469598103934665603ULL ^ args->worker;
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        hash = (hash ^ (unsigned char)args->name[at]) * 1099511628211ull;
+        hash = (hash ^ (unsigned char)args->name[at]) * 1099511628211ULL;
     }
     for (unsigned int probe = 0u; probe < CLI_TEST_SEEN_MAX; probe += 1u)
     {
         const unsigned int place = (unsigned int)((hash + probe) % CLI_TEST_SEEN_MAX);
         const unsigned long long name_at = args->run->seen_name[place];
         // a name stored is its process's number, the name, and a 0, from one past its place in the texts
-        if ((name_at == 0ull) ||
-            (((unsigned char)args->run->seen_text[name_at - 1ull] == args->worker) &&
+        if ((name_at == 0ULL) ||
+            (((unsigned char)args->run->seen_text[name_at - 1ULL] == args->worker) &&
              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->seen_text + name_at,
                         .other_pointer = args->name, .size = args->length) &&
              (args->run->seen_text[name_at + args->length] == '\0')))
@@ -106,16 +106,16 @@ int cli_test_visit(const CliTestRunsRunLengthCtx *args)
     const unsigned int place = EMBED_CALL(test_seen_position, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     int fresh = 0;
-    if ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] == 0ull) &&
-        (args->run->seen_used + args->length + 2ull <= CLI_TEST_SEEN_TEXT_MAX))
+    if ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] == 0ULL) &&
+        (args->run->seen_used + args->length + 2ULL <= CLI_TEST_SEEN_TEXT_MAX))
     {
         args->run->seen_text[args->run->seen_used] = (char)args->worker_u32;
         memor.cpy(&(MemoriaCfg){
-            .dst = args->run->seen_text + args->run->seen_used + 1ull, .src = args->name, .bytes = args->length});
-        args->run->seen_text[args->run->seen_used + 1ull + args->length] = '\0';
-        args->run->seen_name[place] = args->run->seen_used + 1ull;
+            .dst = args->run->seen_text + args->run->seen_used + 1ULL, .src = args->name, .bytes = args->length});
+        args->run->seen_text[args->run->seen_used + 1ULL + args->length] = '\0';
+        args->run->seen_name[place] = args->run->seen_used + 1ULL;
         args->run->seen_outcome[place] = args->outcome;
-        args->run->seen_used += args->length + 2ull;
+        args->run->seen_used += args->length + 2ULL;
         args->run->workers[args->worker_u32].seen_count += 1u;
         fresh = 1;
     }
@@ -127,7 +127,7 @@ const char *cli_test_seen_outcome(const CliTestRunsRunLengthCtx *args)
     const unsigned int place = EMBED_CALL(test_seen_position, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     const char *const outcome =
-        ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] != 0ull)) ? args->run->seen_outcome[place] : NULL;
+        ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] != 0ULL)) ? args->run->seen_outcome[place] : NULL;
     return outcome;
 }
 
@@ -139,7 +139,7 @@ int cli_test_seen_any(const CliTestRunsRunLengthCtx *args)
 
 void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
 {
-    VerbaLinea out = {args->worker->event, sizeof(args->worker->event), 0ull};
+    VerbaLinea out = {args->worker->event, sizeof(args->worker->event), 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"result\",\"run\":");
     mmgr_line_decimal(&out, args->worker->run->number, 1u);
     mmgr_line_put(&out, ",\"outcome\":{\"id\":");
@@ -164,7 +164,7 @@ void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_put(&out, ",\"line\":");
-    if (args->line_i64 < 0ll)
+    if (args->line_i64 < 0LL)
     {
         mmgr_line_put(&out, "null");
     }
@@ -195,7 +195,7 @@ static void test_end(void *context)
     for (unsigned int at = 0u; at < run->worker_count; at += 1u)
     {
         CliTestWorker *const worker = &run->workers[at];
-        if (worker->spawned.process != 0ull)
+        if (worker->spawned.process != 0ULL)
         {
             (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &worker->spawned);
             EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &worker->spawned);
@@ -204,7 +204,7 @@ static void test_end(void *context)
     const int stopped = g_cli_test_stopped;
     s_going = (s_going == run) ? NULL : s_going;
     char done[CLI_TEST_MESSAGE_MAX_LEN + 512u];
-    VerbaLinea out = {done, sizeof(done), 0ull};
+    VerbaLinea out = {done, sizeof(done), 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"done\",\"run\":");
     mmgr_line_decimal(&out, run->number, 1u);
     mmgr_line_put(&out, ",\"passed\":");
@@ -235,10 +235,10 @@ static void test_end(void *context)
 void cli_test_runs_stop(void)
 {
     g_cli_test_stopped = 1;
-    CliTestRun *const run = s_going;
+    const CliTestRun *const run = s_going;
     for (unsigned int at = 0u; (run != NULL) && (at < run->worker_count); at += 1u)
     {
-        if (run->workers[at].spawned.process != 0ull)
+        if (run->workers[at].spawned.process != 0ULL)
         {
             EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &run->workers[at].spawned);
         }
@@ -271,21 +271,21 @@ static CliTestRun *test_run_alloc(void)
     }
     run->place = at;
     s_runs[at] = run;
-    s_last += 1ull;
+    s_last += 1ULL;
     run->number = s_last;
     g_cli_test_stopped = 0;
     s_going = run;
     run->wake = (CliWake)CLI_WAKE_INIT;
     run->going = 0u;
-    run->passed = 0ull;
-    run->failed = 0ull;
-    run->skipped = 0ull;
+    run->passed = 0ULL;
+    run->failed = 0ULL;
+    run->skipped = 0ULL;
     run->message[0] = '\0';
     run->worker_count = 0u;
     run->named_count = 0u;
     run->shares = 0u;
-    run->used = 0ull;
-    run->seen_used = 0ull;
+    run->used = 0ULL;
+    run->seen_used = 0ULL;
     run->scratch[0] = '\0';
     memor.set(&(MemoriaCfg){.dst = run->seen_name, .val = 0, .bytes = sizeof(run->seen_name)});
     return run;
@@ -394,7 +394,7 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
                           : 0u;
     const char *const python_runner = pytest ? "pytest" : "unittest";
     char started[512];
-    VerbaLinea out = {started, sizeof(started), 0ull};
+    VerbaLinea out = {started, sizeof(started), 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"started\",\"run\":");
     mmgr_line_decimal(&out, run->number, 1u);
     mmgr_line_put(&out, ",\"given\":");
@@ -407,12 +407,12 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     EMBED_CALL(sink.emit, CliEachJsonSizeCfg, .context = sink.context, .json = out.out, .size = out.at);
     char temporary[CLI_PATH_MAX_LEN];
     char name[96];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, "orior-tests-");
     mmgr_line_decimal(&name_line, cli_process_own(), 1u);
     mmgr_line_ch(&name_line, '-');
     mmgr_line_decimal(&name_line, s_scratch, 1u);
-    s_scratch += 1ull;
+    s_scratch += 1ULL;
     mmgr_line_finish(&name_line);
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = run->scratch);

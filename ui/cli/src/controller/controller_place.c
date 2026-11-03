@@ -12,7 +12,7 @@
 
 // how much of a window's top edge must stand on a monitor for its place there to hold, in pixels: enough to take it by
 // its title and move it
-#define CONTROLLER_POSITION_STRIP 64ll
+#define CONTROLLER_POSITION_STRIP 64LL
 
 // One record of the file: the place and the bytes of the tree's folder after it, its `\` each a `/`
 typedef struct
@@ -48,8 +48,8 @@ EMBED_INLINE long long position_existing(const ControllerPlaceCtx *args)
     const long long position_bottom = (long long)args->place->y + CONTROLLER_POSITION_STRIP;
     const long long area_bottom = (long long)args->area->y + args->area->height;
     const long long bottom = (position_bottom < area_bottom) ? position_bottom : area_bottom;
-    const long long pixel_width = (right > left) ? right - left : 0ll;
-    const long long high = (bottom > top) ? bottom - top : 0ll;
+    const long long pixel_width = (right > left) ? right - left : 0LL;
+    const long long high = (bottom > top) ? bottom - top : 0LL;
     return pixel_width * high;
 }
 
@@ -119,7 +119,7 @@ EMBED_INLINE int position_paths(const ControllerPlaceCtx *args)
         return 0;
     }
     *args->length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN});
-    memor.cpy(&(MemoriaCfg){.dst = args->key, .src = root, .bytes = *args->length + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = args->key, .src = root, .bytes = *args->length + 1ULL});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->key, .size = *args->length, .from = '\\',
                .to = '/');
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "places", .joined = args->path);
@@ -130,16 +130,16 @@ int cli_controller_place_saved(const CliWindowArea *areas, unsigned int count, C
 {
     char key[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long key_length = 0ull;
+    unsigned long long key_length = 0ULL;
     if (!EMBED_CALL(position_paths, ControllerPlaceCtx, .key = key, .path = path, .length = &key_length))
     {
         return 0;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_controller_cells);
     int found = 0;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((bytes != NULL) && !found && ((at + sizeof(ControllerPlaceRecord)) <= size))
     {
         ControllerPlaceRecord record;
@@ -166,15 +166,15 @@ void cli_controller_place_store(const CliWindowPosition *place)
 {
     char key[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long key_length = 0ull;
+    unsigned long long key_length = 0ULL;
     if (!EMBED_CALL(position_paths, ControllerPlaceCtx, .key = key, .path = path, .length = &key_length))
     {
         return;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_controller_cells);
-    const unsigned long long most = ((bytes != NULL) ? size : 0ull) + sizeof(ControllerPlaceRecord) + key_length;
+    const unsigned long long most = ((bytes != NULL) ? size : 0ULL) + sizeof(ControllerPlaceRecord) + key_length;
     unsigned char *const written = g_cli_cells->persistent_buf_alloc(most, &g_cli_controller_cells);
     if (written != NULL)
     {
@@ -183,7 +183,7 @@ void cli_controller_place_store(const CliWindowPosition *place)
         memor.cpy(&(MemoriaCfg){.dst = written, .src = &own, .bytes = sizeof(own)});
         memor.cpy(&(MemoriaCfg){.dst = written + sizeof(own), .src = key, .bytes = key_length});
         unsigned long long used = sizeof(own) + key_length;
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while ((bytes != NULL) && ((at + sizeof(ControllerPlaceRecord)) <= size))
         {
             ControllerPlaceRecord record;

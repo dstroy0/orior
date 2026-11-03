@@ -84,7 +84,7 @@ EMBED_INLINE void inotify_path(const PosixWatchCtx *args)
         chain[depth] = up;
         depth += 1u;
     }
-    VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ULL};
     while (depth > 0u)
     {
         depth -= 1u;
@@ -113,7 +113,7 @@ EMBED_INLINE unsigned int inotify_watch(const PosixWatchCtx *args)
         s_watch.refused = s_watch.refused || (errno == ENOSPC);
         return 0u;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN}) + 1ull;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
     // a watch's number is not negative, which the test above holds
     const unsigned int at = (unsigned int)number;
     if ((at >= s_watch.folder_max) || ((s_watch.names_used + length) > CLI_INOTIFY_NAMES))
@@ -151,10 +151,10 @@ EMBED_INLINE int inotify_goes_into(const PosixWatchCtx *args)
     }
     // a folder the tree does not contain: an empty one, one made since it was listed, or one git ignores
     char inside[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {inside, sizeof(inside), 0ull};
+    VerbaLinea line = {inside, sizeof(inside), 0ULL};
     mmgr_line_put(&line, path);
     mmgr_line_put(&line, "/.");
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = s_watch.root, .path = inside);
 }
 
@@ -174,11 +174,11 @@ static void inotify_walk_each(const CliEachNameIsFolderCfg *args)
     const char *name = args->name;
     CliInotifyWalk *const walk = (CliInotifyWalk *)args->context;
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, walk->path);
     mmgr_line_put(&line, (walk->path[0] != '\0') ? "/" : "");
     mmgr_line_put(&line, name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -303,11 +303,11 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(inotify_path, PosixWatchCtx, .at = at, .path_out = folder);
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, folder);
     mmgr_line_put(&line, (folder[0] != '\0') ? "/" : "");
     mmgr_line_put(&line, args->record->name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -438,7 +438,7 @@ void cli_watch_system_stop(void)
     {
         return;
     }
-    const unsigned long long one = 1ull;
+    const unsigned long long one = 1ULL;
     (void)write(s_watch.stopped, &one, sizeof(one));
     while (!s_watch.ended)
     {

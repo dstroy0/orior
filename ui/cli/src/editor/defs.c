@@ -49,7 +49,7 @@ typedef struct
 EMBED_INLINE CliDefsFile cli_map(const DefsCtx *args)
 {
     const char *path = args->path;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_defs_cells);
     // a file's bytes are read as its text
@@ -72,7 +72,7 @@ EMBED_INLINE const char *cli_line(const DefsCtx *args)
     const char *at = args->at;
     const char **stop = args->stop;
     const char *next = at;
-    next += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = next, .at = 0ull,
+    next += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = next, .at = 0ULL,
                        .size = (unsigned long long)(args->end - next), .set = "\n");
     *stop = ((next > at) && (next[-1] == '\r')) ? (next - 1) : next;
     return (next < args->end) ? (next + 1) : next;

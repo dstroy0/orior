@@ -58,35 +58,35 @@ EMBED_INLINE int cli_is_space(const PatternsCtx *args)
 // whether the glob names the path from its first letter to its last
 static int cli_glob(const PatternsCtx *args)
 {
-    if (args->pattern_length == 0ull)
+    if (args->pattern_length == 0ULL)
     {
-        return args->length == 0ull;
+        return args->length == 0ULL;
     }
-    if ((args->pattern_length >= 3ull) && (args->pattern_u32s[0] == '*') && (args->pattern_u32s[1] == '*') &&
+    if ((args->pattern_length >= 3ULL) && (args->pattern_u32s[0] == '*') && (args->pattern_u32s[1] == '*') &&
         (args->pattern_u32s[2] == '/'))
     {
         if (EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 3u,
-                       .pattern_length = args->pattern_length - 3ull, .path = args->path, .length = args->length))
+                       .pattern_length = args->pattern_length - 3ULL, .path = args->path, .length = args->length))
         {
             return 1;
         }
-        for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+        for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
         {
             if ((args->path[at] == '/') && EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 3u,
-                                                      .pattern_length = args->pattern_length - 3ull,
-                                                      .path = args->path + at + 1u, .length = args->length - at - 1ull))
+                                                      .pattern_length = args->pattern_length - 3ULL,
+                                                      .path = args->path + at + 1u, .length = args->length - at - 1ULL))
             {
                 return 1;
             }
         }
         return 0;
     }
-    if ((args->pattern_length >= 2ull) && (args->pattern_u32s[0] == '*') && (args->pattern_u32s[1] == '*'))
+    if ((args->pattern_length >= 2ULL) && (args->pattern_u32s[0] == '*') && (args->pattern_u32s[1] == '*'))
     {
-        for (unsigned long long at = 0ull; at <= args->length; at += 1ull)
+        for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
         {
             if (EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 2u,
-                           .pattern_length = args->pattern_length - 2ull, .path = args->path + at,
+                           .pattern_length = args->pattern_length - 2ULL, .path = args->path + at,
                            .length = args->length - at))
             {
                 return 1;
@@ -96,15 +96,15 @@ static int cli_glob(const PatternsCtx *args)
     }
     if (args->pattern_u32s[0] == '*')
     {
-        unsigned long long name = 0ull;
+        unsigned long long name = 0ULL;
         while ((name < args->length) && (args->path[name] != '/'))
         {
-            name += 1ull;
+            name += 1ULL;
         }
-        for (unsigned long long at = 0ull; at <= name; at += 1ull)
+        for (unsigned long long at = 0ULL; at <= name; at += 1ULL)
         {
             if (EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 1u,
-                           .pattern_length = args->pattern_length - 1ull, .path = args->path + at,
+                           .pattern_length = args->pattern_length - 1ULL, .path = args->path + at,
                            .length = args->length - at))
             {
                 return 1;
@@ -114,22 +114,22 @@ static int cli_glob(const PatternsCtx *args)
     }
     if (args->pattern_u32s[0] == '?')
     {
-        return (args->length != 0ull) && (args->path[0] != '/') &&
+        return (args->length != 0ULL) && (args->path[0] != '/') &&
                EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 1u,
-                          .pattern_length = args->pattern_length - 1ull, .path = args->path + 1u,
-                          .length = args->length - 1ull);
+                          .pattern_length = args->pattern_length - 1ULL, .path = args->path + 1u,
+                          .length = args->length - 1ULL);
     }
-    return (args->length != 0ull) && (args->path[0] == args->pattern_u32s[0]) &&
+    return (args->length != 0ULL) && (args->path[0] == args->pattern_u32s[0]) &&
            EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = args->pattern_u32s + 1u,
-                      .pattern_length = args->pattern_length - 1ull, .path = args->path + 1u,
-                      .length = args->length - 1ull);
+                      .pattern_length = args->pattern_length - 1ULL, .path = args->path + 1u,
+                      .length = args->length - 1ULL);
 }
 
 // whether the pattern names the path, or a folder it is in; the path's letters folded as a pattern compares them
 EMBED_INLINE int cli_hits(const PatternsCtx *args)
 {
     const unsigned int *const glob = args->patterns->letters + args->pattern->first;
-    for (unsigned long long end = 0ull; end < args->length; end += 1ull)
+    for (unsigned long long end = 0ULL; end < args->length; end += 1ULL)
     {
         if ((args->path[end] == '/') &&
             EMBED_CALL(cli_glob, PatternsCtx, .pattern_u32s = glob, .pattern_length = args->pattern->length,
@@ -166,31 +166,31 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
         return;
     }
     int slashed = 0;
-    slashed = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    slashed = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                          .size = (unsigned long long)(to - from), .set = "/") < (unsigned long long)(to - from);
-    from += slashed ? EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += slashed ? EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                                  .size = (unsigned long long)(to - from), .set = "/")
-                    : 0ull;
+                    : 0ULL;
     unsigned int *const count = args->include ? &args->patterns_out->includes : &args->patterns_out->hides;
     CliPattern *const list = args->include ? args->patterns_out->include : args->patterns_out->hide;
     const unsigned int first = args->patterns_out->used;
     const unsigned long long capacity = CLI_PATTERN_LETTERS - first;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     static const unsigned int s_anywhere[3] = {'*', '*', '/'};
-    if (!slashed && (capacity >= 3ull))
+    if (!slashed && (capacity >= 3ULL))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->patterns_out->letters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
-        length = 3ull;
+        length = 3ULL;
     }
     length +=
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
                    .letters = args->patterns_out->letters + first + length, .capacity_u64 = capacity - length);
-    if ((*count >= CLI_PATTERNS_MAX) || (capacity < 3ull))
+    if ((*count >= CLI_PATTERNS_MAX) || (capacity < 3ULL))
     {
         return;
     }
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         args->patterns_out->letters[first + at] =
             EMBED_CALL(cli_fold, PatternsCtx, .letter = args->patterns_out->letters[first + at]);
@@ -260,14 +260,14 @@ void cli_patterns_read_set(const CliPatternsLinesCfg *args)
         }
         // each line turned about: one that takes out is a pattern that hides, and one that names includes
         char flipped[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {flipped, sizeof(flipped), 0ull};
+        VerbaLinea line = {flipped, sizeof(flipped), 0ULL};
         if (from[0] != '!')
         {
             mmgr_line_ch(&line, '!');
         }
         mmgr_line_put_n(&line, from + ((from[0] == '!') ? 1 : 0),
-                        (unsigned long long)(to - from) - ((from[0] == '!') ? 1ull : 0ull));
-        const unsigned long long length = mmgr_line_ok(&line) ? line.at : 0ull;
+                        (unsigned long long)(to - from) - ((from[0] == '!') ? 1ULL : 0ULL));
+        const unsigned long long length = mmgr_line_ok(&line) ? line.at : 0ULL;
         mmgr_line_finish(&line);
         EMBED_CALL(cli_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = flipped, .size = length);
     }
@@ -291,7 +291,7 @@ EMBED_INLINE unsigned long long cli_path_letters(const PatternsCtx *args)
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path_text,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_CELLS_POOL}),
                    .letters = letters, .capacity_u64 = CLI_PATH_MAX_LEN);
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         letters[at] = EMBED_CALL(cli_fold, PatternsCtx, .letter = letters[at]);
     }
@@ -354,7 +354,7 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
     char spec[CLI_PATH_MAX_LEN];
     for (int inside = args->pattern->folders ? 1 : 0; inside < 2; inside += 1)
     {
-        VerbaLinea line = {spec, sizeof(spec), 0ull};
+        VerbaLinea line = {spec, sizeof(spec), 0ULL};
         mmgr_line_put(&line, ":(");
         mmgr_line_put(&line, args->magic);
         mmgr_line_put(&line, "glob");

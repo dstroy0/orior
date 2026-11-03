@@ -10,8 +10,9 @@
 // through the transfer layer, how many messages it refused, who listens, and the last few messages, for a view of every
 // part and what it sent.
 //
-// A channel's name is words joined by slashes, as lsp/rust or db/rows. A grant is a name, or a name ending in /* for
-// every channel under it, or * alone for every channel. A body is JSON, as its speaker wrote it (comms.c, comms_view.c)
+// A channel's name is words joined by slashes, as lsp/rust or db/rows. A grant is a name, or a name ending in a slash
+// and a star for every channel under it, or * alone for every channel. A body is JSON, as its speaker wrote it
+// (comms.c, comms_view.c)
 #ifndef COMMS_H
 #define COMMS_H
 typedef struct CliCommsNameCfg CliCommsNameCfg;

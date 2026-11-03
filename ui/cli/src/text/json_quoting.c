@@ -13,10 +13,10 @@ typedef struct
 // the bytes a UTF-8 letter takes, by its first byte; a byte that starts none takes one
 EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
 {
-    return ((args->lead >= 0xc0u) && (args->lead <= 0xdfu))   ? 2ull
-           : ((args->lead >= 0xe0u) && (args->lead <= 0xefu)) ? 3ull
-           : ((args->lead >= 0xf0u) && (args->lead <= 0xf7u)) ? 4ull
-                                                              : 1ull;
+    return ((args->lead >= 0xc0u) && (args->lead <= 0xdfu))   ? 2ULL
+           : ((args->lead >= 0xe0u) && (args->lead <= 0xefu)) ? 3ULL
+           : ((args->lead >= 0xf0u) && (args->lead <= 0xf7u)) ? 4ULL
+                                                              : 1ULL;
 }
 
 // `size` bytes of a piece escaped into the quoting's line, the letter the last piece ended inside of made whole from
@@ -29,14 +29,14 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
     if (quoting->count != 0u)
     {
         const unsigned long long required = EMBED_CALL(json_letter_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
-        while ((quoting->count < required) && (left > 0ull) && ((*at & 0xc0u) == 0x80u))
+        while ((quoting->count < required) && (left > 0ULL) && ((*at & 0xc0u) == 0x80u))
         {
             quoting->pending[quoting->count] = *at;
             quoting->count += 1u;
             at += 1;
-            left -= 1ull;
+            left -= 1ULL;
         }
-        if (left == 0ull)
+        if (left == 0ULL)
         {
             return mmgr_line_ok(quoting->out);
         }
@@ -45,7 +45,7 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
         quoting->count = 0u;
     }
     unsigned long long whole = left;
-    for (unsigned long long back = 1ull; (back <= 3ull) && (back <= left); back += 1ull)
+    for (unsigned long long back = 1ULL; (back <= 3ULL) && (back <= left); back += 1ULL)
     {
         const unsigned char letter = at[left - back];
         if ((letter & 0xc0u) != 0x80u)
@@ -56,7 +56,7 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
     }
     EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = quoting->out,
                .text_bytes = at, .length = whole);
-    for (unsigned long long tail = whole; tail < left; tail += 1ull)
+    for (unsigned long long tail = whole; tail < left; tail += 1ULL)
     {
         quoting->pending[quoting->count] = at[tail];
         quoting->count += 1u;
@@ -71,7 +71,7 @@ void cli_json_quoting_begin(const CliJsonTreeOutCfg *args)
     args->quoting->out = out;
     args->quoting->count = 0u;
     mmgr_line_ch(out, '"');
-    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, json_quoting_append, args->quoting, 0ull};
+    *line = (VerbaLinea){args->piece, args->piece_size, 0ULL, json_quoting_append, args->quoting, 0ULL};
 }
 
 void cli_json_quoting_end(const CliJsonTreeOutCfg *args)

@@ -63,7 +63,7 @@ typedef struct
 EMBED_INLINE void serve_line_emit(const RecordingServeCtx *args)
 {
     unsigned long long size = args->size;
-    VerbaLinea out = {args->reader->out_buf, sizeof(args->reader->out_buf), 0ull};
+    VerbaLinea out = {args->reader->out_buf, sizeof(args->reader->out_buf), 0ULL};
     mmgr_line_put(&out, "{\"type\":\"event\",\"event\":\"output\",\"body\":{\"category\":\"");
     mmgr_line_put(&out, args->reader->category);
     mmgr_line_put(&out, "\",\"output\":");
@@ -77,25 +77,25 @@ EMBED_INLINE void serve_line_emit(const RecordingServeCtx *args)
 EMBED_INLINE void serve_lines(const RecordingServeCtx *args)
 {
     char piece[4096];
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned long long count =
              EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                         .pipe_handle = args->reader->pipe, .piece = piece, .capacity = sizeof(piece));
-         count > 0ull; count = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+         count > 0ULL; count = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                                           .pipe_handle = args->reader->pipe, .piece = piece, .capacity = sizeof(piece)))
     {
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             args->reader->line[used] = piece[at];
-            used += 1ull;
+            used += 1ULL;
             if ((piece[at] == '\n') || (used == CLI_RECORDING_OUTPUT_LINE))
             {
                 EMBED_CALL(serve_line_emit, RecordingServeCtx, .reader = args->reader, .size = used);
-                used = 0ull;
+                used = 0ULL;
             }
         }
     }
-    if (used > 0ull)
+    if (used > 0ULL)
     {
         EMBED_CALL(serve_line_emit, RecordingServeCtx, .reader = args->reader, .size = used);
     }
@@ -114,11 +114,11 @@ static void serve_read(void *context)
         return;
     }
     const long long status = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_running);
-    const int has_code = s_has_running && (status >= 0ll);
+    const int has_code = s_has_running && (status >= 0LL);
     s_has_running = 0;
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_running);
     char recorded[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea out = {recorded, sizeof(recorded), 0ull};
+    VerbaLinea out = {recorded, sizeof(recorded), 0ULL};
     mmgr_line_put(&out, "{\"type\":\"orior\",\"event\":\"recorded\",\"out\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)s_out,
@@ -163,14 +163,14 @@ int cli_recording_run(const CliRecordingDapCtx *args)
     cli_recording_run_end();
     char temporary[CLI_PATH_MAX_LEN];
     char name[96];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, "orior-recording-");
     mmgr_line_decimal(&name_line, cli_process_own(), 1u);
     mmgr_line_ch(&name_line, '-');
     mmgr_line_decimal(&name_line, s_recordings, 1u);
     mmgr_line_put(&name_line, ".jsonl");
     mmgr_line_finish(&name_line);
-    s_recordings += 1ull;
+    s_recordings += 1ULL;
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = s_out);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
@@ -237,13 +237,13 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
     unsigned int message = args->message;
     const CliRecording *const recording = &g_cli_replay->recording;
     char out[CLI_PATH_MAX_LEN];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const path =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = message, .name = "out"),
                    .length_pointer = &length);
-    VerbaLinea out_line = {out, sizeof(out), 0ull};
+    VerbaLinea out_line = {out, sizeof(out), 0ULL};
     mmgr_line_put_n(&out_line, (path != NULL) ? path : "", length);
     mmgr_line_finish(&out_line);
     EMBED_CALL(cli_recording_path_internal.read, CliRecordingPathCtx, .path = out);
@@ -253,18 +253,18 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
                                            .json_read = args->json, .node = code_node, .kind = CFG_JSON_NUMBER)
                                     ? args->json->text + args->json->node[code_node].text
                                     : NULL;
-    const unsigned long long digits = (written != NULL) ? args->json->node[code_node].length : 0ull;
-    const int negative = (digits > 0ull) && (written[0] == '-');
-    int has_code = recording->has_code || ((digits > (negative ? 1ull : 0ull)) && (digits <= 19ull));
-    long long code = 0ll;
-    for (unsigned long long at = negative ? 1ull : 0ull; !recording->has_code && has_code && (at < digits); at += 1ull)
+    const unsigned long long digits = (written != NULL) ? args->json->node[code_node].length : 0ULL;
+    const int negative = (digits > 0ULL) && (written[0] == '-');
+    int has_code = recording->has_code || ((digits > (negative ? 1ULL : 0ULL)) && (digits <= 19ULL));
+    long long code = 0LL;
+    for (unsigned long long at = negative ? 1ULL : 0ULL; !recording->has_code && has_code && (at < digits); at += 1ULL)
     {
         has_code = (written[at] >= '0') && (written[at] <= '9');
-        code = (code * 10ll) + (long long)(written[at] - '0');
+        code = (code * 10LL) + (long long)(written[at] - '0');
     }
     code = recording->has_code ? recording->code : (negative ? -code : code);
     char line_buf[512];
-    VerbaLinea line = {line_buf, sizeof(line_buf), 0ull};
+    VerbaLinea line = {line_buf, sizeof(line_buf), 0ULL};
     if (recording->step_count == 0u)
     {
         mmgr_line_put(&line, "The run ran no line of the tree's own code; there is nothing to step through.\n");
@@ -291,7 +291,7 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
         mmgr_line_put(&line, ".\n");
     }
     char event_buf[1024];
-    VerbaLinea event = {event_buf, sizeof(event_buf), 0ull};
+    VerbaLinea event = {event_buf, sizeof(event_buf), 0ULL};
     mmgr_line_put(&event, "{\"type\":\"event\",\"event\":\"output\",\"body\":{\"category\":\"console\",\"output\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &event,
                .text_bytes = (const unsigned char *)line.out, .length = line.at);

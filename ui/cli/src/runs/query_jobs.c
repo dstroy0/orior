@@ -81,7 +81,7 @@ static int jobs_program(const QueryEachRolePathCapacityErrMsgCfg *args)
     }
     const QueryPrograms on_path = query_on_path();
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea none = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(on_path.program, QueryEachRolePathCapacityErrMsgCfg, .context = on_path.context, .role = role,
                    .path = path, .capacity = args->capacity, .err_msg = &none))
     {
@@ -159,10 +159,10 @@ void cli_query_jobs(const CliCatalogRootCfg *args)
     {
         const QueryCommand *const command = &commands[index];
         char id[CLI_NAME_MAX_LEN];
-        VerbaLinea id_line = {id, sizeof(id), 0ull};
+        VerbaLinea id_line = {id, sizeof(id), 0ULL};
         mmgr_line_put(&id_line, "protocol/");
         mmgr_line_put(&id_line, command->id);
-        if ((mmgr_line_finish(&id_line) == 0ull) ||
+        if ((mmgr_line_finish(&id_line) == 0ULL) ||
             (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = id,
                         .group = "protocol", .title = command->title, .file = QUERY_TABLE, .about = command->about,
                         .opens = "") == CLI_CATALOG_NONE))

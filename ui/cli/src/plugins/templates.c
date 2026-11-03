@@ -48,7 +48,7 @@ typedef struct
 EMBED_INLINE int cli_plain(const TemplatesCtx *args)
 {
     int blank = 1;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     while (at < length)
     {
@@ -74,7 +74,7 @@ EMBED_INLINE int cli_by_name(const TemplatesCtx *args)
     const char *text = args->text;
     const char *name = args->name;
     char *out = args->out;
-    VerbaLinea line = {out, args->capacity, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ULL};
     EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{{name}}",
                .value = name);
     mmgr_line_finish(&line);
@@ -104,7 +104,7 @@ EMBED_INLINE int cli_uncopied(const TemplatesCtx *args)
 // a file copied with `{{name}}` written as the name in its text where it is UTF-8
 EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->from,
                                                   .size_pointer = &size, .owner = &g_cli_templates_cells);
     if (bytes == NULL)
@@ -112,24 +112,24 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     int text = 1;
-    for (unsigned long long at = 0ull; text && (at < size);)
+    for (unsigned long long at = 0ULL; text && (at < size);)
     {
         unsigned int letter = 0u;
         const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                                    .text_bytes = bytes, .length = size, .at = at, .letter = &letter);
-        text = !((step == 1ull) && (bytes[at] >= 0x80u));
+        text = !((step == 1ULL) && (bytes[at] >= 0x80u));
         at += step;
     }
     // the times the text names the project, each a piece before it and the name, and the piece after the last
-    unsigned long long named = 0ull;
-    for (unsigned long long at = 0ull; text && ((at + 8ull) <= size);)
+    unsigned long long named = 0ULL;
+    for (unsigned long long at = 0ULL; text && ((at + 8ULL) <= size);)
     {
         const int names = memor.cmp(&(MemoriaCfg){.src = bytes + at, .other = "{{name}}", .bytes = 8u}) == 0;
-        named += names ? 1ull : 0ull;
-        at += names ? 8ull : 1ull;
+        named += names ? 1ULL : 0ULL;
+        at += names ? 8ULL : 1ULL;
     }
     CliFilePiece *const piece =
-        g_cli_cells->temporary_buf_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
+        g_cli_cells->temporary_buf_alloc(((2ULL * named) + 1ULL) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
@@ -137,19 +137,19 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     unsigned int pieces = 0u;
-    unsigned long long start = 0ull;
-    for (unsigned long long at = 0ull; text && ((at + 8ull) <= size);)
+    unsigned long long start = 0ULL;
+    for (unsigned long long at = 0ULL; text && ((at + 8ULL) <= size);)
     {
         if (memor.cmp(&(MemoriaCfg){.src = bytes + at, .other = "{{name}}", .bytes = 8u}) != 0)
         {
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         piece[pieces] = (CliFilePiece){bytes + start, at - start};
         piece[pieces + 1u] =
             (CliFilePiece){args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL})};
         pieces += 2u;
-        at += 8ull;
+        at += 8ULL;
         start = at;
     }
     piece[pieces] = (CliFilePiece){bytes + start, size - start};

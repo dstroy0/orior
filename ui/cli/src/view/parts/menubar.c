@@ -51,8 +51,13 @@ EMBED_INLINE const char *menubar_title_text(const MenubarCtx *args)
     unsigned long long *length = args->length;
     if (args->title->folded)
     {
-        *length = 3ull;
+        *length = 3ULL;
         return "\xe2\x80\xa6";
+    }
+    if (args->menubar->menus == NULL)
+    {
+        *length = 0ULL;
+        return "";
     }
     const char *const title = args->menubar->menus->title[args->title->menu];
     *length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL});
@@ -65,7 +70,7 @@ EMBED_INLINE int menubar_title_width(const MenubarCtx *args)
     GuiGlyphs *glyphs = args->glyphs;
     unsigned int size = args->size;
     int scale = args->scale;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text =
         EMBED_CALL(menubar_title_text, MenubarCtx, .menubar = args->menubar, .title = args->title, .length = &length);
     return (int)roundf(EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
@@ -387,7 +392,7 @@ void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args)
                                                    .pixels = GUI_TITLE_RADIUS, .scale = args->frame->scale),
                 .color = args->palette->bar_title_hover);
         }
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const text = EMBED_CALL(menubar_title_text, MenubarCtx, .menubar = args->menubar_read,
                                             .title = title, .length = &length);
         const int baseline =
@@ -499,7 +504,7 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                 EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = tip_x - arm,
                            .y0 = middle + arm, .x1 = tip_x, .y1 = middle, .color = color);
             }
-            else if (keys_length != 0ull)
+            else if (keys_length != 0ULL)
             {
                 const float keys_width =
                     EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,

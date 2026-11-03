@@ -19,7 +19,7 @@ typedef struct
 // a bound the number passes reported: the number, `between`, the bound, and `after`
 EMBED_INLINE void bounds_msg_write(const SchemaBoundsCtx *args)
 {
-    args->msg->at = 0ull;
+    args->msg->at = 0ULL;
     EMBED_CALL(cli_schema_out_internal.number_show, CliSchemaOutCtx, .value_f64 = args->number, .out = args->msg);
     mmgr_line_put(args->msg, args->between);
     EMBED_CALL(cli_schema_out_internal.number_show, CliSchemaOutCtx, .value_f64 = args->bound, .out = args->msg);
@@ -106,7 +106,7 @@ void cli_schema_text_check(const CliSchemaBaseMapCtx *args)
         EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = args->check->read, .at = one->text_at);
     const unsigned long long length =
         EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text, .size = one->text_size);
-    unsigned long long bound = 0ull;
+    unsigned long long bound = 0ULL;
     if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                       .name = "minLength"),
@@ -139,7 +139,7 @@ void cli_schema_text_check(const CliSchemaBaseMapCtx *args)
                          .message = &msg, .lines = args->check->lines, .from = one->from, .to = one->to,
                          .severity = CLI_BUILD_WARNING, .code = "schema-length");
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const pattern = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                            .map = args->map, .name = "pattern", .size_pointer = &size);
     if ((pattern != NULL) && (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,

@@ -13,9 +13,6 @@ CliLatexWorkState *g_cli_latex;
 int cli_latex_lock(void)
 {
     g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), &g_cli_editor_cells);
-    if (g_cli_latex == NULL)
-    {
-    }
     return g_cli_latex != NULL;
 }
 
@@ -70,16 +67,16 @@ EMBED_INLINE void latex_stem(const LatexCtx *args)
                              .at = dot - from, .set = "."));
     // a name with no dot, or whose only dot opens it, is its own stem
     *start = from;
-    *size = ((dot > from + 1ull) ? dot - 1ull : end) - from;
+    *size = ((dot > from + 1ULL) ? dot - 1ULL : end) - from;
 }
 
 void cli_latex_job_get(const CliLatexFileCtx *args)
 {
-    unsigned long long start = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long size = 0ULL;
     EMBED_CALL(latex_stem, LatexCtx, .path = args->file_read, .start = &start, .size = &size);
-    int plain = (size > 0ull);
-    for (unsigned long long at = start; plain && (at < start + size); at += 1ull)
+    int plain = (size > 0ULL);
+    for (unsigned long long at = start; plain && (at < start + size); at += 1ULL)
     {
         const char letter = args->file_read[at];
         plain = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||

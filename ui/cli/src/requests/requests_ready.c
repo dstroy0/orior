@@ -37,13 +37,13 @@ EMBED_INLINE int ready_fill(const RequestsReadyCtx *args)
     CliRequestsText text = args->text;
     char *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    VerbaLinea line = {out, args->capacity, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ULL};
     if (!EMBED_CALL(cli_requests_text_size_internal.fill, CliRequestsTextSizeCtx, .text = args->parsed->text + text.at,
                     .size = text.size, .values_read = &s_values, .out = &line, .err_msg = err_msg))
     {
         return 0;
     }
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         EMBED_CALL(ready_full_err, RequestsReadyCtx, .err_msg = err_msg);
         return 0;
@@ -72,12 +72,12 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
         return 0;
     }
     char adjacent[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {adjacent, sizeof(adjacent), 0ull};
+    VerbaLinea line = {adjacent, sizeof(adjacent), 0ULL};
     mmgr_line_put(&line, folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    unsigned long long length = 0ull;
-    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
+    unsigned long long length = 0ULL;
+    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = adjacent,
                                                         .size_pointer = &length, .owner = &g_cli_requests_cells)
                                            : NULL;
@@ -148,13 +148,21 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
             .src = args->sent->url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) == NULL)
     {
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_CELLS_POOL});
-        if (length + 8u > sizeof(args->sent->url))
+        // a program on this machine is reached in the clear, and any other over TLS
+        const int here =
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "localhost", .cap = CLI_CELLS_POOL}) ||
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "127.", .cap = CLI_CELLS_POOL}) ||
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "[::1]", .cap = CLI_CELLS_POOL});
+        const char *const scheme = here ? "http://" : "https://"; // NOSONAR
+        const size_t scheme_size = cellul.len(&(CatenaFinitaCfg){.src = scheme, .cap = CLI_CELLS_POOL});
+        if (length + scheme_size + 1u > sizeof(args->sent->url))
         {
             EMBED_CALL(ready_full_err, RequestsReadyCtx, .err_msg = err_msg);
             return 0;
         }
-        memor.move_up(&(MemoriaCfg){.dst = args->sent->url + 7, .src = args->sent->url, .bytes = length + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = args->sent->url, .src = "http://", .bytes = 7u});
+        memor.move_up(
+            &(MemoriaCfg){.dst = args->sent->url + scheme_size, .src = args->sent->url, .bytes = length + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = args->sent->url, .src = scheme, .bytes = scheme_size});
     }
     args->sent->headers = args->request->headers;
     for (unsigned int at = 0u; at < args->request->headers; at += 1u)
@@ -169,9 +177,9 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
             return 0;
         }
     }
-    args->sent->body_size = 0ull;
+    args->sent->body_size = 0ULL;
     args->sent->redirect = args->request->redirect;
-    body->at = 0ull;
+    body->at = 0ULL;
     int made = 1;
     if (args->request->has_body)
     {
@@ -183,7 +191,7 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
             EMBED_CALL(ready_full_err, RequestsReadyCtx, .err_msg = err_msg);
             made = 0;
         }
-        args->sent->body_size = made ? body->at : 0ull;
+        args->sent->body_size = made ? body->at : 0ULL;
     }
     else if (args->request->has_body_file)
     {

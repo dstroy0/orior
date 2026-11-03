@@ -8,7 +8,7 @@
 #include "query_loops.h"
 
 // the most bytes of a program's output a run records
-#define QUERY_OUTPUT_MAX (64ull << 20u)
+#define QUERY_OUTPUT_MAX (64ULL << 20u)
 
 // the name of the record this process's own lines go to, `<loop>.console`
 static char s_console[QRY_NAME_MAX_LEN + 1u];
@@ -25,13 +25,13 @@ void query_print(const QueryTextCtx *args)
         const unsigned long long copied_len = (length < QUERY_LINE_MAX_LEN) ? length : QUERY_LINE_MAX_LEN;
         memor.cpy(&(MemoriaCfg){.dst = s_line, .src = args->text, .bytes = (size_t)copied_len});
         s_line[copied_len] = '\n';
-        qry_member_append(s_console, s_line, copied_len + 1ull, QRY_ORDINARY);
+        qry_member_append(s_console, s_line, copied_len + 1ULL, QRY_ORDINARY);
     }
 }
 
 void query_at(const QueryContextUnderCtx *args)
 {
-    VerbaLinea line = {args->path_out, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path_out, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->context_read->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->under);
@@ -151,8 +151,8 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     // the output read to its end into a cell of the most it holds; what it writes past that is read and let go, for the
     // program to run to its end, and the output refused
     char *const output = g_cli_cells->temporary_buf_alloc(QUERY_OUTPUT_MAX, &g_query_cells);
-    const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ull : 0ull;
-    unsigned long long used = 0ull;
+    const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ULL : 0ULL;
+    unsigned long long used = 0ULL;
     int whole = (output != NULL);
     for (;;)
     {
@@ -163,11 +163,11 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
                               .piece = output + used, .capacity_u64 = capacity - used)
                  : EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
                               .piece = over, .capacity_u64 = sizeof(over));
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
-        used += fits ? got : 0ull;
+        used += fits ? got : 0ULL;
         whole = whole && fits;
     }
     *code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
@@ -252,10 +252,10 @@ int query_run(const QueryCfg *args)
     static char s_root[QUERY_PATH_MAX_LEN];
     static const char *s_words[QUERY_WORDS_MAX];
     char err_buf[QUERY_LINE_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     memor.set(&(MemoriaCfg){.dst = &s_context, .val = 0, .bytes = sizeof(s_context)});
     // a path as the compilers and the tools are given it: forward slashes throughout
-    VerbaLinea root_line = {s_root, sizeof(s_root), 0ull};
+    VerbaLinea root_line = {s_root, sizeof(s_root), 0ULL};
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &root_line, .text = root, .from = '\\',
                      .to = '/');
     mmgr_line_finish(&root_line);
@@ -282,7 +282,7 @@ int query_run(const QueryCfg *args)
     {
         s_context.leave = supplied ? leave : (query_terminal_is() ? QUERY_LEAVE_PROMPT : QUERY_LEAVE_ALL);
         // the loop's own lines go to its run as `<loop>.console`
-        VerbaLinea console = {s_console, sizeof(s_console), 0ull};
+        VerbaLinea console = {s_console, sizeof(s_console), 0ULL};
         mmgr_line_put(&console, s_words[0]);
         mmgr_line_put(&console, ".console");
         mmgr_line_finish(&console);
@@ -290,7 +290,7 @@ int query_run(const QueryCfg *args)
             EMBED_CALL(query_loops_context_err_msg_name.loop_run, QueryLoopsContextErrMsgNameCfg, .context = &s_context,
                        .name = s_words[0], .words = &s_words[1], .count = word_count - 1u, .err_msg = &err_msg);
     }
-    if ((code < 0) && (mmgr_line_finish(&err_msg) != 0ull))
+    if ((code < 0) && (mmgr_line_finish(&err_msg) != 0ULL))
     {
         EMBED_CALL(sink.print, CliEachLineSizeCfg, .context = sink.context, .line = err_buf, .size = err_msg.at);
     }

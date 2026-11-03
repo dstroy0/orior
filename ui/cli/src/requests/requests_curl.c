@@ -117,7 +117,7 @@ EMBED_INLINE CurlText curl_init(const RequestsCurlCtx *args)
 EMBED_INLINE void curl_encode(const RequestsCurlCtx *args)
 {
     static const char s_hex[] = "0123456789ABCDEF";
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
         const int plain = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
@@ -218,7 +218,7 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
                          .word = "--header")) &&
              (colon != NULL))
     {
-        unsigned long long name_start = 0ull;
+        unsigned long long name_start = 0ULL;
         unsigned long long name_end = (unsigned long long)(colon - value.at);
         unsigned long long text_start = name_end + 1u;
         unsigned long long text_end = value.size;
@@ -260,7 +260,7 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
                         .word = "--data-urlencode"))
     {
         curl_data_begin(args);
-        const unsigned long long name = (equals != NULL) ? (unsigned long long)(equals - value.at) : 0ull;
+        const unsigned long long name = (equals != NULL) ? (unsigned long long)(equals - value.at) : 0ULL;
         mmgr_line_put_n(&s_curl->body_line, value.at, (equals != NULL) ? (name + 1u) : 0u);
         EMBED_CALL(curl_encode, RequestsCurlCtx, .text = value.at + ((equals != NULL) ? (name + 1u) : 0u),
                    .size = value.size - ((equals != NULL) ? (name + 1u) : 0u), .out = &s_curl->body_line);
@@ -372,7 +372,7 @@ EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
                      ((end - begin == 2u) && (args->path[begin] == '.') && (args->path[begin + 1u] == '.')) ||
                      ((end - begin == 1u) && (args->path[begin] == '.'));
     *start = begin;
-    *length = none ? 0ull : (end - begin);
+    *length = none ? 0ULL : (end - begin);
 }
 
 // the forms of the line written as a multipart body into `out`
@@ -386,8 +386,8 @@ EMBED_INLINE void curl_forms(const RequestsCurlCtx *args)
         mmgr_line_put_n(args->out, name.at, name.size);
         if ((value.size > 0u) && (value.at[0] == '@'))
         {
-            unsigned long long start = 0ull;
-            unsigned long long length = 0ull;
+            unsigned long long start = 0ULL;
+            unsigned long long length = 0ULL;
             EMBED_CALL(curl_file_name, RequestsCurlCtx, .path = value.at + 1, .size = value.size - 1u, .start = &start,
                        .length = &length);
             mmgr_line_put(args->out, "\"; filename=\"");
@@ -462,7 +462,7 @@ EMBED_INLINE void curl_write(const RequestsCurlCtx *args)
     mmgr_line_ch(args->out, '\n');
     const int file =
         (s_curl->body[0] == '@') &&
-        (memor.chr(&(MemoriaCfg){.src = s_curl->body, .val = '\n', .bytes = (size_t)s_curl->body_line.at}) == NULL);
+        (memor.chr(&(MemoriaCfg){.src = s_curl->body, .val = '\n', .bytes = s_curl->body_line.at}) == NULL);
     mmgr_line_put(args->out, file ? "< " : "");
     mmgr_line_put_n(args->out, s_curl->body + (file ? 1u : 0u), s_curl->body_line.at - (file ? 1u : 0u));
     mmgr_line_ch(args->out, '\n');
@@ -472,8 +472,8 @@ EMBED_INLINE void curl_write(const RequestsCurlCtx *args)
 EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = &s_curl->read, .val = 0, .bytes = sizeof(s_curl->read)});
-    s_curl->created_line = (VerbaLinea){s_curl->made, sizeof(s_curl->made), 0ull};
-    s_curl->body_line = (VerbaLinea){s_curl->body, sizeof(s_curl->body), 0ull};
+    s_curl->created_line = (VerbaLinea){s_curl->made, sizeof(s_curl->made), 0ULL};
+    s_curl->body_line = (VerbaLinea){s_curl->body, sizeof(s_curl->body), 0ULL};
     for (unsigned int at = 1u; at < s_curl->words.count; at += 1u)
     {
         const CurlText word = {s_curl->words.text + s_curl->words.word[at].at, s_curl->words.word[at].size};
@@ -481,7 +481,7 @@ EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
         const int split = (word.size >= 2u) && (word.at[0] == '-') && (word.at[1] == '-') && (equals != NULL);
         const CurlText flag = split ? (CurlText){word.at, (unsigned long long)(equals - word.at)} : word;
         const CurlText joined = split ? (CurlText){equals + 1, word.size - (unsigned long long)(equals - word.at) - 1u}
-                                      : (CurlText){NULL, 0ull};
+                                      : (CurlText){NULL, 0ULL};
         if (!EMBED_CALL(curl_flag, RequestsCurlCtx, .read_out = &s_curl->read, .flag = flag, .joined = joined,
                         .at = &at, .err_msg = args->err_msg))
         {
@@ -503,7 +503,7 @@ EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
 
 int cli_requests_from_curl(const CliRequestsCfg *args)
 {
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = args->size;
     EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->line_text, .start = &start,
                .end = &end);
@@ -521,7 +521,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                                .text = text, .size = length, .needle = "^\r\n") ||
                     EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
                                .text = text, .size = length, .needle = "^\"");
-    VerbaLinea uncareted = {s_curl->uncareted, sizeof(s_curl->uncareted), 0ull};
+    VerbaLinea uncareted = {s_curl->uncareted, sizeof(s_curl->uncareted), 0ULL};
     if (cmd)
     {
         EMBED_CALL(cli_requests_size_out_internal.uncareted, CliRequestsSizeOutCtx, .line = text, .size = length,
@@ -544,7 +544,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
         read = 0;
     }
     read = read && EMBED_CALL(curl_read, RequestsCurlCtx, .err_msg = args->err_msg);
-    VerbaLinea written = {s_curl->written, sizeof(s_curl->written), 0ull};
+    VerbaLinea written = {s_curl->written, sizeof(s_curl->written), 0ULL};
     if (read)
     {
         EMBED_CALL(curl_write, RequestsCurlCtx, .read = &s_curl->read, .out = &written);

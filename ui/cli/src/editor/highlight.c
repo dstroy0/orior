@@ -56,7 +56,7 @@ typedef struct
 // the name of a bracket's token, written into `out`, followed by `.` and `role` where `role` is not empty
 EMBED_INLINE void cli_bracket_by_name(const HighlightCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, s_bracket_name);
     if (args->role[0] != '\0')
     {
@@ -75,10 +75,10 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = letters,
                    .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_max - args->grammar->text_size,
-                       0ull};
+                       0ULL};
     if (args->lower && (count < CLI_NAME_MAX_LEN))
     {
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                        .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
@@ -158,20 +158,20 @@ EMBED_INLINE int cli_pair_split(const HighlightCtx *args)
     const char **pair = args->pair;
     unsigned long long *first = args->first;
     unsigned long long *second = args->second;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     *pair = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = args->item, .length_pointer = &size);
     unsigned int opens = 0u;
     unsigned int closes = 0u;
     *first = (*pair != NULL)
                  ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ull, .letter = &opens)
-                 : 0ull;
+                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ULL, .letter = &opens)
+                 : 0ULL;
     *second = (*first < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                            .text_bytes = (const unsigned char *)*pair, .length = size, .at = *first,
                                            .letter = &closes)
-                              : 0ull;
-    return ((*first + *second) == size) && (*second != 0ull) && (opens != closes);
+                              : 0ULL;
+    return ((*first + *second) == size) && (*second != 0ULL) && (opens != closes);
 }
 
 // the token `@brackets` names: a bracket the grammar's brackets give as a pair's first letter the grammar's bracket
@@ -192,8 +192,8 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
     for (unsigned int item = list_entries; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
-        unsigned long long first = 0ull;
-        unsigned long long second = 0ull;
+        unsigned long long first = 0ULL;
+        unsigned long long second = 0ULL;
         pairs += EMBED_CALL(cli_pair_split, HighlightCtx, .json = json, .item = item, .pair = &pair, .first = &first,
                             .second = &second)
                      ? 1u
@@ -221,8 +221,8 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
     for (unsigned int item = list_entries; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
-        unsigned long long first = 0ull;
-        unsigned long long second = 0ull;
+        unsigned long long first = 0ULL;
+        unsigned long long second = 0ULL;
         if (!EMBED_CALL(cli_pair_split, HighlightCtx, .json = json, .item = item, .pair = &pair, .first = &first,
                         .second = &second))
         {
@@ -234,7 +234,7 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
                    .size = second, .name = closes);
         place += 2u;
     }
-    EMBED_CALL(cli_case_append, HighlightCtx, .grammar = args->grammar, .place = place, .key = "@default", .size = 8ull,
+    EMBED_CALL(cli_case_append, HighlightCtx, .grammar = args->grammar, .place = place, .key = "@default", .size = 8ULL,
                .name = s_bracket_name);
     return made;
 }
@@ -554,7 +554,7 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
         list->count = 0u;
         for (unsigned int item = json->node[member].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = json, .node = item, .length_pointer = &length);
             if ((word == NULL) || (args->grammar->word_count >= s_read->words_max))
@@ -600,7 +600,7 @@ EMBED_INLINE unsigned int cli_state_by_name(const HighlightCtx *args)
     const CliGrammar *grammar = args->grammar_read;
     const CliJson *json = args->json;
     unsigned int node = args->node;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = node, .length_pointer = &length);
     return (name != NULL) ? EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar,
@@ -655,12 +655,12 @@ EMBED_INLINE int cli_indent_read(const HighlightCtx *args)
     const unsigned int tab = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = args->indent, .name = "tab");
     unsigned int columns = 0u;
-    for (unsigned long long digit = 0ull;
+    for (unsigned long long digit = 0ULL;
          EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = tab,
                     .kind = CFG_JSON_NUMBER) &&
          (digit < json->node[tab].length) && (json->text[json->node[tab].text + digit] >= '0') &&
          (json->text[json->node[tab].text + digit] <= '9') && (columns < 1000u);
-         digit += 1ull)
+         digit += 1ULL)
     {
         columns = (columns * 10u) + (unsigned int)(json->text[json->node[tab].text + digit] - '0');
     }
@@ -725,14 +725,14 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
                    .kind = CFG_JSON_TRUE);
     s_brackets = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                             .object = args->def, .name = "brackets");
-    unsigned long long bracket_size = 0ull;
+    unsigned long long bracket_size = 0ULL;
     const char *const bracket_name =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->def, .name = "bracketToken"),
                    .length_pointer = &bracket_size);
-    VerbaLinea bracket_line = {s_bracket_name, sizeof(s_bracket_name), 0ull};
-    if ((bracket_name != NULL) && (bracket_size != 0ull))
+    VerbaLinea bracket_line = {s_bracket_name, sizeof(s_bracket_name), 0ULL};
+    if ((bracket_name != NULL) && (bracket_size != 0ULL))
     {
         mmgr_line_put_n(&bracket_line, bracket_name, bracket_size);
     }
@@ -802,8 +802,8 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
         // its letters as plain is the same as, and it joins nothing
         CliRegexpFirst *const starts = &args->grammar_out->state[state].starts;
-        starts->ascii[0] = 0ull;
-        starts->ascii[1] = 0ull;
+        starts->ascii[0] = 0ULL;
+        starts->ascii[1] = 0ULL;
         starts->other = 0;
         starts->empty = 0;
         for (unsigned int each = 0u; each < args->grammar_out->state[state].count; each += 1u)
@@ -826,7 +826,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         for (unsigned int byte = 0u; byte < 128u; byte += 1u)
         {
             args->grammar_out->state[state].starts_at[byte] =
-                (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ull);
+                (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ULL);
         }
     }
     if (!EMBED_CALL(cli_indent_read, HighlightCtx, .grammar = args->grammar_out, .json = args->json,

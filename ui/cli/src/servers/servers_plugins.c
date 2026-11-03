@@ -144,7 +144,7 @@ int cli_servers_plugin_request(const CliServersErrMsgCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     CliLsp *const lsp = EMBED_CALL(cli_servers_err_msg_server_internal.plugin_get, CliServersErrMsgServerCtx,
                                    .id = args->id, .err_msg = err_msg);
-    CliLspAnswer answer = {NULL, NULL, 0ull};
+    CliLspAnswer answer = {NULL, NULL, 0ULL};
     const int done = (lsp != NULL) && EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = lsp,
                                                  .method = method, .params = params, .length = length, .wait = wait,
                                                  .answer = &answer, .err_msg = err_msg);
@@ -200,7 +200,7 @@ static unsigned int plugins_change_send(const ServersPluginsCtx *args)
         }
     }
     char why[256];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const int has =
@@ -241,7 +241,7 @@ void cli_servers_plugins_change(const CliServersPathSizeLanguageCtx *args)
 
 void cli_servers_plugins_close(const CliServersPathLspCtx *args)
 {
-    const CliPluginsChange change = {args->path, NULL, "", 0ull, 1};
+    const CliPluginsChange change = {args->path, NULL, "", 0ULL, 1};
     (void)EMBED_CALL(plugins_change_send, ServersPluginsCtx, .change = &change);
 }
 

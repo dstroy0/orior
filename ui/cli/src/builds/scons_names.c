@@ -20,9 +20,9 @@ static void names_word_dispatch(const CliSconsSpanCfg *args)
 {
     const CliSconsHand *const hand = args->context;
     const char *const text = g_cli_scons.text;
-    unsigned long long walk = 0ull;
-    unsigned long long word = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long walk = 0ULL;
+    unsigned long long word = 0ULL;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text + args->from,
                       .size = args->to - args->from, .at_pointer = &walk, .word = &word, .length = &length))
     {
@@ -60,9 +60,9 @@ static void names_exported_words(const CliSconsSpanCfg *args)
 {
     const CliSconsNamed *const hand = args->context;
     const char *const text = g_cli_scons.text;
-    unsigned long long walk = 0ull;
-    unsigned long long word = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long walk = 0ULL;
+    unsigned long long word = 0ULL;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text + args->from,
                       .size = args->to - args->from, .at_pointer = &walk, .word = &word, .length = &length))
     {
@@ -79,9 +79,9 @@ static void names_export_argument(const CliSconsSpanCfg *args)
     unsigned long long to = args->to;
     const CliSconsNamed *const hand = context;
     const char *const text = g_cli_scons.text;
-    unsigned long long name = 0ull;
-    unsigned long long name_size = 0ull;
-    unsigned long long value = 0ull;
+    unsigned long long name = 0ULL;
+    unsigned long long name_size = 0ULL;
+    unsigned long long value = 0ULL;
     if (EMBED_CALL(cli_scons_from_internal.keyword, CliSconsFromCtx, .from = from, .to = to, .name_u64s = &name,
                    .name_size = &name_size, .value = &value))
     {
@@ -90,8 +90,8 @@ static void names_export_argument(const CliSconsSpanCfg *args)
     }
     EMBED_CALL(cli_scons_each_internal.strings, CliSconsEachCtx, .from = from, .to = to, .each = names_exported_words,
                .context = context);
-    unsigned long long bare_from = 0ull;
-    unsigned long long bare_to = 0ull;
+    unsigned long long bare_from = 0ULL;
+    unsigned long long bare_to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + from, .size = to - from,
                .from_u64s = &bare_from, .to_u64s = &bare_to);
     if (bare_to == bare_from)
@@ -100,7 +100,7 @@ static void names_export_argument(const CliSconsSpanCfg *args)
     }
     for (unsigned long long walk = from + bare_from; walk < from + bare_to;)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
                         .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = from + bare_to,
                                              .at = walk, .length = &length)))
@@ -129,9 +129,9 @@ static void names_exports_argument(const CliSconsSpanCfg *args)
     void *context = args->context;
     unsigned long long from = args->from;
     unsigned long long to = args->to;
-    unsigned long long name = 0ull;
-    unsigned long long name_size = 0ull;
-    unsigned long long value = 0ull;
+    unsigned long long name = 0ULL;
+    unsigned long long name_size = 0ULL;
+    unsigned long long value = 0ULL;
     if (EMBED_CALL(cli_scons_from_internal.keyword, CliSconsFromCtx, .from = from, .to = to, .name_u64s = &name,
                    .name_size = &name_size, .value = &value) &&
         (name_size == 7u) &&
@@ -187,7 +187,7 @@ static void names_dir_string(const CliSconsSpanCfg *args)
     end = (args->from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = text + args->from, .at = end - args->from, .set = "/"));
     static char s_written[1u << 12u];
-    VerbaLinea written = {s_written, sizeof(s_written), 0ull};
+    VerbaLinea written = {s_written, sizeof(s_written), 0ULL};
     mmgr_line_put_n(&written, text + args->from, end - args->from);
     mmgr_line_ch(&written, '/');
     mmgr_line_put_n(&written, call->name, call->name_size);
@@ -233,7 +233,7 @@ static void names_first_string(const CliSconsSpanCfg *args)
 // the scripts an `SConscript` call reads
 static void names_script_call(const CliSconsSpanCfg *args)
 {
-    void *context = args->context;
+    const void *context = args->context;
     unsigned long long from = args->from;
     unsigned long long to = args->to;
     static CliSconsCall s_call;
@@ -246,14 +246,14 @@ static void names_script_call(const CliSconsSpanCfg *args)
                .context = &s_call);
     const char *name = "SConscript";
     unsigned long long name_size = 10u;
-    unsigned long long dirs_from = 0ull;
-    unsigned long long dirs_to = 0ull;
+    unsigned long long dirs_from = 0ULL;
+    unsigned long long dirs_to = 0ULL;
     int dirs = 0;
     for (unsigned int at = 0u; at < s_call.count; at += 1u)
     {
-        unsigned long long key = 0ull;
-        unsigned long long key_size = 0ull;
-        unsigned long long value = 0ull;
+        unsigned long long key = 0ULL;
+        unsigned long long key_size = 0ULL;
+        unsigned long long value = 0ULL;
         if (EMBED_CALL(cli_scons_from_internal.keyword, CliSconsFromCtx, .from = s_call.from[at], .to = s_call.to[at],
                        .name_u64s = &key, .name_size = &key_size, .value = &value))
         {
@@ -266,7 +266,7 @@ static void names_script_call(const CliSconsSpanCfg *args)
             else if ((key_size == 4u) &&
                      (memor.cmp(&(MemoriaCfg){.src = text + key, .other = "name", .bytes = 4u}) == 0))
             {
-                unsigned long long first[3] = {0ull, 0ull, 0ull};
+                unsigned long long first[3] = {0ULL, 0ULL, 0ULL};
                 EMBED_CALL(cli_scons_each_internal.strings, CliSconsEachCtx, .from = value, .to = s_call.to[at],
                            .each = names_first_string, .context = first);
                 if (first[2] != 0u)

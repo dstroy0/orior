@@ -19,7 +19,7 @@ static const char *const s_rust_targets[8] = {
 
 void cli_program_file(const CliExecutablesNameOutFolderCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
@@ -52,7 +52,7 @@ void cli_build_folder(const CliExecutablesOutCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
                .script = args->script, .out = folder);
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, "build/");
     mmgr_line_put(&line, args->tool);
     mmgr_line_ch(&line, '/');
@@ -134,17 +134,17 @@ EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, zig_processor);
     mmgr_line_ch(&line, '-');
     mmgr_line_put(&line, zig_system);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // `zig cc` or `zig c++` for a Zig target, as a variable of the environment stores it, into `out`
 EMBED_INLINE void cli_zig_command(const ExecutablesJobsCtx *args)
 {
-    VerbaLinea line = {args->out, args->capacity, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
     mmgr_line_put(&line, args->zig);
     mmgr_line_ch(&line, ' ');
     mmgr_line_put(&line, args->language);
@@ -159,10 +159,10 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     char zig[CLI_PATH_MAX_LEN + 2u];
     char found[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int has_zig = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "zig", .name = "zig",
                                    .path = found, .err_msg = &err_msg);
-    VerbaLinea quoted = {zig, sizeof(zig), 0ull};
+    VerbaLinea quoted = {zig, sizeof(zig), 0ULL};
     const int spaced = cellul.chr(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL, .byte = ' '}) != NULL;
     mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
     mmgr_line_put(&quoted, has_zig ? found : "");
@@ -224,7 +224,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = lower, .size = upper_size, .from = '-',
                .to = '_');
     char linker[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea named = {linker, sizeof(linker), 0ull};
+    VerbaLinea named = {linker, sizeof(linker), 0ULL};
     mmgr_line_put(&named, "CARGO_TARGET_");
     mmgr_line_put(&named, upper);
     mmgr_line_put(&named, "_LINKER");
@@ -236,8 +236,8 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
 #else
     const int on_linux = 0;
 #endif
-    if ((length >= 11ull) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ull, .other = "-linux-musl", .cap = CLI_CELLS_POOL})) &&
+    if ((length >= 11ULL) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ULL, .other = "-linux-musl", .cap = CLI_CELLS_POOL})) &&
         !on_linux &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = linker, .value_out = set,
                     .capacity = sizeof(set)))
@@ -246,7 +246,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     }
     char processor[CLI_NAME_MAX_LEN];
     const char *const dash = cellul.chr(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL, .byte = '-'});
-    VerbaLinea part = {processor, sizeof(processor), 0ull};
+    VerbaLinea part = {processor, sizeof(processor), 0ULL};
     mmgr_line_put_n(&part, rust, (dash != NULL) ? (unsigned long long)(dash - rust) : length);
     mmgr_line_finish(&part);
     const char *const system =
@@ -264,7 +264,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
     {
         char compiler[CLI_NAME_MAX_LEN * 2u];
-        VerbaLinea name = {compiler, sizeof(compiler), 0ull};
+        VerbaLinea name = {compiler, sizeof(compiler), 0ULL};
         mmgr_line_put(&name, "CC_");
         mmgr_line_put(&name, lower);
         mmgr_line_finish(&name);
@@ -388,7 +388,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                          : 0u;
         }
         char title[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {title, sizeof(title), 0ull};
+        VerbaLinea line = {title, sizeof(title), 0ULL};
         if (named > 1u)
         {
             char folder[CLI_PATH_MAX_LEN];
@@ -400,7 +400,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                 const unsigned long long base_end = EMBED_CALL(
                     cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                     .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-                base = (base_end != 0ull) ? (folder + base_end) : base;
+                base = (base_end != 0ULL) ? (folder + base_end) : base;
             }
             mmgr_line_put(&line, base);
             mmgr_line_ch(&line, '/');

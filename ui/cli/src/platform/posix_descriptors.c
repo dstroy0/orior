@@ -72,7 +72,7 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
     }
     if (got < 0)
     {
-        return -1ll;
+        return -1LL;
     }
     for (struct cmsghdr *header = CMSG_FIRSTHDR(&message); header != NULL; header = CMSG_NXTHDR(&message, header))
     {

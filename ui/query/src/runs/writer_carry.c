@@ -33,13 +33,13 @@ int query_writer_latest(const QueryCountNameCtx *args)
     {
         return qry_member_blob(args->name, bytes, size, NULL);
     }
-    unsigned long long mapped_size = 0ull;
+    unsigned long long mapped_size = 0ULL;
     const unsigned char *const mapped = qry_member_file_mapped(args->writer->qry, &mapped_size);
     if (mapped == NULL)
     {
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     const QryRecord *latest = NULL;
     while (qry_record_read(mapped, mapped_size, &at, &record))
@@ -51,7 +51,7 @@ int query_writer_latest(const QueryCountNameCtx *args)
     }
     g_cli_cells->persistent_buf_release(s_read, &g_query_cells);
     // one byte past the blob, so an empty blob is a cell too
-    s_read = (latest != NULL) ? g_cli_cells->persistent_buf_alloc(latest->blob_length + 1ull, &g_query_cells) : NULL;
+    s_read = (latest != NULL) ? g_cli_cells->persistent_buf_alloc(latest->blob_length + 1ULL, &g_query_cells) : NULL;
     if (s_read != NULL)
     {
         // a record fits half a ring, whose bytes a size_t counts
@@ -72,20 +72,20 @@ int query_writer_read(const QueryCountNameCtx *args)
         const unsigned long long capacity = args->joined->capacity - args->joined->at;
         const unsigned long long gathered =
             qry_member_gathered(args->name, (unsigned char *)(args->joined->out + args->joined->at), capacity);
-        if ((gathered == QRY_MEMBER_UNREAD) || (gathered == 0ull))
+        if ((gathered == QRY_MEMBER_UNREAD) || (gathered == 0ULL))
         {
             return 0;
         }
         args->joined->at += gathered;
         return 1;
     }
-    unsigned long long mapped_size = 0ull;
+    unsigned long long mapped_size = 0ULL;
     const unsigned char *const mapped = qry_member_file_mapped(args->writer->qry, &mapped_size);
     if (mapped == NULL)
     {
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     int found = 0;
     while (qry_record_read(mapped, mapped_size, &at, &record))
@@ -104,15 +104,15 @@ int query_writer_read(const QueryCountNameCtx *args)
 // the bytes every record of `name` takes, in the run this process is a member of
 EMBED_INLINE unsigned long long query_member_name_size(const WriterCarryCtx *args)
 {
-    unsigned long long at = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long size = 0ULL;
     const QryRecord *record = NULL;
     while (qry_member_read(&at, &record))
     {
         size += EMBED_CALL(query_name_is, WriterCarryCtx, .name = QRY_RECORD_NAME(record),
                            .length = record->name_length, .text = args->name)
                     ? record->blob_length
-                    : 0ull;
+                    : 0ULL;
     }
     return size;
 }
@@ -126,7 +126,7 @@ char *query_writer_read_alloc(const QueryCountNameCtx *args)
         {
             const unsigned long long named = EMBED_CALL(query_member_name_size, WriterCarryCtx, .name = args->name);
             char *const joined =
-                (named > 0ull) ? g_cli_cells->persistent_buf_alloc(named + 1ull, &g_query_cells) : NULL;
+                (named > 0ULL) ? g_cli_cells->persistent_buf_alloc(named + 1ULL, &g_query_cells) : NULL;
             if (joined == NULL)
             {
                 return NULL;
@@ -142,25 +142,25 @@ char *query_writer_read_alloc(const QueryCountNameCtx *args)
             g_cli_cells->persistent_buf_release(joined, &g_query_cells);
         }
     }
-    unsigned long long mapped_size = 0ull;
+    unsigned long long mapped_size = 0ULL;
     const unsigned char *const mapped = qry_member_file_mapped(args->writer->qry, &mapped_size);
     if (mapped == NULL)
     {
         return NULL;
     }
-    unsigned long long at = 0ull;
-    unsigned long long named = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long named = 0ULL;
     const QryRecord *record = NULL;
     while (qry_record_read(mapped, mapped_size, &at, &record))
     {
         named += EMBED_CALL(query_name_is, WriterCarryCtx, .name = QRY_RECORD_NAME(record),
                             .length = record->name_length, .text = args->name)
                      ? record->blob_length
-                     : 0ull;
+                     : 0ULL;
     }
-    char *const joined = (named > 0ull) ? g_cli_cells->persistent_buf_alloc(named + 1ull, &g_query_cells) : NULL;
-    unsigned long long put = 0ull;
-    at = 0ull;
+    char *const joined = (named > 0ULL) ? g_cli_cells->persistent_buf_alloc(named + 1ULL, &g_query_cells) : NULL;
+    unsigned long long put = 0ULL;
+    at = 0ULL;
     while ((joined != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
     {
         if (EMBED_CALL(query_name_is, WriterCarryCtx, .name = QRY_RECORD_NAME(record), .length = record->name_length,
@@ -207,7 +207,7 @@ int query_writer_machine_transfer(const QueryCountNameCtx *args)
         mmgr_line_put(args->err_msg, "carry: this process is a member of no run");
         return 0;
     }
-    unsigned long long mapped_size = 0ull;
+    unsigned long long mapped_size = 0ULL;
     const unsigned char *const mapped = qry_member_file_mapped(args->from, &mapped_size);
     if (mapped == NULL)
     {
@@ -217,7 +217,7 @@ int query_writer_machine_transfer(const QueryCountNameCtx *args)
     }
     // the records carried counted, then the latest record of each name carried, where it stands in the mapped .qry, in
     // a cell of one place for each
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     unsigned int records = 0u;
     while (qry_record_read(mapped, mapped_size, &at, &record))
@@ -232,7 +232,7 @@ int query_writer_machine_transfer(const QueryCountNameCtx *args)
             ? g_cli_cells->persistent_buf_alloc((unsigned long long)records * sizeof(QryRecord *), &g_query_cells)
             : NULL;
     unsigned int latests = 0u;
-    at = 0ull;
+    at = 0ULL;
     while ((latest != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
     {
         if (!EMBED_CALL(query_machine_transfer_want, WriterCarryCtx, .record = record, .names = args->names,
@@ -260,7 +260,7 @@ int query_writer_machine_transfer(const QueryCountNameCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = name, .src = QRY_RECORD_NAME(latest[each]), .bytes = latest[each]->name_length});
         name[latest[each]->name_length] = '\0';
         carried +=
-            (qry_member_append(name, QRY_RECORD_BLOB(latest[each]), latest[each]->blob_length, QRY_ORDINARY) != 0ull)
+            (qry_member_append(name, QRY_RECORD_BLOB(latest[each]), latest[each]->blob_length, QRY_ORDINARY) != 0ULL)
                 ? 1u
                 : 0u;
     }

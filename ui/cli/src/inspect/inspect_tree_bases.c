@@ -56,7 +56,7 @@ EMBED_INLINE int bases_in_module(const InspectTreeBasesCtx *args)
     unsigned int *found_file = args->found_file;
     unsigned int *found_class = args->found_class;
     char joined[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ULL};
     mmgr_line_put_n(&line, spec, args->spec_size);
     if (args->allocated_size > 0u)
     {
@@ -106,7 +106,7 @@ EMBED_INLINE int bases_bare(const InspectTreeBasesCtx *args)
             {
                 return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file,
                                   .spec = facts->text + one->spec.at, .spec_size = one->spec.size, .reserved = NULL,
-                                  .allocated_size = 0ull, .name = facts->text + reserved->name.at,
+                                  .allocated_size = 0ULL, .name = facts->text + reserved->name.at,
                                   .size = reserved->name.size, .depth = args->depth, .found_file = found_file,
                                   .found_class = found_class);
             }
@@ -131,7 +131,7 @@ EMBED_INLINE int bases_dot(const InspectTreeBasesCtx *args)
         if ((one->names == 0u) && whole)
         {
             return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file, .spec = spec,
-                              .spec_size = one->spec.size, .reserved = NULL, .allocated_size = 0ull, .name = args->name,
+                              .spec_size = one->spec.size, .reserved = NULL, .allocated_size = 0ULL, .name = args->name,
                               .size = args->size, .depth = args->depth, .found_file = args->found_file,
                               .found_class = args->found_class);
         }

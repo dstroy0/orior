@@ -53,8 +53,8 @@ typedef struct
 // `lower` is 1: their length
 EMBED_INLINE unsigned long long cli_text_get(const HighlightLineCtx *args)
 {
-    VerbaLinea line = {args->out, (4ull * t_work_state->most) + 1ull, 0ull};
-    for (unsigned long long at = args->from; at < args->to; at += 1ull)
+    VerbaLinea line = {args->out, (4ULL * t_work_state->most) + 1ULL, 0ULL};
+    for (unsigned long long at = args->from; at < args->to; at += 1ULL)
     {
         const unsigned int letter =
             args->lower ? EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = t_work_state->letters[at])
@@ -63,7 +63,7 @@ EMBED_INLINE unsigned long long cli_text_get(const HighlightLineCtx *args)
         if ((letter < 128u) && (line.at < line.capacity))
         {
             line.out[line.at] = (char)letter;
-            line.at += 1ull;
+            line.at += 1ULL;
         }
         else
         {
@@ -187,7 +187,7 @@ EMBED_INLINE void cli_step(const HighlightLineCtx *args)
         (memor.cmp(&(MemoriaCfg){.src = args->next, .other = s_switch, .bytes = sizeof(s_switch) - 1u}) == 0);
     args->coloring->depth -= (switching && (args->coloring->depth > 1u)) ? 1u : 0u;
     const char *name = switching ? (args->next + sizeof(s_switch) - 1u) : args->next;
-    name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
+    name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "@");
     if (args->coloring->depth < CLI_HIGHLIGHT_STACK)
     {
@@ -266,8 +266,8 @@ EMBED_INLINE unsigned long long cli_on_alloc(const HighlightLineCtx *args)
             const int matched =
                 ((index + 1u) <= args->rule_highlight_rule_pointer->groups) && args->found_read[index + 1u].set;
             const unsigned long long part =
-                matched ? (args->found_read[index + 1u].to - args->found_read[index + 1u].from) : 0ull;
-            if (part > 0ull)
+                matched ? (args->found_read[index + 1u].to - args->found_read[index + 1u].from) : 0ULL;
+            if (part > 0ULL)
             {
                 const unsigned long long put = (place < args->coloring->letters) ? place : args->coloring->letters;
                 EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = put,
@@ -279,7 +279,7 @@ EMBED_INLINE unsigned long long cli_on_alloc(const HighlightLineCtx *args)
             place += part;
         }
     }
-    else if ((token != NULL) && (size > 0ull))
+    else if ((token != NULL) && (size > 0ULL))
     {
         EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = args->at,
                    .name = EMBED_CALL(cli_resolve, HighlightLineCtx, .grammar = args->grammar,
@@ -297,18 +297,18 @@ EMBED_INLINE void cli_line_indent(const HighlightLineCtx *args)
     CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
     if ((args->grammar->skip != CLI_HIGHLIGHT_NONE) &&
         EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = args->grammar->skip,
-                   .coloring_read = args->coloring, .at = 0ull, .found = found) &&
+                   .coloring_read = args->coloring, .at = 0ULL, .found = found) &&
         found[0].set)
     {
         return;
     }
-    unsigned long long indent = 0ull;
-    for (unsigned long long at = 0ull;
+    unsigned long long indent = 0ULL;
+    for (unsigned long long at = 0ULL;
          (at < args->coloring->letters) && ((t_work_state->letters[at] == ' ') || (t_work_state->letters[at] == '\t'));
-         at += 1ull)
+         at += 1ULL)
     {
-        indent = (t_work_state->letters[at] == '\t') ? (((indent / args->grammar->tab) + 1ull) * args->grammar->tab)
-                                                     : (indent + 1ull);
+        indent = (t_work_state->letters[at] == '\t') ? (((indent / args->grammar->tab) + 1ULL) * args->grammar->tab)
+                                                     : (indent + 1ULL);
     }
     while ((args->coloring->depth > 1u) &&
            (EMBED_CALL(cli_top_close, HighlightLineCtx, .grammar = args->grammar, .coloring_read = args->coloring) !=
@@ -338,7 +338,7 @@ static void cli_line(const HighlightLineCtx *args)
     args->coloring->runs = 0u;
     args->coloring->marked = 0u;
     unsigned int col = 0u;
-    for (unsigned long long at = 0ull; at < args->coloring->letters; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->coloring->letters; at += 1ULL)
     {
         t_work_state->cols[at] = col;
         col += (t_work_state->letters[at] >= 0x10000u) ? 2u : 1u;
@@ -354,7 +354,7 @@ static void cli_line(const HighlightLineCtx *args)
     const CliHighlightList *rules = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
                                                .coloring_read = args->coloring, .or_root = 1);
     const unsigned int *const letters = t_work_state->letters;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     unsigned int stalled = 0u;
     while (at < length)
     {
@@ -367,7 +367,7 @@ static void cli_line(const HighlightLineCtx *args)
             unsigned long long stride = at;
             while ((stride < length) && (letters[stride] < 128u) && (starts_at[letters[stride]] == 0u))
             {
-                stride += 1ull;
+                stride += 1ULL;
             }
             if (stride > at)
             {
@@ -383,7 +383,7 @@ static void cli_line(const HighlightLineCtx *args)
             const unsigned int index = args->grammar->list_entries[rules->first + each];
             const CliHighlightRule *const rule = &args->grammar->rule[index];
             // a rule that cannot start at this letter is passed over before its pattern is made
-            if ((rule->anchored && (at != 0ull)) ||
+            if ((rule->anchored && (at != 0ULL)) ||
                 (!rule->first.empty &&
                  !EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &rule->first, .letter = letters[at])))
             {
@@ -394,14 +394,14 @@ static void cli_line(const HighlightLineCtx *args)
             {
                 continue;
             }
-            const unsigned long long size = found[0].set ? (found[0].to - found[0].from) : 0ull;
-            if ((size == 0ull) && ((rule->next == CLI_HIGHLIGHT_NONE) || (stalled > 2u)))
+            const unsigned long long size = found[0].set ? (found[0].to - found[0].from) : 0ULL;
+            if ((size == 0ULL) && ((rule->next == CLI_HIGHLIGHT_NONE) || (stalled > 2u)))
             {
                 continue;
             }
             EMBED_CALL(cli_on_alloc, HighlightLineCtx, .grammar = args->grammar, .rule_highlight_rule_pointer = rule,
                        .coloring = args->coloring, .at = at, .found_read = found);
-            stalled = (size > 0ull) ? 0u : (stalled + 1u);
+            stalled = (size > 0ULL) ? 0u : (stalled + 1u);
             at += size;
             if (rule->next != CLI_HIGHLIGHT_NONE)
             {
@@ -415,7 +415,7 @@ static void cli_line(const HighlightLineCtx *args)
         if (!reserved)
         {
             EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = at, .name = 0u);
-            at += 1ull;
+            at += 1ULL;
             stalled = 0u;
         }
     }
@@ -485,9 +485,9 @@ EMBED_INLINE void cli_state_write(const HighlightLineCtx *args)
 EMBED_INLINE unsigned long long cli_digits_read(const HighlightLineCtx *args)
 {
     const char **from = args->from_letters;
-    unsigned long long value = 0ull;
-    unsigned long long end = 0ull;
-    value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = *from, .at = 0ull,
+    unsigned long long value = 0ULL;
+    unsigned long long end = 0ULL;
+    value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = *from, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}), .end = &end);
     *from += end;
     return value;
@@ -498,11 +498,11 @@ EMBED_INLINE unsigned long long cli_digits_read(const HighlightLineCtx *args)
 static void cli_stack(const HighlightLineCtx *args)
 {
     const CliGrammar *grammar = args->grammar;
-    args->coloring->letters = 0ull;
+    args->coloring->letters = 0ULL;
     args->coloring->runs = 0u;
     args->coloring->marked = 0u;
     args->coloring->depth = 0u;
-    args->coloring->statement = 0ull;
+    args->coloring->statement = 0ULL;
     args->coloring->root = EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar,
                                       .name = "root", .length = 4u);
     const char *from = args->state;
@@ -519,12 +519,12 @@ static void cli_stack(const HighlightLineCtx *args)
                                              ? (unsigned long long)(slash - from)
                                              : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
         // the name to its `:`, where one stands within it
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = length,
                             .size = whole, .set = ":");
         if (args->coloring->depth < CLI_HIGHLIGHT_STACK)
         {
-            VerbaLinea name = {t_work_state->stack[args->coloring->depth], CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea name = {t_work_state->stack[args->coloring->depth], CLI_NAME_MAX_LEN, 0ULL};
             mmgr_line_put_n(&name, from, length);
             mmgr_line_finish(&name);
             args->coloring->state_at[args->coloring->depth] =
@@ -532,7 +532,7 @@ static void cli_stack(const HighlightLineCtx *args)
                            .length = length);
             const char *indent = from + length + ((length < whole) ? 1u : 0u);
             args->coloring->indent_at[args->coloring->depth] =
-                (length < whole) ? EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_letters = &indent) : 0ull;
+                (length < whole) ? EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_letters = &indent) : 0ULL;
             args->coloring->depth += 1u;
         }
         if (slash == NULL)
@@ -577,11 +577,11 @@ void cli_highlight_leaves_get(const CliHighlightWorkStateStateCtx *args)
                        .col = t_work_state->cols[coloring.letters]);
         }
         char state[CLI_HIGHLIGHT_STACK * 4u];
-        VerbaLinea state_line = {state, sizeof(state), 0ull};
+        VerbaLinea state_line = {state, sizeof(state), 0ULL};
         EMBED_CALL(cli_state_write, HighlightLineCtx, .grammar = args->grammar, .coloring_read = &coloring,
                    .line_verba_linea_pointer = &state_line);
         // a state longer than its work state is read as root, as a request's last line's is
-        const char *const ended = (mmgr_line_finish(&state_line) != 0ull) ? state : "root";
+        const char *const ended = (mmgr_line_finish(&state_line) != 0ULL) ? state : "root";
         const CliLeaves leaves = {args->lines[line],
                                   coloring.runs,
                                   t_work_state->run_col,
@@ -613,7 +613,7 @@ void cli_highlight_lines(const CliHighlightWorkStateCtx *args)
     }
     mmgr_line_put(args->out, "],\"runs\":[");
     // the state each line ends in, as JSON, among the work state's endings
-    VerbaLinea endings = {t_work_state->endings, t_work_state->endings_size, 0ull};
+    VerbaLinea endings = {t_work_state->endings, t_work_state->endings_size, 0ULL};
     for (unsigned int each = 0u; each < args->count; each += 1u)
     {
         if (args->grammar->per_line && (each != 0u))
@@ -634,16 +634,16 @@ void cli_highlight_lines(const CliHighlightWorkStateCtx *args)
         mmgr_line_ch(args->out, ']');
         // each state put as JSON among the endings, a comma before each but the first
         char ended[CLI_HIGHLIGHT_STACK * 4u];
-        VerbaLinea state_line = {ended, sizeof(ended), 0ull};
+        VerbaLinea state_line = {ended, sizeof(ended), 0ULL};
         EMBED_CALL(cli_state_write, HighlightLineCtx, .grammar = args->grammar, .coloring_read = &coloring,
                    .line_verba_linea_pointer = &state_line);
-        const unsigned long long length = mmgr_line_ok(&state_line) ? state_line.at : 0ull;
+        const unsigned long long length = mmgr_line_ok(&state_line) ? state_line.at : 0ULL;
         mmgr_line_put(&endings, (each != 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &endings, .text = ended,
                    .length = length);
     }
     mmgr_line_put(args->out, "],\"states\":[");
-    mmgr_line_put_n(args->out, t_work_state->endings, mmgr_line_ok(&endings) ? endings.at : 0ull);
+    mmgr_line_put_n(args->out, t_work_state->endings, mmgr_line_ok(&endings) ? endings.at : 0ULL);
     mmgr_line_put(args->out, "]}");
     t_work_state = before;
 }

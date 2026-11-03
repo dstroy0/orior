@@ -95,7 +95,7 @@ EMBED_INLINE void array_items(const SchemaArrayCtx *args)
                                         : items;
     }
     unsigned int place = (tuple != CLI_JSON_NONE) ? json->node[tuple].first : CLI_JSON_NONE;
-    const CliSchemaKey none = {0, 0ull, 0ull};
+    const CliSchemaKey none = {0, 0ULL, 0ULL};
     for (unsigned int item = read->node[node].first; item != CLI_SCHEMA_NONE; item = read->node[item].next)
     {
         if (place != CLI_JSON_NONE)
@@ -131,7 +131,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
     const CliSchemaRead *const read = args->check->read;
     const unsigned long long from = read->node[args->node].from;
     const unsigned long long count = read->node[args->node].count;
-    unsigned long long bound = 0ull;
+    unsigned long long bound = 0ULL;
     if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                       .name = "minItems"),
@@ -166,7 +166,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
     {
         return;
     }
-    unsigned long long matched = 0ull;
+    unsigned long long matched = 0ULL;
     for (unsigned int item = read->node[args->node].first; item != CLI_SCHEMA_NONE; item = read->node[item].next)
     {
         matched += EMBED_CALL(cli_schema_base_internal.fits, CliSchemaBaseCtx, .check = args->check, .node = item,
@@ -174,7 +174,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
                        ? 1u
                        : 0u;
     }
-    unsigned long long min = 1ull;
+    unsigned long long min = 1ULL;
     (void)EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                      .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                         .name = "minContains"),

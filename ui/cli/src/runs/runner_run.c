@@ -79,7 +79,7 @@ static void cli_run_print(const CliEachLineSizeCfg *args)
 {
     const char *text = args->line;
     char line[CLI_PATH_MAX_LEN * 4u];
-    VerbaLinea line_out = {line, sizeof(line), 0ull};
+    VerbaLinea line_out = {line, sizeof(line), 0ULL};
     mmgr_line_put_n(&line_out, text, args->size);
     mmgr_line_finish(&line_out);
     EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = (CliRun *)args->context,
@@ -100,7 +100,7 @@ static int cli_find_init(const RunnerRunCtx *args)
     if (!args->made->looked)
     {
         args->made->looked = 1;
-        VerbaLinea why = {args->made->why, sizeof(args->made->why), 0ull};
+        VerbaLinea why = {args->made->why, sizeof(args->made->why), 0ULL};
         args->made->found = EMBED_CALL(cli_executables_path.init, CliExecutablesPathCfg, .root = args->run->root,
                                        .id = id, .values = args->run->values, .lines = args->run->lines,
                                        .path = args->made->file, .err_msg = &why);
@@ -122,9 +122,9 @@ static int cli_find_init(const RunnerRunCtx *args)
             {
                 if (((at[0] == separator) || (at[0] == '\0')) && (at > from) && (count < 256u))
                 {
-                    VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ull};
+                    VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ULL};
                     mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-                    count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+                    count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
                 }
                 if (at[0] == '\0')
                 {
@@ -164,7 +164,7 @@ static int cli_step(const RunnerRunCtx *args)
                               "command",
                               args->displayed,
                               0,
-                              0ll,
+                              0LL,
                               0,
                               NULL,
                               0u,
@@ -190,7 +190,7 @@ static int cli_step(const RunnerRunCtx *args)
                    .value = s_path);
     }
     char number[24];
-    VerbaLinea named = {number, sizeof(number), 0ull};
+    VerbaLinea named = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&named, run->run, 1u);
     mmgr_line_finish(&named);
     // the run's number in the step's environment: a command that would reach a window open on the tree sees it is a
@@ -206,7 +206,7 @@ static int cli_step(const RunnerRunCtx *args)
     }
     CliSpawned spawned;
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned,
                                    .words = command->words.word, .folder = command->has_folder ? command->folder : NULL,
                                    .settings = command->setting, .count = command->settings, .detached = !s_attached,
@@ -221,7 +221,7 @@ static int cli_step(const RunnerRunCtx *args)
     {
         mmgr_line_finish(&err_msg);
         char line_text[CLI_PATH_MAX_LEN + 32u];
-        VerbaLinea could = {line_text, sizeof(line_text), 0ull};
+        VerbaLinea could = {line_text, sizeof(line_text), 0ULL};
         mmgr_line_put(&could, "could not start: ");
         mmgr_line_put(&could, why);
         mmgr_line_finish(&could);
@@ -232,10 +232,10 @@ static int cli_step(const RunnerRunCtx *args)
     EMBED_CALL(cli_runner_run_spawned_internal.run_machine_transfer, CliRunnerRunSpawnedCtx, .run = run,
                .spawned = &spawned);
     const long long exit_code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
-    run->process = 0ull;
-    run->group = 0ull;
+    run->process = 0ULL;
+    run->group = 0ULL;
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
-    *has_code = exit_code >= 0ll;
+    *has_code = exit_code >= 0LL;
     *code = exit_code;
     return 1;
 }
@@ -262,11 +262,10 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
         if (args->run->has_first)
         {
             char line[96];
-            VerbaLinea line_out = {line, sizeof(line), 0ull};
+            VerbaLinea line_out = {line, sizeof(line), 0ULL};
             mmgr_line_put(&line_out, "the program wrote its first line ");
             const double after = args->run->first - args->step_began_value;
-            // a span in milliseconds, rounded, is far inside what a long long represents
-            mmgr_line_decimal_signed(&line_out, (long long)llround(after));
+            mmgr_line_decimal_signed(&line_out, llround(after));
             mmgr_line_put(&line_out, " ms after it started");
             mmgr_line_finish(&line_out);
             EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = line);
@@ -275,11 +274,11 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
         EMBED_CALL(cli_executables_root.run_result_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
                    .has_code = has_code, .code = code, .lines = args->run->lines, .sink = sink);
     }
-    else if (!has_code || (code != 0ll))
+    else if (!has_code || (code != 0LL))
     {
         *built = 0;
     }
-    return has_code && (code == 0ll);
+    return has_code && (code == 0LL);
 }
 
 // the commands that sign the program, and the lock they are made under, one run signing at a time
@@ -299,7 +298,7 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         return 0;
     }
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int steps =
         EMBED_CALL(cli_executables_err_msg.sign_steps, CliExecutablesErrMsgCfg, .file = args->made->file,
                    .commands = s_signing, .displayed = s_signing_displayed, .capacity = 4u, .err_msg = &err_msg);
@@ -375,13 +374,13 @@ void cli_run_steps(void *context)
     if (run_command == NULL)
     {
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = "a run's command could not be taken");
-        EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = 0, .code_value = 0ll, .pages_found = NULL,
+        EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = 0, .code_value = 0LL, .pages_found = NULL,
                    .pages = 0u, .created_text = NULL);
         return;
     }
     CliCommand *const command = &run_command->command;
     char view_out[CLI_PATH_MAX_LEN];
-    VerbaLinea named = {view_out, sizeof(view_out), 0ull};
+    VerbaLinea named = {view_out, sizeof(view_out), 0ULL};
     mmgr_line_put(&named, run->root);
     mmgr_line_put(&named, "/build/ui/views/");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
@@ -424,7 +423,7 @@ void cli_run_steps(void *context)
         count += 1u;
     }
     int has_code = 1;
-    long long code = 0ll;
+    long long code = 0LL;
     int built = 1;
     CliCreated made;
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
@@ -444,7 +443,7 @@ void cli_run_steps(void *context)
             continue;
         }
         const CliStep *const step = &catalog->step[ready[at][1]];
-        VerbaLinea displayed = {run_command->displayed, CLI_COMMAND_TEXT, 0ull};
+        VerbaLinea displayed = {run_command->displayed, CLI_COMMAND_TEXT, 0ULL};
         const int created_step = ready[at][0] == CLI_READY_CREATED;
         if (created_step)
         {
@@ -460,7 +459,7 @@ void cli_run_steps(void *context)
         else
         {
             char why[CLI_PATH_MAX_LEN];
-            VerbaLinea err_msg = {why, sizeof(why), 0ull};
+            VerbaLinea err_msg = {why, sizeof(why), 0ULL};
             if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
                             .catalog = catalog, .step = step, .values = run->values, .command = command,
                             .displayed = &displayed, .err_msg = &err_msg))

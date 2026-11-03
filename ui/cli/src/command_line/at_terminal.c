@@ -175,16 +175,16 @@ EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
     }
     name = (name != NULL) ? name : "";
     char why[4096];
-    VerbaLinea refused = {why, sizeof(why), 0ull};
+    VerbaLinea refused = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = root,
                    .act = force ? "delete-unmerged" : "delete", .name_read = name, .to = "", .out = out,
                    .err_msg = &refused))
     {
         return 1;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = why, .length_value = refused.at,
-                   .required = "not fully merged", .size = 16ull, .at_pointer = &at))
+                   .required = "not fully merged", .size = 16ULL, .at_pointer = &at))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " has commits no other branch contains: branch-delete ");
@@ -192,7 +192,7 @@ EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
         mmgr_line_put(err_msg, " --force deletes it and them");
         return 0;
     }
-    mmgr_line_put_n(err_msg, why, mmgr_line_ok(&refused) ? refused.at : 0ull);
+    mmgr_line_put_n(err_msg, why, mmgr_line_ok(&refused) ? refused.at : 0ULL);
     return 0;
 }
 
@@ -227,14 +227,14 @@ EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
     const char *const joined = args->found->line.out;
     const char **const files =
         mmgr_line_ok(&args->found->line)
-            ? g_cli_cells->temporary_buf_alloc((args->found->count + 1ull) * sizeof(const char *), &g_cli_git_cells)
+            ? g_cli_cells->temporary_buf_alloc((args->found->count + 1ULL) * sizeof(const char *), &g_cli_git_cells)
             : NULL;
     if (files == NULL)
     {
         mmgr_line_put(err_msg, "the cells the tests' files are allocated in could not be taken");
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (unsigned int one = 0u; one < args->found->count; one += 1u)
     {
         files[one] = joined + at;
@@ -254,7 +254,7 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     const char *const first = (count > 0u) ? args->request[0] : "";
     static char s_words[4096];
-    VerbaLinea words = {s_words, sizeof(s_words), 0ull};
+    VerbaLinea words = {s_words, sizeof(s_words), 0ULL};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mmgr_line_put(&words, (at > 0u) ? " " : "");
@@ -349,7 +349,7 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
     {
         static CliTerminalFiles s_found;
-        const unsigned long long capacity = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
+        const unsigned long long capacity = CLI_AT_TERMINAL_FILES_TEXT + 1ULL;
         char *const found_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_git_cells);
         s_found.line = mmgr_line_over(found_text, capacity);
         s_found.last[0] = '\0';

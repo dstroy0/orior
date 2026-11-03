@@ -8,7 +8,7 @@
 #include "toolchains_internal.h"
 
 // how long the login shell is given to report its PATH, in milliseconds
-#define CLI_SHELL_PATIENCE 10000ull
+#define CLI_SHELL_PATIENCE 10000ULL
 
 #if defined(_WIN32)
 #define CLI_SEPARATOR ';'
@@ -47,10 +47,10 @@ unsigned int cli_toolchains_tree_tools(const CliToolchainsCountCfg *args)
     unsigned int count = 0u;
     for (unsigned int at = 0u; has && (at < CLI_TREE_TOOLS) && (count < args->capacity); at += 1u)
     {
-        VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, root);
         mmgr_line_put(&line, s_folders[at]);
-        count += ((mmgr_line_finish(&line) != 0ull) &&
+        count += ((mmgr_line_finish(&line) != 0ULL) &&
                   EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->folders[count]))
                      ? 1u
                      : 0u;
@@ -84,14 +84,14 @@ int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
     const char *const words[5] = {args->shell, "-l", "-c", "printf '%s' \"$PATH\"", NULL};
     CliSpawned spawned;
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = words,
                     .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg))
     {
         return 0;
     }
     const unsigned long long began = cli_clock_milliseconds();
-    long long code = 0ll;
+    long long code = 0LL;
     while (!EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &spawned, .code = &code))
     {
         if ((cli_clock_milliseconds() - began) >= CLI_SHELL_PATIENCE)
@@ -103,13 +103,13 @@ int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
         }
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     for (;;)
     {
         const unsigned long long got =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                       .pipe_handle = spawned.out, .piece = args->path + read, .capacity = args->size - read - 1ull);
-        if (got == 0ull)
+                       .pipe_handle = spawned.out, .piece = args->path + read, .capacity = args->size - read - 1ULL);
+        if (got == 0ULL)
         {
             break;
         }
@@ -119,7 +119,7 @@ int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
     read = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path, .at = read,
                       .set = CLI_TEXT_WHITE);
     args->path[read] = '\0';
-    return read != 0ull;
+    return read != 0ULL;
 }
 
 static void cli_shell_read_state(void *context)
@@ -187,9 +187,9 @@ EMBED_INLINE unsigned int cli_split(const ToolchainsPathCtx *args)
         if ((at[0] == CLI_SEPARATOR) || (at[0] == '\0'))
         {
             char folder[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {folder, sizeof(folder), 0ull};
+            VerbaLinea line = {folder, sizeof(folder), 0ULL};
             mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-            if ((at > from) && (mmgr_line_finish(&line) != 0ull))
+            if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
             {
                 char key[CLI_PATH_MAX_LEN];
                 EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folder, .key = key);
@@ -226,7 +226,7 @@ EMBED_INLINE unsigned int cli_registry_folders(const ToolchainsPathCtx *args)
     unsigned int count = args->count;
     unsigned int capacity = args->capacity;
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
-    char *const registry_buf = g_cli_cells->temporary_buf_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
+    char *const registry_buf = g_cli_cells->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, &g_cli_toolchains_cells);
     if (registry_buf != NULL)
     {
         char *const expanded = registry_buf + CLI_PATH_TEXT;
@@ -289,7 +289,7 @@ EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 char (*cli_toolchains_path_allocated(unsigned int *count, CellOwner *owner)) [CLI_PATH_MAX_LEN] {
     // the most folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
     // their texts as cli_toolchains_path_folders reads them
-    char *const text = g_cli_cells->persistent_buf_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
+    char *const text = g_cli_cells->persistent_buf_alloc(2ULL * CLI_PATH_TEXT, &g_cli_toolchains_cells);
     char *const expanded = (text != NULL) ? text + CLI_PATH_TEXT : NULL;
     if (text == NULL)
     {
@@ -446,7 +446,7 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
                    .capacity = most, .from = (const char (*)[CLI_PATH_MAX_LEN])path_folders, .count = path_count);
     g_cli_cells->persistent_buf_release(path_folders, &g_cli_toolchains_cells);
     // each folder once by its key, in order
-    VerbaLinea line = {args->path, args->size, 0ull};
+    VerbaLinea line = {args->path, args->size, 0ULL};
     unsigned int folder_count = 0u;
     for (unsigned int at = 0u; at < list_entries; at += 1u)
     {
@@ -470,7 +470,7 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
         }
     }
     g_cli_cells->persistent_buf_release(folders, &g_cli_toolchains_cells);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
                    .value_out = args->path, .capacity = args->size);
@@ -517,9 +517,9 @@ int cli_toolchains_join(const CliToolchainsFolderCfg *args)
         {
             char dir[CLI_PATH_MAX_LEN];
             char path_buf[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {dir, sizeof(dir), 0ull};
+            VerbaLinea line = {dir, sizeof(dir), 0ULL};
             mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-            if ((at > from) && (mmgr_line_finish(&line) != 0ull))
+            if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
             {
                 EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = dir, .key = path_buf);
                 if (cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL}))
@@ -535,16 +535,16 @@ int cli_toolchains_join(const CliToolchainsFolderCfg *args)
         }
     }
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path_read, .cap = CLI_CELLS_POOL});
-    while ((length != 0ull) && (args->path_read[length - 1u] == CLI_SEPARATOR))
+    while ((length != 0ULL) && (args->path_read[length - 1u] == CLI_SEPARATOR))
     {
-        length -= 1ull;
+        length -= 1ULL;
     }
-    VerbaLinea line = {args->out_capacity, args->size, 0ull};
+    VerbaLinea line = {args->out_capacity, args->size, 0ULL};
     mmgr_line_put_n(&line, args->path_read, length);
-    if (length != 0ull)
+    if (length != 0ULL)
     {
         mmgr_line_ch(&line, CLI_SEPARATOR);
     }
     mmgr_line_put(&line, args->folder_read);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }

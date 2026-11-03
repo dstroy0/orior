@@ -88,16 +88,16 @@ EMBED_INLINE unsigned int cli_numbers(const ExecutablesDotnetCtx *args)
     while ((part[0] != '\0') && (count < CLI_DOTNET_NUMBERS))
     {
         const char *end = part;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = ".-");
         const unsigned long long digits = (unsigned long long)(end - part);
-        const int number = (digits != 0ull) &&
+        const int number = (digits != 0ULL) &&
                            (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = part,
-                                       .at = 0ull, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
+                                       .at = 0ULL, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
         const unsigned long long value = number ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = part,
-                                                             .at = 0ull, .size = digits, .end = NULL)
-                                                : 0ull;
-        if (number && (value <= 0xffffffffull))
+                                                             .at = 0ULL, .size = digits, .end = NULL)
+                                                : 0ULL;
+        if (number && (value <= 0xffffffffULL))
         {
             args->numbers[count] = value;
             count += 1u;
@@ -191,7 +191,7 @@ static void cli_framework_check_print(const ExecutablesDotnetCtx *args)
                1)
             : args->file;
     char print_buf[CLI_PATH_MAX_LEN * (CLI_DOTNET_POSITIONS + 2u)];
-    VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+    VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
     mmgr_line_put(&line, base);
     mmgr_line_put(&line, " needs the .NET runtime ");
     mmgr_line_put(&line, name);
@@ -238,21 +238,21 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = base + 1, .cap = CLI_CELLS_POOL}),
                          .byte = '.')
             : NULL;
-    VerbaLinea named = {config, sizeof(config), 0ull};
+    VerbaLinea named = {config, sizeof(config), 0ULL};
     mmgr_line_put_n(&named, args->file,
                     (dot != NULL) ? (unsigned long long)(dot - args->file)
                                   : cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&named, ".runtimeconfig.json");
-    if (mmgr_line_finish(&named) == 0ull)
+    if (mmgr_line_finish(&named) == 0ULL)
     {
         return;
     }
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea reason = {why, sizeof(why), 0ull};
+    VerbaLinea reason = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = config,
-                   .nodes_more = 0u, .text_more = 0ull, .err_msg = &reason, .owner = &g_cli_executables_cells);
+                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_executables_cells);
     const unsigned int options = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                             .object = root, .name = "runtimeOptions");
     char (*const positions)[CLI_PATH_MAX_LEN] =
@@ -304,10 +304,10 @@ EMBED_INLINE int cli_is_own(const ExecutablesDotnetCtx *args)
     const char *folder = args->folder;
     unsigned long long length = args->length;
     const int script =
-        (length > 3ull) &&
-        (memor.cmp(&(MemoriaCfg){.src = args->importer + length - 3ull, .other = ".py", .bytes = 3u}) == 0);
-    const int absolute = (length > 0ull) && ((args->importer[0] == '/') || (args->importer[0] == '\\') ||
-                                             ((length > 1ull) && (args->importer[1] == ':')));
+        (length > 3ULL) &&
+        (memor.cmp(&(MemoriaCfg){.src = args->importer + length - 3ULL, .other = ".py", .bytes = 3u}) == 0);
+    const int absolute = (length > 0ULL) && ((args->importer[0] == '/') || (args->importer[0] == '\\') ||
+                                             ((length > 1ULL) && (args->importer[1] == ':')));
     if (script && absolute)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
@@ -315,10 +315,10 @@ EMBED_INLINE int cli_is_own(const ExecutablesDotnetCtx *args)
                (memor.cmp(&(MemoriaCfg){.src = args->importer, .other = folder, .bytes = size}) == 0) &&
                ((length == size) || (args->importer[size] == '/') || (args->importer[size] == '\\'));
     }
-    unsigned long long top = 0ull;
+    unsigned long long top = 0ULL;
     top = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->importer, .at = top,
                      .size = length, .set = ".");
-    if ((top == 8ull) && (memor.cmp(&(MemoriaCfg){.src = args->importer, .other = "__main__", .bytes = 8u}) == 0))
+    if ((top == 8ULL) && (memor.cmp(&(MemoriaCfg){.src = args->importer, .other = "__main__", .bytes = 8u}) == 0))
     {
         return 1;
     }
@@ -327,7 +327,7 @@ EMBED_INLINE int cli_is_own(const ExecutablesDotnetCtx *args)
     char marked[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = args->importer,
                .length = top, .out = name, .capacity = sizeof(name));
-    VerbaLinea line = {name + top, sizeof(name) - top, 0ull};
+    VerbaLinea line = {name + top, sizeof(name) - top, 0ULL};
     mmgr_line_put(&line, ".py");
     mmgr_line_finish(&line);
     if (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = folder,
@@ -357,9 +357,9 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
     {
         // the importer up to the next `, `
         const char *const start = one;
-        const char *stop = one;
-        stop = one + EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = one, .at = 0ull,
-                                .size = (unsigned long long)(end - one), .first = ',', .second = ' ');
+        const char *const stop =
+            one + EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = one, .at = 0ULL,
+                             .size = (unsigned long long)(end - one), .first = ',', .second = ' ');
         one = (stop < end) ? (stop + 2) : end;
         // `name (kinds)`: the `)` at its end left off, then parted at its last ` (`
         const char *close = stop;
@@ -381,7 +381,7 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
         const char *const kinds = split + 2;
         const unsigned long long kinds_length = (unsigned long long)(close - kinds);
         int optional = 0;
-        for (unsigned long long at = 0ull; !optional && ((at + 8ull) <= kinds_length); at += 1ull)
+        for (unsigned long long at = 0ULL; !optional && ((at + 8ULL) <= kinds_length); at += 1ULL)
         {
             optional = memor.cmp(&(MemoriaCfg){.src = kinds + at, .other = "optional", .bytes = 8u}) == 0;
         }
@@ -392,14 +392,14 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
         }
         // a script by its file's name, a module by its own
         const char *displayed = name;
-        const int script = (length > 3ull) &&
-                           (memor.cmp(&(MemoriaCfg){.src = name + length - 3ull, .other = ".py", .bytes = 3u}) == 0);
-        for (unsigned long long at = 0ull; script && (at < length); at += 1ull)
+        const int script = (length > 3ULL) &&
+                           (memor.cmp(&(MemoriaCfg){.src = name + length - 3ULL, .other = ".py", .bytes = 3u}) == 0);
+        for (unsigned long long at = 0ULL; script && (at < length); at += 1ULL)
         {
             displayed = ((name[at] == '/') || (name[at] == '\\')) ? (name + at + 1) : displayed;
         }
         char print_buf[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
         mmgr_line_put_n(&line, args->module, args->module_length);
         mmgr_line_put(&line, ", which ");
         mmgr_line_put_n(&line, displayed, (unsigned long long)((name + length) - displayed));
@@ -422,7 +422,7 @@ void cli_executables_built_advice(const CliExecutablesRootCfg *args)
         return;
     }
     char script[CLI_PATH_MAX_LEN];
-    VerbaLinea scripted = {script, sizeof(script), 0ull};
+    VerbaLinea scripted = {script, sizeof(script), 0ULL};
     mmgr_line_put_n(&scripted, args->id + 11, (unsigned long long)(colon - (args->id + 11)));
     mmgr_line_finish(&scripted);
     char path[CLI_PATH_MAX_LEN];
@@ -443,7 +443,7 @@ void cli_executables_built_advice(const CliExecutablesRootCfg *args)
     {
         char file[CLI_PATH_MAX_LEN];
         char why[CLI_NAME_MAX_LEN];
-        VerbaLinea unnamed = {why, sizeof(why), 0ull};
+        VerbaLinea unnamed = {why, sizeof(why), 0ULL};
         if (EMBED_CALL(cli_executables_name_out_err_msg_internal.dotnet_artifact, CliExecutablesNameOutErrMsgCtx,
                        .name = colon + 1, .lines = args->lines, .out = file, .err_msg = &unnamed))
         {

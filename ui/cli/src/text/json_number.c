@@ -30,7 +30,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_limbs_times(const JsonNumberCtx *args)
 {
     unsigned int count = args->count;
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned long long product = ((unsigned long long)args->limb[at] * args->by) + carry;
@@ -38,7 +38,7 @@ EMBED_INLINE unsigned int cli_limbs_times(const JsonNumberCtx *args)
         args->limb[at] = (unsigned int)product;
         carry = product >> 32u;
     }
-    if (carry != 0ull)
+    if (carry != 0ULL)
     {
         // a carry is below 2^32, `by` being
         args->limb[count] = (unsigned int)carry;
@@ -56,13 +56,13 @@ EMBED_INLINE unsigned int cli_limbs_digits(const JsonNumberCtx *args)
     unsigned int chunks = 0u;
     while (count > 0u)
     {
-        unsigned long long rest = 0ull;
+        unsigned long long rest = 0ULL;
         for (unsigned int at = count; at > 0u; at -= 1u)
         {
             const unsigned long long part = (rest << 32u) | args->limb[at - 1u];
             // a quotient is below 2^32, the rest before it being below 10^9
-            args->limb[at - 1u] = (unsigned int)(part / 1000000000ull);
-            rest = part % 1000000000ull;
+            args->limb[at - 1u] = (unsigned int)(part / 1000000000ULL);
+            rest = part % 1000000000ULL;
         }
         while ((count > 0u) && (args->limb[count - 1u] == 0u))
         {
@@ -102,18 +102,18 @@ EMBED_INLINE unsigned int cli_exact(const JsonNumberCtx *args)
 {
     double value = args->value;
     int *point = args->point;
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &value, .bytes = sizeof(bits)});
     // the exponent's field is 11 bits
-    const unsigned int field = (unsigned int)((bits >> 52u) & 0x7ffull);
-    unsigned long long mantissa = bits & ((1ull << 52u) - 1ull);
+    const unsigned int field = (unsigned int)((bits >> 52u) & 0x7ffULL);
+    unsigned long long mantissa = bits & ((1ULL << 52u) - 1ULL);
     int exponent = -1074;
     if (field != 0u)
     {
-        mantissa |= 1ull << 52u;
+        mantissa |= 1ULL << 52u;
         exponent = (int)field - 1075;
     }
-    while ((mantissa & 1ull) == 0ull)
+    while ((mantissa & 1ULL) == 0ULL)
     {
         mantissa >>= 1u;
         exponent += 1;
@@ -193,12 +193,12 @@ EMBED_INLINE unsigned int cli_round(const JsonNumberCtx *args)
 EMBED_INLINE int cli_reads_back(const JsonNumberCtx *args)
 {
     char text[CLI_NUMBER_SHORTEST + 16u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_ch(&line, args->cut_read[0]);
     mmgr_line_ch(&line, '.');
     mmgr_line_put_n(&line, args->cut_read + 1, args->count - 1u);
     mmgr_line_ch(&line, 'e');
-    mmgr_line_decimal_signed(&line, (long long)args->point_value - 1ll);
+    mmgr_line_decimal_signed(&line, (long long)args->point_value - 1LL);
     mmgr_line_finish(&line);
     return strtod(text, NULL) == args->value;
 }
@@ -206,14 +206,14 @@ EMBED_INLINE int cli_reads_back(const JsonNumberCtx *args)
 void cli_json_double(const CliJsonTreeOutValueCfg *args)
 {
     double value = args->value_f64;
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &value, .bytes = sizeof(bits)});
-    if (((bits >> 52u) & 0x7ffull) == 0x7ffull)
+    if (((bits >> 52u) & 0x7ffULL) == 0x7ffULL)
     {
         mmgr_line_put(args->out, "null");
         return;
     }
-    if ((bits >> 63u) != 0ull)
+    if ((bits >> 63u) != 0ULL)
     {
         mmgr_line_ch(args->out, '-');
         value = -value;
@@ -277,6 +277,6 @@ void cli_json_double(const CliJsonTreeOutValueCfg *args)
             mmgr_line_put_n(args->out, cut + 1, length - 1u);
         }
         mmgr_line_ch(args->out, 'e');
-        mmgr_line_decimal_signed(args->out, (long long)point - 1ll);
+        mmgr_line_decimal_signed(args->out, (long long)point - 1LL);
     }
 }

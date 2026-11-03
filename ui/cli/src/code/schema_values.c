@@ -15,7 +15,7 @@
 // written in before it is cut short
 #define CLI_SCHEMA_MATCHED (1u << 20u)
 #define CLI_SCHEMA_PATTERN (1u << 14u)
-#define CLI_SCHEMA_DISPLAYED_CAPACITY (1ull << 20u)
+#define CLI_SCHEMA_DISPLAYED_CAPACITY (1ULL << 20u)
 
 const char *cli_schema_text(const CliSchemaReadAtCtx *args)
 {
@@ -93,10 +93,10 @@ int cli_schema_u64(const CliSchemaJsonNodeValueU64sCtx *args)
     }
     const CliJsonNode *const one = &args->json->node[args->node];
     const char *const text = args->json->text + one->text;
-    unsigned long long read = 0ull;
-    for (unsigned long long at = 0ull; at < one->length; at += 1u)
+    unsigned long long read = 0ULL;
+    for (unsigned long long at = 0ULL; at < one->length; at += 1u)
     {
-        if ((text[at] < '0') || (text[at] > '9') || (read > (~0ull - 9u) / 10u))
+        if ((text[at] < '0') || (text[at] > '9') || (read > (~0ULL - 9u) / 10u))
         {
             return 0;
         }
@@ -177,7 +177,7 @@ int cli_schema_same(const CliSchemaReadJsonCtx *args)
     }
     if (own == CLI_SCHEMA_TEXT)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = args->json, .node = args->value, .length_pointer = &size);
         return (text != NULL) && (size == one->text_size) &&
@@ -318,11 +318,11 @@ EMBED_INLINE void values_cut(const SchemaValuesCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     mmgr_line_ch(args->out, '`');
-    unsigned long long letters = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long letters = 0ULL;
+    unsigned long long at = 0ULL;
     while ((at < size) && (letters < 40u))
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
         at += length;
         letters += 1u;
@@ -437,7 +437,7 @@ void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args)
 void cli_schema_number_show(const CliSchemaOutCtx *args)
 {
     char raw[64];
-    VerbaLinea line = {raw, sizeof(raw), 0ull};
+    VerbaLinea line = {raw, sizeof(raw), 0ULL};
     EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &line, .value_f64 = args->value_f64);
     unsigned long long size = line.at;
     while ((size >= 2u) && (memor.cmp(&(MemoriaCfg){.src = raw + size - 2u, .other = ".0", .bytes = 2u}) == 0))
@@ -475,8 +475,8 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long capacity = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
-        g_cli_cells->temporary_buf_alloc((capacity + 1ull) * sizeof(*letters), &g_cli_schema_cells);
-    char *const source = g_cli_cells->persistent_buf_alloc(args->pattern_size + 1ull, &g_cli_schema_cells);
+        g_cli_cells->temporary_buf_alloc((capacity + 1ULL) * sizeof(*letters), &g_cli_schema_cells);
+    char *const source = g_cli_cells->persistent_buf_alloc(args->pattern_size + 1ULL, &g_cli_schema_cells);
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {
@@ -484,7 +484,7 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
         source[args->pattern_size] = '\0';
         EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &s_regexp,
                    .work_state = &s_work_state);
-        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
         if (EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source,
                        .flags = "u", .err_msg = &err_msg))
         {
@@ -492,7 +492,7 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
                 EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text, .size = args->size,
                            .letters = letters, .capacity_u64 = capacity);
             found = 0;
-            for (unsigned long long at = 0ull; !found && (at <= length); at += 1u)
+            for (unsigned long long at = 0ULL; !found && (at <= length); at += 1u)
             {
                 found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp,
                                    .text_u32s = letters, .length = length, .at = at, .groups = s_groups);

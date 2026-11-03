@@ -30,7 +30,7 @@ static int checkers_lock(void)
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_work_state->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
 }
 
@@ -47,7 +47,7 @@ static unsigned int cli_manifest(void)
 {
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_work_state->json);
     return EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                      .json_out = &s_work_state->json, .nodes_more = 0u, .text_more = 0ull);
+                      .json_out = &s_work_state->json, .nodes_more = 0u, .text_more = 0ULL);
 }
 
 typedef struct
@@ -115,7 +115,7 @@ int cli_checkers_by_name(const CliCheckersNameCfg *args)
     char required[CLI_NAME_MAX_LEN];
     const char *from = args->name;
     from +=
-        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     memor.cpy(&(MemoriaCfg){.dst = required,
                             .src = from,
@@ -229,7 +229,7 @@ int cli_checkers_checks(const CliCheckersCfg *args)
 // `err_msg`
 EMBED_INLINE int cli_blank_text(const CheckersCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         if ((args->text[at] != ' ') && ((args->text[at] < '\t') || (args->text[at] > '\r')))
         {
@@ -264,7 +264,7 @@ static int cli_on_check(const CheckersCtx *args)
     const char *input = args->input;
     unsigned long long length = args->length;
     VerbaLinea *err_msg = args->err_msg;
-    CliJson *const json = &s_work_state->json;
+    const CliJson *const json = &s_work_state->json;
     const char *const name = EMBED_CALL(cli_string_or, CheckersCtx, .node = args->tool, .key = "name", .otherwise = "");
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                          .object = args->tool, .name = "checker");
@@ -295,7 +295,7 @@ static int cli_on_check(const CheckersCtx *args)
     }
     const char *words[CLI_WORDS_MAX + 2u] = {program};
     unsigned int count = 1u;
-    VerbaLinea filled = {s_work_state->words, sizeof(s_work_state->words), 0ull};
+    VerbaLinea filled = {s_work_state->words, sizeof(s_work_state->words), 0ULL};
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = spec, .name = args->args_key);
     for (unsigned int at = 0u;
@@ -332,7 +332,7 @@ static int cli_on_check(const CheckersCtx *args)
     const CliSetting settings[1] = {{"PATH", s_work_state->path}};
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words, .folder = root,
                     .settings = settings, .count = 1u, .input = input, .length = length, .run_result = run_result,
                     .err_msg = &unstarted))
@@ -411,7 +411,7 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "stdin"),
                    .kind = CFG_JSON_TRUE);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const mapped = (stdin_read && (args->text == NULL))
                                             ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                          .size_pointer = &size, .owner = &g_cli_toolchains_cells)
@@ -454,7 +454,7 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
         return 1;
     }
     const int checked = EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "tree", .file = NULL,
-                                   .root = args->root, .input = NULL, .length = 0ull, .err_msg = args->err_msg);
+                                   .root = args->root, .input = NULL, .length = 0ULL, .err_msg = args->err_msg);
     if (checked)
     {
         EMBED_CALL(cli_findings_write, CheckersCtx, .out = args->out);

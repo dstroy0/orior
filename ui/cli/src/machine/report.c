@@ -14,8 +14,8 @@
 #define CLI_REPORT_RETAIN_MAX 20u
 #define CLI_REPORT_ERROR (1u << 16u)
 #define CLI_REPORT_ANSWER_NODES 4u
-#define CLI_REPORT_ANSWER_TEXT 64ull
-#define CLI_REPORT_STRUCK_MORE 64ull
+#define CLI_REPORT_ANSWER_TEXT 64ULL
+#define CLI_REPORT_STRUCK_MORE 64ULL
 
 // the run's recent errors, a ring of cells each of its error's size, the oldest at `first`, under the lock
 static char *s_errors[CLI_REPORT_RETAIN_MAX];
@@ -58,10 +58,10 @@ EMBED_INLINE int cli_settings_path(const ReportCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, home);
     mmgr_line_put(&line, "/settings.json");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // settings.json read, the lock acquired, into a tree of its own sized to it, with capacity over for a copy of it and
@@ -71,9 +71,9 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
 {
     CliJson *json = args->json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
-               .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char path[CLI_PATH_MAX_LEN];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_settings_path, ReportCtx, .path = path)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_machine_cells)
@@ -85,12 +85,12 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
             ? EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size)
             : 0u;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea reason = {why, sizeof(why), 0ull};
+    VerbaLinea reason = {why, sizeof(why), 0ULL};
     const unsigned int read = (bytes != NULL)
                                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                                .json = json, .text = text, .size = size,
                                                .nodes_more = args->copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
-                                               .text_more = args->copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ull,
+                                               .text_more = args->copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ULL,
                                                .err_msg = &reason, .owner = &g_cli_machine_cells)
                                   : CLI_JSON_NONE;
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
@@ -163,11 +163,11 @@ void cli_report_prompt_once(void)
     }
     const char *from = answer;
     from +=
-        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     const int on = !((from[0] == 'n') || (from[0] == 'N'));
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg, .on = on, .err_msg = &err_msg))
     {
         mmgr_line_ch(&err_msg, '\n');
@@ -240,7 +240,7 @@ EMBED_INLINE void cli_on_replace(const ReportCtx *args)
     const char *const end = args->text + cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
     while (at < end)
     {
-        const char *const hit = (length != 0ull) ? cellul.find(&(CatenaFinitaCfg){.src = at,
+        const char *const hit = (length != 0ULL) ? cellul.find(&(CatenaFinitaCfg){.src = at,
                                                                                   .cap = (size_t)(end - at) + 1u,
                                                                                   .other = args->found,
                                                                                   .other_cap = (size_t)length + 1u,
@@ -286,7 +286,7 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
         // each 3 of the text
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
         const unsigned long long capacity =
-            length + ((length / 3ull) * cellul.len(&(CatenaFinitaCfg){.src = args->put, .cap = CLI_CELLS_POOL})) +
+            length + ((length / 3ULL) * cellul.len(&(CatenaFinitaCfg){.src = args->put, .cap = CLI_CELLS_POOL})) +
             CLI_REPORT_STRUCK_MORE;
         char *const out_cell = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_machine_cells);
         VerbaLinea out = mmgr_line_over(out_cell, capacity);
@@ -303,7 +303,7 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
 void cli_report_scrub(const CliReportTextCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    char *struck = g_cli_cells->temporary_buf_alloc(length + 1ull, &g_cli_machine_cells);
+    char *struck = g_cli_cells->temporary_buf_alloc(length + 1ULL, &g_cli_machine_cells);
     if (struck != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = struck, .src = args->text, .bytes = length + 1u});
@@ -336,12 +336,12 @@ void cli_report_scrub(const CliReportTextCfg *args)
         {
             char found[CLI_NAME_MAX_LEN + 4u];
             char put[16];
-            VerbaLinea line = {found, sizeof(found), 0ull};
+            VerbaLinea line = {found, sizeof(found), 0ULL};
             mmgr_line_put(&line, s_slashes[slash]);
             mmgr_line_put(&line, name);
             mmgr_line_put(&line, s_slashes[slash]);
             mmgr_line_finish(&line);
-            VerbaLinea user = {put, sizeof(put), 0ull};
+            VerbaLinea user = {put, sizeof(put), 0ULL};
             mmgr_line_put(&user, s_slashes[slash]);
             mmgr_line_put(&user, "<user>");
             mmgr_line_put(&user, s_slashes[slash]);
@@ -355,19 +355,19 @@ void cli_report_scrub(const CliReportTextCfg *args)
 
 void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
 {
-    unsigned long long hash = 0xcbf29ce484222325ull;
+    unsigned long long hash = 0xcbf29ce484222325ULL;
     for (const char *at = args->category; at[0] != '\0'; at += 1)
     {
-        hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ull;
+        hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ULL;
     }
     for (const char *at = args->text; at[0] != '\0'; at += 1)
     {
         if ((at[0] < '0') || (at[0] > '9'))
         {
-            hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ull;
+            hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ULL;
         }
     }
-    VerbaLinea line = {args->out_capacity, 17u, 0ull};
+    VerbaLinea line = {args->out_capacity, 17u, 0ULL};
     mmgr_line_hex(&line, hash, 16u);
     mmgr_line_finish(&line);
 }
@@ -379,7 +379,7 @@ void cli_report_save(const CliReportTextCfg *args)
     {
         return;
     }
-    VerbaLinea line = {line_cell, CLI_REPORT_ERROR, 0ull};
+    VerbaLinea line = {line_cell, CLI_REPORT_ERROR, 0ULL};
     EMBED_CALL(cli_report_text.scrub, CliReportTextCfg, .text = args->text, .root = args->root, .out = &line);
     // an error stored is its first CLI_REPORT_ERROR bytes at the most
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
@@ -411,10 +411,10 @@ const char *cli_report_panic_category(const CliReportCfg *args)
     for (const char *line = args->trace; line[0] != '\0';)
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
         char category_buf[CLI_PATH_MAX_LEN];
-        VerbaLinea category_line = {category_buf, sizeof(category_buf), 0ull};
+        VerbaLinea category_line = {category_buf, sizeof(category_buf), 0ULL};
         mmgr_line_put_n(&category_line, line, (unsigned long long)(stop - line));
         mmgr_line_finish(&category_line);
         line = (stop[0] != '\0') ? (stop + 1) : stop;

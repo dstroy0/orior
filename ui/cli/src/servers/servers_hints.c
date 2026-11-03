@@ -13,9 +13,6 @@
 // a server's capabilities read into a tree taken to their size, under their lock
 static CliJson s_capable;
 
-// what the server answers read, under the reading's lock
-static CliServersReadState s_read_state = {0};
-
 typedef struct
 {
     CliLsp *server;
@@ -34,14 +31,14 @@ typedef struct
 EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
 {
     const char *name = args->name;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const capabilities =
         EMBED_CALL(cli_lsp_size_kind.capabilities, CliLspSizeKindCfg, .lsp_read = args->server, .size = &length);
     char quiet[256];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &s_capable, .text = capabilities, .size = length, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_servers_cells);
+                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_servers_cells);
     return EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_capable, .object = root,
                       .name = name);
 }
@@ -123,7 +120,7 @@ static void hints_span_write(const CliSpannedCfg *args)
 int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
 {
     const char *path = args->path;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char *const branch = (args->key != NULL)
                              ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
                                           .size_pointer = &size, .owner = &g_cli_servers_cells)

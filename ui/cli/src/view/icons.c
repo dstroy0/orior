@@ -577,7 +577,7 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     const char **at = args->at;
     float *value = args->value;
     const char *text = *at;
-    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
+    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = " ,");
     const int negative = *text == '-';
     if ((*text == '-') || (*text == '+'))
@@ -721,7 +721,7 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
     char command = '\0';
     for (;;)
     {
-        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " ,");
         if (*at == '\0')
         {
@@ -783,7 +783,7 @@ EMBED_INLINE const GuiIconShape *icons_shape(const IconsCtx *args)
     unsigned int *index = args->index;
     for (unsigned int at = 0u; at < ICONS_COUNT; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_shapes[at].name, .cap = 32ull}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_shapes[at].name, .cap = 32ULL}))
         {
             *index = at;
             return &s_shapes[at];
@@ -878,7 +878,7 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
                    .height = pen.side, .corner = pen.corner, .corners = pen.corners);
         pen.corner = NULL;
     }
-    for (unsigned long long at = 0ull; at < pixels; at += 1ull)
+    for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
     {
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);

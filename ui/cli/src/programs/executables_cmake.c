@@ -52,7 +52,7 @@ typedef struct
 // `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void cli_in(const ExecutablesCmakeCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
@@ -128,8 +128,8 @@ EMBED_INLINE int cli_artifact(const ExecutablesCmakeCtx *args)
         int passed = 0;
         for (unsigned int at = 0u; !passed && (at < 4u); at += 1u)
         {
-            passed = (length >= 4ull) && EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx,
-                                                    .one = out + length - 4ull, .other = s_passed[at]);
+            passed = (length >= 4ULL) && EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx,
+                                                    .one = out + length - 4ULL, .other = s_passed[at]);
         }
         if (!passed)
         {
@@ -185,7 +185,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
     char path[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = index.last, .out = path);
-    CliReply reply = {NULL, 0ull};
+    CliReply reply = {NULL, 0ULL};
     if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &reply, .err_msg = args->err_msg))
     {
         return 0;
@@ -202,7 +202,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         return 0;
     }
     EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = file, .out = path);
-    CliReply model = {NULL, 0ull};
+    CliReply model = {NULL, 0ULL};
     if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &model, .err_msg = args->err_msg))
     {
         return 0;
@@ -232,7 +232,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         return 0;
     }
     EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = file, .out = path);
-    CliReply target = {NULL, 0ull};
+    CliReply target = {NULL, 0ULL};
     if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &target, .err_msg = args->err_msg))
     {
         return 0;
@@ -297,7 +297,7 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
                            .at = EMBED_CALL(cli_reply_array.item, CliReplyArrayCfg, .reply = &reply,
                                             .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg,
                                                                 .reply = &reply, .object = item, .key = "filename"),
-                                            .index = 0ull),
+                                            .index = 0ULL),
                            .out = args->out, .capacity = CLI_PATH_MAX_LEN)
                     ? 1
                     : -1;

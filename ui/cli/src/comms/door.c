@@ -39,7 +39,7 @@ int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
                    : CLI_IPC_FRAME_BROKEN;
     }
     // a frame past the capacity it is read into is read past, a piece at a time
-    for (unsigned long long passed = 0ull; passed < length;)
+    for (unsigned long long passed = 0ULL; passed < length;)
     {
         const unsigned long long piece = ((length - passed) < args->capacity) ? (length - passed) : args->capacity;
         if (!EMBED_CALL(cli_ipc_end_bytes_internal.read, CliIpcEndBytesCtx, .end = args->end, .bytes = args->frame,
@@ -71,15 +71,15 @@ unsigned long long cli_ipc_field_end(const char *frame, unsigned long long size,
 {
     if (at >= size)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = frame + at, .cap = size - at});
-    return ((at + length) < size) ? (at + length + 1ull) : 0ull;
+    return ((at + length) < size) ? (at + length + 1ULL) : 0ULL;
 }
 
 int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
 {
-    CliIpcTransfer transfer = {args->region->length, 0ull};
+    CliIpcTransfer transfer = {args->region->length, 0ULL};
 #if defined(_WIN32)
     transfer.handle = args->region->section;
     if (args->has_to && !EMBED_CALL(cli_region_free, CliTransferCfg, .region_read = args->region, .process = args->to,

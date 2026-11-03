@@ -84,23 +84,23 @@ static int signature_label_layout(const SignatureCtx *args)
                                      .face = GUI_FACE_CODE, .size = size);
     const int baseline = (int)((((float)line_height - ascent - descent) / 2.0f) + ascent + 0.5f);
     const GuiColor type = EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
-                                     .name_read = "type", .length = 4ull);
+                                     .name_read = "type", .length = 4ULL);
     float pen = (float)x;
     int top = y;
     int param = -1;
-    unsigned long long param_end = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long param_end = 0ULL;
+    unsigned long long at = 0ULL;
     while (at < args->panel->length)
     {
         if (at >= param_end)
         {
             param = EMBED_CALL(signature_param_at, SignatureCtx, .panel = args->panel, .at = at);
-            param_end = (param >= 0) ? args->panel->parameter[param].to : 0ull;
+            param_end = (param >= 0) ? args->panel->parameter[param].to : 0ULL;
         }
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->panel->label, .size = args->panel->length,
                          .at = at, .length = &consumed);
-        consumed = (consumed != 0ull) ? consumed : 1ull;
+        consumed = (consumed != 0ULL) ? consumed : 1ULL;
         const float letter_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .text = args->panel->label + at, .length = consumed);
@@ -168,7 +168,7 @@ void gui_signature_draw(const GuiSignatureRasterCfg *args)
         EMBED_CALL(signature_label_layout, SignatureCtx, .panel = panel, .raster = NULL, .glyphs = glyphs,
                    .palette = palette, .x = 0, .y = 0, .pixel_width = inner, .scale = scale, .clip = bounds);
     const int doc_height =
-        (panel->doc_length != 0ull)
+        (panel->doc_length != 0ULL)
             ? gap + EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = NULL, .glyphs = glyphs,
                                .palette = palette, .text = panel->doc, .length = panel->doc_length, .x = 0, .y = 0,
                                .pixel_width = inner, .scale = scale, .clip = bounds)
@@ -190,7 +190,7 @@ void gui_signature_draw(const GuiSignatureRasterCfg *args)
         EMBED_CALL(signature_label_layout, SignatureCtx, .panel = panel, .raster = raster, .glyphs = glyphs,
                    .palette = palette, .x = args->signature->rect.x + pad_x, .y = args->signature->rect.y + pad_y,
                    .pixel_width = inner, .scale = scale, .clip = clip);
-    if (panel->doc_length != 0ull)
+    if (panel->doc_length != 0ULL)
     {
         (void)EMBED_CALL(gui_panel_raster.markdown, GuiPanelRasterCfg, .raster = raster, .glyphs = glyphs,
                          .palette = palette, .text = panel->doc, .length = panel->doc_length,

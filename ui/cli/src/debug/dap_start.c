@@ -41,7 +41,7 @@ static unsigned long long start_receive(const CliSourcePieceCapacityCfg *args)
     const long long count =
         EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &((CliDap *)args->source)->socket,
                    .bytes_out = args->piece, .capacity = capacity);
-    return (count > 0ll) ? (unsigned long long)count : 0ull;
+    return (count > 0LL) ? (unsigned long long)count : 0ULL;
 }
 
 typedef struct
@@ -55,8 +55,8 @@ EMBED_INLINE void start_reader(const DapStartCtx *args)
     unsigned long long (*read)(const CliSourcePieceCapacityCfg *args) = args->read;
     args->dap->reader.read = read;
     args->dap->reader.source = args->dap;
-    args->dap->reader.start = 0ull;
-    args->dap->reader.end = 0ull;
+    args->dap->reader.start = 0ULL;
+    args->dap->reader.end = 0ULL;
 }
 
 CliDap *cli_dap_start(const CliDapProgramCfg *args)
@@ -108,7 +108,7 @@ CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
     CliDapEventFn emit = args->emit;
     void *context = args->context;
     char address[CLI_PATH_MAX_LEN];
-    VerbaLinea address_line = {address, sizeof(address), 0ull};
+    VerbaLinea address_line = {address, sizeof(address), 0ULL};
     mmgr_line_put(&address_line, args->host);
     mmgr_line_ch(&address_line, ':');
     mmgr_line_decimal(&address_line, args->port, 1u);

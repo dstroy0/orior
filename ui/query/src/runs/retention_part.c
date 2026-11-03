@@ -29,20 +29,20 @@ EMBED_INLINE int query_output_get(const RetentionPartCtx *args)
     {
         return 0;
     }
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     for (;;)
     {
         const unsigned long long got =
             EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
                        .piece = output + length, .capacity_u64 = capacity - 1u - length);
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
         length += got;
     }
     output[length] = '\0';
-    return EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process) == 0ll;
+    return EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process) == 0LL;
 }
 
 // 1 where a line of `apps`, nvidia-smi's processes on the part, names a program under `root`, whichever separators and
@@ -50,11 +50,11 @@ EMBED_INLINE int query_output_get(const RetentionPartCtx *args)
 int query_on_the_part(const QueryRetentionRootCtx *args)
 {
     char top[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {top, sizeof(top), 0ull};
+    VerbaLinea line = {top, sizeof(top), 0ULL};
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->root, .from = '\\',
                      .to = '/');
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = top, .size = line.at);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -79,18 +79,18 @@ long long query_part_used_max(const QueryRetentionInputCtx *args)
 {
     if (args->supplied == NULL)
     {
-        return 10ll;
+        return 10LL;
     }
     char *end = NULL;
     const long long read = strtoll(args->supplied, &end, 10);
-    return ((end != args->supplied) && (*end == '\0')) ? read : 10ll;
+    return ((end != args->supplied) && (*end == '\0')) ? read : 10LL;
 }
 
 int query_part_free(const QueryRetentionContextErrMsgCtx *args)
 {
     static char s_smi[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
     if (!EMBED_CALL(args->context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                     .context = args->context->programs->context, .role = QUERY_ROLE_NVIDIA_SMI, .path = s_smi,
                     .capacity = sizeof(s_smi), .err_msg = &ignored))
@@ -128,7 +128,7 @@ int query_part_free(const QueryRetentionContextErrMsgCtx *args)
         const long long percent = EMBED_CALL(query_output_get, RetentionPartCtx, .words = used, .output = s_output,
                                              .capacity = sizeof(s_output))
                                       ? strtoll(s_output, &end, 10)
-                                      : -1ll;
+                                      : -1LL;
         if ((end == NULL) || (end == s_output))
         {
             mmgr_line_put(args->err_msg, "the part's use was not read");
@@ -162,11 +162,11 @@ static void query_size_walk(const CliEachNameIsFolderCfg *args)
 {
     QuerySizeWalk *const walk = (QuerySizeWalk *)args->context;
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, walk->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -175,7 +175,7 @@ static void query_size_walk(const CliEachNameIsFolderCfg *args)
         walk->total += EMBED_CALL(query_size_under, RetentionPartCtx, .folder = path);
         return;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
     if (bytes != NULL)
     {
@@ -187,7 +187,7 @@ static void query_size_walk(const CliEachNameIsFolderCfg *args)
 // the size of every file under `folder`
 EMBED_INLINE unsigned long long query_size_under(const RetentionPartCtx *args)
 {
-    QuerySizeWalk walk = {args->folder, 0ull};
+    QuerySizeWalk walk = {args->folder, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_size_walk, .context_bytess = &walk);
     return walk.total;
@@ -243,8 +243,8 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
         const int written = EMBED_CALL(query_output_get, RetentionPartCtx, .words = words, .output = s_output,
                                        .capacity = sizeof(s_output));
         char text[QUERY_PATH_MAX_LEN + 4096u];
-        VerbaLinea line = {text, sizeof(text), 0ull};
-        unsigned long long size = 0ull;
+        VerbaLinea line = {text, sizeof(text), 0ULL};
+        unsigned long long size = 0ULL;
         const unsigned char *const mapped = qry_member_file_mapped(paths[at], &size);
         if (mapped != NULL)
         {
@@ -266,7 +266,7 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
                                      .at = len, .set = "\n\r");
             mmgr_line_put_most(&line, s_output, len);
             mmgr_line_put(&line, ", in ");
-            mmgr_line_decimal(&line, (query_now() - began) * 1000ull, 0u);
+            mmgr_line_decimal(&line, (query_now() - began) * 1000ULL, 0u);
             mmgr_line_put(&line, " ms");
         }
         else
@@ -276,7 +276,7 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
             mmgr_line_put(&line, " is stored as its .qry: its crystal did not check");
             EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = crystal_folder);
         }
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
@@ -290,7 +290,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     char *binary = args->binary;
     static char s_nvcc[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
     if (!EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                     .context = context->programs->context, .role = QUERY_ROLE_NVCC, .path = s_nvcc,
                     .capacity = sizeof(s_nvcc), .err_msg = &ignored))
@@ -303,7 +303,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     char base[64];
     EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "qry_crystal", .binary = base,
                .capacity = sizeof(base));
-    VerbaLinea binary_line = {binary, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea binary_line = {binary, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&binary_line, engine);
     mmgr_line_ch(&binary_line, '/');
     mmgr_line_put(&binary_line, base);
@@ -323,7 +323,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     QueryProcess built;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &built, .words = engine_build,
                     .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
-        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &built) != 0ll))
+        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &built) != 0LL))
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                    .text = "  the crystal's engine did not build");
@@ -344,13 +344,13 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     unsigned int objects = 0u;
 #if defined(_WIN32)
     char list_entries[QUERY_PATH_MAX_LEN];
-    VerbaLinea listing_line = {list_entries, sizeof(list_entries), 0ull};
+    VerbaLinea listing_line = {list_entries, sizeof(list_entries), 0ULL};
     mmgr_line_put(&listing_line, engine);
     mmgr_line_put(&listing_line, "/cell_tracking_engine.objects");
     mmgr_line_finish(&listing_line);
-    unsigned long long listed_size = 0ull;
+    unsigned long long listed_size = 0ULL;
     const unsigned char *const list = qry_member_file_mapped(list_entries, &listed_size);
-    s_objects_text = (list != NULL) ? g_cli_cells->persistent_buf_alloc(listed_size + 1ull, &g_query_cells) : NULL;
+    s_objects_text = (list != NULL) ? g_cli_cells->persistent_buf_alloc(listed_size + 1ULL, &g_query_cells) : NULL;
     if (s_objects_text != NULL)
     {
         // a file mapped whole is counted by a size_t
@@ -376,8 +376,8 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
         qry_member_file_unmapped(list, listed_size);
     }
 #endif
-    unsigned long long built_time = 0ull;
-    unsigned long long changed = 0ull;
+    unsigned long long built_time = 0ULL;
+    unsigned long long changed = 0ULL;
     int stale =
         !EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = binary, .seconds = &built_time);
     stale = stale ||
@@ -426,7 +426,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     char engine_folder[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = "src/cu/engine",
                .path_out = engine_folder);
-    VerbaLinea include_line = {include, sizeof(include), 0ull};
+    VerbaLinea include_line = {include, sizeof(include), 0ULL};
     mmgr_line_put(&include_line, "-I");
     mmgr_line_put(&include_line, engine_folder);
     mmgr_line_finish(&include_line);
@@ -446,7 +446,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     }
 #else
     char library[QUERY_PATH_MAX_LEN + 2u];
-    VerbaLinea library_line = {library, sizeof(library), 0ull};
+    VerbaLinea library_line = {library, sizeof(library), 0ULL};
     mmgr_line_put(&library_line, "-L");
     mmgr_line_put(&library_line, engine);
     mmgr_line_finish(&library_line);
@@ -466,7 +466,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     QueryProcess linked;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked, .words = s_words.word,
                     .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
-        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &linked) != 0ll))
+        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &linked) != 0LL))
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                    .text = "  qry_crystal did not build; runs are stored as their .qry");

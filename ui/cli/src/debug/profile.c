@@ -36,7 +36,7 @@ typedef struct
 // a line's cell is first taken with
 #define CLI_PROFILES 2u
 #define CLI_PROFILE_LINE (1u << 20u)
-#define CLI_PROFILE_LINE_FIRST 4096ull
+#define CLI_PROFILE_LINE_FIRST 4096ULL
 
 // The start of the lines the shim writes its counts on
 #define CLI_PROFILE_MARK "\x1eorior-profile "
@@ -82,13 +82,13 @@ void cli_profile_stop(void)
 // each byte at most `\u` and four digits
 EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
 {
-    const unsigned long long capacity = (args->size * 6ull) + 64ull;
+    const unsigned long long capacity = (args->size * 6ULL) + 64ULL;
     char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
     }
-    VerbaLinea out = {json_buf, capacity, 0ull};
+    VerbaLinea out = {json_buf, capacity, 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"output\",\"text\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->line, .length = args->size);
@@ -108,7 +108,7 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     CliProfile *profile = args->profile;
     const char *line = args->line;
     unsigned long long size = args->size;
-    const unsigned long long mark = sizeof(CLI_PROFILE_MARK) - 1ull;
+    const unsigned long long mark = sizeof(CLI_PROFILE_MARK) - 1ULL;
     if ((size < mark) || (memor.cmp(&(MemoriaCfg){.src = line, .other = CLI_PROFILE_MARK, .bytes = mark}) != 0))
     {
         EMBED_CALL(profile_output_emit, ProfileCtx, .profile = profile, .line = line, .size = size, .error = 0);
@@ -117,13 +117,13 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     const char *const json = line + mark;
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
-    const unsigned long long capacity = length + 64ull;
+    const unsigned long long capacity = length + 64ULL;
     char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
     }
-    VerbaLinea out = {json_buf, capacity, 0ull};
+    VerbaLinea out = {json_buf, capacity, 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"counts\",\"counts\":");
     if (!EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = json, .size = length) ||
         !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = json, .size = length, .out = &out))
@@ -131,22 +131,22 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         mmgr_line_put(&out, "null");
     }
     mmgr_line_ch(&out, '}');
-    unsigned long long at = 0ull;
-    unsigned long long done_size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long done_size = 0ULL;
     if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = json, .size_value = length, .name = "done", .start = &at,
                    .length_pointer = &done_size) &&
-        (done_size == 4ull) && (memor.cmp(&(MemoriaCfg){.src = json + at, .other = "true", .bytes = 4u}) == 0) &&
+        (done_size == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = json + at, .other = "true", .bytes = 4u}) == 0) &&
         EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = json, .size_value = length, .name = "code", .start = &at,
                    .length_pointer = &done_size))
     {
-        long long code = 0ll;
-        int whole = (done_size > 0ull);
+        long long code = 0LL;
+        int whole = (done_size > 0ULL);
         const int negative = whole && (json[at] == '-');
-        for (unsigned long long letter = at + (negative ? 1ull : 0ull); whole && (letter < at + done_size);
-             letter += 1ull)
+        for (unsigned long long letter = at + (negative ? 1ULL : 0ULL); whole && (letter < at + done_size);
+             letter += 1ULL)
         {
-            whole = (json[letter] >= '0') && (json[letter] <= '9') && (code < 922337203685477580ll);
-            code = (code * 10ll) + (long long)(json[letter] - '0');
+            whole = (json[letter] >= '0') && (json[letter] <= '9') && (code < 922337203685477580LL);
+            code = (code * 10LL) + (long long)(json[letter] - '0');
         }
         profile->has_code = whole;
         profile->code = negative ? -code : code;
@@ -164,20 +164,20 @@ static void profile_line(const CliProfileLineSizeCfg *args)
 static void profile_lines(const ProfileCtx *args)
 {
     char *const line = g_cli_cells->temporary_buf_alloc(CLI_PROFILE_LINE, &g_cli_profile_cells);
-    const unsigned long long capacity = (line != NULL) ? CLI_PROFILE_LINE : 0ull;
-    unsigned long long used = 0ull;
+    const unsigned long long capacity = (line != NULL) ? CLI_PROFILE_LINE : 0ULL;
+    unsigned long long used = 0ULL;
     char piece[4096];
     for (;;)
     {
         const unsigned long long count =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = args->pipe, .piece = piece, .capacity = sizeof(piece));
-        if (count == 0ull)
+        if (count == 0ULL)
         {
             break;
         }
-        unsigned long long at = 0ull;
-        while ((capacity != 0ull) && (at < count))
+        unsigned long long at = 0ULL;
+        while ((capacity != 0ULL) && (at < count))
         {
             const unsigned long long stop =
                 EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = piece, .at = at, .size = count).stop;
@@ -191,18 +191,18 @@ static void profile_lines(const ProfileCtx *args)
                 // a line past the capacity is handed on as far as it reaches, the rest as a line after it
                 EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line,
                            .size = used);
-                used = 0ull;
+                used = 0ULL;
             }
             else if (stop < count)
             {
                 EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line,
-                           .size = ((used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
-                used = 0ull;
-                at = stop + 1ull;
+                           .size = ((used > 0ULL) && (line[used - 1ULL] == '\r')) ? used - 1ULL : used);
+                used = 0ULL;
+                at = stop + 1ULL;
             }
         }
     }
-    if (used > 0ull)
+    if (used > 0ULL)
     {
         EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line, .size = used);
     }
@@ -250,18 +250,18 @@ static void profile_output_read(void *context)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    long long status = 0ll;
+    long long status = 0LL;
     int has_status = 0;
     if (profile->running)
     {
         status = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &profile->spawned);
-        has_status = (status >= 0ll);
+        has_status = (status >= 0LL);
         profile->running = 0;
     }
     const int has_code = profile->has_code || has_status;
     const long long code = profile->has_code ? profile->code : status;
     char done[256];
-    VerbaLinea out = {done, sizeof(done), 0ull};
+    VerbaLinea out = {done, sizeof(done), 0ULL};
     mmgr_line_put(&out, "{\"kind\":\"done\",\"code\":");
     if (has_code)
     {
@@ -276,7 +276,7 @@ static void profile_output_read(void *context)
     {
         mmgr_line_put(&out, "The run was stopped.");
     }
-    else if (code == 0ll)
+    else if (code == 0LL)
     {
         mmgr_line_put(&out, "The run ended.");
     }
@@ -313,7 +313,7 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
     profile->running = 0;
     profile->going = 0u;
     profile->has_code = 0;
-    profile->code = 0ll;
+    profile->code = 0LL;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
     profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &g_cli_profile_cells);
     profile->path = NULL;
@@ -348,7 +348,7 @@ int cli_profile_start(const CliProfileCfg *args)
 {
     cli_profile_stop();
     const char *trimmed = (args->remote != NULL) ? args->remote : "";
-    trimmed += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
+    trimmed += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = " \t");
     const int far = (*trimmed != '\0');
     const char *const colon =
@@ -383,10 +383,10 @@ int cli_profile_start(const CliProfileCfg *args)
     CliSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", profile->path}};
     if (far)
     {
-        VerbaLinea host_line = {host, sizeof(host), 0ull};
+        VerbaLinea host_line = {host, sizeof(host), 0ULL};
         mmgr_line_put_n(&host_line, args->remote, (unsigned long long)(colon - args->remote));
         mmgr_line_finish(&host_line);
-        VerbaLinea shell_line = {shell, sizeof(shell), 0ull};
+        VerbaLinea shell_line = {shell, sizeof(shell), 0ULL};
         mmgr_line_put(&shell_line, "cd ");
         EMBED_CALL(profile_quote, ProfileCtx, .out = &shell_line, .text = colon + 1);
         mmgr_line_put(&shell_line, " && exec python3 - - ");

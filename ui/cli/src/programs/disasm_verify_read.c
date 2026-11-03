@@ -69,12 +69,12 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
     unsigned long long size = args->size;
     unsigned int capacity = args->capacity;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ULL; at < size;)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->ir, .size = size, .at_value = at);
         const int defines =
-            ((end - at) > 7ull) &&
+            ((end - at) > 7ULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = args->ir + at, .other = "define ", .cap = end - at});
         unsigned long long name = at;
         if (defines)
@@ -84,11 +84,11 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
         }
         if (defines && (name < end))
         {
-            name += 1ull;
+            name += 1ULL;
             unsigned long long name_end = name;
             while ((name_end < end) && EMBED_CALL(read_by_name, DisasmVerifyReadCtx, .letter = args->ir[name_end]))
             {
-                name_end += 1ull;
+                name_end += 1ULL;
             }
             if ((name_end > name) && (count < capacity) &&
                 EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->names[count], .capacity = CLI_NAME_MAX_LEN,
@@ -97,7 +97,7 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
                 count += 1u;
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return count;
 }
@@ -106,7 +106,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN});
     int promoted = 0;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
@@ -123,7 +123,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
                               .text = args->text + word, .length = found);
         }
         const int suffixed =
-            !promoted && (found > length + 6ull) &&
+            !promoted && (found > length + 6ULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = args->text + word, .other = args->name, .cap = found}) &&
             cellul.starts(
                 &(CatenaFinitaCfg){.src = args->text + word + length, .other = ".llvm.", .cap = found - length});
@@ -132,7 +132,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
             promoted = EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out,
                                   .capacity = CLI_NAME_MAX_LEN, .text = args->text + word, .length = found);
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return promoted;
 }
@@ -142,30 +142,30 @@ EMBED_INLINE int read_hex(const DisasmVerifyReadCtx *args)
 {
     unsigned long long *at = args->at;
     unsigned long long *value = args->value;
-    unsigned long long number = 0ull;
-    unsigned long long digits = 0ull;
+    unsigned long long number = 0ULL;
+    unsigned long long digits = 0ULL;
     while (*at < args->end)
     {
         const char letter = args->text[*at];
-        unsigned long long digit = 16ull;
+        unsigned long long digit = 16ULL;
         if ((letter >= '0') && (letter <= '9'))
         {
             digit = (unsigned long long)(letter - '0');
         }
         else if ((letter >= 'a') && (letter <= 'f'))
         {
-            digit = 10ull + (unsigned long long)(letter - 'a');
+            digit = 10ULL + (unsigned long long)(letter - 'a');
         }
-        if (digit == 16ull)
+        if (digit == 16ULL)
         {
             break;
         }
         number = (number << 4u) | digit;
-        digits += 1ull;
-        *at += 1ull;
+        digits += 1ULL;
+        *at += 1ULL;
     }
     *value = number;
-    return digits > 0ull;
+    return digits > 0ULL;
 }
 
 // the decimal digits at `text` from `at` read as a number into `value`, `at` moved past them: 1, or 0 where none stand
@@ -175,14 +175,14 @@ EMBED_INLINE int read_decimal(const DisasmVerifyReadCtx *args)
     unsigned long long end = args->end;
     unsigned long long *at = args->at;
     unsigned long long *value = args->value;
-    unsigned long long number = 0ull;
-    unsigned long long digits = 0ull;
+    unsigned long long number = 0ULL;
+    unsigned long long digits = 0ULL;
     unsigned long long stop = *at;
     number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = text, .at = *at, .size = end, .end = &stop);
     digits = stop - *at;
     *at = stop;
     *value = number;
-    return digits > 0ull;
+    return digits > 0ULL;
 }
 
 // `at` moved past the spaces and tabs at `text`
@@ -250,11 +250,11 @@ EMBED_INLINE int read_pair(const DisasmVerifyReadCtx *args)
 {
     unsigned long long *at = args->at;
     unsigned long long cursor = *at;
-    unsigned long long value = 0ull;
-    if ((*at + 2ull > args->end) || (args->unit->length >= CLI_DISASM_BYTES) ||
-        !EMBED_CALL(read_hex, DisasmVerifyReadCtx, .text = args->text, .end = *at + 2ull, .at = &cursor,
+    unsigned long long value = 0ULL;
+    if ((*at + 2ULL > args->end) || (args->unit->length >= CLI_DISASM_BYTES) ||
+        !EMBED_CALL(read_hex, DisasmVerifyReadCtx, .text = args->text, .end = *at + 2ULL, .at = &cursor,
                     .value = &value) ||
-        (cursor != *at + 2ull))
+        (cursor != *at + 2ULL))
     {
         return 0;
     }
@@ -272,22 +272,22 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
     args->read_state->cut = 0;
     int inside = 0;
     int found = 0;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
         unsigned long long cursor = at;
-        unsigned long long address = 0ull;
+        unsigned long long address = 0ULL;
         // a function's header: its address, then its symbol between < and >, then a colon
         if ((at < end) && (args->text[at] != ' ') &&
             EMBED_CALL(read_hex, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
                        .value = &address) &&
             (cursor < end) && (args->text[cursor] == ' '))
         {
-            cursor += 2ull;
+            cursor += 2ULL;
             const unsigned long long name_end = cursor + length;
             inside =
-                (name_end + 1ull < end) && (args->text[name_end] == '>') &&
+                (name_end + 1ULL < end) && (args->text[name_end] == '>') &&
                 cellul.starts(&(CatenaFinitaCfg){.src = args->text + cursor, .other = args->symbol, .cap = length});
             found = found || inside;
         }
@@ -298,19 +298,19 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                            .value = &address) &&
                 (cursor < end) && (args->text[cursor] == ':'))
             {
-                cursor += 1ull;
+                cursor += 1ULL;
                 EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                 // the instruction's bytes, hex pairs a space apart, then blanks, then its mnemonic; a pair is a byte
                 // only where a blank or the end follows it, so a two-letter mnemonic is not read as one
-                CliDisasmInstruction bytes = {0ull, 0u, {0u}, {'\0'}};
+                CliDisasmInstruction bytes = {0ULL, 0u, {0u}, {'\0'}};
                 while (EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
                                   .unit = &bytes) &&
                        ((cursor == end) || (args->text[cursor] == ' ') || (args->text[cursor] == '\t')))
                 {
-                    if ((cursor < end) && (args->text[cursor] == ' ') && (cursor + 1ull < end) &&
-                        (args->text[cursor + 1ull] != ' '))
+                    if ((cursor < end) && (args->text[cursor] == ' ') && (cursor + 1ULL < end) &&
+                        (args->text[cursor + 1ULL] != ' '))
                     {
-                        cursor += 1ull;
+                        cursor += 1ULL;
                     }
                     else
                     {
@@ -328,7 +328,7 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                     word_length =
                         EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                 }
-                if (word_length > 0ull)
+                if (word_length > 0ULL)
                 {
                     CliDisasmInstruction *const unit =
                         EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
@@ -342,7 +342,7 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                 }
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return found;
 }
@@ -354,15 +354,15 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
     args->read_state->cut = 0;
     int inside = 0;
     int found = 0;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
-        if (((end - at) > 3ull) &&
+        if (((end - at) > 3ULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = args->text + at, .other = "== ", .cap = end - at}))
         {
-            const unsigned long long name = at + 3ull;
-            const unsigned long long name_end = (end > name) && (args->text[end - 1ull] == '\r') ? end - 1ull : end;
+            const unsigned long long name = at + 3ULL;
+            const unsigned long long name_end = (end > name) && (args->text[end - 1ULL] == '\r') ? end - 1ULL : end;
             inside = ((name_end - name) == length) &&
                      cellul.starts(&(CatenaFinitaCfg){.src = args->text + name, .other = args->symbol, .cap = length});
             found = found || inside;
@@ -370,30 +370,30 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
         else if (inside)
         {
             unsigned long long cursor = at;
-            unsigned long long address = 0ull;
-            unsigned long long bytes = 0ull;
+            unsigned long long address = 0ULL;
+            unsigned long long bytes = 0ULL;
             if (EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
                            .value = &address) &&
                 (cursor < end) && (args->text[cursor] == ' '))
             {
-                cursor += 1ull;
+                cursor += 1ULL;
                 if (EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
                                .value = &bytes) &&
                     (cursor < end) && (args->text[cursor] == ' '))
                 {
-                    cursor += 1ull;
+                    cursor += 1ULL;
                     const unsigned long long word = cursor;
                     const unsigned long long word_length =
                         EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                     // a raw run is "?" then its bytes as one hex string, read as a unit with no mnemonic
-                    const int raw = (word_length == 1ull) && (args->text[word] == '?');
+                    const int raw = (word_length == 1ULL) && (args->text[word] == '?');
                     CliDisasmInstruction *const unit =
-                        (word_length > 0ull)
+                        (word_length > 0ULL)
                             ? EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
                                          .address = address, .mnemonic = args->text + word,
-                                         .length = raw ? 0ull : word_length)
+                                         .length = raw ? 0ULL : word_length)
                             : NULL;
-                    if ((word_length > 0ull) && (unit == NULL))
+                    if ((word_length > 0ULL) && (unit == NULL))
                     {
                         return found;
                     }
@@ -403,6 +403,7 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
                         while (raw && EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = args->text, .end = end,
                                                  .at = &cursor, .unit = unit))
                         {
+                            // each pass reads one pair of the row's bytes
                         }
                         // the length the row states, where the row is an instruction's and carries no bytes
                         unit->length = raw ? unit->length : (unsigned int)bytes;
@@ -410,7 +411,7 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
                 }
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return found;
 }
@@ -433,9 +434,9 @@ static const CliDisasmSpelling s_spellings[] = {
 // instruction Ghidra spells otherwise turned into Ghidra's; into `out`, sized for CLI_DISASM_MNEMONIC
 EMBED_INLINE void read_one_spelling(const DisasmVerifyReadCtx *args)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     length =
-        EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->mnemonic, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->mnemonic, .at = 0ULL,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->mnemonic, .cap = CLI_CELLS_POOL}), .set = ".");
     length = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
     memor.cpy(&(MemoriaCfg){.dst = args->out, .src = args->mnemonic, .bytes = (size_t)length});
@@ -447,7 +448,7 @@ EMBED_INLINE void read_one_spelling(const DisasmVerifyReadCtx *args)
                 &(CatenaFinitaCfg){.src = args->out, .other = s_spellings[each].llvm, .cap = CLI_DISASM_MNEMONIC}))
         {
             const unsigned long long known =
-                cellul.len(&(CatenaFinitaCfg){.src = s_spellings[each].ghidra, .cap = CLI_DISASM_MNEMONIC}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = s_spellings[each].ghidra, .cap = CLI_DISASM_MNEMONIC}) + 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = args->out, .src = s_spellings[each].ghidra, .bytes = known});
             return;
         }

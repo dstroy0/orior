@@ -70,12 +70,12 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
     {
         EMBED_CALL(cli_spawn_settings, PosixSpawnCtx, .settings = args->settings, .count = args->count);
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)args->words);
+        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
         _exit(127);
     }
     int status = 0;
     const pid_t waited = waitpid(child, &status, 0);
-    *code = ((waited > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1ll;
+    *code = ((waited > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1LL;
     return 1;
 }
 
@@ -139,6 +139,10 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     if (child == 0)
     {
         const int nothing = args->stdin_written ? in[0] : open("/dev/null", O_RDONLY);
+        if (nothing < 0)
+        {
+            _exit(127);
+        }
         dup2(nothing, 0);
         dup2(out[1], 1);
         dup2(err[1], 2);
@@ -162,7 +166,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
             _exit(127);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)args->words);
+        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
         _exit(127);
     }
     close(out[1]);
@@ -174,9 +178,9 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     // a process number and descriptors are not negative here, stored one past so 0 stands for none
     args->spawned->process = (unsigned long long)child;
     args->spawned->id = (unsigned long long)child;
-    args->spawned->out = (unsigned long long)out[0] + 1ull;
-    args->spawned->err = (unsigned long long)err[0] + 1ull;
-    args->spawned->in = args->stdin_written ? ((unsigned long long)in[1] + 1ull) : 0ull;
+    args->spawned->out = (unsigned long long)out[0] + 1ULL;
+    args->spawned->err = (unsigned long long)err[0] + 1ULL;
+    args->spawned->in = args->stdin_written ? ((unsigned long long)in[1] + 1ULL) : 0ULL;
     return 1;
 }
 
@@ -226,9 +230,9 @@ EMBED_INLINE int cli_terminal_by_name(const PosixSpawnCtx *args)
     return ptsname_r(args->leader, args->name, args->capacity) == 0;
 #else
     const char *const named = ptsname(args->leader);
-    VerbaLinea line = {args->name, args->capacity, 0ull};
+    VerbaLinea line = {args->name, args->capacity, 0ULL};
     mmgr_line_put(&line, (named != NULL) ? named : "");
-    const int whole = (named != NULL) && (mmgr_line_finish(&line) != 0ull);
+    const int whole = (named != NULL) && (mmgr_line_finish(&line) != 0ULL);
     return whole;
 #endif
 }
@@ -287,14 +291,14 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
             _exit(127);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)args->words);
+        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
         _exit(127);
     }
     // a process number and descriptors are not negative here, stored one past so 0 stands for none
     args->spawned->process = (unsigned long long)child;
     args->spawned->id = (unsigned long long)child;
-    args->spawned->out = (unsigned long long)leader + 1ull;
-    args->spawned->in = (unsigned long long)written + 1ull;
+    args->spawned->out = (unsigned long long)leader + 1ULL;
+    args->spawned->in = (unsigned long long)written + 1ULL;
     return 1;
 }
 
@@ -303,7 +307,7 @@ int cli_spawn_terminal_resize(const CliColsCtx *args)
     const struct winsize size = {EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->rows),
                                  EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->cols), 0u, 0u};
     // a descriptor stored one past is one the system gave
-    return (args->spawned_read->in != 0ull) && (ioctl((int)(args->spawned_read->in - 1ull), TIOCSWINSZ, &size) == 0);
+    return (args->spawned_read->in != 0ULL) && (ioctl((int)(args->spawned_read->in - 1ULL), TIOCSWINSZ, &size) == 0);
 }
 
 void cli_spawn_terminal_hung_up(const CliColsCtx *args)
@@ -322,9 +326,9 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
 {
     unsigned long long size = args->size;
     const unsigned char *at = (const unsigned char *)args->bytes;
-    while ((size > 0ull) && (args->pipe_handle != 0ull))
+    while ((size > 0ULL) && (args->pipe_handle != 0ULL))
     {
-        const ssize_t written = write((int)(args->pipe_handle - 1ull), at, (size_t)size);
+        const ssize_t written = write((int)(args->pipe_handle - 1ULL), at, (size_t)size);
         if (written <= 0)
         {
             return 0;
@@ -333,27 +337,27 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
         at += written;
         size -= (unsigned long long)written;
     }
-    return size == 0ull;
+    return size == 0ULL;
 }
 
 void cli_spawn_input_close(const CliSpawnedCtx *args)
 {
-    if (args->spawned->in != 0ull)
+    if (args->spawned->in != 0ULL)
     {
-        close((int)(args->spawned->in - 1ull));
-        args->spawned->in = 0ull;
+        close((int)(args->spawned->in - 1ULL));
+        args->spawned->in = 0ULL;
     }
 }
 
 unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 {
-    if (args->pipe_handle == 0ull)
+    if (args->pipe_handle == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
-    const ssize_t read_count = read((int)(args->pipe_handle - 1ull), args->piece, (size_t)args->capacity);
+    const ssize_t read_count = read((int)(args->pipe_handle - 1ULL), args->piece, (size_t)args->capacity);
     // a count read is not negative here
-    return (read_count > 0) ? (unsigned long long)read_count : 0ull;
+    return (read_count > 0) ? (unsigned long long)read_count : 0ULL;
 }
 
 long long cli_spawn_wait(const CliSpawnedCtx *args)
@@ -362,10 +366,10 @@ long long cli_spawn_wait(const CliSpawnedCtx *args)
     // the process number stored is the child's
     if (waitpid((pid_t)args->spawned->process, &status, 0) < 0)
     {
-        return -1ll;
+        return -1LL;
     }
-    args->spawned->waited = 1ull;
-    return WIFEXITED(status) ? (long long)WEXITSTATUS(status) : -1ll;
+    args->spawned->waited = 1ULL;
+    return WIFEXITED(status) ? (long long)WEXITSTATUS(status) : -1LL;
 }
 
 int cli_spawn_poll(const CliSpawnedCtx *args)
@@ -378,8 +382,8 @@ int cli_spawn_poll(const CliSpawnedCtx *args)
     {
         return 0;
     }
-    args->spawned->waited = 1ull;
-    *code = ((done > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1ll;
+    args->spawned->waited = 1ULL;
+    *code = ((done > 0) && WIFEXITED(status)) ? (long long)WEXITSTATUS(status) : -1LL;
     return 1;
 }
 
@@ -415,21 +419,21 @@ void cli_spawn_group_end(const CliGroupCtx *args)
 
 void cli_spawn_close(const CliSpawnedCtx *args)
 {
-    if (args->spawned->out != 0ull)
+    if (args->spawned->out != 0ULL)
     {
-        close((int)(args->spawned->out - 1ull));
+        close((int)(args->spawned->out - 1ULL));
     }
-    if (args->spawned->err != 0ull)
+    if (args->spawned->err != 0ULL)
     {
-        close((int)(args->spawned->err - 1ull));
+        close((int)(args->spawned->err - 1ULL));
     }
-    if (args->spawned->in != 0ull)
+    if (args->spawned->in != 0ULL)
     {
-        close((int)(args->spawned->in - 1ull));
+        close((int)(args->spawned->in - 1ULL));
     }
     // a child not yet waited on is waited on now where it has ended, and once it ends where it goes on
     int status = 0;
-    const int going = (args->spawned->process != 0ull) && (args->spawned->waited == 0ull) &&
+    const int going = (args->spawned->process != 0ULL) && (args->spawned->waited == 0ULL) &&
                       (waitpid((pid_t)args->spawned->process, &status, WNOHANG) == 0);
     // the process number stored is the child's
     EMBED_CALL(cli_spawn_let_go, PosixSpawnCtx, .child = going ? (pid_t)args->spawned->process : 0);
@@ -440,7 +444,7 @@ void cli_spawn_tree_end(const CliIdCtx *args)
 {
     // the group the run's process leads, requested to end; an id of 0 names no run, and kill of group 0 would end the
     // caller's own group
-    if (args->id_u64 != 0ull)
+    if (args->id_u64 != 0ULL)
     {
         kill(-(pid_t)args->id_u64, SIGTERM);
     }
@@ -474,9 +478,9 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
         {
             if ((at > from) && (count < capacity))
             {
-                VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
+                VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ULL};
                 mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-                count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+                count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
             }
             if (at[0] == '\0')
             {
@@ -490,7 +494,7 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 
 void cli_path_join(const CliPathCountSizeCtx *args)
 {
-    VerbaLinea line = {args->path_out, args->size, 0ull};
+    VerbaLinea line = {args->path_out, args->size, 0ULL};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? ":" : "");

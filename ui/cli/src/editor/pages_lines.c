@@ -18,7 +18,7 @@ typedef struct
 // the bytes the starts and the lengths of `lines_max` lines take ahead of the text; and `required` bounded by `most`
 EMBED_INLINE unsigned long long lines_heads(const PagesLinesCtx *args)
 {
-    return 2ull * args->lines_max * sizeof(unsigned long long);
+    return 2ULL * args->lines_max * sizeof(unsigned long long);
 }
 
 EMBED_INLINE unsigned long long lines_bound(const PagesLinesCtx *args)
@@ -43,12 +43,12 @@ EMBED_INLINE void lines_layout(const PagesLinesCtx *args)
 int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args)
 {
     const unsigned long long lines_max =
-        (args->lines_first < 1ull)
-            ? 1ull
+        (args->lines_first < 1ULL)
+            ? 1ULL
             : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->lines_first, .most = CLI_PAGE_READ_LINES);
     const unsigned long long text_max =
-        (args->text_first < 1ull)
-            ? 1ull
+        (args->text_first < 1ULL)
+            ? 1ULL
             : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->text_first, .most = CLI_PAGE_READ_TEXT);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
         EMBED_CALL(lines_heads, PagesLinesCtx, .lines_max = lines_max) + text_max, &g_cli_editor_cells);
@@ -65,8 +65,8 @@ int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args)
 
 void cli_page_lines_clear(const CliPagesLinesLinesFirstCtx *args)
 {
-    args->lines->count = 0ull;
-    args->lines->used = 0ull;
+    args->lines->count = 0ULL;
+    args->lines->used = 0ULL;
     args->lines->full = 0;
 }
 
@@ -82,7 +82,7 @@ void cli_page_lines_append(const CliPagesLinesBytesCtx *args)
 {
     const char *bytes = args->bytes;
     if (!EMBED_CALL(cli_pages_lines_lines_more_internal.page_lines_capacity, CliPagesLinesLinesMoreCtx,
-                    .lines = args->lines, .lines_more = 1ull, .text_more = args->size))
+                    .lines = args->lines, .lines_more = 1ULL, .text_more = args->size))
     {
         return;
     }
@@ -90,7 +90,7 @@ void cli_page_lines_append(const CliPagesLinesBytesCtx *args)
     args->lines->start[args->lines->count] = args->lines->used;
     args->lines->length[args->lines->count] = args->size;
     args->lines->used += args->size;
-    args->lines->count += 1ull;
+    args->lines->count += 1ULL;
 }
 
 int cli_page_block_read(const CliPagesLinesCtx *args)
@@ -109,14 +109,14 @@ int cli_page_block_read(const CliPagesLinesCtx *args)
         {
             return 1;
         }
-        if (*block_max == 1ull)
+        if (*block_max == 1ULL)
         {
             mmgr_line_put(args->err_msg, "line ");
-            mmgr_line_decimal(args->err_msg, args->from + 1ull, 1u);
+            mmgr_line_decimal(args->err_msg, args->from + 1ULL, 1u);
             mmgr_line_put(args->err_msg, " is longer than a reading of the text contains");
             return 0;
         }
-        *block_max /= 2ull;
+        *block_max /= 2ULL;
     }
 }
 
@@ -127,7 +127,7 @@ void cli_page_lines_free(const CliPagesLinesLinesFirstCtx *args)
     args->lines->start = NULL;
     args->lines->length = NULL;
     args->lines->text = NULL;
-    args->lines->lines_max = 0ull;
-    args->lines->text_max = 0ull;
+    args->lines->lines_max = 0ULL;
+    args->lines->text_max = 0ULL;
     cli_pages_lines_lines_first_internal.page_lines_clear(args);
 }

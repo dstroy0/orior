@@ -77,7 +77,7 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned char *const class_of = (size <= CLI_SCONS_TEXT)
-                                        ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_scons_work_states_cells)
+                                        ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_scons_work_states_cells)
                                         : NULL;
     if ((class_of != NULL) && !EMBED_CALL(cli_scons_text_size_class_of_internal.read, CliSconsTextSizeClassOfCtx,
                                           .text = text, .size = size, .class_of = class_of))
@@ -91,7 +91,7 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
 // `from` copied into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void check_copy(const SconsCheckCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->from);
     (void)mmgr_line_finish(&line);
 }
@@ -149,7 +149,7 @@ static void check_script(const CliSconsScriptCfg *args)
         return;
     }
     char name[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {name, sizeof(name), 0ull};
+    VerbaLinea line = {name, sizeof(name), 0ULL};
     const char *base = check->folder;
     if ((size > 0u) && (args->written[0] == '#'))
     {
@@ -242,14 +242,14 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
         read += 1u;
         char other[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = file, .joined = other);
-        unsigned long long bytes = 0ull;
+        unsigned long long bytes = 0ULL;
         if ((cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL})) ||
             !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = other, .size_pointer = &bytes) ||
             (bytes > CLI_SCONS_OTHER_TEXT))
         {
             continue;
         }
-        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &g_cli_scons_work_states_cells);
+        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ULL, &g_cli_scons_work_states_cells);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of =
             ((size != QRY_MEMBER_UNREAD) &&
@@ -474,7 +474,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     {
         const char *const global = g_cli_scons_globals[one];
         int upper = 1;
-        upper = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = global, .at = 0ull,
+        upper = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = global, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
                            .classes = CLI_TEXT_UPPER,
                            .set = "_") == cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL});

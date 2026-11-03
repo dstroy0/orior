@@ -77,7 +77,7 @@ static int transfer_init(const PosixTransferCtx *args)
         mmgr_line_put(args->err_msg, "the system gave no secret");
         return -1;
     }
-    VerbaLinea named = {name, sizeof(name), 0ull};
+    VerbaLinea named = {name, sizeof(name), 0ULL};
     mmgr_line_put(&named, "orior-transfer-");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '-');
@@ -116,7 +116,7 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
         mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
         return 0;
     }
-    const unsigned long long capacity = (args->size > 0ull) ? args->size : 1ull;
+    const unsigned long long capacity = (args->size > 0ULL) ? args->size : 1ULL;
     const int fd = EMBED_CALL(transfer_init, PosixTransferCtx, .size = capacity, .err_msg = args->err_msg);
     if (fd < 0)
     {
@@ -168,7 +168,7 @@ int cli_region_receive(const CliTransferRegionCfg *args)
     // the descriptor is the region's from now on, and closed on each path that fails
     const int fd = (int)args->handle;
     const off_t size = lseek(fd, 0, SEEK_END);
-    const unsigned long long capacity = (length > 0ull) ? length : 1ull;
+    const unsigned long long capacity = (length > 0ULL) ? length : 1ULL;
     if (length > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, length, 1u);
@@ -212,7 +212,7 @@ int cli_region_receive(const CliTransferRegionCfg *args)
         close(own);
         return EMBED_CALL(transfer_reject, PosixTransferCtx, .fd = fd);
     }
-    for (unsigned long long at = 0ull; at < length;)
+    for (unsigned long long at = 0ULL; at < length;)
     {
         const ssize_t got = pread(fd, (unsigned char *)view + at, (size_t)(length - at), (off_t)at);
         if (got <= 0)
@@ -243,7 +243,7 @@ void cli_region_close(const CliTransferRegionBytesCfg *args)
     {
         // the view's bytes given back as the system took them, writable or not
         munmap((void *)(uintptr_t)args->region->view,
-               (size_t)((args->region->length > 0ull) ? args->region->length : 1ull));
+               (size_t)((args->region->length > 0ULL) ? args->region->length : 1ULL));
         close((int)args->region->section);
     }
     memor.set(&(MemoriaCfg){.dst = args->region, .val = 0, .bytes = sizeof(*args->region)});
@@ -252,7 +252,7 @@ void cli_region_close(const CliTransferRegionBytesCfg *args)
 int cli_socket_sent_with(const CliTransferSizeCfg *args)
 {
     int fd = args->fd;
-    if (args->size == 0ull)
+    if (args->size == 0ULL)
     {
         return 1;
     }
@@ -290,9 +290,9 @@ int cli_socket_sent_with(const CliTransferSizeCfg *args)
         }
     }
     const unsigned char *const rest = (const unsigned char *)args->frame + 1;
-    for (unsigned long long sent = 0ull; sent < args->size - 1ull;)
+    for (unsigned long long sent = 0ULL; sent < args->size - 1ULL;)
     {
-        const ssize_t wrote = send(args->socket, rest + sent, (size_t)(args->size - 1ull - sent), flags);
+        const ssize_t wrote = send(args->socket, rest + sent, (size_t)(args->size - 1ULL - sent), flags);
         if ((wrote < 0) && (errno == EINTR))
         {
             continue;

@@ -25,7 +25,7 @@ void cli_inspect_scan_layout(const CliInspectPartitionCtx *args)
 void cli_inspect_scan_begin(const CliInspectSizeScanCtx *args)
 {
     CliInspectScan *scan = args->scan_out;
-    *scan = (CliInspectScan){args->src, args->size, 0ull, 0u, 0u};
+    *scan = (CliInspectScan){args->src, args->size, 0ULL, 0u, 0u};
 }
 
 typedef struct
@@ -43,7 +43,7 @@ EMBED_INLINE unsigned int scan_letter(const InspectScanCtx *args)
     unsigned long long *reserved = args->reserved;
     if (args->pos >= args->scan->size)
     {
-        *reserved = 0ull;
+        *reserved = 0ULL;
         return CLI_INSPECT_END;
     }
     unsigned int letter = 0u;
@@ -55,14 +55,14 @@ EMBED_INLINE unsigned int scan_letter(const InspectScanCtx *args)
 
 unsigned int cli_inspect_peek(const CliInspectScanAheadCtx *args)
 {
-    unsigned long long reserved = 0ull;
+    unsigned long long reserved = 0ULL;
     return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = args->scan->pos, .reserved = &reserved);
 }
 
 unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args)
 {
     unsigned long long pos = args->scan->pos;
-    unsigned long long reserved = 0ull;
+    unsigned long long reserved = 0ULL;
     for (unsigned int at = 0u; at < args->ahead; at += 1u)
     {
         if (EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved) ==
@@ -77,7 +77,7 @@ unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args)
 
 unsigned int cli_inspect_bump(const CliInspectSizeScanCtx *args)
 {
-    unsigned long long reserved = 0ull;
+    unsigned long long reserved = 0ULL;
     const unsigned int letter = EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan_out,
                                            .pos = args->scan_out->pos, .reserved = &reserved);
     if (letter == CLI_INSPECT_END)

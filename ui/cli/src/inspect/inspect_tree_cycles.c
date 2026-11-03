@@ -140,17 +140,17 @@ EMBED_INLINE void cycles_by_name(const InspectTreeCyclesCtx *args)
 EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
 {
     // each name of the way its path, its number, a newline, a dot, a space and two quotes
-    unsigned long long size = sizeof(CLI_CYCLES_OPENING) + CLI_TREE_FILE(args->file).path_size + 32ull;
+    unsigned long long size = sizeof(CLI_CYCLES_OPENING) + CLI_TREE_FILE(args->file).path_size + 32ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ull;
+        size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ULL;
     }
     char *const text = g_cli_cells->temporary_buf_alloc(size, &g_cli_inspect_cells);
     if (text == NULL)
     {
         return;
     }
-    VerbaLinea message = {text, size, 0ull};
+    VerbaLinea message = {text, size, 0ULL};
     mmgr_line_put(&message, CLI_CYCLES_OPENING);
     EMBED_CALL(cycles_by_name, InspectTreeCyclesCtx, .message = &message, .number = 1u, .file = args->file);
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -198,21 +198,21 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
     cycles_gather();
     const unsigned long long edges = s_walk.edges_used;
-    unsigned long long imports = 1ull;
+    unsigned long long imports = 1ULL;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
         imports = (tree_file->used && (tree_file->facts.imports > imports)) ? tree_file->facts.imports : imports;
     }
-    const unsigned long long files = g_cli_tree_files + 1ull;
+    const unsigned long long files = g_cli_tree_files + 1ULL;
     unsigned int *const cell = g_cli_cells->persistent_buf_alloc(
-        ((6ull * files) + (2ull * edges) + imports) * sizeof(unsigned int), &g_cli_inspect_cells);
+        ((6ULL * files) + (2ULL * edges) + imports) * sizeof(unsigned int), &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return;
     }
     memor.set(
-        &(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)(((6ull * files) + imports) * sizeof(unsigned int))});
+        &(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)(((6ULL * files) + imports) * sizeof(unsigned int))});
     s_walk.edge_first = cell;
     s_walk.edges = s_walk.edge_first + files;
     s_walk.received = s_walk.edges + files;

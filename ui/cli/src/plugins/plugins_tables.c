@@ -36,8 +36,8 @@ typedef struct
 } CliTableList;
 // the bytes a grammar and a pattern are written in, the most groups a list's pattern has and one, and the most letters
 // of a cell matched
-#define CLI_TABLES_CAPACITY (4ull << 20u)
-#define CLI_TABLES_PATTERN_CAPACITY (1ull << 20u)
+#define CLI_TABLES_CAPACITY (4ULL << 20u)
+#define CLI_TABLES_PATTERN_CAPACITY (1ULL << 20u)
 #define CLI_TABLES_GROUPS 8u
 #define CLI_TABLES_LETTERS 1024u
 
@@ -95,13 +95,13 @@ typedef struct
 // `length` bytes of `text` put into `line`, `name` for each `{name}` in them
 EMBED_INLINE void cli_tables_by_name(const PluginsTablesCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        if (((at + 6ull) <= args->length) &&
+        if (((at + 6ULL) <= args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = "{name}", .bytes = 6u}) == 0))
         {
             mmgr_line_put(args->line, args->name);
-            at += 5ull;
+            at += 5ULL;
         }
         else
         {
@@ -115,15 +115,15 @@ EMBED_INLINE void cli_tables_by_name(const PluginsTablesCtx *args)
 EMBED_INLINE int cli_tables_path(const PluginsTablesCtx *args)
 {
     const CliJson *json = args->json;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = args->table, .length_pointer = &length);
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->tree);
     mmgr_line_ch(&line, '/');
     EMBED_CALL(cli_tables_by_name, PluginsTablesCtx, .line = &line, .text = (text != NULL) ? text : "",
-               .length = length, .name = args->name);
-    return (text != NULL) && (mmgr_line_finish(&line) != 0ull);
+               .length = (text != NULL) ? length : 0ULL, .name = args->name);
+    return (text != NULL) && (mmgr_line_finish(&line) != 0ULL);
 }
 
 // `length` bytes of `text`, its letters put into `letters`, sized for CLI_TABLES_LETTERS, their count into `count`,
@@ -140,8 +140,8 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
     *count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = length, .letters = letters,
                         .capacity_u64 = CLI_TABLES_LETTERS);
     CliRegexpSpan span[CLI_TABLES_GROUPS];
-    const unsigned long long last = args->pattern->anchored ? 0ull : *count;
-    for (unsigned long long at = 0ull; at <= last; at += 1ull)
+    const unsigned long long last = args->pattern->anchored ? 0ULL : *count;
+    for (unsigned long long at = 0ULL; at <= last; at += 1ULL)
     {
         if (EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = args->pattern,
                        .text_u32s = letters, .length = *count, .at = at, .groups = span))
@@ -159,9 +159,9 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
 EMBED_INLINE int cli_tables_matches(const PluginsTablesCtx *args)
 {
     unsigned int letters[CLI_TABLES_LETTERS];
-    unsigned long long count = 0ull;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     return EMBED_CALL(cli_tables_find, PluginsTablesCtx, .pattern = args->pattern, .text = args->text,
                       .length = args->length, .letters = letters, .count = &count, .from = &from, .to = &to);
 }
@@ -193,9 +193,9 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
 {
     unsigned long long length = args->length;
     unsigned int letters[CLI_TABLES_LETTERS];
-    unsigned long long count = 0ull;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     if (args->list->supplied[CLI_TABLES_SKIP] &&
         EMBED_CALL(cli_tables_matches, PluginsTablesCtx, .pattern = &args->list->pattern[CLI_TABLES_SKIP],
                    .text = args->cell, .length = length))
@@ -218,13 +218,13 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
         to = count;
     }
     char word[CLI_NAME_MAX_LEN];
-    VerbaLinea line = {word, sizeof(word), 0ull};
-    for (unsigned long long at = from; at < to; at += 1ull)
+    VerbaLinea line = {word, sizeof(word), 0ULL};
+    for (unsigned long long at = from; at < to; at += 1ULL)
     {
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letters[at]);
     }
     const unsigned long long size = mmgr_line_finish(&line);
-    if (size == 0ull)
+    if (size == 0ULL)
     {
         return;
     }
@@ -267,7 +267,7 @@ static void cli_tables_line(const CliDefsLineEachCfg *args)
                                      : CLI_JSON_NONE;
              (item != CLI_JSON_NONE) && (list->columns < CLI_DEFS_CELLS); item = json->node[item].next)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = json, .node = item, .length_pointer = &length);
             const unsigned int place = (name != NULL)
@@ -280,7 +280,7 @@ static void cli_tables_line(const CliDefsLineEachCfg *args)
                 list->columns += 1u;
             }
         }
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const by =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -298,7 +298,7 @@ static void cli_tables_line(const CliDefsLineEachCfg *args)
     {
         const int has = list->rows_by < line->count;
         const char *const cell = has ? line->cell[list->rows_by] : "";
-        const unsigned long long length = has ? line->length[list->rows_by] : 0ull;
+        const unsigned long long length = has ? line->length[list->rows_by] : 0ULL;
         if ((list->supplied[CLI_TABLES_ROWS_MATCH] &&
              !EMBED_CALL(cli_tables_matches, PluginsTablesCtx, .pattern = &list->pattern[CLI_TABLES_ROWS_MATCH],
                          .text = cell, .length = length)) ||
@@ -425,10 +425,10 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
     {
         return 0u;
     }
-    unsigned long long longest = 0ull;
+    unsigned long long longest = 0ULL;
     for (unsigned int item = json->node[list].first; item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         longest = ((EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                                .node = item, .length_pointer = &length) != NULL) &&
                    (length > longest))
@@ -438,11 +438,11 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
     mmgr_line_put(args->source_verba_linea_pointer, args->before);
     mmgr_line_put(args->source_verba_linea_pointer, "(?:");
     unsigned int reserved = 0u;
-    for (unsigned long long size = longest; size != 0ull; size -= 1ull)
+    for (unsigned long long size = longest; size != 0ULL; size -= 1ULL)
     {
         for (unsigned int item = json->node[list].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = json, .node = item, .length_pointer = &length);
             if ((word == NULL) || (length != size))
@@ -591,10 +591,10 @@ int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args)
                 mmgr_line_ok(&lists);
     CliJson filled;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &filled,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int filled_grammar =
         whole ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                           .json = &filled, .text = lists.out, .size = lists.at, .nodes_more = 0u, .text_more = 0ull,
+                           .json = &filled, .text = lists.out, .size = lists.at, .nodes_more = 0u, .text_more = 0ULL,
                            .err_msg = args->err_msg, .owner = &g_cli_plugins_cells)
               : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) &&
@@ -622,7 +622,7 @@ static void cli_tables_unless_line(const CliDefsLineEachCfg *args)
     CliTablesUnless *const unless = (CliTablesUnless *)args->context;
     if (args->named)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const by =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = unless->json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -680,7 +680,7 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
     CliRegexpWorkState *const work_state =
         (source != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpWorkState), &g_cli_plugins_cells) : NULL;
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliRegexp pattern;
     const int read =
         (work_state != NULL) && EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &pattern,

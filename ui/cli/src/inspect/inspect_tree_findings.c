@@ -36,7 +36,7 @@ static void findings_collect(const CliTreeFindingCfg *args)
     if (s_findings.counting)
     {
         s_findings.count += 1u;
-        s_findings.used += message->at + 1ull;
+        s_findings.used += message->at + 1ULL;
         return;
     }
     CliInspectFinding *const finding = &s_findings.findings[s_findings.count];
@@ -48,11 +48,10 @@ static void findings_collect(const CliTreeFindingCfg *args)
     // the messages are what one walk counted, which an unsigned int's places reach
     finding->message.at = (unsigned int)s_findings.used;
     finding->message.size = (unsigned int)message->at;
-    memor.cpy(
-        &(MemoriaCfg){.dst = s_findings.msg_text + s_findings.used, .src = message->out, .bytes = (size_t)message->at});
+    memor.cpy(&(MemoriaCfg){.dst = s_findings.msg_text + s_findings.used, .src = message->out, .bytes = message->at});
     s_findings.used += message->at;
     s_findings.msg_text[s_findings.used] = '\0';
-    s_findings.used += 1ull;
+    s_findings.used += 1ULL;
     s_findings.finding_file[s_findings.count] = args->file;
     s_findings.count += 1u;
     s_findings.file_count[args->file] += 1u;
@@ -79,15 +78,15 @@ static void findings_order(void)
 // the tree's findings counted, their cell taken at that count, and stored: the cell, NULL where it cannot be taken
 static void *findings_alloc(void)
 {
-    s_findings = (CliTreeFindings){1, 0u, 0ull, NULL, NULL, NULL, NULL, NULL, NULL};
+    s_findings = (CliTreeFindings){1, 0u, 0ULL, NULL, NULL, NULL, NULL, NULL, NULL};
     EMBED_CALL(cli_inspect_tree_internal.tree_cycles, CliInspectTreeCtx, .each = findings_collect, .context = NULL);
     EMBED_CALL(cli_inspect_tree_internal.tree_attributes, CliInspectTreeCtx, .each = findings_collect, .context = NULL);
     const unsigned long long count = s_findings.count;
     const unsigned long long files = g_cli_tree_files;
     const unsigned long long finding_bytes = count * sizeof(CliInspectFinding);
-    const unsigned long long number_bytes = ((2ull * count) + (2ull * files)) * sizeof(unsigned int);
+    const unsigned long long number_bytes = ((2ULL * count) + (2ULL * files)) * sizeof(unsigned int);
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ull, &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ULL, &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -101,7 +100,7 @@ static void *findings_alloc(void)
     memor.set(&(MemoriaCfg){.dst = s_findings.file_count, .val = 0, .bytes = (size_t)(files * sizeof(unsigned int))});
     s_findings.counting = 0;
     s_findings.count = 0u;
-    s_findings.used = 0ull;
+    s_findings.used = 0ULL;
     EMBED_CALL(cli_inspect_tree_internal.tree_cycles, CliInspectTreeCtx, .each = findings_collect, .context = NULL);
     EMBED_CALL(cli_inspect_tree_internal.tree_attributes, CliInspectTreeCtx, .each = findings_collect, .context = NULL);
     findings_order();
@@ -128,13 +127,13 @@ EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
     EMBED_CALL(cli_inspect_facts_finding.finding_write, CliInspectFactsFindingCfg, .facts_read = facts,
                .finding = finding, .out = &measure);
     const unsigned long long size =
-        EMBED_CALL(cli_measured_table.measure, CliMeasuredCfg, .line_read = &measure) + 1ull;
+        EMBED_CALL(cli_measured_table.measure, CliMeasuredCfg, .line_read = &measure) + 1ULL;
     char *const written = g_cli_cells->temporary_buf_alloc(size, &g_cli_inspect_cells);
     if (written == NULL)
     {
         return;
     }
-    VerbaLinea line = {written, size, 0ull};
+    VerbaLinea line = {written, size, 0ULL};
     EMBED_CALL(cli_inspect_facts_finding.finding_write, CliInspectFactsFindingCfg, .facts_read = facts,
                .finding = finding, .out = &line);
     if (mmgr_line_ok(&line))
@@ -160,7 +159,7 @@ void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
             continue;
         }
         EMBED_CALL(args->each_inspect_found, CliInspectFoundCfg, .context = args->context, .path = tree_file->path,
-                   .finding = NULL, .size = 0ull);
+                   .finding = NULL, .size = 0ULL);
         for (unsigned int finding = 0u; finding < tree_file->facts.findings; finding += 1u)
         {
             EMBED_CALL(findings_dispatch, InspectTreeFindingsCtx, .facts = &tree_file->facts, .finding = finding,
@@ -174,5 +173,5 @@ void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
         }
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
-    s_findings = (CliTreeFindings){0, 0u, 0ull, NULL, NULL, NULL, NULL, NULL, NULL};
+    s_findings = (CliTreeFindings){0, 0u, 0ULL, NULL, NULL, NULL, NULL, NULL, NULL};
 }

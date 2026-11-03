@@ -41,7 +41,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     char instructions[QUERY_PATH_MAX_LEN];
     char latencies[QUERY_PATH_MAX_LEN];
     char line_text[QUERY_PATH_MAX_LEN + 128u];
-    VerbaLinea line = {line_text, sizeof(line_text), 0ull};
+    VerbaLinea line = {line_text, sizeof(line_text), 0ULL};
     for (unsigned int at = 0u; at < required; at += 1u)
     {
         EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = s_requested[at],
@@ -49,7 +49,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = instructions) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = latencies))
         {
-            line.at = 0ull;
+            line.at = 0ULL;
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, s_requested[at]);
             mmgr_line_put(&line, ": its tables stand");
@@ -62,7 +62,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     }
     if (missing == 0u)
     {
-        line.at = 0ull;
+        line.at = 0ULL;
         mmgr_line_put(&line, "tables: every one of ");
         mmgr_line_decimal(&line, required, 0u);
         mmgr_line_put(&line, " architectures stands under ");
@@ -93,7 +93,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         return -1;
     }
     char mount[QUERY_PATH_MAX_LEN + 8u];
-    VerbaLinea mount_line = {mount, sizeof(mount), 0ull};
+    VerbaLinea mount_line = {mount, sizeof(mount), 0ULL};
     mmgr_line_put(&mount_line, context->root);
     mmgr_line_put(&mount_line, ":/tree");
     mmgr_line_finish(&mount_line);
@@ -135,20 +135,20 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
                    .words_words_pointer = &s_docker_words, .text = inside_disassembler);
     }
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put(&line, "  the disassembler run over ");
     mmgr_line_decimal(&line, missing, 0u);
     mmgr_line_put(&line, " key cubins in " QUERY_TABLES_IMAGE);
     mmgr_line_finish(&line);
     EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "tables_capture", .words = s_docker_words.word,
                     .code = &code, .err_msg = err_msg))
     {
         return -1;
     }
-    if (code != 0ll)
+    if (code != 0LL)
     {
         mmgr_line_put(err_msg, "the capture in " QUERY_TABLES_IMAGE " did not end clean");
         return -1;
@@ -165,7 +165,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     {
         char capture_name[32];
         char capture[QUERY_PATH_MAX_LEN];
-        VerbaLinea capture_line = {capture_name, sizeof(capture_name), 0ull};
+        VerbaLinea capture_line = {capture_name, sizeof(capture_name), 0ULL};
         mmgr_line_put(&capture_line, s_missing[at]);
         mmgr_line_put(&capture_line, ".capture");
         mmgr_line_finish(&capture_line);
@@ -180,10 +180,10 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         {
             return -1;
         }
-        line.at = 0ull;
+        line.at = 0ULL;
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, s_missing[at]);
-        if (code == 0ll)
+        if (code == 0LL)
         {
             written += 1u;
             mmgr_line_put(&line, ": its tables written");
@@ -196,7 +196,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         mmgr_line_finish(&line);
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
     }
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put(&line, "tables: ");
     mmgr_line_decimal(&line, written, 0u);
     mmgr_line_put(&line, " of ");
@@ -274,7 +274,7 @@ int query_tables_run(const QueryLoopCfg *args)
         return -1;
     }
     char why[QUERY_LINE_MAX_LEN];
-    VerbaLinea failed = {why, sizeof(why), 0ull};
+    VerbaLinea failed = {why, sizeof(why), 0ULL};
     int code = -1;
     if (parsed == 0)
     {
@@ -317,7 +317,7 @@ int query_tables_run(const QueryLoopCfg *args)
                 EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                            .word = words[at]);
             }
-            long long run_result = -1ll;
+            long long run_result = -1LL;
             // an exit code is far below what an int represents
             code = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                               .context = context, .run = &s_run, .name = "orior_tables_read", .words = s_words.word,
@@ -326,7 +326,7 @@ int query_tables_run(const QueryLoopCfg *args)
                        : -1;
         }
     }
-    if ((code < 0) && (mmgr_line_finish(&failed) != 0ull))
+    if ((code < 0) && (mmgr_line_finish(&failed) != 0ULL))
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = why);
     }

@@ -20,19 +20,19 @@ typedef struct
 // what the program wrote to its errors, trimmed, into `err_msg`
 EMBED_INLINE void keychain_errors(const PosixKeychainCtx *args)
 {
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = args->run_result->err_size;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[end - 1u]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
                .text_bytes = (const unsigned char *)args->run_result->err + start, .length = end - start);
@@ -41,7 +41,7 @@ EMBED_INLINE void keychain_errors(const PosixKeychainCtx *args)
 // the keychain's name for `service`, "orior " and it, into `name`, sized for CLI_NAME_MAX_LEN
 EMBED_INLINE void keychain_service(const PosixKeychainCtx *args)
 {
-    VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->name, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, "orior ");
     mmgr_line_put(&line, args->service);
     mmgr_line_finish(&line);
@@ -50,7 +50,7 @@ EMBED_INLINE void keychain_service(const PosixKeychainCtx *args)
 int cli_keychain_store(const CliErrMsgServiceCtx *args)
 {
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_buf = {why, sizeof(why), 0ull};
+    VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     char named[CLI_NAME_MAX_LEN];
     EMBED_CALL(keychain_service, PosixKeychainCtx, .service = args->service, .name = named);
     CliRunResult *const run_result = cli_run_result_alloc();
@@ -62,7 +62,7 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
     const char *const program = "security";
 #else
     char label[CLI_PATH_MAX_LEN];
-    VerbaLinea label_line = {label, sizeof(label), 0ull};
+    VerbaLinea label_line = {label, sizeof(label), 0ULL};
     mmgr_line_put(&label_line, named);
     mmgr_line_ch(&label_line, ' ');
     mmgr_line_put(&label_line, args->account);
@@ -83,7 +83,7 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
-    const int stored = (run_result->code == 0ll);
+    const int stored = (run_result->code == 0LL);
     if (!stored)
     {
         EMBED_CALL(keychain_errors, PosixKeychainCtx, .run_result = run_result, .err_msg = args->err_msg);
@@ -96,7 +96,7 @@ int cli_keychain_read(const CliServiceCtx *args)
 {
     char *out = args->out;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_buf = {why, sizeof(why), 0ull};
+    VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     char named[CLI_NAME_MAX_LEN];
     EMBED_CALL(keychain_service, PosixKeychainCtx, .service = args->service, .name = named);
 #if defined(__APPLE__)
@@ -108,13 +108,13 @@ int cli_keychain_read(const CliServiceCtx *args)
     CliRunResult *const run_result = cli_run_result_alloc();
     const int found = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL,
                                  .count = 0u, .run_result = run_result, .err_msg = &err_buf) &&
-                      (run_result->code == 0ll);
+                      (run_result->code == 0LL);
     if (found)
     {
         unsigned long long end = run_result->out_size;
         end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = run_result->out, .at = end,
                          .set = "\n");
-        VerbaLinea line = {out, args->capacity, 0ull};
+        VerbaLinea line = {out, args->capacity, 0ULL};
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                    .text_bytes = (const unsigned char *)run_result->out, .length = end);
         mmgr_line_finish(&line);

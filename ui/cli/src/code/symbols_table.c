@@ -38,10 +38,10 @@ typedef struct
 } SymbolsTableCtx;
 EMBED_INLINE unsigned long long cli_hash(const SymbolsTableCtx *args)
 {
-    unsigned long long value = 0xcbf29ce484222325ull;
+    unsigned long long value = 0xcbf29ce484222325ULL;
     for (const char *at = args->path; at[0] != '\0'; at += 1)
     {
-        value = (value ^ (unsigned char)at[0]) * 0x100000001b3ull;
+        value = (value ^ (unsigned char)at[0]) * 0x100000001b3ULL;
     }
     return value;
 }
@@ -138,7 +138,7 @@ static int cli_table_init(void)
         return 0;
     }
     unsigned int *const buckets =
-        g_cli_cells->persistent_buf_alloc(2ull * CLI_BRANCHES_MAX * sizeof(unsigned int), &g_cli_code_cells);
+        g_cli_cells->persistent_buf_alloc(2ULL * CLI_BRANCHES_MAX * sizeof(unsigned int), &g_cli_code_cells);
     if (buckets == NULL)
     {
         g_cli_cells->persistent_buf_release(files, &g_cli_code_cells);
@@ -173,13 +173,13 @@ EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
     g_cli_branch_count += (place == g_cli_branch_count) ? 1u : 0u;
     // a path is below CLI_PATH_MAX_LEN, which an unsigned int counts
     g_cli_branches[place] =
-        (CliTreeBranch){cell, (unsigned int)bytes, 0u, 1, args->folder, 0, 0ull, 0u, 1, args->parent, 0u};
+        (CliTreeBranch){cell, (unsigned int)bytes, 0u, 1, args->folder, 0, 0ULL, 0u, 1, args->parent, 0u};
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = (unsigned int)bytes);
     EMBED_CALL(cli_bucket_append, SymbolsTableCtx, .path = args->path, .file = place);
     g_cli_branches[(args->parent < CLI_BRANCHES_MAX) ? args->parent : place].below +=
         (args->parent < CLI_BRANCHES_MAX) ? 1u : 0u;
     s_files += (!args->folder && (args->parent != CLI_BRANCH_MOUNTED)) ? 1u : 0u;
-    s_file_bytes += (!args->folder && (args->parent != CLI_BRANCH_MOUNTED)) ? bytes : 0ull;
+    s_file_bytes += (!args->folder && (args->parent != CLI_BRANCH_MOUNTED)) ? bytes : 0ULL;
     return place;
 }
 
@@ -199,24 +199,24 @@ unsigned int cli_branch_exists(const CliSymbolsTreePathCfg *args)
     char above[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = above, .src = args->path, .bytes = (size_t)length + 1u});
     for (unsigned long long slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                               .text = args->path, .at = 0ull, .size = length, .set = "/");
+                                               .text = args->path, .at = 0ULL, .size = length, .set = "/");
          (parent != CLI_BRANCH_MOUNTED) && (slash < length);
          slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->path,
-                            .at = slash + 1ull, .size = length, .set = "/"))
+                            .at = slash + 1ULL, .size = length, .set = "/"))
     {
         above[slash] = '\0';
         const unsigned int folder_at =
             EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = above);
         parent = (folder_at != CLI_BRANCHES_MAX) ? folder_at
                                                  : EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = above,
-                                                              .bytes = slash + 1ull, .parent = parent, .folder = 1);
+                                                              .bytes = slash + 1ULL, .parent = parent, .folder = 1);
         above[slash] = '/';
         if (parent == CLI_BRANCHES_MAX)
         {
             return CLI_BRANCHES_MAX;
         }
     }
-    const unsigned int place = EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = args->path, .bytes = length + 1ull,
+    const unsigned int place = EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = args->path, .bytes = length + 1ULL,
                                           .parent = parent, .folder = args->folder);
     if ((place == CLI_BRANCHES_MAX) && (parent < CLI_BRANCHES_MAX) && (g_cli_branches[parent].below == 0u))
     {
@@ -249,7 +249,7 @@ void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
         if (!branch->folder && (parent != CLI_BRANCH_MOUNTED))
         {
             s_files -= 1u;
-            s_file_bytes -= cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1ull;
+            s_file_bytes -= cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1ULL;
         }
         branch->cell = NULL;
         branch->used = 0;
@@ -285,5 +285,5 @@ void cli_tree_clear(void)
     s_bucket_capacity = 0u;
     s_free = 0u;
     s_files = 0u;
-    s_file_bytes = 0ull;
+    s_file_bytes = 0ULL;
 }

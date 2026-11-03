@@ -34,7 +34,7 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned int at = args->at;
-    CliFillLine line = {0ull, 0ull, 0u};
+    CliFillLine line = {0ULL, 0ULL, 0u};
     (void)EMBED_CALL(cli_fill_text_size_internal.line_at, CliFillTextSizeCtx, .text = text, .size = size, .index = 0u,
                      .line = &line);
     const char *open = NULL;
@@ -48,7 +48,7 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
         unsigned long long rest = line.start;
         for (;;)
         {
-            unsigned long long place = 0ull;
+            unsigned long long place = 0ULL;
             if (open != NULL)
             {
                 if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
@@ -67,8 +67,8 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
                 rest += place + 3u;
                 continue;
             }
-            unsigned long long double_at = 0ull;
-            unsigned long long single_at = 0ull;
+            unsigned long long double_at = 0ULL;
+            unsigned long long single_at = 0ULL;
             const int has_double =
                 EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
                            .length_value = line.end - rest, .required = "\"\"\"", .size = 3u, .at_pointer = &double_at);
@@ -96,8 +96,8 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
 EMBED_INLINE int docstring_blank(const FillDocstringCtx *args)
 {
     const char *text = args->text;
-    unsigned long long from = 0ull;
-    unsigned long long to = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + args->line->start,
                .size = args->line->end - args->line->start, .from_u64s = &from, .to_u64s = &to);
     return (to == from) ||
@@ -110,10 +110,10 @@ EMBED_INLINE int docstring_blank(const FillDocstringCtx *args)
 EMBED_INLINE void docstring_close(const FillDocstringCtx *args)
 {
     CliFilled *filled = args->filled;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const last = EMBED_CALL(cli_fill_filled_size_internal.filled_last, CliFillFilledSizeCtx,
                                         .filled_read = filled, .size_pointer = &size);
-    unsigned long long space = 0ull;
+    unsigned long long space = 0ULL;
     if ((EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = last, .size = size) + 3u <= args->width) ||
         (args->start_of_words > size) ||
         !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = last + args->start_of_words,
@@ -170,7 +170,7 @@ int cli_fill_docstring(const CliFillTextCtx *args)
     const char *const lead = args->text + first.start;
     const unsigned long long comment_prefix_size = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
                                                               .text = lead, .size = first.end - first.start);
-    unsigned long long opening = 0ull;
+    unsigned long long opening = 0ULL;
     if (first.index == string.start)
     {
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = lead + comment_prefix_size,
@@ -185,8 +185,8 @@ int cli_fill_docstring(const CliFillTextCtx *args)
     unsigned int count = 0u;
     for (CliFillLine line = first; count < g_cli_fill_slices;)
     {
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->text + line.start,
                    .size = line.end - line.start, .from_u64s = &from, .to_u64s = &to);
         const char *body = args->text + line.start + from;

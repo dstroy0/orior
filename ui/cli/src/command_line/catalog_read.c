@@ -88,7 +88,7 @@ void cli_catalog_script_job(const CliCatalogPathCtx *args)
     char id[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = args->path,
                .relative_out = file);
-    VerbaLinea line = {id, sizeof(id), 0ull};
+    VerbaLinea line = {id, sizeof(id), 0ULL};
     mmgr_line_put(&line, group);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, file);
@@ -148,10 +148,10 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
     unsigned int positions = 0u;
     for (unsigned int at = 0u; (at < 3u) && (positions < list_entries.capacity); at += 1u)
     {
-        VerbaLinea line = {list_entries.path[positions], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {list_entries.path[positions], CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->root);
         mmgr_line_put(&line, s_positions[at]);
-        positions += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+        positions += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
     }
     for (unsigned int at = 0u; (at < examples.count) && (positions < list_entries.capacity); at += 1u)
     {
@@ -249,14 +249,14 @@ static int cli_find_file(const CatalogReadCtx *args)
 
 char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
     }
-    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_catalog_cells);
+    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_catalog_cells);
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
@@ -312,7 +312,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         if (!found)
         {
             char named[CLI_NAME_MAX_LEN];
-            VerbaLinea line = {named, sizeof(named), 0ull};
+            VerbaLinea line = {named, sizeof(named), 0ULL};
             mmgr_line_put(&line, sim);
             mmgr_line_put(&line, ".cu");
             mmgr_line_finish(&line);
@@ -321,7 +321,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         }
         char id[CLI_PATH_MAX_LEN];
         char file[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {id, sizeof(id), 0ull};
+        VerbaLinea line = {id, sizeof(id), 0ULL};
         mmgr_line_put(&line, "sim/");
         mmgr_line_put(&line, sim);
         mmgr_line_finish(&line);

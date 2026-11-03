@@ -105,7 +105,7 @@ unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args)
     {
         return CLI_CATALOG_NONE;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((args->catalog->used + size) > args->catalog->text_max)
     {
         args->catalog->full = 1;
@@ -371,18 +371,18 @@ EMBED_INLINE unsigned long long cli_stored_size(const CatalogCtx *args)
 {
     unsigned int text = args->text;
     return (text == CLI_CATALOG_NONE)
-               ? 0ull
+               ? 0ULL
                : (cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                                   .catalog_read = args->from, .text_u32 = text),
                                                 .cap = CLI_CELLS_POOL}) +
-                  1ull);
+                  1ULL);
 }
 
 void cli_catalog_job_extent(const CliCatalogFromIndexCfg *args)
 {
     CliCatalogExtent *extent = args->extent;
     const CliJob *const job = &args->from->job[args->index];
-    *extent = (CliCatalogExtent){job->params, job->steps, 0u, 0u, 16ull};
+    *extent = (CliCatalogExtent){job->params, job->steps, 0u, 0u, 16ULL};
     extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->id) +
                     EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->title) +
                     EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->file) +
@@ -438,7 +438,7 @@ void cli_values_append(const CliCatalogKeyValuesCfg *args)
     {
         at += 1u;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ULL;
     if (((at == args->values_out->keys) && (args->values_out->keys >= CLI_VALUES_KEYS)) ||
         (args->values_out->items >= CLI_VALUES_ITEMS) || ((args->values_out->used + size) > CLI_VALUES_TEXT))
     {

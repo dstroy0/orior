@@ -20,8 +20,8 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
 {
     args->names_out->count = 0u;
     args->names_out->used = 0u;
-    unsigned long long count = 0ull;
-    unsigned long long bytes = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -34,7 +34,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         }
         for (unsigned int entry = section->first; entry != CLI_VERSIONS_NONE; entry = g_cli_versions.field[entry].next)
         {
-            count += 1ull;
+            count += 1ULL;
             bytes += g_cli_versions.field[entry].key_size;
         }
     }
@@ -43,7 +43,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
     args->names_out->capacity =
         (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
     args->names_out->at = g_cli_cells->persistent_buf_alloc(
-        2ull * (args->names_out->most + 1ull) * sizeof(unsigned int), &g_cli_versions_cells);
+        2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int), &g_cli_versions_cells);
     args->names_out->text = g_cli_cells->persistent_buf_alloc(args->names_out->capacity, &g_cli_versions_cells);
     if ((args->names_out->at == NULL) || (args->names_out->text == NULL))
     {
@@ -71,7 +71,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
             VerbaLinea line = {args->names_out->text + args->names_out->used,
-                               args->names_out->capacity - args->names_out->used, 0ull};
+                               args->names_out->capacity - args->names_out->used, 0ULL};
             EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                        .alias = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
                                            .at = field->key_at),
@@ -98,7 +98,7 @@ int cli_versions_contains(const CliVersionCatalogSizeOutCtx *args)
         if ((args->names->size[at] == args->out->at) &&
             (memor.cmp(&(MemoriaCfg){.src = args->names->text + args->names->at[at],
                                      .other = args->out->out,
-                                     .bytes = (size_t)args->out->at}) == 0))
+                                     .bytes = args->out->at}) == 0))
         {
             return 1;
         }
@@ -125,7 +125,7 @@ EMBED_INLINE void check_update(const VersionCatalogCheckCtx *args)
     mmgr_line_put(&title, "Update the snapshot ");
     mmgr_line_put_n(&title, args->coordinates, args->size);
     char line[CLI_PATH_MAX_LEN + 64u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, args->check->program);
     mmgr_line_put(&command, " --refresh-dependencies dependencies");
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
@@ -316,7 +316,7 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
                                                   .at = field->text_at),
                             .size = field->text_size))
         {
-            VerbaLinea full = {args->check->full, 2u * args->check->capacity, 0ull};
+            VerbaLinea full = {args->check->full, 2u * args->check->capacity, 0ULL};
             mmgr_line_put_n(&full, args->coordinates, args->coordinates_size);
             mmgr_line_ch(&full, ':');
             mmgr_line_put_n(
@@ -334,7 +334,7 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
         const char *const name =
             EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = named->text_at);
         char accessor[1u << 12u];
-        VerbaLinea line = {accessor, sizeof(accessor), 0ull};
+        VerbaLinea line = {accessor, sizeof(accessor), 0ULL};
         if (EMBED_CALL(cli_version_catalog_size_out_internal.versions_contains, CliVersionCatalogSizeOutCtx,
                        .names = &g_cli_versions_known, .name = name, .size = named->text_size, .out = &line))
         {

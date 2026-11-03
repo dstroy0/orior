@@ -48,10 +48,19 @@ EMBED_INLINE int cli_text_order(const StructureMarksCtx *args)
     const CliToken *const right = &other->token[args->other_at];
     const unsigned int left_length = left->end - left->start;
     const unsigned int right_length = right->end - right->start;
-    const int compared = memor.cmp(&(MemoriaCfg){.src = args->one->text + left->start,
-                                                 .other = other->text + right->start,
-                                                 .bytes = (left_length < right_length) ? left_length : right_length});
-    return (compared != 0) ? compared : ((left_length < right_length) ? -1 : (left_length > right_length) ? 1 : 0);
+    const embed_iword compared =
+        memor.cmp(&(MemoriaCfg){.src = args->one->text + left->start,
+                                .other = other->text + right->start,
+                                .bytes = (left_length < right_length) ? left_length : right_length});
+    if (compared != 0)
+    {
+        return (compared < 0) ? -1 : 1;
+    }
+    if (left_length == right_length)
+    {
+        return 0;
+    }
+    return (left_length < right_length) ? -1 : 1;
 }
 
 // A name is renamed where every place it changed in a pair it became the same other name; the renames, by what they

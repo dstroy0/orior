@@ -78,7 +78,7 @@ static void write_parameter(const InspectPyWriteCtx *args)
 {
     const char *src = args->src;
     char stars[8];
-    VerbaLinea starred = {stars, sizeof(stars), 0ull};
+    VerbaLinea starred = {stars, sizeof(stars), 0ULL};
     unsigned int at = args->first;
     while ((at < args->end) &&
            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
@@ -113,7 +113,7 @@ static void write_parameter(const InspectPyWriteCtx *args)
     {
         return;
     }
-    VerbaLinea param = {s_sign.param[s_sign.params], CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea param = {s_sign.param[s_sign.params], CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put_n(&param, stars, starred.at);
     mmgr_line_put_n(&param, src + name->start, name->end - name->start);
     mmgr_line_finish(&param);
@@ -266,7 +266,7 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
                        .word = "raise") &&
             (line->count > 1u) && (s_sign.raises < CLI_PY_PARAMS))
         {
-            VerbaLinea raised = {s_sign.raised[s_sign.raises], CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea raised = {s_sign.raised[s_sign.raises], CLI_NAME_MAX_LEN, 0ULL};
             for (unsigned int part = 1u; part < line->count; part += 1u)
             {
                 const CliInspectTok *const word =
@@ -280,7 +280,7 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
                 }
                 mmgr_line_put_n(&raised, src + word->start, word->end - word->start);
             }
-            int known = (mmgr_line_finish(&raised) == 0ull) || (raised.at == 0u);
+            int known = (mmgr_line_finish(&raised) == 0ULL) || (raised.at == 0u);
             for (unsigned int one = 0u; !known && (one < s_sign.raises); one += 1u)
             {
                 known = (cellul.eq(&(CatenaFinitaCfg){
@@ -307,7 +307,7 @@ static VerbaLinea *write_line(void)
     if (s_lines < CLI_PY_PARAMS * 4u)
     {
         s_line_start[s_lines] = s_pool_line.at;
-        s_line_size[s_lines] = 0ull;
+        s_line_size[s_lines] = 0ULL;
         s_lines += 1u;
     }
     return &s_pool_line;
@@ -507,7 +507,7 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
         indent += reserved;
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
-    s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ull};
+    s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ULL};
     s_lines = 0u;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "rest", .cap = CLI_CELLS_POOL}))
     {

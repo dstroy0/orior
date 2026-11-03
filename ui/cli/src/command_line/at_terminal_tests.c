@@ -21,7 +21,7 @@ typedef struct
 // and the most bytes of what is carried written as its differences or as a taking
 #define CLI_AT_TERMINAL_ALLOCATED 4096u
 #define CLI_AT_TERMINAL_LINES (1u << 20u)
-#define CLI_AT_TERMINAL_TRANSFERRED (8ull << 20u)
+#define CLI_AT_TERMINAL_TRANSFERRED (8ULL << 20u)
 
 // what a run of tests has reported: the tests that failed and the coverage, each a line, the counts once it is done,
 // and whether it is, under the lock its waiter waits on
@@ -52,23 +52,23 @@ typedef struct
 EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    if (lines->line.at + args->size + 1ull > CLI_AT_TERMINAL_LINES)
+    if (lines->line.at + args->size + 1ULL > CLI_AT_TERMINAL_LINES)
     {
         return;
     }
-    mmgr_line_put(&lines->line, (lines->lines > 0ull) ? "\n" : "");
+    mmgr_line_put(&lines->line, (lines->lines > 0ULL) ? "\n" : "");
     mmgr_line_put_n(&lines->line, args->text, args->size);
-    lines->lines += 1ull;
+    lines->lines += 1ULL;
 }
 
 // the line of the lines buffered begun over a cell of the most they hold
 EMBED_INLINE void tests_lines_begin(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    const unsigned long long capacity = CLI_AT_TERMINAL_LINES + 1ull;
+    const unsigned long long capacity = CLI_AT_TERMINAL_LINES + 1ULL;
     char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_command_line_cells);
     lines->line = mmgr_line_over(text, capacity);
-    lines->lines = 0ull;
+    lines->lines = 0ULL;
 }
 
 // the cell of the lines buffered given back
@@ -76,14 +76,14 @@ EMBED_INLINE void tests_lines_free(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
     g_cli_cells->persistent_buf_release(lines->line.out, &g_cli_command_line_cells);
-    lines->line = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    lines->lines = 0ull;
+    lines->line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    lines->lines = 0ULL;
 }
 
 // the lines buffered written into `into` and a line's end after them, where any are buffered, and their cell given back
 EMBED_INLINE void tests_lines_write(const AtTerminalTestsCtx *args)
 {
-    if (mmgr_line_ok(&args->lines->line) && (args->lines->lines > 0ull))
+    if (mmgr_line_ok(&args->lines->line) && (args->lines->lines > 0ULL))
     {
         (void)mmgr_line_put_n(args->into, args->lines->line.out, args->lines->line.at);
         mmgr_line_ch(args->into, '\n');
@@ -99,12 +99,12 @@ EMBED_INLINE unsigned long long tests_integer(const AtTerminalTestsCtx *args)
     const char *name = args->name;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = node, .name = name);
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                           .node = member, .kind = CFG_JSON_NUMBER)
                                    ? json->text + json->node[member].text
                                    : "";
-    value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ull,
+    value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_CELLS_POOL}), .end = NULL);
     return value;
 }
@@ -114,7 +114,7 @@ EMBED_INLINE unsigned long long tests_integer(const AtTerminalTestsCtx *args)
 EMBED_INLINE void tests_counts(const AtTerminalTestsCtx *args)
 {
     const CliJson *json = args->json;
-    VerbaLinea line = {s_counts, sizeof(s_counts), 0ull};
+    VerbaLinea line = {s_counts, sizeof(s_counts), 0ULL};
     const unsigned long long passed =
         EMBED_CALL(tests_integer, AtTerminalTestsCtx, .json = json, .node = args->done, .name = "passed");
     const unsigned long long failed =
@@ -134,38 +134,38 @@ EMBED_INLINE void tests_counts(const AtTerminalTestsCtx *args)
                                     ? json->text + json->node[seconds].text
                                     : "0";
     // the seconds to a tenth: the whole seconds, then the tenths rounded from the hundredths
-    unsigned long long whole = 0ull;
-    unsigned long long at = 0ull;
-    whole = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = written, .at = 0ull,
+    unsigned long long whole = 0ULL;
+    unsigned long long at = 0ULL;
+    whole = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = written, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_CELLS_POOL}), .end = &at);
-    unsigned long long tenths = 0ull;
+    unsigned long long tenths = 0ULL;
     if (written[at] == '.')
     {
         const unsigned long long tenth = ((written[at + 1u] >= '0') && (written[at + 1u] <= '9'))
                                              ? (unsigned long long)(written[at + 1u] - '0')
-                                             : 0ull;
+                                             : 0ULL;
         const int up =
-            (tenth < 10ull) && (written[at + 1u] != '\0') && (written[at + 2u] >= '5') && (written[at + 2u] <= '9');
-        tenths = tenth + (up ? 1ull : 0ull);
+            (tenth < 10ULL) && (written[at + 1u] != '\0') && (written[at + 2u] >= '5') && (written[at + 2u] <= '9');
+        tenths = tenth + (up ? 1ULL : 0ULL);
     }
-    whole += tenths / 10ull;
+    whole += tenths / 10ULL;
     mmgr_line_decimal(&line, whole, 1u);
     mmgr_line_ch(&line, '.');
-    mmgr_line_decimal(&line, tenths % 10ull, 1u);
+    mmgr_line_decimal(&line, tenths % 10ULL, 1u);
     mmgr_line_put(&line, " s");
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const err_text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = args->done, .name = "message"),
                    .length_pointer = &size);
-    if ((err_text != NULL) && (size > 0ull))
+    if ((err_text != NULL) && (size > 0ULL))
     {
         mmgr_line_put(&line, ": ");
         mmgr_line_put_n(&line, err_text, size);
     }
-    s_counts_used = mmgr_line_ok(&line) ? line.at : 0ull;
-    s_good = (failed == 0ull) && (passed + skipped > 0ull);
+    s_counts_used = mmgr_line_ok(&line) ? line.at : 0ULL;
+    s_good = (failed == 0ULL) && (passed + skipped > 0ULL);
 }
 
 // what a run reports taken, read into a tree of its size given back after: a test that failed, a file's coverage, and
@@ -176,12 +176,12 @@ static void tests_event(const CliEachJsonSizeCfg *args)
     CliJson tree;
     CliJson *const json = &tree;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
-               .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
-    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = args->json, .size = size, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &ignored, .owner = &g_cli_command_line_cells);
+                                         .text_more = 0ULL, .err_msg = &ignored, .owner = &g_cli_command_line_cells);
     const char *const kind =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -200,8 +200,8 @@ static void tests_event(const CliEachJsonSizeCfg *args)
         if ((how != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = how, .other = "failed", .cap = CLI_CELLS_POOL})))
         {
             char line[8192];
-            VerbaLinea failed = {line, sizeof(line), 0ull};
-            unsigned long long message_size = 0ull;
+            VerbaLinea failed = {line, sizeof(line), 0ULL};
+            unsigned long long message_size = 0ULL;
             const char *const id =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -214,14 +214,14 @@ static void tests_event(const CliEachJsonSizeCfg *args)
                            .length_pointer = &message_size);
             const char *const output = (message != NULL) ? message : "";
             unsigned long long first = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                  .text = output, .at = 0ull, .size = message_size, .set = "\n");
-            first -= ((first > 0ull) && (output[first - 1ull] == '\r')) ? 1ull : 0ull;
+                                                  .text = output, .at = 0ULL, .size = message_size, .set = "\n");
+            first -= ((first > 0ULL) && (output[first - 1ULL] == '\r')) ? 1ULL : 0ULL;
             mmgr_line_put(&failed, "FAILED ");
             mmgr_line_put(&failed, (id != NULL) ? id : "");
             mmgr_line_put(&failed, ": ");
             mmgr_line_put_n(&failed, output, first);
             EMBED_CALL(tests_line_append, AtTerminalTestsCtx, .lines = &s_failed, .text = line,
-                       .size = mmgr_line_ok(&failed) ? failed.at : 0ull);
+                       .size = mmgr_line_ok(&failed) ? failed.at : 0ULL);
         }
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "coverage", .cap = CLI_CELLS_POOL}))
@@ -252,7 +252,7 @@ static void tests_event(const CliEachJsonSizeCfg *args)
                                               .object = file, .name = "file"),
                            .length_pointer = NULL);
             char line[CLI_PATH_MAX_LEN + 64u];
-            VerbaLinea covered = {line, sizeof(line), 0ull};
+            VerbaLinea covered = {line, sizeof(line), 0ULL};
             mmgr_line_put(&covered, (name != NULL) ? name : "");
             mmgr_line_put(&covered, ": ");
             mmgr_line_decimal(&covered, ran_count, 1u);
@@ -260,7 +260,7 @@ static void tests_event(const CliEachJsonSizeCfg *args)
             mmgr_line_decimal(&covered, ran_count + missed_count, 1u);
             mmgr_line_put(&covered, " lines ran");
             EMBED_CALL(tests_line_append, AtTerminalTestsCtx, .lines = &s_covered, .text = line,
-                       .size = mmgr_line_ok(&covered) ? covered.at : 0ull);
+                       .size = mmgr_line_ok(&covered) ? covered.at : 0ULL);
         }
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "done", .cap = CLI_CELLS_POOL}))
@@ -281,11 +281,11 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     EMBED_CALL(tests_lines_begin, AtTerminalTestsCtx, .lines = &s_failed);
     EMBED_CALL(tests_lines_begin, AtTerminalTestsCtx, .lines = &s_covered);
-    s_counts_used = 0ull;
+    s_counts_used = 0ULL;
     s_done = 0;
     s_good = 0;
     const CliJsonSink sink = {tests_event, NULL};
-    unsigned long long run = 0ull;
+    unsigned long long run = 0ULL;
     if (!EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = root, .supplied = supplied, .count = count,
                     .parallel = 1, .cover = cover, .sink = sink, .number = &run, .err_msg = err_msg))
     {
@@ -317,14 +317,14 @@ EMBED_INLINE unsigned int tests_tree_get(const AtTerminalTestsCtx *args)
 {
     CliJson *json = args->json_out;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
-               .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
-    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root =
         mmgr_line_ok(args->line)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                          .json = json, .text = args->line->out, .size = args->line->at, .nodes_more = 0u,
-                         .text_more = 0ull, .err_msg = &ignored, .owner = &g_cli_command_line_cells)
+                         .text_more = 0ULL, .err_msg = &ignored, .owner = &g_cli_command_line_cells)
             : CLI_JSON_NONE;
     g_cli_cells->persistent_buf_release(args->cell, &g_cli_command_line_cells);
     return root;
@@ -355,7 +355,7 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     const unsigned int capacity =
         ((json->nodes + 1u) < CLI_AT_TERMINAL_ALLOCATED) ? (json->nodes + 1u) : CLI_AT_TERMINAL_ALLOCATED;
     const char **const chosen_positions =
-        g_cli_cells->temporary_buf_alloc(2ull * capacity * sizeof(const char *), &g_cli_command_line_cells);
+        g_cli_cells->temporary_buf_alloc(2ULL * capacity * sizeof(const char *), &g_cli_command_line_cells);
     if (chosen_positions == NULL)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
@@ -448,7 +448,7 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
                                                      .json_read = &consumed_tree, .node = files, .kind = CFG_JSON_ARRAY)
                                               ? consumed_tree.node[files].count
                                               : 0u;
-            unsigned long long id_size = 0ull;
+            unsigned long long id_size = 0ULL;
             const char *const id =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &consumed_tree,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -484,7 +484,7 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
         EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = &tree, .cell = allocating_text, .line = &allocating);
     if (done)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const from =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &tree,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &tree,

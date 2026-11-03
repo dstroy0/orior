@@ -84,7 +84,7 @@ EMBED_INLINE int explorer_room(const ControllerExplorerCtx *args)
     }
     if ((s_explorer.used + args->more_text) > s_explorer.text_capacity)
     {
-        const unsigned long long capacity = (s_explorer.used + args->more_text) * 2ull;
+        const unsigned long long capacity = (s_explorer.used + args->more_text) * 2ULL;
         char *const grown = g_cli_cells->persistent_buf_alloc(capacity, &g_cli_controller_cells);
         if (grown == NULL)
         {
@@ -107,7 +107,7 @@ EMBED_INLINE unsigned long long explorer_text_append(const ControllerExplorerCtx
     const unsigned long long at = s_explorer.used;
     memor.cpy(&(MemoriaCfg){.dst = s_explorer.text + at, .src = args->text, .bytes = args->size});
     s_explorer.text[at + args->size] = '\0';
-    s_explorer.used += args->size + 1ull;
+    s_explorer.used += args->size + 1ULL;
     return at;
 }
 
@@ -130,7 +130,7 @@ static void explorer_list_run(void *context)
 {
     ControllerListing *const listing = (ControllerListing *)context;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     listing->entries = EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = listing->root,
                                   .dir = listing->dir, .owner = &g_cli_controller_cells, .err_msg = &err_msg);
 }
@@ -155,11 +155,11 @@ static void explorer_list_done(void *context)
             depth = s_explorer.node[parent].depth + 1u;
         }
     }
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int each = 0u; (entries != NULL) && (each < entries->count); each += 1u)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = entries->entry[each].path, .cap = CLI_PATH_MAX_LEN}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = entries->entry[each].name, .cap = CLI_PATH_MAX_LEN}) + 2ull;
+                 cellul.len(&(CatenaFinitaCfg){.src = entries->entry[each].name, .cap = CLI_PATH_MAX_LEN}) + 2ULL;
     }
     if (stands && (entries != NULL) && (entries->count != 0u) &&
         EMBED_CALL(explorer_room, ControllerExplorerCtx, .more_nodes = entries->count, .more_text = bytes))
@@ -193,9 +193,9 @@ EMBED_INLINE void explorer_list_post(const ControllerExplorerCtx *args)
         return;
     }
     const unsigned long long root_size =
-        cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     const unsigned long long dir_size =
-        cellul.len(&(CatenaFinitaCfg){.src = args->dir, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = args->dir, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     ControllerListing *const listing =
         g_cli_cells->persistent_buf_alloc(sizeof(*listing) + root_size + dir_size, &g_cli_controller_cells);
     if (listing == NULL)
@@ -249,9 +249,9 @@ void cli_model_explorer_press(const CliModelCtx *args)
     }
     ControllerNode *const node = &s_explorer.node[at];
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, s_explorer.text + node->path);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -274,7 +274,7 @@ void *cli_model_explorer_alloc(const CliModelCtx *args)
     (void)args;
     // the rows and their texts counted, then laid
     unsigned int rows = 0u;
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_explorer.nodes;
          at = EMBED_CALL(explorer_row_next, ControllerExplorerCtx, .at = at))
     {
@@ -282,7 +282,7 @@ void *cli_model_explorer_alloc(const CliModelCtx *args)
         bytes +=
             cellul.len(&(CatenaFinitaCfg){.src = s_explorer.text + s_explorer.node[at].path, .cap = CLI_PATH_MAX_LEN}) +
             cellul.len(&(CatenaFinitaCfg){.src = s_explorer.text + s_explorer.node[at].name, .cap = CLI_PATH_MAX_LEN}) +
-            2ull;
+            2ULL;
     }
     CliExplorerRows *const explorer = g_cli_cells->persistent_buf_alloc(
         sizeof(*explorer) + (rows * sizeof(CliExplorerRow)) + bytes, &g_cli_controller_cells);
@@ -303,9 +303,9 @@ void *cli_model_explorer_alloc(const CliModelCtx *args)
         const char *const path = s_explorer.text + node->path;
         const char *const name = s_explorer.text + node->name;
         const unsigned long long path_size =
-            cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
         const unsigned long long name_size =
-            cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = path_size});
         memor.cpy(&(MemoriaCfg){.dst = text + path_size, .src = name, .bytes = name_size});
         explorer->row[row] =

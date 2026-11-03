@@ -15,8 +15,8 @@
 // how many folders below the top a search for projects goes; and the bytes the projects found and a server's options
 // are written in
 #define CLI_SERVERS_PROJECT_DEPTH 6u
-#define CLI_SERVERS_FOUND_CAPACITY (1ull << 20u)
-#define CLI_SERVERS_OPTIONS_CAPACITY (1ull << 20u)
+#define CLI_SERVERS_FOUND_CAPACITY (1ULL << 20u)
+#define CLI_SERVERS_OPTIONS_CAPACITY (1ULL << 20u)
 
 // what parts the folders of a PATH
 #if defined(_WIN32)
@@ -62,7 +62,8 @@ static void launch_project_entry(const CliEachNameIsFolderCfg *args)
         int skipped = (args->name[0] == '.') || (projects->at_depth >= CLI_SERVERS_PROJECT_DEPTH);
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            skipped |= (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not[at], .cap = CLI_CELLS_POOL}));
+            skipped =
+                skipped || cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not[at], .cap = CLI_CELLS_POOL});
         }
         if (!skipped)
         {
@@ -161,11 +162,11 @@ EMBED_INLINE void launch_options(const ServersLaunchCtx *args)
     }
     if (adds)
     {
-        unsigned long long from = 1ull;
+        unsigned long long from = 1ULL;
         unsigned long long to = cellul.len(&(CatenaFinitaCfg){.src = added, .cap = CLI_CELLS_POOL});
         to -= ((to > 1u) && (added[to - 1u] == '}')) ? 1u : 0u;
-        unsigned long long inner_from = 0ull;
-        unsigned long long inner_to = 0ull;
+        unsigned long long inner_from = 0ULL;
+        unsigned long long inner_to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = added + from, .size = to - from,
                    .from_u64s = &inner_from, .to_u64s = &inner_to);
         if (inner_to > inner_from)
@@ -183,9 +184,9 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliJson manifest_json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ULL);
     char quiet[256];
-    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
                    .manifest = manifest, .id = args->spec_read->tool, .err_msg = &ignored);
@@ -263,7 +264,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     {
         char upper[8] = {0};
         const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL});
-        const unsigned long long copied = (named < 7ull) ? named : 7ull;
+        const unsigned long long copied = (named < 7ULL) ? named : 7ULL;
         memor.cpy(&(MemoriaCfg){.dst = upper, .src = vs->name[at], .bytes = (size_t)copied});
         EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = upper, .size = copied);
         if ((cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL}) == 4u) &&
@@ -272,14 +273,14 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
             // Visual Studio's PATH before the one every step runs with, in a cell of the two and the mark between
             const unsigned long long joined_size =
                 cellul.len(&(CatenaFinitaCfg){.src = vs->value[at], .cap = CLI_CELLS_POOL}) +
-                cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_CELLS_POOL}) + 2ull;
+                cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_CELLS_POOL}) + 2ULL;
             g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);
             vs_path = g_cli_cells->persistent_buf_alloc(joined_size, &g_cli_servers_launch_cells);
             VerbaLinea joined = mmgr_line_over(vs_path, joined_size);
             mmgr_line_put(&joined, vs->value[at]);
             mmgr_line_ch(&joined, CLI_SERVERS_PATH_PARTS);
             mmgr_line_put(&joined, launching->path);
-            setting[0].value = (mmgr_line_finish(&joined) != 0ull) ? vs_path : launching->path;
+            setting[0].value = (mmgr_line_finish(&joined) != 0ULL) ? vs_path : launching->path;
             continue;
         }
         setting[settings] = (CliSetting){vs->name[at], vs->value[at]};
@@ -289,7 +290,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     s_server_sink_next += 1u;
     *server_sink = *args->sink;
     char why[1024];
-    VerbaLinea reason = {why, sizeof(why), 0ull};
+    VerbaLinea reason = {why, sizeof(why), 0ULL};
     const int met = (setting != NULL) && mmgr_line_ok(&options);
     if (!met)
     {

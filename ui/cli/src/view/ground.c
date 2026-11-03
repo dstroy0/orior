@@ -82,14 +82,14 @@ void gui_background_free(const GuiBackgroundCfg *args)
 void gui_background_pause(const GuiBackgroundCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (args->paused && (args->background_fill->paused_ms == 0ull))
+    if (args->paused && (args->background_fill->paused_ms == 0ULL))
     {
         args->background_fill->paused_ms = now_ms;
     }
-    else if (!args->paused && (args->background_fill->paused_ms != 0ull))
+    else if (!args->paused && (args->background_fill->paused_ms != 0ULL))
     {
         args->background_fill->start_ms += now_ms - args->background_fill->paused_ms;
-        args->background_fill->paused_ms = 0ull;
+        args->background_fill->paused_ms = 0ULL;
     }
 }
 
@@ -97,15 +97,15 @@ unsigned long long gui_background_elapsed_ms(const GuiBackgroundClockCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long stopped =
-        (args->background_fill->paused_ms != 0ull) ? args->background_fill->paused_ms : now_ms;
+        (args->background_fill->paused_ms != 0ULL) ? args->background_fill->paused_ms : now_ms;
     return stopped - args->background_fill->start_ms;
 }
 
 unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args)
 {
-    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ull))
+    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     return args->background_fill->start_ms + args->background_fill->next_draw_ms;
 }
@@ -166,7 +166,7 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args)
 
 int gui_background_tick(const GuiBackgroundRasterCfg *args)
 {
-    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ull))
+    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ULL))
     {
         return 0;
     }

@@ -84,7 +84,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
                 }
                 (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                                  .name = args->src + tok->start, .size = tok->end - tok->start, .alias = NULL,
-                                 .alias_size = 0ull, .from = tok->from, .to = tok->to);
+                                 .alias_size = 0ULL, .from = tok->from, .to = tok->to);
             }
         }
         const CliInspectTok *const name =
@@ -167,7 +167,7 @@ EMBED_INLINE void facts_plain_import(const InspectPyFactsCtx *args)
             continue;
         }
         char spec[CLI_PATH_MAX_LEN];
-        VerbaLinea dotted = {spec, sizeof(spec), 0ull};
+        VerbaLinea dotted = {spec, sizeof(spec), 0ULL};
         const CliInspectTok *alias = NULL;
         for (unsigned int part = start; part < at; part += 1u)
         {
@@ -211,7 +211,7 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
         return;
     }
     char spec[CLI_PATH_MAX_LEN];
-    VerbaLinea dotted = {spec, sizeof(spec), 0ull};
+    VerbaLinea dotted = {spec, sizeof(spec), 0ULL};
     for (unsigned int at = 1u; at < import_at; at += 1u)
     {
         const CliInspectTok *const tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at);
@@ -266,7 +266,7 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
             (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = src + name->start, .size = name->end - name->start,
                              .alias = (alias != NULL) ? (src + alias->start) : NULL,
-                             .alias_size = (alias != NULL) ? (alias->end - alias->start) : 0ull, .from = name->from,
+                             .alias_size = (alias != NULL) ? (alias->end - alias->start) : 0ULL, .from = name->from,
                              .to = name->to);
         }
         start = at + 1u;

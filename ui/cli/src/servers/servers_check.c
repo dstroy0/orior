@@ -30,7 +30,7 @@ static void check_queue_clear(void)
     }
     s_queue.head = 0u;
     s_queue.count = 0u;
-    s_queue.used = 0ull;
+    s_queue.used = 0ULL;
 }
 
 typedef struct
@@ -71,12 +71,12 @@ static void check_checker(void *context)
                                 .bytes = one.integer - (one.size + 1u)});
         s_queue.head = (s_queue.head + 1u) % s_queue.waiting_max;
         s_queue.count -= 1u;
-        s_queue.used = (s_queue.count == 0u) ? 0ull : s_queue.used;
+        s_queue.used = (s_queue.count == 0u) ? 0ULL : s_queue.used;
         s_emit[checker] = s_queue.sink;
         EMBED_CALL(cli_servers_path_sink_internal.check_one, CliServersPathSinkCtx, .checker = checker,
                    .path = s_path[checker], .one_servers_waiting_pointer = &waiting, .sink = &s_emit[checker]);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = one.server);
-        s_queue.done += 1ull;
+        s_queue.done += 1ULL;
         const unsigned long long done = s_queue.done;
         const unsigned long long total = s_queue.total;
         const int has_sink = s_queue.has_sink;
@@ -110,13 +110,13 @@ unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
         return 0u;
     }
     s_queue.on = 1;
-    VerbaLinea line = {s_queue.root, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {s_queue.root, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->root);
     (void)mmgr_line_finish(&line);
     s_queue.sink = *sink;
     s_queue.has_sink = 1;
     s_queue.file_count = 0u;
-    s_queue.files_used = 0ull;
+    s_queue.files_used = 0ULL;
     EMBED_CALL(cli_servers_queue_files_internal.check_files_append, CliServersQueueFilesCtx, .queue = &s_queue,
                .files = args->files, .count = args->count);
     check_checkers_start();
@@ -197,7 +197,7 @@ int cli_servers_check_allocs(const CliServersPathLspCtx *args)
             char uri[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = args->path, .uri_out = uri);
             EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 1);
-            s_queue.total += 1ull;
+            s_queue.total += 1ULL;
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_ready);
         }
         else
@@ -215,9 +215,9 @@ void cli_servers_check_let_go(void)
     s_queue.root[0] = '\0';
     s_queue.has_sink = 0;
     s_queue.file_count = 0u;
-    s_queue.files_used = 0ull;
-    s_queue.total = 0ull;
-    s_queue.done = 0ull;
+    s_queue.files_used = 0ULL;
+    s_queue.total = 0ULL;
+    s_queue.done = 0ULL;
     EMBED_CALL(cli_servers_queue_files_internal.check_work_state_free, CliServersQueueFilesCtx, .queue = &s_queue);
     cli_servers_check_open_clear();
 }
@@ -228,12 +228,12 @@ char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
     const int on = s_queue.on && (s_queue.files != NULL) &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_CELLS_POOL}));
     // the queue's bytes hold every path it lists, each ended by a 0
-    char *const files = on ? g_cli_cells->temporary_buf_alloc(s_queue.files_used + 1ull, &g_cli_servers_cells) : NULL;
-    unsigned long long used = 0ull;
+    char *const files = on ? g_cli_cells->temporary_buf_alloc(s_queue.files_used + 1ULL, &g_cli_servers_cells) : NULL;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (files != NULL) && (at < s_queue.file_count); at += 1u)
     {
         const char *const file = s_queue.files + s_queue.file_at[at];
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ull;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = files + used, .src = file, .bytes = (size_t)length});
         used += length;
     }
@@ -265,7 +265,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
             }
         }
         unsigned int remaining = 0u;
-        unsigned long long used = 0ull;
+        unsigned long long used = 0ULL;
         for (unsigned int at = 0u; at < s_queue.file_count; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
@@ -307,7 +307,7 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
         if (!queued && EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,
                                   .path = args->paths[at], .waiting = &args->waiting[at], .front = 0))
         {
-            s_queue.total += 1ull;
+            s_queue.total += 1ULL;
             continue;
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->waiting[at].server);

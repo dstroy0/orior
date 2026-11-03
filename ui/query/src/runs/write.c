@@ -30,7 +30,7 @@ EMBED_INLINE void query_table_by_name(const WriteCtx *args)
     char table[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = QUERY_TABLE,
                .path_out = table);
-    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, table);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
@@ -79,7 +79,7 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                    .word = supplied[at]);
     }
-    long long code = -1ll;
+    long long code = -1LL;
     const int whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                                  .paths_letters = s_reads, .count = input_count + 1u, .err_msg = err_msg) &&
                       EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
@@ -131,7 +131,7 @@ EMBED_INLINE int query_part_write(const WriteCtx *args)
                                       s_writer, cu_krs, NULL};
     const char *const gsm_words[7] = {s_tool,   "sm_86", s_files.machine, s_files.layout, s_files.mnemonics,
                                       s_writer, NULL};
-    long long code = -1ll;
+    long long code = -1LL;
     const int whole =
         EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                    .paths_letters = args->krs ? krs_read : gsm_read, .count = args->krs ? 7u : 3u,
@@ -195,7 +195,7 @@ EMBED_INLINE void query_missing_files(const WriteCtx *args)
     {
         char file[QUERY_PATH_MAX_LEN];
         char path[QUERY_PATH_MAX_LEN];
-        VerbaLinea line = {file, sizeof(file), 0ull};
+        VerbaLinea line = {file, sizeof(file), 0ULL};
         mmgr_line_put(&line, args->name);
         mmgr_line_ch(&line, '.');
         mmgr_line_put(&line, kinds[at]);
@@ -203,7 +203,7 @@ EMBED_INLINE void query_missing_files(const WriteCtx *args)
         EMBED_CALL(query_table_by_name, WriteCtx, .context = args->context, .name = file, .path = path);
         if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
         {
-            mmgr_line_put(args->missing, (args->missing->at == 0ull) ? "" : ", ");
+            mmgr_line_put(args->missing, (args->missing->at == 0ULL) ? "" : ", ");
             mmgr_line_put(args->missing, QUERY_TABLE "/");
             mmgr_line_put(args->missing, file);
         }
@@ -303,7 +303,7 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
         return 0;
     }
     char missing_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea missing = {missing_text, sizeof(missing_text), 0ull};
+    VerbaLinea missing = {missing_text, sizeof(missing_text), 0ULL};
     for (unsigned int at = 0u; at < *named; at += 1u)
     {
         EMBED_CALL(query_missing_files, WriteCtx, .context = args->context_read, .name = args->names_letters[at],
@@ -313,10 +313,10 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
     EMBED_CALL(query_table_by_name, WriteCtx, .context = args->context_read, .name = "Lstar.klq", .path = klq);
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = klq))
     {
-        mmgr_line_put(&missing, (missing.at == 0ull) ? "" : ", ");
+        mmgr_line_put(&missing, (missing.at == 0ULL) ? "" : ", ");
         mmgr_line_put(&missing, QUERY_TABLE "/Lstar.klq");
     }
-    if (missing.at != 0ull)
+    if (missing.at != 0ULL)
     {
         mmgr_line_put(args->err_msg, "query ");
         for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -348,11 +348,11 @@ int query_query_run(const QueryLoopCfg *args)
     }
     char from[QUERY_PATH_MAX_LEN];
     char to[QUERY_PATH_MAX_LEN];
-    VerbaLinea from_line = {from, sizeof(from), 0ull};
+    VerbaLinea from_line = {from, sizeof(from), 0ULL};
     mmgr_line_put(&from_line, names[0]);
     mmgr_line_put(&from_line, ".krs");
     mmgr_line_finish(&from_line);
-    VerbaLinea to_line = {to, sizeof(to), 0ull};
+    VerbaLinea to_line = {to, sizeof(to), 0ULL};
     mmgr_line_put(&to_line, names[1]);
     mmgr_line_put(&to_line, ".krs");
     mmgr_line_finish(&to_line);

@@ -7,12 +7,12 @@
 int cli_settings_chain_read(const CliSettingsChainCfg *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->chain->files = 0u;
     args->chain->problems = 0u;
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
-                   .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = args->err_msg, .owner = &g_cli_machine_cells);
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->chain->json,
                     .node = root, .kind = CFG_JSON_OBJECT))
@@ -59,7 +59,7 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
                                                .json_read = &args->chain->json, .node = item, .length_pointer = NULL);
         if (problem != NULL)
         {
-            VerbaLinea line = {args->chain->problem[args->chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
+            VerbaLinea line = {args->chain->problem[args->chain->problems], CLI_PATH_MAX_LEN * 2u, 0ULL};
             mmgr_line_put(&line, problem);
             mmgr_line_finish(&line);
             args->chain->problems += 1u;

@@ -75,7 +75,7 @@ typedef struct
 // One color a setting changes: its name as the palette names it and its value as the palette reads it
 typedef struct
 {
-    const char *name;
+    char *name;
     const char *value;
 } CliSettingColor;
 

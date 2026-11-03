@@ -6,7 +6,7 @@
 
 unsigned int cli_review_text_append(const CliReviewTextLengthCtx *args)
 {
-    if ((args->length + 1ull) > (g_cli_review.text_capacity - g_cli_review.used))
+    if ((args->length + 1ULL) > (g_cli_review.text_capacity - g_cli_review.used))
     {
         return 0u;
     }
@@ -30,7 +30,7 @@ int cli_review_text_add(const CliReviewLineCtx *args)
                          .length = args->line->at);
     }
     const int added = g_cli_review.used != was;
-    *size = added ? args->line->at : 0ull;
+    *size = added ? args->line->at : 0ULL;
     g_cli_cells->persistent_buf_release(args->line->out, &g_cli_code_cells);
     return added;
 }

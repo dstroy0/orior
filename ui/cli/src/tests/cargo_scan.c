@@ -42,7 +42,7 @@ EMBED_INLINE unsigned int scan_letter(const CargoScanCtx *args)
     unsigned long long *reserved = args->reserved;
     if (at >= args->size)
     {
-        *reserved = 0ull;
+        *reserved = 0ULL;
         return CLI_RUST_NONE;
     }
     unsigned int letter = 0u;
@@ -96,7 +96,7 @@ EMBED_INLINE unsigned long long scan_raw(const CargoScanCtx *args)
     unsigned long long size = args->size;
     unsigned long long at = args->at_u64;
     unsigned int *line = args->line_pointer;
-    unsigned long long hashes = 0ull;
+    unsigned long long hashes = 0ULL;
     const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text,
                                               .at = at, .size = size, .set = "#");
     hashes = end - at;
@@ -104,7 +104,7 @@ EMBED_INLINE unsigned long long scan_raw(const CargoScanCtx *args)
     if ((at >= size) || (text[at] != '"'))
     {
         const unsigned long long start = at;
-        unsigned long long reserved = 0ull;
+        unsigned long long reserved = 0ULL;
         while (EMBED_CALL(scan_word, CargoScanCtx,
                           .letter = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
                                                .reserved = &reserved)))
@@ -115,23 +115,23 @@ EMBED_INLINE unsigned long long scan_raw(const CargoScanCtx *args)
                    .line = *line);
         return at;
     }
-    at += 1ull;
+    at += 1ULL;
     while (at < size)
     {
-        unsigned long long closed = 0ull;
+        unsigned long long closed = 0ULL;
         if (text[at] == '"')
         {
             const unsigned long long hashed = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                         .text = text, .at = at + 1ull, .size = size, .set = "#") -
-                                              (at + 1ull);
+                                                         .text = text, .at = at + 1ULL, .size = size, .set = "#") -
+                                              (at + 1ULL);
             closed = (hashed < hashes) ? hashed : hashes;
         }
         if ((text[at] == '"') && (closed == hashes))
         {
-            return at + 1ull + hashes;
+            return at + 1ULL + hashes;
         }
         *line += (text[at] == '\n') ? 1u : 0u;
-        at += 1ull;
+        at += 1ULL;
     }
     return at;
 }
@@ -143,12 +143,12 @@ static void scan_tokens_append(const CargoScanCtx *args)
     unsigned long long size = args->size;
     g_cli_cargo_scan.token_count = 0u;
     unsigned int line = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     // a sign the passing over looks for is ASCII, which no byte of a longer letter is, and they are passed byte by byte
     while (at < size)
     {
-        unsigned long long reserved = 0ull;
-        unsigned long long next_allocated = 0ull;
+        unsigned long long reserved = 0ULL;
+        unsigned long long next_allocated = 0ULL;
         const unsigned int c =
             EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at, .reserved = &reserved);
         const unsigned int next = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
@@ -156,7 +156,7 @@ static void scan_tokens_append(const CargoScanCtx *args)
         if (c == '\n')
         {
             line += 1u;
-            at += 1ull;
+            at += 1ULL;
         }
         else if (EMBED_CALL(scan_white, CargoScanCtx, .letter = c))
         {
@@ -169,19 +169,19 @@ static void scan_tokens_append(const CargoScanCtx *args)
         }
         else if ((c == '/') && (next == '*'))
         {
-            long long depth = 0ll;
+            long long depth = 0LL;
             while (at < size)
             {
-                if ((text[at] == '/') && (at + 1ull < size) && (text[at + 1ull] == '*'))
+                if ((text[at] == '/') && (at + 1ULL < size) && (text[at + 1ULL] == '*'))
                 {
-                    depth += 1ll;
-                    at += 2ull;
+                    depth += 1LL;
+                    at += 2ULL;
                 }
-                else if ((text[at] == '*') && (at + 1ull < size) && (text[at + 1ull] == '/'))
+                else if ((text[at] == '*') && (at + 1ULL < size) && (text[at + 1ULL] == '/'))
                 {
-                    depth -= 1ll;
-                    at += 2ull;
-                    if (depth == 0ll)
+                    depth -= 1LL;
+                    at += 2ULL;
+                    if (depth == 0LL)
                     {
                         break;
                     }
@@ -189,37 +189,37 @@ static void scan_tokens_append(const CargoScanCtx *args)
                 else
                 {
                     line += (text[at] == '\n') ? 1u : 0u;
-                    at += 1ull;
+                    at += 1ULL;
                 }
             }
         }
         else if (c == '"')
         {
-            at += 1ull;
+            at += 1ULL;
             at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
                             .size = size, .set = "\"\\\n");
             while ((at < size) && (text[at] != '"'))
             {
-                at += (text[at] == '\\') ? 1ull : 0ull;
+                at += (text[at] == '\\') ? 1ULL : 0ULL;
                 line += ((at < size) && (text[at] == '\n')) ? 1u : 0u;
-                at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at + 1ull,
+                at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at + 1ULL,
                                 .size = size, .set = "\"\\\n");
             }
-            at += 1ull;
+            at += 1ULL;
         }
         else if (c == '\'')
         {
             // a character, 'a' or '\n', or a lifetime, 'a, which is passed over as no token
-            unsigned long long third_allocated = 0ull;
+            unsigned long long third_allocated = 0ULL;
             const unsigned int third =
                 EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
                            .at_u64 = at + reserved + next_allocated, .reserved = &third_allocated);
             if (next == '\\')
             {
-                at += 2ull;
+                at += 2ULL;
                 at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
                                 .size = size, .set = "'");
-                at += 1ull;
+                at += 1ULL;
             }
             else if (third == '\'')
             {
@@ -227,8 +227,8 @@ static void scan_tokens_append(const CargoScanCtx *args)
             }
             else
             {
-                at += 1ull;
-                unsigned long long word_allocated = 0ull;
+                at += 1ULL;
+                unsigned long long word_allocated = 0ULL;
                 while (EMBED_CALL(scan_word, CargoScanCtx,
                                   .letter = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
                                                        .at_u64 = at, .reserved = &word_allocated)))
@@ -249,9 +249,9 @@ static void scan_tokens_append(const CargoScanCtx *args)
             }
             const unsigned long long length = at - start;
             const int raw =
-                ((length == 1ull) && (text[start] == 'r')) ||
-                ((length == 2ull) && (memor.cmp(&(MemoriaCfg){.src = text + start, .other = "br", .bytes = 2u}) == 0));
-            const int byte = (length == 1ull) && (text[start] == 'b');
+                ((length == 1ULL) && (text[start] == 'r')) ||
+                ((length == 2ULL) && (memor.cmp(&(MemoriaCfg){.src = text + start, .other = "br", .bytes = 2u}) == 0));
+            const int byte = (length == 1ULL) && (text[start] == 'b');
             const int quoted = (at < size) && (text[at] == '"');
             if ((raw && (quoted || ((at < size) && (text[at] == '#')))) || (byte && quoted))
             {
@@ -268,7 +268,7 @@ static void scan_tokens_append(const CargoScanCtx *args)
         {
             EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_PATH, .letter = 0u, .start = at, .end = at,
                        .line = line);
-            at += 2ull;
+            at += 2ULL;
         }
         else
         {
@@ -283,13 +283,13 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
 {
     g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
     g_cli_cargo_scan.tokens = NULL;
-    g_cli_cargo_scan.token_capacity = 0ull;
+    g_cli_cargo_scan.token_capacity = 0ULL;
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     const unsigned long long counted = g_cli_cargo_scan.token_count;
     g_cli_cargo_scan.tokens =
-        (counted != 0ull) ? g_cli_cells->persistent_buf_alloc(counted * sizeof(CliRustToken), &g_cli_cargo_cells)
+        (counted != 0ULL) ? g_cli_cells->persistent_buf_alloc(counted * sizeof(CliRustToken), &g_cli_cargo_cells)
                           : NULL;
-    g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ull;
+    g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ULL;
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
 }
@@ -322,7 +322,7 @@ EMBED_INLINE unsigned long long scan_name_append(const CargoScanCtx *args)
     const unsigned long long at = g_cli_cargo_scan.name_used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_cargo_scan.names + at, .src = args->text, .bytes = args->length});
     g_cli_cargo_scan.names[at + args->length] = '\0';
-    g_cli_cargo_scan.name_used += args->length + 1ull;
+    g_cli_cargo_scan.name_used += args->length + 1ULL;
     return at;
 }
 
@@ -330,7 +330,7 @@ EMBED_INLINE unsigned long long scan_name_append(const CargoScanCtx *args)
 EMBED_INLINE void scan_item_append(const CargoScanCtx *args)
 {
     char joined[4096];
-    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ULL};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const CliRustToken *const token = &g_cli_cargo_scan.tokens[args->inline_names[at]];
@@ -338,7 +338,7 @@ EMBED_INLINE void scan_item_append(const CargoScanCtx *args)
         mmgr_line_put_n(&line, args->text + token->start, token->size);
     }
     const CliRustToken *const named = &g_cli_cargo_scan.tokens[args->name];
-    const unsigned long long names_max = g_cli_cargo_scan.name_used + line.at + 1ull + named->size + 1ull;
+    const unsigned long long names_max = g_cli_cargo_scan.name_used + line.at + 1ULL + named->size + 1ULL;
     if ((g_cli_cargo_scan.item_count >= g_cli_cargo_scan.item_capacity) || (names_max > g_cli_cargo_scan.name_capacity))
     {
         return;
@@ -376,15 +376,15 @@ EMBED_INLINE unsigned int scan_attribute(const CargoScanCtx *args)
     {
         *marked = 1;
     }
-    long long brackets = 0ll;
+    long long brackets = 0LL;
     unsigned int step = open;
     while (step < g_cli_cargo_scan.token_count)
     {
-        brackets += EMBED_CALL(scan_is_mark, CargoScanCtx, .at = step, .letter = '[') ? 1ll : 0ll;
+        brackets += EMBED_CALL(scan_is_mark, CargoScanCtx, .at = step, .letter = '[') ? 1LL : 0LL;
         if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = step, .letter = ']'))
         {
-            brackets -= 1ll;
-            if (brackets == 0ll)
+            brackets -= 1LL;
+            if (brackets == 0LL)
             {
                 break;
             }
@@ -412,7 +412,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
     unsigned int inline_names[CLI_CARGO_INLINE];
     unsigned long long inline_depths[CLI_CARGO_INLINE];
     unsigned int open = 0u;
-    unsigned long long depth = 0ull;
+    unsigned long long depth = 0ULL;
     int marked = 0;
     unsigned int at = 0u;
     while (at < g_cli_cargo_scan.token_count)
@@ -437,7 +437,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
                 inline_names[open] = at + 1u;
                 inline_depths[open] = depth;
                 open += 1u;
-                depth += 1ull;
+                depth += 1ULL;
                 at += 3u;
             }
             else
@@ -460,12 +460,12 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
         }
         if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at, .letter = '{'))
         {
-            depth += 1ull;
+            depth += 1ULL;
             marked = 0;
         }
         else if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at, .letter = '}'))
         {
-            depth -= (depth > 0ull) ? 1ull : 0ull;
+            depth -= (depth > 0ULL) ? 1ULL : 0ULL;
             open -= ((open > 0u) && (inline_depths[open - 1u] == depth)) ? 1u : 0u;
         }
         else if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at, .letter = ';'))

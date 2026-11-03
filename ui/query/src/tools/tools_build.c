@@ -54,19 +54,19 @@ EMBED_INLINE long long query_build_read(const ToolsBuildCtx *args)
 {
     QueryProcess *process = args->process;
     VerbaLinea *output = args->output;
-    char *const cell = g_cli_cells->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ull, &g_query_cells);
-    *output = mmgr_line_over(cell, QUERY_BUILD_OUTPUT_MAX_LEN + 1ull);
+    char *const cell = g_cli_cells->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ULL, &g_query_cells);
+    *output = mmgr_line_over(cell, QUERY_BUILD_OUTPUT_MAX_LEN + 1ULL);
     for (;;)
     {
         char piece[4096];
         const unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
                                                   .process = process, .piece = piece, .capacity_u64 = sizeof(piece));
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
         const unsigned long long capacity =
-            (output->at < QUERY_BUILD_OUTPUT_MAX_LEN) ? (QUERY_BUILD_OUTPUT_MAX_LEN - output->at) : 0ull;
+            (output->at < QUERY_BUILD_OUTPUT_MAX_LEN) ? (QUERY_BUILD_OUTPUT_MAX_LEN - output->at) : 0ULL;
         mmgr_line_put_n(output, piece, (got < capacity) ? got : capacity);
     }
     // what the compiler printed, its trailing blank lines left off
@@ -88,7 +88,7 @@ EMBED_INLINE void query_build_fail(const ToolsBuildCtx *args)
     mmgr_line_put(args->err_msg, " did not ");
     mmgr_line_put(args->err_msg, args->what);
     mmgr_line_ch(args->err_msg, '\n');
-    mmgr_line_put_n(args->err_msg, args->output->out, mmgr_line_ok(args->output) ? args->output->at : 0ull);
+    mmgr_line_put_n(args->err_msg, args->output->out, mmgr_line_ok(args->output) ? args->output->at : 0ULL);
     g_cli_cells->persistent_buf_release(args->output->out, &g_query_cells);
 }
 
@@ -124,7 +124,7 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
             VerbaLinea output;
             const long long code =
                 EMBED_CALL(query_build_read, ToolsBuildCtx, .process = &running[at - first], .output = &output);
-            if (whole && (code != 0ll))
+            if (whole && (code != 0LL))
             {
                 const char *const slash =
                     EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->compiles[at].source,
@@ -196,11 +196,11 @@ int query_tool_built_into(const QueryNameCapacityCtx *args)
     char base[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = args->name, .binary = base,
                .capacity = sizeof(base));
-    VerbaLinea binary_line = {args->binary, args->capacity, 0ull};
+    VerbaLinea binary_line = {args->binary, args->capacity, 0ULL};
     mmgr_line_put(&binary_line, args->out_text);
     mmgr_line_ch(&binary_line, '/');
     mmgr_line_put(&binary_line, base);
-    if ((mmgr_line_finish(&binary_line) == 0ull) ||
+    if ((mmgr_line_finish(&binary_line) == 0ULL) ||
         !EMBED_CALL(query_tools_root_tool_internal.stale, QueryToolsRootToolCtx, .root = args->root, .tool = tool,
                     .binary = args->binary))
     {
@@ -238,11 +238,11 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
         return 0;
     }
     char objects[QUERY_PATH_MAX_LEN];
-    VerbaLinea objects_line = {objects, sizeof(objects), 0ull};
+    VerbaLinea objects_line = {objects, sizeof(objects), 0ULL};
     mmgr_line_put(&objects_line, args->out);
     mmgr_line_put(&objects_line, "/objects/");
     mmgr_line_put(&objects_line, name);
-    if ((mmgr_line_finish(&objects_line) == 0ull) ||
+    if ((mmgr_line_finish(&objects_line) == 0ULL) ||
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = objects))
     {
         mmgr_line_put(args->err_msg, objects);
@@ -256,18 +256,18 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     {
         for (unsigned int at = 0u; (folders[list][at] != NULL) && (includes < QUERY_INCLUDES_MAX); at += 1u)
         {
-            VerbaLinea line = {s_includes[includes], sizeof(s_includes[includes]), 0ull};
+            VerbaLinea line = {s_includes[includes], sizeof(s_includes[includes]), 0ULL};
             mmgr_line_put(&line, "-I");
             mmgr_line_put(&line, root);
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, folders[list][at]);
-            includes += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+            includes += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
         }
     }
     char (*const lists[3])[QUERY_PATH_MAX_LEN] = {g_query_c_sources.path, g_query_cxx_sources.path,
                                                   g_query_tool_sources.path};
     const unsigned int counts[3] = {c, cxx, tools};
-    unsigned long long newest = 0ull;
+    unsigned long long newest = 0ULL;
     for (unsigned int list = 0u; list < 3u; list += 1u)
     {
         const unsigned long long seconds =
@@ -291,9 +291,9 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     {
         link_words += 1u;
     }
-    const unsigned long long compile_bytes = (c + cxx + tools + 1ull) * sizeof(QueryCompile);
+    const unsigned long long compile_bytes = (c + cxx + tools + 1ULL) * sizeof(QueryCompile);
     char *const cell = g_cli_cells->persistent_buf_alloc(
-        compile_bytes + ((c + cxx + tools + link_words + 4ull) * sizeof(const char *)), &g_query_cells);
+        compile_bytes + ((c + cxx + tools + link_words + 4ULL) * sizeof(const char *)), &g_query_cells);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the compiles of ");
@@ -315,8 +315,8 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
             EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = root,
                        .objects = objects, .source_text = source, .object_capacity = object);
             g_query_objects.count += 1u;
-            unsigned long long source_time = 0ull;
-            unsigned long long object_time = 0ull;
+            unsigned long long source_time = 0ULL;
+            unsigned long long object_time = 0ULL;
             const int source_known = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = source,
                                                 .seconds = &source_time);
             const int object_known = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = object,
@@ -364,7 +364,7 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
         mmgr_line_put(args->err_msg, ": it could not be started");
     }
     VerbaLinea output;
-    if (built && (EMBED_CALL(query_build_read, ToolsBuildCtx, .process = &linked, .output = &output) != 0ll))
+    if (built && (EMBED_CALL(query_build_read, ToolsBuildCtx, .process = &linked, .output = &output) != 0LL))
     {
         EMBED_CALL(query_build_fail, ToolsBuildCtx, .name = name, .what = "link", .output = &output,
                    .err_msg = args->err_msg);

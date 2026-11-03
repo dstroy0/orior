@@ -206,7 +206,7 @@ static void edits_walk(const ServersEditsCtx *args)
         for (unsigned int change = json->node[document_changes].first; change != CLI_JSON_NONE;
              change = json->node[change].next)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const uri = EMBED_CALL(
                 cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -255,7 +255,7 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
     // the edits, on a boundary of their own, and the paths after them
     const unsigned long long edit_bytes = (unsigned long long)editing.edit_capacity * sizeof(CliServersEdit);
     char *const cell = g_cli_cells->temporary_buf_alloc(
-        edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ull, &g_cli_servers_edits_cells);
+        edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ULL, &g_cli_servers_edits_cells);
     if (cell != NULL)
     {
         editing.edit = (CliServersEdit *)(void *)cell;
@@ -273,7 +273,7 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
         mmgr_line_put(args->out, ",\"edits\":[");
         for (unsigned int first = at; (at < editing.edits) && (editing.edit[at].file == file); at += 1u)
         {
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             const char *const text =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                            .node = editing.edit[at].text, .length_pointer = &size);

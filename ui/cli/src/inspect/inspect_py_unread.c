@@ -76,9 +76,9 @@ void cli_py_full_line_span(const CliInspectPySrcCfg *args)
     CliInspectPosition *start = args->start;
     CliInspectPosition *end = args->end;
     unsigned int count = 1u;
-    unsigned long long last_start = 0ull;
+    unsigned long long last_start = 0ULL;
     unsigned long long last_end = args->size;
-    for (unsigned long long at = 0ull; at < args->size; at += 1u)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1u)
     {
         if (args->src[at] == '\n')
         {
@@ -440,7 +440,7 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
     const char *const name = args->src + args->set->tok.start;
     const unsigned int length = args->set->tok.end - args->set->tok.start;
     char message[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea msg = {message, sizeof(message), 0ull};
+    VerbaLinea msg = {message, sizeof(message), 0ULL};
     mmgr_line_ch(&msg, '`');
     mmgr_line_put_n(&msg, name, length);
     mmgr_line_put(&msg, "` is set and never read.");
@@ -452,7 +452,7 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
         return;
     }
     char title[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea titled = {title, sizeof(title), 0ull};
+    VerbaLinea titled = {title, sizeof(title), 0ULL};
     mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
                            : (args->set->fix == CLI_PY_FIX_VALUE) ? "Take out `"
                                                                   : "Take out the line that sets ");
@@ -462,7 +462,7 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
                                                                   : "");
     EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
     EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = args->set->from,
-               .to = args->set->to, .text_text = "", .size = 0ull);
+               .to = args->set->to, .text_text = "", .size = 0ULL);
 }
 
 void cli_py_unread(const CliInspectPySrcSizeCfg *args)

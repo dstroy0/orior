@@ -30,7 +30,7 @@ struct CliTls
 
 #define CLI_SSL_SET_HOST_NAME 55
 
-#define CLI_SSL_IGNORE_UNEXPECTED_EOF (1ull << 7u)
+#define CLI_SSL_IGNORE_UNEXPECTED_EOF (1ULL << 7u)
 
 #define CLI_SSL_WANT_READ 2
 
@@ -65,11 +65,7 @@ typedef struct
     const char *(*verify_text)(long code);
 } CliSsl;
 
-static CliTls s_sessions[CLI_TLS_MAX];
 static CliSsl s_ssl;
-// 0 where the library was not looked for, 1 where it was found whole, -1 where it was not, and what was missing
-static int s_loaded;
-static char s_missing[CLI_NAME_MAX_LEN];
 
 typedef struct
 {
@@ -95,7 +91,7 @@ EMBED_INLINE int cli_retry(const TlsLibsslCtx *args)
     }
     if ((code == CLI_SSL_ZERO_RETURN) || ((code == CLI_SSL_SYSCALL) && (args->returned == 0)))
     {
-        *result = 0ll;
+        *result = 0LL;
         return 0;
     }
     if ((code == CLI_SSL_SYSCALL) && ((errno == EAGAIN) || (errno == EWOULDBLOCK)))
@@ -111,11 +107,11 @@ EMBED_INLINE int cli_retry(const TlsLibsslCtx *args)
 
 long long cli_tls_write(const CliTlsDataCfg *args)
 {
-    const int piece = (int)((args->size < 0x7fffffffull) ? args->size : 0x7fffffffull);
+    const int piece = (int)((args->size < 0x7fffffffULL) ? args->size : 0x7fffffffULL);
     for (;;)
     {
         const int written = s_ssl.write(args->tls->ssl, args->data, piece);
-        long long result = 0ll;
+        long long result = 0LL;
         if (written > 0)
         {
             return written;
@@ -123,7 +119,7 @@ long long cli_tls_write(const CliTlsDataCfg *args)
         if (!EMBED_CALL(cli_retry, TlsLibsslCtx, .tls = args->tls, .returned = written, .result = &result,
                         .err_msg = args->err_msg))
         {
-            return (result == 0ll) ? CLI_SOCKET_FAILED : result;
+            return (result == 0LL) ? CLI_SOCKET_FAILED : result;
         }
     }
 }

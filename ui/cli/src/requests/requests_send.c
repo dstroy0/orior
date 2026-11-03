@@ -27,11 +27,11 @@ CliRequestsWorkState *cli_requests_work_state_alloc(void)
     {
         work_state->read_state = (unsigned char *)(void *)(work_state + 1);
         work_state->unpacked = NULL;
-        work_state->unpacked_capacity = 0ull;
-        char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ull, &g_cli_requests_cells);
-        char *const raw_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ull, &g_cli_requests_cells);
-        work_state->body = mmgr_line_over(body_cell, CLI_REQUESTS_BODY + 1ull);
-        work_state->raw = mmgr_line_over(raw_cell, CLI_REQUESTS_BODY + 1ull);
+        work_state->unpacked_capacity = 0ULL;
+        char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ULL, &g_cli_requests_cells);
+        char *const raw_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ULL, &g_cli_requests_cells);
+        work_state->body = mmgr_line_over(body_cell, CLI_REQUESTS_BODY + 1ULL);
+        work_state->raw = mmgr_line_over(raw_cell, CLI_REQUESTS_BODY + 1ULL);
         if ((body_cell == NULL) || (raw_cell == NULL))
         {
             g_cli_cells->persistent_buf_release(work_state->raw.out, &g_cli_requests_cells);

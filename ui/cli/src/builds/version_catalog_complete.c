@@ -63,8 +63,8 @@ EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
                 &(MemoriaCfg){.src = text + start + 1u, .val = ']', .bytes = (size_t)(line_end - start - 1u)});
             unsigned long long stop = (close != NULL) ? (unsigned long long)(close - text) : line_end;
             stop = ((stop > start + 1u) && (close == NULL) && (text[stop - 1u] == '\r')) ? stop - 1u : stop;
-            unsigned long long from = 0ull;
-            unsigned long long to = 0ull;
+            unsigned long long from = 0ULL;
+            unsigned long long to = 0ULL;
             EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start + 1u,
                        .size = stop - start - 1u, .from_u64s = &from, .to_u64s = &to);
             *size = to - from;
@@ -72,7 +72,7 @@ EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
         }
         end = start;
     }
-    *size = 0ull;
+    *size = 0ULL;
     return "";
 }
 
@@ -87,7 +87,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
     const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
                                 .text = text, .size = size);
-    const unsigned long long capacity = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
+    const unsigned long long capacity = g_cli_versions.used + 16ULL + (2ULL * g_cli_versions.items);
     char *const about_text = read ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_versions_cells) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
@@ -102,7 +102,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
         for (unsigned int entry = section->first; entry != CLI_VERSIONS_NONE; entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
-            VerbaLinea about = {about_text, capacity, 0ull};
+            VerbaLinea about = {about_text, capacity, 0ULL};
             EMBED_CALL(cli_version_catalog_field_out_internal.versions_describe, CliVersionCatalogFieldOutCtx,
                        .field = field, .out = &about);
             EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
@@ -125,7 +125,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
                             .at = line_start, .set = "\n");
     const char *const before = args->text + line_start;
     const unsigned long long before_size = args->at_u64 - line_start;
-    unsigned long long section_size = 0ull;
+    unsigned long long section_size = 0ULL;
     const char *const section = EMBED_CALL(complete_section, VersionCatalogCompleteCtx, .text = args->text,
                                            .line_start = line_start, .size = &section_size);
     const unsigned long long lead =
@@ -146,7 +146,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         return;
     }
     unsigned int quotes = 0u;
-    for (unsigned long long one = 0ull; one < before_size; one += 1u)
+    for (unsigned long long one = 0ULL; one < before_size; one += 1u)
     {
         quotes += ((before[one] == '"') || (before[one] == '\'')) ? 1u : 0u;
     }
@@ -223,7 +223,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         count = 5u;
     }
     static char s_detail[1u << 12u];
-    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
     mmgr_line_put(&detail, "key of [");
     mmgr_line_put_n(&detail, section, section_size);
     mmgr_line_ch(&detail, ']');

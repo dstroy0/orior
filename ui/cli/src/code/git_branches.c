@@ -25,12 +25,12 @@ void cli_git_branches(const CliGitRootFoundBranchesCfg *args)
     while ((line < end) && (args->found_branches_pointer->count < CLI_GIT_BRANCHES))
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = (unsigned long long)(end - stop), .set = "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const char *at = line;
-        unsigned long long lengths[6] = {0ull, 0ull, 0ull, 0ull, 0ull, 0ull};
+        unsigned long long lengths[6] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
         const char *fields[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
         for (unsigned int field = 0u; field < 6u; field += 1u)
         {
@@ -38,11 +38,11 @@ void cli_git_branches(const CliGitRootFoundBranchesCfg *args)
                                        .length_pointer = &lengths[field]);
         }
         line = next;
-        const int remote = (fields[0] != NULL) && (lengths[0] >= 13ull) &&
+        const int remote = (fields[0] != NULL) && (lengths[0] >= 13ULL) &&
                            (memor.cmp(&(MemoriaCfg){.src = fields[0], .other = "refs/remotes/", .bytes = 13u}) == 0);
         const int remote_head =
-            remote && (lengths[0] >= 5ull) &&
-            (memor.cmp(&(MemoriaCfg){.src = fields[0] + lengths[0] - 5ull, .other = "/HEAD", .bytes = 5u}) == 0);
+            remote && (lengths[0] >= 5ULL) &&
+            (memor.cmp(&(MemoriaCfg){.src = fields[0] + lengths[0] - 5ULL, .other = "/HEAD", .bytes = 5u}) == 0);
         if ((fields[4] == NULL) || remote_head)
         {
             continue;
@@ -52,10 +52,10 @@ void cli_git_branches(const CliGitRootFoundBranchesCfg *args)
         one->name = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_branches_pointer->text,
                                .from = fields[1], .length = lengths[1]);
         one->remote = remote;
-        one->current = (lengths[2] == 1ull) && (fields[2][0] == '*');
+        one->current = (lengths[2] == 1ULL) && (fields[2][0] == '*');
         one->upstream = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_branches_pointer->text,
                                    .from = fields[3], .length = lengths[3]);
-        one->when = 0ll;
+        one->when = 0LL;
         EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = fields[4], .length = lengths[4],
                    .value = &one->when);
         one->subject = (fields[5] != NULL) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg,
@@ -82,7 +82,7 @@ EMBED_INLINE int cli_run_quiet(const GitBranchesCtx *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     static char s_output_buf[CLI_GIT_OUTPUT_MAX_LEN];
-    VerbaLinea out = {s_output_buf, sizeof(s_output_buf), 0ull};
+    VerbaLinea out = {s_output_buf, sizeof(s_output_buf), 0ULL};
     const int ok = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root,
                               .request = arguments, .count = count, .out = &out, .err_msg = err_msg);
     return ok;
@@ -108,13 +108,13 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "switch", .cap = CLI_CELLS_POOL}))
     {
         char remote_ref[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {remote_ref, sizeof(remote_ref), 0ull};
+        VerbaLinea line = {remote_ref, sizeof(remote_ref), 0ULL};
         mmgr_line_put(&line, "refs/remotes/");
         mmgr_line_put(&line, args->name_read);
         mmgr_line_finish(&line);
         const char *const displayed[4] = {"show-ref", "--verify", "--quiet", remote_ref};
         char err_buf[CLI_PATH_MAX_LEN];
-        VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
+        VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ULL};
         const int remote = EMBED_CALL(cli_run_quiet, GitBranchesCtx, .root = args->root, .request = displayed,
                                       .count = 4u, .err_msg = &ignored);
         const char *const track[3] = {"switch", "--track", args->name_read};
@@ -165,13 +165,13 @@ void cli_git_stashes(const CliGitRootFoundStashesCfg *args)
     while ((line < end) && (args->found_stashes_pointer->count < CLI_GIT_STASHES))
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = (unsigned long long)(end - stop), .set = "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const char *at = line;
-        unsigned long long name_length = 0ull;
-        unsigned long long when_length = 0ull;
+        unsigned long long name_length = 0ULL;
+        unsigned long long when_length = 0ULL;
         const char *const name = EMBED_CALL(cli_git_at_internal.field, CliGitAtCtx, .at = &at, .end = stop,
                                             .stop = '\x1f', .length_pointer = &name_length);
         const char *const when = EMBED_CALL(cli_git_at_internal.field, CliGitAtCtx, .at = &at, .end = stop,
@@ -187,7 +187,7 @@ void cli_git_stashes(const CliGitRootFoundStashesCfg *args)
         args->found_stashes_pointer->count += 1u;
         one->name = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_stashes_pointer->text,
                                .from = name, .length = name_length);
-        one->when = 0ll;
+        one->when = 0LL;
         EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = when, .length = when_length,
                    .value = &one->when);
         one->subject = (subject != NULL) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg,
@@ -202,8 +202,8 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
 {
     int named = cellul.starts(&(CatenaFinitaCfg){.src = args->name_read, .other = "stash@{", .cap = CLI_CELLS_POOL});
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL});
-    named = named && (length > 8ull) && (args->name_read[length - 1ull] == '}');
-    for (unsigned long long at = 7ull; named && (at < (length - 1ull)); at += 1ull)
+    named = named && (length > 8ULL) && (args->name_read[length - 1ULL] == '}');
+    for (unsigned long long at = 7ULL; named && (at < (length - 1ULL)); at += 1ULL)
     {
         named = (args->name_read[at] >= '0') && (args->name_read[at] <= '9');
     }
@@ -219,7 +219,7 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
         const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL});
         EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
         char trimmed[CLI_GIT_OUTPUT_MAX_LEN];
-        VerbaLinea line = {trimmed, sizeof(trimmed), 0ull};
+        VerbaLinea line = {trimmed, sizeof(trimmed), 0ULL};
         mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
         mmgr_line_finish(&line);
         const char *const arguments[5] = {"stash", "push", "--include-untracked", "-m", trimmed};
@@ -260,12 +260,12 @@ EMBED_INLINE void cli_remote_address(const GitBranchesCtx *args)
     const char *root = args->root;
     static const char *const s_args[2] = {"ls-remote", "--get-url"};
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
-    VerbaLinea line = {args->address, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ULL};
+    VerbaLinea line = {args->address, CLI_PATH_MAX_LEN, 0ULL};
     if (!EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root, .request = s_args,
                     .count = 2u, .out = &line, .err_msg = &ignored))
     {
-        line.at = 0ull;
+        line.at = 0ULL;
     }
     mmgr_line_finish(&line);
 }
@@ -284,7 +284,7 @@ int cli_git_push(const CliGitRootOutCountErrMsgCfg *args)
         return 0;
     }
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ULL};
     return EMBED_CALL(cli_run_quiet, GitBranchesCtx, .root = args->root, .request = s_follows, .count = 4u,
                       .err_msg = &ignored)
                ? EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->root,
@@ -319,16 +319,16 @@ int cli_git_ahead_behind(const CliGitRootAheadCfg *args)
     const char *const end = result->out + result->out_size;
     while (found && (read < 2u) && (at < end))
     {
-        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
         const char *const word = at;
-        at += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
-        long long value = 0ll;
+        long long value = 0LL;
         if ((at > word) &&
             EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = word,
                        .length = (unsigned long long)(at - word), .value = &value) &&
-            (value >= 0ll) && (value <= 0xffffffffll))
+            (value >= 0LL) && (value <= 0xffffffffLL))
         {
             // a count of commits fits an unsigned int, as checked above
             counts[read] = (unsigned int)value;

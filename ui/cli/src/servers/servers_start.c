@@ -40,13 +40,13 @@ EMBED_INLINE void start_string(const ServersStartCtx *args)
     const CliJson *json = args->json;
     unsigned int object = args->object;
     const char *name = args->name;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = object, .name = name),
                    .length_pointer = &size);
-    const unsigned long long copied_len = ((text != NULL) && (size < args->capacity)) ? size : 0ull;
+    const unsigned long long copied_len = ((text != NULL) && (size < args->capacity)) ? size : 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = args->out, .src = (text != NULL) ? text : "", .bytes = (size_t)copied_len});
     args->out[copied_len] = '\0';
 }
@@ -60,7 +60,7 @@ EMBED_INLINE void start_json(const ServersStartCtx *args)
     char *out = args->out;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = object, .name = name);
-    VerbaLinea line = {out, args->capacity, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ULL};
     if (member != CLI_JSON_NONE)
     {
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = member,
@@ -68,7 +68,7 @@ EMBED_INLINE void start_json(const ServersStartCtx *args)
     }
     if (!mmgr_line_ok(&line))
     {
-        line.at = 0ull;
+        line.at = 0ULL;
     }
     (void)mmgr_line_finish(&line);
 }
@@ -92,7 +92,7 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->args < CLI_SERVERS_ARGS); at = json->node[at].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = at, .length_pointer = &size);
         if ((text != NULL) && (size < sizeof(args->spec->arg[0])))
@@ -110,7 +110,7 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->languages < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = at, .length_pointer = &size);
         if ((text != NULL) && (size < CLI_NAME_MAX_LEN))
@@ -129,7 +129,7 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->ids < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = at, .length_pointer = &size);
         const char *const key = json->text + json->node[at].key;
@@ -164,7 +164,7 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
 {
     CliJson manifest_json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ULL);
     int found = 0;
     for (unsigned int tool = (manifest != CLI_JSON_NONE) ? manifest_json.node[manifest].first : CLI_JSON_NONE;
          !found && (tool != CLI_JSON_NONE); tool = manifest_json.node[tool].next)
@@ -179,7 +179,7 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
                                    : CLI_JSON_NONE;
              !found && (at != CLI_JSON_NONE); at = manifest_json.node[at].next)
         {
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = &manifest_json, .node = at, .length_pointer = &size);
             found = (text != NULL) &&
@@ -214,7 +214,7 @@ void cli_servers_id_get(const CliServersPathLanguageCtx *args)
         (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = extension,
                          .capacity = sizeof(extension), .text = dot + 1);
     }
-    VerbaLinea line = {args->id_out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->id_out, CLI_NAME_MAX_LEN, 0ULL};
     for (unsigned int at = 0u; at < args->spec_read->ids; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
@@ -308,10 +308,10 @@ EMBED_INLINE void start_failure(const ServersStartCtx *args)
         return;
     }
     g_cli_servers.failed += (at == g_cli_servers.failed) ? 1u : 0u;
-    VerbaLinea line = {g_cli_servers.failed_tool[at], CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {g_cli_servers.failed_tool[at], CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->tool);
     (void)mmgr_line_finish(&line);
-    VerbaLinea why = {g_cli_servers.failed_msg[at], sizeof(g_cli_servers.failed_msg[at]), 0ull};
+    VerbaLinea why = {g_cli_servers.failed_msg[at], sizeof(g_cli_servers.failed_msg[at]), 0ULL};
     mmgr_line_put(&why, args->err_msg);
     (void)mmgr_line_finish(&why);
 }
@@ -332,7 +332,7 @@ EMBED_INLINE int start_again(const ServersStartCtx *args)
     }
     if (at == g_cli_servers.restarted)
     {
-        VerbaLinea line = {g_cli_servers.restart_tool[at], CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea line = {g_cli_servers.restart_tool[at], CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->tool);
         (void)mmgr_line_finish(&line);
         EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg,
@@ -357,7 +357,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.root, .other = root, .cap = CLI_CELLS_POOL}))
     {
         cli_servers_stop_all();
-        VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, root);
         (void)mmgr_line_finish(&line);
     }
@@ -390,7 +390,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
         if (!EMBED_CALL(start_again, ServersStartCtx, .tool = spec->tool))
         {
             char why[CLI_LSP_COMPLAINT];
-            VerbaLinea complaint = {why, sizeof(why), 0ull};
+            VerbaLinea complaint = {why, sizeof(why), 0ULL};
             EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &complaint);
             mmgr_line_put(err_msg, spec->program);
             mmgr_line_put(err_msg, " ended ");
@@ -434,14 +434,14 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
         }
         const char *const path = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one)->cell;
         const char *adjacent = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_reopen,
                                             .key = path, .adjacent = &adjacent, .size = &size);
         char id[CLI_NAME_MAX_LEN];
         EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = spec,
                    .path = path, .language = args->language, .id_out = id);
         char ignored[256];
-        VerbaLinea quiet = {ignored, sizeof(ignored), 0ull};
+        VerbaLinea quiet = {ignored, sizeof(ignored), 0ULL};
         (void)EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = server, .path = path, .language_id = id,
                          .text = text, .length = size, .err_msg = &quiet);
     }
@@ -453,7 +453,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
             g_cli_servers.running[index].lsp = server;
             g_cli_servers.running[index].spec = *spec;
             g_cli_servers.running[index].waits = 0u;
-            g_cli_servers.running[index].pending_requests = 0ull;
+            g_cli_servers.running[index].pending_requests = 0ULL;
             g_cli_servers.running[index].quiet_from = cli_clock_milliseconds();
             break;
         }

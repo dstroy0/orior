@@ -20,14 +20,14 @@ typedef struct
 } QueryFoldersFound;
 int query_account_read(const QueryRetentionBlobCtx *args)
 {
-    if (args->size != 48ull)
+    if (args->size != 48ULL)
     {
         return 0;
     }
     unsigned long long word[6];
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        word[at] = 0ull;
+        word[at] = 0ULL;
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
             word[at] |= (unsigned long long)args->blob[(at * 8u) + byte] << (8u * byte);
@@ -97,7 +97,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
     const double median = sorted[((args->count + 1u) / 2u) - 1u];
     g_cli_cells->persistent_buf_release(sorted, &g_query_cells);
     char text[QUERY_PATH_MAX_LEN + 128u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, args->folder);
     mmgr_line_put(&line, ": ");
@@ -112,7 +112,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
     {
         if (args->rates[at] < (median / 2.0))
         {
-            line.at = 0ull;
+            line.at = 0ULL;
             mmgr_line_put(&line, "    ");
             mmgr_line_put(&line, args->names[at]);
             mmgr_line_put(&line, " wrote at under half the median");
@@ -143,11 +143,11 @@ static void query_folder_walk(const CliEachNameIsFolderCfg *args)
             (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "restored", .cap = CLI_CELLS_POOL})))
         {
             char path[QUERY_PATH_MAX_LEN];
-            VerbaLinea line = {path, sizeof(path), 0ull};
+            VerbaLinea line = {path, sizeof(path), 0ULL};
             mmgr_line_put(&line, level->folder);
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, args->name);
-            if (mmgr_line_finish(&line) != 0ull)
+            if (mmgr_line_finish(&line) != 0ULL)
             {
                 EMBED_CALL(query_folder_level, RetentionCtx, .all = level->all, .folder = path);
             }
@@ -250,7 +250,7 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
         EMBED_CALL(query_retention_own_internal.writer_get, QueryRetentionOwnCtx, .own = own, .qry = path,
                    .writer = &writer);
         const unsigned char *blob = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         QueryAccount account;
         if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &writer, .name = "writer",
                         .bytes_u8s = &blob, .size_pointer = &size) ||
@@ -268,11 +268,11 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
                    1)
                 : path;
         char text[QUERY_PATH_MAX_LEN + 256u];
-        VerbaLinea line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_put(&line, "    ");
         mmgr_line_put(&line, name);
         mmgr_line_put(&line, ": ");
-        mmgr_line_decimal(&line, account.bytes / 1048576ull, 0u);
+        mmgr_line_decimal(&line, account.bytes / 1048576ULL, 0u);
         mmgr_line_put(&line, " MiB in ");
         mmgr_line_decimal(&line, account.records, 0u);
         mmgr_line_put(&line, " records, ");
@@ -323,7 +323,7 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
                  1u});
     EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &list_entries);
     char text[QUERY_PATH_MAX_LEN + 128u];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     if (newest_path[0] != '\0')
     {
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = newest_path, .cap = CLI_CELLS_POOL});
@@ -352,7 +352,7 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
     const unsigned int before = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
     EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .most = most);
     const unsigned int runs = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, displayed);
     mmgr_line_put(&line, ": ");
@@ -372,7 +372,7 @@ void query_crystals_reject(const QueryRetentionContextFreePartCtx *args)
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
                    .text = "  no run is stored as its crystal this time:");
         char text[QUERY_LINE_MAX_LEN + 4u];
-        VerbaLinea line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, args->why);
         mmgr_line_finish(&line);
@@ -402,14 +402,14 @@ int query_retention_run(const QueryLoopCfg *args)
         return -1;
     }
     char why[QUERY_LINE_MAX_LEN];
-    VerbaLinea error_line = {why, sizeof(why), 0ull};
+    VerbaLinea error_line = {why, sizeof(why), 0ULL};
     const int free_part = EMBED_CALL(query_retention_context_err_msg_internal.part_free, QueryRetentionContextErrMsgCtx,
                                      .context = context, .err_msg = &error_line);
     static char s_crystal[QUERY_PATH_MAX_LEN];
     const int built = free_part && EMBED_CALL(query_retention_context_internal.crystal_build, QueryRetentionContextCtx,
                                               .context = context, .binary = s_crystal);
     EMBED_CALL(query_retention_context_free_part_internal.crystals_reject, QueryRetentionContextFreePartCtx,
-               .context = context, .free_part = free_part, .why = (mmgr_line_finish(&error_line) != 0ull) ? why : "",
+               .context = context, .free_part = free_part, .why = (mmgr_line_finish(&error_line) != 0ULL) ? why : "",
                .built = built);
     // the folders containing runs counted, then found into a cell of their count
     const unsigned int counted =

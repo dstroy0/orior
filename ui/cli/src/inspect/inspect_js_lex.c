@@ -113,7 +113,7 @@ EMBED_INLINE int lex_value_expected(const InspectJsLexCtx *args)
                                                .words = s_before_value, .count = 14u);
 }
 
-// a comment of `/* */` from where the scan stands
+// a block comment from where the scan stands
 EMBED_INLINE void lex_block_comment(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;

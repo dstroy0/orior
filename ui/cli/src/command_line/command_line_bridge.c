@@ -50,30 +50,30 @@ EMBED_INLINE void bridge_at(const CommandLineBridgeCtx *args)
     unsigned int node = args->node;
     const unsigned int line = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = node, .name = "line");
-    unsigned long long number = 0ull;
+    unsigned long long number = 0ULL;
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
                    .node = line, .kind = CFG_JSON_NUMBER))
     {
         const CliJsonNode *const one = &s_work_state->json.node[line];
-        for (unsigned long long at = 0ull; at < one->length; at += 1ull)
+        for (unsigned long long at = 0ULL; at < one->length; at += 1ULL)
         {
             const char digit = s_work_state->json.text[one->text + at];
             if ((digit < '0') || (digit > '9'))
             {
                 break;
             }
-            number = number * 10ull + (unsigned long long)(digit - '0');
+            number = number * 10ULL + (unsigned long long)(digit - '0');
         }
     }
     mmgr_line_put(args->out, args->path);
     mmgr_line_ch(args->out, ':');
-    mmgr_line_decimal(args->out, number + 1ull, 1u);
+    mmgr_line_decimal(args->out, number + 1ULL, 1u);
 }
 
 // the line written, its spaces at the end not
 EMBED_INLINE void bridge_out(const CommandLineBridgeCtx *args)
 {
-    const unsigned long long size = mmgr_line_ok(args->line) ? args->line->at : 0ull;
+    const unsigned long long size = mmgr_line_ok(args->line) ? args->line->at : 0ULL;
     EMBED_CALL(
         cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->line->out,
         .size = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = args->line->out, .size = size));
@@ -128,7 +128,7 @@ EMBED_INLINE void bridge_pair_counts(const CommandLineBridgeCtx *args)
 EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
 {
     const char *name = args->name;
-    VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ull};
+    VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
     mmgr_line_put(&line, name);
     mmgr_line_put(&line, "  ");
     EMBED_CALL(bridge_at, CommandLineBridgeCtx, .out = &line, .path = args->path, .node = args->key);
@@ -145,7 +145,7 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
     for (unsigned int pair = s_work_state->json.node[pairs].first; pair != CLI_JSON_NONE;
          pair = s_work_state->json.node[pair].next)
     {
-        line.at = 0ull;
+        line.at = 0ULL;
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = pair, .name = "first"));
         mmgr_line_put(&line, " ~ ");
@@ -157,16 +157,16 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
                        .node = verdict, .kind = CFG_JSON_OBJECT))
         {
             static char s_verdict[1u << 12u];
-            VerbaLinea verdict_line = {s_verdict, sizeof(s_verdict), 0ull};
+            VerbaLinea verdict_line = {s_verdict, sizeof(s_verdict), 0ULL};
             mmgr_line_put(&verdict_line,
                           EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = verdict, .name = "word"));
             mmgr_line_ch(&verdict_line, ' ');
             mmgr_line_put(&verdict_line,
                           EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = verdict, .name = "rest"));
-            unsigned long long from = 0ull;
-            unsigned long long to = 0ull;
+            unsigned long long from = 0ULL;
+            unsigned long long to = 0ULL;
             EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = s_verdict,
-                       .size = mmgr_line_ok(&verdict_line) ? verdict_line.at : 0ull, .from_u64s = &from,
+                       .size = mmgr_line_ok(&verdict_line) ? verdict_line.at : 0ULL, .from_u64s = &from,
                        .to_u64s = &to);
             mmgr_line_put_n(&line, s_verdict + from, to - from);
         }
@@ -181,7 +181,7 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
                                        : CLI_JSON_NONE;
         for (unsigned int note = first; note != CLI_JSON_NONE; note = s_work_state->json.node[note].next)
         {
-            line.at = 0ull;
+            line.at = 0ULL;
             mmgr_line_put(&line, "    ");
             mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = note, .name = "word"));
             mmgr_line_ch(&line, ' ');
@@ -225,7 +225,7 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
                 EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "maps");
                 any = 1;
             }
-            VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ull};
+            VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = map, .name = "language"));
             mmgr_line_put(&line, "  ");
@@ -261,7 +261,7 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
                        .path = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = map, .name = "path"),
                        .node = entry);
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         }
     }
 }
@@ -302,7 +302,7 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
                 EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "rulesets");
                 any = 1;
             }
-            VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ull};
+            VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, file);
             mmgr_line_put(&line, "  ");
@@ -310,7 +310,7 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
             mmgr_line_put(&line, "  ");
             EMBED_CALL(bridge_at, CommandLineBridgeCtx, .out = &line, .path = path, .node = entry);
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         }
     }
 }
@@ -348,7 +348,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
                                           .json_read = &s_work_state->json, .node = keys, .kind = CFG_JSON_OBJECT)
                                    ? s_work_state->json.node[keys].first
                                    : CLI_JSON_NONE;
-    unsigned long long pad = 0ull;
+    unsigned long long pad = 0ULL;
     unsigned int count = 0u;
     for (unsigned int key = first; key != CLI_JSON_NONE; key = s_work_state->json.node[key].next)
     {
@@ -376,12 +376,12 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
         {
             continue;
         }
-        VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ull};
+        VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
         mmgr_line_put(&line, name);
         for (unsigned long long letters =
                  EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
                             .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-             letters < pad; letters += 1ull)
+             letters < pad; letters += 1ULL)
         {
             mmgr_line_ch(&line, ' ');
         }

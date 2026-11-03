@@ -12,7 +12,7 @@ void cli_format_release(void)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_format.json);
     g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
     g_cli_format.settings = NULL;
-    g_cli_format.settings_size = 0ull;
+    g_cli_format.settings_size = 0ULL;
 }
 
 // A choice of a file's language: the extension in lower case, and the plugin chosen and where it came from
@@ -42,7 +42,7 @@ EMBED_INLINE int cli_same_case_aside(const FormatCtx *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->one_length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->one_length; at += 1ULL)
     {
         const char left =
             ((args->one[at] >= 'A') && (args->one[at] <= 'Z')) ? (char)(args->one[at] + 32) : args->one[at];
@@ -60,10 +60,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
 {
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &unread, .owner = &g_cli_toolchains_cells);
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &json, .object = root, .name = "extensions");
@@ -73,7 +73,7 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
                                .array = extensions, .index = at) != CLI_JSON_NONE);
          at += 1u)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const one =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -100,7 +100,7 @@ int cli_format_language_get(const CliFormatCfg *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -128,7 +128,7 @@ unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
     CliJson *const json = &g_cli_format.json;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = json, .nodes_more = 0u, .text_more = 0ULL);
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = json, .array = manifest, .index = index) != CLI_JSON_NONE;
          index += 1u)
@@ -186,7 +186,7 @@ unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
 int cli_format_program_get(const CliFormatLanguageCfg *args)
 {
     char why[CLI_NAME_MAX_LEN * 4u];
-    VerbaLinea unknown = {why, sizeof(why), 0ull};
+    VerbaLinea unknown = {why, sizeof(why), 0ULL};
     const unsigned int tool = EMBED_CALL(cli_format_language_internal.tool, CliFormatLanguageCtx,
                                          .language = args->language, .err_msg = &unknown);
     const char *const named =
@@ -226,18 +226,18 @@ void cli_format_edition_get(const CliFormatCtx *args)
         const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
         end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
         const char *at = line;
-        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = " \t");
         if (((end - at) >= 7) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "edition", .bytes = 7u}) == 0))
         {
             at += 7;
-            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                              .size = (unsigned long long)(end - at), .set = " \t");
             if ((at < end) && (at[0] == '='))
             {
                 at += 1;
                 const char *stop = end;
-                at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                                  .size = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
                 stop = at + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = at,
                                        .at = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
@@ -261,9 +261,9 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
 {
     unsigned long long *used = args->used;
     char *const start = g_cli_format.words + *used;
-    VerbaLinea line = {start, CLI_WORDS_TEXT - *used, 0ull};
+    VerbaLinea line = {start, CLI_WORDS_TEXT - *used, 0ULL};
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at < whole;)
+    for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "{");
@@ -276,18 +276,18 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
         if (cellul.starts(&(CatenaFinitaCfg){.src = args->word + stop, .other = "{file}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, args->file);
-            at += 6ull;
+            at += 6ULL;
         }
         else if (cellul.starts(
                      &(CatenaFinitaCfg){.src = args->word + stop, .other = "{edition}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, args->edition);
-            at += 9ull;
+            at += 9ULL;
         }
         else
         {
             mmgr_line_ch(&line, '{');
-            at += 1ull;
+            at += 1ULL;
         }
     }
     mmgr_line_finish(&line);
@@ -295,13 +295,13 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
     {
         return NULL;
     }
-    *used += line.at + 1ull;
+    *used += line.at + 1ULL;
     return start;
 }
 
 int cli_format(const CliFormatPathCfg *args)
 {
-    CliJson *const json = &g_cli_format.json;
+    const CliJson *const json = &g_cli_format.json;
     const unsigned int tool = EMBED_CALL(cli_format_language_internal.tool, CliFormatLanguageCtx,
                                          .language = args->language, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
@@ -361,7 +361,7 @@ int cli_format(const CliFormatPathCfg *args)
     }
     const char *words[CLI_WORDS_MAX + 2u] = {program};
     unsigned int word_count = 1u;
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (word_count <= CLI_WORDS_MAX) &&
                                (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                            .json_read = json, .array = arguments, .index = at) != CLI_JSON_NONE);
@@ -391,13 +391,13 @@ int cli_format(const CliFormatPathCfg *args)
         EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder);
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started = EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = words,
                                    .folder = in_folder ? folder : NULL, .settings = settings, .count = 1u,
                                    .input = args->text, .length = args->length, .milliseconds_u64 = CLI_FORMAT_PATIENCE,
                                    .run_result = run_result, .err_msg = &unstarted);
     cli_format_release();
-    const int formatted = started && !run_result->stopped && (run_result->code == 0ll);
+    const int formatted = started && !run_result->stopped && (run_result->code == 0LL);
     if (!started)
     {
         mmgr_line_put(args->err_msg, program);

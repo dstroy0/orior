@@ -33,7 +33,7 @@ void cli_run_file_quote(const CliRunFileCfg *args)
 {
     mmgr_line_ch(args->out, '\'');
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at < whole;)
+    for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->path, .at = at, .size = whole, .set = "'");
@@ -45,7 +45,7 @@ void cli_run_file_quote(const CliRunFileCfg *args)
         {
             mmgr_line_put(args->out, "'\\''");
         }
-        at = stop + 1ull;
+        at = stop + 1ULL;
     }
     mmgr_line_ch(args->out, '\'');
 }
@@ -83,7 +83,7 @@ EMBED_INLINE const char *cli_name_split(const RunFileCtx *args)
     const unsigned long long start_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    start = (start_end != 0ull) ? (args->path + start_end) : start;
+    start = (start_end != 0ULL) ? (args->path + start_end) : start;
     *name = start;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = start,
@@ -102,7 +102,7 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
 {
     const CliJson *json = args->json;
     char keys[2][CLI_NAME_MAX_LEN];
-    VerbaLinea with = {keys[0], sizeof(keys[0]), 0ull};
+    VerbaLinea with = {keys[0], sizeof(keys[0]), 0ULL};
     mmgr_line_put(&with, args->language);
     mmgr_line_ch(&with, '.');
     EMBED_CALL(cli_text_out_name.append_lower, CliTextOutNameCfg, .out = &with,
@@ -144,7 +144,7 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
 EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
 {
     char key[CLI_NAME_MAX_LEN];
-    const unsigned long long copied_len = (args->length < sizeof(key)) ? args->length : (sizeof(key) - 1ull);
+    const unsigned long long copied_len = (args->length < sizeof(key)) ? args->length : (sizeof(key) - 1ULL);
     memor.cpy(&(MemoriaCfg){.dst = key, .src = args->name_value, .bytes = copied_len});
     key[copied_len] = '\0';
     if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "file", .cap = CLI_CELLS_POOL}))
@@ -172,17 +172,17 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "out", .cap = CLI_CELLS_POOL}))
     {
         char made[CLI_PATH_MAX_LEN];
-        VerbaLinea folder = {made, sizeof(made), 0ull};
+        VerbaLinea folder = {made, sizeof(made), 0ULL};
         mmgr_line_put(&folder, args->filling->root);
         mmgr_line_put(&folder, "/build/run");
-        if ((mmgr_line_finish(&folder) == 0ull) ||
+        if ((mmgr_line_finish(&folder) == 0ULL) ||
             !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = made))
         {
             mmgr_line_put(args->err_msg, "build/run: it could not be made");
             return 0;
         }
         char out[CLI_PATH_MAX_LEN];
-        VerbaLinea file = {out, sizeof(out), 0ull};
+        VerbaLinea file = {out, sizeof(out), 0ULL};
         mmgr_line_put(&file, made);
         mmgr_line_ch(&file, '/');
         mmgr_line_put_n(&file, args->filling->name, args->filling->stem);
@@ -235,7 +235,7 @@ EMBED_INLINE int cli_template_fill(const RunFileCtx *args)
         }
         // the close brace lies past the open one
         if (!EMBED_CALL(cli_on_fill, RunFileCtx, .filling = args->filling, .name_value = open + 1,
-                        .length = (unsigned long long)(close - open) - 1ull, .line = args->line,
+                        .length = (unsigned long long)(close - open) - 1ULL, .line = args->line,
                         .err_msg = args->err_msg))
         {
             return 0;
@@ -254,7 +254,7 @@ EMBED_INLINE int run_file_find(const RunFileCtx *args)
     const CliJson *json = args->json;
     VerbaLinea *out = args->out;
     const char *name = path;
-    unsigned long long stem = 0ull;
+    unsigned long long stem = 0ULL;
     (void)EMBED_CALL(cli_name_split, RunFileCtx, .path = path, .name = &name, .stem = &stem);
     CliFound found_tool;
     unsigned int way = 0u;
@@ -323,9 +323,9 @@ int cli_run_file_line(const CliRunFileCfg *args)
     CliNamed ways[CLI_RUN_NAMED];
     CliJson json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ULL);
     const char *name = args->path;
-    unsigned long long stem = 0ull;
+    unsigned long long stem = 0ULL;
     const char *const extension =
         EMBED_CALL(cli_name_split, RunFileCtx, .path = args->path, .name = &name, .stem = &stem);
     const unsigned int named = EMBED_CALL(cli_ways, RunFileCtx, .json = &json, .manifest = manifest,

@@ -121,8 +121,8 @@ int gui_raster_init(const GuiRasterWidthXCfg *args)
     args->raster->width = width;
     args->raster->height = height;
     args->raster->pages = NULL;
-    args->raster->pages_bytes = 0ull;
-    args->raster->positioned = 0ull;
+    args->raster->pages_bytes = 0ULL;
+    args->raster->positioned = 0ULL;
     args->raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_raster_cells);
     if (args->raster->pixels == NULL)
     {
@@ -1096,7 +1096,7 @@ unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args)
     }
     const long long span = (long long)args->right - (long long)args->left;
     const int first = (args->left < 0) ? 0 : (args->left >> 16);
-    const int ends = (int)((((long long)args->right + 65535ll) >> 16));
+    const int ends = (int)(((long long)args->right + 65535LL) >> 16);
     // the raster's width is far inside what an int represents
     const int end = (ends > (int)args->raster_width) ? (int)args->raster_width : ends;
     if (end <= first)
@@ -1114,30 +1114,30 @@ unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args)
     // forty, each worked once for the row: a pixel's share is the row's cover summed along what of it lands on the
     // pixel, by that one over: no division a pixel
     const long long whole = (((long long)args->width << 16) << 16) / span;
-    const long long over = (1ll << 40) / whole;
+    const long long over = (1LL << 40) / whole;
     const long long stop_position = (long long)args->width << 16;
     long long place =
-        (first == (args->left >> 16)) ? 0ll : ((((long long)first << 16) - (long long)args->left) * whole) >> 16;
+        (first == (args->left >> 16)) ? 0LL : ((((long long)first << 16) - (long long)args->left) * whole) >> 16;
     unsigned int at = (unsigned int)(place >> 16);
     for (unsigned int pixel = 0u; pixel < count; pixel += 1u)
     {
-        const long long end_word = (((long long)first + (long long)pixel + 1ll) << 16);
+        const long long end_word = (((long long)first + (long long)pixel + 1LL) << 16);
         const long long worked =
             (((end_word > (long long)args->right) ? (long long)args->right : end_word) - (long long)args->left) *
                 whole >>
             16;
         const long long stop = (worked > stop_position) ? stop_position : worked;
-        long long area = 0ll;
+        long long area = 0LL;
         while (place < stop)
         {
-            const long long next = ((long long)at + 1ll) << 16;
+            const long long next = ((long long)at + 1LL) << 16;
             const long long upto = (next < stop) ? next : stop;
             area += (long long)args->cover[at] * (upto - place);
             place = upto;
             at += (upto == next) ? 1u : 0u;
         }
         // a mean of bytes, rounded, is a share of 255
-        args->out[pixel] = (unsigned char)(((area * over) + (1ll << 39)) >> 40);
+        args->out[pixel] = (unsigned char)(((area * over) + (1LL << 39)) >> 40);
     }
     return count;
 }

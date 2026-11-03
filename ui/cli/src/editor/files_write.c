@@ -44,7 +44,7 @@ int cli_files_create_file(const CliFilesRootErrMsgTextCfg *args)
     if ((EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) &&
          !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)) ||
         !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "",
-                    .size = 0ull))
+                    .size = 0ULL))
     {
         EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         return 0;
@@ -120,7 +120,7 @@ int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args)
         return 0;
     }
     const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
-    name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
+    name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
     if (name[0] == '\0')
     {
@@ -128,12 +128,12 @@ int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " has no name");
         return 0;
     }
-    VerbaLinea line = {args->adjacent, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->adjacent, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, parent);
     mmgr_line_put(&line, "/.");
     mmgr_line_put(&line, name);
     mmgr_line_put(&line, ".saving");
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         return 0;

@@ -38,7 +38,7 @@ EMBED_INLINE void cli_words_join(const DevcontainerUpCtx *args)
 {
     CliWords *words = args->words_out;
     char word[CLI_STRING_JOINED];
-    VerbaLinea line = {word, sizeof(word), 0ull};
+    VerbaLinea line = {word, sizeof(word), 0ULL};
     mmgr_line_put(&line, args->first);
     mmgr_line_put(&line, args->second);
     words->full = words->full || !mmgr_line_ok(&line);
@@ -48,7 +48,7 @@ EMBED_INLINE void cli_words_join(const DevcontainerUpCtx *args)
 
 void cli_plan_address(const CliDevcontainerPlanContainerCfg *args)
 {
-    VerbaLinea line = {args->address, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->address, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, "docker:");
     mmgr_line_put(&line, args->container);
     mmgr_line_ch(&line, ':');
@@ -63,7 +63,7 @@ int cli_plan_build_words(const CliDevcontainerPlanWordsCfg *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->image, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->image, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
                                     .at = args->plan->name));
     mmgr_line_put(&line, "-image");
@@ -84,7 +84,7 @@ int cli_plan_build_words(const CliDevcontainerPlanWordsCfg *args)
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                    .word = "--build-arg");
         char pair[CLI_STRING_JOINED];
-        VerbaLinea joined = {pair, sizeof(pair), 0ull};
+        VerbaLinea joined = {pair, sizeof(pair), 0ULL};
         mmgr_line_put(&joined, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
                                           .plan = args->plan, .at = args->plan->args.at[at]));
         mmgr_line_ch(&joined, '=');
@@ -128,7 +128,7 @@ void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args)
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                .word = "--mount");
     char mount[CLI_STRING_JOINED];
-    VerbaLinea line = {mount, sizeof(mount), 0ull};
+    VerbaLinea line = {mount, sizeof(mount), 0ULL};
     mmgr_line_put(&line, "type=bind,source=");
     mmgr_line_put(&line, root);
     mmgr_line_put(&line, ",target=");
@@ -143,7 +143,7 @@ void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args)
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                    .word = "-e");
         char pair[CLI_STRING_JOINED];
-        VerbaLinea joined = {pair, sizeof(pair), 0ull};
+        VerbaLinea joined = {pair, sizeof(pair), 0ULL};
         mmgr_line_put(&joined, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
                                           .plan = args->plan, .at = args->plan->env.at[at]));
         mmgr_line_ch(&joined, '=');
@@ -267,13 +267,13 @@ EMBED_INLINE int cli_docker_line(const DevcontainerUpCtx *args)
 static int cli_docker(const DevcontainerUpCtx *args)
 {
     const CliWords *words = args->words;
-    const char *line[CLI_WORDS_MAX + 2u];
+    const char *line[CLI_WORDS_MAX + 2u] = {NULL};
     if (!EMBED_CALL(cli_docker_line, DevcontainerUpCtx, .words = words, .line = line, .err_msg = args->err_msg))
     {
         return 0;
     }
     char displayed[CLI_WORDS_TEXT + CLI_WORDS_MAX];
-    VerbaLinea displayed_line = {displayed, sizeof(displayed), 0ull};
+    VerbaLinea displayed_line = {displayed, sizeof(displayed), 0ULL};
     for (unsigned int at = 0u; line[at] != NULL; at += 1u)
     {
         if (at != 0u)
@@ -292,14 +292,14 @@ static int cli_docker(const DevcontainerUpCtx *args)
         return 0;
     }
     const long long code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
-    if (code == 0ll)
+    if (code == 0LL)
     {
         return 1;
     }
     mmgr_line_put(args->err_msg, "docker ");
     mmgr_line_put(args->err_msg, (words->count != 0u) ? words->word[0] : "");
     mmgr_line_put(args->err_msg, " ended with ");
-    if (code < 0ll)
+    if (code < 0LL)
     {
         mmgr_line_put(args->err_msg, "a signal");
         return 0;
@@ -316,7 +316,7 @@ static int cli_docker_read(const DevcontainerUpCtx *args)
     const CliWords *words = args->words;
     const char *line[CLI_WORDS_MAX + 2u];
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     QueryProcess process;
     if (!EMBED_CALL(cli_docker_line, DevcontainerUpCtx, .words = words, .line = line, .err_msg = &err_msg) ||
         !EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = line,
@@ -324,11 +324,11 @@ static int cli_docker_read(const DevcontainerUpCtx *args)
     {
         return 0;
     }
-    unsigned long long out_len = 0ull;
+    unsigned long long out_len = 0ULL;
     char piece[4096];
     unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
                                         .process = &process, .piece = piece, .capacity_u64 = sizeof(piece));
-    while (got != 0ull)
+    while (got != 0ULL)
     {
         const unsigned long long capacity = (CLI_DOCKER_OUTPUT - 1u) - out_len;
         const unsigned long long reserved = (got < capacity) ? got : capacity;
@@ -338,17 +338,17 @@ static int cli_docker_read(const DevcontainerUpCtx *args)
                          .piece = piece, .capacity_u64 = sizeof(piece));
     }
     args->out[out_len] = '\0';
-    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process) != 0ll)
+    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process) != 0LL)
     {
         return 0;
     }
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->out, .at = from,
                       .size = out_len, .set = CLI_TEXT_WHITE);
     out_len = (from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->out + from,
                                  .at = out_len - from, .set = CLI_TEXT_WHITE));
     // moved down to the start, each byte from above where it goes
-    for (unsigned long long at = from; at < out_len; at += 1ull)
+    for (unsigned long long at = from; at < out_len; at += 1ULL)
     {
         args->out[at - from] = args->out[at];
     }
@@ -433,12 +433,12 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     }
     // the first line of what docker wrote, its end left off
     char container[CLI_PATH_MAX_LEN];
-    unsigned long long length = 0ull;
-    length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_output, .at = 0ull,
+    unsigned long long length = 0ULL;
+    length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_output, .at = 0ULL,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL}), .set = "\n");
     length = (length < sizeof(container)) ? length : (sizeof(container) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = container, .src = s_output, .bytes = (size_t)length});
-    length -= ((length != 0ull) && (container[length - 1u] == '\r')) ? 1ull : 0ull;
+    length -= ((length != 0ULL) && (container[length - 1u] == '\r')) ? 1ULL : 0ULL;
     container[length] = '\0';
     const int run = made ? EMBED_CALL(cli_commands_run, DevcontainerUpCtx, .plan = plan, .container = container,
                                       .commands = plan->on_start, .count = plan->on_starts, .sink = args->sink,

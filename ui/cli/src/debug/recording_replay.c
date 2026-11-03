@@ -8,7 +8,7 @@
 // a path of the tree as the replay compares it: whole, with one kind of slash, and without case on Windows, into `key`
 void cli_replay_key(const CliRecordingPathCtx *args)
 {
-    VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ULL};
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &out, .text = args->path, .from = '\\',
                      .to = '/');
 #if defined(_WIN32)
@@ -33,7 +33,7 @@ void cli_replay_full(const CliRecordingRelativeCtx *args)
         if (length > 0u)
         {
             char one[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {one, sizeof(one), 0ull};
+            VerbaLinea line = {one, sizeof(one), 0ULL};
             mmgr_line_put_n(&line, part, length);
             mmgr_line_finish(&line);
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->full, .relative = one, .joined = joined);
@@ -210,7 +210,7 @@ void cli_replay_stopped_send(const CliRecordingDapReasonCtx *args)
 {
     CliDap *dap = args->dap;
     char out_buf[1024];
-    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
     const int bound = (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "end", .cap = CLI_CELLS_POOL})) ||
                       (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "start", .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&out, "{\"type\":\"event\",\"event\":\"stopped\",\"body\":{\"reason\":\"");
@@ -227,7 +227,7 @@ void cli_replay_stopped_send(const CliRecordingDapReasonCtx *args)
     else
     {
         mmgr_line_put(&out, "step ");
-        mmgr_line_decimal(&out, (unsigned long long)g_cli_replay->at + 1ull, 1u);
+        mmgr_line_decimal(&out, (unsigned long long)g_cli_replay->at + 1ULL, 1u);
         mmgr_line_put(&out, " of ");
         mmgr_line_decimal(&out, g_cli_replay->recording.step_count, 1u);
     }
@@ -293,15 +293,15 @@ int cli_replay_integer(const CliRecordingJsonCtx *args)
                                         .json_read = args->json, .node = args->id, .kind = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->id].text
                                  : NULL;
-    const unsigned long long length = (text != NULL) ? args->json->node[args->id].length : 0ull;
-    int whole = (length > 0ull) && (length <= 19ull);
-    *value = 0ull;
-    for (unsigned long long at = 0ull; whole && (at < length); at += 1ull)
+    const unsigned long long length = (text != NULL) ? args->json->node[args->id].length : 0ULL;
+    int whole = (length > 0ULL) && (length <= 19ULL);
+    *value = 0ULL;
+    for (unsigned long long at = 0ULL; whole && (at < length); at += 1ULL)
     {
         whole = (text[at] >= '0') && (text[at] <= '9');
-        *value = (*value * 10ull) + (unsigned long long)(text[at] - '0');
+        *value = (*value * 10ULL) + (unsigned long long)(text[at] - '0');
     }
-    return whole && (*value <= 9223372036854775807ull);
+    return whole && (*value <= 9223372036854775807ULL);
 }
 
 // the frame `id` names, a node of the request's arguments, or the innermost where it names none or one not standing
@@ -309,7 +309,7 @@ unsigned int cli_replay_frame_get(const CliRecordingJsonCtx *args)
 {
     const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx,
                                           .at = g_cli_replay->at, .frames = s_stack, .capacity = 512u);
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     const int whole = EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = args->json,
                                  .id = args->id, .value = &value);
     for (unsigned int at = 0u; whole && (at < count); at += 1u)

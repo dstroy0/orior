@@ -34,7 +34,7 @@ void cli_ipp_free(const CliIppMessageCodeCfg *args)
 {
     CliIppMessage *message = args->message;
     g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
-    *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
+    *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
 typedef struct
@@ -235,7 +235,7 @@ EMBED_INLINE const unsigned char *cli_alloc(const IppCtx *args)
 
 EMBED_INLINE unsigned long long cli_number(const IppCtx *args)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         value = (value << 8u) | args->raw[at];
@@ -247,18 +247,18 @@ EMBED_INLINE unsigned long long cli_number(const IppCtx *args)
 EMBED_INLINE int cli_sign(const IppCtx *args)
 {
     // the 32 bits read as the signed number they write
-    return (args->length >= 4ull) ? (int)(unsigned int)EMBED_CALL(cli_number, IppCtx, .raw = args->raw, .count = 4u)
+    return (args->length >= 4ULL) ? (int)(unsigned int)EMBED_CALL(cli_number, IppCtx, .raw = args->raw, .count = 4u)
                                   : 0;
 }
 
 int cli_ipp_decode(const CliIppMessageCfg *args)
 {
     const unsigned char *bytes = args->bytes;
-    unsigned long long at = 2ull;
+    unsigned long long at = 2ULL;
     const unsigned char *const code =
-        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
+        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ULL);
     const unsigned char *const request =
-        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 4ull);
+        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 4ULL);
     if ((code == NULL) || (request == NULL))
     {
         mmgr_line_put(args->err_msg, "the printer's answer is cut short");
@@ -271,7 +271,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
     for (;;)
     {
         const unsigned char *const tag =
-            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 1ull);
+            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 1ULL);
         if (tag == NULL)
         {
             mmgr_line_put(args->err_msg, "the printer's answer is cut short");
@@ -287,17 +287,17 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
             continue;
         }
         const unsigned char *const name_size =
-            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
+            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ULL);
         const unsigned char *const name =
             (name_size != NULL) ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at,
                                              .count_u64 = EMBED_CALL(cli_number, IppCtx, .raw = name_size, .count = 2u))
                                 : NULL;
         const unsigned char *const value_size =
             (name != NULL)
-                ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull)
+                ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ULL)
                 : NULL;
         const unsigned long long length =
-            (value_size != NULL) ? EMBED_CALL(cli_number, IppCtx, .raw = value_size, .count = 2u) : 0ull;
+            (value_size != NULL) ? EMBED_CALL(cli_number, IppCtx, .raw = value_size, .count = 2u) : 0ULL;
         const unsigned char *const raw = (value_size != NULL)
                                              ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size,
                                                           .at = &at, .count_u64 = length)
@@ -314,7 +314,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
         }
         // a value with no name is one more of the attribute before it, and passed over where its group has none
         const unsigned long long name_length = EMBED_CALL(cli_number, IppCtx, .raw = name_size, .count = 2u);
-        if (name_length != 0ull)
+        if (name_length != 0ULL)
         {
             EMBED_CALL(cli_attribute_count, IppCtx, .message = args->message, .name = name, .length = name_length);
         }
@@ -331,7 +331,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
             break;
         case 0x22u:
             value.kind = CLI_IPP_BOOLEAN;
-            value.low = (length >= 1ull) && (raw[0] == 1u);
+            value.low = (length >= 1ULL) && (raw[0] == 1u);
             break;
         case 0x23u:
             value.kind = CLI_IPP_ENUM;
@@ -340,7 +340,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
         case 0x33u:
             value.kind = CLI_IPP_RANGE;
             value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
-            value.high = (length >= 8ull) ? EMBED_CALL(cli_sign, IppCtx, .raw = raw + 4u, .length = 4u) : 0;
+            value.high = (length >= 8ULL) ? EMBED_CALL(cli_sign, IppCtx, .raw = raw + 4u, .length = 4u) : 0;
             break;
         default:
             value.kind = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
@@ -395,7 +395,7 @@ int cli_ipp_value_text(const CliIppMessageValueCfg *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->out, args->capacity, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
     mmgr_line_put_n(&line, (const char *)(args->message_read->bytes + args->value_ipp_value_pointer->bytes),
                     args->value_ipp_value_pointer->length);
     mmgr_line_finish(&line);

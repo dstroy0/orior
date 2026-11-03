@@ -51,6 +51,10 @@ EMBED_INLINE GuiRect controls_button(const ControlsCtx *args)
 // it, a run's ends taken as what lies past them
 EMBED_INLINE void controls_box_blur(const ControlsCtx *args)
 {
+    if ((args->box == 0u) || (args->count == 0u))
+    {
+        return;
+    }
     const unsigned int half = args->box / 2u;
     unsigned int sum = 0u;
     for (unsigned int at = 0u; at < args->box; at += 1u)

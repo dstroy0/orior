@@ -145,7 +145,7 @@ EMBED_INLINE void cli_last_by_name(const DevcontainerReadCtx *args)
     last = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                                    .at = (unsigned long long)(last - args->path), .set = "/\\");
     last += (((end - last) == 2) && (last[1] == ':')) ? 2 : 0;
-    VerbaLinea line = {args->name, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->name, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, last, (unsigned long long)(end - last));
     mmgr_line_finish(&line);
 }
@@ -222,7 +222,7 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
         // the tree's folder's name is shorter than a path, and the folder it is put under shorter than a string
         char tree_name[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_last_by_name, DevcontainerReadCtx, .path = root, .name = tree_name);
-        VerbaLinea line = {s_read, sizeof(s_read), 0ull};
+        VerbaLinea line = {s_read, sizeof(s_read), 0ULL};
         mmgr_line_put(&line, (composes != 0u) ? "/" : "/workspaces/");
         mmgr_line_put(&line, (composes != 0u) ? "" : tree_name);
         mmgr_line_finish(&line);

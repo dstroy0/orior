@@ -13,8 +13,8 @@
 // bounds of numbers, strings, arrays and objects, `pattern`, `required`, `properties`, `patternProperties`,
 // `additionalProperties`, `propertyNames`, `dependencies`, `dependentRequired`, `dependentSchemas`, `items`,
 // `prefixItems`, `additionalItems`, `contains`, `uniqueItems`, `allOf`, `anyOf`, `oneOf`, `not`, `if`, `then`, `else`,
-// `$ref` within a schema and across files, and `deprecated`. A comment, `//` or `/* */`, is passed over, as a JSON file
-// with comments writes one (schema_*.c)
+// `$ref` within a schema and across files, and `deprecated`. A line comment or a block comment is passed over, as a
+// JSON file with comments writes one (schema_*.c)
 #ifndef SCHEMA_H
 #define SCHEMA_H
 typedef struct CliSchemaLineCfg CliSchemaLineCfg;

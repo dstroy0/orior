@@ -12,7 +12,7 @@
 
 // the tree names a structure Atom in its engine's headers, which the CLI's headers include; X's Atom is renamed
 // X11Atom here, in X's own headers and in this file alike
-#define Atom X11Atom
+#define Atom X11Atom // NOSONAR
 #include "xsettings.h"
 
 #include <X11/Xatom.h>
@@ -50,8 +50,8 @@ struct GuiSystem
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
 // request to move
 #define GUI_WHEEL_ROWS 3
-#define GUI_MOTIF_HINTS_DECORATIONS 2ul
-#define GUI_MOVERESIZE_MOVE 8l
+#define GUI_MOTIF_HINTS_DECORATIONS 2UL
+#define GUI_MOVERESIZE_MOVE 8L
 // the milliseconds of one refresh of the screen, taken as 60 a second: the core protocol carries no rate
 #define GUI_FRAME_MS 17u
 // the windows that stand at once: the main one and Preferences'
@@ -105,7 +105,7 @@ EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
         return 100;
     }
     // pixels over millimetres times 25.4 millimetres an inch, over 96, as a percent
-    const int scale = (int)(((long long)pixels * 2540ll) / ((long long)millimetres * 96ll));
+    const int scale = (int)(((long long)pixels * 2540LL) / ((long long)millimetres * 96LL));
     // a scale a sliver off one is one, as a screen reports its size roughly
     return ((scale > 90) && (scale < 110)) ? 100 : scale;
 }
@@ -132,11 +132,11 @@ EMBED_INLINE void system_append(const SystemX11Ctx *args)
     image.depth = 24;
     image.bytes_per_line = (int)(raster->width * sizeof(GuiColor));
     image.bits_per_pixel = 32;
-    image.red_mask = 0xff0000ul;
-    image.green_mask = 0x00ff00ul;
-    image.blue_mask = 0x0000fful;
+    image.red_mask = 0xff0000UL;
+    image.green_mask = 0x00ff00UL;
+    image.blue_mask = 0x0000ffUL;
     XInitImage(&image);
-    GC context = XCreateGC(args->system->display, args->system->window, 0ul, NULL);
+    GC context = XCreateGC(args->system->display, args->system->window, 0UL, NULL);
     // the rows are inside the raster, whose sides are far inside what an int represents
     XPutImage(args->system->display, args->system->window, context, &image, 0, (int)args->from, 0, (int)args->from,
               raster->width, args->rows);
@@ -191,7 +191,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
     const int wrote = XLookupString(args->event, text, sizeof(text) - 1, &key, NULL);
     const unsigned int mods = EMBED_CALL(system_mods, SystemX11Ctx, .state = args->event->state);
     char own[32];
-    VerbaLinea named = {own, sizeof(own), 0ull};
+    VerbaLinea named = {own, sizeof(own), 0ULL};
     int has_name = 0;
     for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
     {
@@ -204,7 +204,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
     if (!has_name && (key >= XK_F1) && (key <= XK_F12))
     {
         mmgr_line_ch(&named, 'F');
-        mmgr_line_decimal(&named, (unsigned long long)(key - XK_F1) + 1ull, 1u);
+        mmgr_line_decimal(&named, (unsigned long long)(key - XK_F1) + 1ULL, 1u);
         has_name = 1;
     }
     if (!has_name && (((key >= XK_a) && (key <= XK_z)) || ((key >= XK_A) && (key <= XK_Z))))
@@ -218,16 +218,16 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
         mmgr_line_ch(&named, (char)((key - XK_0) + '0'));
         has_name = 1;
     }
-    if (!has_name && (key < 0x80ul) && (key > XK_space))
+    if (!has_name && (key < 0x80UL) && (key > XK_space))
     {
         // a punctuation key goes by its own character
         mmgr_line_ch(&named, (char)key);
         has_name = 1;
     }
-    if (has_name && (mmgr_line_finish(&named) != 0ull))
+    if (has_name && (mmgr_line_finish(&named) != 0ULL))
     {
         char whole[48];
-        VerbaLinea line = {whole, sizeof(whole), 0ull};
+        VerbaLinea line = {whole, sizeof(whole), 0ULL};
         mmgr_line_put(&line, (mods & GUI_MOD_CONTROL) ? "Mod+" : "");
         mmgr_line_put(&line, (mods & GUI_MOD_ALT) ? "Alt+" : "");
         mmgr_line_put(&line, (mods & GUI_MOD_SHIFT) ? "Shift+" : "");
@@ -241,7 +241,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
     {
         // the text as Latin-1, each byte a letter, written as UTF-8
         char utf8[128];
-        VerbaLinea line = {utf8, sizeof(utf8), 0ull};
+        VerbaLinea line = {utf8, sizeof(utf8), 0ULL};
         for (int at = 0; at < wrote; at += 1)
         {
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
@@ -255,12 +255,13 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
 // the move or resize direction a hit stands for, or -1 for none
 EMBED_INLINE long system_direction(const SystemX11Ctx *args)
 {
-    static const long s_directions[13] = {-1l, GUI_MOVERESIZE_MOVE, 7l, 3l, 1l, 5l, 0l, 2l, 6l, 4l, -1l, -1l, -1l};
-    return (args->hit < 13u) ? s_directions[args->hit] : -1l;
+    static const long s_directions[13] = {-1L, GUI_MOVERESIZE_MOVE, 7L, 3L, 1L, 5L, 0L, 2L, 6L, 4L, -1L, -1L, -1L};
+    return (args->hit < 13u) ? s_directions[args->hit] : -1L;
 }
 
-// a request of the settings' window's refused as that window goes: nothing is to be done about it
-static int system_settings_reject(Display *display, XErrorEvent *error)
+// a request of the settings' window's refused as that window goes: nothing is to be done about it. Its signature is
+// the one XSetErrorHandler declares
+static int system_settings_reject(Display *display, XErrorEvent *error) // NOSONAR
 {
     (void)display;
     (void)error;
@@ -275,14 +276,14 @@ int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
     }
     Atom type = None;
     int format = 0;
-    unsigned long count = 0ul;
-    unsigned long after = 0ul;
+    unsigned long count = 0UL;
+    unsigned long after = 0UL;
     unsigned char *data = NULL;
     const XErrorHandler saved = XSetErrorHandler(system_settings_reject);
     // a settings list is far shorter than a million words
     const int requested =
         XGetWindowProperty(args->system_read->display, args->system_read->settings_owner, args->system_read->settings,
-                           0l, 1l << 20, False, AnyPropertyType, &type, &format, &count, &after, &data);
+                           0L, 1L << 20, False, AnyPropertyType, &type, &format, &count, &after, &data);
     XSync(args->system_read->display, False);
     XSetErrorHandler(saved);
     int enabled = 1;
@@ -300,7 +301,7 @@ int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
 EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
 {
     char name[32];
-    VerbaLinea named = {name, sizeof(name), 0ull};
+    VerbaLinea named = {name, sizeof(name), 0ULL};
     mmgr_line_put(&named, "_XSETTINGS_S");
     // a screen's number is not negative
     mmgr_line_decimal(&named, (unsigned long long)args->system->screen, 1u);
@@ -397,7 +398,7 @@ static void system_event(const SystemX11Ctx *args)
                 .hit = EMBED_CALL(args->system->events->hit, GuiEachInputCfg, .context = args->system->context,
                                   .input = GUI_MOVED_INPUT(args->event_x_event_pointer->xbutton.x,
                                                            args->event_x_event_pointer->xbutton.y)));
-            if (direction >= 0l)
+            if (direction >= 0L)
             {
                 EMBED_CALL(system_moveresize, SystemX11Ctx, .system = args->system,
                            .root_x = args->event_x_event_pointer->xbutton.x_root,
@@ -485,7 +486,7 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
     args->system->screen = DefaultScreen(args->system->display);
     const Window root = RootWindow(args->system->display, args->system->screen);
     XSetWindowAttributes attributes;
-    attributes.background_pixel = 0x131331ul;
+    attributes.background_pixel = 0x131331UL;
     attributes.event_mask = ExposureMask | StructureNotifyMask | ButtonPressMask | ButtonReleaseMask |
                             PointerMotionMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask;
     args->system->window = XCreateWindow(args->system->display, root, args->place->x, args->place->y,
@@ -493,7 +494,7 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
                                          CopyFromParent, CWBackPixel | CWEventMask, &attributes);
     // the decorations taken off: the hints' flags word says the decorations word counts, and it is zero
     const Atom motif_hints = XInternAtom(args->system->display, "_MOTIF_WM_HINTS", False);
-    const unsigned long hints[5] = {GUI_MOTIF_HINTS_DECORATIONS, 0ul, 0ul, 0ul, 0ul};
+    const unsigned long hints[5] = {GUI_MOTIF_HINTS_DECORATIONS, 0UL, 0UL, 0UL, 0UL};
     XChangeProperty(args->system->display, args->system->window, motif_hints, motif_hints, 32, PropModeReplace,
                     (const unsigned char *)hints, 5);
     args->system->protocols = XInternAtom(args->system->display, "WM_PROTOCOLS", False);
@@ -604,6 +605,7 @@ void gui_system_run(const GuiSystemCfg *args)
             char drained[64];
             while (read(args->system->wake_pipe[0], drained, sizeof(drained)) == (ssize_t)sizeof(drained))
             {
+                // each pass empties the pipe of as much as it reads
             }
             args->system->events->woken(args->system->context);
         }
@@ -689,16 +691,16 @@ EMBED_INLINE unsigned long system_icon_append(const SystemX11Ctx *args)
     args->data[0] = args->raster->width;
     args->data[1] = args->raster->height;
     const unsigned long pixels = (unsigned long)args->raster->width * args->raster->height;
-    for (unsigned long at = 0ul; at < pixels; at += 1ul)
+    for (unsigned long at = 0UL; at < pixels; at += 1UL)
     {
-        args->data[2ul + at] = args->raster->pixels[at];
+        args->data[2UL + at] = args->raster->pixels[at];
     }
-    return 2ul + pixels;
+    return 2UL + pixels;
 }
 
 void gui_system_icon(const GuiSystemTitleIconCfg *args)
 {
-    const unsigned long words = 4ul + ((unsigned long)args->title_icon->width * args->title_icon->height) +
+    const unsigned long words = 4UL + ((unsigned long)args->title_icon->width * args->title_icon->height) +
                                 ((unsigned long)args->taskbar_icon->width * args->taskbar_icon->height);
     if (words > (sizeof(s_icon_words) / sizeof(s_icon_words[0])))
     {
@@ -729,10 +731,10 @@ void gui_system_act(const GuiSystemCfg *args)
         event.xclient.window = args->system->window;
         event.xclient.message_type = args->system->state;
         event.xclient.format = 32;
-        event.xclient.data.l[0] = 2l;
+        event.xclient.data.l[0] = 2L;
         event.xclient.data.l[1] = (long)args->system->state_maximized_horizontal;
         event.xclient.data.l[2] = (long)args->system->state_maximized_vertical;
-        event.xclient.data.l[3] = 1l;
+        event.xclient.data.l[3] = 1L;
         XSendEvent(args->system->display, RootWindow(args->system->display, args->system->screen), False,
                    SubstructureRedirectMask | SubstructureNotifyMask, &event);
     }
@@ -763,15 +765,15 @@ void gui_system_on_position(const GuiSystemPositionCfg *args)
     args->position_out->maximized = 0;
     Atom kind;
     int format = 0;
-    unsigned long count = 0ul;
-    unsigned long left = 0ul;
+    unsigned long count = 0UL;
+    unsigned long left = 0UL;
     unsigned char *states = NULL;
-    if ((XGetWindowProperty(args->system_read->display, args->system_read->window, args->system_read->state, 0l, 32l,
+    if ((XGetWindowProperty(args->system_read->display, args->system_read->window, args->system_read->state, 0L, 32L,
                             False, XA_ATOM, &kind, &format, &count, &left, &states) == Success) &&
         (states != NULL))
     {
         const Atom *const each = (const Atom *)states;
-        for (unsigned long at = 0ul; at < count; at += 1ul)
+        for (unsigned long at = 0UL; at < count; at += 1UL)
         {
             args->position_out->maximized =
                 args->position_out->maximized || (each[at] == args->system_read->state_maximized_vertical);

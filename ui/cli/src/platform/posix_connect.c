@@ -28,7 +28,7 @@ unsigned long long cli_clock_microseconds(void)
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * 1000000ull) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * 1000000ULL) + ((unsigned long long)now.tv_nsec / 1000ULL);
 }
 
 typedef struct
@@ -70,9 +70,9 @@ EMBED_INLINE int cli_connect_one(const PosixConnectCtx *args)
 int cli_socket_connected_time(const CliErrMsgCtx *args)
 {
     unsigned long long *resolved = args->resolved;
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
     char service[16];
-    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    VerbaLinea service_line = {service, sizeof(service), 0ULL};
     mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     struct addrinfo hints;
@@ -111,7 +111,7 @@ int cli_socket_connected_time(const CliErrMsgCtx *args)
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
     // a descriptor is not negative; one past it so that 0 stands for none
-    args->sock_out->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
@@ -125,7 +125,7 @@ int cli_socket_connected_within(const CliErrMsgCtx *args)
 int cli_socket_listening(const CliErrMsgPortCtx *args)
 {
     unsigned int *port = args->port_pointer;
-    args->listener->handle = 0ull;
+    args->listener->handle = 0ULL;
     const int made = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in address;
     memor.set(&(MemoriaCfg){.dst = &address, .val = 0, .bytes = sizeof(address)});
@@ -145,22 +145,22 @@ int cli_socket_listening(const CliErrMsgPortCtx *args)
     }
     *port = ntohs(address.sin_port);
     // a descriptor is not negative; one past it so that 0 stands for none
-    args->listener->handle = (unsigned long long)made + 1ull;
+    args->listener->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
 int cli_socket_accept(const CliListenerCtx *args)
 {
-    args->peer->handle = 0ull;
+    args->peer->handle = 0ULL;
     // the handle is one past a descriptor, which an int stores
     const int made =
-        (args->listener_read->handle != 0ull) ? accept((int)(args->listener_read->handle - 1ull), NULL, NULL) : -1;
+        (args->listener_read->handle != 0ULL) ? accept((int)(args->listener_read->handle - 1ULL), NULL, NULL) : -1;
     if (made < 0)
     {
         return 0;
     }
     // a descriptor is not negative; one past it so that 0 stands for none
-    args->peer->handle = (unsigned long long)made + 1ull;
+    args->peer->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 

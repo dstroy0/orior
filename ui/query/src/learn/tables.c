@@ -12,7 +12,7 @@
 // `folder`/`name` into `path`
 void query_tables_in(const QueryTablesFolderCtx *args)
 {
-    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
@@ -23,14 +23,14 @@ void query_tables_in(const QueryTablesFolderCtx *args)
 void query_tables_get(const QueryTablesOutCtx *args)
 {
     char name[128];
-    VerbaLinea line = {name, sizeof(name), 0ull};
+    VerbaLinea line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&line, "tables/");
     mmgr_line_put(&line, args->arch);
     mmgr_line_put(&line, "_instructions.txt");
     mmgr_line_finish(&line);
     EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = args->out, .name = name,
                .path = args->instructions);
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put(&line, "tables/");
     mmgr_line_put(&line, args->arch);
     mmgr_line_put(&line, "_latencies.txt");
@@ -43,22 +43,22 @@ void query_tables_get(const QueryTablesOutCtx *args)
 int query_version_get(const QueryTablesOutputCtx *args)
 {
     unsigned long long size = args->size;
-    for (unsigned long long at = 0ull; (at + 1ull) < size; at += 1ull)
+    for (unsigned long long at = 0ULL; (at + 1ULL) < size; at += 1ULL)
     {
         if ((args->output[at] != 'V') ||
-            ((at != 0ull) && (args->output[at - 1u] != ' ') && (args->output[at - 1u] != '\n')))
+            ((at != 0ULL) && (args->output[at - 1u] != ' ') && (args->output[at - 1u] != '\n')))
         {
             continue;
         }
-        unsigned long long end = at + 1ull;
+        unsigned long long end = at + 1ULL;
         end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->output, .at = end,
                          .size = size, .classes = CLI_TEXT_DIGITS, .set = ".");
-        if ((end > (at + 1ull)) &&
+        if ((end > (at + 1ULL)) &&
             ((end == size) || (args->output[end] == ' ') || (args->output[end] == '\n') || (args->output[end] == '\r')))
         {
-            VerbaLinea line = {args->version, args->capacity, 0ull};
-            mmgr_line_put_n(&line, (const char *)(args->output + at + 1u), end - at - 1ull);
-            return mmgr_line_finish(&line) != 0ull;
+            VerbaLinea line = {args->version, args->capacity, 0ULL};
+            mmgr_line_put_n(&line, (const char *)(args->output + at + 1u), end - at - 1ULL);
+            return mmgr_line_finish(&line) != 0ULL;
         }
     }
     return 0;
@@ -66,7 +66,7 @@ int query_version_get(const QueryTablesOutputCtx *args)
 
 void query_archive_by_name(const QueryTablesCapacityCtx *args)
 {
-    VerbaLinea line = {args->archive, args->capacity, 0ull};
+    VerbaLinea line = {args->archive, args->capacity, 0ULL};
     mmgr_line_put(&line, "cuda_nvdisasm-linux-x86_64-");
     mmgr_line_put(&line, args->version_read);
     mmgr_line_put(&line, "-archive");
@@ -78,7 +78,7 @@ unsigned int query_architectures_get(const QueryTablesCtx *args)
 {
     unsigned long long size = args->size;
     unsigned int count = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at < size) && (count < QUERY_ARCHITECTURES_MAX))
     {
         at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)args->output,
@@ -86,13 +86,13 @@ unsigned int query_architectures_get(const QueryTablesCtx *args)
         const unsigned long long first = at;
         at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)args->output,
                         .at = at, .size = size, .set = " \n\r\t");
-        if (((at - first) > 8ull) && ((at - first) < 18ull) &&
+        if (((at - first) > 8ULL) && ((at - first) < 18ULL) &&
             (memor.cmp(&(MemoriaCfg){.src = args->output + first, .other = "compute_", .bytes = 8u}) == 0))
         {
-            VerbaLinea line = {args->arches[count], 16u, 0ull};
+            VerbaLinea line = {args->arches[count], 16u, 0ULL};
             mmgr_line_put(&line, "sm_");
-            mmgr_line_put_n(&line, (const char *)(args->output + first + 8u), at - first - 8ull);
-            count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+            mmgr_line_put_n(&line, (const char *)(args->output + first + 8u), at - first - 8ULL);
+            count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
         }
     }
     return count;
@@ -107,7 +107,7 @@ void query_in_container(const QueryTablesRootCtx *args)
                          ((args->path_read[length] == '/') || (args->path_read[length] == '\\')))
                             ? (args->path_read + length + 1u)
                             : args->path_read;
-    VerbaLinea line = {args->inside, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->inside, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, "/tree/");
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = under, .from = '\\', .to = '/');
     mmgr_line_finish(&line);
@@ -143,7 +143,7 @@ unsigned int query_architectures(const QueryTablesErrMsgCtx *args)
         return arch_count;
     }
     static char s_nvcc[QUERY_PATH_MAX_LEN];
-    long long code = -1ll;
+    long long code = -1LL;
     const char *const list_entries[3] = {s_nvcc, "--list-gpu-arch", NULL};
     if (!EMBED_CALL(query_tables_path_internal.program, QueryTablesPathCtx, .context_read = context,
                     .role = QUERY_ROLE_NVCC, .path = s_nvcc, .err_msg = err_msg) ||
@@ -154,7 +154,7 @@ unsigned int query_architectures(const QueryTablesErrMsgCtx *args)
         return 0u;
     }
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &run->writer,
                     .name = "nvcc_architectures.txt", .bytes_u8s = &bytes, .size_pointer = &size))
     {
@@ -177,7 +177,7 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
     const QueryRun *run = args->run;
     VerbaLinea *err_msg = args->err_msg;
     static char s_nvcc[QUERY_PATH_MAX_LEN];
-    long long code = -1ll;
+    long long code = -1LL;
     const char *const version_words[3] = {s_nvcc, "--version", NULL};
     if (!EMBED_CALL(query_tables_path_internal.program, QueryTablesPathCtx, .context_read = context,
                     .role = QUERY_ROLE_NVCC, .path = s_nvcc, .err_msg = err_msg) ||
@@ -188,7 +188,7 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
         return 0;
     }
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char version[64];
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &run->writer,
                     .name = "nvcc_version.txt", .bytes_u8s = &bytes, .size_pointer = &size) ||
@@ -221,14 +221,14 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
         return 0;
     }
     char tar_name[160];
-    VerbaLinea tar_line = {tar_name, sizeof(tar_name), 0ull};
+    VerbaLinea tar_line = {tar_name, sizeof(tar_name), 0ULL};
     mmgr_line_put(&tar_line, archive);
     mmgr_line_put(&tar_line, ".tar.xz");
     mmgr_line_finish(&tar_line);
     EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = download, .name = tar_name,
                .path = tar);
     char url[512];
-    VerbaLinea url_line = {url, sizeof(url), 0ull};
+    VerbaLinea url_line = {url, sizeof(url), 0ULL};
     mmgr_line_put(&url_line, "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvdisasm/linux-x86_64/");
     mmgr_line_put(&url_line, tar_name);
     mmgr_line_finish(&url_line);
@@ -242,11 +242,11 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
         return 0;
     }
     char fetching[256];
-    VerbaLinea fetching_line = {fetching, sizeof(fetching), 0ull};
+    VerbaLinea fetching_line = {fetching, sizeof(fetching), 0ULL};
     mmgr_line_put(&fetching_line, "  the vendor's disassembler for Linux ");
     mmgr_line_put(&fetching_line, version);
     mmgr_line_put(&fetching_line, " fetched");
-    if (mmgr_line_finish(&fetching_line) != 0ull)
+    if (mmgr_line_finish(&fetching_line) != 0ULL)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = fetching);
     }
@@ -254,7 +254,7 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "curl", .words = fetch, .code = &code,
                     .err_msg = err_msg) ||
-        (code != 0ll))
+        (code != 0LL))
     {
         mmgr_line_put(err_msg, "the vendor's archive could not be fetched: ");
         mmgr_line_put(err_msg, url);
@@ -264,7 +264,7 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "tar", .words = unpack, .code = &code,
                     .err_msg = err_msg) ||
-        (code != 0ll))
+        (code != 0LL))
     {
         mmgr_line_put(err_msg, tar);
         mmgr_line_put(err_msg, " could not be unpacked");
@@ -300,7 +300,7 @@ int query_key_cubin(const QueryTablesOutArchCtx *args)
         return 0;
     }
     char name[32];
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, args->arch);
     mmgr_line_put(&name_line, ".cubin");
     mmgr_line_finish(&name_line);
@@ -312,18 +312,18 @@ int query_key_cubin(const QueryTablesOutArchCtx *args)
     }
     static char s_nvcc[QUERY_PATH_MAX_LEN];
     char flag[32];
-    VerbaLinea flag_line = {flag, sizeof(flag), 0ull};
+    VerbaLinea flag_line = {flag, sizeof(flag), 0ULL};
     mmgr_line_put(&flag_line, "-arch=");
     mmgr_line_put(&flag_line, args->arch);
     mmgr_line_finish(&flag_line);
-    long long code = -1ll;
+    long long code = -1LL;
     const char *const compile[7] = {s_nvcc, flag, "-cubin", "-o", args->cubin, key, NULL};
     if (!EMBED_CALL(query_tables_path_internal.program, QueryTablesPathCtx, .context_read = context,
                     .role = QUERY_ROLE_NVCC, .path = s_nvcc, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = run, .name = "nvcc", .words = compile, .code = &code,
                     .err_msg = err_msg) ||
-        (code != 0ll))
+        (code != 0LL))
     {
         mmgr_line_put(err_msg, "nvcc did not compile the key for ");
         mmgr_line_put(err_msg, args->arch);

@@ -30,30 +30,30 @@ typedef struct
 static void latex_slash(const LatexReadCtx *args)
 {
     const char *text = args->text;
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = args->length;
     while ((start < end) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = text[start]))
     {
-        start += 1ull;
+        start += 1ULL;
     }
-    while ((end > start) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = text[end - 1ull]))
+    while ((end > start) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = text[end - 1ULL]))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
-    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ULL};
     unsigned long long at = start;
     while (at < end)
     {
         const int slash = (text[at] == '/') || (text[at] == '\\');
-        if (slash && (at + 2ull < end) && (text[at + 1ull] == '.') &&
-            ((text[at + 2ull] == '/') || (text[at + 2ull] == '\\')))
+        if (slash && (at + 2ULL < end) && (text[at + 1ULL] == '.') &&
+            ((text[at + 2ULL] == '/') || (text[at + 2ULL] == '\\')))
         {
             mmgr_line_ch(&line, '/');
-            at += 3ull;
+            at += 3ULL;
             continue;
         }
         mmgr_line_ch(&line, slash ? '/' : text[at]);
-        at += 1ull;
+        at += 1ULL;
     }
     mmgr_line_finish(&line);
     args->out_capacity[CLI_PATH_MAX_LEN - 1u] = '\0';
@@ -78,7 +78,7 @@ void cli_tex_names_init(const CliLatexNamesRootCtx *args)
 {
     const char *path = args->path;
     char named[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ULL};
     mmgr_line_put(&line, args->job);
     mmgr_line_put(&line, ".tex");
     mmgr_line_finish(&line);
@@ -110,7 +110,7 @@ int cli_tex_names_get(const CliLatexLengthCtx *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->job, .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->made, .cap = CLI_CELLS_POOL})))
     {
-        VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->names->path);
         mmgr_line_finish(&line);
         return 1;

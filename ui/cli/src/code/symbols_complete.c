@@ -22,7 +22,7 @@ typedef struct
     void *context;
 } CliComplete;
 // the bytes the names handed on are written in
-#define CLI_COMPLETE_CAPACITY (1ull << 20u)
+#define CLI_COMPLETE_CAPACITY (1ULL << 20u)
 
 typedef struct
 {
@@ -48,9 +48,9 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
         return;
     }
     const int saved = mmgr_line_ok(&args->complete->transferred);
-    for (unsigned long long at = 0ull; saved && (at < args->complete->transferred.at);
+    for (unsigned long long at = 0ULL; saved && (at < args->complete->transferred.at);
          at +=
-         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.out + at, .cap = CLI_CELLS_POOL}) + 1ull)
+         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.out + at, .cap = CLI_CELLS_POOL}) + 1ULL)
     {
         const char *const one = args->complete->transferred.out + at;
         if ((cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL}) == args->length) &&
@@ -88,9 +88,9 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = scratch + one->name,
                        .other_pointer = args->name, .size = args->length))
         {
-            VerbaLinea written = {args->kind_out, CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea written = {args->kind_out, CLI_NAME_MAX_LEN, 0ULL};
             mmgr_line_put(&written, scratch + one->kind);
-            args->kind_out[(mmgr_line_finish(&written) != 0ull) ? written.at : 0ull] = '\0';
+            args->kind_out[(mmgr_line_finish(&written) != 0ULL) ? written.at : 0ULL] = '\0';
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
@@ -183,7 +183,7 @@ EMBED_INLINE void complete_locals(const SymbolsCompleteCtx *args)
         const unsigned long long is = read->leaf[leaf].is;
         if (((is & (CLI_LEAF_LOCAL | CLI_LEAF_PARAMETER)) != 0u) && ((is & CLI_LEAF_NAME) != 0u))
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const name = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                 .read_read = read, .leaf = leaf, .length_pointer = &length);
             EMBED_CALL(complete_offer, SymbolsCompleteCtx, .complete = args->complete, .name = name, .length = length,
@@ -201,15 +201,15 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
                                                          .languages = languages, .path = args->path, .state = "root",
                                                          .text = args->text, .size = args->size, .read = &read);
     // the byte the place stands at: its line's first, then its column's
-    unsigned long long start = 0ull;
-    for (unsigned int lines = 0u; (lines < args->line) && (start < args->size); start += 1ull)
+    unsigned long long start = 0ULL;
+    for (unsigned int lines = 0u; (lines < args->line) && (start < args->size); start += 1ULL)
     {
         lines += (args->text[start] == '\n') ? 1u : 0u;
     }
     unsigned long long end = start;
     end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = end,
                      .size = args->size, .set = "\n");
-    unsigned long long byte = 0ull;
+    unsigned long long byte = 0ULL;
     unsigned int units = 0u;
     const unsigned long long at =
         start + EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = args->text + start,
@@ -224,7 +224,7 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     const int named = leaved && (place < read.count) && (read.leaf[place].from < at) &&
                       ((read.leaf[place].is & CLI_LEAF_NAME) != 0u) && ((read.leaf[place].is & words) == 0u);
     char *const transferred_cell = g_cli_cells->temporary_buf_alloc(CLI_COMPLETE_CAPACITY, &g_cli_code_cells);
-    CliComplete complete = {named ? args->text + read.leaf[place].from : "", named ? at - read.leaf[place].from : 0ull,
+    CliComplete complete = {named ? args->text + read.leaf[place].from : "", named ? at - read.leaf[place].from : 0ULL,
                             mmgr_line_over(transferred_cell, CLI_COMPLETE_CAPACITY), args->each_declared,
                             args->context};
     int done = transferred_cell != NULL;

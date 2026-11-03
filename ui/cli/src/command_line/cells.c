@@ -144,7 +144,7 @@ void cli_cells_movable_ready(void)
 static unsigned long long cells_pool_bytes(void)
 {
     const CarcerCellBlock *const record = cli_cells_site_cellblock();
-    return (record != NULL) ? (unsigned long long)record->size : 0ull;
+    return (record != NULL) ? (unsigned long long)record->size : 0ULL;
 }
 
 CellOwner *cli_cell_owner(const CliCellsCfg *args)
@@ -225,8 +225,8 @@ void cli_cells_report(const CliCellsCfg *args)
     unsigned long long *temporary = args->temporary;
     const CarcerCellBlock *const record = cli_cells_site_cellblock();
     *pool = cells_pool_bytes();
-    *persistent = (record != NULL) ? (unsigned long long)mmgr_cellblock_persistent_hw(record) : 0ull;
-    *temporary = (record != NULL) ? (unsigned long long)mmgr_cellblock_temporary_hw(record) : 0ull;
+    *persistent = (record != NULL) ? (unsigned long long)mmgr_cellblock_persistent_hw(record) : 0ULL;
+    *temporary = (record != NULL) ? (unsigned long long)mmgr_cellblock_temporary_hw(record) : 0ULL;
 }
 
 int cli_cells_zero(void)
@@ -237,9 +237,9 @@ int cli_cells_zero(void)
 void cli_cells_usage_write(const CliCellsCfg *args)
 {
     VerbaLinea *out = args->out;
-    unsigned long long pool = 0ull;
-    unsigned long long persistent = 0ull;
-    unsigned long long temporary = 0ull;
+    unsigned long long pool = 0ULL;
+    unsigned long long persistent = 0ULL;
+    unsigned long long temporary = 0ULL;
     EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &persistent, .temporary = &temporary);
     EMBED_CALL(cells_write, CellsCtx, .out = out, .persistent = persistent, .temporary = temporary);
 }
@@ -248,7 +248,7 @@ void cli_cells_owner_usage_write(const CliCellsCfg *args)
 {
     VerbaLinea *out = args->out;
     EMBED_CALL(cells_write, CellsCtx, .out = out, .persistent = (unsigned long long)mmgr_owner_hw(args->owner),
-               .temporary = 0ull);
+               .temporary = 0ULL);
 }
 
 void cli_cells_owners_write(const CliCellsCfg *args)
@@ -281,7 +281,7 @@ void cli_cells_peaks_report(void)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         line.at = 0u;
-        EMBED_CALL(cells_write, CellsCtx, .out = &line, .persistent = owners[at].hw, .temporary = 0ull);
+        EMBED_CALL(cells_write, CellsCtx, .out = &line, .persistent = owners[at].hw, .temporary = 0ULL);
         EMBED_CALL(cli_cells_table.reported, CliCellsCfg, .name = owners[at].name, .report = &line);
     }
 }

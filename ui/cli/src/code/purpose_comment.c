@@ -51,7 +51,7 @@ EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned int lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (lines < CLI_COMMENT_LINES);)
+    for (unsigned long long at = 0ULL; (at < size) && (lines < CLI_COMMENT_LINES);)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
@@ -62,7 +62,7 @@ EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
             s_work_state.line[lines] = (CliSpan){text + at, length};
         }
         lines += 1u;
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return lines;
 }
@@ -75,9 +75,9 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
     const unsigned int lines = cli_lines_read(args);
     const unsigned int line_capacity = (lines != 0u) ? lines : 1u;
     const unsigned long long capacity =
-        (args->size < CLI_COMMENT_CAPACITY) ? (args->size + 1ull) : CLI_COMMENT_CAPACITY;
-    const unsigned long long spans = 2ull * line_capacity * sizeof(CliSpan);
-    char *const cell = g_cli_cells->persistent_buf_alloc(spans + (3ull * capacity), &g_cli_purpose_cells);
+        (args->size < CLI_COMMENT_CAPACITY) ? (args->size + 1ULL) : CLI_COMMENT_CAPACITY;
+    const unsigned long long spans = 2ULL * line_capacity * sizeof(CliSpan);
+    char *const cell = g_cli_cells->persistent_buf_alloc(spans + (3ULL * capacity), &g_cli_purpose_cells);
     if (cell == NULL)
     {
         return 0;
@@ -111,10 +111,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     }
     CliJson json = {0};
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &unread, .owner = &g_cli_purpose_cells);
     const unsigned int comments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                              .object = root, .name = "comments");
@@ -163,11 +163,11 @@ EMBED_INLINE void cli_marks_get(const PurposeCommentCtx *args)
 static void cli_sentences(const PurposeCommentCtx *args)
 {
     const char *text = args->text;
-    VerbaLinea joined = {s_work_state.joined, s_work_state.capacity, 0ull};
-    unsigned long long letters = 0ull;
-    unsigned long long cut = 0ull;
+    VerbaLinea joined = {s_work_state.joined, s_work_state.capacity, 0ULL};
+    unsigned long long letters = 0ULL;
+    unsigned long long cut = 0ULL;
     int in_word = 0;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         unsigned int letter = 0u;
         const unsigned long long step =
@@ -179,15 +179,15 @@ static void cli_sentences(const PurposeCommentCtx *args)
             at += step;
             continue;
         }
-        if (!in_word && (joined.at != 0ull))
+        if (!in_word && (joined.at != 0ULL))
         {
             mmgr_line_ch(&joined, ' ');
-            letters += 1ull;
+            letters += 1ULL;
             cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         }
         in_word = 1;
         mmgr_line_put_n(&joined, text + at, step);
-        letters += 1ull;
+        letters += 1ULL;
         cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         at += step;
     }
@@ -197,13 +197,13 @@ static void cli_sentences(const PurposeCommentCtx *args)
         return;
     }
     // the cut's last sentence end past its first third, else the cut, its trailing whitespace left off, and an ellipsis
-    for (unsigned long long end = cut; end >= 2ull; end -= 1ull)
+    for (unsigned long long end = cut; end >= 2ULL; end -= 1ULL)
     {
-        if ((s_work_state.joined[end - 2ull] == '.') && (s_work_state.joined[end - 1ull] == ' '))
+        if ((s_work_state.joined[end - 2ULL] == '.') && (s_work_state.joined[end - 1ULL] == ' '))
         {
-            if ((end - 2ull) > (CLI_PURPOSE_TEXT_MAX_LEN / 3u))
+            if ((end - 2ULL) > (CLI_PURPOSE_TEXT_MAX_LEN / 3u))
             {
-                mmgr_line_put_n(args->out, s_work_state.joined, end - 1ull);
+                mmgr_line_put_n(args->out, s_work_state.joined, end - 1ULL);
                 return;
             }
             break;
@@ -219,13 +219,13 @@ static void cli_sentences(const PurposeCommentCtx *args)
 EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
 {
     const unsigned long long begun = args->out->at;
-    VerbaLinea joined = {s_work_state.joined, s_work_state.capacity, 0ull};
+    VerbaLinea joined = {s_work_state.joined, s_work_state.capacity, 0ULL};
     unsigned int reserved = 0u;
     for (unsigned int at = 0u; at < s_work_state.lines; at += 1u)
     {
         const CliSpan trimmed =
             EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = s_work_state.line[at]);
-        if (trimmed.length == 0ull)
+        if (trimmed.length == 0ULL)
         {
             if (reserved != 0u)
             {
@@ -282,13 +282,13 @@ EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
     // the marks of emphasis left out of what was written
     char *const written = args->out->out;
     unsigned long long paragraph = begun;
-    for (unsigned long long at = begun; at < args->out->at; at += 1ull)
+    for (unsigned long long at = begun; at < args->out->at; at += 1ULL)
     {
         const char letter = written[at];
-        const int double_under = (letter == '_') && ((at + 1ull) < args->out->at) && (written[at + 1ull] == '_');
+        const int double_under = (letter == '_') && ((at + 1ULL) < args->out->at) && (written[at + 1ULL] == '_');
         if (double_under)
         {
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         if ((letter == '[') || (letter == '*') || (letter == '`'))
@@ -296,7 +296,7 @@ EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
             continue;
         }
         written[paragraph] = letter;
-        paragraph += 1ull;
+        paragraph += 1ULL;
     }
     args->out->at = paragraph;
 }
@@ -308,7 +308,7 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
     unsigned int *at = args->at;
     VerbaLinea *out = args->out;
     // the work state's lines from `at` on, joined by newlines
-    VerbaLinea rest = {s_work_state.joined, s_work_state.capacity, 0ull};
+    VerbaLinea rest = {s_work_state.joined, s_work_state.capacity, 0ULL};
     for (unsigned int line = *at; line < s_work_state.lines; line += 1u)
     {
         if (line != *at)
@@ -321,7 +321,7 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
     const char *const joined = s_work_state.joined;
     const char *const opened = cellul.find(&(CatenaFinitaCfg){
         .src = joined, .cap = CLI_CELLS_POOL, .other = s_work_state.open, .other_cap = CLI_CELLS_POOL});
-    const unsigned long long from = ((opened != NULL) ? (unsigned long long)(opened - joined) : 0ull) +
+    const unsigned long long from = ((opened != NULL) ? (unsigned long long)(opened - joined) : 0ULL) +
                                     cellul.len(&(CatenaFinitaCfg){.src = s_work_state.open, .cap = CLI_CELLS_POOL});
     const char *const closed = (from <= rest.at) ? cellul.find(&(CatenaFinitaCfg){.src = joined + from,
                                                                                   .cap = CLI_CELLS_POOL,
@@ -334,9 +334,9 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
         // the close mark lies past the open mark's end
         end = (unsigned long long)(closed - joined);
         unsigned int newlines = 0u;
-        for (unsigned long long place = 0ull;
+        for (unsigned long long place = 0ULL;
              place < (end + cellul.len(&(CatenaFinitaCfg){.src = s_work_state.close, .cap = CLI_CELLS_POOL}));
-             place += 1ull)
+             place += 1ULL)
         {
             newlines += (joined[place] == '\n') ? 1u : 0u;
         }
@@ -348,8 +348,8 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
     }
     // the body's lines, each with its marks taken off, no more than the work state's lines they were joined from
     unsigned int count = 0u;
-    const unsigned long long length = (end > from) ? (end - from) : 0ull;
-    for (unsigned long long place = 0ull; (place < length) && (count < s_work_state.line_capacity);)
+    const unsigned long long length = (end > from) ? (end - from) : 0ULL;
+    for (unsigned long long place = 0ULL; (place < length) && (count < s_work_state.line_capacity);)
     {
         const CliTextLine bounds =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = joined + from, .at = place, .size = length);
@@ -371,7 +371,7 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -387,7 +387,7 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "rst", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "txt", .cap = CLI_CELLS_POOL})))
     {
-        VerbaLinea paragraph = {s_work_state.made, s_work_state.capacity, 0ull};
+        VerbaLinea paragraph = {s_work_state.made, s_work_state.capacity, 0ULL};
         EMBED_CALL(cli_first_paragraph, PurposeCommentCtx, .out = &paragraph);
         memor.cpy(&(MemoriaCfg){.dst = s_work_state.paragraph, .src = s_work_state.made, .bytes = paragraph.at});
         EMBED_CALL(cli_sentences, PurposeCommentCtx, .text = s_work_state.paragraph, .size = paragraph.at, .out = out);
@@ -403,12 +403,12 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
     {
         const CliSpan trimmed =
             EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = s_work_state.line[at]);
-        if (trimmed.length == 0ull)
+        if (trimmed.length == 0ULL)
         {
             at += 1u;
             continue;
         }
-        VerbaLinea text_line = {s_work_state.made, s_work_state.capacity, 0ull};
+        VerbaLinea text_line = {s_work_state.made, s_work_state.capacity, 0ULL};
         if (s_work_state.has_line && EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg,
                                                 .span = trimmed, .text = s_work_state.line_mark))
         {
@@ -465,7 +465,7 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
         }
         const CliSpan comment = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                                            .span = (CliSpan){s_work_state.made, text_line.at});
-        if ((comment.length != 0ull) && !EMBED_CALL(cli_purpose_lines.purpose_license, CliPurposeLinesCfg,
+        if ((comment.length != 0ULL) && !EMBED_CALL(cli_purpose_lines.purpose_license, CliPurposeLinesCfg,
                                                     .text = s_work_state.made, .length = text_line.at))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_work_state.paragraph, .src = s_work_state.made, .bytes = text_line.at});

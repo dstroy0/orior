@@ -7,12 +7,12 @@
 int cli_tls_on_write(const CliTlsDataCfg *args)
 {
     const unsigned char *const bytes = (const unsigned char *)args->data;
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < args->size)
     {
         const long long reserved = EMBED_CALL(cli_tls_data.write, CliTlsDataCfg, .tls = args->tls, .data = bytes + done,
                                               .size = args->size - done, .err_msg = args->err_msg);
-        if (reserved <= 0ll)
+        if (reserved <= 0LL)
         {
             return 0;
         }

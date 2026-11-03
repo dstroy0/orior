@@ -43,17 +43,17 @@ typedef struct
 // whether a pattern with its braces spread names the whole of a text
 static int cli_glob(const EditorconfigNamesCtx *args)
 {
-    if (args->pattern_length == 0ull)
+    if (args->pattern_length == 0ULL)
     {
-        return args->length == 0ull;
+        return args->length == 0ULL;
     }
     const unsigned int letter = args->pattern[0];
-    if ((letter == '*') && (args->pattern_length > 1ull) && (args->pattern[1] == '*'))
+    if ((letter == '*') && (args->pattern_length > 1ULL) && (args->pattern[1] == '*'))
     {
-        for (unsigned long long at = 0ull; at <= args->length; at += 1ull)
+        for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
         {
             if (EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + 2u,
-                           .pattern_length = args->pattern_length - 2ull, .text = args->text + at,
+                           .pattern_length = args->pattern_length - 2ULL, .text = args->text + at,
                            .length = args->length - at))
             {
                 return 1;
@@ -63,15 +63,15 @@ static int cli_glob(const EditorconfigNamesCtx *args)
     }
     if (letter == '*')
     {
-        unsigned long long stop = 0ull;
+        unsigned long long stop = 0ULL;
         while ((stop < args->length) && (args->text[stop] != '/'))
         {
-            stop += 1ull;
+            stop += 1ULL;
         }
-        for (unsigned long long at = 0ull; at <= stop; at += 1ull)
+        for (unsigned long long at = 0ULL; at <= stop; at += 1ULL)
         {
             if (EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + 1u,
-                           .pattern_length = args->pattern_length - 1ull, .text = args->text + at,
+                           .pattern_length = args->pattern_length - 1ULL, .text = args->text + at,
                            .length = args->length - at))
             {
                 return 1;
@@ -81,60 +81,60 @@ static int cli_glob(const EditorconfigNamesCtx *args)
     }
     if (letter == '?')
     {
-        return (args->length != 0ull) && (args->text[0] != '/') &&
+        return (args->length != 0ULL) && (args->text[0] != '/') &&
                EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + 1u,
-                          .pattern_length = args->pattern_length - 1ull, .text = args->text + 1u,
-                          .length = args->length - 1ull);
+                          .pattern_length = args->pattern_length - 1ULL, .text = args->text + 1u,
+                          .length = args->length - 1ULL);
     }
-    unsigned long long close = 1ull;
+    unsigned long long close = 1ULL;
     while ((letter == '[') && (close < args->pattern_length) && (args->pattern[close] != ']'))
     {
-        close += 1ull;
+        close += 1ULL;
     }
     if ((letter == '[') && (close < args->pattern_length))
     {
         const unsigned int *set = args->pattern + 1u;
-        unsigned long long set_length = close - 1ull;
-        const int negated = (set_length != 0ull) && (set[0] == '!');
+        unsigned long long set_length = close - 1ULL;
+        const int negated = (set_length != 0ULL) && (set[0] == '!');
         if (negated)
         {
             set += 1u;
-            set_length -= 1ull;
+            set_length -= 1ULL;
         }
-        if (args->length == 0ull)
+        if (args->length == 0ULL)
         {
             return 0;
         }
         int inside = 0;
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while (at < set_length)
         {
-            if (((at + 2ull) < set_length) && (set[at + 1u] == '-'))
+            if (((at + 2ULL) < set_length) && (set[at + 1u] == '-'))
             {
                 inside = inside || ((set[at] <= args->text[0]) && (args->text[0] <= set[at + 2u]));
-                at += 3ull;
+                at += 3ULL;
             }
             else
             {
                 inside = inside || (set[at] == args->text[0]);
-                at += 1ull;
+                at += 1ULL;
             }
         }
         return (inside != negated) && EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + close + 1u,
-                                                 .pattern_length = args->pattern_length - close - 1ull,
-                                                 .text = args->text + 1u, .length = args->length - 1ull);
+                                                 .pattern_length = args->pattern_length - close - 1ULL,
+                                                 .text = args->text + 1u, .length = args->length - 1ULL);
     }
-    if ((letter == '\\') && (args->pattern_length > 1ull))
+    if ((letter == '\\') && (args->pattern_length > 1ULL))
     {
-        return (args->length != 0ull) && (args->text[0] == args->pattern[1]) &&
+        return (args->length != 0ULL) && (args->text[0] == args->pattern[1]) &&
                EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + 2u,
-                          .pattern_length = args->pattern_length - 2ull, .text = args->text + 1u,
-                          .length = args->length - 1ull);
+                          .pattern_length = args->pattern_length - 2ULL, .text = args->text + 1u,
+                          .length = args->length - 1ULL);
     }
-    return (args->length != 0ull) && (args->text[0] == letter) &&
+    return (args->length != 0ULL) && (args->text[0] == letter) &&
            EMBED_CALL(cli_glob, EditorconfigNamesCtx, .pattern = args->pattern + 1u,
-                      .pattern_length = args->pattern_length - 1ull, .text = args->text + 1u,
-                      .length = args->length - 1ull);
+                      .pattern_length = args->pattern_length - 1ULL, .text = args->text + 1u,
+                      .length = args->length - 1ULL);
 }
 
 // `length` letters at `at` put after the text spread so far, which ends at `built`: 1, or 0 where the text would not
@@ -157,27 +157,27 @@ EMBED_INLINE int cli_build(const EditorconfigNamesCtx *args)
 EMBED_INLINE int cli_span_is_whole_word(const EditorconfigNamesCtx *args)
 {
     long long *number = args->number;
-    const int below = (args->length != 0ull) && (args->at[0] == '-');
+    const int below = (args->length != 0ULL) && (args->at[0] == '-');
     const unsigned long long sign =
-        ((args->length != 0ull) && ((args->at[0] == '-') || (args->at[0] == '+'))) ? 1ull : 0ull;
+        ((args->length != 0ULL) && ((args->at[0] == '-') || (args->at[0] == '+'))) ? 1ULL : 0ULL;
     if (args->length == sign)
     {
         return 0;
     }
     // the size of the number stored unsigned, one past the most a long long stores allowed below zero
-    unsigned long long size = 0ull;
-    const unsigned long long most = below ? 9223372036854775808ull : 9223372036854775807ull;
-    for (unsigned long long step = sign; step < args->length; step += 1ull)
+    unsigned long long size = 0ULL;
+    const unsigned long long most = below ? 9223372036854775808ULL : 9223372036854775807ULL;
+    for (unsigned long long step = sign; step < args->length; step += 1ULL)
     {
         const unsigned int digit = args->at[step] - '0';
-        if ((args->at[step] < '0') || (args->at[step] > '9') || (size > ((most - digit) / 10ull)))
+        if ((args->at[step] < '0') || (args->at[step] > '9') || (size > ((most - digit) / 10ULL)))
         {
             return 0;
         }
-        size = (size * 10ull) + digit;
+        size = (size * 10ULL) + digit;
     }
     // the size fits a long long, or is one past its most and taken below zero as the least
-    *number = below ? (long long)(0ull - size) : (long long)size;
+    *number = below ? (long long)(0ULL - size) : (long long)size;
     return 1;
 }
 
@@ -203,36 +203,36 @@ static int cli_brace(const EditorconfigNamesCtx *args)
 {
     unsigned long long built = args->built;
     const unsigned int *const inner = args->at + args->open + 1u;
-    const unsigned long long inner_length = args->close - args->open - 1ull;
-    const CliPending tail = {args->at + args->close + 1u, args->length - args->close - 1ull, args->pending};
+    const unsigned long long inner_length = args->close - args->open - 1ULL;
+    const CliPending tail = {args->at + args->close + 1u, args->length - args->close - 1ULL, args->pending};
     if (!EMBED_CALL(cli_build, EditorconfigNamesCtx, .spreading = args->spreading, .built_pointer = &built,
                     .at = args->at, .length = args->open))
     {
         return 0;
     }
-    unsigned long long dots = 0ull;
-    while (((dots + 1ull) < inner_length) && !((inner[dots] == '.') && (inner[dots + 1u] == '.')))
+    unsigned long long dots = 0ULL;
+    while (((dots + 1ULL) < inner_length) && !((inner[dots] == '.') && (inner[dots + 1u] == '.')))
     {
-        dots += 1ull;
+        dots += 1ULL;
     }
-    long long from = 0ll;
-    long long to = 0ll;
-    if (((dots + 1ull) < inner_length) &&
+    long long from = 0LL;
+    long long to = 0LL;
+    if (((dots + 1ULL) < inner_length) &&
         EMBED_CALL(cli_span_is_whole_word, EditorconfigNamesCtx, .at = inner, .length = dots, .number = &from) &&
         EMBED_CALL(cli_span_is_whole_word, EditorconfigNamesCtx, .at = inner + dots + 2u,
-                   .length = inner_length - dots - 2ull, .number = &to))
+                   .length = inner_length - dots - 2ULL, .number = &to))
     {
         const long long low = (from < to) ? from : to;
         const long long high = (from < to) ? to : from;
-        for (unsigned long long count = 0ull; count < CLI_SPREAD_MAX; count += 1ull)
+        for (unsigned long long count = 0ULL; count < CLI_SPREAD_MAX; count += 1ULL)
         {
             // the count stays below the span from low to high, so the sum stays inside a long long
             const long long number = low + (long long)count;
             char digits[24];
-            VerbaLinea line = {digits, sizeof(digits), 0ull};
+            VerbaLinea line = {digits, sizeof(digits), 0ULL};
             mmgr_line_decimal_signed(&line, number);
             unsigned int letters[24];
-            for (unsigned long long step = 0ull; step < line.at; step += 1ull)
+            for (unsigned long long step = 0ULL; step < line.at; step += 1ULL)
             {
                 letters[step] = (unsigned char)digits[step];
             }
@@ -251,28 +251,28 @@ static int cli_brace(const EditorconfigNamesCtx *args)
         }
         return 0;
     }
-    long long depth = 0ll;
-    unsigned long long part = 0ull;
+    long long depth = 0LL;
+    unsigned long long part = 0ULL;
     int parts = 1;
-    for (unsigned long long step = 0ull; step < inner_length; step += 1ull)
+    for (unsigned long long step = 0ULL; step < inner_length; step += 1ULL)
     {
-        depth += (inner[step] == '{') ? 1ll : (inner[step] == '}') ? -1ll : 0ll;
-        parts += ((inner[step] == ',') && (depth == 0ll)) ? 1 : 0;
+        depth += (inner[step] == '{') ? 1LL : (inner[step] == '}') ? -1LL : 0LL;
+        parts += ((inner[step] == ',') && (depth == 0LL)) ? 1 : 0;
     }
     if (parts == 1)
     {
         return EMBED_CALL(cli_build, EditorconfigNamesCtx, .spreading = args->spreading, .built_pointer = &built,
-                          .at = args->at + args->open, .length = args->close - args->open + 1ull) &&
+                          .at = args->at + args->open, .length = args->close - args->open + 1ULL) &&
                EMBED_CALL(cli_spread_on, EditorconfigNamesCtx, .spreading = args->spreading, .built = built,
                           .pending = &tail);
     }
-    depth = 0ll;
-    for (unsigned long long step = 0ull; step <= inner_length; step += 1ull)
+    depth = 0LL;
+    for (unsigned long long step = 0ULL; step <= inner_length; step += 1ULL)
     {
-        const int ends = (step == inner_length) || ((inner[step] == ',') && (depth == 0ll));
+        const int ends = (step == inner_length) || ((inner[step] == ',') && (depth == 0LL));
         if (step < inner_length)
         {
-            depth += (inner[step] == '{') ? 1ll : (inner[step] == '}') ? -1ll : 0ll;
+            depth += (inner[step] == '{') ? 1LL : (inner[step] == '}') ? -1LL : 0LL;
         }
         if (ends)
         {
@@ -281,7 +281,7 @@ static int cli_brace(const EditorconfigNamesCtx *args)
             {
                 return 1;
             }
-            part = step + 1ull;
+            part = step + 1ULL;
         }
     }
     return 0;
@@ -296,19 +296,19 @@ static int cli_spread_match(const EditorconfigNamesCtx *args)
     {
         return 0;
     }
-    unsigned long long depth = 0ull;
-    unsigned long long open = 0ull;
-    for (unsigned long long step = 0ull; step < args->length; step += 1ull)
+    unsigned long long depth = 0ULL;
+    unsigned long long open = 0ULL;
+    for (unsigned long long step = 0ULL; step < args->length; step += 1ULL)
     {
         if (args->at[step] == '{')
         {
-            open = (depth == 0ull) ? step : open;
-            depth += 1ull;
+            open = (depth == 0ULL) ? step : open;
+            depth += 1ULL;
         }
-        else if ((args->at[step] == '}') && (depth > 0ull))
+        else if ((args->at[step] == '}') && (depth > 0ULL))
         {
-            depth -= 1ull;
-            if (depth == 0ull)
+            depth -= 1ULL;
+            if (depth == 0ULL)
             {
                 return EMBED_CALL(cli_brace, EditorconfigNamesCtx, .spreading = args->spreading, .built = built,
                                   .at = args->at, .length = args->length, .open = open, .close = step,
@@ -332,22 +332,22 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
     const unsigned long long length =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->pattern, .size = args->size,
                    .letters = s_pattern, .capacity_u64 = CLI_PATH_MAX_LEN);
-    unsigned long long slash = 0ull;
+    unsigned long long slash = 0ULL;
     while ((slash < length) && (s_pattern[slash] != '/'))
     {
-        slash += 1ull;
+        slash += 1ULL;
     }
     const char *const target = (slash < length) ? args->relative : args->name;
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     while ((slash < length) && (from < length) && (s_pattern[from] == '/'))
     {
-        from += 1ull;
+        from += 1ULL;
     }
     s_spreading.target = s_target;
     s_spreading.target_length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = target,
                                            .size = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}),
                                            .letters = s_target, .capacity_u64 = CLI_PATH_MAX_LEN);
     s_spreading.tried = 0u;
-    return EMBED_CALL(cli_spread_match, EditorconfigNamesCtx, .spreading = &s_spreading, .built = 0ull,
+    return EMBED_CALL(cli_spread_match, EditorconfigNamesCtx, .spreading = &s_spreading, .built = 0ULL,
                       .at = s_pattern + from, .length = length - from, .pending = NULL);
 }

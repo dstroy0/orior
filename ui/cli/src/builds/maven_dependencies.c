@@ -37,7 +37,7 @@ EMBED_INLINE int dependencies_get(const MavenDependenciesCtx *args)
     const char *name = args->name;
     VerbaLinea *out = args->out;
     static char s_raw[1u << 14u];
-    VerbaLinea raw = {s_raw, sizeof(s_raw), 0ull};
+    VerbaLinea raw = {s_raw, sizeof(s_raw), 0ULL};
     if (!EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = args->check->xml, .of = of,
                     .name = name, .out = &raw) ||
         !mmgr_line_ok(&raw))
@@ -79,8 +79,8 @@ EMBED_INLINE void dependencies_scope(const MavenDependenciesCtx *args)
     const unsigned int scope = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = xml,
                                           .of = args->dependency, .name = "scope");
     static char s_value[1u << 12u];
-    VerbaLinea value = {s_value, sizeof(s_value), 0ull};
-    unsigned long long found = 0ull;
+    VerbaLinea value = {s_value, sizeof(s_value), 0ULL};
+    unsigned long long found = 0ULL;
     if ((scope == CLI_XML_NONE) ||
         !EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx, .xml = xml, .of = scope, .out = &value) ||
         !mmgr_line_ok(&value) ||
@@ -157,7 +157,7 @@ EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
     static char s_key[1u << 14u];
     static char s_coordinates[1u << 14u];
     static char s_version[1u << 14u];
-    VerbaLinea key = {s_key, sizeof(s_key), 0ull};
+    VerbaLinea key = {s_key, sizeof(s_key), 0ULL};
     if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "groupId",
                     .out = &key))
     {
@@ -179,7 +179,7 @@ EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
                          .code = "pom-dependency");
         return;
     }
-    VerbaLinea whole = {s_coordinates, sizeof(s_coordinates), 0ull};
+    VerbaLinea whole = {s_coordinates, sizeof(s_coordinates), 0ULL};
     mmgr_line_put_n(&whole, s_key, key.at);
     mmgr_line_ch(&whole, ':');
     if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "type",
@@ -201,7 +201,7 @@ EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
                          .code = "pom-duplicate");
     }
     EMBED_CALL(dependencies_scope, MavenDependenciesCtx, .check = check, .dependency = args->dependency);
-    VerbaLinea version = {s_version, sizeof(s_version), 0ull};
+    VerbaLinea version = {s_version, sizeof(s_version), 0ULL};
     if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "version",
                     .out = &version))
     {
@@ -227,7 +227,7 @@ EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
     const unsigned int child = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = xml,
                                           .of = args->dependency, .name = "version");
     const CliXmlElement *const at = &xml->element[(child != CLI_XML_NONE) ? child : args->dependency];
-    VerbaLinea coordinates = {s_coordinates, sizeof(s_coordinates), 0ull};
+    VerbaLinea coordinates = {s_coordinates, sizeof(s_coordinates), 0ULL};
     mmgr_line_put_n(&coordinates, s_key, key.at);
     mmgr_line_ch(&coordinates, ':');
     mmgr_line_put_n(&coordinates, s_version, version.at);

@@ -35,8 +35,8 @@ EMBED_INLINE void cli_script_write(const NotebookWriteCtx *args)
                                  : CLI_JSON_NONE;
          cell != CLI_JSON_NONE; cell = json->node[cell].next)
     {
-        const unsigned long long written = mmgr_line_ok(args->out) ? (args->out->at - begun) : 0ull;
-        if ((written != 0ull) && !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx,
+        const unsigned long long written = mmgr_line_ok(args->out) ? (args->out->at - begun) : 0ULL;
+        if ((written != 0ULL) && !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx,
                                              .text = args->out->out + begun, .length = written, .ending = "\n\n"))
         {
             mmgr_line_ch(args->out, '\n');
@@ -69,7 +69,7 @@ EMBED_INLINE void cli_script_write(const NotebookWriteCtx *args)
             mmgr_line_ch(args->out, ']');
         }
         mmgr_line_ch(args->out, '\n');
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                               .json_read = json, .cell = cell, .length_pointer = &length);
         const char *at = source;
@@ -100,7 +100,7 @@ EMBED_INLINE unsigned int cli_lines_again(const NotebookWriteCtx *args)
     unsigned int value = args->value;
     const unsigned int joined =
         EMBED_CALL(cli_notebook_json_value_internal.join, CliNotebookJsonValueCtx, .json = json, .value = value);
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = joined, .length_pointer = &length);
     return (text != NULL) ? EMBED_CALL(cli_notebook_json_internal.lines_get, CliNotebookJsonCtx, .json = json,

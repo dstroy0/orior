@@ -57,9 +57,9 @@ EMBED_INLINE int send_line_run(const DeploySendCtx *args)
         mmgr_line_put(err_msg, args->longer);
         return 0;
     }
-    VerbaLinea nothing = {NULL, 0ull, 0ull};
+    VerbaLinea nothing = {NULL, 0ULL, 0ULL};
     return EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line->out,
-                      .input = NULL, .size = 0ull, .out = &nothing, .err_msg = err_msg);
+                      .input = NULL, .size = 0ULL, .out = &nothing, .err_msg = err_msg);
 }
 
 // `size` bytes of `text`, then `path`, as one word of a shell line
@@ -68,7 +68,7 @@ EMBED_INLINE void send_quote(const DeploySendCtx *args)
     VerbaLinea *out = args->out;
     const char *text = args->text;
     char joined[(2u * CLI_PATH_MAX_LEN) + 64u];
-    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ULL};
     mmgr_line_put(&line, text);
     mmgr_line_put(&line, args->path);
     EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = joined, .size = line.at, .out = out);
@@ -114,13 +114,13 @@ EMBED_INLINE int send_here(const DeploySendCtx *args)
         char to[(2u * CLI_PATH_MAX_LEN) + 2u];
         char parent[CLI_PATH_MAX_LEN];
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea to_line = {to, sizeof(to), 0ull};
-        VerbaLinea full_line = {full, sizeof(full), 0ull};
+        VerbaLinea to_line = {to, sizeof(to), 0ULL};
+        VerbaLinea full_line = {full, sizeof(full), 0ULL};
         mmgr_line_put(&to_line, folder);
         mmgr_line_ch(&to_line, '/');
         mmgr_line_put(&to_line, run->sent[index].path);
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = index, .out = &full_line);
-        if ((mmgr_line_finish(&to_line) == 0ull) || (mmgr_line_finish(&full_line) == 0ull) ||
+        if ((mmgr_line_finish(&to_line) == 0ULL) || (mmgr_line_finish(&full_line) == 0ULL) ||
             (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = to, .out = parent) &&
              !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)))
         {
@@ -152,7 +152,7 @@ EMBED_INLINE int send_machine_transfer(const DeploySendCtx *args)
     char *const line_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_LINE, &g_cli_deploy_cells);
     VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
     char current[CLI_PATH_MAX_LEN + 16u];
-    VerbaLinea current_line = {current, sizeof(current), 0ull};
+    VerbaLinea current_line = {current, sizeof(current), 0ULL};
     mmgr_line_put(&current_line,
                   EMBED_CALL(cli_deploy_size_internal.position_folder, CliDeploySizeCtx, .place = place));
     mmgr_line_put(&current_line, "/current/");
@@ -163,7 +163,7 @@ EMBED_INLINE int send_machine_transfer(const DeploySendCtx *args)
                                      ? args->preserved[at].path
                                      : run->removed_list[args->index][at - args->preserved_count].path;
         char to[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea to_line = {to, sizeof(to), 0ull};
+        VerbaLinea to_line = {to, sizeof(to), 0ULL};
         mmgr_line_put(&to_line, args->into);
         mmgr_line_ch(&to_line, '/');
         mmgr_line_put(&to_line, path);
@@ -171,7 +171,7 @@ EMBED_INLINE int send_machine_transfer(const DeploySendCtx *args)
         unsigned long long slash = to_line.at;
         const unsigned long long end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = to, .at = slash, .set = "/");
-        slash = (end != 0ull) ? (end - 1ull) : 0ull;
+        slash = (end != 0ULL) ? (end - 1ULL) : 0ULL;
         mmgr_line_put(&line, (at > 0u) ? " && mkdir -p " : "mkdir -p ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = to, .size = slash, .out = &line);
         mmgr_line_put(&line, " && cp -p ");
@@ -198,7 +198,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
                           .preserved_count = preserved_count, .err_msg = args->err_msg);
     }
     char into[CLI_PATH_MAX_LEN + 64u];
-    VerbaLinea into_line = {into, sizeof(into), 0ull};
+    VerbaLinea into_line = {into, sizeof(into), 0ULL};
     mmgr_line_put(&into_line, place->address.folder);
     if (args->releases)
     {
@@ -207,7 +207,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
     }
     mmgr_line_finish(&into_line);
     char tar[CLI_PATH_MAX_LEN];
-    VerbaLinea tar_line = {tar, sizeof(tar), 0ull};
+    VerbaLinea tar_line = {tar, sizeof(tar), 0ULL};
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = tar);
     tar_line.at = cellul.len(&(CatenaFinitaCfg){.src = tar, .cap = sizeof(tar)});
     mmgr_line_put(&tar_line, "/orior-deploy-");
@@ -223,16 +223,16 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
         return 0;
     }
     char line[(4u * CLI_PATH_MAX_LEN) + 64u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, "mkdir -p ");
     EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = into, .size = into_line.at, .out = &command);
     mmgr_line_put(&command, " && tar -x -f - -C ");
     EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = into, .size = into_line.at, .out = &command);
     mmgr_line_finish(&command);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = tar,
                                                   .size_pointer = &size, .owner = &g_cli_deploy_cells);
-    VerbaLinea none = {NULL, 0ull, 0ull};
+    VerbaLinea none = {NULL, 0ULL, 0ULL};
     const int sent = (bytes != NULL) && EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx,
                                                    .place = place, .line_text = line, .input = (const char *)bytes,
                                                    .size = size, .out = &none, .err_msg = args->err_msg);
@@ -269,7 +269,7 @@ static int send_releases(const DeploySendCtx *args)
     send_releases_free();
     *current = NULL;
     char line[CLI_PATH_MAX_LEN + 160u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, "cd ");
     EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = place->address.folder,
                .size = cellul.len(&(CatenaFinitaCfg){.src = place->address.folder, .cap = CLI_CELLS_POOL}),
@@ -281,7 +281,7 @@ static int send_releases(const DeploySendCtx *args)
     VerbaLinea listing = mmgr_line_over(s_releases_listing, CLI_DEPLOY_LINE);
     const int run_result =
         EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                   .input = NULL, .size = 0ull, .out = &listing, .err_msg = err_msg);
+                   .input = NULL, .size = 0ULL, .out = &listing, .err_msg = err_msg);
     const unsigned long long size = listing.at;
     if (!run_result)
     {
@@ -295,8 +295,9 @@ static int send_releases(const DeploySendCtx *args)
         return 0;
     }
     static const char s_mark[] = "<current>";
-    char *const mark = (char *)cellul.find(
+    const char *const mark_read = cellul.find(
         &(CatenaFinitaCfg){.src = s_releases_listing, .cap = size + 1u, .other = s_mark, .other_cap = sizeof(s_mark)});
+    char *const mark = (mark_read != NULL) ? (s_releases_listing + (mark_read - s_releases_listing)) : NULL;
     char *after = (mark != NULL) ? (mark + 9) : NULL;
     if (mark != NULL)
     {
@@ -317,12 +318,12 @@ static int send_releases(const DeploySendCtx *args)
     for (char *at = s_releases_listing; (*at != '\0') && (s_release_count < lines);)
     {
         char *end = at;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         const int more = (*end == '\n');
         *end = '\0';
         char *const start = at + EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at,
-                                            .at = 0ull, .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
+                                            .at = 0ULL, .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
         char *const last = start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = start,
                                               .at = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
         *last = '\0';
@@ -357,7 +358,7 @@ void cli_deploy_prune(const CliDeployIndexCtx *args)
     const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
     const char *current = NULL;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea none = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(send_releases, DeploySendCtx, .index = args->index, .current = &current, .err_msg = &none))
     {
         return;
@@ -390,7 +391,7 @@ void cli_deploy_prune(const CliDeployIndexCtx *args)
         return;
     }
     char print_buf[(2u * CLI_PATH_MAX_LEN) + 64u];
-    VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+    VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ULL};
     EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = &print_line);
     mmgr_line_put(&print_line, " let go of ");
     mmgr_line_decimal(&print_line, old, 1u);
@@ -422,7 +423,7 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
         }
         const char *current = NULL;
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea error_line = {why, sizeof(why), 0ull};
+        VerbaLinea error_line = {why, sizeof(why), 0ULL};
         if (!EMBED_CALL(send_releases, DeploySendCtx, .index = index, .current = &current, .err_msg = &error_line))
         {
             EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = args->err_msg);
@@ -452,15 +453,15 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
     {
         const CliDeployPosition *const place = &run->place[index];
         char line[(2u * CLI_PATH_MAX_LEN) + 256u];
-        VerbaLinea command = {line, sizeof(line), 0ull};
+        VerbaLinea command = {line, sizeof(line), 0ULL};
         EMBED_CALL(cli_deploy_out_internal.switch_line, CliDeployOutCtx, .folder = place->address.folder,
                    .release = back[index], .out = &command);
         mmgr_line_finish(&command);
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea error_line = {why, sizeof(why), 0ull};
-        VerbaLinea none = {NULL, 0ull, 0ull};
+        VerbaLinea error_line = {why, sizeof(why), 0ULL};
+        VerbaLinea none = {NULL, 0ULL, 0ULL};
         if (!EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                        .input = NULL, .size = 0ull, .out = &none, .err_msg = &error_line))
+                        .input = NULL, .size = 0ULL, .out = &none, .err_msg = &error_line))
         {
             EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = args->err_msg);
             mmgr_line_put(args->err_msg, ": ");
@@ -468,7 +469,7 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
             return 0;
         }
         char print_buf[(2u * CLI_PATH_MAX_LEN) + 64u];
-        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ULL};
         EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = &print_line);
         mmgr_line_put(&print_line, " now runs release ");
         mmgr_line_put(&print_line, back[index]);
@@ -492,11 +493,11 @@ int cli_deploy_remove(const CliDeployErrMsgIndexCtx *args)
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             char path[(2u * CLI_PATH_MAX_LEN) + 2u];
-            VerbaLinea path_line = {path, sizeof(path), 0ull};
+            VerbaLinea path_line = {path, sizeof(path), 0ULL};
             mmgr_line_put(&path_line, place->path);
             mmgr_line_ch(&path_line, '/');
             mmgr_line_put(&path_line, deleted[at].path);
-            if ((mmgr_line_finish(&path_line) == 0ull) ||
+            if ((mmgr_line_finish(&path_line) == 0ULL) ||
                 !EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path))
             {
                 mmgr_line_put(args->err_msg, deleted[at].path);
@@ -533,7 +534,7 @@ int cli_deploy_remove(const CliDeployErrMsgIndexCtx *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char print_buf[(3u * CLI_PATH_MAX_LEN) + 32u];
-        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ULL};
         mmgr_line_put(&print_line, "deleted ");
         mmgr_line_put(&print_line, deleted[at].path);
         mmgr_line_put(&print_line, " at ");

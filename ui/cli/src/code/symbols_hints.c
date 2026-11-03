@@ -34,7 +34,7 @@ static char *hints_open_text(const CliOpenTextCfg *args)
     {
         return NULL;
     }
-    char *const open_text = g_cli_cells->persistent_buf_alloc(hints->size + 1ull, &g_cli_code_cells);
+    char *const open_text = g_cli_cells->persistent_buf_alloc(hints->size + 1ULL, &g_cli_code_cells);
     if (open_text != NULL)
     {
         // a text the editor holds fits a size_t
@@ -50,9 +50,9 @@ static void hints_define(const CliUsageCfg *args)
 {
     unsigned int line = args->line;
     CliHints *const hints = (CliHints *)args->context;
-    VerbaLinea defined = {hints->defined, sizeof(hints->defined), 0ull};
+    VerbaLinea defined = {hints->defined, sizeof(hints->defined), 0ULL};
     mmgr_line_put(&defined, args->path);
-    hints->found = mmgr_line_finish(&defined) != 0ull;
+    hints->found = mmgr_line_finish(&defined) != 0ULL;
     hints->line = line;
 }
 
@@ -123,7 +123,7 @@ EMBED_INLINE void hints_arguments(const SymbolsHintsCtx *args)
             EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = args->head->label, .size = label_size,
                        .col = args->head->named[argument][1]);
         const unsigned int last = EMBED_CALL(hints_next, SymbolsHintsCtx, .read = read, .leaf = first + 1u);
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const text = (first < leaf)
                                      ? EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                   .read_read = read, .leaf = first, .length_pointer = &length)
@@ -176,14 +176,14 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
                           .col = EMBED_CALL(hints_col, SymbolsHintsCtx, .read = &read, .leaf = leaf),
                           .open_text = hints_open_text, .open_text_context = &hints, .each_usage = hints_define,
                           .context = &hints, .err_msg = args->err_msg) >= 0;
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                             .read_read = &read, .leaf = leaf, .length_pointer = &length);
         CliSymbolHead head;
-        VerbaLinea head_path = {head.path, sizeof(head.path), 0ull};
+        VerbaLinea head_path = {head.path, sizeof(head.path), 0ULL};
         mmgr_line_put(&head_path, hints.defined);
         head.line = hints.line;
-        if (done && hints.found && (mmgr_line_finish(&head_path) != 0ull) &&
+        if (done && hints.found && (mmgr_line_finish(&head_path) != 0ULL) &&
             EMBED_CALL(cli_symbols_languages_internal.head_read, CliSymbolsLanguagesCtx, .languages = languages,
                        .root = root, .name = name, .length = length, .head = &head))
         {

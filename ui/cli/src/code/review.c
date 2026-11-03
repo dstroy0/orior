@@ -26,8 +26,6 @@ typedef struct
     unsigned int stack[CLI_REVIEW_CALLS];
 } CliReviewWorkState;
 
-static CliReviewWorkState *s_work_state;
-
 typedef struct
 {
     const char *at;

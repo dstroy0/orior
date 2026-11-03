@@ -70,7 +70,7 @@ int cli_commands_read(const CliCommandsCfg *args)
         {
             (void)cfg_json_string(s_text, &s_tokens[at], string_text, (size_t)string_left);
             const unsigned long long used =
-                cellul.len(&(CatenaFinitaCfg){.src = string_text, .cap = string_left}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = string_text, .cap = string_left}) + 1ULL;
             s_string[at] = string_text;
             string_text += used;
             string_left -= used;
@@ -314,9 +314,9 @@ unsigned int cli_item_words_need(const CliCommandsItemCfg *args)
     unsigned int depth = 0u;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->item_read->args, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                            .text = args->item_read->args, .at = 0ull, .size = size, .set = "[]<");
+                                            .text = args->item_read->args, .at = 0ULL, .size = size, .set = "[]<");
          at < size; at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                    .text = args->item_read->args, .at = at + 1ull, .size = size, .set = "[]<"))
+                                    .text = args->item_read->args, .at = at + 1ULL, .size = size, .set = "[]<"))
     {
         const char mark = args->item_read->args[at];
         depth += (mark == '[') ? 1u : 0u;

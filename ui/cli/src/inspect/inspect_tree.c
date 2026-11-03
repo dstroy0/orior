@@ -52,7 +52,7 @@ EMBED_INLINE void *tree_part(const InspectTreeCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -75,7 +75,7 @@ EMBED_INLINE void *tree_work_alloc(const InspectTreeCtx *args)
         (counted.imports * sizeof(CliInspectImport)) + (counted.classes * sizeof(CliInspectClass)) +
         (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
         (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
-        (counted.names * sizeof(CliInspectName)) + counted.used + (8ull * 8ull);
+        (counted.names * sizeof(CliInspectName)) + counted.used + (8ULL * 8ULL);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_inspect_cells);
     if (cell == NULL)
     {
@@ -111,7 +111,7 @@ EMBED_INLINE void *tree_work_alloc(const InspectTreeCtx *args)
 EMBED_INLINE unsigned int tree_hash(const InspectTreeCtx *args)
 {
     unsigned int hash = 2166136261u;
-    for (unsigned long long at = 0ull; at < args->size; at += 1u)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1u)
     {
         hash = (hash ^ (unsigned char)args->path[at]) * 16777619u;
     }
@@ -141,7 +141,7 @@ unsigned int cli_tree_find(const CliInspectTreePathCtx *args)
 unsigned int cli_tree_find_join(const CliInspectTreeFolderCtx *args)
 {
     char path[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put_n(&line, args->folder, args->folder_size);
     mmgr_line_put(&line, (args->folder_size > 0u) ? "/" : "");
     mmgr_line_put(&line, args->name);
@@ -155,7 +155,7 @@ unsigned long long cli_tree_parent(const CliInspectTreePathCtx *args)
     unsigned long long end = args->size;
     end = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = end,
                      .set = "/");
-    return (end > 0u) ? (end - 1u) : 0ull;
+    return (end > 0u) ? (end - 1u) : 0ULL;
 }
 
 // a file's place put in the table
@@ -193,22 +193,22 @@ EMBED_INLINE void *tree_copy(const InspectTreeCtx *args)
     const void *bytes = args->bytes_bytess;
     void *const place = args->cell + *at;
     memor.cpy(&(MemoriaCfg){.dst = place, .src = bytes, .bytes = (size_t)args->size});
-    *at += (args->size + 7u) & ~7ull;
+    *at += (args->size + 7u) & ~7ULL;
     return place;
 }
 
 // the bytes a file of `path_size` bytes of path and the facts worked out take in its cell
 EMBED_INLINE unsigned long long tree_size(const InspectTreeCtx *args)
 {
-    unsigned long long size = (args->path_size + 1u + 7u) & ~7ull;
-    size += ((args->facts->imports * sizeof(CliInspectImport)) + 7u) & ~7ull;
-    size += ((args->facts->classes * sizeof(CliInspectClass)) + 7u) & ~7ull;
-    size += ((args->facts->functions * sizeof(CliInspectFunction)) + 7u) & ~7ull;
-    size += ((args->facts->findings * sizeof(CliInspectFinding)) + 7u) & ~7ull;
-    size += ((args->facts->fixes * sizeof(CliInspectFix)) + 7u) & ~7ull;
-    size += ((args->facts->edits * sizeof(CliInspectEdit)) + 7u) & ~7ull;
-    size += ((args->facts->names * sizeof(CliInspectName)) + 7u) & ~7ull;
-    size += (args->facts->used + 7u) & ~7ull;
+    unsigned long long size = (args->path_size + 1u + 7u) & ~7ULL;
+    size += ((args->facts->imports * sizeof(CliInspectImport)) + 7u) & ~7ULL;
+    size += ((args->facts->classes * sizeof(CliInspectClass)) + 7u) & ~7ULL;
+    size += ((args->facts->functions * sizeof(CliInspectFunction)) + 7u) & ~7ULL;
+    size += ((args->facts->findings * sizeof(CliInspectFinding)) + 7u) & ~7ULL;
+    size += ((args->facts->fixes * sizeof(CliInspectFix)) + 7u) & ~7ULL;
+    size += ((args->facts->edits * sizeof(CliInspectEdit)) + 7u) & ~7ULL;
+    size += ((args->facts->names * sizeof(CliInspectName)) + 7u) & ~7ULL;
+    size += (args->facts->used + 7u) & ~7ULL;
     return size;
 }
 
@@ -273,7 +273,7 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
                      !facts->full;
     const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
     const unsigned long long needed =
-        read ? EMBED_CALL(tree_size, InspectTreeCtx, .facts = facts, .path_size = path_size) : 0ull;
+        read ? EMBED_CALL(tree_size, InspectTreeCtx, .facts = facts, .path_size = path_size) : 0ULL;
     unsigned char *const cell = read ? g_cli_cells->persistent_buf_alloc(needed, &g_cli_inspect_cells) : NULL;
     const unsigned int place =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = path, .size = path_size);
@@ -289,11 +289,11 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
         return 0;
     }
     CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     tree_file->cell = cell;
     tree_file->size = needed;
-    char *const path_copy = EMBED_CALL(tree_copy, InspectTreeCtx, .cell = cell, .at_u64s = &at, .bytes_bytess = path,
-                                       .size = path_size + 1u);
+    const char *const path_copy = EMBED_CALL(tree_copy, InspectTreeCtx, .cell = cell, .at_u64s = &at,
+                                             .bytes_bytess = path, .size = path_size + 1u);
     tree_file->path = path_copy;
     tree_file->path_size = (unsigned int)path_size;
     tree_file->python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));

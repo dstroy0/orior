@@ -60,7 +60,7 @@ EMBED_INLINE unsigned int object_missing(const SchemaObjectCtx *args)
     unsigned int count = 0u;
     for (unsigned int one = json->node[args->names].first; one != CLI_JSON_NONE; one = json->node[one].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = one, .length_pointer = &size);
         if ((name == NULL) || EMBED_CALL(object_has, SchemaObjectCtx, .read = args->check_read->read, .node = node,
@@ -209,7 +209,7 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
         mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
         mmgr_line_ch(&title, '"');
         static char s_quoted[1u << 13u];
-        VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
+        VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ULL};
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
                    .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
@@ -234,7 +234,7 @@ EMBED_INLINE void object_name(const SchemaObjectCtx *args)
     read->node[at] = (CliSchemaNode){
         CLI_SCHEMA_TEXT, 0, 0.0, one->from, one->to, one->key_at, one->key_size, CLI_SCHEMA_NONE, 0u, CLI_SCHEMA_NONE};
     read->nodes += 1u;
-    const CliSchemaKey none = {0, 0ull, 0ull};
+    const CliSchemaKey none = {0, 0ULL, 0ULL};
     EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = check, .node = at, .schema = args->names,
                .base = base, .key_schema_key = none, .depth = depth + 1u);
     read->nodes = at;
@@ -249,7 +249,7 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
     const unsigned long long to =
         args->key_schema_key.has_key ? args->key_schema_key.to : read->node[args->node].from + 1u;
     const unsigned long long count = read->node[args->node].count;
-    unsigned long long bound = 0ull;
+    unsigned long long bound = 0ULL;
     if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                       .name = "minProperties"),

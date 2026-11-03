@@ -13,8 +13,8 @@
 #include "commands.h"
 
 // the bytes what a command run at the terminal writes and the help are written in
-#define CLI_RUN_OUT_CAPACITY (64ull << 20u)
-#define CLI_RUN_HELP_CAPACITY (1ull << 20u)
+#define CLI_RUN_OUT_CAPACITY (64ULL << 20u)
+#define CLI_RUN_HELP_CAPACITY (1ULL << 20u)
 
 static char s_msg_buf[1u << 14u];
 static const char *s_words[CLI_LAUNCH_ARGS];
@@ -45,9 +45,9 @@ EMBED_INLINE void run_exit(const CommandLineRunCtx *args)
 // `text` copied into `into`, sized for `capacity`, cut where it does not fit
 EMBED_INLINE void run_copy(const CommandLineRunCtx *args)
 {
-    VerbaLinea line = {args->into, args->capacity, 0ull};
+    VerbaLinea line = {args->into, args->capacity, 0ULL};
     mmgr_line_put(&line, args->text);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         args->into[0] = '\0';
     }
@@ -116,12 +116,12 @@ static void run_window(const CommandLineRunCtx *args)
     const char *command = args->command;
     const char *const *arguments = args->request;
     unsigned int count = args->count;
-    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
     static char s_found[CLI_PATH_MAX_LEN];
     const int found = (named != NULL) ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
                                                    .root = s_found, .err_msg = &err_msg)
                                       : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = s_found);
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     if (command[0] != '\0')
     {
         static CliReachAnswer s_answer;
@@ -131,7 +131,7 @@ static void run_window(const CommandLineRunCtx *args)
         if (requested == 0)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
@@ -163,16 +163,16 @@ static void run_window(const CommandLineRunCtx *args)
         }
         char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_OUT_CAPACITY, &g_cli_command_line_cells);
         VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_CAPACITY);
-        err_msg.at = 0ull;
+        err_msg.at = 0ULL;
         const int run_result =
             EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_found, .command = command,
                        .request = arguments, .count = count, .out = &out, .err_msg = &err_msg);
         if (!run_result)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         }
-        if (run_result && mmgr_line_ok(&out) && (out.at > 0ull))
+        if (run_result && mmgr_line_ok(&out) && (out.at > 0ULL))
         {
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.out,
                        .size = out.at);
@@ -182,12 +182,12 @@ static void run_window(const CommandLineRunCtx *args)
         return;
     }
     static char s_root[CLI_PATH_MAX_LEN];
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     if ((named != NULL) && !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
                                        .root = s_root, .err_msg = &err_msg))
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_NO_CODE);
         return;
     }
@@ -201,11 +201,11 @@ static void run_help(void)
     char *const help_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_HELP_CAPACITY, &g_cli_command_line_cells);
     VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_CAPACITY);
     EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help);
-    const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ull;
+    const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ULL;
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = help.out,
                .size = (help.out != NULL) ? EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
                                                        .text = help.out, .size = size)
-                                          : 0ull);
+                                          : 0ULL);
     g_cli_cells->persistent_buf_release(help.out, &g_cli_command_line_cells);
 }
 
@@ -227,11 +227,11 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         return;
     }
     unsigned int menu = 0u;
-    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
     if (!EMBED_CALL(cli_commands_word.menu_by_name, CliCommandsWordCfg, .word = first, .menu_pointer = &menu))
     {
         static char s_file[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea file = {s_file, sizeof(s_file), 0ull};
+        VerbaLinea file = {s_file, sizeof(s_file), 0ULL};
         const int named_file = EMBED_CALL(cli_command_line_out_internal.file_word, CliCommandLineOutCtx, .named = named,
                                           .word = first, .out = &file, .err_msg = &err_msg);
         if (named_file > 0)
@@ -245,16 +245,16 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         if (named_file == 0)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_NO_CODE);
             return;
         }
-        VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+        VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
         mmgr_line_put(&line, "orior_cli takes no ");
         mmgr_line_put(&line, first);
         mmgr_line_put(&line, ": orior_cli help names what it takes");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
         return;
     }
@@ -284,14 +284,14 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         // a command the window runs is given the words it needs, else it is refused here and never sent there
         if ((count - 2u) < EMBED_CALL(cli_commands_item.item_words_need, CliCommandsItemCfg, .item_read = &s_item))
         {
-            VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+            VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
             mmgr_line_put(&line, word);
             mmgr_line_ch(&line, ' ');
             mmgr_line_put(&line, s_item.command);
             mmgr_line_put(&line, " takes ");
             mmgr_line_put(&line, s_item.args);
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                       .size = mmgr_line_ok(&line) ? line.at : 0ULL);
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
@@ -318,7 +318,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     }
     char title[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_title.menu_title, CliCommandsMenuTitleCfg, .menu = menu, .title = title);
-    VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+    VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
     mmgr_line_put(&line, title);
     mmgr_line_put(&line, " has no ");
     mmgr_line_put(&line, words[1]);
@@ -326,7 +326,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     mmgr_line_put(&line, first);
     mmgr_line_put(&line, " names what it has");
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
 }
 
@@ -351,18 +351,18 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
     {
         const char *const shell = (first[13] == '=') ? first + 14 : ((count > 1u) ? words[1] : "");
         static char s_script[1u << 14u];
-        VerbaLinea script = {s_script, sizeof(s_script), 0ull};
-        VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+        VerbaLinea script = {s_script, sizeof(s_script), 0ULL};
+        VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
         if (!EMBED_CALL(cli_command_line_out_err_msg_shell_internal.completions, CliCommandLineOutErrMsgShellCtx,
                         .shell = shell, .out = &script, .err_msg = &err_msg))
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return 1;
         }
         EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = s_script,
-                   .length = mmgr_line_ok(&script) ? script.at : 0ull);
+                   .length = mmgr_line_ok(&script) ? script.at : 0ULL);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
         return 1;
     }
@@ -427,11 +427,11 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
             words += 1u;
         }
     }
-    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ull};
+    VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
     if (!EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg))
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_NO_CODE);
         return;
     }

@@ -95,7 +95,7 @@ EMBED_INLINE const char *verify_relative(const DisasmVerifyCtx *args)
     const int within =
         cellul.starts(&(CatenaFinitaCfg){.src = args->module, .other = args->top, .cap = CLI_PATH_MAX_LEN}) &&
         ((args->module[length] == '/') || (args->module[length] == '\\'));
-    return within ? args->module + length + 1ull : args->module;
+    return within ? args->module + length + 1ULL : args->module;
 }
 
 // the command line's name as bin_names.tsv at the tree's top gives it, its row "cli", into `name`: 1, or 0 where the
@@ -103,14 +103,14 @@ EMBED_INLINE const char *verify_relative(const DisasmVerifyCtx *args)
 EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->top);
     mmgr_line_put(&line, "/bin_names.tsv");
     if (!mmgr_line_finish(&line))
     {
         return 0;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                  .size_pointer = &size, .owner = &g_cli_programs_cells);
     if (text == NULL)
@@ -118,18 +118,18 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         return 0;
     }
     int found = 0;
-    for (unsigned long long at = 0ull; !found && (at < size);)
+    for (unsigned long long at = 0ULL; !found && (at < size);)
     {
         unsigned long long end = at;
         end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)text,
                          .at = end, .size = size, .set = "\n");
         const int row =
-            ((end - at) > 4ull) &&
+            ((end - at) > 4ULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = (const char *)text + at, .other = "cli\t", .cap = end - at});
         if (row)
         {
             // the row's second column alone: up to the next tab, or the line's end without its carriage return
-            const unsigned long long value = at + 4ull;
+            const unsigned long long value = at + 4ULL;
             unsigned long long value_end = value;
             value_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)text,
                                    .at = value_end, .size = end, .set = "\t\r");
@@ -141,7 +141,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
                 args->name[length] = '\0';
             }
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_cli_programs_cells);
     return found;
@@ -149,7 +149,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
 
 int cli_disasm_path(const CliDisasmVerifyCfg *args)
 {
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     for (unsigned int each = 0u; args->parts[each] != NULL; each += 1u)
     {
         mmgr_line_put(&line, args->parts[each]);
@@ -168,7 +168,7 @@ EMBED_INLINE void verify_object_by_name(const DisasmVerifyCtx *args)
 // or where the readings differ, each reader's index, address and mnemonic there
 EMBED_INLINE void verify_row(const DisasmVerifyCtx *args)
 {
-    VerbaLinea line = {s_out_text, sizeof(s_out_text), 0ull};
+    VerbaLinea line = {s_out_text, sizeof(s_out_text), 0ULL};
     mmgr_line_put(&line, args->name_read);
     mmgr_line_ch(&line, '\t');
     mmgr_line_decimal(&line, args->llvm->count, 1u);
@@ -205,7 +205,7 @@ EMBED_INLINE void verify_row(const DisasmVerifyCtx *args)
         }
     }
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_out_text,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 // the toolchain `id` names, LLVM's where it names none: its row, or NULL with which given
@@ -225,7 +225,7 @@ EMBED_INLINE const CliDisasmToolchain *verify_toolchain(const DisasmVerifyCtx *a
 
 int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
 {
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const char *module = NULL;
     const char *toolchain_id = "llvm";
     const char *target = "x86_64-unknown-linux-gnu";
@@ -271,7 +271,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     {
         (void)mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
-                   .text = (err_msg.at > 0ull)
+                   .text = (err_msg.at > 0ULL)
                                ? s_err_buf
                                : "no orior tree contains the working folder, and ORIOR_ROOT names none");
         return CLI_NO_CODE;
@@ -304,14 +304,14 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     char ir[CLI_PATH_MAX_LEN];
     char llvm_text[CLI_PATH_MAX_LEN];
     char ghidra_text[CLI_PATH_MAX_LEN];
-    VerbaLinea object_line = {object, sizeof(object), 0ull};
+    VerbaLinea object_line = {object, sizeof(object), 0ULL};
     mmgr_line_put(&object_line, top);
     mmgr_line_put(&object_line, "/build/cli/");
     mmgr_line_put(&object_line, target);
     mmgr_line_put(&object_line, "/objects/");
     EMBED_CALL(verify_object_by_name, DisasmVerifyCtx, .relative = relative, .line = &object_line);
     mmgr_line_put(&object_line, ".o");
-    VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&folder_line, top);
     mmgr_line_put(&folder_line, "/build/harness/disasm_verify/");
     EMBED_CALL(verify_object_by_name, DisasmVerifyCtx, .relative = relative, .line = &folder_line);
@@ -331,12 +331,13 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
             .text = "the loop's paths do not fit, or its folder could not be made under build/harness/disasm_verify");
         return CLI_NO_CODE;
     }
-    unsigned int functions = 0u;
-    if (!EMBED_CALL(cli_disasm_verify_compiler.disasm_build, CliDisasmVerifyCompilerCfg, .top = top, .target = target,
-                    .compiler = compiler, .err_msg = &err_msg) ||
-        ((functions =
-              EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg, .gnu = toolchain->gnu,
-                         .lifter = lifter, .object = object, .ir = ir, .names = s_names, .err_msg = &err_msg)) == 0u))
+    const int built = EMBED_CALL(cli_disasm_verify_compiler.disasm_build, CliDisasmVerifyCompilerCfg, .top = top,
+                                 .target = target, .compiler = compiler, .err_msg = &err_msg);
+    unsigned int functions =
+        built ? EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg, .gnu = toolchain->gnu,
+                           .lifter = lifter, .object = object, .ir = ir, .names = s_names, .err_msg = &err_msg)
+              : 0u;
+    if (functions == 0u)
     {
         (void)mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_err_buf);
@@ -367,7 +368,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     {
         (void)mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
-                   .text = mmgr_line_ok(&err_msg) && (err_msg.at > 0ull)
+                   .text = mmgr_line_ok(&err_msg) && (err_msg.at > 0ULL)
                                ? s_err_buf
                                : "the program contains none of the module's functions");
         return CLI_NO_CODE;
@@ -375,7 +376,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     CliRunResult *const disassembled = EMBED_CALL(
         cli_disasm_verify_count_err_msg.disasm_disassemble, CliDisasmVerifyCountErrMsgCfg, .disassembler = disassembler,
         .program = program, .symbols = s_symbols, .count = functions, .into = llvm_text, .err_msg = &err_msg);
-    unsigned long long ghidra_size = 0ull;
+    unsigned long long ghidra_size = 0ULL;
     const unsigned char *const ghidra =
         (disassembled != NULL)
             ? EMBED_CALL(cli_disasm_verify_count.disasm_ghidra, CliDisasmVerifyCountCfg, .analyzer = analyzer,

@@ -60,7 +60,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         {
             char *end = NULL;
             const unsigned long rounds = strtoul(args->words[1], &end, 10);
-            if ((end == args->words[1]) || (*end != '\0') || (rounds > 0xffffffffull))
+            if ((end == args->words[1]) || (*end != '\0') || (rounds > 0xffffffffULL))
             {
                 mmgr_line_put(args->err_msg, s_usage);
                 return 0;
@@ -92,33 +92,33 @@ unsigned int query_learn_lines(const QueryLearnCtx *args)
 {
     const char *name = args->name;
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                     .name = name, .bytes_u8s = &bytes, .size_pointer = &size))
     {
         return 0u;
     }
     unsigned int lines = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const unsigned char *const newline = (const unsigned char *)memor.chr(
             &(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = (size_t)(size - at)});
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         int blank = 1;
-        for (unsigned long long letter = at; letter < end; letter += 1ull)
+        for (unsigned long long letter = at; letter < end; letter += 1ULL)
         {
             blank = blank && ((bytes[letter] == ' ') || (bytes[letter] == '\t') || (bytes[letter] == '\r'));
         }
         lines += blank ? 0u : 1u;
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return lines;
 }
 
 int query_learn_machine_transfer(const QueryLearnErrMsgCtx *args)
 {
-    QueryContext *context = args->context;
+    const QueryContext *context = args->context;
     QueryRun *run = args->run_out;
     VerbaLinea *err_msg = args->err_msg;
     char work[QUERY_PATH_MAX_LEN];
@@ -129,11 +129,11 @@ int query_learn_machine_transfer(const QueryLearnErrMsgCtx *args)
                .under = QUERY_LEARN_WORK, .path_out = work);
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_LEARN_FOLDER, .path_out = folder);
-    VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ull};
+    VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ULL};
     mmgr_line_put(&forms_work_line, work);
     mmgr_line_put(&forms_work_line, "/forms_work.txt");
     mmgr_line_finish(&forms_work_line);
-    VerbaLinea forms_line = {forms, sizeof(forms), 0ull};
+    VerbaLinea forms_line = {forms, sizeof(forms), 0ULL};
     mmgr_line_put(&forms_line, work);
     mmgr_line_put(&forms_line, "/forms.txt");
     mmgr_line_finish(&forms_line);
@@ -166,7 +166,7 @@ void query_teacher_words(const QueryLearnWordsWordsCtx *args)
 void query_verdicts_print(const QueryLearnRunCtx *args)
 {
     QueryContext *context = args->context;
-    unsigned long long dry_size = 0ull;
+    unsigned long long dry_size = 0ULL;
     char *const dry = EMBED_CALL(query_count_name_internal.writer_read_alloc, QueryCountNameCtx,
                                  .writer = &args->run->writer, .name = "dry.txt", .size_pointer = &dry_size);
     if (dry == NULL)
@@ -177,16 +177,16 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
     static char s_verdicts[256][128];
     static unsigned long long s_counts[256];
     unsigned int verdicts = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < dry_size)
     {
         const char *const line = dry + at;
         const char *const end =
             (const char *)memor.chr(&(MemoriaCfg){.src = line, .val = '\n', .bytes = (size_t)(dry_size - at)});
         const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (dry_size - at);
-        at += length + 1ull;
+        at += length + 1ULL;
         const char *found = NULL;
-        for (unsigned long long letter = 0ull; (found == NULL) && ((letter + 10ull) <= length); letter += 1ull)
+        for (unsigned long long letter = 0ULL; (found == NULL) && ((letter + 10ULL) <= length); letter += 1ULL)
         {
             found = (memor.cmp(&(MemoriaCfg){.src = line + letter, .other = "the gate: ", .bytes = 10u}) == 0)
                         ? (line + letter)
@@ -197,10 +197,10 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
             continue;
         }
         // the verdict: its lower-case letters, spaces, commas and colons, its end trimmed
-        unsigned long long reserved = 0ull;
+        unsigned long long reserved = 0ULL;
         const unsigned long long capacity = length - (unsigned long long)(found - line);
-        reserved = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ull,
-                              .size = (capacity < 127ull) ? capacity : 127ull, .classes = CLI_TEXT_LOWER, .set = " ,:");
+        reserved = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ULL,
+                              .size = (capacity < 127ULL) ? capacity : 127ULL, .classes = CLI_TEXT_LOWER, .set = " ,:");
         reserved = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = found, .at = reserved,
                               .set = " ");
         char verdict[128];
@@ -215,7 +215,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
         if ((place < verdicts) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_verdicts[place], .other = verdict, .cap = CLI_CELLS_POOL})))
         {
-            s_counts[place] += 1ull;
+            s_counts[place] += 1ULL;
             continue;
         }
         if (verdicts >= 256u)
@@ -229,18 +229,18 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
                                     .src = &s_counts[place],
                                     .bytes = (size_t)(verdicts - place) * sizeof(s_counts[0])});
         memor.cpy(&(MemoriaCfg){.dst = s_verdicts[place], .src = verdict, .bytes = sizeof(verdict)});
-        s_counts[place] = 1ull;
+        s_counts[place] = 1ULL;
         verdicts += 1u;
     }
     g_cli_cells->persistent_buf_release(dry, &g_query_cells);
     for (unsigned int place = 0u; place < verdicts; place += 1u)
     {
         char text[160];
-        VerbaLinea line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_decimal_columns(&line, s_counts[place], 7u);
         mmgr_line_ch(&line, ' ');
         mmgr_line_put(&line, s_verdicts[place]);
-        if (mmgr_line_finish(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ULL)
         {
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
@@ -257,13 +257,13 @@ int query_bar0_driver_runs(void)
         return 0;
     }
     static char s_output[65536];
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     for (;;)
     {
         const unsigned long long got =
             EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &child,
                        .piece = s_output + length, .capacity_u64 = sizeof(s_output) - 1u - length);
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }

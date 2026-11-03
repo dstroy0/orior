@@ -158,34 +158,34 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
     unsigned long long *length = args->length;
     static const char s_length[] = "Content-Length:";
     int has_length = 0;
-    for (unsigned long long line = 0ull; !has_length && (line < args->head);)
+    for (unsigned long long line = 0ULL; !has_length && (line < args->head);)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = s_head, .at = line, .size = args->head).stop;
-        if ((end - line >= sizeof(s_length) - 1ull) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_head + line, .other = s_length, .bytes = sizeof(s_length) - 1ull}) == 0))
+        if ((end - line >= sizeof(s_length) - 1ULL) &&
+            (memor.cmp(&(MemoriaCfg){.src = s_head + line, .other = s_length, .bytes = sizeof(s_length) - 1ULL}) == 0))
         {
-            unsigned long long at = line + sizeof(s_length) - 1ull;
+            unsigned long long at = line + sizeof(s_length) - 1ULL;
             unsigned long long stop = end;
             while ((at < stop) &&
                    (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = s_head[at]}) != NULL))
             {
-                at += 1ull;
+                at += 1ULL;
             }
             while ((stop > at) && (cellul.chr(&(CatenaFinitaCfg){
-                                       .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = s_head[stop - 1ull]}) != NULL))
+                                       .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = s_head[stop - 1ULL]}) != NULL))
             {
-                stop -= 1ull;
+                stop -= 1ULL;
             }
             has_length = (stop > at);
-            *length = 0ull;
-            for (unsigned long long digit = at; has_length && (digit < stop); digit += 1ull)
+            *length = 0ULL;
+            for (unsigned long long digit = at; has_length && (digit < stop); digit += 1ULL)
             {
                 has_length = (s_head[digit] >= '0') && (s_head[digit] <= '9');
-                *length = (*length * 10ull) + (unsigned long long)(s_head[digit] - '0');
+                *length = (*length * 10ULL) + (unsigned long long)(s_head[digit] - '0');
             }
         }
-        line = end + 1ull;
+        line = end + 1ULL;
     }
     return has_length;
 }
@@ -194,7 +194,7 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
 static int within_request_complete(void)
 {
     char tiny[1];
-    VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
+    VerbaLinea checked = {tiny, sizeof(tiny), 0ULL};
     CliDapQueued *const request = s_coming;
     s_coming = NULL;
     if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = request->bytes, .size = request->size,
@@ -214,7 +214,7 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
     unsigned long long size = args->size;
     const char *at = (const char *)bytes;
     unsigned long long left = size;
-    while (left > 0ull)
+    while (left > 0ULL)
     {
         if (s_coming == NULL)
         {
@@ -223,22 +223,22 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
                 return 0;
             }
             s_head[s_head_size] = *at;
-            s_head_size += 1ull;
+            s_head_size += 1ULL;
             at += 1;
-            left -= 1ull;
-            unsigned long long length = 0ull;
-            if ((s_head_size < 4ull) ||
-                (memor.cmp(&(MemoriaCfg){.src = s_head + s_head_size - 4ull, .other = "\r\n\r\n", .bytes = 4u}) != 0))
+            left -= 1ULL;
+            unsigned long long length = 0ULL;
+            if ((s_head_size < 4ULL) ||
+                (memor.cmp(&(MemoriaCfg){.src = s_head + s_head_size - 4ULL, .other = "\r\n\r\n", .bytes = 4u}) != 0))
             {
                 continue;
             }
-            if (!EMBED_CALL(within_length, DapWithinCtx, .head = s_head_size - 4ull, .length = &length))
+            if (!EMBED_CALL(within_length, DapWithinCtx, .head = s_head_size - 4ULL, .length = &length))
             {
                 return 0;
             }
-            s_head_size = 0ull;
+            s_head_size = 0ULL;
             s_coming = EMBED_CALL(within_message_alloc, DapWithinCtx, .size = length);
-            s_coming_got = 0ull;
+            s_coming_got = 0ULL;
             if (s_coming == NULL)
             {
                 return 0;
@@ -272,14 +272,14 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
         s_pending = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_outgoing);
         if (s_pending == NULL)
         {
-            return 0ull;
+            return 0ULL;
         }
-        VerbaLinea line = {s_pending_head, sizeof(s_pending_head), 0ull};
+        VerbaLinea line = {s_pending_head, sizeof(s_pending_head), 0ULL};
         mmgr_line_put(&line, "Content-Length: ");
         mmgr_line_decimal(&line, s_pending->size, 1u);
         mmgr_line_put(&line, "\r\n\r\n");
         s_pending_head_size = line.at;
-        s_pending_at = 0ull;
+        s_pending_at = 0ULL;
     }
     const int in_head = (s_pending_at < s_pending_head_size);
     const char *const from =
@@ -340,13 +340,13 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     // what the adapter before this one left given back
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_incoming);
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_outgoing);
-    s_head_size = 0ull;
+    s_head_size = 0ULL;
     g_cli_cells->persistent_buf_release(s_coming, &g_cli_debug_cells);
     s_coming = NULL;
     g_cli_cells->persistent_buf_release(s_pending, &g_cli_debug_cells);
     s_pending = NULL;
-    s_pending_head_size = 0ull;
-    s_pending_at = 0ull;
+    s_pending_head_size = 0ULL;
+    s_pending_at = 0ULL;
     s_serve = args->serve;
     s_serve_context = args->serve_context;
     dap->kind = CLI_DAP_WITHIN;
@@ -356,8 +356,8 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     dap->input = (CliLspWriter){within_frame, NULL};
     dap->reader.read = within_unframed;
     dap->reader.source = dap;
-    dap->reader.start = 0ull;
-    dap->reader.end = 0ull;
+    dap->reader.start = 0ULL;
+    dap->reader.end = 0ULL;
     s_serving = 1;
     s_serve_thread = (CliThread){within_serve, dap};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_serve_thread))

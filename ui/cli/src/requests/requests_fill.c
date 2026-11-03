@@ -100,7 +100,7 @@ EMBED_INLINE int fill_dynamic(const RequestsFillCtx *args)
     }
     if (number)
     {
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         memor.cpy(&(MemoriaCfg){.dst = &value, .src = bytes, .bytes = sizeof(value)});
         mmgr_line_decimal(out, value % 1000u, 1u);
         return 1;
@@ -124,7 +124,7 @@ static int fill_go(const RequestsFillCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     const CliRequestsValues *values = args->values;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (;;)
     {
         const unsigned long long open =

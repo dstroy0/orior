@@ -34,7 +34,7 @@ int cli_requests_head_line(const CliRequestsSizeAnswerCtx *args)
     {
         return 0;
     }
-    unsigned long long name_start = 0ull;
+    unsigned long long name_start = 0ULL;
     unsigned long long name_end = (unsigned long long)(colon - args->line);
     unsigned long long value_start = name_end + 1u;
     unsigned long long value_end = args->size;
@@ -104,7 +104,7 @@ void cli_requests_head_write(const CliRequestsOutHopCtx *args)
     mmgr_line_put(args->out, args->address_read->target);
     mmgr_line_put(args->out, " HTTP/1.1\r\n");
     char host[CLI_REQUESTS_ADDRESS + 16u];
-    VerbaLinea host_line = {host, sizeof(host), 0ull};
+    VerbaLinea host_line = {host, sizeof(host), 0ULL};
     const int bracketed =
         (cellul.chr(&(CatenaFinitaCfg){.src = args->address_read->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL);
     mmgr_line_put(&host_line, bracketed ? "[" : "");
@@ -139,7 +139,7 @@ void cli_requests_head_write(const CliRequestsOutHopCtx *args)
         !EMBED_CALL(head_has, RequestsHeadCtx, .hop = args->hop, .name = "transfer-encoding"))
     {
         char length[24];
-        VerbaLinea length_line = {length, sizeof(length), 0ull};
+        VerbaLinea length_line = {length, sizeof(length), 0ULL};
         mmgr_line_decimal(&length_line, args->hop->body_size, 1u);
         mmgr_line_finish(&length_line);
         EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Content-Length", .lower = "content-length",
@@ -166,7 +166,7 @@ EMBED_INLINE int head_is(const RequestsHeadCtx *args)
 EMBED_INLINE int head_unpacked_capacity(const RequestsHeadCtx *args)
 {
     const unsigned long long required =
-        (args->bytes < 1ull) ? 1ull : ((args->bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : args->bytes);
+        (args->bytes < 1ULL) ? 1ULL : ((args->bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : args->bytes);
     if ((args->work_state->unpacked != NULL) && (args->work_state->unpacked_capacity >= required))
     {
         return 1;
@@ -191,7 +191,7 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
         EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx, .answer = answer,
                    .name = "Content-Encoding");
     const unsigned char *const raw = (const unsigned char *)args->work_state->raw.out;
-    unsigned long long unpacked = 0ull;
+    unsigned long long unpacked = 0ULL;
     answer->body = raw;
     answer->size = size;
     if (EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
@@ -201,10 +201,10 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
     {
         // a gzip ends with its unpacked size, and the work state is taken once at that size
         const unsigned long long unpacked_size =
-            (size >= 4ull)
-                ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |
-                   ((unsigned long long)raw[size - 2ull] << 16u) | ((unsigned long long)raw[size - 1ull] << 24u))
-                : 0ull;
+            (size >= 4ULL)
+                ? ((unsigned long long)raw[size - 4ULL] | ((unsigned long long)raw[size - 3ULL] << 8u) |
+                   ((unsigned long long)raw[size - 2ULL] << 16u) | ((unsigned long long)raw[size - 1ULL] << 24u))
+                : 0ULL;
         if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state, .bytes = unpacked_size,
                         .err_msg = args->err_msg) ||
             !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
@@ -220,7 +220,7 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
         // a deflate gives no size: the work state is taken at the most a body holds
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
-        unsigned long long used = 0ull;
+        unsigned long long used = 0ULL;
         if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state,
                         .bytes = CLI_REQUESTS_BODY, .err_msg = args->err_msg) ||
             !EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = zlib ? (raw + 2) : raw,
@@ -245,7 +245,7 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
     const CliRequestsText *const type = EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx,
                                                    .answer = args->answer, .name = "Content-Type");
     const char *kind = "";
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (type != NULL)
     {
         kind = args->answer->head + type->at;

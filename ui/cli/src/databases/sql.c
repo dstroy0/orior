@@ -56,14 +56,14 @@ EMBED_INLINE void cli_quote(const SqlCtx *args)
     {
         if (args->escapes && (args->bytes[*at] == '\\'))
         {
-            *at += 2ull;
+            *at += 2ULL;
         }
         else if (args->bytes[*at] == args->close)
         {
-            *at += 1ull;
+            *at += 1ULL;
             if ((*at < args->length) && (args->bytes[*at] == args->close))
             {
-                *at += 1ull;
+                *at += 1ULL;
             }
             else
             {
@@ -72,7 +72,7 @@ EMBED_INLINE void cli_quote(const SqlCtx *args)
         }
         else
         {
-            *at += 1ull;
+            *at += 1ULL;
         }
     }
     *at = args->length;
@@ -82,11 +82,11 @@ EMBED_INLINE void cli_quote(const SqlCtx *args)
 EMBED_INLINE unsigned long long cli_dollar_tag(const SqlCtx *args)
 {
     unsigned long long at = args->at_value;
-    unsigned long long end = at + 1ull;
+    unsigned long long end = at + 1ULL;
     end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
                      .at = end, .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "_");
-    const int digit_first = ((at + 1ull) < args->length) && EMBED_CALL(cli_digit, SqlCtx, .byte = args->bytes[at + 1u]);
-    return ((end < args->length) && (args->bytes[end] == '$') && !digit_first) ? (end - at + 1ull) : 0ull;
+    const int digit_first = ((at + 1ULL) < args->length) && EMBED_CALL(cli_digit, SqlCtx, .byte = args->bytes[at + 1u]);
+    return ((end < args->length) && (args->bytes[end] == '$') && !digit_first) ? (end - at + 1ULL) : 0ULL;
 }
 
 int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
@@ -99,14 +99,14 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     }
     const unsigned long long start = *at;
     const unsigned char byte = bytes[start];
-    const int next_is = (start + 1ull) < args->length;
+    const int next_is = (start + 1ULL) < args->length;
     const unsigned char next = next_is ? bytes[start + 1u] : 0u;
     unsigned int kind = CLI_SQL_MARK;
     if (EMBED_CALL(cli_space, SqlCtx, .byte = byte))
     {
         while ((*at < args->length) && EMBED_CALL(cli_space, SqlCtx, .byte = bytes[*at]))
         {
-            *at += 1ull;
+            *at += 1ULL;
         }
         kind = CLI_SQL_SPACE;
     }
@@ -118,26 +118,26 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     }
     else if ((byte == '/') && next_is && (next == '*'))
     {
-        long long depth = 0ll;
+        long long depth = 0LL;
         while (*at < args->length)
         {
-            if ((bytes[*at] == '/') && ((*at + 1ull) < args->length) && (bytes[*at + 1u] == '*'))
+            if ((bytes[*at] == '/') && ((*at + 1ULL) < args->length) && (bytes[*at + 1u] == '*'))
             {
-                depth += ((args->dialect == CLI_SQL_POSTGRES) || (depth == 0ll)) ? 1ll : 0ll;
-                *at += 2ull;
+                depth += ((args->dialect == CLI_SQL_POSTGRES) || (depth == 0LL)) ? 1LL : 0LL;
+                *at += 2ULL;
             }
-            else if ((bytes[*at] == '*') && ((*at + 1ull) < args->length) && (bytes[*at + 1u] == '/'))
+            else if ((bytes[*at] == '*') && ((*at + 1ULL) < args->length) && (bytes[*at + 1u] == '/'))
             {
-                depth -= 1ll;
-                *at += 2ull;
-                if (depth == 0ll)
+                depth -= 1LL;
+                *at += 2ULL;
+                if (depth == 0LL)
                 {
                     break;
                 }
             }
             else
             {
-                *at += 1ull;
+                *at += 1ULL;
             }
         }
         kind = CLI_SQL_COMMENT;
@@ -146,21 +146,21 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
              (((byte == 'E') || (byte == 'e')) && next_is && (next == '\'') && (args->dialect == CLI_SQL_POSTGRES)))
     {
         const int escapes = (args->dialect == CLI_SQL_MYSQL) || (byte != '\'');
-        *at += (byte == '\'') ? 1ull : 2ull;
+        *at += (byte == '\'') ? 1ULL : 2ULL;
         EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '\'',
                    .escapes = escapes);
         kind = CLI_SQL_TEXT;
     }
     else if (byte == '"')
     {
-        *at += 1ull;
+        *at += 1ULL;
         EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '"',
                    .escapes = args->dialect == CLI_SQL_MYSQL);
         kind = (args->dialect == CLI_SQL_MYSQL) ? CLI_SQL_TEXT : CLI_SQL_NAME;
     }
     else if ((byte == '`') && (args->dialect != CLI_SQL_POSTGRES))
     {
-        *at += 1ull;
+        *at += 1ULL;
         EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '`', .escapes = 0);
         kind = CLI_SQL_NAME;
     }
@@ -168,11 +168,11 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     {
         *at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                          .at = *at, .size = args->length, .set = "]");
-        *at = ((*at + 1ull) < args->length) ? (*at + 1ull) : args->length;
+        *at = ((*at + 1ULL) < args->length) ? (*at + 1ULL) : args->length;
         kind = CLI_SQL_NAME;
     }
     else if ((byte == '$') && (args->dialect == CLI_SQL_POSTGRES) &&
-             (EMBED_CALL(cli_dollar_tag, SqlCtx, .bytes = bytes, .length = args->length, .at_value = start) != 0ull))
+             (EMBED_CALL(cli_dollar_tag, SqlCtx, .bytes = bytes, .length = args->length, .at_value = start) != 0ULL))
     {
         const unsigned long long tag =
             EMBED_CALL(cli_dollar_tag, SqlCtx, .bytes = bytes, .length = args->length, .at_value = start);
@@ -181,7 +181,7 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
         while (((found + tag) <= args->length) &&
                (memor.cmp(&(MemoriaCfg){.src = bytes + found, .other = bytes + start, .bytes = tag}) != 0))
         {
-            found += 1ull;
+            found += 1ULL;
         }
         *at = ((found + tag) <= args->length) ? (found + tag) : args->length;
         kind = CLI_SQL_TEXT;
@@ -201,7 +201,7 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     }
     else
     {
-        *at += 1ull;
+        *at += 1ULL;
     }
     args->token->kind = kind;
     args->token->start = start;
@@ -216,7 +216,7 @@ EMBED_INLINE int cli_word_is(const SqlCtx *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char letter =
             ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
@@ -247,9 +247,9 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
     unsigned int dialect = args->dialect;
     static const char *const s_blocks[4] = {"if", "loop", "while", "repeat"};
     static const char *const s_bodies[4] = {"trigger", "procedure", "function", "event"};
-    unsigned long long first = 0ull;
+    unsigned long long first = 0ULL;
     int started = 0;
-    unsigned long long last = 0ull;
+    unsigned long long last = 0ULL;
     // the first words of the statement, as far as a body is known by them: whether the first is CREATE, and whether
     // one of the first eight names a body
     unsigned int words = 0u;
@@ -257,9 +257,9 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
     int bodied = 0;
     // The depth of BEGIN and CASE in a body, and an END not yet known to close one of them: END IF, END LOOP, END WHILE
     // and END REPEAT close blocks that are not counted
-    long long depth = 0ll;
+    long long depth = 0LL;
     int ending = 0;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     CliSqlToken token;
     while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = text, .length = length,
                       .dialect = dialect, .at = &at, .token = &token))
@@ -272,9 +272,9 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
         }
         if ((token.kind == CLI_SQL_MARK) && (size == 1u) && (word[0] == ';'))
         {
-            depth -= ending ? 1ll : 0ll;
+            depth -= ending ? 1LL : 0LL;
             ending = 0;
-            if (depth <= 0ll)
+            if (depth <= 0LL)
             {
                 if (started)
                 {
@@ -285,7 +285,7 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
                 words = 0u;
                 created = 0;
                 bodied = 0;
-                depth = 0ll;
+                depth = 0LL;
                 continue;
             }
         }
@@ -298,7 +298,7 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
                 if (closed &&
                     !EMBED_CALL(cli_word_in, SqlCtx, .text = word, .length = size, .words = s_blocks, .count = 4u))
                 {
-                    depth -= 1ll;
+                    depth -= 1LL;
                 }
                 if (!(closed &&
                       (EMBED_CALL(cli_word_in, SqlCtx, .text = word, .length = size, .words = s_blocks, .count = 4u) ||
@@ -306,8 +306,8 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
                 {
                     depth += (EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "begin") ||
                               EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "case"))
-                                 ? 1ll
-                                 : 0ll;
+                                 ? 1LL
+                                 : 0LL;
                     ending = EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "end");
                 }
             }
@@ -324,7 +324,7 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
         else if (ending)
         {
             ending = 0;
-            depth -= 1ll;
+            depth -= 1LL;
         }
         first = started ? first : token.start;
         started = 1;

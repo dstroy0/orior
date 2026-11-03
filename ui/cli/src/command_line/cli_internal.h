@@ -124,6 +124,8 @@ int cli_output_terminal(void);
 unsigned int cli_arguments(const CliCapacityCountCtx *args);
 // the file at `path` made one its owner runs, on POSIX
 int cli_file_runnable(const CliPathFileCtx *args);
+// whether the file's owner may run it, its rights unchanged; 0 on a system whose files carry no such right
+int cli_file_runs(const CliPathFileCtx *args);
 // 1 where the file at `path` is there and is a file the system calls a link to elsewhere, never followed
 int cli_is_link(const CliPathFileCtx *args);
 // the milliseconds a clock that only goes forward reads
@@ -1095,12 +1097,14 @@ EMBED_TABLE_STORAGE CliCapacityCountNs cli_capacity_count_internal EMBED_UNUSED 
 typedef struct
 {
     int (*file_runnable)(const CliPathFileCtx *args);
+    int (*file_runs)(const CliPathFileCtx *args);
     int (*is_link)(const CliPathFileCtx *args);
     int (*file_begin)(const CliPathFileCtx *args);
 } CliPathFileNs;
-EMBED_TABLE_LAYOUT(CliPathFileNs, file_runnable, is_link, file_begin);
+EMBED_TABLE_LAYOUT(CliPathFileNs, file_runnable, file_runs, is_link, file_begin);
 EMBED_TABLE_STORAGE CliPathFileNs cli_path_file_internal EMBED_UNUSED = {
     .file_runnable = cli_file_runnable,
+    .file_runs = cli_file_runs,
     .is_link = cli_is_link,
     .file_begin = cli_file_begin,
 };

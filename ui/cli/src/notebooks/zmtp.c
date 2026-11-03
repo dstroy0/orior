@@ -30,12 +30,12 @@ typedef struct
 // the head of a frame of `size` bytes with `flags` written into `head`, sized for 9: how many bytes it takes
 EMBED_INLINE unsigned int cli_zmtp_head(const ZmtpCtx *args)
 {
-    if (args->size > 255ull)
+    if (args->size > 255ULL)
     {
         args->head[0] = (unsigned char)(args->flags | CLI_ZMTP_LONG);
         for (unsigned int at = 0u; at < 8u; at += 1u)
         {
-            args->head[1u + at] = (unsigned char)((args->size >> (56u - (8u * at))) & 0xffull);
+            args->head[1u + at] = (unsigned char)((args->size >> (56u - (8u * at))) & 0xffULL);
         }
         return 9u;
     }
@@ -70,17 +70,17 @@ static int cli_zmtp_frame_read(const ZmtpCtx *args)
     unsigned long long *size = args->size_pointer;
     unsigned char first = 0u;
     if (!EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket, .bytes_out = &first,
-                    .size = 1ull))
+                    .size = 1ULL))
     {
         return 0;
     }
     *flags = first;
-    *size = 0ull;
+    *size = 0ULL;
     if ((first & CLI_ZMTP_LONG) != 0u)
     {
         unsigned char length[8];
         if (!EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket, .bytes_out = length,
-                        .size = 8ull))
+                        .size = 8ULL))
         {
             return 0;
         }
@@ -93,7 +93,7 @@ static int cli_zmtp_frame_read(const ZmtpCtx *args)
     {
         unsigned char length = 0u;
         if (!EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket,
-                        .bytes_out = &length, .size = 1ull))
+                        .bytes_out = &length, .size = 1ULL))
         {
             return 0;
         }
@@ -108,7 +108,7 @@ static int cli_zmtp_frame_read(const ZmtpCtx *args)
     }
     // a body larger than the capacity is read and let go, so that the next frame is read where it starts
     unsigned char piece[4096];
-    for (unsigned long long left = *size; left > 0ull;)
+    for (unsigned long long left = *size; left > 0ULL;)
     {
         const unsigned long long reserved = (left < sizeof(piece)) ? left : sizeof(piece);
         if (!EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket, .bytes_out = piece,
@@ -174,12 +174,12 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
     at += (unsigned int)kind_length;
     unsigned char answer[4096];
     unsigned int flags = 0u;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(cli_zmtp_frame_write, ZmtpCtx, .socket = args->socket, .body = ready, .size = at,
                     .flags = CLI_ZMTP_COMMAND) ||
         (EMBED_CALL(cli_zmtp_frame_read, ZmtpCtx, .socket = args->socket, .flags_pointer = &flags, .body_bytes = answer,
                     .capacity = sizeof(answer), .size_pointer = &size) != CLI_ZMTP_FRAME_READ) ||
-        ((flags & CLI_ZMTP_COMMAND) == 0u) || (size < 6ull) ||
+        ((flags & CLI_ZMTP_COMMAND) == 0u) || (size < 6ULL) ||
         (memor.cmp(&(MemoriaCfg){.src = answer, .other = "\x05READY", .bytes = 6u}) != 0))
     {
         mmgr_line_put(args->err_msg, "the peer answered the greeting with no READY");
@@ -203,7 +203,7 @@ int cli_zmtp_connect(const CliZmtpSocketHostCfg *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "SUB", .cap = CLI_CELLS_POOL}))
     {
         const unsigned char subscribe = 1u;
-        const CliZmtpFrame frame = {&subscribe, 1ull};
+        const CliZmtpFrame frame = {&subscribe, 1ULL};
         return EMBED_CALL(cli_zmtp_frames_count.send, CliZmtpFramesCountCfg, .socket = args->socket_out,
                           .frames = &frame, .count = 1u);
     }
@@ -213,17 +213,17 @@ int cli_zmtp_connect(const CliZmtpSocketHostCfg *args)
 unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args)
 {
     unsigned long long *size = args->size;
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        total += ((args->frames[at].size > 255ull) ? 9ull : 2ull) + args->frames[at].size;
+        total += ((args->frames[at].size > 255ULL) ? 9ULL : 2ULL) + args->frames[at].size;
     }
     unsigned char *const message = g_cli_cells->persistent_buf_alloc(total, &g_cli_notebook_cells);
     if (message == NULL)
     {
         return NULL;
     }
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         used += EMBED_CALL(cli_zmtp_head, ZmtpCtx, .head = message + used, .size = args->frames[at].size,
@@ -239,7 +239,7 @@ unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args)
 
 int cli_zmtp_send(const CliZmtpFramesCountCfg *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     unsigned char *const message =
         EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = args->frames, .count = args->count, .size = &size);
     const int sent = (message != NULL) && EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
@@ -251,12 +251,12 @@ int cli_zmtp_send(const CliZmtpFramesCountCfg *args)
 unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
 {
     unsigned int count = 0u;
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     int whole = 1;
     for (;;)
     {
         unsigned int flags = 0u;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const int read = EMBED_CALL(cli_zmtp_frame_read, ZmtpCtx, .socket = args->socket, .flags_pointer = &flags,
                                     .body_bytes = args->capacity + used, .capacity = args->capacity_bytes - used,
                                     .size_pointer = &size);
@@ -276,7 +276,7 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
             args->frames_out[count].size = size;
             count += 1u;
         }
-        used += whole ? size : 0ull;
+        used += whole ? size : 0ULL;
         if ((flags & CLI_ZMTP_MORE) != 0u)
         {
             continue;
@@ -287,7 +287,7 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
         }
         // a message larger than the capacity is passed over whole, and the next one read
         count = 0u;
-        used = 0ull;
+        used = 0ULL;
         whole = 1;
     }
 }

@@ -31,25 +31,25 @@ typedef struct
 
 // the empty gave handed out where the cells cannot meet a run, which every run of git refuses
 static char s_nothing[1];
-static CliGitResult s_refused = {s_nothing, 0ull, 1, s_nothing, 0ull, 0};
+static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 
 void cli_git_text_begin(const CliGitTextCfg *args)
 {
     args->text->bytes = g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
-    args->text->capacity = 0ull;
-    args->text->used = 0ull;
+    args->text->capacity = 0ULL;
+    args->text->used = 0ULL;
     args->text->full = 0;
     if (args->text->bytes != NULL)
     {
         args->text->capacity = CLI_GIT_TEXT;
-        args->text->used = 1ull;
+        args->text->used = 1ULL;
         args->text->bytes[0] = '\0';
     }
 }
 
 unsigned int cli_git_text_append(const CliGitTextCfg *args)
 {
-    const unsigned long long most = args->text->used + args->length + 1ull;
+    const unsigned long long most = args->text->used + args->length + 1ULL;
     if ((most > CLI_GIT_TEXT) || (args->text->bytes == NULL))
     {
         args->text->full = 1;
@@ -59,7 +59,7 @@ unsigned int cli_git_text_append(const CliGitTextCfg *args)
     const unsigned int at = (unsigned int)args->text->used;
     memor.cpy(&(MemoriaCfg){.dst = args->text->bytes + at, .src = args->from, .bytes = args->length});
     args->text->bytes[at + args->length] = '\0';
-    args->text->used += args->length + 1ull;
+    args->text->used += args->length + 1ULL;
     return at;
 }
 
@@ -72,8 +72,8 @@ void cli_git_text_free(const CliGitTextCfg *args)
 {
     g_cli_cells->persistent_buf_release(args->text->bytes, &g_cli_git_cells);
     args->text->bytes = NULL;
-    args->text->used = 0ull;
-    args->text->capacity = 0ull;
+    args->text->used = 0ULL;
+    args->text->capacity = 0ULL;
 }
 
 CliGitResult *cli_git_alloc(void)
@@ -89,7 +89,7 @@ CliGitResult *cli_git_alloc(void)
     work_state->wake = wake;
     out[0] = '\0';
     work_state->err[0] = '\0';
-    work_state->result = (CliGitResult){out, 0ull, 1, work_state->err, 0ull, 0};
+    work_state->result = (CliGitResult){out, 0ULL, 1, work_state->err, 0ULL, 0};
     return &work_state->result;
 }
 
@@ -128,17 +128,17 @@ static void cli_errors_read(void *context)
     for (;;)
     {
         char reserve[4096];
-        const unsigned long long capacity_remaining = CLI_GIT_ERR - 1ull - result->err_size;
-        char *const into = (capacity_remaining != 0ull) ? (result->err + result->err_size) : reserve;
+        const unsigned long long capacity_remaining = CLI_GIT_ERR - 1ULL - result->err_size;
+        char *const into = (capacity_remaining != 0ULL) ? (result->err + result->err_size) : reserve;
         const unsigned long long got =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = work_state->spawned.err, .piece = into,
-                       .capacity = (capacity_remaining != 0ull) ? capacity_remaining : sizeof(reserve));
-        if (got == 0ull)
+                       .capacity = (capacity_remaining != 0ULL) ? capacity_remaining : sizeof(reserve));
+        if (got == 0ULL)
         {
             break;
         }
-        result->err_size += (capacity_remaining != 0ull) ? got : 0ull;
+        result->err_size += (capacity_remaining != 0ULL) ? got : 0ULL;
     }
     result->err[result->err_size] = '\0';
     EMBED_CALL(cli_end, GitRunCtx, .work_state = work_state);
@@ -164,9 +164,9 @@ int cli_git_result(const CliGitResultCtx *args)
         return 0;
     }
     CliGitWorkState *const work_state = EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result);
-    args->result->out_size = 0ull;
+    args->result->out_size = 0ULL;
     args->result->out_untruncated = 1;
-    args->result->err_size = 0ull;
+    args->result->err_size = 0ULL;
     args->result->out[0] = '\0';
     args->result->err[0] = '\0';
     args->result->ok = 0;
@@ -229,18 +229,18 @@ int cli_git_result(const CliGitResultCtx *args)
     for (;;)
     {
         char reserve[CLI_GIT_READ];
-        const unsigned long long capacity_remaining = CLI_GIT_OUT - 1ull - args->result->out_size;
-        char *const into = (capacity_remaining != 0ull) ? (args->result->out + args->result->out_size) : reserve;
+        const unsigned long long capacity_remaining = CLI_GIT_OUT - 1ULL - args->result->out_size;
+        char *const into = (capacity_remaining != 0ULL) ? (args->result->out + args->result->out_size) : reserve;
         const unsigned long long got =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = work_state->spawned.out, .piece = into,
-                       .capacity = (capacity_remaining != 0ull) ? capacity_remaining : sizeof(reserve));
-        if (got == 0ull)
+                       .capacity = (capacity_remaining != 0ULL) ? capacity_remaining : sizeof(reserve));
+        if (got == 0ULL)
         {
             break;
         }
-        args->result->out_size += (capacity_remaining != 0ull) ? got : 0ull;
-        args->result->out_untruncated = args->result->out_untruncated && (capacity_remaining != 0ull);
+        args->result->out_size += (capacity_remaining != 0ULL) ? got : 0ULL;
+        args->result->out_untruncated = args->result->out_untruncated && (capacity_remaining != 0ULL);
     }
     args->result->out[args->result->out_size] = '\0';
     if (!read_state)
@@ -252,7 +252,7 @@ int cli_git_result(const CliGitResultCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &work_state->wake);
     }
     args->result->ok =
-        EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &work_state->spawned) == 0ll;
+        EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &work_state->spawned) == 0LL;
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &work_state->spawned);
     return 1;
 }
@@ -260,9 +260,9 @@ int cli_git_result(const CliGitResultCtx *args)
 int cli_git_query(const CliGitResultCtx *args)
 {
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     return EMBED_CALL(cli_git_result_internal.result, CliGitResultCtx, .root = args->root, .request = args->request,
-                      .count = args->count, .how = CLI_GIT_LOCKS_OFF, .index = NULL, .input = NULL, .length = 0ull,
+                      .count = args->count, .how = CLI_GIT_LOCKS_OFF, .index = NULL, .input = NULL, .length = 0ULL,
                       .result = args->result, .err_msg = &err_msg) &&
            args->result->ok && args->result->out_untruncated;
 }
@@ -271,7 +271,7 @@ void cli_git_trim(const CliGitFromCtx *args)
 {
     const char **from = args->from;
     const char **to = args->to;
-    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ULL,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
     *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
@@ -281,7 +281,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
 {
     CliGitResult *const result = cli_git_alloc();
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea started = {why, sizeof(why), 0ull};
+    VerbaLinea started = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_git_result_internal.result, CliGitResultCtx, .root = args->root, .request = args->request,
                     .count = args->count, .how = CLI_GIT_PROMPT_OFF, .index = args->index, .input = args->input,
                     .length = args->length, .result = result, .err_msg = &started))
@@ -292,7 +292,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
         return 0;
     }
     // what it wrote and reported joined, in a cell of their size
-    const unsigned long long joined_capacity = result->out_size + result->err_size + 1ull;
+    const unsigned long long joined_capacity = result->out_size + result->err_size + 1ULL;
     char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_capacity, &g_cli_git_cells);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)
@@ -329,7 +329,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
 int cli_git_run(const CliGitRootOutCountErrMsgCfg *args)
 {
     return EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->root, .request = args->request,
-                      .count = args->count, .index = NULL, .input = NULL, .length = 0ull, .out = args->out,
+                      .count = args->count, .index = NULL, .input = NULL, .length = 0ULL, .out = args->out,
                       .err_msg = args->err_msg);
 }
 
@@ -339,7 +339,7 @@ int cli_git_is_id(const CliGitCtx *args)
     {
         return 0;
     }
-    if (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->id, .at = 0ull,
+    if (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->id, .at = 0ULL,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}),
                    .classes = CLI_TEXT_DIGITS,
                    .set = "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}))
@@ -385,10 +385,10 @@ int cli_git_adjacent(const CliGitRootErrMsgCtx *args)
     char relative[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->folder, .path = full,
                .relative_out = relative);
-    VerbaLinea line = {args->displayed, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->displayed, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, "./");
     mmgr_line_put(&line, relative);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, ": its path is too long");
@@ -419,25 +419,25 @@ const char *cli_git_field(const CliGitAtCtx *args)
 int cli_git_seconds(const CliGitLengthTextCtx *args)
 {
     long long *value = args->value;
-    long long sign = 1ll;
-    unsigned long long at = 0ull;
-    if ((args->length > 0ull) && ((args->text[0] == '-') || (args->text[0] == '+')))
+    long long sign = 1LL;
+    unsigned long long at = 0ULL;
+    if ((args->length > 0ULL) && ((args->text[0] == '-') || (args->text[0] == '+')))
     {
-        sign = (args->text[0] == '-') ? -1ll : 1ll;
-        at = 1ull;
+        sign = (args->text[0] == '-') ? -1LL : 1LL;
+        at = 1ULL;
     }
     if (at == args->length)
     {
         return 0;
     }
-    long long number = 0ll;
-    for (; at < args->length; at += 1ull)
+    long long number = 0LL;
+    for (; at < args->length; at += 1ULL)
     {
         if ((args->text[at] < '0') || (args->text[at] > '9'))
         {
             return 0;
         }
-        number = (number * 10ll) + (long long)(args->text[at] - '0');
+        number = (number * 10LL) + (long long)(args->text[at] - '0');
     }
     *value = sign * number;
     return 1;

@@ -39,8 +39,8 @@ void cli_text_edit_write(const CliEditsCfg *args)
 
 unsigned long long cli_text_byte_get(const CliEditsLineCfg *args)
 {
-    unsigned long long units = 0ull;
-    for (unsigned long long at = 0ull; at < args->size;)
+    unsigned long long units = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         if (units >= args->col)
         {
@@ -98,7 +98,7 @@ EMBED_INLINE void edits_bytes(const EditsCtx *args)
     }
     qsort(s_order, args->count, sizeof(s_order[0]), edits_by_line);
     unsigned int line = 0u;
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     int beyond = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -139,16 +139,16 @@ int cli_text_apply(const CliEditsOutCfg *args)
         return 0;
     }
     // the bytes first on the cell's boundary, then the places, then the order
-    const unsigned long long positions = 2ull * args->count;
+    const unsigned long long positions = 2ULL * args->count;
     char *const cell = g_cli_cells->temporary_buf_alloc(
-        (positions + 1ull) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), &g_cli_text_cells);
+        (positions + 1ULL) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
     }
     s_byte = (unsigned long long *)(void *)cell;
-    s_position = (CliTextPosition *)(void *)(s_byte + positions + 1ull);
-    s_order = (unsigned int *)(void *)(s_position + positions + 1ull);
+    s_position = (CliTextPosition *)(void *)(s_byte + positions + 1ULL);
+    s_order = (unsigned int *)(void *)(s_position + positions + 1ULL);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         s_position[2u * at] = args->edits[at].from;
@@ -160,7 +160,7 @@ int cli_text_apply(const CliEditsOutCfg *args)
         s_order[at] = at;
     }
     qsort(s_order, args->count, sizeof(s_order[0]), edits_by_span);
-    unsigned long long cursor = 0ull;
+    unsigned long long cursor = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const unsigned int edit = s_order[at];

@@ -81,12 +81,12 @@ static void query_source_walk(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    VerbaLinea line = {found->path[found->count], QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {found->path[found->count], QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, walk->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     // a path that does not fit is no source of the tree's
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -120,11 +120,11 @@ unsigned int query_sources(const QueryToolsRootCtx *args)
         if ((slash != NULL) && (slash[1] == '*') && (slash[2] == '.'))
         {
             char folder[QUERY_PATH_MAX_LEN];
-            VerbaLinea line = {folder, sizeof(folder), 0ull};
+            VerbaLinea line = {folder, sizeof(folder), 0ULL};
             mmgr_line_put(&line, args->root);
             mmgr_line_ch(&line, '/');
             mmgr_line_put_n(&line, pattern, (unsigned long long)(slash - pattern));
-            if (mmgr_line_finish(&line) != 0ull)
+            if (mmgr_line_finish(&line) != 0ULL)
             {
                 QuerySourceWalk walk = {folder, slash + 3, args->found, args->found->count};
                 EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
@@ -136,12 +136,12 @@ unsigned int query_sources(const QueryToolsRootCtx *args)
         {
             break;
         }
-        VerbaLinea line = {args->found->path[args->found->count], QUERY_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->found->path[args->found->count], QUERY_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->root);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, pattern);
         args->found->count +=
-            ((mmgr_line_finish(&line) != 0ull) && EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx,
+            ((mmgr_line_finish(&line) != 0ULL) && EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx,
                                                              .path = args->found->path[args->found->count]))
                 ? 1u
                 : 0u;
@@ -164,7 +164,7 @@ const QueryTool *query_tool_by_name(const QueryToolsCtx *args)
 
 void query_binary_name(const QueryNameCapacityCtx *args)
 {
-    VerbaLinea line = {args->binary, args->capacity, 0ull};
+    VerbaLinea line = {args->binary, args->capacity, 0ULL};
     mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
@@ -260,12 +260,12 @@ static void query_header_walk(const CliEachNameIsFolderCfg *args)
         return;
     }
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, walk->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
-    unsigned long long seconds = 0ull;
-    if ((mmgr_line_finish(&line) != 0ull) &&
+    unsigned long long seconds = 0ULL;
+    if ((mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = path, .seconds = &seconds) &&
         (seconds > walk->newest))
     {
@@ -276,7 +276,7 @@ static void query_header_walk(const CliEachNameIsFolderCfg *args)
 // the newest .h in `folder`, one level deep, 0 where it contains none
 EMBED_INLINE unsigned long long query_newest_header(const ToolsCtx *args)
 {
-    QueryHeaderWalk walk = {args->folder, 0ull};
+    QueryHeaderWalk walk = {args->folder, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_header_walk, .context_bytess = &walk);
     return walk.newest;
@@ -288,8 +288,8 @@ EMBED_INLINE void query_folder_get(const ToolsCtx *args)
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
         .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = QUERY_PATH_MAX_LEN}), .byte = '/');
-    VerbaLinea line = {args->folder_out, QUERY_PATH_MAX_LEN, 0ull};
-    mmgr_line_put_n(&line, args->path, (slash != NULL) ? (unsigned long long)(slash - args->path) : 0ull);
+    VerbaLinea line = {args->folder_out, QUERY_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put_n(&line, args->path, (slash != NULL) ? (unsigned long long)(slash - args->path) : 0ULL);
     mmgr_line_finish(&line);
 }
 
@@ -297,7 +297,7 @@ EMBED_INLINE void query_folder_get(const ToolsCtx *args)
 // definitions' where it links them, and its includes; 0 where none contains one
 unsigned long long query_newest_header_get(const QueryToolsRootToolSourcesCtx *args)
 {
-    unsigned long long newest = 0ull;
+    unsigned long long newest = 0ULL;
     char folder[QUERY_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -311,12 +311,12 @@ unsigned long long query_newest_header_get(const QueryToolsRootToolSourcesCtx *a
     {
         for (unsigned int at = 0u; (named[list] != NULL) && (named[list][at] != NULL); at += 1u)
         {
-            VerbaLinea line = {folder, sizeof(folder), 0ull};
+            VerbaLinea line = {folder, sizeof(folder), 0ULL};
             mmgr_line_put(&line, args->root);
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, named[list][at]);
             const unsigned long long seconds =
-                (mmgr_line_finish(&line) != 0ull) ? EMBED_CALL(query_newest_header, ToolsCtx, .folder = folder) : 0ull;
+                (mmgr_line_finish(&line) != 0ULL) ? EMBED_CALL(query_newest_header, ToolsCtx, .folder = folder) : 0ULL;
             newest = (seconds > newest) ? seconds : newest;
         }
     }
@@ -334,7 +334,7 @@ int query_fresh(const QueryToolsSourceKnownCtx *args)
 // names
 int query_stale(const QueryToolsRootToolCtx *args)
 {
-    unsigned long long built = 0ull;
+    unsigned long long built = 0ULL;
     if (!EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = args->binary, .seconds = &built))
     {
         return 1;
@@ -347,19 +347,19 @@ int query_stale(const QueryToolsRootToolCtx *args)
     char (*const lists[3])[QUERY_PATH_MAX_LEN] = {g_query_c_sources.path, g_query_cxx_sources.path,
                                                   g_query_tool_sources.path};
     const unsigned int counts[3] = {c, cxx, tools};
-    unsigned long long newest = 0ull;
+    unsigned long long newest = 0ULL;
     int stale = 0;
     for (unsigned int list = 0u; !stale && (list < 3u); list += 1u)
     {
         for (unsigned int at = 0u; !stale && (at < counts[list]); at += 1u)
         {
-            unsigned long long seconds = 0ull;
+            unsigned long long seconds = 0ULL;
             stale = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = lists[list][at],
                                .seconds = &seconds) &&
                     (seconds > built);
         }
         const unsigned long long seconds =
-            stale ? 0ull
+            stale ? 0ULL
                   : EMBED_CALL(query_tools_root_tool_sources_internal.newest_header_get, QueryToolsRootToolSourcesCtx,
                                .root = args->root, .tool = args->tool, .sources = lists[list], .count = counts[list]);
         newest = (seconds > newest) ? seconds : newest;
@@ -371,7 +371,7 @@ int query_stale(const QueryToolsRootToolCtx *args)
 int query_tool_build(const QueryNameCapacityCtx *args)
 {
     char out[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/engine");
     mmgr_line_finish(&line);
@@ -390,12 +390,12 @@ void query_object_get(const QueryToolsRootObjectsCtx *args)
          (args->source_text[root_length] == '/'))
             ? (args->source_text + root_length + 1u)
             : args->source_text;
-    VerbaLinea line = {args->object_capacity, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->object_capacity, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->objects);
     mmgr_line_ch(&line, '/');
     const unsigned long long start = line.at;
     mmgr_line_put(&line, under);
-    for (unsigned long long at = start; at < line.at; at += 1ull)
+    for (unsigned long long at = start; at < line.at; at += 1ULL)
     {
         line.out[at] = ((line.out[at] == '/') || (line.out[at] == '\\')) ? '_' : line.out[at];
     }

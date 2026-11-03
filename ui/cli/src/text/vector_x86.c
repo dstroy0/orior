@@ -29,7 +29,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_lowest(const VectorX86Ctx *args)
 {
 #if defined(_MSC_VER) && !defined(__clang__)
-    unsigned long index = 0ul;
+    unsigned long index = 0UL;
     _BitScanForward(&index, args->mask);
     // the bit index of a non-zero 32 bit mask is 0 to 31
     return (unsigned int)index;
@@ -51,7 +51,7 @@ int cli_vector_avx2_present(void)
     __cpuid(leaves, 1);
     // leaf 1 ecx is read as its bit pattern
     const unsigned int features = (unsigned int)leaves[2];
-    if ((((features >> 27u) & 1u) == 0u) || ((_xgetbv(0u) & 6ull) != 6ull))
+    if ((((features >> 27u) & 1u) == 0u) || ((_xgetbv(0u) & 6ULL) != 6ULL))
     {
         return 0;
     }
@@ -111,8 +111,8 @@ unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args)
 {
     // a unit is set in each of a block's lanes as the 16 bits it is
     const __m128i required = _mm_set1_epi16((short)args->unit);
-    unsigned long long at = 0ull;
-    while ((at + 8ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 8ULL) <= args->length)
     {
         const __m128i block = _mm_loadu_si128((const __m128i *)(const void *)(args->text + at));
         // the movemask of a block is its 16 bits
@@ -121,9 +121,9 @@ unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args)
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
         }
-        at += 8ull;
+        at += 8ULL;
     }
-    for (; at < args->length; at += 1ull)
+    for (; at < args->length; at += 1ULL)
     {
         if (args->text[at] == args->unit)
         {
@@ -137,8 +137,8 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnit
 {
     // a unit is set in each of a block's lanes as the 16 bits it is
     const __m256i required = _mm256_set1_epi16((short)args->unit);
-    unsigned long long at = 0ull;
-    while ((at + 16ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 16ULL) <= args->length)
     {
         const __m256i block = _mm256_loadu_si256((const __m256i *)(const void *)(args->text + at));
         // the movemask of a block is its 32 bits
@@ -147,7 +147,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnit
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
         }
-        at += 16ull;
+        at += 16ULL;
     }
     const unsigned long long found =
         EMBED_CALL(cli_vector_unit_x86.find_unit_sse2, CliVectorUnitCfg, .text = args->text + at,
@@ -158,8 +158,8 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnit
 // Two numbers at a time, each the same where all its eight bytes are, then the plain loop
 unsigned long long cli_vector_common_sse2(const CliVectorLengthCfg *args)
 {
-    unsigned long long at = 0ull;
-    while ((at + 2ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 2ULL) <= args->length)
     {
         const __m128i one = _mm_loadu_si128((const __m128i *)(const void *)(args->a_u64s + at));
         const __m128i other = _mm_loadu_si128((const __m128i *)(const void *)(args->b_u64s + at));
@@ -169,19 +169,19 @@ unsigned long long cli_vector_common_sse2(const CliVectorLengthCfg *args)
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = ~same) / 8u);
         }
-        at += 2ull;
+        at += 2ULL;
     }
     while ((at < args->length) && (args->a_u64s[at] == args->b_u64s[at]))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     return at;
 }
 
 CLI_AVX2_TARGET unsigned long long cli_vector_common_avx2(const CliVectorLengthCfg *args)
 {
-    unsigned long long at = 0ull;
-    while ((at + 4ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 4ULL) <= args->length)
     {
         const __m256i one = _mm256_loadu_si256((const __m256i *)(const void *)(args->a_u64s + at));
         const __m256i other = _mm256_loadu_si256((const __m256i *)(const void *)(args->b_u64s + at));
@@ -191,7 +191,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_common_avx2(const CliVectorLengthC
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = ~same) / 8u);
         }
-        at += 4ull;
+        at += 4ULL;
     }
     return at + EMBED_CALL(cli_vector_length_x86.common_sse2, CliVectorLengthCfg, .a_u64s = args->a_u64s + at,
                            .b_u64s = args->b_u64s + at, .length = args->length - at);
@@ -199,8 +199,8 @@ CLI_AVX2_TARGET unsigned long long cli_vector_common_avx2(const CliVectorLengthC
 
 int cli_vector_same_sse2(const CliVectorLengthACfg *args)
 {
-    unsigned long long at = 0ull;
-    while ((at + 8ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 8ULL) <= args->length)
     {
         const __m128i one = _mm_loadu_si128((const __m128i *)(const void *)(args->a + at));
         const __m128i other = _mm_loadu_si128((const __m128i *)(const void *)(args->b + at));
@@ -208,7 +208,7 @@ int cli_vector_same_sse2(const CliVectorLengthACfg *args)
         {
             return 0;
         }
-        at += 8ull;
+        at += 8ULL;
     }
     return memor.cmp(&(MemoriaCfg){
                .src = args->a + at, .other = args->b + at, .bytes = (args->length - at) * sizeof(args->a[0])}) == 0;
@@ -216,8 +216,8 @@ int cli_vector_same_sse2(const CliVectorLengthACfg *args)
 
 CLI_AVX2_TARGET int cli_vector_same_avx2(const CliVectorLengthACfg *args)
 {
-    unsigned long long at = 0ull;
-    while ((at + 16ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + 16ULL) <= args->length)
     {
         const __m256i one = _mm256_loadu_si256((const __m256i *)(const void *)(args->a + at));
         const __m256i other = _mm256_loadu_si256((const __m256i *)(const void *)(args->b + at));
@@ -225,7 +225,7 @@ CLI_AVX2_TARGET int cli_vector_same_avx2(const CliVectorLengthACfg *args)
         {
             return 0;
         }
-        at += 16ull;
+        at += 16ULL;
     }
     return EMBED_CALL(cli_vector_length_a_x86.same_sse2, CliVectorLengthACfg, .a = args->a + at, .b = args->b + at,
                       .length = args->length - at);
@@ -235,7 +235,7 @@ CLI_AVX2_TARGET int cli_vector_same_avx2(const CliVectorLengthACfg *args)
 // `folded` is 1, checked whole; past the last whole block, the plain loop
 unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
 {
-    const unsigned long long span = args->needle_length - 1ull;
+    const unsigned long long span = args->needle_length - 1ULL;
     const unsigned short head_unit =
         args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[0]) : args->needle[0];
     const unsigned short tail_unit =
@@ -244,8 +244,8 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
     // a unit is set in each lane as the 16 bits it is
     const __m128i first = _mm_set1_epi16((short)head_unit);
     const __m128i last = _mm_set1_epi16((short)tail_unit);
-    unsigned long long at = 0ull;
-    while ((at + span + 8ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + span + 8ULL) <= args->length)
     {
         __m128i head = _mm_loadu_si128((const __m128i *)(const void *)(args->text + at));
         __m128i tail = _mm_loadu_si128((const __m128i *)(const void *)(args->text + at + span));
@@ -268,7 +268,7 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
             }
             mask &= mask - 1u;
         }
-        at += 8ull;
+        at += 8ULL;
     }
     return EMBED_CALL(cli_vector_text_length.plain_find, CliVectorTextLengthCfg, .text = args->text,
                       .length = args->length, .needle = args->needle, .needle_length = args->needle_length,
@@ -277,7 +277,7 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
 
 CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengthCfg *args)
 {
-    const unsigned long long span = args->needle_length - 1ull;
+    const unsigned long long span = args->needle_length - 1ULL;
     const unsigned short head_unit =
         args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[0]) : args->needle[0];
     const unsigned short tail_unit =
@@ -286,8 +286,8 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
     // a unit is set in each lane as the 16 bits it is
     const __m256i first = _mm256_set1_epi16((short)head_unit);
     const __m256i last = _mm256_set1_epi16((short)tail_unit);
-    unsigned long long at = 0ull;
-    while ((at + span + 16ull) <= args->length)
+    unsigned long long at = 0ULL;
+    while ((at + span + 16ULL) <= args->length)
     {
         __m256i head = _mm256_loadu_si256((const __m256i *)(const void *)(args->text + at));
         __m256i tail = _mm256_loadu_si256((const __m256i *)(const void *)(args->text + at + span));
@@ -310,7 +310,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
             }
             mask &= mask - 1u;
         }
-        at += 16ull;
+        at += 16ULL;
     }
     const unsigned long long found =
         EMBED_CALL(cli_vector_text_length_x86.find_sse2, CliVectorTextLengthCfg, .text = args->text + at,

@@ -85,12 +85,12 @@ static int problems_order(const void *one, const void *other)
 static void problems_reported(const CliServerDiagnosticsCfg *args)
 {
     const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
-    unsigned long long bytes = path_length + 1ull;
+    unsigned long long bytes = path_length + 1ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         bytes += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->item[at].message,
-                            .at = 0ull, .size = args->item[at].message_length, .set = "\n") +
-                 1ull;
+                            .at = 0ULL, .size = args->item[at].message_length, .set = "\n") +
+                 1ULL;
     }
     ControllerProblemFile *const file = g_cli_cells->persistent_buf_alloc(
         sizeof(*file) + (args->count * sizeof(CliServerDiagnostic)) + bytes, &g_cli_controller_cells);
@@ -101,24 +101,24 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     memor.set(&(MemoriaCfg){.dst = file, .val = 0, .bytes = sizeof(*file)});
     file->item = (CliServerDiagnostic *)(void *)(file + 1);
     char *text = (char *)(void *)(file->item + args->count);
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = args->path, .bytes = path_length + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = args->path, .bytes = path_length + 1ULL});
     file->path = text;
     file->path_length = path_length;
     file->name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = path_length,
                             .set = "/\\");
-    text += path_length + 1ull;
+    text += path_length + 1ULL;
     file->count = args->count;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const unsigned long long first_line =
             EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->item[at].message,
-                       .at = 0ull, .size = args->item[at].message_length, .set = "\n");
+                       .at = 0ULL, .size = args->item[at].message_length, .set = "\n");
         file->item[at] = args->item[at];
         memor.cpy(&(MemoriaCfg){.dst = text, .src = args->item[at].message, .bytes = first_line});
         text[first_line] = '\0';
         file->item[at].message = text;
         file->item[at].message_length = first_line;
-        text += first_line + 1ull;
+        text += first_line + 1ULL;
         file->errors += (args->item[at].severity == CLI_PROBLEMS_ERROR) ? 1u : 0u;
     }
     qsort(file->item, file->count, sizeof(*file->item), problems_order);
@@ -145,7 +145,7 @@ CliServersSink cli_model_problems_sink(const CliModelCtx *args)
     memor.set(&(MemoriaCfg){.dst = &sink, .val = 0, .bytes = sizeof(sink)});
     sink.diagnostics = problems_reported;
     sink.check_moved = problems_check_moved;
-    VerbaLinea tree = {sink.tree, sizeof(sink.tree), 0ull};
+    VerbaLinea tree = {sink.tree, sizeof(sink.tree), 0ULL};
     mmgr_line_put(&tree, args->path);
     (void)mmgr_line_finish(&tree);
     return sink;
@@ -189,7 +189,7 @@ int cli_model_problems_step(const CliModelCtx *args)
     int did = 0;
     // the list is pushed newest first: turned over, each file's reports take their places in the order they came
     ControllerProblemFile *pushed =
-        (ControllerProblemFile *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_problems.pushed, 0ull);
+        (ControllerProblemFile *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_problems.pushed, 0ULL);
     ControllerProblemFile *oldest = NULL;
     while (pushed != NULL)
     {
@@ -229,7 +229,7 @@ int cli_model_problems_step(const CliModelCtx *args)
     {
         s_problems.done = done;
         s_problems.total = total;
-        g_cli_model.checking = (total != 0ull) && (done < total);
+        g_cli_model.checking = (total != 0ULL) && (done < total);
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_STATUS);
         did = 1;
     }
@@ -288,7 +288,7 @@ static void problems_check_run(void *context)
         return;
     }
     const char **const paths = g_cli_cells->persistent_buf_alloc(
-        ((unsigned long long)files->count + 1ull) * sizeof(*paths), &g_cli_controller_cells);
+        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), &g_cli_controller_cells);
     if (paths != NULL)
     {
         for (unsigned int at = 0u; at < files->count; at += 1u)
@@ -329,7 +329,7 @@ void cli_model_problems_check(const CliModelCtx *args)
         return;
     }
     const unsigned long long size =
-        cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     ControllerCheckAsk *const ask = g_cli_cells->persistent_buf_alloc(sizeof(*ask) + size, &g_cli_controller_cells);
     if (ask == NULL)
     {
@@ -350,20 +350,20 @@ void *cli_model_problems_alloc(const CliModelCtx *args)
     unsigned int items = 0u;
     unsigned int rows = 0u;
     unsigned int spans = 0u;
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (const ControllerProblemFile *file = s_problems.first; file != NULL; file = file->next)
     {
         files += 1u;
         items += file->count;
         rows += 1u;
-        bytes += (2ull * file->path_length) + 2ull;
+        bytes += (2ULL * file->path_length) + 2ULL;
         const int displayed = (shown != NULL) &&
                               cellul.eq(&(CatenaFinitaCfg){.src = file->path, .other = shown, .cap = CLI_PATH_MAX_LEN});
         spans += displayed ? file->count : 0u;
         for (unsigned int at = 0u; !file->closed && (at < file->count); at += 1u)
         {
             rows += 1u;
-            bytes += file->item[at].message_length + 1ull;
+            bytes += file->item[at].message_length + 1ULL;
         }
     }
     CliProblems *const problems = g_cli_cells->persistent_buf_alloc(sizeof(*problems) + (rows * sizeof(CliProblemRow)) +
@@ -387,15 +387,15 @@ void *cli_model_problems_alloc(const CliModelCtx *args)
         head->is_file = 1;
         head->count = file->count;
         head->closed = file->closed;
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = file->path, .bytes = file->path_length + 1ull});
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = file->path, .bytes = file->path_length + 1ULL});
         head->path = text;
         head->name = text + file->name;
-        text += file->path_length + 1ull;
-        const unsigned long long folder = (file->name != 0ull) ? (file->name - 1ull) : 0ull;
+        text += file->path_length + 1ULL;
+        const unsigned long long folder = (file->name != 0ULL) ? (file->name - 1ULL) : 0ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = file->path, .bytes = folder});
         text[folder] = '\0';
         head->folder = text;
-        text += file->path_length + 1ull;
+        text += file->path_length + 1ULL;
         row_at += 1u;
         const int displayed = (shown != NULL) &&
                               cellul.eq(&(CatenaFinitaCfg){.src = file->path, .other = shown, .cap = CLI_PATH_MAX_LEN});
@@ -420,7 +420,7 @@ void *cli_model_problems_alloc(const CliModelCtx *args)
             one->message = text;
             one->line = item->from_line;
             one->col = item->from_col;
-            text += item->message_length + 1ull;
+            text += item->message_length + 1ULL;
             row_at += 1u;
         }
     }

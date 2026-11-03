@@ -38,7 +38,7 @@ int query_decode_run(const QueryLoopCfg *args)
         s_words[at + 1u] = words[at];
     }
     s_words[((args->count < QUERY_WORDS_MAX) ? args->count : QUERY_WORDS_MAX) + 1u] = NULL;
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_run, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = &s_run, .words = s_words, .code = &code, .err_msg = err_msg))
     {
@@ -46,14 +46,14 @@ int query_decode_run(const QueryLoopCfg *args)
                    .err_msg = err_msg);
         return -1;
     }
-    unsigned long long displayed_size = 0ull;
+    unsigned long long displayed_size = 0ULL;
     char *const displayed =
         EMBED_CALL(query_count_name_internal.writer_read_alloc, QueryCountNameCtx, .writer = &s_run.writer,
                    .name = QUERY_DECODE_DISPLAYED, .size_pointer = &displayed_size);
     if (displayed != NULL)
     {
         // each line printed as it stands
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while (at < displayed_size)
         {
             const char *const line = displayed + at;
@@ -61,14 +61,14 @@ int query_decode_run(const QueryLoopCfg *args)
                 &(MemoriaCfg){.src = line, .val = '\n', .bytes = (size_t)(displayed_size - at)});
             const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (displayed_size - at);
             char text[QUERY_LINE_MAX_LEN];
-            VerbaLinea text_line = {text, sizeof(text), 0ull};
+            VerbaLinea text_line = {text, sizeof(text), 0ULL};
             mmgr_line_put_most(&text_line, line,
-                               length - (((length != 0ull) && (line[length - 1u] == '\r')) ? 1u : 0u));
-            if (mmgr_line_finish(&text_line) != 0ull)
+                               length - (((length != 0ULL) && (line[length - 1u] == '\r')) ? 1u : 0u));
+            if (mmgr_line_finish(&text_line) != 0ULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
             }
-            at += length + 1ull;
+            at += length + 1ULL;
         }
     }
     g_cli_cells->persistent_buf_release(displayed, &g_query_cells);

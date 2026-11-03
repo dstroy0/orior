@@ -63,7 +63,7 @@ static int undo_lock(void)
 {
     // the takings' names and the taking read stand in one cell for as long as the work runs
     s_allocations.name =
-        g_cli_cells->persistent_buf_alloc((CLI_ALLOCATIONS * 64ull) + CLI_ALLOCATING_BYTES, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, &g_cli_machine_cells);
     if (s_allocations.name == NULL)
     {
         return 0;
@@ -97,7 +97,7 @@ typedef struct
 static int cli_allocating_read(const CarryUndoCtx *args)
 {
     CliJson *const json = &s_allocations.work_state.json;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                   .size_pointer = &size, .owner = &g_cli_machine_cells);
     if (bytes == NULL)
@@ -106,10 +106,10 @@ static int cli_allocating_read(const CarryUndoCtx *args)
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_machine_cells);
+                                         .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_machine_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
     const char *const id =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
@@ -139,16 +139,16 @@ static int cli_allocating_read(const CarryUndoCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = args->allocating->from,
                             .src = from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
-    args->allocating->at = 0ull;
+    args->allocating->at = 0ULL;
     const CliJsonNode *const number = &json->node[at];
-    for (unsigned long long digit = 0ull; digit < number->length; digit += 1ull)
+    for (unsigned long long digit = 0ULL; digit < number->length; digit += 1ULL)
     {
         const char letter = json->text[number->text + digit];
         if ((letter < '0') || (letter > '9'))
         {
             return 0;
         }
-        args->allocating->at = (args->allocating->at * 10ull) + (unsigned long long)(letter - '0');
+        args->allocating->at = (args->allocating->at * 10ULL) + (unsigned long long)(letter - '0');
     }
     args->allocating->files = 0u;
     for (unsigned int one = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -300,7 +300,7 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
                    .joined = saved);
         if (allocating->existed[at])
         {
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved,
                                                           .size_pointer = &size, .owner = &g_cli_machine_cells);
             const int back =

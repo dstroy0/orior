@@ -39,12 +39,12 @@ EMBED_INLINE void cli_compact_white(const JsonCompactCtx *args)
 // four hex digits from `at`: their value, or more than 0xFFFF where they are not four hex digits
 EMBED_INLINE unsigned int cli_compact_hex(const JsonCompactCtx *args)
 {
-    if (args->at + 4ull > args->read_read->size)
+    if (args->at + 4ULL > args->read_read->size)
     {
         return 0x10000u;
     }
     unsigned int value = 0u;
-    for (unsigned long long digit = args->at; digit < args->at + 4ull; digit += 1ull)
+    for (unsigned long long digit = args->at; digit < args->at + 4ULL; digit += 1ULL)
     {
         const char letter = args->read_read->text[digit];
         const unsigned int part = ((letter >= '0') && (letter <= '9'))   ? (unsigned int)(letter - '0')
@@ -66,7 +66,7 @@ EMBED_INLINE void cli_compact_letter(const JsonCompactCtx *args)
     VerbaLinea *out = args->out;
     unsigned int letter = args->letter;
     char bytes[8];
-    VerbaLinea line = {bytes, sizeof(bytes), 0ull};
+    VerbaLinea line = {bytes, sizeof(bytes), 0ULL};
     EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
     EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)bytes, .length = line.at);
@@ -76,7 +76,7 @@ EMBED_INLINE void cli_compact_letter(const JsonCompactCtx *args)
 static int cli_compact_string(const JsonCompactCtx *args)
 {
     VerbaLinea *out = args->out;
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     mmgr_line_ch(out, '"');
     unsigned long long from = args->read->at;
     while (args->read->at < args->read->size)
@@ -89,7 +89,7 @@ static int cli_compact_string(const JsonCompactCtx *args)
         }
         if (letter == '"')
         {
-            args->read->at += 1ull;
+            args->read->at += 1ULL;
             mmgr_line_ch(out, '"');
             return 1;
         }
@@ -105,7 +105,7 @@ static int cli_compact_string(const JsonCompactCtx *args)
                            .text_bytes = (const unsigned char *)args->read->text, .length = args->read->size,
                            .at = args->read->at, .letter = &whole);
             if ((whole == 0xFFFDu) &&
-                ((reserved != 3ull) ||
+                ((reserved != 3ULL) ||
                  (memor.cmp(&(MemoriaCfg){
                       .src = args->read->text + args->read->at, .other = "\xEF\xBF\xBD", .bytes = 3u}) != 0)))
             {
@@ -116,14 +116,14 @@ static int cli_compact_string(const JsonCompactCtx *args)
         }
         if (letter != '\\')
         {
-            args->read->at += 1ull;
+            args->read->at += 1ULL;
             continue;
         }
-        if (args->read->at + 1ull >= args->read->size)
+        if (args->read->at + 1ULL >= args->read->size)
         {
             return 0;
         }
-        const char escape = args->read->text[args->read->at + 1ull];
+        const char escape = args->read->text[args->read->at + 1ULL];
         const char *const plain = (escape == '"')    ? "\""
                                   : (escape == '\\') ? "\\"
                                   : (escape == '/')  ? "/"
@@ -136,8 +136,8 @@ static int cli_compact_string(const JsonCompactCtx *args)
         if (plain != NULL)
         {
             EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                       .text_bytes = (const unsigned char *)plain, .length = 1ull);
-            args->read->at += 2ull;
+                       .text_bytes = (const unsigned char *)plain, .length = 1ULL);
+            args->read->at += 2ULL;
             from = args->read->at;
             continue;
         }
@@ -146,8 +146,8 @@ static int cli_compact_string(const JsonCompactCtx *args)
             return 0;
         }
         unsigned int code =
-            EMBED_CALL(cli_compact_hex, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 2ull);
-        args->read->at += 6ull;
+            EMBED_CALL(cli_compact_hex, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 2ULL);
+        args->read->at += 6ULL;
         if (code > 0xFFFFu)
         {
             return 0;
@@ -156,16 +156,16 @@ static int cli_compact_string(const JsonCompactCtx *args)
         {
             // a leading surrogate is whole only with a trailing one escaped after it
             const unsigned int trail =
-                ((args->read->at + 1ull < args->read->size) && (args->read->text[args->read->at] == '\\') &&
-                 (args->read->text[args->read->at + 1ull] == 'u'))
-                    ? EMBED_CALL(cli_compact_hex, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 2ull)
+                ((args->read->at + 1ULL < args->read->size) && (args->read->text[args->read->at] == '\\') &&
+                 (args->read->text[args->read->at + 1ULL] == 'u'))
+                    ? EMBED_CALL(cli_compact_hex, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 2ULL)
                     : 0x10000u;
             if ((trail < 0xDC00u) || (trail > 0xDFFFu))
             {
                 return 0;
             }
             code = 0x10000u + ((code - 0xD800u) << 10u) + (trail - 0xDC00u);
-            args->read->at += 6ull;
+            args->read->at += 6ULL;
         }
         else if ((code >= 0xDC00u) && (code <= 0xDFFFu))
         {
@@ -181,7 +181,7 @@ static int cli_compact_string(const JsonCompactCtx *args)
 EMBED_INLINE unsigned long long cli_compact_digits(const JsonCompactCtx *args)
 {
     unsigned long long at = args->at;
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     count = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->read_read->text,
                        .at = at, .size = args->read_read->size, .classes = CLI_TEXT_DIGITS, .set = "") -
             at;
@@ -195,10 +195,10 @@ EMBED_INLINE int cli_compact_number(const JsonCompactCtx *args)
     VerbaLinea *out = args->out;
     const unsigned long long start = args->read->at;
     const int negative = (args->read->text[args->read->at] == '-');
-    args->read->at += negative ? 1ull : 0ull;
+    args->read->at += negative ? 1ULL : 0ULL;
     const unsigned long long whole =
         EMBED_CALL(cli_compact_digits, JsonCompactCtx, .read_read = args->read, .at = args->read->at);
-    if ((whole == 0ull) || ((whole > 1ull) && (args->read->text[args->read->at] == '0')))
+    if ((whole == 0ULL) || ((whole > 1ULL) && (args->read->text[args->read->at] == '0')))
     {
         return 0;
     }
@@ -208,45 +208,45 @@ EMBED_INLINE int cli_compact_number(const JsonCompactCtx *args)
     if ((args->read->at < args->read->size) && (args->read->text[args->read->at] == '.'))
     {
         const unsigned long long part =
-            EMBED_CALL(cli_compact_digits, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 1ull);
-        if (part == 0ull)
+            EMBED_CALL(cli_compact_digits, JsonCompactCtx, .read_read = args->read, .at = args->read->at + 1ULL);
+        if (part == 0ULL)
         {
             return 0;
         }
-        args->read->at += 1ull + part;
+        args->read->at += 1ULL + part;
         integer = 0;
     }
     if ((args->read->at < args->read->size) &&
         ((args->read->text[args->read->at] == 'e') || (args->read->text[args->read->at] == 'E')))
     {
-        args->read->at += 1ull;
+        args->read->at += 1ULL;
         args->read->at += ((args->read->at < args->read->size) &&
                            ((args->read->text[args->read->at] == '+') || (args->read->text[args->read->at] == '-')))
-                              ? 1ull
-                              : 0ull;
+                              ? 1ULL
+                              : 0ULL;
         const unsigned long long power =
             EMBED_CALL(cli_compact_digits, JsonCompactCtx, .read_read = args->read, .at = args->read->at);
-        if (power == 0ull)
+        if (power == 0ULL)
         {
             return 0;
         }
         args->read->at += power;
         integer = 0;
     }
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     int fits = integer;
-    for (unsigned long long at = digits_at; fits && (at < digits_at + whole); at += 1ull)
+    for (unsigned long long at = digits_at; fits && (at < digits_at + whole); at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->read->text[at] - '0');
-        fits = (value <= (18446744073709551615ull - digit) / 10ull);
-        value = fits ? (value * 10ull) + digit : value;
+        fits = (value <= (18446744073709551615ULL - digit) / 10ULL);
+        value = fits ? (value * 10ULL) + digit : value;
     }
     if (fits && !negative)
     {
         mmgr_line_decimal(out, value, 1u);
         return 1;
     }
-    if (fits && (value != 0ull) && (value <= 9223372036854775808ull))
+    if (fits && (value != 0ULL) && (value <= 9223372036854775808ULL))
     {
         mmgr_line_ch(out, '-');
         mmgr_line_decimal(out, value, 1u);
@@ -261,9 +261,9 @@ EMBED_INLINE int cli_compact_number(const JsonCompactCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = copy, .src = args->read->text + start, .bytes = length});
     copy[length] = '\0';
     const double number = strtod(copy, NULL);
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &number, .bytes = sizeof(bits)});
-    if (((bits >> 52u) & 0x7ffull) == 0x7ffull)
+    if (((bits >> 52u) & 0x7ffULL) == 0x7ffULL)
     {
         return 0;
     }
@@ -281,7 +281,7 @@ static int cli_compact_many(const JsonCompactCtx *args)
     args->read->depth += 1u;
     const char close = args->object ? '}' : ']';
     mmgr_line_ch(args->out, args->object ? '{' : '[');
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     cli_compact_white(args);
     int first = 1;
     while ((args->read->at < args->read->size) && (args->read->text[args->read->at] != close))
@@ -292,7 +292,7 @@ static int cli_compact_many(const JsonCompactCtx *args)
             {
                 return 0;
             }
-            args->read->at += 1ull;
+            args->read->at += 1ULL;
             cli_compact_white(args);
             mmgr_line_ch(args->out, ',');
         }
@@ -309,7 +309,7 @@ static int cli_compact_many(const JsonCompactCtx *args)
             {
                 return 0;
             }
-            args->read->at += 1ull;
+            args->read->at += 1ULL;
             mmgr_line_ch(args->out, ':');
         }
         if (!cli_compact_value(args))
@@ -322,7 +322,7 @@ static int cli_compact_many(const JsonCompactCtx *args)
     {
         return 0;
     }
-    args->read->at += 1ull;
+    args->read->at += 1ULL;
     args->read->depth -= 1u;
     mmgr_line_ch(args->out, close);
     return 1;
@@ -368,7 +368,7 @@ static int cli_compact_value(const JsonCompactCtx *args)
 int cli_json_compact(const CliJsonTreeTextCfg *args)
 {
     const unsigned long long from = args->out->at;
-    CliCompact read = {args->text, args->size, 0ull, 0u};
+    CliCompact read = {args->text, args->size, 0ULL, 0u};
     const int whole = EMBED_CALL(cli_compact_value, JsonCompactCtx, .read = &read, .out = args->out);
     EMBED_CALL(cli_compact_white, JsonCompactCtx, .read = &read);
     if (!whole || (read.at != args->size))
@@ -382,7 +382,7 @@ int cli_json_compact(const CliJsonTreeTextCfg *args)
 unsigned long long cli_json_value_end(const CliJsonTreeTextSizeCfg *args)
 {
     CliCompact read = {args->text, args->size, args->at, 0u};
-    VerbaLinea none = {NULL, 0ull, 0ull};
+    VerbaLinea none = {NULL, 0ULL, 0ULL};
     EMBED_CALL(cli_compact_white, JsonCompactCtx, .read = &read);
     return EMBED_CALL(cli_compact_value, JsonCompactCtx, .read = &read, .out = &none) ? read.at : args->at;
 }

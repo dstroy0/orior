@@ -100,7 +100,7 @@ EMBED_INLINE void testing_values_get(const TestingCtx *args)
 {
     unsigned long long size = args->size;
     args->rule->count = 0u;
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = size;
     start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = start,
                        .size = end, .set = "[");
@@ -149,7 +149,7 @@ EMBED_INLINE void testing_trim(const TestingCtx *args)
 {
     unsigned long long *from = args->from;
     unsigned long long *to = args->to;
-    *from = 0ull;
+    *from = 0ULL;
     *to = args->size;
     while ((*from < *to) && EMBED_CALL(testing_space, TestingCtx, .letter = args->text[*from]))
     {
@@ -166,13 +166,13 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
     cli_testing_rules.test_rules_own(args);
     static char s_key[256];
     static char s_value[8192];
-    VerbaLinea value = {s_value, sizeof(s_value), 0ull};
-    unsigned long long key_size = 0ull;
+    VerbaLinea value = {s_value, sizeof(s_value), 0ULL};
+    unsigned long long key_size = 0ULL;
     int keyed = 0;
     int inside = 0;
     int found = 0;
     const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = args->section, .cap = CLI_CELLS_POOL});
-    for (unsigned long long start = 0ull; start < args->size;)
+    for (unsigned long long start = 0ULL; start < args->size;)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->text, .at = start, .size = args->size).stop;
@@ -180,8 +180,8 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
         const unsigned long long line_size =
             ((end > start) && (args->text[end - 1u] == '\r')) ? end - start - 1u : end - start;
         start = end + 1u;
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(testing_trim, TestingCtx, .text = line, .size = line_size, .from = &from, .to = &to);
         const char *const trimmed = line + from;
         const unsigned long long trimmed_size = to - from;
@@ -221,17 +221,17 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
         if (equals != NULL)
         {
             const unsigned long long name_size = (unsigned long long)(equals - trimmed);
-            unsigned long long name_from = 0ull;
-            unsigned long long name_to = 0ull;
+            unsigned long long name_from = 0ULL;
+            unsigned long long name_to = 0ULL;
             EMBED_CALL(testing_trim, TestingCtx, .text = trimmed, .size = name_size, .from = &name_from,
                        .to = &name_to);
-            unsigned long long remainder_from = 0ull;
-            unsigned long long remainder_to = 0ull;
+            unsigned long long remainder_from = 0ULL;
+            unsigned long long remainder_to = 0ULL;
             EMBED_CALL(testing_trim, TestingCtx, .text = equals + 1, .size = trimmed_size - name_size - 1u,
                        .from = &remainder_from, .to = &remainder_to);
-            key_size = (name_to - name_from < sizeof(s_key)) ? name_to - name_from : 0ull;
+            key_size = (name_to - name_from < sizeof(s_key)) ? name_to - name_from : 0ULL;
             memor.cpy(&(MemoriaCfg){.dst = s_key, .src = trimmed + name_from, .bytes = (size_t)key_size});
-            value.at = 0ull;
+            value.at = 0ULL;
             mmgr_line_put_n(&value, equals + 1 + remainder_from, remainder_to - remainder_from);
             keyed = 1;
         }
@@ -252,7 +252,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
     {
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_files[at], .joined = path);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                       .size_pointer = &size, .owner = &g_cli_tests_cells);
         if (bytes == NULL)
@@ -283,10 +283,10 @@ EMBED_INLINE unsigned long long testing_letter(const TestingCtx *args)
 int cli_test_glob(const CliTestingSizeCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL});
-    unsigned long long matched = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long matched = 0ULL;
+    unsigned long long at = 0ULL;
     unsigned long long star = length;
-    unsigned long long mark = 0ull;
+    unsigned long long mark = 0ULL;
     while (at < args->size)
     {
         const unsigned long long letter =
@@ -294,7 +294,7 @@ int cli_test_glob(const CliTestingSizeCfg *args)
         const unsigned long long own =
             (matched < length)
                 ? EMBED_CALL(testing_letter, TestingCtx, .text = args->pattern + matched, .size = length - matched)
-                : 0ull;
+                : 0ULL;
         if ((matched < length) && ((args->pattern[matched] == '?') ||
                                    ((own == letter) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
                                                                                 .other = args->name + at,

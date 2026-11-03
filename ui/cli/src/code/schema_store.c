@@ -50,17 +50,17 @@ int cli_schema_cache_path(const CliSchemaUrlCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     char schemas[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {key, sizeof(key), 0ull};
+    VerbaLinea line = {key, sizeof(key), 0ULL};
     EMBED_CALL(store_url_key, SchemaStoreCtx, .url = args->url, .out = &line);
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder) || !mmgr_line_ok(&line))
     {
         return 0;
     }
     char name[CLI_PATH_MAX_LEN];
-    VerbaLinea named = {name, sizeof(name), 0ull};
-    for (unsigned long long at = 0ull; at < line.at;)
+    VerbaLinea named = {name, sizeof(name), 0ULL};
+    for (unsigned long long at = 0ULL; at < line.at;)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter =
             EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = key, .size = line.at, .at = at, .length = &length);
         const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
@@ -85,7 +85,7 @@ EMBED_INLINE void store_strip(const SchemaStoreCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     int quoted = 0;
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ULL; at < size;)
     {
         if (quoted)
         {
@@ -100,7 +100,7 @@ EMBED_INLINE void store_strip(const SchemaStoreCtx *args)
             at += 1u;
             continue;
         }
-        unsigned long long end = 0ull;
+        unsigned long long end = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
                        .prefix = "//"))
         {
@@ -151,7 +151,7 @@ EMBED_INLINE void store_missed(const SchemaStoreCtx *args)
 {
     if (args->store->missings < CLI_SCHEMA_MISSING)
     {
-        VerbaLinea line = {args->store->missing[args->store->missings], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->store->missing[args->store->missings], CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->key);
         (void)mmgr_line_finish(&line);
         args->store->missings += 1u;
@@ -171,14 +171,14 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
             .src = args->key, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
     {
         char required[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {required, sizeof(required), 0ull};
+        VerbaLinea line = {required, sizeof(required), 0ULL};
         EMBED_CALL(store_url_key, SchemaStoreCtx, .url = args->key, .out = &line);
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][0], .cap = CLI_CELLS_POOL}) ==
                  line.at) &&
-                (memor.cmp(&(MemoriaCfg){
-                     .src = g_cli_schema_bundled[at][0], .other = required, .bytes = (size_t)line.at}) == 0))
+                (memor.cmp(&(MemoriaCfg){.src = g_cli_schema_bundled[at][0], .other = required, .bytes = line.at}) ==
+                 0))
             {
                 *size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][1], .cap = CLI_CELLS_POOL});
                 return g_cli_schema_bundled[at][1];
@@ -208,7 +208,7 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    char *const stripped = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_schema_cells);
+    char *const stripped = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_schema_cells);
     if (stripped == NULL)
     {
         return CLI_JSON_NONE;
@@ -225,7 +225,7 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
                                        .json = &args->store->json, .nodes = tokens_max, .text_u64 = size))
     {
         char why[256];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                           .json = &args->store->json, .text = stripped, .size = size, .tokens = tokens,
                           .tokens_max = tokens_max, .err_msg = &err_msg);
@@ -250,7 +250,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
     {
         return CLI_SCHEMA_NONE;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     int mapped = 0;
     const char *const text =
         EMBED_CALL(store_text_get, SchemaStoreCtx, .key = args->key_read, .size_pointer = &size, .mapped = &mapped);
@@ -268,7 +268,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
         EMBED_CALL(store_missed, SchemaStoreCtx, .store = args->store, .key = args->key_read);
         return CLI_SCHEMA_NONE;
     }
-    VerbaLinea line = {args->store->key[args->store->documents], CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->store->key[args->store->documents], CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->key_read);
     (void)mmgr_line_finish(&line);
     args->store->root[args->store->documents] = root;

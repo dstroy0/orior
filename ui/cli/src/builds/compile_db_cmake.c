@@ -54,7 +54,7 @@ EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
 {
     VerbaLinea *const text = &g_cli_gather.flags_text;
     const unsigned long long mark = text->at;
-    if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) || (mark > 0xffffffffull))
+    if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) || (mark > 0xffffffffULL))
     {
         return;
     }
@@ -81,7 +81,7 @@ static void cli_fragment_word(const CliEachWordSizeCfg *args)
 EMBED_INLINE void cli_flag_init(const CompileDbCmakeCtx *args)
 {
     char flag[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {flag, sizeof(flag), 0ull};
+    VerbaLinea line = {flag, sizeof(flag), 0ULL};
     mmgr_line_put(&line, args->lead);
     mmgr_line_put(&line, args->text);
     mmgr_line_finish(&line);
@@ -111,10 +111,10 @@ EMBED_INLINE void cli_fragment_flags(const CompileDbCmakeCtx *args)
     VerbaLinea *const text = &g_cli_gather.fragment_text;
     const unsigned long long span =
         EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = args->target, .at = at);
-    text->at = 0ull;
-    if ((text->capacity <= (span + 1ull)) ||
+    text->at = 0ULL;
+    if ((text->capacity <= (span + 1ULL)) ||
         !EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target, .at = at, .out = text->out,
-                    .capacity = span + 1ull))
+                    .capacity = span + 1ULL))
     {
         return;
     }
@@ -127,7 +127,7 @@ EMBED_INLINE void cli_fragment_flags(const CompileDbCmakeCtx *args)
 EMBED_INLINE void cli_group_flags(const CompileDbCmakeCtx *args)
 {
     g_cli_gather.flags = 0u;
-    g_cli_gather.flags_text.at = 0ull;
+    g_cli_gather.flags_text.at = 0ULL;
     const unsigned long long fragments = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                                     .object = args->group, .key = "compileCommandFragments");
     for (unsigned long long at =
@@ -202,7 +202,7 @@ EMBED_INLINE unsigned int cli_compiler_get(const CompileDbCmakeCtx *args)
 EMBED_INLINE void cli_toolchains_read(const CompileDbCmakeCtx *args)
 {
     const CliReply *reply = args->reply;
-    CliReply chains_file = {NULL, 0ull};
+    CliReply chains_file = {NULL, 0ULL};
     g_cli_gather.compilers = 0u;
     if (!EMBED_CALL(cli_reply_file_read, CompileDbCmakeCtx, .reply = reply, .node = args->node, .folder = args->folder,
                     .file = &chains_file))
@@ -275,7 +275,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
     }
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                   .json = json, .text = args->msvc ? "/c" : "-c", .length = 2ull));
+                                   .json = json, .text = args->msvc ? "/c" : "-c", .length = 2ULL));
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                .value = EMBED_CALL(cli_slashed_init, CompileDbCmakeCtx, .text = file));
     const unsigned int entry =
@@ -330,7 +330,7 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
             EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->target,
                        .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                            .object = group, .key = "sourceIndexes"));
-        unsigned long long place = 0ull;
+        unsigned long long place = 0ULL;
         for (unsigned long long item =
                  EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->target, .array = sources);
              (item != CLI_REPLY_NONE) && (index != CLI_REPLY_NONE);
@@ -355,7 +355,7 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
                 }
                 index = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->target, .item = index);
             }
-            place += 1ull;
+            place += 1ULL;
         }
     }
 }
@@ -367,7 +367,7 @@ EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *a
     const unsigned long long named_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->build,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    named = (named_end != 0ull) ? (args->build + named_end) : named;
+    named = (named_end != 0ULL) ? (args->build + named_end) : named;
     const unsigned long long first =
         EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->model, .array = args->configurations);
     for (unsigned long long at = first; at != CLI_REPLY_NONE;
@@ -392,7 +392,7 @@ EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *a
 unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    CliReply reply = {NULL, 0ull};
+    CliReply reply = {NULL, 0ULL};
     if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->index_read,
                     .out = folder) ||
         !EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = args->index_read, .reply_out = &reply))
@@ -402,7 +402,7 @@ unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args)
     const unsigned long long answers =
         EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                    .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "reply");
-    CliReply model = {NULL, 0ull};
+    CliReply model = {NULL, 0ULL};
     const int modelled = EMBED_CALL(cli_reply_file_read, CompileDbCmakeCtx, .reply = &reply,
                                     .node = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                                                        .object = answers, .key = "codemodel-v2"),
@@ -446,7 +446,7 @@ unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args)
     for (unsigned long long at = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &model, .array = targets);
          at != CLI_REPLY_NONE; at = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &model, .item = at))
     {
-        CliReply target = {NULL, 0ull};
+        CliReply target = {NULL, 0ULL};
         if (EMBED_CALL(cli_reply_file_read, CompileDbCmakeCtx, .reply = &model, .node = at, .folder = folder,
                        .file = &target))
         {

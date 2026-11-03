@@ -29,17 +29,17 @@ int cli_toolchains_file(const CliToolchainsCtx *args)
     }
     VerbaLinea line = {args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}),
                        CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}),
-                       0ull};
+                       0ULL};
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 unsigned int cli_toolchains_file_read(const CliToolchainsJsonCtx *args)
 {
     // the empty object made where the file is none takes a node of the capacity over
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int read =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = args->json,
                    .path = args->path_read, .nodes_more = args->nodes_more + 1u, .text_more = args->text_more,
@@ -69,7 +69,7 @@ int cli_toolchains_file_save(const CliToolchainsPathCtx *args)
     char piece[4096];
     const int begun =
         EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &file, .path = args->path_read);
-    VerbaLinea out = {piece, sizeof(piece), 0ull, cli_file_write_chunk, &file, 0ull};
+    VerbaLinea out = {piece, sizeof(piece), 0ULL, cli_file_write_chunk, &file, 0ULL};
     if (begun)
     {
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json_read,
@@ -165,12 +165,12 @@ EMBED_INLINE unsigned int cli_on_bundle(const ToolchainsAddedCtx *args)
 {
     CliJson *json = args->json;
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     // the program's own bytes are toolchains.json's text
     const unsigned int read =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
                    .text = (const char *)g_cli_toolchains_json, .size = g_cli_toolchains_json_size, .nodes_more = 0u,
-                   .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_toolchains_cells);
+                   .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_toolchains_cells);
     return EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = read,
                       .name = "tools");
 }
@@ -231,7 +231,7 @@ void cli_toolchains_groups(const CliToolchainsEachCfg *args)
                                                                   .name = "user_toolchains.json", .path = path)
                                                            ? path
                                                            : "",
-                                          .nodes_more = 2u, .text_more = 16ull);
+                                          .nodes_more = 2u, .text_more = 16ULL);
     unsigned int groups = CLI_JSON_NONE;
     unsigned int added_tools = CLI_JSON_NONE;
     EMBED_CALL(cli_added_lists, ToolchainsAddedCtx, .json = &json, .added = added, .groups = &groups,
@@ -261,11 +261,11 @@ void cli_toolchains_trim(const CliToolchainsTextCtx *args)
 {
     const char *from = (args->text != NULL) ? args->text : "";
     const char *to = from + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-    VerbaLinea line = {args->out, args->capacity, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
     mmgr_line_finish(&line);
 }
@@ -273,25 +273,25 @@ void cli_toolchains_trim(const CliToolchainsTextCtx *args)
 // An id made from a name: its letters and digits in lower case, each run of anything else a dash
 EMBED_INLINE void cli_id_get(const ToolchainsAddedCtx *args)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; (at < whole) && ((length + 1ull) < CLI_NAME_MAX_LEN);)
+    for (unsigned long long at = 0ULL; (at < whole) && ((length + 1ULL) < CLI_NAME_MAX_LEN);)
     {
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name, .at = at,
                        .size = whole, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "");
-        const unsigned long long fits = CLI_NAME_MAX_LEN - 1ull - length;
+        const unsigned long long fits = CLI_NAME_MAX_LEN - 1ULL - length;
         const unsigned long long take = ((stop - at) < fits) ? (stop - at) : fits;
         memor.cpy(&(MemoriaCfg){.dst = args->id + length, .src = args->name + at, .bytes = (size_t)take});
         EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->id + length, .size = take);
         length += take;
-        if ((stop < whole) && (length != 0ull) && (args->id[length - 1u] != '-') &&
-            ((length + 1ull) < CLI_NAME_MAX_LEN))
+        if ((stop < whole) && (length != 0ULL) && (args->id[length - 1u] != '-') &&
+            ((length + 1ULL) < CLI_NAME_MAX_LEN))
         {
             args->id[length] = '-';
-            length += 1ull;
+            length += 1ULL;
         }
-        at = stop + 1ull;
+        at = stop + 1ULL;
     }
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->id, .at = length,
                         .set = "-");
@@ -378,12 +378,12 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
     // the tool made takes what the given one contains, a node and its key for each of its members, its programs, and
     // the two lists and the group made where the file has none
     unsigned int nodes_more = 0u;
-    unsigned long long text_more = 0ull;
+    unsigned long long text_more = 0ULL;
     EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = args->supplied,
                .node = args->tool, .nodes_pointer = &nodes_more, .text_u64s = &text_more);
     const unsigned int added =
         EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &json, .path_read = path,
-                   .nodes_more = nodes_more + 32u, .text_more = text_more + (4ull * CLI_PATH_MAX_LEN) + 512ull);
+                   .nodes_more = nodes_more + 32u, .text_more = text_more + (4ULL * CLI_PATH_MAX_LEN) + 512ULL);
     unsigned int groups = CLI_JSON_NONE;
     unsigned int added_tools = CLI_JSON_NONE;
     EMBED_CALL(cli_added_lists, ToolchainsAddedCtx, .json = &json, .added = added, .groups = &groups,
@@ -500,9 +500,9 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
 EMBED_INLINE int cli_added_read(const ToolchainsAddedCtx *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->read->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->read->bundled,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "user_toolchains.json",
                     .path = args->read->path))
     {
@@ -513,7 +513,7 @@ EMBED_INLINE int cli_added_read(const ToolchainsAddedCtx *args)
     args->read->tools = EMBED_CALL(cli_on_bundle, ToolchainsAddedCtx, .json = &args->read->bundled);
     args->read->added =
         EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &args->read->json,
-                   .path_read = args->read->path, .nodes_more = 3u, .text_more = CLI_NAME_MAX_LEN + 16ull);
+                   .path_read = args->read->path, .nodes_more = 3u, .text_more = CLI_NAME_MAX_LEN + 16ULL);
     EMBED_CALL(cli_added_lists, ToolchainsAddedCtx, .json = &args->read->json, .added = args->read->added,
                .groups = &args->read->groups, .tools = &args->read->added_tools);
     return 1;
@@ -659,7 +659,7 @@ int cli_toolchains_on_add(const CliToolchainsIdFolderCfg *args)
 {
     static CliAdded s_read;
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     const int added = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = &err_msg) &&
                       EMBED_CALL(cli_list_contains, ToolchainsAddedCtx, .json_read = &s_read.json,
                                  .list = s_read.added_tools, .key = "id", .text = args->id);

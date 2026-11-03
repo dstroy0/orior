@@ -124,7 +124,7 @@ int cli_regexp_one(const CliRegexpMatchCtx *args)
     const CliRegexpNode *const node = &args->regexp->node[args->index];
     if (node->ascii_known && (args->letter < 128u))
     {
-        return (int)((node->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ull);
+        return (int)((node->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ULL);
     }
     switch (node->kind)
     {
@@ -143,7 +143,7 @@ int cli_regexp_one(const CliRegexpMatchCtx *args)
 
 int cli_regexp_allows(const CliRegexpCfg *args)
 {
-    return (args->letter < 128u) ? (int)((args->first->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ull)
+    return (args->letter < 128u) ? (int)((args->first->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ULL)
                                  : args->first->other;
 }
 
@@ -155,7 +155,7 @@ int cli_regexp_chain(const CliRegexpMatchIndexCtx *args)
     {
         return cli_regexp_match_index_internal.regexp_then(args);
     }
-    const CliRegexpThen frame = {CLI_THEN_CHAIN, args->node, args->index + 1u, 0u, 0ull, args->then};
+    const CliRegexpThen frame = {CLI_THEN_CHAIN, args->node, args->index + 1u, 0u, 0ULL, args->then};
     return EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx, .regexp = args->regexp,
                       .index = args->regexp->part[concat->first + args->index], .at = args->at, .run = args->run,
                       .then = &frame);
@@ -179,7 +179,7 @@ EMBED_INLINE int cli_again(const RegexpMatchCtx *args)
     if (depth > CLI_REGEXP_STACK_MAX)
     {
         // given up as STEPS gives up: no step after it goes on
-        run->steps = CLI_REGEXP_STEPS + 1ull;
+        run->steps = CLI_REGEXP_STEPS + 1ULL;
         return 0;
     }
     const CliRegexpThen frame = {CLI_THEN_REPEAT, args->node_u32, 0u, args->count, at, then};
@@ -248,19 +248,19 @@ int cli_regexp_then(const CliRegexpMatchIndexCtx *args)
 // other way where lazy
 int cli_regexp_count(const CliRegexpMatchThenCtx *args)
 {
-    unsigned long long reach = 0ull;
+    unsigned long long reach = 0ULL;
     while (((args->repeat->max == CLI_REGEXP_UNBOUNDED) || (reach < args->repeat->max)) &&
            ((args->at + reach) < args->run->length) &&
            (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
                        .index = args->repeat->child, .letter = args->run->text[args->at + reach]) == 1))
     {
-        reach += 1ull;
+        reach += 1ULL;
     }
     if (reach < args->repeat->min)
     {
         return 0;
     }
-    for (unsigned long long step = 0ull; step <= (reach - args->repeat->min); step += 1ull)
+    for (unsigned long long step = 0ULL; step <= (reach - args->repeat->min); step += 1ULL)
     {
         const unsigned long long count = args->repeat->greedy ? (reach - step) : (args->repeat->min + step);
         if (EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
@@ -279,19 +279,19 @@ int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
     const unsigned long long begun = args->run->ends_top;
     if (!EMBED_CALL(match_end_capacity, RegexpMatchCtx, .run = args->run))
     {
-        args->run->steps = CLI_REGEXP_STEPS + 1ull;
+        args->run->steps = CLI_REGEXP_STEPS + 1ULL;
         return 0;
     }
     // a place in the text far below what an unsigned int counts
     args->run->ends[begun] = (unsigned int)args->at;
-    args->run->ends_top = begun + 1ull;
-    while (((args->run->ends_top - begun - 1ull) < args->repeat->max) || (args->repeat->max == CLI_REGEXP_UNBOUNDED))
+    args->run->ends_top = begun + 1ULL;
+    while (((args->run->ends_top - begun - 1ULL) < args->repeat->max) || (args->repeat->max == CLI_REGEXP_UNBOUNDED))
     {
-        args->run->steps += 1ull;
+        args->run->steps += 1ULL;
         if ((args->run->steps > CLI_REGEXP_STEPS) || !EMBED_CALL(match_end_capacity, RegexpMatchCtx, .run = args->run))
         {
             args->run->ends_top = begun;
-            args->run->steps = CLI_REGEXP_STEPS + 1ull;
+            args->run->steps = CLI_REGEXP_STEPS + 1ULL;
             return 0;
         }
         const unsigned long long from = args->run->ends[args->run->ends_top - 1u];
@@ -303,12 +303,12 @@ int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
             break;
         }
         args->run->ends[args->run->ends_top] = (unsigned int)to;
-        args->run->ends_top += 1ull;
+        args->run->ends_top += 1ULL;
     }
-    const unsigned long long passes = args->run->ends_top - begun - 1ull;
+    const unsigned long long passes = args->run->ends_top - begun - 1ULL;
     int found = 0;
-    for (unsigned long long step = 0ull;
-         !found && (passes >= args->repeat->min) && (step <= (passes - args->repeat->min)); step += 1ull)
+    for (unsigned long long step = 0ULL;
+         !found && (passes >= args->repeat->min) && (step <= (passes - args->repeat->min)); step += 1ULL)
     {
         const unsigned long long count = args->repeat->greedy ? (passes - step) : (args->repeat->min + step);
         found = EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,

@@ -71,13 +71,13 @@ int cli_files_track(const CliFilesRootPathCfg *args)
     const char *const slash =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
-    const unsigned long long folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ull;
+    const unsigned long long folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL;
     char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put_n(&line, path, folder_length);
     mmgr_line_finish(&line);
     if (EMBED_CALL(cli_symbols_path_name.tree_has_file, CliSymbolsPathNameCfg, .path = path) ||
-        (folder_length == 0ull) ||
+        (folder_length == 0ULL) ||
         EMBED_CALL(cli_symbols_path_name.tree_has_folder, CliSymbolsPathNameCfg, .path = folder))
     {
         return 1;
@@ -85,13 +85,13 @@ int cli_files_track(const CliFilesRootPathCfg *args)
     // the first folder down the path the tree does not contain: an empty folder git lists nothing of, a folder made
     // since it was listed, or one git ignores, as a build's output is
     char outside[CLI_PATH_MAX_LEN];
-    unsigned long long end = 0ull;
-    for (unsigned long long at = 0ull;;)
+    unsigned long long end = 0ULL;
+    for (unsigned long long at = 0ULL;;)
     {
         end = at;
         end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = path, .at = end,
                          .size = folder_length, .set = "/");
-        VerbaLinea part = {outside, sizeof(outside), 0ull};
+        VerbaLinea part = {outside, sizeof(outside), 0ULL};
         mmgr_line_put_n(&part, path, end);
         mmgr_line_finish(&part);
         if (!EMBED_CALL(cli_symbols_path_name.tree_has_folder, CliSymbolsPathNameCfg, .path = outside) ||
@@ -99,7 +99,7 @@ int cli_files_track(const CliFilesRootPathCfg *args)
         {
             break;
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     const unsigned long long read_at = cli_tree_listing_at();
     int ignored = 0;
@@ -108,7 +108,7 @@ int cli_files_track(const CliFilesRootPathCfg *args)
         return !ignored;
     }
     char spec[CLI_PATH_MAX_LEN];
-    VerbaLinea named = {spec, sizeof(spec), 0ull};
+    VerbaLinea named = {spec, sizeof(spec), 0ULL};
     mmgr_line_put(&named, outside);
     mmgr_line_ch(&named, '/');
     mmgr_line_finish(&named);
@@ -122,10 +122,10 @@ int cli_files_track(const CliFilesRootPathCfg *args)
     words[count + 4u] = NULL;
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     ignored = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = root, .settings = NULL,
                          .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
-              (run_result->code == 0ll);
+              (run_result->code == 0LL);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     EMBED_CALL(tracked_append, FilesTrackedCtx, .outside = outside, .at = read_at, .ignored_value = ignored);
     return !ignored;

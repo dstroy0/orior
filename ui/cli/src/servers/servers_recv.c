@@ -42,7 +42,7 @@ EMBED_INLINE int recv_empty_array(const ServersRecvCtx *args)
     {
         return 0;
     }
-    at += 1ull;
+    at += 1ULL;
     at +=
         EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + at, .size = args->length - at);
     return (at < args->length) && (text[at] == ']');
@@ -54,10 +54,10 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
     const CliServersSink *sink = args->sink;
     const char *params = args->params;
     unsigned long long size = args->size;
-    unsigned long long uri_at = 0ull;
-    unsigned long long uri_length = 0ull;
-    unsigned long long all_at = 0ull;
-    unsigned long long all_length = 0ull;
+    unsigned long long uri_at = 0ULL;
+    unsigned long long uri_length = 0ULL;
+    unsigned long long all_at = 0ULL;
+    unsigned long long all_length = 0ULL;
     char uri[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = params, .size_value = size, .name = "uri",
                     .start = &uri_at, .length_pointer = &uri_length) ||
@@ -155,7 +155,7 @@ static void recv_path(const CliEachPathCfg *args)
 EMBED_INLINE void recv_analysis(const ServersRecvCtx *args)
 {
     const CliJson *json = args->json;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const scope =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -199,13 +199,13 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
     {
         mmgr_line_put(args->answer, first ? "" : ",");
         first = 0;
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const section =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = item, .name = "section"),
                        .length_pointer = &length);
-        if ((section != NULL) && (length == 6ull) &&
+        if ((section != NULL) && (length == 6ULL) &&
             (memor.cmp(&(MemoriaCfg){.src = section, .other = "python", .bytes = 6u}) == 0))
         {
             mmgr_line_put(args->answer, "{\"analysis\":");
@@ -225,7 +225,7 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
             }
             mmgr_line_ch(args->answer, '}');
         }
-        else if ((section != NULL) && (length == 15ull) &&
+        else if ((section != NULL) && (length == 15ULL) &&
                  (memor.cmp(&(MemoriaCfg){.src = section, .other = "python.analysis", .bytes = 15u}) == 0))
         {
             EMBED_CALL(recv_analysis, ServersRecvCtx, .json = json, .item = item, .answer = args->answer);
@@ -266,7 +266,7 @@ void cli_servers_recv(const CliLspRecvCfg *args)
              (sink->emit != NULL))
     {
         EMBED_CALL(sink->emit, CliEachEventJsonSizeCfg, .context = sink->context, .event = "lsp-hints", .json = "null",
-                   .size = 4ull);
+                   .size = 4ULL);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){
                  .src = args->method, .other = "workspace/semanticTokens/refresh", .cap = CLI_CELLS_POOL}))
@@ -275,7 +275,7 @@ void cli_servers_recv(const CliLspRecvCfg *args)
         if (sink->emit != NULL)
         {
             EMBED_CALL(sink->emit, CliEachEventJsonSizeCfg, .context = sink->context, .event = "lsp-parse",
-                       .json = "null", .size = 4ull);
+                       .json = "null", .size = 4ULL);
         }
     }
 }

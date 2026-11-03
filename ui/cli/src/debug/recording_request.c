@@ -11,7 +11,7 @@
 // the bytes of a command's name and of why a request failed, and the most bytes of an answer's body
 #define CLI_RECORDING_COMMAND 256u
 #define CLI_RECORDING_ERR_MSG_MAX_LEN 4096u
-#define CLI_RECORDING_BODY (8ull << 20u)
+#define CLI_RECORDING_BODY (8ULL << 20u)
 
 // the request served, read into a tree taken to its size and given back as it is answered; and the replies sent
 static CliJson s_json;
@@ -52,12 +52,12 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
 {
     CliDap *dap = args->dap;
     unsigned int message = args->message;
-    s_seq += 1ull;
+    s_seq += 1ULL;
     const int body_untruncated = mmgr_line_ok(args->body);
     const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL});
     // the members around the body, the body or null, and the command and the reason with every byte escaped
     const unsigned long long capacity =
-        (body_untruncated ? args->body->at : 4ull) + ((command_size + args->err_msg->at) * 6ull) + 512ull;
+        (body_untruncated ? args->body->at : 4ULL) + ((command_size + args->err_msg->at) * 6ULL) + 512ULL;
     char *const sent = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_debug_cells);
     VerbaLinea reply = mmgr_line_over(sent, capacity);
     mmgr_line_put(&reply, "{\"seq\":");
@@ -135,11 +135,11 @@ EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
                                             .json_read = &s_json, .array = breakpoints, .index = at);
         const unsigned int line_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &s_json, .object = one, .name = "line");
-        unsigned long long line = 0ull;
+        unsigned long long line = 0ULL;
         const int whole = EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = &s_json,
                                      .id = line_node, .value = &line);
         // a line past 32 bits retains its low 32, the width of the line numbers the recording stores
-        const unsigned int narrow = (unsigned int)(line & 0xffffffffull);
+        const unsigned int narrow = (unsigned int)(line & 0xffffffffULL);
         unsigned int count = 0u;
         while (fits && whole && (count < g_cli_replay->break_count[file]) &&
                (g_cli_replay->break_lines[file][count] != narrow))
@@ -152,7 +152,7 @@ EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
             g_cli_replay->break_count[file] += 1u;
         }
         mmgr_line_put(args->body_out, (at > 0u) ? ",{\"id\":" : "{\"id\":");
-        mmgr_line_decimal(args->body_out, (unsigned long long)at + 1ull, 1u);
+        mmgr_line_decimal(args->body_out, (unsigned long long)at + 1ULL, 1u);
         mmgr_line_put(args->body_out, ",\"verified\":true,\"line\":");
         EMBED_CALL(request_raw, RecordingRequestCtx, .out = args->body_out, .node = line_node);
         mmgr_line_ch(args->body_out, '}');
@@ -213,7 +213,7 @@ void *cli_recording_begin(const CliRecordingCfg *args)
     g_cli_replay->at = 0u;
     g_cli_replay->break_file_count = 0u;
     g_cli_replay->on_raised = 0;
-    s_seq = 0ull;
+    s_seq = 0ULL;
     return g_cli_replay;
 }
 
@@ -222,12 +222,12 @@ int cli_recording_serve(const CliDapServeCfg *args)
     CliDap *dap = args->dap;
     unsigned long long size = args->size;
     char why[CLI_RECORDING_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     // the request before this one given back with its tree, and this one read into a tree of its size
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                             .json = &s_json, .text = args->request, .size = size, .nodes_more = 0u,
-                                            .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+                                            .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
     if (message == CLI_JSON_NONE)
     {
         return 1;

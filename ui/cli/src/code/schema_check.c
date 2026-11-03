@@ -81,7 +81,7 @@ unsigned int cli_schema_trial(const CliSchemaBaseNodeCtx *args)
     const unsigned int count = found->count;
     const unsigned int fixes = found->fixes;
     const unsigned int used = found->used;
-    const CliSchemaKey none = {0, 0ull, 0ull};
+    const CliSchemaKey none = {0, 0ULL, 0ULL};
     EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
                .schema = args->schema, .base = args->base, .key_schema_key = none, .depth = args->depth + 1u);
     unsigned int tried = 0u;
@@ -139,8 +139,8 @@ EMBED_INLINE void check_choose(const SchemaCheckCtx *args)
     }
     else if (args->exactly && (fitting > 1u))
     {
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(check_span, SchemaCheckCtx, .check_read = check, .node = node, .key = args->key, .from = &from,
                    .to = &to);
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
@@ -180,7 +180,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const allowed = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                .json_read = json, .node = one, .length_pointer = &size);
         if (allowed == NULL)
@@ -207,7 +207,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const allowed = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                .json_read = json, .node = one, .length_pointer = &size);
         if (allowed != NULL)
@@ -271,7 +271,7 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                            .size = value->text_size);
                 for (unsigned int one = json->node[choices].first; one != CLI_JSON_NONE; one = json->node[one].next)
                 {
-                    unsigned long long size = 0ull;
+                    unsigned long long size = 0ULL;
                     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                         .json_read = json, .node = one, .length_pointer = &size);
                     if (text != NULL)
@@ -288,7 +288,7 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                     mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
                     mmgr_line_ch(&title, '"');
                     static char s_quoted[1u << 13u];
-                    VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
+                    VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ULL};
                     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
                                .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
                     EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
@@ -320,10 +320,10 @@ EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int map = args->map;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const id = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json, .map = map,
                                       .name = "$id", .size_pointer = &size);
-    unsigned long long found = 0ull;
+    unsigned long long found = 0ULL;
     if ((id == NULL) || !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = id, .length_value = size,
                                     .required = "://", .size = 3u, .at_pointer = &found))
     {
@@ -352,8 +352,8 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     if (EMBED_CALL(cli_schema_json_node_internal.schema_false, CliSchemaJsonNodeCtx, .json = json,
                    .node = args->schema))
     {
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         EMBED_CALL(check_span, SchemaCheckCtx, .check_read = args->check, .node = args->node,
                    .key = args->key_schema_key, .from = &from, .to = &to);
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
@@ -371,7 +371,7 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     const unsigned int used = s_bases_used;
     const char *const here =
         EMBED_CALL(check_base, SchemaCheckCtx, .json = json, .map = args->schema, .base = args->base);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                              .map = args->schema, .name = "$ref", .size_pointer = &size);
     if ((reference != NULL) && (CLI_PATH_MAX_LEN <= CLI_SCHEMA_BASES - s_bases_used))
@@ -394,7 +394,7 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
                                       .name = "deprecated")) &&
         args->key_schema_key.has_key)
     {
-        unsigned long long message_size = 0ull;
+        unsigned long long message_size = 0ULL;
         const char *const message =
             EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json, .map = args->schema,
                        .name = "deprecationMessage", .size_pointer = &message_size);

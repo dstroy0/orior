@@ -10,7 +10,7 @@
 unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
-    *size = 0ull;
+    *size = 0ULL;
     unsigned char *const cell = g_cli_cells->temporary_buf_alloc(args->count_u64 + CLI_FILE_SLACK, args->owner);
     if (cell == NULL)
     {
@@ -19,10 +19,10 @@ unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
     // no bytes asked of a file are none, whether it opens or not
     if (!EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = args->path, .from = args->from,
                     .bytes_bytes = cell, .count_u64 = args->count_u64, .got = size) &&
-        (args->count_u64 != 0ull))
+        (args->count_u64 != 0ULL))
     {
         g_cli_cells->persistent_buf_release(cell, args->owner);
-        *size = 0ull;
+        *size = 0ULL;
         return NULL;
     }
     // a take is not zeroed, and the slack after the bytes read is
@@ -33,10 +33,10 @@ unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
 unsigned char *cli_file_alloc(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
-    unsigned long long whole = 0ull;
-    *size = 0ull;
+    unsigned long long whole = 0ULL;
+    *size = 0ULL;
     return EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &whole)
-               ? EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->path, .from = 0ull,
+               ? EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->path, .from = 0ULL,
                             .count_u64 = whole, .size_pointer = size, .owner = args->owner)
                : NULL;
 }
@@ -50,7 +50,7 @@ unsigned char *cli_file_alloc_utf8(const CliPathCtx *args)
         !EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg, .text_bytes = bytes, .size = *size))
     {
         g_cli_cells->persistent_buf_release(bytes, args->owner);
-        *size = 0ull;
+        *size = 0ULL;
         return NULL;
     }
     return bytes;
@@ -88,7 +88,7 @@ static void tree_bytes_each(const CliEachNameIsFolderCfg *args)
     VerbaLinea line = {walk->path, sizeof(walk->path), length};
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         walk->path[length] = '\0';
         return;
@@ -100,11 +100,11 @@ static void tree_bytes_each(const CliEachNameIsFolderCfg *args)
     }
     else
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         walk->bytes +=
             EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = walk->path, .size_pointer = &size)
                 ? size
-                : 0ull;
+                : 0ULL;
     }
     walk->path[length] = '\0';
 }
@@ -112,10 +112,10 @@ static void tree_bytes_each(const CliEachNameIsFolderCfg *args)
 unsigned long long cli_tree_bytes(const CliPathRootCtx *args)
 {
     static CliTreeBytes s_walk;
-    VerbaLinea line = {s_walk.path, sizeof(s_walk.path), 0ull};
+    VerbaLinea line = {s_walk.path, sizeof(s_walk.path), 0ULL};
     mmgr_line_put(&line, args->root);
-    s_walk.bytes = 0ull;
-    if (mmgr_line_finish(&line) != 0ull)
+    s_walk.bytes = 0ULL;
+    if (mmgr_line_finish(&line) != 0ULL)
     {
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = s_walk.path,
                    .each = tree_bytes_each, .context_bytess = &s_walk);

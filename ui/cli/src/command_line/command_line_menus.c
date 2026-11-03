@@ -66,7 +66,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
     for (unsigned int at = 0u; at < items; at += 1u)
     {
         char line[CLI_LABEL_MAX_LEN * 4u];
-        VerbaLinea usage = {line, sizeof(line), 0ull};
+        VerbaLinea usage = {line, sizeof(line), 0ULL};
         mmgr_line_put(&usage, "orior_cli ");
         mmgr_line_put(&usage, word);
         mmgr_line_ch(&usage, ' ');
@@ -76,7 +76,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
         usage.at = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = line, .size = usage.at);
         mmgr_line_put(&usage, s_items[at].console ? "" : "  *");
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
-                   .size = mmgr_line_ok(&usage) ? usage.at : 0ull);
+                   .size = mmgr_line_ok(&usage) ? usage.at : 0ULL);
     }
     char split[CLI_LABEL_MAX_LEN];
     char group[1][CLI_LABEL_MAX_LEN];
@@ -117,12 +117,12 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
     const char *named = args->named;
     static char s_root[CLI_PATH_MAX_LEN];
     char why[4096];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                     .err_msg = &err_msg))
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_NO_CODE;
     }
     const CliCatalog *const catalog =
@@ -161,7 +161,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
             char word[CLI_LABEL_MAX_LEN];
             EMBED_CALL(cli_commands_menu_title.menu_title, CliCommandsMenuTitleCfg, .menu = args->menu, .title = title);
             EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word);
-            err_msg.at = 0ull;
+            err_msg.at = 0ULL;
             mmgr_line_put(&err_msg, title);
             mmgr_line_put(&err_msg, " has no ");
             mmgr_line_put(&err_msg, name);
@@ -169,7 +169,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
             mmgr_line_put(&err_msg, word);
             mmgr_line_put(&err_msg, " names what it has");
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
             return CLI_NO_CODE;
         }
         if (args->count == next)
@@ -188,14 +188,14 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
         return EMBED_CALL(cli_command_line_word_internal.menu_lines, CliCommandLineWordCtx, .root = s_root,
                           .menu = args->menu);
     }
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     const unsigned int job = EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name,
                                         CliCommandLineCatalogAmongCtx, .catalog = catalog, .among = s_list_result,
                                         .among_count = jobs, .name = args->words[next], .err_msg = &err_msg);
     if (job == CLI_CATALOG_NONE)
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_NO_CODE;
     }
     EMBED_CALL(cli_command_line_root_internal.job_show, CliCommandLineRootCtx, .root = s_root, .catalog = catalog,

@@ -66,7 +66,7 @@ EMBED_INLINE unsigned int check_files_language(const ServersCheckFilesCtx *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
     one->reported = 0;
     char quiet[1024];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     one->server = EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = args->id,
                              .spec = &one->spec)
                       ? EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = root,
@@ -82,18 +82,18 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     // a file's full path is the tree's, a slash, and its own: the paths' text is no longer than those
     const unsigned int most = (args->count < CLI_SERVERS_BATCH) ? args->count : CLI_SERVERS_BATCH;
     const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
-    unsigned long long text_bytes = 1ull;
+    unsigned long long text_bytes = 1ULL;
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
         text_bytes +=
-            root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_CELLS_POOL}) + 2ull;
+            root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_CELLS_POOL}) + 2ULL;
     }
     s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &g_cli_servers_check_cells);
     char *const text = g_cli_cells->temporary_buf_alloc(text_bytes, &g_cli_servers_check_cells);
-    const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths),
+    const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(*paths),
                                                                 &g_cli_servers_check_cells);
     CliServersWaiting *const waiting_on = g_cli_cells->temporary_buf_alloc(
-        ((unsigned long long)most + 1ull) * sizeof(*waiting_on), &g_cli_servers_check_cells);
+        ((unsigned long long)most + 1ULL) * sizeof(*waiting_on), &g_cli_servers_check_cells);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
         g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);
@@ -107,7 +107,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     s_languages = 0u;
     const int blocked = EMBED_CALL(cli_trust_tree_words.block, CliTrustTreeWordsCfg, .tree = args->root);
     unsigned int waiting = 0u;
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int file = 0u; (file < args->count) && (waiting < most); file += 1u)
     {
         char id[CLI_NAME_MAX_LEN];
@@ -130,7 +130,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
             {
                 static const char s_params[] = "{\"textDocument\":null}";
                 char quiet[256];
-                VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+                VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
                 (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = language->server,
                                  .method = language->spec.checks, .params = s_params, .length = sizeof(s_params) - 1u,
                                  .err_msg = &ignored);
@@ -141,8 +141,8 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         char full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[file],
                    .joined = full);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1ull;
-        unsigned long long size = 0ull;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1ULL;
+        unsigned long long size = 0ULL;
         if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &size) ||
             (size > CLI_SERVERS_LARGEST) || ((used + length) > text_bytes))
         {

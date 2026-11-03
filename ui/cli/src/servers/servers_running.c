@@ -69,10 +69,10 @@ unsigned int cli_servers_list(const CliServersCfg *args)
             continue;
         }
         const char *const program = (one->spec.program[0] != '\0') ? one->spec.program : one->spec.tool;
-        VerbaLinea tool = {args->servers[count].tool, CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea tool = {args->servers[count].tool, CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put(&tool, one->spec.tool);
         (void)mmgr_line_finish(&tool);
-        VerbaLinea named = {args->servers[count].program, CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea named = {args->servers[count].program, CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put(&named, program);
         (void)mmgr_line_finish(&named);
         // a process id fits the 32 bits the system gives it
@@ -92,7 +92,7 @@ unsigned int cli_servers_tools_for(const CliServersCapacityCfg *args)
         if (EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = args->languages[at],
                        .spec = &s_spec))
         {
-            VerbaLinea tool = {args->tools[found], CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea tool = {args->tools[found], CLI_NAME_MAX_LEN, 0ULL};
             mmgr_line_put(&tool, s_spec.tool);
             (void)mmgr_line_finish(&tool);
             found += 1u;

@@ -59,7 +59,7 @@ unsigned short cli_vector_fold(const CliVectorUnitCfg *args)
 
 int cli_vector_exists_at(const CliVectorTextNeedleCfg *args)
 {
-    for (unsigned long long step = 0ull; step < args->needle_length; step += 1ull)
+    for (unsigned long long step = 0ULL; step < args->needle_length; step += 1ULL)
     {
         const unsigned short here =
             args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->text[args->at + step])
@@ -81,7 +81,7 @@ unsigned long long cli_vector_plain_find(const CliVectorTextLengthCfg *args)
     {
         return CLI_VECTOR_NONE;
     }
-    for (unsigned long long at = args->start; at <= (args->length - args->needle_length); at += 1ull)
+    for (unsigned long long at = args->start; at <= (args->length - args->needle_length); at += 1ULL)
     {
         if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
                        .needle = args->needle, .needle_length = args->needle_length, .at = at, .folded = args->folded))
@@ -110,10 +110,10 @@ unsigned long long cli_vector_common_on(const CliVectorLengthCfg *args)
         return cli_vector_length_neon.common_neon(args);
     }
 #endif
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at < args->length) && (args->a_u64s[at] == args->b_u64s[at]))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     return at;
 }
@@ -136,7 +136,7 @@ unsigned long long cli_vector_find_unit_on(const CliVectorUnitCfg *args)
         return cli_vector_unit_neon.find_unit_neon(args);
     }
 #endif
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         if (args->text[at] == args->unit)
         {
@@ -179,7 +179,7 @@ int cli_vector_same_on(const CliVectorACfg *args)
 // whole; folded where `folded` is 1
 unsigned long long cli_vector_find_on(const CliVectorTextCfg *args)
 {
-    if (args->needle_length == 0ull)
+    if (args->needle_length == 0ULL)
     {
         return (args->from <= args->length) ? args->from : CLI_VECTOR_NONE;
     }
@@ -189,7 +189,7 @@ unsigned long long cli_vector_find_on(const CliVectorTextCfg *args)
     }
     const unsigned short *const rest = args->text + args->from;
     const unsigned long long remainder_length = args->length - args->from;
-    if ((args->needle_length == 1ull) && !args->folded)
+    if ((args->needle_length == 1ULL) && !args->folded)
     {
         const unsigned long long at = EMBED_CALL(cli_vector_unit.find_unit_on, CliVectorUnitCfg, .path = args->path,
                                                  .text = rest, .length = remainder_length, .unit = args->needle[0]);
@@ -223,7 +223,7 @@ unsigned long long cli_vector_find_on(const CliVectorTextCfg *args)
     {
         found = EMBED_CALL(cli_vector_text_length.plain_find, CliVectorTextLengthCfg, .text = rest,
                            .length = remainder_length, .needle = args->needle, .needle_length = args->needle_length,
-                           .folded = args->folded, .start = 0ull);
+                           .folded = args->folded, .start = 0ULL);
     }
     return (found == CLI_VECTOR_NONE) ? found : (found + args->from);
 }

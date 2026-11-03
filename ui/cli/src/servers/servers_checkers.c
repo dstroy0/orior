@@ -45,7 +45,7 @@ typedef struct
 // the key a run is counted under: the file's key and the checker's id
 EMBED_INLINE void checkers_run_key(const ServersCheckersCtx *args)
 {
-    VerbaLinea line = {args->joined, args->capacity, 0ull};
+    VerbaLinea line = {args->joined, args->capacity, 0ULL};
     mmgr_line_put(&line, args->key);
     mmgr_line_ch(&line, '\n');
     mmgr_line_put(&line, args->id);
@@ -58,15 +58,15 @@ unsigned long long cli_servers_run_count(const CliServersKeyCtx *args)
     EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
                .capacity = sizeof(joined));
     const char *adjacent = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_runs,
                                           .key = joined, .adjacent = &adjacent, .size = &size);
-    unsigned long long run = 0ull;
+    unsigned long long run = 0ULL;
     if ((stored != NULL) && (size == sizeof(run)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &run, .src = stored, .bytes = sizeof(run)});
     }
-    run += 1ull;
+    run += 1ULL;
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_runs, .key = joined,
                      .adjacent_value = "", .text = (const char *)&run, .size_value = sizeof(run));
     return run;
@@ -78,10 +78,10 @@ int cli_servers_run_last(const CliServersKeyCtx *args)
     EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
                .capacity = sizeof(joined));
     const char *adjacent = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_runs,
                                           .key = joined, .adjacent = &adjacent, .size = &size);
-    unsigned long long last = 0ull;
+    unsigned long long last = 0ULL;
     if ((stored != NULL) && (size == sizeof(last)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &last, .src = stored, .bytes = sizeof(last)});
@@ -95,14 +95,14 @@ static void checkers_file_job(const CliServersJobCfg *args)
 {
     unsigned long long size = args->size;
     const CliServersCheckerJob *const one = args->job;
-    if (size < sizeof(*one) + (one->has_text ? one->size : 0ull))
+    if (size < sizeof(*one) + (one->has_text ? one->size : 0ULL))
     {
         return;
     }
     char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     char quiet[1024];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const char *const text = one->has_text ? (const char *)args->job + sizeof(*one) : NULL;
     const int checked =
         EMBED_CALL(cli_checkers_out.check_file, CliCheckersOutCfg, .id = one->id, .root = one->root, .path = one->path,
@@ -129,7 +129,7 @@ static void checkers_tree_job(const CliServersJobCfg *args)
     char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     char quiet[1024];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const int checked = EMBED_CALL(cli_checkers_out.check_tree, CliCheckersOutCfg, .id = one->id, .root = one->root,
                                    .out = &found, .err_msg = &err_msg);
     if (checked && mmgr_line_ok(&found))
@@ -143,7 +143,7 @@ static void checkers_tree_job(const CliServersJobCfg *args)
 // a path copied into what is sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void checkers_path_copy(const ServersCheckersCtx *args)
 {
-    VerbaLinea line = {args->into, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->into, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->path);
     (void)mmgr_line_finish(&line);
 }
@@ -181,7 +181,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
         }
         // the job made in a cell of its size, the text after it where the checker has it
         const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
-        const unsigned long long text_size = has_text ? size : 0ull;
+        const unsigned long long text_size = has_text ? size : 0ULL;
         char *const job =
             g_cli_cells->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, &g_cli_servers_cells);
         if (job == NULL)

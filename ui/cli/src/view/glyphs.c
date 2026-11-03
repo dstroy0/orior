@@ -56,12 +56,12 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
         return 0;
     }
     // the face's file saved as long as its font is drawn from, in a persistent cell of its size and the slack
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     unsigned char *const data =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size)
             ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_gui_glyphs_cells)
             : NULL;
-    if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = path, .from = 0ull,
+    if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = path, .from = 0ULL,
                                       .bytes_bytes = data, .count_u64 = size, .got = &size))
     {
         g_cli_cells->persistent_buf_release(data, &g_gui_glyphs_cells);
@@ -77,7 +77,7 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
     }
     const unsigned long long bytes = (unsigned long long)font->ranges * sizeof(args->ranges[0]);
     unsigned int (*const saved)[3] =
-        g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : sizeof(args->ranges[0]), &g_gui_glyphs_cells);
+        g_cli_cells->persistent_buf_alloc((bytes != 0ULL) ? bytes : sizeof(args->ranges[0]), &g_gui_glyphs_cells);
     if (saved == NULL)
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = data, .owner = &g_gui_glyphs_cells);
@@ -369,17 +369,17 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     GuiMask *mask = args->mask;
     CliMask measured;
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours,
-               .mask = &measured, .cover = NULL, .capacity = 0ull);
+               .mask = &measured, .cover = NULL, .capacity = 0ULL);
     mask->width = 0u;
     mask->height = 0u;
     mask->left = 0;
     mask->top = 0;
     mask->cover = NULL;
-    if (measured.width == 0ull)
+    if (measured.width == 0ULL)
     {
         return 1;
     }
-    const unsigned long long capacity = (measured.width * measured.height) + 4ull;
+    const unsigned long long capacity = (measured.width * measured.height) + 4ULL;
     float *const floats = g_cli_cells->temporary_buf_alloc(capacity * sizeof(*floats), &g_gui_glyphs_cells);
     unsigned char *const cover =
         g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &g_gui_glyphs_cells);
@@ -392,7 +392,7 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     CliMask drawn;
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours, .mask = &drawn,
                .cover = floats, .capacity = capacity);
-    for (unsigned long long at = 0ull; at < (drawn.width * drawn.height); at += 1ull)
+    for (unsigned long long at = 0ULL; at < (drawn.width * drawn.height); at += 1ULL)
     {
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
@@ -530,9 +530,9 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     cell->green = NULL;
     cell->rest = NULL;
     const unsigned long long pixels = (unsigned long long)mask->width * mask->height;
-    if (pixels != 0ull)
+    if (pixels != 0ULL)
     {
-        cell->red_blue = g_cli_cells->persistent_buf_alloc(3ull * pixels * sizeof(unsigned int), &g_gui_glyphs_cells);
+        cell->red_blue = g_cli_cells->persistent_buf_alloc(3ULL * pixels * sizeof(unsigned int), &g_gui_glyphs_cells);
         if (cell->red_blue == NULL)
         {
             return NULL;
@@ -543,7 +543,7 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         // of 255 once divided by 255; the lanes are the color's channels by the share with half of 255 in, as the
         // raster's blend lays them
         const unsigned int alpha = GUI_ALPHA_OF(color);
-        for (unsigned long long at = 0ull; at < pixels; at += 1ull)
+        for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
         {
             const unsigned int share =
                 ((EMBED_CALL(glyphs_lift, GlyphsCtx, .cover = mask->cover[at]) * alpha) + 127u) / 255u;
@@ -636,13 +636,13 @@ void gui_glyph_cell_layout(const GuiGlyphsRasterCfg *args)
 float gui_text_draw(const GuiGlyphsFaceSizeCfg *args)
 {
     float x = args->x_f32;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
                                                .size = args->length, .at = at, .length = &consumed);
-        at += (consumed != 0ull) ? consumed : 1ull;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
         float advance = 0.0f;
         const GuiGlyphCell *const cell = EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg,
                                                     .glyphs = args->glyphs, .face = args->face, .letter = letter,
@@ -661,13 +661,13 @@ float gui_text_draw(const GuiGlyphsFaceSizeCfg *args)
 float gui_text_width(const GuiGlyphsFaceSizeCfg *args)
 {
     float width = 0.0f;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->length)
     {
-        unsigned long long consumed = 0ull;
+        unsigned long long consumed = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
                                                .size = args->length, .at = at, .length = &consumed);
-        at += (consumed != 0ull) ? consumed : 1ull;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
         float advance = 0.0f;
         (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
                          .face = args->face, .letter = letter, .size = args->size, .advance = &advance);

@@ -20,7 +20,7 @@ const char *cli_inspect_language_get(const CliInspectCfg *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -95,8 +95,8 @@ CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args)
     if (args->facts->counting)
     {
         // a text's places are an unsigned int's, so a text past one's reach counts as one that fills
-        const unsigned long long counted = (unsigned long long)args->facts->used + size + 1ull;
-        args->facts->used = (counted < 0xffffffffull) ? (unsigned int)counted : 0xffffffffu;
+        const unsigned long long counted = (unsigned long long)args->facts->used + size + 1ULL;
+        args->facts->used = (counted < 0xffffffffULL) ? (unsigned int)counted : 0xffffffffu;
         return stored;
     }
     if (args->facts->used + size + 1u > args->facts->text_max)
@@ -165,7 +165,7 @@ void cli_inspect_fix_append(const CliInspectFactsCtx *args)
 void cli_inspect_fix_title(const CliInspectFactsTitleCtx *args)
 {
     char text[CLI_NAME_MAX_LEN];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, args->title_text);
     EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = args->facts, .title = &line);
 }
@@ -415,7 +415,7 @@ unsigned int cli_inspect_physical(const CliInspectSizeSrcStartsCtx *args)
 {
     const char *src = args->src;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ull; (at <= args->size) && (count < args->most);)
+    for (unsigned long long at = 0ULL; (at <= args->size) && (count < args->most);)
     {
         const char *const newline =
             (at < args->size)
@@ -449,7 +449,7 @@ EMBED_INLINE int inspect_sorted_before(const InspectCtx *args)
     {
         return args->one_size < args->other_size;
     }
-    const int order = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = min});
+    const embed_iword order = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = min});
     return order < 0;
 }
 

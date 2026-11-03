@@ -116,7 +116,7 @@ EMBED_INLINE void *family_part(const InspectTreeFamilyCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -124,7 +124,7 @@ EMBED_INLINE void *family_part(const InspectTreeFamilyCtx *args)
 static int family_class_cell(void)
 {
     unsigned int classes = 0u;
-    unsigned long long links = 0ull;
+    unsigned long long links = 0ULL;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
@@ -134,8 +134,8 @@ static int family_class_cell(void)
             links += tree_file->python ? tree_file->facts.class_of[at].bases : 0u;
         }
     }
-    const unsigned long long words = (11ull * classes) + g_cli_tree_files + links + 16ull;
-    const unsigned long long bytes = (words * sizeof(unsigned int)) + (4ull * (classes + 8ull));
+    const unsigned long long words = (11ULL * classes) + g_cli_tree_files + links + 16ULL;
+    const unsigned long long bytes = (words * sizeof(unsigned int)) + (4ULL * (classes + 8ULL));
     unsigned char *at = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_inspect_cells);
     s_family.class_cell = at;
     if (at == NULL)
@@ -341,13 +341,13 @@ void cli_tree_families(void)
     family_bases();
     // the ancestors counted by one walk, their cell taken at that count, and stored by a second
     memor.set(&(MemoriaCfg){.dst = s_family.seen, .val = 0, .bytes = s_family.classes * sizeof(s_family.seen[0])});
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (unsigned int key = 0u; key < s_family.classes; key += 1u)
     {
         total = EMBED_CALL(family_ancestors_get, InspectTreeFamilyCtx, .key = key, .used = 0u, .store = 0) + total;
     }
     unsigned int *const ancestors =
-        g_cli_cells->persistent_buf_alloc((2ull * total + 2ull) * sizeof(unsigned int), &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_alloc((2ULL * total + 2ULL) * sizeof(unsigned int), &g_cli_inspect_cells);
     s_family.ancestor_cell = ancestors;
     if (ancestors == NULL)
     {
@@ -355,7 +355,7 @@ void cli_tree_families(void)
         return;
     }
     s_family.ancestor = ancestors;
-    s_family.descendant = ancestors + total + 1ull;
+    s_family.descendant = ancestors + total + 1ULL;
     memor.set(&(MemoriaCfg){.dst = s_family.seen, .val = 0, .bytes = s_family.classes * sizeof(s_family.seen[0])});
     s_family.round = 0u;
     unsigned int used = 0u;
@@ -456,7 +456,7 @@ EMBED_INLINE void family_attributes_get(const InspectTreeFamilyCtx *args)
             continue;
         }
         char msg_buf[4096];
-        VerbaLinea message = {msg_buf, sizeof(msg_buf), 0ull};
+        VerbaLinea message = {msg_buf, sizeof(msg_buf), 0ULL};
         mmgr_line_ch(&message, '`');
         mmgr_line_put_n(&message, facts->text + one->name.at, one->name.size);
         mmgr_line_put(&message, "` has no `");
@@ -488,7 +488,7 @@ void cli_tree_attributes(const CliInspectTreeCtx *args)
 // the names the class numbered `key`'s family sets, counted with each name as often as a class of it sets it
 EMBED_INLINE unsigned long long family_supplied_count(const InspectTreeFamilyCtx *args)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     for (unsigned int lower = 0u; lower < s_family.descendants[args->key]; lower += 1u)
     {
         const unsigned int below = s_family.descendant[s_family.descendant_first[args->key] + lower];
@@ -530,15 +530,15 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
 {
     cli_tree_families();
     // the table's buckets twice the most names one family sets, rounded up to a power of two
-    unsigned long long most = 0ull;
+    unsigned long long most = 0ULL;
     for (unsigned int key = 0u; s_family.current && (key < s_family.classes); key += 1u)
     {
         const unsigned long long count =
-            s_family.python[key] ? EMBED_CALL(family_supplied_count, InspectTreeFamilyCtx, .key = key) : 0ull;
+            s_family.python[key] ? EMBED_CALL(family_supplied_count, InspectTreeFamilyCtx, .key = key) : 0ULL;
         most = (count > most) ? count : most;
     }
     unsigned int buckets = 16u;
-    while ((buckets < (2ull * most)) && (buckets < 0x80000000u))
+    while ((buckets < (2ULL * most)) && (buckets < 0x80000000u))
     {
         buckets <<= 1u;
     }

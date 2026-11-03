@@ -42,19 +42,19 @@ void cli_settings_layers_free(const CliSettingsRootCfg *args)
 {
     g_cli_cells->persistent_buf_release(args->layers->text, &g_cli_settings_cells);
     args->layers->text = NULL;
-    args->layers->used = 0ull;
-    args->layers->capacity = 0ull;
+    args->layers->used = 0ULL;
+    args->layers->capacity = 0ULL;
 }
 
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
 {
     const char *text = args->text;
-    const unsigned long long most = args->layers->used + args->length + 1ull;
+    const unsigned long long most = args->layers->used + args->length + 1ULL;
     if (most > CLI_SETTINGS_TEXT)
     {
         return 0u;
     }
-    if (args->layers->capacity == 0ull)
+    if (args->layers->capacity == 0ULL)
     {
         args->layers->text = g_cli_cells->persistent_buf_alloc(CLI_SETTINGS_TEXT, &g_cli_settings_cells);
         if (args->layers->text == NULL)
@@ -67,7 +67,7 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     const unsigned int at = (unsigned int)args->layers->used;
     memor.cpy(&(MemoriaCfg){.dst = args->layers->text + at, .src = text, .bytes = args->length});
     args->layers->text[at + args->length] = '\0';
-    args->layers->used += args->length + 1ull;
+    args->layers->used += args->length + 1ULL;
     return at;
 }
 
@@ -115,37 +115,36 @@ static int cli_look(const CliEachNameLengthOutCfg *args)
     CliNames *const names = (CliNames *)args->context;
     int found = 0;
     char variable[CLI_NAME_MAX_LEN];
-    char value[CLI_PATH_MAX_LEN];
-    if ((args->length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
+    if ((args->length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
     {
         mmgr_line_put(out, names->home);
         found = names->home[0] != '\0';
     }
-    else if ((args->length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "tree", .bytes = 4u}) == 0))
+    else if ((args->length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "tree", .bytes = 4u}) == 0))
     {
         mmgr_line_put(out, names->root);
         found = names->root[0] != '\0';
     }
-    else if ((args->length == 6ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "system", .bytes = 6u}) == 0))
+    else if ((args->length == 6ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "system", .bytes = 6u}) == 0))
     {
         mmgr_line_put(out, names->system);
         found = 1;
     }
-    else if ((args->length > 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
+    else if ((args->length > 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
     {
-        VerbaLinea line = {variable, sizeof(variable), 0ull};
-        mmgr_line_put_n(&line, name + 4, args->length - 4ull);
+        VerbaLinea line = {variable, sizeof(variable), 0ULL};
+        mmgr_line_put_n(&line, name + 4, args->length - 4ULL);
         mmgr_line_finish(&line);
         found = EMBED_CALL(query_name_out_internal.environment_write, QueryNameOutCtx, .name = variable, .out = out);
     }
-    else if ((args->length > 8ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "setting:", .bytes = 8u}) == 0) &&
+    else if ((args->length > 8ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "setting:", .bytes = 8u}) == 0) &&
              (names->depth < CLI_SETTINGS_NAMES_DEEP))
     {
         for (unsigned int at = names->raws; !found && (at > 0u); at -= 1u)
         {
             const CliRaw *const raw = &names->raw[at - 1u];
-            if ((cellul.len(&(CatenaFinitaCfg){.src = raw->key, .cap = CLI_CELLS_POOL}) == (args->length - 8ull)) &&
-                (memor.cmp(&(MemoriaCfg){.src = raw->key, .other = name + 8, .bytes = args->length - 8ull}) == 0))
+            if ((cellul.len(&(CatenaFinitaCfg){.src = raw->key, .cap = CLI_CELLS_POOL}) == (args->length - 8ULL)) &&
+                (memor.cmp(&(MemoriaCfg){.src = raw->key, .other = name + 8, .bytes = args->length - 8ULL}) == 0))
             {
                 names->depth += 1u;
                 EMBED_CALL(cli_value_write, SettingsLayersCtx, .chain = raw->chain, .value = raw->value, .out = out);
@@ -156,7 +155,7 @@ static int cli_look(const CliEachNameLengthOutCfg *args)
     }
     if (!found && (names->missings < CLI_SETTINGS_PROBLEMS))
     {
-        VerbaLinea line = {names->missing[names->missings], CLI_NAME_MAX_LEN, 0ull};
+        VerbaLinea line = {names->missing[names->missings], CLI_NAME_MAX_LEN, 0ULL};
         mmgr_line_put_n(&line, name, args->length);
         mmgr_line_finish(&line);
         names->missings += 1u;
@@ -169,7 +168,7 @@ static void cli_json_expand(const SettingsLayersCtx *args);
 
 EMBED_INLINE void cli_value_write(const SettingsLayersCtx *args)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &args->chain->json,
                    .node = args->value, .length_pointer = &length);
@@ -190,15 +189,15 @@ static void cli_json_expand(const SettingsLayersCtx *args)
     {
         static char s_text[CLI_SETTINGS_NAMES_DEEP + 1u][CLI_LAYER_VALUE];
         char *const capacity = s_text[s_names.depth];
-        VerbaLinea line = {capacity, CLI_LAYER_VALUE, 0ull};
-        unsigned long long length = 0ull;
+        VerbaLinea line = {capacity, CLI_LAYER_VALUE, 0ULL};
+        unsigned long long length = 0ULL;
         const char *const text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &args->chain->json,
                        .node = args->value, .length_pointer = &length);
         EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = text, .length = length,
                    .look = cli_look, .context = &s_names, .out_verba_linea_pointer = &line);
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = capacity,
-                   .length = mmgr_line_ok(&line) ? line.at : 0ull);
+                   .length = mmgr_line_ok(&line) ? line.at : 0ULL);
         return;
     }
     if ((node->kind != CFG_JSON_ARRAY) && (node->kind != CFG_JSON_OBJECT))
@@ -231,7 +230,7 @@ EMBED_INLINE void cli_missing_report(const SettingsLayersCtx *args)
     for (unsigned int at = 0u; at < s_names.missings; at += 1u)
     {
         char problem[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea line = {problem, sizeof(problem), 0ull};
+        VerbaLinea line = {problem, sizeof(problem), 0ULL};
         mmgr_line_put(&line, args->file);
         mmgr_line_put(&line, ": ");
         mmgr_line_put(&line, args->key);
@@ -315,12 +314,12 @@ EMBED_INLINE void cli_source_append(const SettingsLayersCtx *args)
 EMBED_INLINE unsigned int cli_read_store(const SettingsLayersCtx *args)
 {
     CliLayers *layers = args->layers;
-    VerbaLinea line = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea line = {s_value, sizeof(s_value), 0ULL};
     s_names.depth = 0u;
     EMBED_CALL(cli_value_write, SettingsLayersCtx, .chain = args->chain, .value = args->value, .out = &line);
     EMBED_CALL(cli_missing_report, SettingsLayersCtx, .layers = layers, .file = args->file, .key = args->key);
     return EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
-                      .text = s_value, .length = mmgr_line_ok(&line) ? line.at : 0ull);
+                      .text = s_value, .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 void cli_settings_layers(const CliSettingsRootCfg *args)
@@ -329,7 +328,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     // every count and every key's place made 0, the texts begun anew with the empty text at their first place
     memor.set(&(MemoriaCfg){.dst = args->layers, .val = 0, .bytes = sizeof(*args->layers)});
     (void)EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = args->layers,
-                     .text = "", .length = 0ull);
+                     .text = "", .length = 0ULL);
     args->layers->system = cli_settings_system();
     if (args->reader->files != 0u)
     {
@@ -400,7 +399,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
             {
                 // a value of the reader's own that names another stands over the files it takes
                 char raw[CLI_LAYER_VALUE];
-                VerbaLinea back = {raw, sizeof(raw), 0ull};
+                VerbaLinea back = {raw, sizeof(raw), 0ULL};
                 EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = &part->chain->json, .value = value->value,
                            .out = &back);
                 mmgr_line_finish(&back);
@@ -436,7 +435,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
         const CliJson *const json = &set->chain->json;
         const char *const file = set->chain->file[set->file];
         const char *kind = NULL;
-        unsigned long long kind_length = 0ull;
+        unsigned long long kind_length = 0ULL;
         EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = set->key, .kind = &kind,
                    .length_pointer = &kind_length);
         for (unsigned int member = json->node[set->object].first; member != CLI_JSON_NONE;
@@ -447,7 +446,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                 (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.light", .cap = CLI_CELLS_POOL})))
             {
                 char problem[CLI_PATH_MAX_LEN * 2u];
-                VerbaLinea line = {problem, sizeof(problem), 0ull};
+                VerbaLinea line = {problem, sizeof(problem), 0ULL};
                 mmgr_line_put(&line, file);
                 mmgr_line_put(&line, ": ");
                 mmgr_line_put(&line, set->key);
@@ -485,7 +484,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                 args->layers->kinds += 1u;
             }
             char from[CLI_NAME_MAX_LEN * 2u];
-            VerbaLinea named = {from, sizeof(from), 0ull};
+            VerbaLinea named = {from, sizeof(from), 0ULL};
             mmgr_line_put(&named, set->key);
             mmgr_line_ch(&named, ' ');
             mmgr_line_put(&named, key);

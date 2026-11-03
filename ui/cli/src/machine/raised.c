@@ -47,27 +47,19 @@ int cli_raised_write(const CliRaisedErrMsgCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char staged[CLI_PATH_MAX_LEN];
     char base[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TEMP", .value_out = base,
-                    .capacity = sizeof(base)) &&
-        !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR", .value_out = base,
-                    .capacity = sizeof(base)))
-    {
-        memor.cpy(&(MemoriaCfg){.dst = base,
-                                .src = "/tmp",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "/tmp", .cap = CLI_CELLS_POOL}) + 1u});
-    }
-    VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+    EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = base);
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&folder_line, base);
     mmgr_line_put(&folder_line, "/orior-raised");
     // the folder ended before the staged file's path is written from it
     const unsigned long long ended = mmgr_line_finish(&folder_line);
-    VerbaLinea staged_line = {staged, sizeof(staged), 0ull};
-    mmgr_line_put(&staged_line, (ended != 0ull) ? folder : "");
+    VerbaLinea staged_line = {staged, sizeof(staged), 0ULL};
+    mmgr_line_put(&staged_line, (ended != 0ULL) ? folder : "");
     mmgr_line_ch(&staged_line, '/');
     mmgr_line_decimal(&staged_line, cli_process_own(), 0u);
     mmgr_line_ch(&staged_line, '-');
     mmgr_line_decimal(&staged_line, cli_clock_milliseconds(), 0u);
-    if ((ended == 0ull) || (mmgr_line_finish(&staged_line) == 0ull) ||
+    if ((ended == 0ULL) || (mmgr_line_finish(&staged_line) == 0ULL) ||
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder) ||
         !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = staged,
                     .bytes = args->text, .size = args->size))

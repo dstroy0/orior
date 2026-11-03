@@ -49,12 +49,12 @@ EMBED_INLINE int cli_word(const PurposeCtx *args)
 {
     unsigned long long at = args->at;
     unsigned long long length = args->length;
-    if (at > 0ull)
+    if (at > 0ULL)
     {
-        unsigned long long start = at - 1ull;
-        while ((start > 0ull) && ((((unsigned char)args->within[start]) & 0xc0u) == 0x80u))
+        unsigned long long start = at - 1ULL;
+        while ((start > 0ULL) && ((((unsigned char)args->within[start]) & 0xc0u) == 0x80u))
         {
-            start -= 1ull;
+            start -= 1ULL;
         }
         unsigned int before = 0u;
         EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
@@ -82,15 +82,15 @@ EMBED_INLINE int cli_word(const PurposeCtx *args)
 EMBED_INLINE int cli_name_in(const PurposeCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    if (length == 0ull)
+    if (length == 0ULL)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; (at + length) <= args->size;)
+    for (unsigned long long at = 0ULL; (at + length) <= args->size;)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->within + at, .other = args->name, .bytes = length}) != 0)
         {
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         if (EMBED_CALL(cli_word, PurposeCtx, .within = args->within, .size = args->size, .at = at, .length = length))
@@ -110,11 +110,11 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
     {
         return 1;
     }
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->stem, .cap = CLI_CELLS_POOL}) < 2ull)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->stem, .cap = CLI_CELLS_POOL}) < 2ULL)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const CliTextLine bounds =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->text, .at = at, .size = args->size);
@@ -122,8 +122,8 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
         unsigned long long length = end - at;
         length -= bounds.stop - bounds.cut;
         const char *const line = args->text + at;
-        at = end + 1ull;
-        unsigned long long lead = 0ull;
+        at = end + 1ULL;
+        unsigned long long lead = 0ULL;
         while (lead < length)
         {
             unsigned int letter = 0u;

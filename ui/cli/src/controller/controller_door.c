@@ -42,11 +42,11 @@ typedef struct
 static int door_received(const CliCommsRecvCfg *args)
 {
     unsigned int fields = 0u;
-    for (unsigned long long at = 0ull; at < args->size; fields += 1u)
+    for (unsigned long long at = 0ULL; at < args->size; fields += 1u)
     {
-        at += cellul.len(&(CatenaFinitaCfg){.src = args->body + at, .cap = args->size - at}) + 1ull;
+        at += cellul.len(&(CatenaFinitaCfg){.src = args->body + at, .cap = args->size - at}) + 1ULL;
     }
-    if ((fields < CLI_REACH_HEAD_FIELDS) || (args->body[args->size - 1ull] != '\0'))
+    if ((fields < CLI_REACH_HEAD_FIELDS) || (args->body[args->size - 1ULL] != '\0'))
     {
         return 1;
     }
@@ -61,14 +61,14 @@ static int door_received(const CliCommsRecvCfg *args)
     char *const text = (char *)(void *)(command->word + words);
     memor.cpy(&(MemoriaCfg){.dst = text, .src = args->body, .bytes = args->size});
     command->id = text;
-    unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = args->size}) + 1ull;
-    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ull;
+    unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = args->size}) + 1ULL;
+    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
     command->command = text + at;
-    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ull;
+    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
     for (unsigned int word = 0u; word < words; word += 1u)
     {
         command->word[word] = text + at;
-        at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ull;
+        at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
     }
     command->words = words;
     // a pointer fits the 64-bit word the list's head stands in
@@ -115,12 +115,12 @@ int cli_model_door_open(const CliModelCtx *args)
 EMBED_INLINE void door_answer(const ControllerDoorCtx *args)
 {
     char channel[CLI_NAME_MAX_LEN];
-    VerbaLinea named = {channel, sizeof(channel), 0ull};
+    VerbaLinea named = {channel, sizeof(channel), 0ULL};
     mmgr_line_put(&named, "answer/");
     mmgr_line_put(&named, args->id);
     (void)mmgr_line_finish(&named);
     char text[CLI_NAME_MAX_LEN + 64u];
-    VerbaLinea body = {text, sizeof(text), 0ull};
+    VerbaLinea body = {text, sizeof(text), 0ULL};
     mmgr_line_ch(&body, args->ran ? CLI_REACH_DONE : CLI_REACH_REFUSED);
     if (!args->ran)
     {
@@ -128,10 +128,10 @@ EMBED_INLINE void door_answer(const ControllerDoorCtx *args)
         mmgr_line_put(&body, " is not a command of the window's");
     }
     char quiet[256];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    unsigned long long delivered = 0ull;
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
+    unsigned long long delivered = 0ULL;
     (void)EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = s_door.key, .channel = channel,
-                     .body = text, .size = mmgr_line_ok(&body) ? body.at : 1ull, .delivered = &delivered,
+                     .body = text, .size = mmgr_line_ok(&body) ? body.at : 1ULL, .delivered = &delivered,
                      .err_msg = &err_msg);
 }
 

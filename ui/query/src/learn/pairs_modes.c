@@ -9,7 +9,7 @@
 // `folder`/`name` into `path`
 void query_pairs_in(const QueryPairsFolderCtx *args)
 {
-    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name_read);
@@ -22,7 +22,7 @@ void query_part_file(const QueryPairsPartPathCtx *args)
     const QueryContext *context = args->context_read;
     char *path = args->path;
     char name[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {name, sizeof(name), 0ull};
+    VerbaLinea line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&line, QUERY_TABLE "/");
     mmgr_line_put(&line, args->part);
     mmgr_line_put(&line, args->extension);
@@ -108,7 +108,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     {
         return -1;
     }
-    long long code = -1ll;
+    long long code = -1LL;
     int whole = EMBED_CALL(query_pairs_part_context_internal.configs, QueryPairsPartContextCtx, .context = context,
                            .run_out = &s_run, .part = args->mode->part, .err_msg = err_msg);
     EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = sides);
@@ -117,7 +117,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                 .context = context, .run = &s_run, .name = "measuring_stick_sides", .words = generate,
                                 .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "the sides were not written");
         whole = 0;
@@ -129,7 +129,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
 #if defined(_WIN32)
     char cl[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
     if (EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
                    .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl), .err_msg = &ignored) &&
         (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
@@ -146,7 +146,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     }
 #endif
     char arch[64];
-    VerbaLinea arch_line = {arch, sizeof(arch), 0ull};
+    VerbaLinea arch_line = {arch, sizeof(arch), 0ULL};
     mmgr_line_put(&arch_line, "-arch=");
     mmgr_line_put(&arch_line, args->mode->part);
     mmgr_line_finish(&arch_line);
@@ -163,7 +163,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                 .context = context, .run = &s_run, .name = "nvcc", .words = s_compile.word,
                                 .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "nvcc did not compile the sides");
         whole = 0;
@@ -173,14 +173,14 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
         whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
                             .context = context, .run = &s_run, .name = "measuring_stick_nvcc.sass", .words = listing,
                             .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "cuobjdump did not read the sides");
         whole = 0;
     }
     // the listing written beside the sides, which the engine reads from the disk
     const unsigned char *list_entries = NULL;
-    unsigned long long listed_size = 0ull;
+    unsigned long long listed_size = 0ULL;
     whole = whole &&
             EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_run.writer,
                        .name = "measuring_stick_nvcc.sass", .bytes_u8s = &list_entries, .size_pointer = &listed_size) &&
@@ -190,7 +190,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch,
                                 QueryLoopsContextErrMsgNameRunCfg, .context = context, .run = &s_run,
                                 .name = "assembler.log", .words = engine_words, .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "the engine did not write the sides");
         whole = 0;
@@ -205,7 +205,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                                 .context = context, .run = &s_run, .identity = args->identity, .words_letters = sliced,
                                 .count = 4u, .code = &code, .err_msg = err_msg);
-    if (whole && (code != 0ll))
+    if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "the sides were not sliced");
         whole = 0;

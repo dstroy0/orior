@@ -17,7 +17,7 @@ typedef struct
 } CliHelpCreated;
 // the widest a usage in the help's left column is; a wider one stands on lines of its own, its label under it in the
 // column
-#define CLI_HELP_COLUMN 44ull
+#define CLI_HELP_COLUMN 44ULL
 
 // the most groups one menu of jobs names
 #define CLI_HELP_GROUPS 64u
@@ -41,8 +41,8 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
 {
     const char *text = args->text;
     static char s_line[CLI_HELP_ROW * 2u];
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
-    unsigned long long letters = 0ull;
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
+    unsigned long long letters = 0ULL;
     int any = 0;
     const char *word = text;
     for (;;)
@@ -53,26 +53,26 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
                                             : cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
         const unsigned long long length =
             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = word, .size = size);
-        const unsigned long long lead = any ? args->indent : 0ull;
-        if ((line.at > 0ull) && (lead + letters + 1ull + length > args->width))
+        const unsigned long long lead = any ? args->indent : 0ULL;
+        if ((line.at > 0ULL) && (lead + letters + 1ULL + length > args->width))
         {
             char out[CLI_HELP_ROW * 2u + 128u];
-            VerbaLinea led = {out, sizeof(out), 0ull};
-            for (unsigned long long at = 0ull; at < lead; at += 1ull)
+            VerbaLinea led = {out, sizeof(out), 0ULL};
+            for (unsigned long long at = 0ULL; at < lead; at += 1ULL)
             {
                 mmgr_line_ch(&led, ' ');
             }
             mmgr_line_put_n(&led, s_line, line.at);
             EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = out,
-                       .size = mmgr_line_ok(&led) ? led.at : 0ull);
+                       .size = mmgr_line_ok(&led) ? led.at : 0ULL);
             any = 1;
-            line.at = 0ull;
-            letters = 0ull;
+            line.at = 0ULL;
+            letters = 0ULL;
         }
-        if (line.at > 0ull)
+        if (line.at > 0ULL)
         {
             mmgr_line_ch(&line, ' ');
-            letters += 1ull;
+            letters += 1ULL;
         }
         mmgr_line_put_n(&line, word, size);
         letters += length;
@@ -83,14 +83,14 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
         word = space + 1;
     }
     char out[CLI_HELP_ROW * 2u + 128u];
-    VerbaLinea led = {out, sizeof(out), 0ull};
-    for (unsigned long long at = 0ull, lead = any ? args->indent : 0ull; at < lead; at += 1ull)
+    VerbaLinea led = {out, sizeof(out), 0ULL};
+    for (unsigned long long at = 0ULL, lead = any ? args->indent : 0ULL; at < lead; at += 1ULL)
     {
         mmgr_line_ch(&led, ' ');
     }
-    mmgr_line_put_n(&led, s_line, mmgr_line_ok(&line) ? line.at : 0ull);
+    mmgr_line_put_n(&led, s_line, mmgr_line_ok(&line) ? line.at : 0ULL);
     EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = out,
-               .size = mmgr_line_ok(&led) ? led.at : 0ull);
+               .size = mmgr_line_ok(&led) ? led.at : 0ULL);
 }
 
 // a line of a usage that stands alone, written led by two spaces
@@ -112,7 +112,7 @@ static void help_adjacent(const CliEachLineSizeCfg *args)
     mmgr_line_put(lines->out, left);
     for (unsigned long long at = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = left,
                                             .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL}));
-         at < lines->pad; at += 1ull)
+         at < lines->pad; at += 1ULL)
     {
         mmgr_line_ch(lines->out, ' ');
     }
@@ -148,11 +148,11 @@ EMBED_INLINE void help_row(const CommandLineHelpCtx *args)
     if (alone)
     {
         EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = args->usage,
-                   .width = CLI_HELP_WIDTH - 2ull, .indent = 2ull, .each = help_alone, .context = args->made->out);
+                   .width = CLI_HELP_WIDTH - 2ULL, .indent = 2ULL, .each = help_alone, .context = args->made->out);
     }
     CliHelpLines lines = {alone ? NULL : args->usage, args->made->pad, args->made->out, 0u};
     EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = args->desc,
-               .width = CLI_HELP_WIDTH - args->made->pad - 4ull, .indent = 0ull, .each = help_adjacent,
+               .width = CLI_HELP_WIDTH - args->made->pad - 4ULL, .indent = 0ULL, .each = help_adjacent,
                .context = &lines);
 }
 
@@ -171,7 +171,7 @@ static void help_rows(const CommandLineHelpCtx *args)
                                               .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            VerbaLinea usage = {s_usage, sizeof(s_usage), 0ull};
+            VerbaLinea usage = {s_usage, sizeof(s_usage), 0ULL};
             mmgr_line_put(&usage, "orior_cli ");
             mmgr_line_put(&usage, word);
             mmgr_line_ch(&usage, ' ');
@@ -179,9 +179,9 @@ static void help_rows(const CommandLineHelpCtx *args)
             mmgr_line_ch(&usage, ' ');
             mmgr_line_put(&usage, s_items[at].args);
             usage.at = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = s_usage,
-                                  .size = mmgr_line_ok(&usage) ? usage.at : 0ull);
+                                  .size = mmgr_line_ok(&usage) ? usage.at : 0ULL);
             (void)mmgr_line_finish(&usage);
-            VerbaLinea desc = {s_desc_buf, sizeof(s_desc_buf), 0ull};
+            VerbaLinea desc = {s_desc_buf, sizeof(s_desc_buf), 0ULL};
             mmgr_line_put(&desc, s_items[at].console ? "" : "* ");
             mmgr_line_put(&desc, s_items[at].label);
             (void)mmgr_line_finish(&desc);
@@ -193,7 +193,7 @@ static void help_rows(const CommandLineHelpCtx *args)
         {
             char split[CLI_LABEL_MAX_LEN];
             EMBED_CALL(cli_commands_menu_split.menu_split, CliCommandsMenuSplitCfg, .menu = menu, .split = split);
-            VerbaLinea usage = {s_usage, sizeof(s_usage), 0ull};
+            VerbaLinea usage = {s_usage, sizeof(s_usage), 0ULL};
             mmgr_line_put(&usage, "orior_cli ");
             mmgr_line_put(&usage, word);
             if (split[0] != '\0')
@@ -204,7 +204,7 @@ static void help_rows(const CommandLineHelpCtx *args)
             }
             mmgr_line_put(&usage, " [job]");
             (void)mmgr_line_finish(&usage);
-            VerbaLinea desc = {s_desc_buf, sizeof(s_desc_buf), 0ull};
+            VerbaLinea desc = {s_desc_buf, sizeof(s_desc_buf), 0ULL};
             mmgr_line_put(&desc, "the ");
             for (unsigned int group = 0u; group < groups; group += 1u)
             {
@@ -230,9 +230,9 @@ static void help_rows(const CommandLineHelpCtx *args)
 void cli_help(const CliCommandLineOutErrMsgShellCtx *args)
 {
     VerbaLinea *out = args->out;
-    CliHelpCreated made = {0ull, NULL};
+    CliHelpCreated made = {0ULL, NULL};
     EMBED_CALL(help_rows, CommandLineHelpCtx, .made = &made);
-    made.pad = (made.pad > 0ull) ? made.pad : CLI_HELP_COLUMN;
+    made.pad = (made.pad > 0ULL) ? made.pad : CLI_HELP_COLUMN;
     made.out = out;
     mmgr_line_put(out,
                   "orior: the window, and every job it runs, from one program. A menu's title and one of its\n"
@@ -251,7 +251,7 @@ void cli_keys(void)
     {
         const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
                                               .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
-        unsigned long long pad = 0ull;
+        unsigned long long pad = 0ULL;
         unsigned int count = 0u;
         for (unsigned int at = 0u; at < items; at += 1u)
         {
@@ -278,20 +278,20 @@ void cli_keys(void)
                 continue;
             }
             char line[CLI_LABEL_MAX_LEN * 3u];
-            VerbaLinea row = {line, sizeof(line), 0ull};
+            VerbaLinea row = {line, sizeof(line), 0ULL};
             mmgr_line_put(&row, "  ");
             mmgr_line_put(&row, s_items[at].label);
             for (unsigned long long letters = EMBED_CALL(
                      cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_items[at].label,
                      .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_CELLS_POOL}));
-                 letters < pad; letters += 1ull)
+                 letters < pad; letters += 1ULL)
             {
                 mmgr_line_ch(&row, ' ');
             }
             mmgr_line_put(&row, "  ");
             mmgr_line_put(&row, s_items[at].keys);
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
-                       .size = mmgr_line_ok(&row) ? row.at : 0ull);
+                       .size = mmgr_line_ok(&row) ? row.at : 0ULL);
         }
     }
 }
@@ -313,7 +313,7 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
     char group[1][CLI_LABEL_MAX_LEN];
     static char s_root[CLI_PATH_MAX_LEN];
     char why[1024];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if ((EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = menu, .groups = group,
                     .capacity = 1u) == 0u) ||
         !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,

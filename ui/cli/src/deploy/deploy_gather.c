@@ -37,10 +37,10 @@ EMBED_INLINE unsigned long long gather_letter(const DeployGatherCtx *args)
 int cli_deploy_fits(const CliDeploySizePatternCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL});
-    unsigned long long p = 0ull;
-    unsigned long long n = 0ull;
-    unsigned long long star = 0ull;
-    unsigned long long mark = 0ull;
+    unsigned long long p = 0ULL;
+    unsigned long long n = 0ULL;
+    unsigned long long star = 0ULL;
+    unsigned long long mark = 0ULL;
     int starred = 0;
     while (n < args->size)
     {
@@ -48,7 +48,7 @@ int cli_deploy_fits(const CliDeploySizePatternCtx *args)
             EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->name, .size = args->size, .at = n);
         const unsigned long long pattern_letter =
             (p < length) ? EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->pattern, .size = length, .at = p)
-                         : 0ull;
+                         : 0ULL;
         const int same = (p < length) && (pattern_letter == name_letter) &&
                          (memor.cmp(&(MemoriaCfg){
                               .src = args->pattern + p, .other = args->name + n, .bytes = (size_t)name_letter}) == 0);
@@ -94,7 +94,7 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
     unsigned long long starts[CLI_PATH_MAX_LEN / 2u];
     unsigned int parts = 0u;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; (at <= length) && (parts < CLI_PATH_MAX_LEN / 2u); at += 1u)
+    for (unsigned long long at = 0ULL; (at <= length) && (parts < CLI_PATH_MAX_LEN / 2u); at += 1u)
     {
         if ((at == 0u) || (args->path[at - 1u] == '/'))
         {
@@ -120,7 +120,7 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
         return 1;
     }
     unsigned int run = 1u;
-    for (unsigned long long at = 0ull; at < args->folder_size; at += 1u)
+    for (unsigned long long at = 0ULL; at < args->folder_size; at += 1u)
     {
         run += (named[at] == '/') ? 1u : 0u;
     }
@@ -156,7 +156,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
         {
             const char *trimmed = pattern;
             trimmed +=
-                EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
+                EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = "/");
             if (EMBED_CALL(cli_deploy_size_pattern_internal.fits, CliDeploySizePatternCtx, .pattern = trimmed,
                            .name = args->path, .size = length))
@@ -165,7 +165,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
             }
             continue;
         }
-        for (unsigned long long start = 0ull; start <= length;)
+        for (unsigned long long start = 0ULL; start <= length;)
         {
             const char *const slash = memor.chr(
                 &(MemoriaCfg){.src = args->path + start, .bytes = (size_t)(length - start), .val = (uint8_t)'/'});
@@ -222,7 +222,7 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
     s_mode_count = 0u;
     const char *const words[4] = {"git", "ls-files", "-s", NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea none = {why, sizeof(why), 0ULL};
     CliRunResult *const run_result = cli_run_result_alloc();
     unsigned int lines = 0u;
     if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = g_cli_deploy.root, .settings = NULL,
@@ -230,7 +230,7 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
         (run_result->out_size > 0u))
     {
         lines = 1u;
-        for (unsigned long long at = 0ull; at < run_result->out_size; at += 1u)
+        for (unsigned long long at = 0ULL; at < run_result->out_size; at += 1u)
         {
             lines += (run_result->out[at] == '\n') ? 1u : 0u;
         }
@@ -239,7 +239,7 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
     }
     if (s_modes != NULL)
     {
-        for (unsigned long long at = 0ull; (at < run_result->out_size) && (s_mode_count < lines);)
+        for (unsigned long long at = 0ULL; (at < run_result->out_size) && (s_mode_count < lines);)
         {
             const char *const line = run_result->out + at;
             const char *const newline = memor.chr(
@@ -249,11 +249,11 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
             at += size + 1u;
             const char *const tab = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)'\t'});
             const char *const space = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)' '});
-            unsigned long long mode = 0ull;
+            unsigned long long mode = 0ULL;
             int read = (tab != NULL) && (space != NULL) && (space < tab) && (space > line);
             for (const char *digit = line; read && (digit < space); digit += 1)
             {
-                read = (*digit >= '0') && (*digit <= '7') && (mode < 0x20000000ull);
+                read = (*digit >= '0') && (*digit <= '7') && (mode < 0x20000000ULL);
                 mode = (mode * 8u) + (unsigned long long)(*digit - '0');
             }
             if (read)
@@ -288,9 +288,5 @@ unsigned int cli_deploy_mode(const CliDeployInTreeCtx *args)
         low = (order < 0) ? (middle + 1u) : low;
         high = (order < 0) ? high : middle;
     }
-#if defined(_WIN32)
-    return 0644u;
-#else
-    return EMBED_CALL(cli_path_file_internal.file_runnable, CliPathFileCtx, .path = args->full) ? 0755u : 0644u;
-#endif
+    return EMBED_CALL(cli_path_file_internal.file_runs, CliPathFileCtx, .path = args->full) ? 0755u : 0644u;
 }

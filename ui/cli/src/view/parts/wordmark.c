@@ -39,9 +39,9 @@
 // where it stands unclaimed: the bar's padding of 16 less the rule's 7 across; half of what the eye leaves of the bar's
 // 39 inside, and the rule's 5.2 down, less the fit's share at its top
 #define WORDMARK_BAR_EYE_SIDE 29.18f
-#define WORDMARK_BAR_EYE_SIDE_WORDS 1912340ll
-#define WORDMARK_BAR_EYE_LEFT_WORDS 589824ll
-#define WORDMARK_BAR_EYE_TOP_WORDS 662569ll
+#define WORDMARK_BAR_EYE_SIDE_WORDS 1912340LL
+#define WORDMARK_BAR_EYE_LEFT_WORDS 589824LL
+#define WORDMARK_BAR_EYE_TOP_WORDS 662569LL
 
 // incised.js on a cap height of 10: a cut's half width where the stylus goes in and at its tail; the box round the word
 // and how far it stands out from the capitals; and the most steps a cut is laid in, and points a stroke passes
@@ -232,9 +232,9 @@ void gui_wordmark_still(const GuiWordmarkStillCfg *args)
         return;
     }
     args->wordmark->fade_in_finished = 1;
-    if (args->wordmark->exit_start_ms != 0ull)
+    if (args->wordmark->exit_start_ms != 0ULL)
     {
-        args->wordmark->exit_start_ms = 0ull;
+        args->wordmark->exit_start_ms = 0ULL;
         args->wordmark->pours = 0;
         args->wordmark->home = 1;
         EMBED_CALL(wordmark_flight_free, WordmarkCtx, .wordmark = args->wordmark);
@@ -455,6 +455,10 @@ EMBED_INLINE int wordmark_name_init(const WordmarkCtx *args)
 // and `pad` the pixels the word's box stands in from the cover's corner
 static void wordmark_cut_fill(const WordmarkCtx *args)
 {
+    if (args->count < 2u)
+    {
+        return;
+    }
     float *cover = args->cover;
     unsigned int width = args->width;
     unsigned int height = args->height;
@@ -577,7 +581,7 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
     const unsigned int width = (unsigned int)(args->place->under.width + (2 * reach));
     const unsigned int height = (unsigned int)(args->place->under.height + (2 * reach));
     const unsigned long long pixels = (unsigned long long)width * height;
-    float *const floats = g_cli_cells->temporary_buf_alloc((pixels * sizeof(*floats)) + (3ull * pixels), &g_gui_cells);
+    float *const floats = g_cli_cells->temporary_buf_alloc((pixels * sizeof(*floats)) + (3ULL * pixels), &g_gui_cells);
     if ((floats == NULL) || !EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &args->wordmark->under,
                                         .width = width, .height = height))
     {
@@ -591,7 +595,7 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
     unsigned char *const cuts = (unsigned char *)(floats + pixels);
     unsigned char *const shade = cuts + pixels;
     unsigned char *const other = shade + pixels;
-    for (unsigned long long at = 0ull; at < pixels; at += 1ull)
+    for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
     {
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cuts[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
@@ -684,9 +688,9 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
 EMBED_INLINE int wordmark_smooth(const WordmarkCtx *args)
 {
     const long long part =
-        (args->share < 0) ? 0ll : ((args->share > GUI_FIXED_ONE) ? (long long)GUI_FIXED_ONE : (long long)args->share);
+        (args->share < 0) ? 0LL : ((args->share > GUI_FIXED_ONE) ? (long long)GUI_FIXED_ONE : (long long)args->share);
     // the result stands between 0 and a whole
-    return (int)((((part * part) >> 16) * ((3ll * GUI_FIXED_ONE) - (2ll * part))) >> 16);
+    return (int)((((part * part) >> 16) * ((3LL * GUI_FIXED_ONE) - (2LL * part))) >> 16);
 }
 
 // the funnel's tables for a name standing at `wordmark`'s place: where each row of the window reads the name and how
@@ -739,7 +743,7 @@ void gui_wordmark_under_at(const GuiWordmarkReadCfg *args)
         }
         return;
     }
-    if (args->wordmark_read->exit_start_ms == 0ull)
+    if (args->wordmark_read->exit_start_ms == 0ULL)
     {
         return;
     }
@@ -803,7 +807,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
                 // a share of the way up, rounded, is far inside what a short represents
                 const long long way = (long long)s_slides[stage] * (long long)args->wordmark->rise;
                 args->wordmark->under_down[stage] =
-                    (short)((way + ((way < 0ll) ? -(GUI_FIXED_ONE / 2) : (GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
+                    (short)((way + ((way < 0LL) ? -(GUI_FIXED_ONE / 2) : (GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
             }
             // the window's width is the frame's, the pixels the flight is cut to
             args->wordmark->pours = EMBED_CALL(wordmark_flight_init, WordmarkCtx, .wordmark = args->wordmark,
@@ -819,7 +823,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
         args->wordmark->fade_in_finished = through >= GUI_WORDMARK_FADE_IN_DELAY_MS + GUI_WORDMARK_FADE_IN_MS;
         return pending;
     }
-    if (args->wordmark->exit_start_ms == 0ull)
+    if (args->wordmark->exit_start_ms == 0ULL)
     {
         return 0;
     }
@@ -832,7 +836,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
     }
     if (through >= GUI_WORDMARK_SLIDE_MS + GUI_WORDMARK_FADE_OUT_DELAY_MS + GUI_WORDMARK_FADE_OUT_MS)
     {
-        args->wordmark->exit_start_ms = 0ull;
+        args->wordmark->exit_start_ms = 0ULL;
         EMBED_CALL(wordmark_pictures_free, WordmarkCtx, .wordmark = args->wordmark);
     }
     return 1;
@@ -849,11 +853,11 @@ unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args)
         }
         if (!args->wordmark_read->tree_read)
         {
-            return 0ull;
+            return 0ULL;
         }
         return args->wordmark_read->visible_start_ms + GUI_WORDMARK_MIN_VISIBLE_MS;
     }
-    return (args->wordmark_read->exit_start_ms != 0ull) ? now_ms + GUI_WORDMARK_FRAME_MS : 0ull;
+    return (args->wordmark_read->exit_start_ms != 0ULL) ? now_ms + GUI_WORDMARK_FRAME_MS : 0ULL;
 }
 
 // a stage of the flight at `part`, a share of it in the frame's words, walked: each row of the window from the tip down
@@ -871,7 +875,7 @@ static void wordmark_stage_walk(const WordmarkCtx *args)
     const long long rising =
         (args->part > WORDMARK_STARTS)
             ? (((long long)(args->part - WORDMARK_STARTS) * GUI_FIXED_ONE) / (GUI_FIXED_ONE - WORDMARK_STARTS))
-            : 0ll;
+            : 0LL;
     const int left = args->wordmark->from.x;
     const int right = args->wordmark->from.x + args->wordmark->from.width;
     const int high = args->wordmark->from.height;
@@ -946,7 +950,7 @@ static void wordmark_stage_walk(const WordmarkCtx *args)
                 const int stop = (last < row_start + GUI_FIXED_ONE) ? last : row_start + GUI_FIXED_ONE;
                 // a share of a row by sixteen bits of fraction is a small word
                 const unsigned int weight =
-                    (unsigned int)((((long long)(stop - start) * GUI_FIXED_ONE) + (full_span / 2ll)) / full_span);
+                    (unsigned int)((((long long)(stop - start) * GUI_FIXED_ONE) + (full_span / 2LL)) / full_span);
                 const unsigned char *const row_cover = &args->wordmark->name.cover[(unsigned int)row * width];
                 for (unsigned int x = text_color[row][0]; x < text_color[row][1]; x += 1u)
                 {
@@ -1011,7 +1015,7 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
     // the foot is positive
     const unsigned int entries = (unsigned int)footer + 2u;
     int *const tables =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)entries * 2ull * sizeof(*tables), &g_gui_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)entries * 2ULL * sizeof(*tables), &g_gui_cells);
     if (tables == NULL)
     {
         return 0;
@@ -1029,10 +1033,10 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
                    .raster_width = args->raster_width, .span = NULL, .cover_out = NULL, .spans = &spans,
                    .covers = &covers);
     }
-    const unsigned long long first_bytes = ((unsigned long long)WORDMARK_FLIGHT_STAGES + 1ull) * sizeof(unsigned int);
+    const unsigned long long first_bytes = ((unsigned long long)WORDMARK_FLIGHT_STAGES + 1ULL) * sizeof(unsigned int);
     const unsigned long long span_bytes = (unsigned long long)spans * sizeof(GuiWordmarkSpan);
     unsigned int *const cell =
-        g_cli_cells->persistent_buf_alloc(first_bytes + span_bytes + covers + 1ull, &g_gui_cells);
+        g_cli_cells->persistent_buf_alloc(first_bytes + span_bytes + covers + 1ULL, &g_gui_cells);
     if (cell == NULL)
     {
         g_cli_cells->persistent_buf_release(tables, &g_gui_cells);
@@ -1079,7 +1083,7 @@ EMBED_INLINE void wordmark_stage_layout(const WordmarkCtx *args)
 void gui_wordmark_draw(const GuiWordmarkFrameCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (!args->wordmark->exists && (args->wordmark->exit_start_ms == 0ull))
+    if (!args->wordmark->exists && (args->wordmark->exit_start_ms == 0ULL))
     {
         return;
     }
@@ -1118,7 +1122,7 @@ GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args)
     // the share of the side saved, a number of GUI_FIXED_ONE: the claim takes it, the head's and the left's insets give
     // it back
     const long long shrunk = GUI_FIXED_ONE - ((claim * (GUI_FIXED_ONE - inset_sum)) / GUI_FIXED_ONE);
-    const long long saved = (shrunk < 0ll) ? 0ll : ((shrunk > GUI_FIXED_ONE) ? GUI_FIXED_ONE : shrunk);
+    const long long saved = (shrunk < 0LL) ? 0LL : ((shrunk > GUI_FIXED_ONE) ? GUI_FIXED_ONE : shrunk);
     const long long gap = (long long)GUI_FRAME_GAP * claim;
     // the sizes in the page's pixels by sixteen bits of fraction, each rounded to a whole pixel, far inside what an int
     // represents
@@ -1126,9 +1130,8 @@ GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args)
                             (GUI_FIXED_ONE / 2)) /
                            GUI_FIXED_ONE);
     return (GuiRect){
-        (int)((((((WORDMARK_BAR_EYE_LEFT_WORDS + gap) * scale) / GUI_SCALE_ONE)) + (GUI_FIXED_ONE / 2)) /
-              GUI_FIXED_ONE),
-        (int)((((((WORDMARK_BAR_EYE_TOP_WORDS + gap) * scale) / GUI_SCALE_ONE)) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE),
+        (int)(((((WORDMARK_BAR_EYE_LEFT_WORDS + gap) * scale) / GUI_SCALE_ONE) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE),
+        (int)(((((WORDMARK_BAR_EYE_TOP_WORDS + gap) * scale) / GUI_SCALE_ONE) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE),
         side, side};
 }
 

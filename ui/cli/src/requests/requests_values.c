@@ -11,7 +11,7 @@
 #include "../text/text.h"
 
 // the bytes a values' pool is taken with, and a value written as JSON is written in
-#define CLI_REQUESTS_OBJECT_CAPACITY (1ull << 20u)
+#define CLI_REQUESTS_OBJECT_CAPACITY (1ULL << 20u)
 
 // the environment file read, a tree in a cell sized to it, and the names of the environments, under the lock and
 // given back before it is
@@ -48,7 +48,7 @@ int cli_requests_nearest(const CliRequestsRootCtx *args)
 {
     char file[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->path, .joined = file,
                     .err_msg = &err_msg) ||
@@ -58,11 +58,11 @@ int cli_requests_nearest(const CliRequestsRootCtx *args)
     }
     while (EMBED_CALL(values_under, RequestsValuesCtx, .path = folder, .base = args->root))
     {
-        VerbaLinea line = {args->found, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->found, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, folder);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, args->name);
-        if ((mmgr_line_finish(&line) != 0ull) &&
+        if ((mmgr_line_finish(&line) != 0ULL) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->found))
         {
             return 1;
@@ -81,7 +81,7 @@ int cli_requests_nearest(const CliRequestsRootCtx *args)
 EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                   .size_pointer = &size, .owner = &g_cli_requests_cells);
     if ((bytes == NULL) ||
@@ -94,11 +94,11 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
         return CLI_JSON_NONE;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea read_err_msg = {why, sizeof(why), 0ULL};
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     const unsigned int object = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                            .json = &s_json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
-                                           .text_more = 0ull, .err_msg = &read_err_msg, .owner = &g_cli_requests_cells);
+                                           .text_more = 0ULL, .err_msg = &read_err_msg, .owner = &g_cli_requests_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_requests_cells);
     if (object == CLI_JSON_NONE)
     {
@@ -133,9 +133,10 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
     if (args->values->text == NULL)
     {
         args->values->text = g_cli_cells->persistent_buf_alloc(CLI_REQUESTS_TEXT, &g_cli_requests_cells);
-        args->values->capacity = (args->values->text != NULL) ? CLI_REQUESTS_TEXT : 0ull;
+        args->values->capacity = (args->values->text != NULL) ? CLI_REQUESTS_TEXT : 0ULL;
     }
-    if ((args->values->used + needed > args->values->capacity) || (at == CLI_REQUESTS_VALUES))
+    if ((args->values->text == NULL) || (args->values->used + needed > args->values->capacity) ||
+        (at == CLI_REQUESTS_VALUES))
     {
         return 0;
     }
@@ -162,8 +163,8 @@ void cli_requests_values_free(const CliRequestsErrMsgRootCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->values->text, &g_cli_requests_cells);
     args->values->text = NULL;
-    args->values->capacity = 0ull;
-    args->values->used = 0ull;
+    args->values->capacity = 0ULL;
+    args->values->used = 0ULL;
     args->values->count = 0u;
 }
 
@@ -217,7 +218,7 @@ EMBED_INLINE int values_list(const RequestsValuesCtx *args)
                 (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "$shared", .cap = CLI_CELLS_POOL})) ||
                 EMBED_CALL(cli_requests_name_internal.value_append, CliRequestsNameCtx, .values = &s_names, .name = key,
                            .name_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), .value = "",
-                           .value_size = 0ull);
+                           .value_size = 0ULL);
         }
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = file,
                    .relative_out = relative[at]);
@@ -272,7 +273,7 @@ EMBED_INLINE int values_member_append(const RequestsValuesCtx *args)
 {
     CliRequestsValues *values = args->values;
     const char *const key = s_json.text + s_json.node[args->member].key;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = &s_json, .node = args->member, .length_pointer = &length);
     if (text != NULL)
@@ -347,7 +348,7 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
     {
         char file[CLI_PATH_MAX_LEN];
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         const unsigned int object =
             EMBED_CALL(cli_requests_root_internal.nearest, CliRequestsRootCtx, .root = args->root, .path = args->path,
                        .name = s_files[at], .found = file)
@@ -371,14 +372,14 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
 EMBED_INLINE int values_ignore(const RequestsValuesCtx *args)
 {
     int *joined = args->joined;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->ignore,
                                                   .size_pointer = &size, .owner = &g_cli_requests_cells);
     const char *const list_entries = (const char *)bytes;
-    const unsigned long long length = (bytes != NULL) ? size : 0ull;
-    *joined = (length == 0ull) || (list_entries[length - 1u] == '\n');
+    const unsigned long long length = (bytes != NULL) ? size : 0ULL;
+    *joined = (length == 0ULL) || (list_entries[length - 1u] == '\n');
     int named = 0;
-    for (unsigned long long at = 0ull; !named && (at < length);)
+    for (unsigned long long at = 0ULL; !named && (at < length);)
     {
         const CliTextLine bounds =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = list_entries, .at = at, .size = length);
@@ -456,14 +457,14 @@ int cli_requests_private_init(const CliRequestsTextCfg *args)
         mmgr_line_put(args->err_msg, "the file has no folder");
         return 0;
     }
-    VerbaLinea made = {file, sizeof(file), 0ull};
+    VerbaLinea made = {file, sizeof(file), 0ULL};
     mmgr_line_put(&made, folder);
     mmgr_line_put(&made, "/" CLI_REQUESTS_PRIVATE);
     char ignore[CLI_PATH_MAX_LEN];
-    VerbaLinea ignore_line = {ignore, sizeof(ignore), 0ull};
+    VerbaLinea ignore_line = {ignore, sizeof(ignore), 0ULL};
     mmgr_line_put(&ignore_line, args->root);
     mmgr_line_put(&ignore_line, "/.gitignore");
-    if ((mmgr_line_finish(&made) == 0ull) || (mmgr_line_finish(&ignore_line) == 0ull))
+    if ((mmgr_line_finish(&made) == 0ULL) || (mmgr_line_finish(&ignore_line) == 0ULL))
     {
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": its path is too long");
@@ -479,7 +480,7 @@ int cli_requests_private_init(const CliRequestsTextCfg *args)
         // a tree with no .gitignore is given one, which an empty file's `joined` leaves to the second write to make
         const int fresh = !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = ignore);
         done = (joined || EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = ignore,
-                                     .bytes = "\n", .size = 1ull, .fresh = 0)) &&
+                                     .bytes = "\n", .size = 1ULL, .fresh = 0)) &&
                EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = ignore,
                           .bytes = CLI_REQUESTS_PRIVATE "\n", .size = sizeof(CLI_REQUESTS_PRIVATE), .fresh = fresh);
         failed = done ? NULL : ignore;

@@ -48,27 +48,27 @@ EMBED_INLINE void rows_ok(const MysqlRowsCtx *args)
 {
     const unsigned char *const payload = args->mysql->packet;
     const unsigned long long size = args->mysql->size;
-    unsigned long long at = 1ull;
-    unsigned long long affected = 0ull;
-    unsigned long long inserted = 0ull;
+    unsigned long long at = 1ULL;
+    unsigned long long affected = 0ULL;
+    unsigned long long inserted = 0ULL;
     if (!EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = payload, .size = size,
                     .at = &at, .value = &affected))
     {
-        affected = 0ull;
+        affected = 0ULL;
     }
     if (!EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = payload, .size = size,
                     .at = &at, .value = &inserted))
     {
-        inserted = 0ull;
+        inserted = 0ULL;
     }
     args->mysql->status =
         ((at < size) ? payload[at] : 0u) | ((at + 1u < size) ? ((unsigned int)payload[at + 1u] << 8u) : 0u);
     args->mysql->warnings =
         ((at + 2u < size) ? payload[at + 2u] : 0u) | ((at + 3u < size) ? ((unsigned int)payload[at + 3u] << 8u) : 0u);
-    VerbaLinea out = {args->tag, CLI_DB_TAG, 0ull};
+    VerbaLinea out = {args->tag, CLI_DB_TAG, 0ULL};
     mmgr_line_decimal(&out, affected, 1u);
-    mmgr_line_put(&out, (affected == 1ull) ? " row affected" : " rows affected");
-    if (inserted > 0ull)
+    mmgr_line_put(&out, (affected == 1ULL) ? " row affected" : " rows affected");
+    if (inserted > 0ULL)
     {
         mmgr_line_put(&out, ", last insert id ");
         mmgr_line_decimal(&out, inserted, 1u);
@@ -116,7 +116,7 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
     CliMysql *mysql = args->mysql;
     CliDbFailure *failure = args->failure;
     mysql->head.column_count = 0u;
-    for (unsigned long long one = 0ull; one < args->count; one += 1ull)
+    for (unsigned long long one = 0ULL; one < args->count; one += 1ULL)
     {
         if (!EMBED_CALL(cli_mysql_failure_internal.packet, CliMysqlFailureCtx, .mysql = mysql, .failure = failure))
         {
@@ -128,9 +128,9 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
         }
         const unsigned char *const definition = mysql->packet;
         const unsigned long long size = mysql->size;
-        unsigned long long at = 0ull;
-        unsigned long long start = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long at = 0ULL;
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
         for (unsigned int skip = 0u; skip < 4u; skip += 1u)
         {
             (void)EMBED_CALL(cli_mysql_size_bytes_internal.lenenc_bytes, CliMysqlSizeBytesCtx, .bytes = definition,
@@ -140,11 +140,11 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
             EMBED_CALL(cli_mysql_size_bytes_internal.lenenc_bytes, CliMysqlSizeBytesCtx, .bytes = definition,
                        .size = size, .at = &at, .start = &start, .length_pointer = &length);
         CliDbColumn *const column = &mysql->head.columns[mysql->head.column_count];
-        VerbaLinea name = {column->name, sizeof(column->name), 0ull};
+        VerbaLinea name = {column->name, sizeof(column->name), 0ULL};
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name,
-                   .text_bytes = definition + start, .length = named ? length : 0ull);
+                   .text_bytes = definition + start, .length = named ? length : 0ULL);
         mmgr_line_finish(&name);
-        unsigned long long fixed = 0ull;
+        unsigned long long fixed = 0ULL;
         (void)EMBED_CALL(cli_mysql_size_bytes_internal.lenenc_bytes, CliMysqlSizeBytesCtx, .bytes = definition,
                          .size = size, .at = &at, .start = &start, .length_pointer = &length);
         (void)EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = definition,
@@ -157,7 +157,7 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
         {
             kind = ((code >= 249u) && (code <= 252u)) ? "blob" : "binary";
         }
-        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ull};
+        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ULL};
         if (kind[0] == '\0')
         {
             mmgr_line_put(&kind_line, "type ");
@@ -230,18 +230,18 @@ static int rows_head(const MysqlRowsCtx *args)
     if (first == 0xfbu)
     {
         (void)EMBED_CALL(cli_mysql_failure_internal.send, CliMysqlFailureCtx, .mysql = mysql, .payload = NULL,
-                         .size = 0ull, .failure = failure);
+                         .size = 0ULL, .failure = failure);
         (void)EMBED_CALL(cli_mysql_failure_internal.packet, CliMysqlFailureCtx, .mysql = mysql, .failure = failure);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                    .message = "orior_cli sends no file to LOAD DATA LOCAL INFILE");
         return 0;
     }
-    unsigned long long at = 0ull;
-    unsigned long long count = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long count = 0ULL;
     if (!EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = mysql->packet,
                     .size = mysql->size, .at = &at, .value = &count))
     {
-        count = 0ull;
+        count = 0ULL;
     }
     mysql->head.rows = 1;
     return EMBED_CALL(rows_columns, MysqlRowsCtx, .mysql = mysql, .count = count, .failure = failure);
@@ -253,24 +253,24 @@ EMBED_INLINE int rows_query_send(const MysqlRowsCtx *args)
 {
     unsigned long long size = args->size;
     CliDbFailure *failure = args->failure;
-    const unsigned long long total = size + 1ull;
-    unsigned long long last = 0ull;
+    const unsigned long long total = size + 1ULL;
+    unsigned long long last = 0ULL;
     int sent = 1;
-    for (unsigned long long at = 0ull; sent && (at < total); at += last)
+    for (unsigned long long at = 0ULL; sent && (at < total); at += last)
     {
-        last = ((total - at) < 0xffffffull) ? (total - at) : 0xffffffull;
+        last = ((total - at) < 0xffffffULL) ? (total - at) : 0xffffffULL;
         const unsigned char head[5] = {(unsigned char)(last & 0xffu), (unsigned char)((last >> 8u) & 0xffu),
                                        (unsigned char)((last >> 16u) & 0xffu), args->mysql->sequence, 0x03u};
         // the first packet carries the command's byte before the statement
-        const unsigned long long from = (at == 0ull) ? 0ull : at - 1ull;
-        const unsigned long long piece = (at == 0ull) ? last - 1ull : last;
+        const unsigned long long from = (at == 0ULL) ? 0ULL : at - 1ULL;
+        const unsigned long long piece = (at == 0ULL) ? last - 1ULL : last;
         sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
-                          .bytes = head, .size = (at == 0ull) ? 5ull : 4ull) &&
+                          .bytes = head, .size = (at == 0ULL) ? 5ULL : 4ULL) &&
                EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
                           .bytes = args->sql + from, .size = piece);
         args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
-    if (sent && (last == 0xffffffull))
+    if (sent && (last == 0xffffffULL))
     {
         const unsigned char head[4] = {0u, 0u, 0u, args->mysql->sequence};
         sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
@@ -304,10 +304,10 @@ EMBED_INLINE const char *rows_hex(const MysqlRowsCtx *args)
     unsigned long long *used = args->used;
     unsigned long long *length = args->length;
     static const char s_digits[] = "0123456789ABCDEF";
-    VerbaLinea out = {args->mysql->hex + *used, sizeof(args->mysql->hex) - *used, 0ull};
-    const unsigned long long displayed = (args->size > 256u) ? 256ull : args->size;
+    VerbaLinea out = {args->mysql->hex + *used, sizeof(args->mysql->hex) - *used, 0ULL};
+    const unsigned long long displayed = (args->size > 256u) ? 256ULL : args->size;
     mmgr_line_put(&out, "0x");
-    for (unsigned long long at = 0ull; at < displayed; at += 1ull)
+    for (unsigned long long at = 0ULL; at < displayed; at += 1ULL)
     {
         mmgr_line_ch(&out, s_digits[args->bytes[at] >> 4u]);
         mmgr_line_ch(&out, s_digits[args->bytes[at] & 15u]);
@@ -333,24 +333,24 @@ EMBED_INLINE unsigned int rows_row(const MysqlRowsCtx *args)
 {
     const unsigned char *const packet = args->mysql->packet;
     const unsigned long long size = args->mysql->size;
-    unsigned long long at = 0ull;
-    unsigned long long used = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long used = 0ULL;
     for (unsigned int column = 0u; column < args->mysql->head.column_count; column += 1u)
     {
         CliDbValue *const value = &args->mysql->row[column];
         if ((at < size) && (packet[at] == 0xfbu))
         {
             at += 1u;
-            *value = (CliDbValue){NULL, 0ull, 1};
+            *value = (CliDbValue){NULL, 0ULL, 1};
             continue;
         }
-        unsigned long long start = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_mysql_size_bytes_internal.lenenc_bytes, CliMysqlSizeBytesCtx, .bytes = packet, .size = size,
                         .at = &at, .start = &start, .length_pointer = &length))
         {
             start = at;
-            length = 0ull;
+            length = 0ULL;
         }
         const unsigned int code = args->mysql->codes[column];
         const int binary = (args->mysql->charsets[column] == 63u) &&
@@ -358,7 +358,7 @@ EMBED_INLINE unsigned int rows_row(const MysqlRowsCtx *args)
         const int as_hex = binary && (!EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                   .bytes = (const char *)packet + start, .size = length) ||
                                       (code == 16u) || (code == 255u));
-        unsigned long long hex_length = 0ull;
+        unsigned long long hex_length = 0ULL;
         const char *const hex = as_hex ? EMBED_CALL(rows_hex, MysqlRowsCtx, .mysql = args->mysql, .used = &used,
                                                     .bytes = packet + start, .size = length, .length = &hex_length)
                                        : NULL;
@@ -371,7 +371,7 @@ EMBED_INLINE unsigned int rows_row(const MysqlRowsCtx *args)
 int cli_mysql_rows(const CliMysqlFailureCfg *args)
 {
     int *done = args->done;
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     *done = 0;
     args->tag[0] = '\0';
     if (!args->mysql_out->read_state)
@@ -396,9 +396,9 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
             {
                 return 0;
             }
-            VerbaLinea out = {args->tag, CLI_DB_TAG, 0ull};
+            VerbaLinea out = {args->tag, CLI_DB_TAG, 0ULL};
             mmgr_line_decimal(&out, read, 1u);
-            mmgr_line_put(&out, (read == 1ull) ? " row read" : " rows read");
+            mmgr_line_put(&out, (read == 1ULL) ? " row read" : " rows read");
             mmgr_line_finish(&out);
             *done = 1;
             return 1;
@@ -411,7 +411,7 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
             return 0;
         }
         const unsigned int values = EMBED_CALL(rows_row, MysqlRowsCtx, .mysql = args->mysql_out);
-        read += 1ull;
+        read += 1ULL;
         if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->mysql_out->row,
                         .count = values))
         {
@@ -427,7 +427,7 @@ int cli_mysql_finish(const CliMysqlFailureSqlCfg *args)
     while (args->mysql_out->read_state)
     {
         int done = 0;
-        if (!EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->mysql_out, .count = 4096ull,
+        if (!EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->mysql_out, .count = 4096ULL,
                         .each_row = rows_pass, .context = NULL, .done = &done, .tag = tag, .failure = args->failure))
         {
             return 0;
@@ -445,7 +445,7 @@ int cli_mysql_all(const CliMysqlFailureSqlCfg *args)
     }
     for (int done = !args->mysql_out->head.rows; !done;)
     {
-        if (!EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->mysql_out, .count = 4096ull,
+        if (!EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->mysql_out, .count = 4096ULL,
                         .each_row = args->each_row, .context = args->context, .done = &done, .tag = tag,
                         .failure = args->failure))
         {
@@ -492,14 +492,14 @@ int cli_mysql_cancel_send(const CliMysqlCfg *args)
     CliMysql *const other =
         EMBED_CALL(cli_mysql_host.connect, CliMysqlHostCfg, .host = args->cancel_read->host,
                    .port = args->cancel_read->port, .user = args->cancel_read->user,
-                   .password = args->cancel_read->password, .database = "", .wait = 5000ull, .failure = &failure);
+                   .password = args->cancel_read->password, .database = "", .wait = 5000ULL, .failure = &failure);
     if (other == NULL)
     {
         EMBED_CALL(cli_db_wire_out.db_failure_write, CliDbWireOutCfg, .failure_read = &failure, .out = args->err_msg);
         return 0;
     }
     char kill[64];
-    VerbaLinea statement = {kill, sizeof(kill), 0ull};
+    VerbaLinea statement = {kill, sizeof(kill), 0ULL};
     mmgr_line_put(&statement, "KILL QUERY ");
     mmgr_line_decimal(&statement, args->cancel_read->id, 1u);
     const int killed =

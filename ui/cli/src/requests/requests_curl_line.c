@@ -25,8 +25,8 @@ EMBED_INLINE void line_append(const RequestsCurlLineCtx *args)
 EMBED_INLINE void line_quote(const RequestsCurlLineCtx *args)
 {
     EMBED_CALL(line_append, RequestsCurlLineCtx, .out = args->out, .text = "'", .size = 1u);
-    unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long from = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         if (args->text[at] == '\'')
         {
@@ -71,7 +71,7 @@ void cli_requests_curl_write(const CliRequestsOutCtx *args)
     for (unsigned int at = 0u; at < args->sent->headers; at += 1u)
     {
         char header[CLI_REQUESTS_NAME + CLI_REQUESTS_VALUE + 2u];
-        VerbaLinea header_line = {header, sizeof(header), 0ull};
+        VerbaLinea header_line = {header, sizeof(header), 0ULL};
         mmgr_line_put(&header_line, args->sent->header_name[at]);
         mmgr_line_put(&header_line, ": ");
         mmgr_line_put(&header_line, args->sent->header_value[at]);

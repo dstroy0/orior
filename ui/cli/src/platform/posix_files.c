@@ -60,7 +60,7 @@ typedef struct
 EMBED_INLINE void file_read_from(const PosixFilesCtx *args)
 {
     unsigned long long *got = args->got;
-    *got = 0ull;
+    *got = 0ULL;
     int read_state = 1;
     while (read_state && (*got < args->count))
     {
@@ -69,7 +69,7 @@ EMBED_INLINE void file_read_from(const PosixFilesCtx *args)
             pread(args->file, args->bytes + *got, (size_t)(args->count - *got), (off_t)(args->from + *got));
         read_state = read_now > 0;
         // a count read is not negative where reading goes on
-        *got += read_state ? (unsigned long long)read_now : 0ull;
+        *got += read_state ? (unsigned long long)read_now : 0ULL;
     }
 }
 
@@ -77,7 +77,7 @@ int cli_file_read_at(const CliPathFromCtx *args)
 {
     unsigned long long *got = args->got;
     const int file = open(args->path, O_RDONLY);
-    *got = 0ull;
+    *got = 0ULL;
     if (file < 0)
     {
         return 0;
@@ -100,11 +100,11 @@ int cli_file_stamp(const CliPathSizeCtx *args)
     // a file's size and its change since 1970 are not negative here
     *size = (unsigned long long)found.st_size;
 #if defined(__APPLE__)
-    *changed = ((unsigned long long)found.st_mtimespec.tv_sec * 1000ull) +
-               ((unsigned long long)found.st_mtimespec.tv_nsec / 1000000ull);
+    *changed = ((unsigned long long)found.st_mtimespec.tv_sec * 1000ULL) +
+               ((unsigned long long)found.st_mtimespec.tv_nsec / 1000000ULL);
 #else
     *changed =
-        ((unsigned long long)found.st_mtim.tv_sec * 1000ull) + ((unsigned long long)found.st_mtim.tv_nsec / 1000000ull);
+        ((unsigned long long)found.st_mtim.tv_sec * 1000ULL) + ((unsigned long long)found.st_mtim.tv_nsec / 1000000ULL);
 #endif
     return 1;
 }
@@ -114,7 +114,7 @@ unsigned long long cli_wall_milliseconds(void)
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
     // the time since 1970 and its nanoseconds are not negative here
-    return ((unsigned long long)now.tv_sec * 1000ull) + ((unsigned long long)now.tv_nsec / 1000000ull);
+    return ((unsigned long long)now.tv_sec * 1000ULL) + ((unsigned long long)now.tv_nsec / 1000000ULL);
 }
 
 int cli_move(const CliErrMsgFromCtx *args)
@@ -128,7 +128,7 @@ int cli_move(const CliErrMsgFromCtx *args)
 
 int cli_file_append(const CliPathBytesCtx *args)
 {
-    const int file = open(args->path, args->fresh ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_APPEND), 0644);
+    const int file = open(args->path, args->fresh ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_APPEND), 0640);
     if (file < 0)
     {
         return 0;
@@ -136,13 +136,13 @@ int cli_file_append(const CliPathBytesCtx *args)
     const unsigned char *at = (const unsigned char *)args->bytes;
     unsigned long long left = args->size;
     int written = 1;
-    while (written && (left > 0ull))
+    while (written && (left > 0ULL))
     {
         // a piece is at most a gibibyte, which a size_t counts
-        const ssize_t done = write(file, at, (size_t)((left < (1ull << 30u)) ? left : (1ull << 30u)));
+        const ssize_t done = write(file, at, (size_t)((left < (1ULL << 30u)) ? left : (1ULL << 30u)));
         written = done > 0;
         // a count written is positive here
-        const unsigned long long wrote = written ? (unsigned long long)done : 0ull;
+        const unsigned long long wrote = written ? (unsigned long long)done : 0ULL;
         at += wrote;
         left -= wrote;
     }
@@ -178,7 +178,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
     {
         mmgr_line_hex(&named, random[at], 2u);
     }
-    if (mmgr_line_finish(&named) == 0ull)
+    if (mmgr_line_finish(&named) == 0ULL)
     {
         return 0;
     }
@@ -196,7 +196,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
 int cli_temporary_file_write(const CliBytesCtx *args)
 {
     const unsigned char *const from = (const unsigned char *)args->bytes;
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < args->size)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
@@ -214,7 +214,7 @@ int cli_temporary_file_write(const CliBytesCtx *args)
 int cli_temporary_file_read(const CliSizeCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes_out;
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < args->size)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
@@ -231,11 +231,11 @@ int cli_temporary_file_read(const CliSizeCtx *args)
 
 void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args)
 {
-    if (args->file_temporary_file_pointer->handle != 0ull)
+    if (args->file_temporary_file_pointer->handle != 0ULL)
     {
         // a descriptor stored is one open gave
         (void)close((int)args->file_temporary_file_pointer->handle);
     }
-    args->file_temporary_file_pointer->handle = 0ull;
+    args->file_temporary_file_pointer->handle = 0ULL;
 }
 #endif

@@ -11,9 +11,9 @@
 int cli_validate_code_get(const CliValidateTextCtx *args)
 {
     char *const out = g_cli_validate->code;
-    unsigned long long used = 0ull;
-    unsigned long long at = 0ull;
-    unsigned long long depth = 0ull;
+    unsigned long long used = 0ULL;
+    unsigned long long at = 0ULL;
+    unsigned long long depth = 0ULL;
     int in_string = 0;
     int in_line = 0;
     // each letter is retained whole or blanked as one byte, so the code is never longer than the text
@@ -34,63 +34,63 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
         {
             in_line = (c != '\n');
             out[used] = blank;
-            used += 1ull;
+            used += 1ULL;
         }
-        else if (depth > 0ull)
+        else if (depth > 0ULL)
         {
             if (((c == '/') && (next == '-')) || ((c == '-') && (next == '/')))
             {
-                depth = (c == '/') ? depth + 1ull : depth - 1ull;
+                depth = (c == '/') ? depth + 1ULL : depth - 1ULL;
                 memor.cpy(&(MemoriaCfg){.dst = out + used, .src = "  ", .bytes = 2u});
-                used += 2ull;
-                at += 2ull;
+                used += 2ULL;
+                at += 2ULL;
                 continue;
             }
             out[used] = blank;
-            used += 1ull;
+            used += 1ULL;
         }
         else if (in_string)
         {
             if (c == '\\')
             {
                 out[used] = ' ';
-                used += 1ull;
-                unsigned long long skipped = 1ull;
-                if (at + 1ull < args->size)
+                used += 1ULL;
+                unsigned long long skipped = 1ULL;
+                if (at + 1ULL < args->size)
                 {
                     unsigned int escaped = 0u;
                     skipped += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                           .text_bytes = (const unsigned char *)args->text, .length = args->size,
-                                          .at = at + 1ull, .letter = &escaped);
+                                          .at = at + 1ULL, .letter = &escaped);
                     out[used] = (next == '\n') ? '\n' : ' ';
-                    used += 1ull;
+                    used += 1ULL;
                 }
                 at += skipped;
                 continue;
             }
             in_string = (c != '"');
             out[used] = blank;
-            used += 1ull;
+            used += 1ULL;
         }
         else if ((c == '-') && (next == '-'))
         {
             in_line = 1;
             out[used] = ' ';
-            used += 1ull;
+            used += 1ULL;
         }
         else if ((c == '/') && (next == '-'))
         {
-            depth = 1ull;
+            depth = 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = out + used, .src = "  ", .bytes = 2u});
-            used += 2ull;
-            at += 2ull;
+            used += 2ULL;
+            at += 2ULL;
             continue;
         }
         else if (c == '"')
         {
             in_string = 1;
             out[used] = ' ';
-            used += 1ull;
+            used += 1ULL;
         }
         else
         {
@@ -131,9 +131,9 @@ EMBED_INLINE int code_word_letter(const ValidateCodeCtx *args)
     {
         return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
                ((args->letter >= '0') && (args->letter <= '9')) ||
-               (cellul.chr(&(CatenaFinitaCfg){.src = "_.'#!?", .cap = CLI_CELLS_POOL, .byte = (int)args->letter}) !=
-                    NULL &&
-                args->letter != 0u);
+               ((args->letter != 0u) && (args->letter < 0x80u) &&
+                (cellul.chr(&(CatenaFinitaCfg){
+                     .src = "_.'#!?", .cap = CLI_CELLS_POOL, .byte = (unsigned char)args->letter}) != NULL));
     }
     return !code_white(args) && (args->letter != 0x27e8u) && (args->letter != 0x27e9u);
 }
@@ -145,14 +145,14 @@ void cli_validate_words_get(void)
     g_cli_validate->word_count = 0u;
     unsigned int line = 0u;
     unsigned int col = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         if (code[at] == '\n')
         {
             line += 1u;
             col = 0u;
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         unsigned int letter = 0u;
@@ -174,7 +174,7 @@ void cli_validate_words_get(void)
             reserved = (at < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                                 .text_bytes = (const unsigned char *)code, .length = size, .at = at,
                                                 .letter = &letter)
-                                   : 0ull;
+                                   : 0ULL;
         }
         if (g_cli_validate->word_count < CLI_VALIDATE_WORDS)
         {
@@ -202,7 +202,7 @@ void cli_validate_theorems_in(void)
     unsigned int spaces[CLI_VALIDATE_SPACES];
     unsigned int open = 0u;
     g_cli_validate->theorem_count = 0u;
-    g_cli_validate->name_used = 0ull;
+    g_cli_validate->name_used = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliCodeWord *const word = &words[at];
@@ -243,9 +243,9 @@ void cli_validate_theorems_in(void)
         const char *name = g_cli_validate->code + next->start;
         unsigned long long name_size = next->size;
         const int rooted =
-            (name_size >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "_root_.", .bytes = 7u}) == 0);
+            (name_size >= 7ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "_root_.", .bytes = 7u}) == 0);
         VerbaLinea full = {g_cli_validate->names + g_cli_validate->name_used,
-                           CLI_VALIDATE_NAMES - g_cli_validate->name_used, 0ull};
+                           CLI_VALIDATE_NAMES - g_cli_validate->name_used, 0ULL};
         for (unsigned int space = 0u; !rooted && (space < open); space += 1u)
         {
             if (spaces[space] != CLI_JSON_NONE)
@@ -255,14 +255,14 @@ void cli_validate_theorems_in(void)
                 mmgr_line_ch(&full, '.');
             }
         }
-        mmgr_line_put_n(&full, rooted ? name + 7 : name, rooted ? name_size - 7ull : name_size);
-        if ((mmgr_line_finish(&full) == 0ull) || (g_cli_validate->theorem_count == CLI_VALIDATE_THEOREMS))
+        mmgr_line_put_n(&full, rooted ? name + 7 : name, rooted ? name_size - 7ULL : name_size);
+        if ((mmgr_line_finish(&full) == 0ULL) || (g_cli_validate->theorem_count == CLI_VALIDATE_THEOREMS))
         {
             continue;
         }
         g_cli_validate->theorems[g_cli_validate->theorem_count] = g_cli_validate->name_used;
         g_cli_validate->theorem_count += 1u;
-        g_cli_validate->name_used += full.at + 1ull;
+        g_cli_validate->name_used += full.at + 1ULL;
     }
 }
 
@@ -271,7 +271,7 @@ EMBED_INLINE int code_flag_hit(const ValidateCodeCtx *args)
 {
     return ((args->size == args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = args->bare, .other = args->one, .bytes = args->length}) == 0)) ||
-           ((args->size > args->length) && (args->bare[args->size - args->length - 1ull] == '.') &&
+           ((args->size > args->length) && (args->bare[args->size - args->length - 1ULL] == '.') &&
             (memor.cmp(&(MemoriaCfg){
                  .src = args->bare + args->size - args->length, .other = args->one, .bytes = args->length}) == 0));
 }
@@ -287,7 +287,7 @@ void cli_validate_flags_in(void)
         unsigned long long size = word->size;
         {
             const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                       .text = bare, .at = 0ull, .size = size, .set = "@");
+                                                       .text = bare, .at = 0ULL, .size = size, .set = "@");
             bare += lead;
             size -= lead;
         }
@@ -300,7 +300,7 @@ void cli_validate_flags_in(void)
                                      .array = flagged->words, .index = index) != CLI_JSON_NONE);
                  index += 1u)
             {
-                unsigned long long length = 0ull;
+                unsigned long long length = 0ULL;
                 const char *const one =
                     EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                                .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -314,13 +314,13 @@ void cli_validate_flags_in(void)
                 continue;
             }
             char message[4096];
-            VerbaLinea line = {message, sizeof(message), 0ull};
+            VerbaLinea line = {message, sizeof(message), 0ULL};
             mmgr_line_put_n(&line, bare, size);
             mmgr_line_put(&line, ": ");
             mmgr_line_put(&line, flagged->phrases);
             const CliFinding finding = {
                 word->line, word->col, word->line, word->col + word->letters, flagged->severity, "flag",
-                -1,         0ull,      0ull};
+                -1,         0ULL,      0ULL};
             EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                        .message_text = message, .length = line.at, .lifted = NULL);
             break;

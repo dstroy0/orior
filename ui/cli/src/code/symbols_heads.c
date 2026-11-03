@@ -63,15 +63,15 @@ EMBED_INLINE void cli_type_append(const SymbolsHeadsCtx *args)
     const CliLeafRead *read = args->read;
     unsigned int leaf = args->leaf;
     unsigned long long *at = args->at;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                         .read_read = read, .leaf = leaf, .length_pointer = &length);
-    if (args->spaced && ((*at + 1ull) < CLI_SYMBOLS_TYPE))
+    if (args->spaced && ((*at + 1ULL) < CLI_SYMBOLS_TYPE))
     {
         args->type->text[*at] = ' ';
-        *at += 1ull;
+        *at += 1ULL;
     }
-    const unsigned long long capacity = CLI_SYMBOLS_TYPE - 1ull - *at;
+    const unsigned long long capacity = CLI_SYMBOLS_TYPE - 1ULL - *at;
     const unsigned long long copied = (length < capacity) ? length : capacity;
     // a type's text is under CLI_SYMBOLS_TYPE bytes, which a size_t holds
     memor.cpy(&(MemoriaCfg){.dst = args->type->text + *at, .src = text, .bytes = (size_t)copied});
@@ -85,11 +85,11 @@ EMBED_INLINE void cli_type_append(const SymbolsHeadsCtx *args)
 EMBED_INLINE void cli_type_between(const SymbolsHeadsCtx *args)
 {
     const CliLeafRead *read = args->read;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     unsigned int depth = 0u;
     int named = 0;
     args->type->text[0] = '\0';
-    args->type->is = 0ull;
+    args->type->is = 0ULL;
     for (unsigned int leaf = args->from; leaf < args->to; leaf += 1u)
     {
         const unsigned long long is = read->leaf[leaf].is;
@@ -327,7 +327,7 @@ EMBED_INLINE void cli_head_label(const SymbolsHeadsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = name_bytes, .src = args->head->named, .bytes = sizeof(name_bytes)});
     const char *const text = args->read->text;
     const unsigned long long to = args->read->leaf[args->close].to;
-    unsigned long long byte = 0ull;
+    unsigned long long byte = 0ULL;
     byte = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = byte, .size = to,
                       .set = " \t");
     unsigned int at = 0u;
@@ -363,7 +363,7 @@ EMBED_INLINE void cli_head_label(const SymbolsHeadsCtx *args)
         {
             args->head->label[at] = text[byte];
             at += 1u;
-            byte += 1ull;
+            byte += 1ULL;
         }
         units += (length == 4u) ? 2u : 1u;
     }
@@ -386,7 +386,7 @@ EMBED_INLINE int cli_head_params(const SymbolsHeadsCtx *args)
     unsigned int at = 0u;
     for (; (at < read->count) && (read->leaf[at].line == 0u); at += 1u)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                             .read_read = read, .leaf = at, .length_pointer = &size);
         if (((read->leaf[at].is & CLI_LEAF_DECLARES) != 0u) && (size == length) &&
@@ -459,7 +459,7 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
 {
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->head->path, .joined = full);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                   .size_pointer = &size, .owner = &g_cli_code_cells);
     if (bytes == NULL)
@@ -467,7 +467,7 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
         return 0;
     }
     const char *const text = (const char *)bytes;
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned int counted = 0u;
     while ((counted < args->head->line) && (start < size))
     {

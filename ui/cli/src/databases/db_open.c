@@ -61,7 +61,7 @@ EMBED_INLINE int open_link(const DbOpenCtx *args)
 static int open_first(const CliDbRowCfg *args)
 {
     VerbaLinea *const out = (VerbaLinea *)args->context;
-    if ((out->at == 0ull) && (args->count > 0u) && !args->values[0].null)
+    if ((out->at == 0ULL) && (args->count > 0u) && !args->values[0].null)
     {
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out,
                    .text_bytes = (const unsigned char *)args->values[0].text, .length = args->values[0].size);
@@ -73,7 +73,7 @@ void cli_db_zone_read(const CliDbFailureContextCtx *args)
 {
     static const char s_zone[] = "SELECT IF(@@session.time_zone = 'SYSTEM', @@system_time_zone, @@session.time_zone)";
     char zone[CLI_NAME_MAX_LEN];
-    VerbaLinea out = {zone, sizeof(zone) - 1u, 0ull};
+    VerbaLinea out = {zone, sizeof(zone) - 1u, 0ULL};
     if (args->open->query.kind == CLI_DB_LINK_PG)
     {
         const char *const tz_name =
@@ -128,7 +128,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     else
     {
         char account[CLI_PATH_MAX_LEN];
-        VerbaLinea account_line = {account, sizeof(account), 0ull};
+        VerbaLinea account_line = {account, sizeof(account), 0ULL};
         EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = config,
                    .out = &account_line);
         mmgr_line_finish(&account_line);

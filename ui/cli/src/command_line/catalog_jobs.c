@@ -442,7 +442,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
         char file[CLI_PATH_MAX_LEN];
         char readme[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_catalog_path_out_internal.stem, CliCatalogPathOutCtx, .path = subject, .out = name);
-        VerbaLinea line = {id, sizeof(id), 0ull};
+        VerbaLinea line = {id, sizeof(id), 0ULL};
         mmgr_line_put(&line, "pipeline/");
         mmgr_line_put(&line, name);
         mmgr_line_finish(&line);

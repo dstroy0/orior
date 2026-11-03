@@ -37,7 +37,7 @@ typedef struct
 EMBED_INLINE void console_err_print(const CommandLineConsoleCtx *args)
 {
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->err_msg->out,
-               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
+               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
 }
 
 // `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which reported
@@ -51,14 +51,14 @@ EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "on", .cap = CLI_CELLS_POOL})) &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "off", .cap = CLI_CELLS_POOL})))
     {
-        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, args->word);
         mmgr_line_put(&line, " is neither on nor off");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         return CLI_WRONG;
     }
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg,
                     .on = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "on", .cap = CLI_CELLS_POOL}),
                     .err_msg = &err_msg))
@@ -74,27 +74,27 @@ EMBED_INLINE int console_report_page(const CommandLineConsoleCtx *args)
 {
     const char *named = args->named;
     static char s_title[1u << 12u];
-    VerbaLinea title = {s_title, sizeof(s_title), 0ull};
+    VerbaLinea title = {s_title, sizeof(s_title), 0ULL};
     const int known = (args->count > 0u) && EMBED_CALL(cli_report_category_text.category_know, CliReportCategoryTextCfg,
                                                        .category = args->words[0]);
     for (unsigned int at = known ? 1u : 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(&title, (title.at > 0ull) ? " " : "");
+        mmgr_line_put(&title, (title.at > 0ULL) ? " " : "");
         mmgr_line_put(&title, args->words[at]);
     }
     (void)mmgr_line_finish(&title);
     static char s_root[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const int has_root = EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                                     .err_msg = &err_msg);
     const CliReport supplied = {known ? args->words[0] : "unknown", s_title, "", "", ""};
     static char s_url[CLI_REPORT_URL];
-    VerbaLinea url = {s_url, sizeof(s_url), 0ull};
+    VerbaLinea url = {s_url, sizeof(s_url), 0ULL};
     EMBED_CALL(cli_report_root_out.page, CliReportRootOutCfg, .report = &supplied, .root = has_root ? s_root : NULL,
                .out = &url);
     (void)mmgr_line_finish(&url);
     EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_url);
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     if (!EMBED_CALL(cli_report_err_msg.open_page, CliReportErrMsgCfg, .url = s_url, .err_msg = &err_msg))
     {
         EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
@@ -107,11 +107,11 @@ EMBED_INLINE int console_report_page(const CommandLineConsoleCtx *args)
 static void console_docker_line(const CliEachLineSizeCfg *args)
 {
     const char *text = args->line;
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, "$ ");
     mmgr_line_put_n(&line, text, args->size);
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
-               .size = mmgr_line_ok(&line) ? line.at : 0ull);
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 // the tree's dev container brought up as its description specifies, docker's output shown as it comes, and its address
@@ -120,7 +120,7 @@ EMBED_INLINE int console_dev_container(const CommandLineConsoleCtx *args)
 {
     const char *named = args->named;
     static char s_root[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                     .err_msg = &err_msg))
     {
@@ -175,7 +175,7 @@ EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
     if (!inside_a_job && !read_state)
     {
         static CliReachAnswer s_answer;
-        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
         const int requested =
             EMBED_CALL(cli_reach_menu.request, CliReachMenuCfg, .root = root, .menu = "protocol", .command = command,
                        .request = words, .count = count, .answer = &s_answer, .err_msg = &err_msg);
@@ -218,7 +218,7 @@ EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
 static int console_user_css(void)
 {
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_path_err_msg_kind_internal.home_ensure_user_css, CliPathErrMsgKindCtx, .path_out = path,
                     .err_msg = &err_msg))
     {
@@ -247,7 +247,7 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "about", .cap = CLI_CELLS_POOL}))
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "orior_cli " CLI_VERSION);
-        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
         if (EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                        .err_msg = &err_msg))
         {
@@ -334,7 +334,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
         return code;
     }
     static char s_root[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                     .err_msg = &err_msg))
     {
@@ -367,16 +367,16 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
     }
     if (first == NULL)
     {
-        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, args->command);
         mmgr_line_put(&line, " needs a job: orior_cli run list names them");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ull);
+                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         return CLI_WRONG;
     }
     const CliCatalog *const catalog =
         EMBED_CALL(cli_command_line_word_internal.catalog, CliCommandLineWordCtx, .root = s_root);
-    err_msg.at = 0ull;
+    err_msg.at = 0ULL;
     const unsigned int job =
         EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name, CliCommandLineCatalogAmongCtx,
                    .catalog = catalog, .among = NULL, .among_count = 0u, .name = first, .err_msg = &err_msg);
@@ -448,9 +448,9 @@ int cli_file_word(const CliCommandLineOutCtx *args)
         return 0;
     }
     const char *inner = full + root;
-    inner += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = inner, .at = 0ull,
+    inner += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = inner, .at = 0ULL,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    inner += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = out, .text = inner, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = out, .text = inner, .from = '\\', .to = '/');
     mmgr_line_put(out, args->word + path);
     return 1;
 }

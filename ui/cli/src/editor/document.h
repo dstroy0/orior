@@ -111,9 +111,9 @@ typedef struct
 } CliLinesHistogramAppendCfg;
 static inline void cli_lines_histogram_append(const CliLinesHistogramAppendCfg *args)
 {
-    args->lines->histogram.occurrences[args->unit & 0xffu] += 1ull;
-    args->lines->histogram.occurrences[args->unit >> 8u] += 1ull;
-    args->lines->histogram.total += 2ull;
+    args->lines->histogram.occurrences[args->unit & 0xffu] += 1ULL;
+    args->lines->histogram.occurrences[args->unit >> 8u] += 1ULL;
+    args->lines->histogram.total += 2ULL;
 }
 
 // a text's lines, `size` bytes of UTF-8, split as the page splits a file it reads, into `lines`; its shape; and the

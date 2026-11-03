@@ -48,20 +48,20 @@ typedef struct
 EMBED_INLINE int cli_span_is_whole_word(const FilesFindCtx *args)
 {
     unsigned long long *value = args->value;
-    unsigned long long at = ((args->length > 0ull) && (args->text[0] == '+')) ? 1ull : 0ull;
+    unsigned long long at = ((args->length > 0ULL) && (args->text[0] == '+')) ? 1ULL : 0ULL;
     if (at == args->length)
     {
         return 0;
     }
-    *value = 0ull;
-    for (; at < args->length; at += 1ull)
+    *value = 0ULL;
+    for (; at < args->length; at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[at] - '0');
-        if ((args->text[at] < '0') || (args->text[at] > '9') || (*value > ((~0ull - digit) / 10ull)))
+        if ((args->text[at] < '0') || (args->text[at] > '9') || (*value > ((~0ULL - digit) / 10ULL)))
         {
             return 0;
         }
-        *value = (*value * 10ull) + digit;
+        *value = (*value * 10ULL) + digit;
     }
     return 1;
 }
@@ -74,7 +74,7 @@ EMBED_INLINE void cli_prefix(const FilesFindCtx *args)
     args->prefix[0] = '\0';
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words, .folder = args->root, .settings = NULL,
                    .count = 0u, .run_result = run_result, .err_msg = &unstarted))
     {
@@ -106,22 +106,22 @@ EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
     mmgr_line_ch(out, '[');
     while ((at < end) && (found < CLI_HITS_MAX))
     {
-        const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = at, .at = 0ull,
+        const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = at, .at = 0ULL,
                                               .size = (unsigned long long)(end - at));
         const char *const stop = at + bounds.cut;
         const char *field = at;
         at += bounds.next;
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const path = EMBED_CALL(cli_git_at_internal.field, CliGitAtCtx, .at = &field, .end = stop,
                                             .stop = ':', .length_pointer = &length);
-        unsigned long long number_length = 0ull;
+        unsigned long long number_length = 0ULL;
         const char *const number = EMBED_CALL(cli_git_at_internal.field, CliGitAtCtx, .at = &field, .end = stop,
                                               .stop = ':', .length_pointer = &number_length);
-        unsigned long long col_length = 0ull;
+        unsigned long long col_length = 0ULL;
         const char *const col = EMBED_CALL(cli_git_at_internal.field, CliGitAtCtx, .at = &field, .end = stop,
                                            .stop = ':', .length_pointer = &col_length);
-        unsigned long long line = 0ull;
-        unsigned long long column = 0ull;
+        unsigned long long line = 0ULL;
+        unsigned long long column = 0ULL;
         if ((path == NULL) || (number == NULL) || (col == NULL) ||
             !EMBED_CALL(cli_span_is_whole_word, FilesFindCtx, .text = number, .length = number_length,
                         .value = &line) ||
@@ -133,7 +133,7 @@ EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
         const int prefixed =
             (length >= prefix_length) &&
             (memor.cmp(&(MemoriaCfg){.src = path, .other = args->prefix_read, .bytes = prefix_length}) == 0);
-        const unsigned long long from = prefixed ? prefix_length : 0ull;
+        const unsigned long long from = prefixed ? prefix_length : 0ULL;
         if ((length - from) >= CLI_PATH_MAX_LEN)
         {
             continue;
@@ -194,7 +194,7 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     s_words[count] = NULL;
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     int received = CLI_GIT_SEARCH_NONE;
     // git returns 1 where nothing matched, and more where it could not search
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words, .folder = args->root, .settings = NULL,
@@ -202,13 +202,13 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     {
         received = CLI_GIT_SEARCH_NONE;
     }
-    else if (run_result->code == 0ll)
+    else if (run_result->code == 0LL)
     {
         EMBED_CALL(cli_git_hits, FilesFindCtx, .run_result = run_result, .prefix_read = s_prefix,
                    .patterns = args->patterns, .set = args->set, .out = args->out);
         received = CLI_GIT_SEARCH_FOUND;
     }
-    else if (run_result->code == 1ll)
+    else if (run_result->code == 1LL)
     {
         mmgr_line_put(args->out, "[]");
         received = CLI_GIT_SEARCH_FOUND;
@@ -243,5 +243,3 @@ typedef struct
     char (*found)[CLI_PATH_MAX_LEN];
     unsigned int found_count;
 } CliFinding;
-
-static CliFinding s_finding;

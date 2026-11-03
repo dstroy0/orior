@@ -36,8 +36,8 @@ EMBED_INLINE void query_parent_get(const RunCtx *args)
     const unsigned long long slash_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    slash = (slash_end != 0ull) ? (args->path + (slash_end - 1ull)) : slash;
-    VerbaLinea line = {args->folder, QUERY_PATH_MAX_LEN, 0ull};
+    slash = (slash_end != 0ULL) ? (args->path + (slash_end - 1ULL)) : slash;
+    VerbaLinea line = {args->folder, QUERY_PATH_MAX_LEN, 0ULL};
     if (slash != NULL)
     {
         mmgr_line_put_n(&line, args->path, (unsigned long long)(slash - args->path));
@@ -130,7 +130,7 @@ int query_run_start(const QueryFolderContextCtx *args)
             EMBED_CALL(query_run_paths_alloc, RunCtx, .run = run);
             return 1;
         }
-        args->err_msg->at = 0ull;
+        args->err_msg->at = 0ULL;
     }
     if (!query_folder_context_internal.folder_init(args))
     {
@@ -142,12 +142,12 @@ int query_run_start(const QueryFolderContextCtx *args)
     EMBED_CALL(query_folder_capacity_internal.next_name, QueryFolderCapacityCtx, .folder = args->folder,
                .name_out = name, .capacity = sizeof(name));
     char qry[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {qry, sizeof(qry), 0ull};
+    VerbaLinea line = {qry, sizeof(qry), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     char full[QUERY_PATH_MAX_LEN];
-    if ((mmgr_line_finish(&line) == 0ull) ||
+    if ((mmgr_line_finish(&line) == 0ULL) ||
         !EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = qry, .full = full,
                     .capacity = sizeof(full)) ||
         !EMBED_CALL(query_run_writer, RunCtx, .run = run, .root = args->root, .qry = full, .programs = args->programs,
@@ -186,7 +186,7 @@ EMBED_INLINE const char *query_base(const RunCtx *args)
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    base = (base_end != 0ull) ? (args->path + base_end) : base;
+    base = (base_end != 0ULL) ? (args->path + base_end) : base;
     return base;
 }
 
@@ -209,7 +209,7 @@ EMBED_INLINE unsigned int query_transferred_runs(const RunCtx *args)
         const char *const path = (at < args->folder_runs_pointer->count)
                                      ? args->folder_runs_pointer->path[at]
                                      : args->course->path[at - args->folder_runs_pointer->count];
-        (*carried)[at] = (QueryTransferredRun){path, 0ull};
+        (*carried)[at] = (QueryTransferredRun){path, 0ULL};
         EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = path,
                    .seconds = &(*carried)[at].changed);
     }
@@ -230,7 +230,7 @@ EMBED_INLINE unsigned int query_transferred_runs(const RunCtx *args)
 int query_run_machine_transfer(const QueryCountFolderCtx *args)
 {
     char course[QUERY_PATH_MAX_LEN];
-    VerbaLinea course_line = {course, sizeof(course), 0ull};
+    VerbaLinea course_line = {course, sizeof(course), 0ULL};
     mmgr_line_put(&course_line, args->run->writer.top);
     mmgr_line_ch(&course_line, '/');
     mmgr_line_put(&course_line, QUERY_COURSE_FOLDER);
@@ -262,7 +262,7 @@ int query_run_machine_transfer(const QueryCountFolderCtx *args)
         for (unsigned int file = 0u; (file < args->count) && (missing < QUERY_LEAVES_MAX); file += 1u)
         {
             const unsigned char *bytes = NULL;
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                             .name = EMBED_CALL(query_base, RunCtx, .path = args->files[file]), .bytes_u8s = &bytes,
                             .size_pointer = &size))
@@ -290,7 +290,7 @@ int query_run_machine_transfer(const QueryCountFolderCtx *args)
             continue;
         }
         char carried[QUERY_LINE_MAX_LEN];
-        VerbaLinea transferred_line = {carried, sizeof(carried), 0ull};
+        VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
         EMBED_CALL(query_count_name_internal.writer_machine_transfer, QueryCountNameCtx, .writer = &args->run->writer,
                    .from = named, .names = s_missing, .count = missing, .err_msg = &transferred_line);
     }
@@ -300,7 +300,7 @@ int query_run_machine_transfer(const QueryCountFolderCtx *args)
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
         const unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                        .name = EMBED_CALL(query_base, RunCtx, .path = args->files[file]), .bytes_u8s = &bytes,
                        .size_pointer = &size) ||
@@ -343,7 +343,7 @@ int query_run_read(const QueryCountErrMsgCtx *args)
         EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = args->run->writer.top,
                    .path = args->paths_letters[at], .name_out = name, .capacity = sizeof(name));
         const unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
                         .name = name, .bytes_u8s = &bytes, .size_pointer = &size))
         {
@@ -393,8 +393,8 @@ int query_run_stop(const QueryContextErrMsgRunCtx *args)
     EMBED_CALL(query_run_paths_free, RunCtx, .run = args->run);
     // this process is a member of the run no more before the writer is requested to stop
     const unsigned long long process = args->run->process;
-    args->run->process = 0ull;
-    if (process == 0ull)
+    args->run->process = 0ULL;
+    if (process == 0ULL)
     {
         EMBED_CALL(query_err_msg_writer_internal.writer_part, QueryErrMsgWriterCtx, .writer_out = &args->run->writer);
         return 1;
@@ -402,7 +402,7 @@ int query_run_stop(const QueryContextErrMsgRunCtx *args)
     EMBED_CALL(query_err_msg_writer_internal.writer_part, QueryErrMsgWriterCtx, .writer_out = &args->run->writer);
     const int stopped = EMBED_CALL(query_err_msg_writer_internal.writer_stop, QueryErrMsgWriterCtx,
                                    .writer_out = &args->run->writer, .err_msg = args->err_msg);
-    QueryProcess waited = {process, 0ull};
+    QueryProcess waited = {process, 0ULL};
     EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &waited);
     EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = args->run->folder,
                .most = query_retain_max());
@@ -414,11 +414,11 @@ int query_run_end(const QueryContextErrMsgRunCtx *args)
     for (unsigned int at = 0u; at < args->run->left.count; at += 1u)
     {
         char left[QUERY_LINE_MAX_LEN];
-        VerbaLinea left_line = {left, sizeof(left), 0ull};
+        VerbaLinea left_line = {left, sizeof(left), 0ULL};
         mmgr_line_put(&left_line, "  ");
         if (!EMBED_CALL(query_path_bytes_size_internal.writer_leave, QueryPathBytesSizeCtx,
                         .writer = &args->run->writer, .path = args->run->left.path[at], .err_msg = &left_line) &&
-            (mmgr_line_finish(&left_line) != 0ull))
+            (mmgr_line_finish(&left_line) != 0ULL))
         {
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left);
         }

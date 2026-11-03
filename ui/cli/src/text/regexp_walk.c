@@ -26,14 +26,14 @@ typedef struct
 EMBED_INLINE void cli_ascii_get(const RegexpWalkCtx *args)
 {
     const CliRegexp *regexp = args->regexp;
-    args->ascii[0] = 0ull;
-    args->ascii[1] = 0ull;
+    args->ascii[0] = 0ULL;
+    args->ascii[1] = 0ULL;
     for (unsigned int letter = 0u; letter < 128u; letter += 1u)
     {
         args->ascii[letter / 64u] |= (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx,
                                                  .regexp = regexp, .index = args->node, .letter = letter) == 1)
-                                         ? (1ull << (letter % 64u))
-                                         : 0ull;
+                                         ? (1ULL << (letter % 64u))
+                                         : 0ULL;
     }
 }
 
@@ -48,7 +48,7 @@ EMBED_INLINE CliRegexpFirst cli_union(const RegexpWalkCtx *args)
 CliRegexpFirst cli_regexp_first_get(const CliRegexpIndexCfg *args)
 {
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    CliRegexpFirst set = {{0ull, 0ull}, 0, 0};
+    CliRegexpFirst set = {{0ULL, 0ULL}, 0, 0};
     switch (node->kind)
     {
     case CLI_REGEXP_CHAR:
@@ -89,8 +89,8 @@ CliRegexpFirst cli_regexp_first_get(const CliRegexpIndexCfg *args)
         return own;
     }
     case CLI_REGEXP_BACK:
-        set.ascii[0] = ~0ull;
-        set.ascii[1] = ~0ull;
+        set.ascii[0] = ~0ULL;
+        set.ascii[1] = ~0ULL;
         set.other = 1;
         set.empty = 1;
         return set;
@@ -137,8 +137,8 @@ static int cli_starts(const RegexpWalkCtx *args)
                EMBED_CALL(cli_starts, RegexpWalkCtx, .regexp = args->regexp, .index = args->regexp->part[node->first],
                           .own = args->own, .end = end);
     case CLI_REGEXP_ALT: {
-        args->own[0] = 0ull;
-        args->own[1] = 0ull;
+        args->own[0] = 0ULL;
+        args->own[1] = 0ULL;
         *end = 0;
         for (unsigned int at = 0u; at < node->count; at += 1u)
         {
@@ -182,7 +182,7 @@ int cli_regexp_one_way(const CliRegexpIndexCfg *args)
         return all;
     }
     case CLI_REGEXP_ALT: {
-        unsigned long long seen[2] = {0ull, 0ull};
+        unsigned long long seen[2] = {0ULL, 0ULL};
         int seen_end = 0;
         for (unsigned int at = 0u; at < node->count; at += 1u)
         {
@@ -195,7 +195,7 @@ int cli_regexp_one_way(const CliRegexpIndexCfg *args)
             {
                 return 0;
             }
-            if (((seen[0] & own[0]) != 0ull) || ((seen[1] & own[1]) != 0ull) || (seen_end && end))
+            if (((seen[0] & own[0]) != 0ULL) || ((seen[1] & own[1]) != 0ULL) || (seen_end && end))
             {
                 return 0;
             }
@@ -221,7 +221,7 @@ unsigned long long cli_regexp_pass(const CliRegexpMatchIndexAtCtx *args)
         return ((args->at < args->run_read->length) &&
                 (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
                             .index = args->index, .letter = args->run_read->text[args->at]) == 1))
-                   ? (args->at + 1ull)
+                   ? (args->at + 1ULL)
                    : CLI_REGEXP_NO_PASS;
     case CLI_REGEXP_GROUP:
         return EMBED_CALL(cli_regexp_match_index_at_internal.regexp_pass, CliRegexpMatchIndexAtCtx,
@@ -265,7 +265,7 @@ EMBED_INLINE int cli_on_look(const RegexpWalkCtx *args)
     CliRegexpSpan saved_groups[CLI_REGEXP_GROUPS];
     memor.cpy(&(MemoriaCfg){
         .dst = saved_groups, .src = run->groups, .bytes = (regexp->groups + 1u) * sizeof(saved_groups[0])});
-    const CliRegexpThen frame = {CLI_THEN_TRUE, 0u, 0u, 0u, 0ull, NULL};
+    const CliRegexpThen frame = {CLI_THEN_TRUE, 0u, 0u, 0u, 0ULL, NULL};
     const int found = EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx, .regexp = regexp,
                                  .index = args->node_regexp_node_pointer->child, .at = at, .run = run, .then = &frame);
     if (args->node_regexp_node_pointer->negated)
@@ -287,7 +287,7 @@ EMBED_INLINE int cli_on_look(const RegexpWalkCtx *args)
 
 int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
 {
-    args->run->steps += 1ull;
+    args->run->steps += 1ULL;
     if (args->run->steps > CLI_REGEXP_STEPS)
     {
         return 0;
@@ -304,13 +304,13 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
                (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
                            .index = args->index, .letter = args->run->text[args->at]) == 1) &&
                EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
-                          .then = args->then, .at = args->at + 1ull, .run = args->run);
+                          .then = args->then, .at = args->at + 1ULL, .run = args->run);
     case CLI_REGEXP_START:
-        return (args->at == 0ull) && cli_regexp_match_index_internal.regexp_then(args);
+        return (args->at == 0ULL) && cli_regexp_match_index_internal.regexp_then(args);
     case CLI_REGEXP_END:
         return (args->at == args->run->length) && cli_regexp_match_index_internal.regexp_then(args);
     case CLI_REGEXP_BOUNDARY: {
-        const int before = (args->at > 0ull) && EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx,
+        const int before = (args->at > 0ULL) && EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx,
                                                            .letter = args->run->text[args->at - 1u]);
         const int after =
             (args->at < args->run->length) &&
@@ -377,7 +377,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
         {
             return 0;
         }
-        for (unsigned long long step = 0ull; step < length; step += 1ull)
+        for (unsigned long long step = 0ULL; step < length; step += 1ULL)
         {
             if (!EMBED_CALL(cli_regexp_match_a_internal.regexp_same, CliRegexpMatchACtx, .regexp = args->regexp,
                             .a = args->run->text[from + step], .b = args->run->text[args->at + step]))
@@ -393,7 +393,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
 
 int cli_regexp_match_into(const CliRegexpTextU32sCfg *args)
 {
-    if (args->regexp->anchored && (args->at != 0ull))
+    if (args->regexp->anchored && (args->at != 0ULL))
     {
         return 0;
     }
@@ -411,14 +411,14 @@ int cli_regexp_match_into(const CliRegexpTextU32sCfg *args)
     CliRegexpRun run = {args->text_u32s,
                         args->length,
                         args->groups,
-                        0ull,
-                        0ull,
+                        0ULL,
+                        0ULL,
                         (uintptr_t)&mark,
                         ends,
-                        0ull,
+                        0ULL,
                         CLI_REGEXP_ENDS_STACKED,
                         0};
-    const CliRegexpThen end = {CLI_THEN_END, 0u, 0u, 0u, 0ull, NULL};
+    const CliRegexpThen end = {CLI_THEN_END, 0u, 0u, 0u, 0ULL, NULL};
     const int found =
         EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx, .regexp = args->regexp,
                    .index = args->regexp->root, .at = args->at, .run = &run, .then = &end);

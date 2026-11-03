@@ -31,15 +31,15 @@
 
 // the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
 // the sleep
-#define CLI_WAKE_RECHECK_MS 10ull
+#define CLI_WAKE_RECHECK_MS 10ULL
 
 // a sleep of `milliseconds` on the wake's word, ended early where the word moves off `seen`: 1 where it moved
 static int wake_sleep(CliWake *wake, unsigned int seen, unsigned long long milliseconds)
 {
     struct timespec span;
     // the seconds and nanoseconds to wait, each within what a time_t and a long represent
-    span.tv_sec = (time_t)(milliseconds / 1000ull);
-    span.tv_nsec = (long)((milliseconds % 1000ull) * 1000000ull);
+    span.tv_sec = (time_t)(milliseconds / 1000ULL);
+    span.tv_nsec = (long)((milliseconds % 1000ULL) * 1000000ULL);
 #if defined(__linux__)
     (void)syscall(SYS_futex, &wake->generation, FUTEX_WAIT_PRIVATE, seen, &span, NULL, 0);
 #else
@@ -74,6 +74,7 @@ void cli_wake_wait_seen(const CliWakeCtx *args)
 {
     while (!wake_sleep(args->wake, args->seen, CLI_WAKE_RECHECK_MS))
     {
+        // each pass sleeps on the wake and reads it again
     }
 }
 
@@ -149,6 +150,6 @@ unsigned int cli_processors(void)
 {
     const long count = sysconf(_SC_NPROCESSORS_ONLN);
     // a count of processors is positive and small, which an unsigned int stores
-    return (count > 0l) ? (unsigned int)count : 1u;
+    return (count > 0L) ? (unsigned int)count : 1u;
 }
 #endif

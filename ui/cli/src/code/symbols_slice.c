@@ -152,7 +152,7 @@ EMBED_INLINE void cli_slice_names_get(const SymbolsSliceCtx *args)
         const unsigned long long is = read->leaf[leaf].is;
         if (((is & named) != 0u) && ((is & passed) == 0u))
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                 .read_read = read, .leaf = leaf, .length_pointer = &length);
             EMBED_CALL(cli_slice_name_append, SymbolsSliceCtx, .slice = args->slice, .text = text, .length = length);
@@ -402,7 +402,7 @@ EMBED_INLINE void cli_slice_locals(const SymbolsSliceCtx *args)
             {
                 continue;
             }
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                 .read_read = read, .leaf = each, .length_pointer = &length);
             for (unsigned int at = 0u; at < args->slice->names; at += 1u)
@@ -462,8 +462,8 @@ EMBED_INLINE void cli_slice_lines_dispatch(const SymbolsSliceCtx *args)
     unsigned int leaf = args->first;
     for (unsigned int line = read->leaf[args->first].line; line <= last; line += 1u)
     {
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
         int any = 0;
         while ((leaf < end) && (read->leaf[leaf].line == line))
         {
@@ -536,12 +536,12 @@ EMBED_INLINE void cli_slice_dispatch(const SymbolsSliceCtx *args)
         const CliLeafRead *const read = open_read[opens - 1u];
         const unsigned int closer =
             EMBED_CALL(cli_slice_closer, SymbolsSliceCtx, .read = read, .open = open_leaf[opens - 1u]);
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const text = (closer < read->count)
                                      ? EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                   .read_read = read, .leaf = closer, .length_pointer = &length)
                                      : "";
-        if (length > 0ull)
+        if (length > 0ULL)
         {
             EMBED_CALL(args->each, CliSliceLineCfg, .context = args->context, .path = NULL, .line = CLI_SLICE_NOWHERE,
                        .text = text, .length = length);

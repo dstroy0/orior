@@ -36,24 +36,24 @@ EMBED_INLINE int cli_trust_file(const TrustCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, home);
     mmgr_line_put(&line, "/trust.json");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 // A folder as the answers are stored by into `key`, sized for CLI_PATH_MAX_LEN: its path with `/` between its parts,
 // and in lower case where the system does not distinguish the cases
 EMBED_INLINE void cli_key(const TrustCtx *args)
 {
-    VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
 #if defined(_WIN32)
     static unsigned int s_letters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}),
                    .letters = s_letters, .capacity_u64 = CLI_PATH_MAX_LEN);
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                    .letter = (s_letters[at] == '\\')
@@ -88,10 +88,10 @@ EMBED_INLINE void cli_state_read(const TrustCtx *args)
     unsigned int *trusted = args->trusted;
     unsigned int *refused = args->refused;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = json, .path = path,
-                   .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_machine_cells);
+                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_machine_cells);
     const int object = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                   .node = root, .kind = CFG_JSON_OBJECT);
     *trusted = object ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -114,7 +114,7 @@ EMBED_INLINE void cli_state_read(const TrustCtx *args)
 EMBED_INLINE unsigned long long cli_nearest(const TrustCtx *args)
 {
     const CliJson *json = args->json_read;
-    unsigned long long nearest = 0ull;
+    unsigned long long nearest = 0ULL;
     for (unsigned int item = (args->list != CLI_JSON_NONE) ? json->node[args->list].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
@@ -122,9 +122,9 @@ EMBED_INLINE unsigned long long cli_nearest(const TrustCtx *args)
                                               .json_read = json, .node = item, .length_pointer = NULL);
         if ((folder != NULL) &&
             EMBED_CALL(cli_trust_folder_inner.under, CliTrustFolderInnerCfg, .inner = args->tree, .folder = folder) &&
-            ((cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ull) > nearest))
+            ((cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ULL) > nearest))
         {
-            nearest = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ull;
+            nearest = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ULL;
         }
     }
     return nearest;
@@ -145,7 +145,7 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = no, .tree = key);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     *trusted = by_trusted > by_refused;
-    return (by_trusted != 0ull) || (by_refused != 0ull);
+    return (by_trusted != 0ULL) || (by_refused != 0ULL);
 }
 
 int cli_trust_answer(const CliTrustTreeCfg *args)

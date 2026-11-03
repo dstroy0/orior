@@ -18,7 +18,7 @@
 // the menus open at once at the most; a pointer's rest on a row before its items open or a sibling's close; and the
 // bytes of the rows read as a menu opens
 #define CONTROLLER_MENU_LEVELS 4u
-#define CONTROLLER_MENU_REST_MS 180ull
+#define CONTROLLER_MENU_REST_MS 180ULL
 #define CONTROLLER_ROWS_BYTES ((unsigned long long)CLI_ITEMS_MAX * sizeof(CliItem))
 
 // An open menu: its rows in a cell sized to them, the row marked and the row whose items are open under it, each -1 for
@@ -102,7 +102,7 @@ EMBED_INLINE int commands_name_among(const ControllerCommandsCtx *args)
 // whether `name` is `required`
 EMBED_INLINE int commands_by_name(const ControllerCommandsCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ull});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ULL});
 }
 
 // whether the item cannot be chosen: it needs a file open while none is, it is never chosen, or it has no command
@@ -212,7 +212,7 @@ EMBED_INLINE void commands_folded_read(const ControllerCommandsCtx *args)
 // the menus from `level` on closed
 EMBED_INLINE void commands_closed_from(const ControllerCommandsCtx *args)
 {
-    s_menus.rest_due_ms = 0ull;
+    s_menus.rest_due_ms = 0ULL;
     if (args->level < s_menus.levels)
     {
         for (unsigned int at = args->level; at < s_menus.levels; at += 1u)
@@ -295,7 +295,7 @@ int cli_model_catalog_read(const CliModelCtx *args)
 {
     (void)args;
     char why[256];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg))
     {
         return 0;
@@ -357,29 +357,29 @@ EMBED_INLINE const char *commands_mods_read(const ControllerCommandsCtx *args)
     *args->mods = 0u;
     for (;;)
     {
-        if ((length >= 5ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Ctrl+", .bytes = 5u}) == 0))
+        if ((length >= 5ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Ctrl+", .bytes = 5u}) == 0))
         {
             *args->mods |= CONTROLLER_MOD;
             name += 5;
-            length -= 5ull;
+            length -= 5ULL;
         }
-        else if ((length >= 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Mod+", .bytes = 4u}) == 0))
+        else if ((length >= 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Mod+", .bytes = 4u}) == 0))
         {
             *args->mods |= CONTROLLER_MOD;
             name += 4;
-            length -= 4ull;
+            length -= 4ULL;
         }
-        else if ((length >= 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Alt+", .bytes = 4u}) == 0))
+        else if ((length >= 4ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Alt+", .bytes = 4u}) == 0))
         {
             *args->mods |= CONTROLLER_ALT;
             name += 4;
-            length -= 4ull;
+            length -= 4ULL;
         }
-        else if ((length >= 6ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Shift+", .bytes = 6u}) == 0))
+        else if ((length >= 6ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "Shift+", .bytes = 6u}) == 0))
         {
             *args->mods |= CONTROLLER_SHIFT;
             name += 6;
-            length -= 6ull;
+            length -= 6ULL;
         }
         else
         {
@@ -393,15 +393,15 @@ EMBED_INLINE const char *commands_mods_read(const ControllerCommandsCtx *args)
 EMBED_INLINE int commands_keys_name(const ControllerCommandsCtx *args)
 {
     unsigned int item_mods = 0u;
-    unsigned long long item_rest = 0ull;
+    unsigned long long item_rest = 0ULL;
     const char *const item_key = EMBED_CALL(commands_mods_read, ControllerCommandsCtx, .name = args->keys,
                                             .length = args->keys_length, .mods = &item_mods, .rest = &item_rest);
     unsigned int mods = 0u;
-    unsigned long long rest = 0ull;
+    unsigned long long rest = 0ULL;
     const char *const key = EMBED_CALL(commands_mods_read, ControllerCommandsCtx, .name = args->name,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = 64ull}),
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = 64ULL}),
                                        .mods = &mods, .rest = &rest);
-    return (item_rest != 0ull) && (item_rest == rest) && (item_mods == mods) &&
+    return (item_rest != 0ULL) && (item_rest == rest) && (item_mods == mods) &&
            (memor.cmp(&(MemoriaCfg){.src = item_key, .other = key, .bytes = rest}) == 0);
 }
 
@@ -413,17 +413,17 @@ EMBED_INLINE const char *commands_key_read(const ControllerCommandsCtx *args)
     *args->modded = 0;
     for (;;)
     {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Alt+", .cap = 64ull}))
+        if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Alt+", .cap = 64ULL}))
         {
             *args->alt = 1;
             name += 4;
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Mod+", .cap = 64ull}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Mod+", .cap = 64ULL}))
         {
             *args->modded = 1;
             name += 4;
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Shift+", .cap = 64ull}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Shift+", .cap = 64ULL}))
         {
             *args->modded = 1;
             name += 6;
@@ -656,14 +656,14 @@ EMBED_INLINE int commands_colon_number(const ControllerCommandsCtx *args)
     const unsigned long long after = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                 .text = args->name, .at = args->length, .set = ":");
     const int digits =
-        (after > 1ull) && (after < args->length) &&
+        (after > 1ULL) && (after < args->length) &&
         (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name, .at = after,
                     .size = args->length, .classes = CLI_TEXT_DIGITS, .set = "") == args->length);
     if (digits)
     {
         *args->number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = after,
                                    .size = args->length, .end = NULL);
-        *args->colon = after - 1ull;
+        *args->colon = after - 1ULL;
     }
     return digits;
 }
@@ -673,16 +673,16 @@ EMBED_INLINE int commands_colon_number(const ControllerCommandsCtx *args)
 EMBED_INLINE void commands_file_open(const ControllerCommandsCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)});
-    unsigned long long first = 0ull;
-    unsigned long long second = 0ull;
-    unsigned long long colon = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long second = 0ULL;
+    unsigned long long colon = 0ULL;
     int numbers = 0;
     if (EMBED_CALL(commands_colon_number, ControllerCommandsCtx, .name = path, .length = length, .number = &second,
                    .colon = &colon))
@@ -698,10 +698,10 @@ EMBED_INLINE void commands_file_open(const ControllerCommandsCtx *args)
     }
     path[length] = '\0';
     const unsigned long long place_line = (numbers == 2) ? first : second;
-    const unsigned long long place_col = (numbers == 2) ? second : 1ull;
+    const unsigned long long place_col = (numbers == 2) ? second : 1ULL;
     EMBED_CALL(cli_model.file_open, CliModelCtx, .path = path, .placed = numbers != 0,
-               .line = (place_line != 0ull) ? (place_line - 1ull) : 0ull,
-               .col = (place_col != 0ull) ? (place_col - 1ull) : 0ull);
+               .line = (place_line != 0ULL) ? (place_line - 1ULL) : 0ULL,
+               .col = (place_col != 0ULL) ? (place_col - 1ULL) : 0ULL);
 }
 
 int cli_model_command_named(const CliModelCtx *args)
@@ -754,7 +754,7 @@ EMBED_INLINE int commands_tool_key(const ControllerCommandsCtx *args)
         const char *const keys = g_cli_tools[at].keys;
         if ((keys[0] != '\0') &&
             EMBED_CALL(commands_keys_name, ControllerCommandsCtx, .keys = keys,
-                       .keys_length = cellul.len(&(CatenaFinitaCfg){.src = keys, .cap = 32ull}), .name = args->name))
+                       .keys_length = cellul.len(&(CatenaFinitaCfg){.src = keys, .cap = 32ULL}), .name = args->name))
         {
             // the tools are fewer than an int counts
             return (int)at;
@@ -871,7 +871,7 @@ void cli_model_menu_input(const CliModelCtx *args)
             const int closes = !more && (s_menus.levels > (input->level + 1u));
             s_menus.rest_level = input->level;
             s_menus.rest_index = opens ? index : -1;
-            s_menus.rest_due_ms = (opens || closes) ? (now_ms + CONTROLLER_MENU_REST_MS) : 0ull;
+            s_menus.rest_due_ms = (opens || closes) ? (now_ms + CONTROLLER_MENU_REST_MS) : 0ULL;
             g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MENUS);
         }
     }
@@ -892,11 +892,11 @@ unsigned long long cli_model_menu_due_ms(const CliModelCtx *args)
 int cli_model_menu_step(const CliModelCtx *args)
 {
     (void)args;
-    if ((s_menus.rest_due_ms == 0ull) || (cli_clock_milliseconds() < s_menus.rest_due_ms))
+    if ((s_menus.rest_due_ms == 0ULL) || (cli_clock_milliseconds() < s_menus.rest_due_ms))
     {
         return 0;
     }
-    s_menus.rest_due_ms = 0ull;
+    s_menus.rest_due_ms = 0ULL;
     if (s_menus.rest_index >= 0)
     {
         // the index saved is a row's
@@ -914,13 +914,13 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
 {
     (void)args;
     // the titles' pointers and labels, the levels, and each level's rows with their labels and keys, counted then laid
-    unsigned long long texts = 0ull;
-    unsigned long long rows = 0ull;
+    unsigned long long texts = 0ULL;
+    unsigned long long rows = 0ULL;
     for (unsigned int at = 0u; at < s_menus.titles; at += 1u)
     {
         texts +=
             cellul.len(&(CatenaFinitaCfg){.src = s_menus.title[s_menus.title_menu[at]], .cap = CLI_LABEL_MAX_LEN}) +
-            1ull;
+            1ULL;
     }
     for (unsigned int level = 0u; level < s_menus.levels; level += 1u)
     {
@@ -929,7 +929,7 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
         {
             const CliItem *const item = &s_menus.menu[level].row[at];
             texts += cellul.len(&(CatenaFinitaCfg){.src = item->label, .cap = CLI_LABEL_MAX_LEN}) +
-                     cellul.len(&(CatenaFinitaCfg){.src = item->keys, .cap = CLI_LABEL_MAX_LEN}) + 2ull;
+                     cellul.len(&(CatenaFinitaCfg){.src = item->keys, .cap = CLI_LABEL_MAX_LEN}) + 2ULL;
         }
     }
     CliMenus *const menus = g_cli_cells->persistent_buf_alloc(
@@ -950,7 +950,7 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
     for (unsigned int at = 0u; at < s_menus.titles; at += 1u)
     {
         const char *const title = s_menus.title[s_menus.title_menu[at]];
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_LABEL_MAX_LEN}) + 1ull;
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_LABEL_MAX_LEN}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = title, .bytes = size});
         menus->title[at] = text;
         text += size;
@@ -963,9 +963,9 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
         {
             const CliItem *const item = &menu->row[at];
             const unsigned long long label =
-                cellul.len(&(CatenaFinitaCfg){.src = item->label, .cap = CLI_LABEL_MAX_LEN}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = item->label, .cap = CLI_LABEL_MAX_LEN}) + 1ULL;
             const unsigned long long keys =
-                cellul.len(&(CatenaFinitaCfg){.src = item->keys, .cap = CLI_LABEL_MAX_LEN}) + 1ull;
+                cellul.len(&(CatenaFinitaCfg){.src = item->keys, .cap = CLI_LABEL_MAX_LEN}) + 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = text, .src = item->label, .bytes = label});
             memor.cpy(&(MemoriaCfg){.dst = text + label, .src = item->keys, .bytes = keys});
             row[at] = (CliMenuRow){item->line           ? CLI_MENU_ROW_LINE

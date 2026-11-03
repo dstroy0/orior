@@ -14,7 +14,7 @@
 int cli_file_begin(const CliPathFileCtx *args)
 {
     static unsigned long long s_count;
-    s_count += 1ull;
+    s_count += 1ULL;
     const unsigned long long count = s_count;
     char adjacent[CLI_WRITING_MAX_LEN];
     VerbaLinea named = {adjacent, sizeof(adjacent), 0u, NULL, NULL, 0u};
@@ -66,7 +66,7 @@ int cli_file_pieces_write(const CliPathCountCtx *args)
             mmgr_line_put_n(&line, (const char *)args->pieces[at].bytes, args->pieces[at].size);
             continue;
         }
-        for (unsigned long long left = args->pieces[at].size; left > 0ull;)
+        for (unsigned long long left = args->pieces[at].size; left > 0ULL;)
         {
             const unsigned long long piece = (left < sizeof(s_zeros)) ? left : sizeof(s_zeros);
             mmgr_line_put_n(&line, s_zeros, piece);

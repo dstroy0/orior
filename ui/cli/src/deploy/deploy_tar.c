@@ -72,7 +72,7 @@ EMBED_INLINE void tar_header(const DeployTarCtx *args)
     args->header[156] = (unsigned char)args->kind;
     memor.cpy(&(MemoriaCfg){.dst = args->header + 257, .src = "ustar", .bytes = 6u});
     memor.cpy(&(MemoriaCfg){.dst = args->header + 263, .src = "00", .bytes = 2u});
-    unsigned long long sum = 0ull;
+    unsigned long long sum = 0ULL;
     for (unsigned int at = 0u; at < CLI_DEPLOY_BLOCK; at += 1u)
     {
         sum += args->header[at];
@@ -98,7 +98,7 @@ EMBED_INLINE int tar_append(const DeployTarCtx *args)
 EMBED_INLINE int tar_pax(const DeployTarCtx *args)
 {
     char record[CLI_PATH_MAX_LEN + 16u];
-    VerbaLinea record_line = {record, sizeof(record), 0ull};
+    VerbaLinea record_line = {record, sizeof(record), 0ULL};
     mmgr_line_put(&record_line, " path=");
     mmgr_line_put(&record_line, args->name);
     mmgr_line_ch(&record_line, '\n');
@@ -107,7 +107,7 @@ EMBED_INLINE int tar_pax(const DeployTarCtx *args)
     for (;;)
     {
         char digits[24];
-        VerbaLinea digits_line = {digits, sizeof(digits), 0ull};
+        VerbaLinea digits_line = {digits, sizeof(digits), 0ULL};
         mmgr_line_decimal(&digits_line, length, 1u);
         if (digits_line.at + record_line.at == length)
         {
@@ -116,7 +116,7 @@ EMBED_INLINE int tar_pax(const DeployTarCtx *args)
         length = digits_line.at + record_line.at;
     }
     char pax[CLI_PATH_MAX_LEN + 48u];
-    VerbaLinea pax_line = {pax, sizeof(pax), 0ull};
+    VerbaLinea pax_line = {pax, sizeof(pax), 0ULL};
     mmgr_line_decimal(&pax_line, length, 1u);
     mmgr_line_put_n(&pax_line, record, record_line.at);
     unsigned char header[CLI_DEPLOY_BLOCK];
@@ -150,7 +150,7 @@ EMBED_INLINE int tar_is_preserve(const DeployTarCtx *args)
 int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
 {
     const CliDeployRun *const run = &g_cli_deploy;
-    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->path, .bytes = "", .size = 0ull,
+    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->path, .bytes = "", .size = 0ULL,
                     .fresh = 1))
     {
         mmgr_line_put(args->err_msg, args->path);
@@ -166,10 +166,10 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
             continue;
         }
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
-        VerbaLinea full_line = {full, sizeof(full), 0ull};
+        VerbaLinea full_line = {full, sizeof(full), 0ULL};
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = index, .out = &full_line);
         mmgr_line_finish(&full_line);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                       .size_pointer = &size, .owner = &g_cli_deploy_cells);
         if (bytes == NULL)

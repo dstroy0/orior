@@ -33,26 +33,26 @@ void cli_inspect_paint_layout(const CliInspectPartitionCtx *args)
     s_line_width = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
                               .partition = args->partition, .bytes = lines * sizeof(unsigned long long));
     s_folds = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
-                         .bytes = 4ull * lines * sizeof(PaintFold));
+                         .bytes = 4ULL * lines * sizeof(PaintFold));
 }
 
 void cli_inspect_paint_begin(const CliInspectSizeSrcParsedCtx *args)
 {
     s_lines = 0u;
-    unsigned long long columns = 0ull;
-    unsigned long long width = 0ull;
-    for (unsigned long long at = 0ull; at <= args->size;)
+    unsigned long long columns = 0ULL;
+    unsigned long long width = 0ULL;
+    for (unsigned long long at = 0ULL; at <= args->size;)
     {
         if ((at == args->size) || (args->src[at] == '\n'))
         {
             if (s_lines < CLI_INSPECT_LINES)
             {
                 s_line_start[s_lines] = columns;
-                s_line_width[s_lines] = ((columns + width) <= CLI_INSPECT_COLUMNS) ? width : 0ull;
+                s_line_width[s_lines] = ((columns + width) <= CLI_INSPECT_COLUMNS) ? width : 0ULL;
                 columns += s_line_width[s_lines];
                 s_lines += 1u;
             }
-            width = 0ull;
+            width = 0ULL;
             at += 1u;
             continue;
         }
@@ -72,7 +72,7 @@ void cli_inspect_paint(const CliInspectFromToCtx *args)
     for (unsigned int line = args->from.line; (s_lines > 0u) && (line <= last); line += 1u)
     {
         const unsigned long long width = s_line_width[line];
-        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ull;
+        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ULL;
         const unsigned long long end =
             (line == args->to.line) ? ((args->to.col < width) ? args->to.col : width) : width;
         const unsigned long long begin = (start < end) ? start : end;
@@ -102,7 +102,7 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
         const unsigned char *const columns = s_column + s_line_start[line];
         int has_run = 0;
         unsigned char class_of = 0u;
-        for (unsigned long long col = 0ull; col < s_line_width[line]; col += 1u)
+        for (unsigned long long col = 0ULL; col < s_line_width[line]; col += 1u)
         {
             if (has_run && (class_of == columns[col]))
             {

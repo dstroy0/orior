@@ -37,7 +37,7 @@ typedef struct
 EMBED_INLINE void toolchains_line_out(const CommandLineToolchainsCtx *args)
 {
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->line->out,
-               .size = mmgr_line_ok(args->line) ? args->line->at : 0ull);
+               .size = mmgr_line_ok(args->line) ? args->line->at : 0ULL);
 }
 
 // What the listing is writing: the toolchains found, and the widest id among them
@@ -79,21 +79,21 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
     const char *const install =
         EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "install");
     char text[CLI_TOOLCHAINS_LINE];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     const char *const named = (id != NULL) ? id : "";
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, named);
     for (unsigned long long letters =
              EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = named,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
-         letters < args->pixel_width; letters += 1ull)
+         letters < args->pixel_width; letters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
     }
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, displayed);
     for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL});
-         letters < 11ull; letters += 1ull)
+         letters < 11ULL; letters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
     }
@@ -121,7 +121,7 @@ static void toolchains_group(const CliEachGroupCfg *args)
 {
     const CliToolchainsListing *const list_entries = args->context;
     char text[CLI_TOOLCHAINS_LINE];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_ch(&line, '\n');
     mmgr_line_put(&line, args->group);
     EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
@@ -154,15 +154,15 @@ static int toolchains_list(void)
                .context_read = NULL, .out = &found);
     const unsigned long long found_size = mmgr_line_finish(&found);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     CliToolchainsListing list_entries = {
-        (found_size != 0ull) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+        (found_size != 0ULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                           .json = &s_json, .text = found_text, .size = found_size, .nodes_more = 0u,
-                                          .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_toolchains_words_cells)
+                                          .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_toolchains_words_cells)
                              : CLI_JSON_NONE,
-        0ull};
+        0ULL};
     g_cli_cells->persistent_buf_release(found_text, &g_cli_toolchains_words_cells);
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
                    .node = list_entries.found, .kind = CFG_JSON_ARRAY))
@@ -172,7 +172,7 @@ static int toolchains_list(void)
         {
             const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "id");
             const unsigned long long size =
-                (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) : 0ull;
+                (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) : 0ULL;
             list_entries.pixel_width = (size > list_entries.pixel_width) ? size : list_entries.pixel_width;
         }
         EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group,
@@ -182,16 +182,16 @@ static int toolchains_list(void)
     char folder[CLI_PATH_MAX_LEN];
     int on_path = 0;
     char err_buf[1024];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (!EMBED_CALL(cli_toolchains_err_msg_folder_on_path.own, CliToolchainsErrMsgFolderOnPathCfg, .folder = folder,
                     .on_path = &on_path, .err_msg = &err_msg))
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = err_buf,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return 0;
     }
     char text[CLI_TOOLCHAINS_LINE];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, on_path ? "\norior_cli is on PATH: "
                                  : "\norior_cli is not on PATH: orior_cli file toolchains add-path orior_cli adds ");
     mmgr_line_put(&line, folder);
@@ -205,11 +205,11 @@ EMBED_INLINE int toolchains_finish(const CommandLineToolchainsCtx *args)
     if (args->done)
     {
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->out->out,
-                   .size = mmgr_line_ok(args->out) ? args->out->at : 0ull);
+                   .size = mmgr_line_ok(args->out) ? args->out->at : 0ULL);
         return 0;
     }
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->err_msg->out,
-               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
+               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
     return CLI_NO_CODE;
 }
 
@@ -220,20 +220,20 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     VerbaLinea *out = args->out_out;
     VerbaLinea *err_msg = args->err_msg_out;
     char setup_line[CLI_TOOLCHAINS_LINE];
-    VerbaLinea setup = {setup_line, sizeof(setup_line), 0ull};
+    VerbaLinea setup = {setup_line, sizeof(setup_line), 0ULL};
     const int has_setup = EMBED_CALL(cli_toolchains_id_err_msg.setup_line, CliToolchainsIdErrMsgCfg, .id = id,
                                      .out = &setup, .err_msg = err_msg);
     if (!has_setup || (mmgr_line_finish(&setup) == 0u))
     {
-        err_msg->at = 0ull;
+        err_msg->at = 0ULL;
         char url_text[CLI_PATH_MAX_LEN * 4u];
-        VerbaLinea url = {url_text, sizeof(url_text), 0ull};
+        VerbaLinea url = {url_text, sizeof(url_text), 0ULL};
         const int opened = EMBED_CALL(cli_toolchains_id_err_msg.open_install, CliToolchainsIdErrMsgCfg, .id = id,
                                       .out = &url, .err_msg = err_msg);
         if (opened)
         {
             mmgr_line_put(out, "opened ");
-            mmgr_line_put_n(out, url_text, mmgr_line_ok(&url) ? url.at : 0ull);
+            mmgr_line_put_n(out, url_text, mmgr_line_ok(&url) ? url.at : 0ULL);
         }
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = opened, .out = out, .err_msg = err_msg);
     }
@@ -247,15 +247,15 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
     }
     char displayed_text[CLI_TOOLCHAINS_LINE + 2u];
-    VerbaLinea displayed = {displayed_text, sizeof(displayed_text), 0ull};
+    VerbaLinea displayed = {displayed_text, sizeof(displayed_text), 0ULL};
     mmgr_line_put(&displayed, "$ ");
     mmgr_line_put(&displayed, setup_line);
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = displayed_text,
-               .size = mmgr_line_ok(&displayed) ? displayed.at : 0ull);
+               .size = mmgr_line_ok(&displayed) ? displayed.at : 0ULL);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
     const CliSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};
-    long long code = 0ll;
+    long long code = 0LL;
     const int spawned =
         EMBED_CALL(cli_words_err_msg_settings_internal.spawn_share, CliWordsErrMsgSettingsCtx, .words = words,
                    .settings = &setting, .count = 1u, .code = &code, .err_msg = err_msg);
@@ -264,15 +264,15 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     {
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
     }
-    return (code >= 0ll) ? (int)code : CLI_NO_CODE;
+    return (code >= 0LL) ? (int)code : CLI_NO_CODE;
 }
 
 int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
 {
     char out_text[CLI_PATH_MAX_LEN * 4u];
     char err_buf[CLI_PATH_MAX_LEN * 4u];
-    VerbaLinea out = {out_text, sizeof(out_text), 0ull};
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea out = {out_text, sizeof(out_text), 0ULL};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     const char *const first = (args->count > 0u) ? args->words[0] : NULL;
     const char *const second = (args->count > 1u) ? args->words[1] : NULL;
     if ((first != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add", .cap = CLI_CELLS_POOL})))

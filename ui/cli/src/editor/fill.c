@@ -12,13 +12,10 @@ const char **g_cli_fill_slice;
 unsigned long long *g_cli_fill_slice_size;
 unsigned int g_cli_fill_slices;
 
-// the marks a comment line starts with, the longest first
-static const char *const s_marks[6] = {"///", "//!", "//", "##", "#", "--"};
-
 int cli_fill_line_at(const CliFillTextSizeCtx *args)
 {
     unsigned int index = args->index;
-    args->line->start = 0ull;
+    args->line->start = 0ULL;
     args->line->index = 0u;
     for (;;)
     {
@@ -85,7 +82,7 @@ void cli_filled_begin(const CliFillSizeCtx *args)
 const char *cli_filled_last(const CliFillFilledSizeCtx *args)
 {
     unsigned long long *size = args->size_pointer;
-    *size = (args->filled_read->lines > 0u) ? args->filled_read->out->at - args->filled_read->line_start : 0ull;
+    *size = (args->filled_read->lines > 0u) ? args->filled_read->out->at - args->filled_read->line_start : 0ULL;
     return args->filled_read->out->out + args->filled_read->line_start;
 }
 
@@ -102,7 +99,7 @@ void cli_filled_drop(const CliFillTextCtx *args)
         return;
     }
     args->filled->lines -= 1u;
-    args->filled->out->at = (args->filled->lines > 0u) ? args->filled->line_start - 1u : 0ull;
+    args->filled->out->at = (args->filled->lines > 0u) ? args->filled->line_start - 1u : 0ULL;
     unsigned long long start = args->filled->out->at;
     if (args->filled->lines > 0u)
     {
@@ -149,9 +146,9 @@ void cli_fill_words(const CliFillFilledCtx *args)
     {
         const char *const text = g_cli_fill_slice[at];
         const unsigned long long size = g_cli_fill_slice_size[at];
-        unsigned long long walk = 0ull;
-        unsigned long long word = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long walk = 0ULL;
+        unsigned long long word = 0ULL;
+        unsigned long long length = 0ULL;
         while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size,
                           .at_pointer = &walk, .word = &word, .length = &length))
         {

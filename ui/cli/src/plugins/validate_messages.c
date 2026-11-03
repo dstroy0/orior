@@ -62,17 +62,17 @@ EMBED_INLINE void messages_trim(const ValidateMessagesCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *length = args->length_pointer;
-    while ((*length > 0ull) && (cellul.chr(&(CatenaFinitaCfg){
+    while ((*length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
                                     .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start]}) != NULL))
     {
-        *start += 1ull;
-        *length -= 1ull;
+        *start += 1ULL;
+        *length -= 1ULL;
     }
-    while ((*length > 0ull) &&
+    while ((*length > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start + *length - 1ull]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start + *length - 1ULL]}) != NULL))
     {
-        *length -= 1ull;
+        *length -= 1ULL;
     }
 }
 
@@ -93,18 +93,18 @@ EMBED_INLINE int messages_position(const ValidateMessagesCtx *args)
     }
     const char *const text = json->text + json->node[member].text;
     const unsigned long long length = json->node[member].length;
-    unsigned long long sum = 0ull;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    unsigned long long sum = 0ULL;
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        if ((text[at] < '0') || (text[at] > '9') || (sum > (~0ull - digit) / 10ull))
+        if ((text[at] < '0') || (text[at] > '9') || (sum > (~0ULL - digit) / 10ULL))
         {
             return 0;
         }
-        sum = (sum * 10ull) + digit;
+        sum = (sum * 10ULL) + digit;
     }
     *value = sum;
-    return length > 0ull;
+    return length > 0ULL;
 }
 
 // a text put in the messages' texts: its place, or CLI_VALIDATE_NONE where it does not fit
@@ -144,13 +144,13 @@ EMBED_INLINE void messages_append(const ValidateMessagesCtx *args)
 void cli_validate_messages_get(const CliValidateSizeCtx *args)
 {
     static char s_loose[CLI_VALIDATE_LOOSE];
-    VerbaLinea loose = {s_loose, sizeof(s_loose), 0ull};
+    VerbaLinea loose = {s_loose, sizeof(s_loose), 0ULL};
     args->messages->count = 0u;
-    args->messages->used = 0ull;
+    args->messages->used = 0ULL;
     CliJson json;
-    unsigned long long at = 0ull;
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long start = 0ULL;
+    unsigned long long length = 0ULL;
     while (EMBED_CALL(messages_line, ValidateMessagesCtx, .text = args->output, .size = args->size, .at = &at,
                       .start = &start, .length_pointer = &length))
     {
@@ -158,7 +158,7 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
                    .node_json_node_pointer = g_cli_validate->line_nodes, .nodes_max = CLI_VALIDATE_LINE_NODES,
                    .text_out = g_cli_validate->line_text, .text_max = CLI_VALIDATE_LINE_TEXT);
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea unread = {why, sizeof(why), 0ull};
+        VerbaLinea unread = {why, sizeof(why), 0ULL};
         const unsigned int value =
             EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
                        .text = args->output + start, .size = length, .tokens = g_cli_validate->line_tokens,
@@ -167,28 +167,28 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
         {
             EMBED_CALL(messages_trim, ValidateMessagesCtx, .text = args->output, .start = &start,
                        .length_pointer = &length);
-            if (length > 0ull)
+            if (length > 0ULL)
             {
-                mmgr_line_put(&loose, (loose.at > 0ull) ? "\n" : "");
+                mmgr_line_put(&loose, (loose.at > 0ULL) ? "\n" : "");
                 mmgr_line_put_n(&loose, args->output + start, length);
             }
             continue;
         }
-        unsigned long long line = 1ull;
-        unsigned long long col = 0ull;
-        unsigned long long end_line = 0ull;
-        unsigned long long end_col = 0ull;
+        unsigned long long line = 1ULL;
+        unsigned long long col = 0ULL;
+        unsigned long long end_line = 0ULL;
+        unsigned long long end_col = 0ULL;
         (void)EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
                          .part = "line", .value = &line);
         (void)EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
                          .part = "column", .value = &col);
         // lines from 1 are read as lines from 0, a 32-bit number's wrapping as Rust's has it
         CliProverMessage message;
-        message.line = (unsigned int)((line > 1ull) ? line : 1ull) - 1u;
+        message.line = (unsigned int)((line > 1ULL) ? line : 1ULL) - 1u;
         message.col = (unsigned int)col;
         message.end_line = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
                                       .key = "endPos", .part = "line", .value = &end_line)
-                               ? (unsigned int)((end_line > 1ull) ? end_line : 1ull) - 1u
+                               ? (unsigned int)((end_line > 1ULL) ? end_line : 1ULL) - 1u
                                : message.line;
         message.end_col = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
                                      .key = "endPos", .part = "column", .value = &end_col)
@@ -204,8 +204,8 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
             : (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "error", .cap = CLI_CELLS_POOL}))   ? 1u
             : (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "warning", .cap = CLI_CELLS_POOL})) ? 2u
                                                                                                           : 3u;
-        unsigned long long text_size = 0ull;
-        unsigned long long kind_size = 0ull;
+        unsigned long long text_size = 0ULL;
+        unsigned long long kind_size = 0ULL;
         const char *const text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -220,11 +220,11 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
                    .text = (text != NULL) ? text : "", .text_size = text_size, .kind = (kind != NULL) ? kind : "",
                    .kind_size = kind_size);
     }
-    if (loose.at > 0ull)
+    if (loose.at > 0ULL)
     {
-        CliProverMessage message = {1u, 0u, 0u, 0u, 1u, 0ull, 0ull, 0ull, 0ull};
+        CliProverMessage message = {1u, 0u, 0u, 0u, 1u, 0ULL, 0ULL, 0ULL, 0ULL};
         EMBED_CALL(messages_append, ValidateMessagesCtx, .messages = args->messages, .message = &message,
-                   .text = s_loose, .text_size = loose.at, .kind = "", .kind_size = 0ull);
+                   .text = s_loose, .text_size = loose.at, .kind = "", .kind_size = 0ULL);
     }
 }
 
@@ -281,32 +281,32 @@ int cli_validate_axioms_get(const CliValidateTextCtx *args)
     unsigned long long *name_size = args->name_size;
     unsigned long long *list = args->list;
     unsigned long long *list_size = args->list_size;
-    if ((args->size == 0ull) || (args->text[0] != '\''))
+    if ((args->size == 0ULL) || (args->text[0] != '\''))
     {
         return 0;
     }
-    const char *const closed = memor.chr(&(MemoriaCfg){.src = args->text + 1, .val = '\'', .bytes = args->size - 1ull});
-    *name = 1ull;
-    *name_size = ((closed != NULL) ? (unsigned long long)(closed - args->text) : args->size) - 1ull;
-    *list = 0ull;
-    *list_size = 0ull;
+    const char *const closed = memor.chr(&(MemoriaCfg){.src = args->text + 1, .val = '\'', .bytes = args->size - 1ULL});
+    *name = 1ULL;
+    *name_size = ((closed != NULL) ? (unsigned long long)(closed - args->text) : args->size) - 1ULL;
+    *list = 0ULL;
+    *list_size = 0ULL;
     if (EMBED_CALL(cli_validate_text_length_internal.contains, CliValidateTextLengthCtx, .text = args->text,
                    .length = args->size, .part = "does not depend on any axioms"))
     {
         return 1;
     }
     static const char s_mark[] = "depends on axioms:";
-    unsigned long long at = 0ull;
-    while ((at + sizeof(s_mark) - 1ull <= args->size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = s_mark, .bytes = sizeof(s_mark) - 1ull}) != 0))
+    unsigned long long at = 0ULL;
+    while ((at + sizeof(s_mark) - 1ULL <= args->size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = s_mark, .bytes = sizeof(s_mark) - 1ULL}) != 0))
     {
-        at += 1ull;
+        at += 1ULL;
     }
-    if (at + sizeof(s_mark) - 1ull > args->size)
+    if (at + sizeof(s_mark) - 1ULL > args->size)
     {
         return 0;
     }
-    unsigned long long start = at + sizeof(s_mark) - 1ull;
+    unsigned long long start = at + sizeof(s_mark) - 1ULL;
     unsigned long long length = args->size - start;
     EMBED_CALL(messages_trim, ValidateMessagesCtx, .text = args->text, .start = &start, .length_pointer = &length);
     const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
@@ -326,7 +326,7 @@ int cli_validate_axioms_get(const CliValidateTextCtx *args)
 EMBED_INLINE void copy_line(const ValidateMessagesCtx *args)
 {
     char line_buf[8192];
-    VerbaLinea work_line = {line_buf, sizeof(line_buf), 0ull};
+    VerbaLinea work_line = {line_buf, sizeof(line_buf), 0ULL};
     mmgr_line_put_n(&work_line, args->line, args->length);
     if (!mmgr_line_ok(&work_line))
     {
@@ -337,36 +337,36 @@ EMBED_INLINE void copy_line(const ValidateMessagesCtx *args)
     for (unsigned int option = 0u; option < args->count; option += 1u)
     {
         char set[512];
-        VerbaLinea set_line = {set, sizeof(set), 0ull};
+        VerbaLinea set_line = {set, sizeof(set), 0ULL};
         mmgr_line_put(&set_line, "set_option ");
         mmgr_line_put(&set_line, args->names[option]);
         mmgr_line_ch(&set_line, ' ');
         const unsigned long long set_size = set_line.at;
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while ((at + set_size <= work_line.at) &&
                (memor.cmp(&(MemoriaCfg){.src = line_buf + at, .other = set, .bytes = set_size}) != 0))
         {
-            at += 1ull;
+            at += 1ULL;
         }
         if (at + set_size > work_line.at)
         {
             continue;
         }
         const unsigned long long digits_at = at + set_size;
-        unsigned long long digits = 0ull;
-        unsigned long long own = 0ull;
+        unsigned long long digits = 0ULL;
+        unsigned long long own = 0ULL;
         int fits = 1;
         unsigned long long end = digits_at;
         own = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = line_buf, .at = digits_at,
                          .size = work_line.at, .end = &end);
         digits = end - digits_at;
-        fits = digits <= 19ull;
-        if ((digits == 0ull) || !fits || (own == 0ull) || (own >= args->values[option]))
+        fits = digits <= 19ULL;
+        if ((digits == 0ULL) || !fits || (own == 0ULL) || (own >= args->values[option]))
         {
             continue;
         }
         char value[24];
-        VerbaLinea value_line = {value, sizeof(value), 0ull};
+        VerbaLinea value_line = {value, sizeof(value), 0ULL};
         mmgr_line_decimal(&value_line, args->values[option], 1u);
         if (work_line.at - digits + value_line.at > sizeof(line_buf))
         {
@@ -378,7 +378,7 @@ EMBED_INLINE void copy_line(const ValidateMessagesCtx *args)
                                                                    .bytes = work_line.at - digits_at - digits});
         memor.cpy(&(MemoriaCfg){.dst = line_buf + digits_at, .src = value, .bytes = value_line.at});
         work_line.at = work_line.at - digits + value_line.at;
-        mmgr_line_put(args->changed, (args->changed->at > 0ull) ? "; line " : "line ");
+        mmgr_line_put(args->changed, (args->changed->at > 0ULL) ? "; line " : "line ");
         mmgr_line_decimal(args->changed, args->number, 1u);
         mmgr_line_put(args->changed, ": set_option ");
         mmgr_line_put(args->changed, args->names[option]);
@@ -393,20 +393,20 @@ EMBED_INLINE void copy_line(const ValidateMessagesCtx *args)
 
 unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args)
 {
-    VerbaLinea out = {g_cli_validate->copy, CLI_VALIDATE_COPY, 0ull};
-    unsigned long long at = 0ull;
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
-    unsigned long long number = 0ull;
+    VerbaLinea out = {g_cli_validate->copy, CLI_VALIDATE_COPY, 0ULL};
+    unsigned long long at = 0ULL;
+    unsigned long long start = 0ULL;
+    unsigned long long length = 0ULL;
+    unsigned long long number = 0ULL;
     while (EMBED_CALL(messages_line, ValidateMessagesCtx, .text = args->text, .size = args->size, .at = &at,
                       .start = &start, .length_pointer = &length))
     {
-        number += 1ull;
+        number += 1ULL;
         EMBED_CALL(copy_line, ValidateMessagesCtx, .line = args->text + start, .length = length, .number = number,
                    .names = args->names, .values = args->values, .count = args->count, .out = &out,
                    .changed = args->changed);
     }
-    if (number == 0ull)
+    if (number == 0ULL)
     {
         mmgr_line_ch(&out, '\n');
     }
@@ -418,5 +418,5 @@ unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args)
                    .value = name);
         mmgr_line_ch(&out, '\n');
     }
-    return mmgr_line_ok(&out) ? out.at : CLI_VALIDATE_COPY + 1ull;
+    return mmgr_line_ok(&out) ? out.at : CLI_VALIDATE_COPY + 1ULL;
 }

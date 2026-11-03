@@ -9,7 +9,7 @@
 #include <math.h>
 
 // the bytes a page's contents are taken with
-#define CLI_PDF_CONTENT_CAPACITY (4ull << 20u)
+#define CLI_PDF_CONTENT_CAPACITY (4ULL << 20u)
 
 // the color of the line numbers
 static const unsigned char s_number_color[3] = {0x88u, 0x88u, 0x88u};
@@ -67,20 +67,22 @@ EMBED_INLINE void cli_string(const PdfCtx *args)
     const char *text = args->text;
     static unsigned int s_letters[CLI_PATH_MAX_LEN * 4u];
     mmgr_line_ch(args->out, '(');
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < args->length)
     {
-        // the text read a piece at a time, each piece cut where a letter starts
-        unsigned long long piece = args->length - done;
-        piece = (piece < CLI_PATH_MAX_LEN) ? piece : CLI_PATH_MAX_LEN;
-        while (((done + piece) < args->length) && ((((unsigned char)text[done + piece]) & 0xc0u) == 0x80u))
+        // the text read a piece at a time, each piece cut where a letter starts, or whole where none starts in it
+        const unsigned long long left = args->length - done;
+        const unsigned long long most = (left < CLI_PATH_MAX_LEN) ? left : CLI_PATH_MAX_LEN;
+        unsigned long long cut = most;
+        while ((cut > 0ULL) && (cut < left) && ((((unsigned char)text[done + cut]) & 0xc0u) == 0x80u))
         {
-            piece -= 1ull;
+            cut -= 1ULL;
         }
+        const unsigned long long piece = (cut > 0ULL) ? cut : most;
         const unsigned long long count =
             EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text + done, .size = piece,
                        .letters = s_letters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             const unsigned char byte = EMBED_CALL(cli_win_ansi, PdfCtx, .letter = s_letters[at]);
             if ((byte == '(') || (byte == ')') || (byte == '\\'))
@@ -112,7 +114,7 @@ EMBED_INLINE void cli_text_string(const PdfCtx *args)
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .letters = s_letters,
                    .capacity_u64 = CLI_PATH_MAX_LEN);
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         const unsigned int letter = s_letters[at];
         unsigned int units[2] = {letter, 0u};
@@ -140,10 +142,10 @@ EMBED_INLINE void cli_fix(const PdfCtx *args)
     const double scale = (args->positions == 3u) ? 1000.0 : 100.0;
     const long long whole = llround((double)args->value_f32 * scale);
     // the value's size, never negative
-    const unsigned long long size = (unsigned long long)((whole < 0ll) ? -whole : whole);
+    const unsigned long long size = (unsigned long long)((whole < 0LL) ? -whole : whole);
     // a scale of 100 or 1000, which an unsigned long long represents whole
     const unsigned long long divisor = (unsigned long long)scale;
-    if (whole < 0ll)
+    if (whole < 0LL)
     {
         mmgr_line_ch(args->out, '-');
     }
@@ -206,13 +208,13 @@ EMBED_INLINE void cli_content(const PdfCtx *args)
         if (row->numbered)
         {
             char number[32];
-            VerbaLinea line = {number, sizeof(number), 0ull};
+            VerbaLinea line = {number, sizeof(number), 0ULL};
             const unsigned long long width =
-                (args->laid->number_columns > 2ull) ? (args->laid->number_columns - 2ull) : 0ull;
+                (args->laid->number_columns > 2ULL) ? (args->laid->number_columns - 2ULL) : 0ULL;
             mmgr_line_decimal_columns(&line, row->number, (unsigned int)width);
             const unsigned long long length = mmgr_line_finish(&line);
             EMBED_CALL(cli_show, PdfCtx, .out = args->out, .face = "F1", .x = CLI_PRINT_MARGIN, .baseline = baseline,
-                       .rgb = number_tint, .text = number, .length = length);
+                       .rgb = number_tint, .text = number, .length = (length < sizeof(number)) ? length : 0ULL);
         }
         for (unsigned int at = 0u; at < row->pieces; at += 1u)
         {
@@ -249,13 +251,13 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages laid out
     const unsigned int most = (laid->pages < CLI_PRINT_PAGES) ? laid->pages : CLI_PRINT_PAGES;
     unsigned int *const printed =
-        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), &g_cli_print_cells);
+        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(unsigned int), &g_cli_print_cells);
     unsigned long long *const offsets =
-        g_cli_cells->temporary_buf_alloc((7ull + (2ull * most)) * sizeof(unsigned long long), &g_cli_print_cells);
+        g_cli_cells->temporary_buf_alloc((7ULL + (2ULL * most)) * sizeof(unsigned long long), &g_cli_print_cells);
     char *const content_cell = g_cli_cells->temporary_buf_alloc(CLI_PDF_CONTENT_CAPACITY, &g_cli_print_cells);
     VerbaLinea content = mmgr_line_over(content_cell, CLI_PDF_CONTENT_CAPACITY);
     const int begun = content.out != NULL;
-    *pages = 0ull;
+    *pages = 0ULL;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no capacity to write it in, nothing is written
@@ -267,7 +269,7 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        if (EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = args->layout, .page_u64 = at + 1ull) &&
+        if (EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = args->layout, .page_u64 = at + 1ULL) &&
             (count < most))
         {
             printed[count] = at;
@@ -314,10 +316,10 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
         mmgr_line_put(args->out, "] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> >> /Contents ");
         mmgr_line_decimal(args->out, page + 1u, 1u);
         mmgr_line_put(args->out, " 0 R >>\nendobj\n");
-        content.at = 0ull;
+        content.at = 0ULL;
         EMBED_CALL(cli_content, PdfCtx, .laid = laid, .page = printed[at], .height = height, .gray = args->layout->gray,
                    .out = &content);
-        const unsigned long long length = mmgr_line_ok(&content) ? content.at : 0ull;
+        const unsigned long long length = mmgr_line_ok(&content) ? content.at : 0ULL;
         EMBED_CALL(cli_object, PdfCtx, .out = args->out, .offsets = offsets, .number = page + 1u);
         mmgr_line_put(args->out, "<< /Length ");
         mmgr_line_decimal(args->out, length, 1u);

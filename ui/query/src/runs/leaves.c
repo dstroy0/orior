@@ -30,15 +30,15 @@ typedef struct
 } QueryDiff;
 // the most bytes shown of a file, and the most a byte of a file shows as: an empty line is 1 byte, its lead and its
 // break 2, and a fold of the lines beside it its own line
-#define QUERY_DISPLAYED_MAX (8ull << 20u)
-#define QUERY_DISPLAYED_WIDER 16ull
+#define QUERY_DISPLAYED_MAX (8ULL << 20u)
+#define QUERY_DISPLAYED_WIDER 16ULL
 
 static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
 {
     for (;;)
     {
         char question[QUERY_PATH_MAX_LEN + 64u];
-        VerbaLinea line = {question, sizeof(question), 0ull};
+        VerbaLinea line = {question, sizeof(question), 0ULL};
         mmgr_line_put(&line, "leave ");
         mmgr_line_put(&line, args->path);
         mmgr_line_put(&line, " as the run leaves it? [y/n/all/none] ");
@@ -47,7 +47,7 @@ static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
         char answer[64];
         const unsigned long long read = EMBED_CALL(query_capacity_line_internal.terminal_line_read,
                                                    QueryCapacityLineCtx, .line = answer, .capacity = sizeof(answer));
-        if ((read == QRY_MEMBER_UNREAD) || (read == 0ull))
+        if ((read == QRY_MEMBER_UNREAD) || (read == 0ULL))
         {
             return QUERY_ANSWER_NONE;
         }
@@ -116,7 +116,7 @@ EMBED_INLINE unsigned int query_lines_cut(const LeavesCtx *args)
 {
     const unsigned char *bytes = args->bytes;
     unsigned int count = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
         const unsigned char *const newline = (const unsigned char *)memor.chr(
@@ -124,7 +124,7 @@ EMBED_INLINE unsigned int query_lines_cut(const LeavesCtx *args)
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : args->size;
         unsigned long long cut = end - at;
         // a line read as Rust's `lines` reads it: its `\r` before the `\n` left off
-        cut -= ((cut != 0ull) && (bytes[at + cut - 1ull] == '\r')) ? 1ull : 0ull;
+        cut -= ((cut != 0ULL) && (bytes[at + cut - 1ULL] == '\r')) ? 1ULL : 0ULL;
         if (args->line != NULL)
         {
             args->line[count] = (const char *)(bytes + at);
@@ -132,7 +132,7 @@ EMBED_INLINE unsigned int query_lines_cut(const LeavesCtx *args)
             args->length[count] = (unsigned int)cut;
         }
         count += 1u;
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return count;
 }
@@ -156,7 +156,7 @@ EMBED_INLINE int query_line_same(const LeavesCtx *args)
 EMBED_INLINE void *query_diff_part(const LeavesCtx *args)
 {
     size_t size = args->size_size;
-    return (args->count > 0ull) ? g_cli_cells->persistent_buf_alloc(args->count * size, &g_query_cells) : NULL;
+    return (args->count > 0ULL) ? g_cli_cells->persistent_buf_alloc(args->count * size, &g_query_cells) : NULL;
 }
 
 // the diff's parts given back
@@ -196,7 +196,7 @@ EMBED_INLINE int query_diff_alloc(const LeavesCtx *args)
     args->diff->after_length = EMBED_CALL(query_diff_part, LeavesCtx, .count = args->diff->m,
                                           .size_size = sizeof(unsigned int), .what = "a diff's lines after");
     args->diff->reach =
-        EMBED_CALL(query_diff_part, LeavesCtx, .count = 2ull * (unsigned long long)args->diff->reach_middle + 1ull,
+        EMBED_CALL(query_diff_part, LeavesCtx, .count = 2ULL * (unsigned long long)args->diff->reach_middle + 1ULL,
                    .size_size = sizeof(int), .what = "a diff's reach");
     const int reserved =
         ((args->diff->n == 0u) || ((args->diff->before != NULL) && (args->diff->before_length != NULL))) &&
@@ -263,7 +263,7 @@ EMBED_INLINE unsigned int query_diff(const LeavesCtx *args)
         return 0u;
     }
     // a step bounded by QUERY_DIFF_EDITS, whose square is far inside what a size_t counts
-    const unsigned long long traced = ((unsigned long long)steps + 1ull) * ((unsigned long long)steps + 1ull);
+    const unsigned long long traced = ((unsigned long long)steps + 1ULL) * ((unsigned long long)steps + 1ULL);
     args->diff->band =
         EMBED_CALL(query_diff_part, LeavesCtx, .count = traced, .size_size = sizeof(int), .what = "a diff's trace");
     // the lines of the script: each the same once, and each step a line added or removed
@@ -333,7 +333,7 @@ EMBED_INLINE void query_same_flush(const LeavesCtx *args)
         if ((args->count_u32 > 6u) && (at == 3u))
         {
             mmgr_line_put(args->displayed, "\n ... ");
-            mmgr_line_decimal(args->displayed, (unsigned long long)args->count_u32 - 6ull, 0u);
+            mmgr_line_decimal(args->displayed, (unsigned long long)args->count_u32 - 6ULL, 0u);
             mmgr_line_put(args->displayed, " lines the same ...");
             at = args->count_u32 - 4u;
             continue;
@@ -376,7 +376,7 @@ void query_leaf_show(const QueryPathTreeCtx *args)
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -435,24 +435,24 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
             named_before = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL});
         }
         const unsigned char *stored = NULL;
-        unsigned long long stored_size = 0ull;
+        unsigned long long stored_size = 0ULL;
         if (named_before ||
             !EMBED_CALL(query_count_name_internal.writer_current, QueryCountNameCtx, .writer = &args->run_read->writer,
                         .path = path, .bytes_u8s = &stored, .size_pointer = &stored_size))
         {
             continue;
         }
-        unsigned long long tree_size = 0ull;
+        unsigned long long tree_size = 0ULL;
         const unsigned char *tree = qry_member_file_mapped(path, &tree_size);
         const int same = (tree_size == stored_size) &&
-                         ((tree_size == 0ull) ||
+                         ((tree_size == 0ULL) ||
                           (memor.cmp(&(MemoriaCfg){.src = tree, .other = stored, .bytes = (size_t)stored_size}) == 0));
         if (!same)
         {
             // what is shown of the file in a cell of the most it writes to, up to the most shown: a line that fills it
             // holds what fit and its 0
             const unsigned long long required =
-                ((tree_size + stored_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ull;
+                ((tree_size + stored_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ULL;
             const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
             char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_query_cells);
             VerbaLinea displayed = mmgr_line_over(text, capacity);
@@ -482,11 +482,11 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
                     return 0;
                 }
                 char left_text[QUERY_PATH_MAX_LEN + 64u];
-                VerbaLinea left_line = {left_text, sizeof(left_text), 0ull};
+                VerbaLinea left_line = {left_text, sizeof(left_text), 0ULL};
                 mmgr_line_put(&left_line, "  ");
                 mmgr_line_put(&left_line, path);
                 mmgr_line_put(&left_line, " is left as the tree has it");
-                if (mmgr_line_finish(&left_line) != 0ull)
+                if (mmgr_line_finish(&left_line) != 0ULL)
                 {
                     EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left_text);
                 }

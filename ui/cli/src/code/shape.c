@@ -62,7 +62,7 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     unsigned long long size = args->size;
     unsigned long long *end = args->end_pointer;
     CliShapeHole *hole = args->hole;
-    unsigned long long close = 0ull;
+    unsigned long long close = 0ULL;
     if ((args->start + 1u >= size) ||
         !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = src + args->start + 1u,
                     .length_value = size - args->start - 1u, .required = "$", .size = 1u, .at_pointer = &close))
@@ -72,8 +72,8 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     const char *const inside = src + args->start + 1u;
     unsigned long long name_size = close;
     const char *kind = inside + close;
-    unsigned long long kind_size = 0ull;
-    unsigned long long colon = 0ull;
+    unsigned long long kind_size = 0ULL;
+    unsigned long long colon = 0ULL;
     if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = inside, .length_value = close, .required = ":",
                    .size = 1u, .at_pointer = &colon))
     {
@@ -85,9 +85,9 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     {
         return 0;
     }
-    for (unsigned long long walk = 0ull; walk < name_size;)
+    for (unsigned long long walk = 0ULL; walk < name_size;)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = inside, .size = name_size,
                                                .at = walk, .length = &length);
         if (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) && (letter != '_'))
@@ -116,10 +116,10 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
 EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
 {
     args->holes->count = 0u;
-    for (unsigned long long byte = 0ull; byte < args->size;)
+    for (unsigned long long byte = 0ULL; byte < args->size;)
     {
         CliShapeHole hole;
-        unsigned long long end = 0ull;
+        unsigned long long end = 0ULL;
         if ((args->src[byte] == '$') && (args->holes->count < CLI_SHAPE_HOLES) &&
             EMBED_CALL(shape_hole_at, ShapeCtx, .src = args->src, .size = args->size, .start = byte,
                        .end_pointer = &end, .hole = &hole))
@@ -132,7 +132,7 @@ EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
             byte = end;
             continue;
         }
-        byte += 1ull;
+        byte += 1ULL;
     }
 }
 
@@ -175,7 +175,7 @@ EMBED_INLINE unsigned char shape_role_get(const ShapeCtx *args)
 // whether the bytes `from` to `to` of the text are none but line ends, so a string's leaves on either side are one
 EMBED_INLINE int shape_join(const ShapeCtx *args)
 {
-    for (unsigned long long at = args->from; at < args->to; at += 1ull)
+    for (unsigned long long at = args->from; at < args->to; at += 1ULL)
     {
         if ((args->src[at] != '\n') && (args->src[at] != '\r'))
         {
@@ -195,8 +195,8 @@ EMBED_INLINE void shape_leaves_append(const ShapeCtx *args)
     unsigned int hole = 0u;
     for (unsigned int leaf = 0u; leaf <= read->count; leaf += 1u)
     {
-        const unsigned long long from = (leaf < read->count) ? read->leaf[leaf].from : args->size + 1ull;
-        const unsigned long long to = (leaf < read->count) ? read->leaf[leaf].to : args->size + 1ull;
+        const unsigned long long from = (leaf < read->count) ? read->leaf[leaf].from : args->size + 1ULL;
+        const unsigned long long to = (leaf < read->count) ? read->leaf[leaf].to : args->size + 1ULL;
         for (;
              (args->holes != NULL) && (hole < args->holes->count) &&
              ((args->positions_read[hole].start < from) || ((args->positions_read[hole].start == from) && (to > from)));
@@ -213,7 +213,7 @@ EMBED_INLINE void shape_leaves_append(const ShapeCtx *args)
         const unsigned int last = args->tokens->count - 1u;
         if (to == from)
         {
-            const unsigned long long at = (args->tokens->count > 0u) ? args->tokens->end[last] : 0ull;
+            const unsigned long long at = (args->tokens->count > 0u) ? args->tokens->end[last] : 0ULL;
             const int ends = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                         .leaf = leaf, .roles = CLI_LEAF_STATEMENT);
             if (!ends || (args->tokens->count == 0u) || (args->tokens->kind[last] != CLI_SHAPE_BREAK))
@@ -246,7 +246,7 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
     CliShapeHolePosition positions[CLI_SHAPE_HOLES];
     // the pattern's copy, its placeholders blank, which its grammar reads
     char *const blank =
-        (args->holes != NULL) ? g_cli_cells->temporary_buf_alloc(args->size + 1ull, &g_cli_shape_cells) : NULL;
+        (args->holes != NULL) ? g_cli_cells->temporary_buf_alloc(args->size + 1ULL, &g_cli_shape_cells) : NULL;
     if ((args->holes != NULL) && (blank == NULL))
     {
         return 0;

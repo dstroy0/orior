@@ -42,20 +42,20 @@ int cli_git_opened_parent(const CliGitErrMsgFolderCfg *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, home);
     mmgr_line_put(&line, "/repositories");
-    return mmgr_line_finish(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ULL;
 }
 
 int cli_git_init(const CliGitOutCfg *args)
 {
     static const char *const s_init[1] = {"init"};
     char git[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {git, sizeof(git), 0ull};
+    VerbaLinea line = {git, sizeof(git), 0ULL};
     mmgr_line_put(&line, args->folder_read);
     mmgr_line_put(&line, "/.git");
-    if ((mmgr_line_finish(&line) != 0ull) &&
+    if ((mmgr_line_finish(&line) != 0ULL) &&
         (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
          EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git)))
     {
@@ -82,18 +82,18 @@ int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args)
     name = from + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = from,
                              .at = (unsigned long long)(name - from), .set = "/\\:");
     const unsigned long long length = (unsigned long long)(to - name);
-    if ((length == 0ull) || ((length == 1ull) && (name[0] == '.')) ||
-        ((length == 2ull) && (name[0] == '.') && (name[1] == '.')))
+    if ((length == 0ULL) || ((length == 1ULL) && (name[0] == '.')) ||
+        ((length == 2ULL) && (name[0] == '.') && (name[1] == '.')))
     {
         mmgr_line_put(args->err_msg, args->url);
         mmgr_line_put(args->err_msg, " names no repository");
         return 0;
     }
-    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->folder, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->parent);
     mmgr_line_ch(&line, '/');
     mmgr_line_put_n(&line, name, length);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         mmgr_line_put(args->err_msg, args->url);
         mmgr_line_put(args->err_msg, ": the folder's path is too long");
@@ -132,10 +132,10 @@ EMBED_INLINE int cli_git_on(const GitCloneCtx *args)
     {
         if ((at[0] == between) || (at[0] == '\0'))
         {
-            VerbaLinea line = {args->program, CLI_PATH_MAX_LEN, 0ull};
+            VerbaLinea line = {args->program, CLI_PATH_MAX_LEN, 0ULL};
             mmgr_line_put_n(&line, folder, (unsigned long long)(at - folder));
             mmgr_line_put(&line, s_name);
-            if ((at > folder) && (mmgr_line_finish(&line) != 0ull) &&
+            if ((at > folder) && (mmgr_line_finish(&line) != 0ULL) &&
                 EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->program))
             {
                 return 1;
@@ -155,13 +155,13 @@ EMBED_INLINE void cli_progress_emit(const GitCloneCtx *args)
     const char *from = args->progress->line;
     const char *to = args->progress->line + args->progress->length;
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
-    args->progress->length = 0ull;
+    args->progress->length = 0ULL;
     if (from == to)
     {
         return;
     }
     char text[CLI_GIT_PROGRESS];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
     mmgr_line_finish(&line);
     EMBED_CALL(args->progress->progress_line, CliEachLineEndedCfg, .context = args->progress->context, .line = text,
@@ -213,7 +213,7 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     const CliSetting settings[2] = {{"PATH", s_run_path}, {"GIT_TERMINAL_PROMPT", "0"}};
     CliSpawned spawned;
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
                     .spawned = &spawned, .words = words, .folder = NULL, .settings = settings, .count = 2u,
                     .detached = 1, .err_msg = &unstarted))
@@ -223,7 +223,7 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
         return 0;
     }
     CliProgress *const progress = &s_progress;
-    progress->length = 0ull;
+    progress->length = 0ULL;
     progress->has_fatal = 0;
     progress->progress_line = progress_line;
     progress->context = context;
@@ -233,11 +233,11 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
         const unsigned long long read =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                        .pipe_handle = spawned.err, .piece = chunk, .capacity = sizeof(chunk));
-        if (read == 0ull)
+        if (read == 0ULL)
         {
             break;
         }
-        for (unsigned long long at = 0ull; at < read; at += 1ull)
+        for (unsigned long long at = 0ULL; at < read; at += 1ULL)
         {
             if ((chunk[at] == '\n') || (chunk[at] == '\r'))
             {
@@ -246,7 +246,7 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
             else if (progress->length < (CLI_GIT_PROGRESS - 1u))
             {
                 progress->line[progress->length] = chunk[at];
-                progress->length += 1ull;
+                progress->length += 1ULL;
             }
         }
     }
@@ -256,14 +256,14 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     {
         char chunk[4096];
         if (EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                       .pipe_handle = spawned.out, .piece = chunk, .capacity = sizeof(chunk)) == 0ull)
+                       .pipe_handle = spawned.out, .piece = chunk, .capacity = sizeof(chunk)) == 0ULL)
         {
             break;
         }
     }
     const long long code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
-    if (code != 0ll)
+    if (code != 0LL)
     {
         if (progress->has_fatal)
         {
@@ -276,5 +276,5 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
             mmgr_line_put(err_msg, " failed");
         }
     }
-    return code == 0ll;
+    return code == 0LL;
 }

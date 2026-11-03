@@ -12,7 +12,7 @@
 
 int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path) ||
         !EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = args->path, .size_pointer = &size,
                     .changed = &args->stamped->time))
@@ -235,10 +235,10 @@ int cli_compile_white(const CliCompileDbCtx *args)
 void cli_compile_words_each(const CliCompileDbTextCtx *args)
 {
     static char s_word[1u << 16u];
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     int quoted = 0;
     int any = 0;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char letter = args->text[at];
         if (letter == '"')
@@ -251,16 +251,16 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
             if (any)
             {
                 EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
-                size = 0ull;
+                size = 0ULL;
                 any = 0;
             }
         }
         else
         {
-            if (size < (sizeof(s_word) - 1ull))
+            if (size < (sizeof(s_word) - 1ULL))
             {
                 s_word[size] = letter;
-                size += 1ull;
+                size += 1ULL;
             }
             any = 1;
         }
@@ -299,7 +299,7 @@ int cli_compile_first_word(const CliCompileDbTextLengthCtx *args)
 
 unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_compile_cells);
     if (bytes == NULL)
@@ -316,7 +316,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                                        .nodes = tokens_max, .text_u64 = size))
     {
         char why[CLI_NAME_MAX_LEN];
-        VerbaLinea unread = {why, sizeof(why), 0ull};
+        VerbaLinea unread = {why, sizeof(why), 0ULL};
         root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = args->json,
                           .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_max = tokens_max,
                           .err_msg = &unread);

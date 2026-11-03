@@ -31,7 +31,7 @@ EMBED_INLINE int tabs_width(const TabsCtx *args)
     const CliTabRow *tab = args->tab;
     unsigned int size = args->size;
     int scale = args->scale;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = tab, .length = &length);
     const float text = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                   .face = GUI_FACE_CODE, .size = size, .text = name, .length = length);
@@ -167,7 +167,7 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                                       .other = args->frame->tabs),
                    .color = args->palette->line);
         const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = &args->tab[at], .length = &length);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_CODE, .size = size,

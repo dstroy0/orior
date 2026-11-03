@@ -34,13 +34,13 @@ EMBED_INLINE unsigned long long query_run_number(const RunFolderCtx *args)
 {
     if (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_CELLS_POOL}))
     {
-        return 0ull;
+        return 0ULL;
     }
     const char *const rest = args->name + 5;
     const size_t digits = EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = rest, .set = "0123456789");
     if ((digits == 0u) || (rest[digits] != '-'))
     {
-        return 0ull;
+        return 0ULL;
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     const int qry =
@@ -48,12 +48,12 @@ EMBED_INLINE unsigned long long query_run_number(const RunFolderCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL}));
     if (qry == args->is_folder)
     {
-        return 0ull;
+        return 0ULL;
     }
-    unsigned long long number = 0ull;
+    unsigned long long number = 0ULL;
     for (size_t at = 0u; at < digits; at += 1u)
     {
-        number = (number * 10ull) + (unsigned long long)(rest[at] - '0');
+        number = (number * 10ULL) + (unsigned long long)(rest[at] - '0');
     }
     return number;
 }
@@ -65,21 +65,21 @@ static void query_run_walk(const CliEachNameIsFolderCfg *args)
     QueryRunsWalk *const walk = (QueryRunsWalk *)args->context;
     const unsigned long long number = EMBED_CALL(query_run_number, RunFolderCtx, .name = name, .is_folder = is_folder);
     // a walk handed no storage counts the runs and finds the highest number
-    if ((number != 0ull) && (walk->path == NULL))
+    if ((number != 0ULL) && (walk->path == NULL))
     {
         walk->count += 1u;
         walk->highest = (number > walk->highest) ? number : walk->highest;
         return;
     }
-    if ((number == 0ull) || (walk->count >= walk->capacity))
+    if ((number == 0ULL) || (walk->count >= walk->capacity))
     {
         return;
     }
-    VerbaLinea line = {walk->path[walk->count], QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {walk->path[walk->count], QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, walk->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return;
     }
@@ -100,7 +100,7 @@ static void query_run_walk(const CliEachNameIsFolderCfg *args)
 
 unsigned int query_runs_each(const QueryFolderNumberCtx *args)
 {
-    QueryRunsWalk walk = {args->folder, args->number, args->path_callback, 0u, args->capacity_u32, 0ull};
+    QueryRunsWalk walk = {args->folder, args->number, args->path_callback, 0u, args->capacity_u32, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_run_walk, .context_bytess = &walk);
     return walk.count;
@@ -108,7 +108,7 @@ unsigned int query_runs_each(const QueryFolderNumberCtx *args)
 
 unsigned int query_runs_count(const QueryFolderMaxCtx *args)
 {
-    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_run_walk, .context_bytess = &counting);
     return counting.count;
@@ -118,7 +118,7 @@ int query_runs_alloc(const QueryFolderRunsCtx *args)
 {
     QueryRuns *runs = args->runs;
     *runs = (QueryRuns){NULL, NULL, 0u};
-    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_run_walk, .context_bytess = &counting);
     if (counting.count == 0u)
@@ -155,41 +155,41 @@ EMBED_INLINE void query_civil(const RunFolderCtx *args)
     unsigned long long *year = args->year;
     unsigned long long *month = args->month;
     unsigned long long *day = args->day;
-    const unsigned long long z = args->days + 719468ull;
-    const unsigned long long era = z / 146097ull;
-    const unsigned long long doe = z - (era * 146097ull);
-    const unsigned long long yoe = (doe - (doe / 1460ull) + (doe / 36524ull) - (doe / 146096ull)) / 365ull;
-    const unsigned long long doy = doe - ((365ull * yoe) + (yoe / 4ull) - (yoe / 100ull));
-    const unsigned long long mp = ((5ull * doy) + 2ull) / 153ull;
-    *day = doy - (((153ull * mp) + 2ull) / 5ull) + 1ull;
-    *month = (mp < 10ull) ? (mp + 3ull) : (mp - 9ull);
-    *year = yoe + (era * 400ull) + ((*month <= 2ull) ? 1ull : 0ull);
+    const unsigned long long z = args->days + 719468ULL;
+    const unsigned long long era = z / 146097ULL;
+    const unsigned long long doe = z - (era * 146097ULL);
+    const unsigned long long yoe = (doe - (doe / 1460ULL) + (doe / 36524ULL) - (doe / 146096ULL)) / 365ULL;
+    const unsigned long long doy = doe - ((365ULL * yoe) + (yoe / 4ULL) - (yoe / 100ULL));
+    const unsigned long long mp = ((5ULL * doy) + 2ULL) / 153ULL;
+    *day = doy - (((153ULL * mp) + 2ULL) / 5ULL) + 1ULL;
+    *month = (mp < 10ULL) ? (mp + 3ULL) : (mp - 9ULL);
+    *year = yoe + (era * 400ULL) + ((*month <= 2ULL) ? 1ULL : 0ULL);
 }
 
 void query_next_name(const QueryFolderCapacityCtx *args)
 {
     // the highest number of the folder's runs, found by a walk that counts
-    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ULL};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_run_walk, .context_bytess = &counting);
     const unsigned long long highest = counting.highest;
     const unsigned long long seconds = query_now();
-    unsigned long long year = 0ull;
-    unsigned long long month = 0ull;
-    unsigned long long day = 0ull;
-    EMBED_CALL(query_civil, RunFolderCtx, .days = seconds / 86400ull, .year = &year, .month = &month, .day = &day);
-    const unsigned long long time = seconds % 86400ull;
-    VerbaLinea line = {args->name_out, args->capacity, 0ull};
+    unsigned long long year = 0ULL;
+    unsigned long long month = 0ULL;
+    unsigned long long day = 0ULL;
+    EMBED_CALL(query_civil, RunFolderCtx, .days = seconds / 86400ULL, .year = &year, .month = &month, .day = &day);
+    const unsigned long long time = seconds % 86400ULL;
+    VerbaLinea line = {args->name_out, args->capacity, 0ULL};
     mmgr_line_put(&line, "query");
-    mmgr_line_decimal(&line, highest + 1ull, 0u);
+    mmgr_line_decimal(&line, highest + 1ULL, 0u);
     mmgr_line_ch(&line, '-');
     mmgr_line_decimal(&line, year, 4u);
     mmgr_line_decimal(&line, month, 2u);
     mmgr_line_decimal(&line, day, 2u);
     mmgr_line_ch(&line, 'T');
-    mmgr_line_decimal(&line, time / 3600ull, 2u);
-    mmgr_line_decimal(&line, (time % 3600ull) / 60ull, 2u);
-    mmgr_line_decimal(&line, time % 60ull, 2u);
+    mmgr_line_decimal(&line, time / 3600ULL, 2u);
+    mmgr_line_decimal(&line, (time % 3600ULL) / 60ULL, 2u);
+    mmgr_line_decimal(&line, time % 60ULL, 2u);
     mmgr_line_put(&line, ".qry");
     mmgr_line_finish(&line);
 }
@@ -208,7 +208,7 @@ void query_by_name(const QueryCapacityPathNameCtx *args)
                    .size = length) &&
         ((full_path[length] == '/') || (full_path[length] == '\\')))
     {
-        VerbaLinea line = {args->name_out, args->capacity, 0ull};
+        VerbaLinea line = {args->name_out, args->capacity, 0ULL};
         (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = full_path + length + 1u,
                          .from = '\\', .to = '/');
         mmgr_line_finish(&line);
@@ -218,7 +218,7 @@ void query_by_name(const QueryCapacityPathNameCtx *args)
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    base = (base_end != 0ull) ? (args->path + base_end) : base;
+    base = (base_end != 0ULL) ? (args->path + base_end) : base;
     memor.cpy(&(MemoriaCfg){.dst = args->name_out,
                             .src = base,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
@@ -245,17 +245,17 @@ int query_open(const QueryCapacityQryPathCtx *args)
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->qry_path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    base = (base_end != 0ull) ? (args->qry_path + base_end) : base;
+    base = (base_end != 0ULL) ? (args->qry_path + base_end) : base;
     char restored[QUERY_PATH_MAX_LEN];
-    VerbaLinea restored_line = {restored, sizeof(restored), 0ull};
+    VerbaLinea restored_line = {restored, sizeof(restored), 0ULL};
     mmgr_line_put_n(&restored_line, args->qry_path, (unsigned long long)(base - args->qry_path));
     mmgr_line_put(&restored_line, "restored");
-    VerbaLinea named_line = {args->named, args->capacity, 0ull};
+    VerbaLinea named_line = {args->named, args->capacity, 0ULL};
     mmgr_line_put(&named_line, restored);
     mmgr_line_ch(&named_line, '/');
     mmgr_line_put(&named_line, base);
     mmgr_line_put(&named_line, ".qry");
-    if ((mmgr_line_finish(&restored_line) == 0ull) || (mmgr_line_finish(&named_line) == 0ull) ||
+    if ((mmgr_line_finish(&restored_line) == 0ULL) || (mmgr_line_finish(&named_line) == 0ULL) ||
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = restored))
     {
         return 0;
@@ -268,7 +268,7 @@ int query_open(const QueryCapacityQryPathCtx *args)
     QueryProcess read;
     return EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &read, .words = words,
                       .folder = NULL, .output = QUERY_OUTPUT_NONE) &&
-           (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &read) == 0ll);
+           (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &read) == 0LL);
 }
 
 int query_crystal(const QueryCapacityRootCtx *args)
@@ -276,11 +276,11 @@ int query_crystal(const QueryCapacityRootCtx *args)
     char base[64];
     EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "qry_crystal", .binary = base,
                .capacity = sizeof(base));
-    VerbaLinea line = {args->program, args->capacity, 0ull};
+    VerbaLinea line = {args->program, args->capacity, 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/qry_crystal/engine/");
     mmgr_line_put(&line, base);
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->program);
 }
 
@@ -301,10 +301,10 @@ unsigned int query_retain_max(void)
 void query_runs_prune(const QueryFolderMaxCtx *args)
 {
     char restored[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {restored, sizeof(restored), 0ull};
+    VerbaLinea line = {restored, sizeof(restored), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_put(&line, "/restored");
-    if (mmgr_line_finish(&line) != 0ull)
+    if (mmgr_line_finish(&line) != 0ULL)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = restored);
     }
@@ -323,7 +323,6 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
     const char *name = args->name;
     const QueryWriter *writer = args->writer;
     const char *crystal = args->crystal;
-    size_t capacity = args->capacity;
     char own_full[QUERY_PATH_MAX_LEN] = "";
     if (args->own != NULL)
     {
@@ -353,7 +352,7 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
                                 .src = named,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
         const unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other, .name = name,
                        .bytes_u8s = &bytes, .size_pointer = &size))
         {

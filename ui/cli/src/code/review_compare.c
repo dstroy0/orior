@@ -35,7 +35,7 @@ typedef struct
 } CliSide;
 // the least share of a piece's lines a move retains to count as one, in hundredths, and the most declarations of a
 // file's text
-#define CLI_MOVE_MIN_SHARE 60ull
+#define CLI_MOVE_MIN_SHARE 60ULL
 #define CLI_REVIEW_DECLS 16384u
 
 // The comparison: the two sides of the file compared, the pieces added and taken out across the files, and capacity to
@@ -92,7 +92,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_lines_count(const ReviewCompareCtx *args)
 {
     unsigned int lines = 1u;
-    for (unsigned long long at = 0ull; at < args->size; lines += 1u)
+    for (unsigned long long at = 0ULL; at < args->size; lines += 1u)
     {
         const char *const newline =
             memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '\n', .bytes = args->size - at});
@@ -100,7 +100,7 @@ EMBED_INLINE unsigned int cli_lines_count(const ReviewCompareCtx *args)
         {
             break;
         }
-        at = (unsigned long long)(newline - args->text) + 1ull;
+        at = (unsigned long long)(newline - args->text) + 1ULL;
     }
     return lines;
 }
@@ -110,7 +110,7 @@ EMBED_INLINE void *cli_side_part(const ReviewCompareCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -133,13 +133,13 @@ EMBED_INLINE void cli_side_set(const ReviewCompareCtx *args)
 EMBED_INLINE unsigned long long cli_side_bytes(const ReviewCompareCtx *args)
 {
     const unsigned int decls = (args->lines < CLI_REVIEW_DECLS) ? args->lines : CLI_REVIEW_DECLS;
-    return ((unsigned long long)args->lines * 2ull * sizeof(unsigned int)) +
-           ((unsigned long long)decls * sizeof(CliDecl)) + decls + (4ull * 8ull);
+    return ((unsigned long long)args->lines * 2ULL * sizeof(unsigned int)) +
+           ((unsigned long long)decls * sizeof(CliDecl)) + decls + (4ULL * 8ULL);
 }
 
 unsigned int cli_review_piece_text_append(const CliReviewTextLengthCtx *args)
 {
-    if ((args->length + 1ull) > (g_cli_review.texts_capacity - g_cli_review.texts_used))
+    if ((args->length + 1ULL) > (g_cli_review.texts_capacity - g_cli_review.texts_used))
     {
         return 0u;
     }
@@ -158,7 +158,7 @@ EMBED_INLINE void cli_lines_get(const ReviewCompareCtx *args)
     unsigned long long size = args->size;
     args->side->text = text;
     args->side->lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (args->side->lines < args->side->lines_max);)
+    for (unsigned long long at = 0ULL; (at < size) && (args->side->lines < args->side->lines_max);)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
@@ -168,7 +168,7 @@ EMBED_INLINE void cli_lines_get(const ReviewCompareCtx *args)
         args->side->start[args->side->lines] = (unsigned int)at;
         args->side->length[args->side->lines] = (unsigned int)length;
         args->side->lines += 1u;
-        at = end + 1ull;
+        at = end + 1ULL;
     }
 }
 
@@ -176,12 +176,12 @@ EMBED_INLINE void cli_lines_get(const ReviewCompareCtx *args)
 EMBED_INLINE unsigned int cli_join(const ReviewCompareCtx *args)
 {
     const unsigned int at = g_cli_review.texts_used;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     for (unsigned int line = args->from; line < args->to; line += 1u)
     {
-        size += args->side_read->length[line] + ((line != args->from) ? 1ull : 0ull);
+        size += args->side_read->length[line] + ((line != args->from) ? 1ULL : 0ULL);
     }
-    if ((size + 1ull) > (g_cli_review.texts_capacity - at))
+    if ((size + 1ULL) > (g_cli_review.texts_capacity - at))
     {
         return 0u;
     }
@@ -211,7 +211,7 @@ EMBED_INLINE int cli_blank_line(const ReviewCompareCtx *args)
     unsigned long long length = args->side_read->length[args->line];
     EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &text,
                .length_pointer = &length);
-    return length == 0ull;
+    return length == 0ULL;
 }
 
 static void cli_declare(const CliDeclaredCfg *args)
@@ -351,8 +351,8 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
     CliSide *const now = &s_compare->now;
     const char *const was_text = args->file->has_was ? (g_cli_review.text + args->file->was) : "";
     const char *const now_text = args->file->has_now ? (g_cli_review.text + args->file->now) : "";
-    const unsigned long long was_size = args->file->has_was ? args->file->was_size : 0ull;
-    const unsigned long long now_size = args->file->has_now ? args->file->now_size : 0ull;
+    const unsigned long long was_size = args->file->has_was ? args->file->was_size : 0ULL;
+    const unsigned long long now_size = args->file->has_now ? args->file->now_size : 0ULL;
     // the two sides' lines and declarations in one cell sized to the file's newlines
     const unsigned int was_lines = EMBED_CALL(cli_lines_count, ReviewCompareCtx, .text = was_text, .size = was_size);
     const unsigned int now_lines = EMBED_CALL(cli_lines_count, ReviewCompareCtx, .text = now_text, .size = now_size);
@@ -369,7 +369,7 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
     EMBED_CALL(cli_side_set, ReviewCompareCtx, .side = was, .at = &at_cell, .lines = was_lines);
     EMBED_CALL(cli_side_set, ReviewCompareCtx, .side = now, .at = &at_cell, .lines = now_lines);
     const unsigned int empty = EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx,
-                                          .text = "", .length = 0ull);
+                                          .text = "", .length = 0ULL);
     EMBED_CALL(cli_spans, ReviewCompareCtx, .path_text = g_cli_review.text + args->file->was_path, .text = was_text,
                .size = was_size, .side = was);
     EMBED_CALL(cli_spans, ReviewCompareCtx, .path_text = path, .text = now_text, .size = now_size, .side = now);
@@ -487,8 +487,8 @@ static void cli_moves(void)
     {
         const CliReviewPiece *const deleted = &s_compare->removed[index];
         unsigned int best = s_compare->addeds;
-        unsigned long long best_same = 0ull;
-        unsigned long long best_longest = 1ull;
+        unsigned long long best_same = 0ULL;
+        unsigned long long best_longest = 1ULL;
         for (unsigned int at = 0u; at < s_compare->addeds; at += 1u)
         {
             const CliReviewPiece *const one = &s_compare->added[at];
@@ -502,15 +502,15 @@ static void cli_moves(void)
             {
                 continue;
             }
-            unsigned long long same = 0ull;
-            unsigned long long longest = 1ull;
+            unsigned long long same = 0ULL;
+            unsigned long long longest = 1ULL;
             if (!EMBED_CALL(cli_review_one_internal.share, CliReviewOneCtx, .one = g_cli_review.texts + deleted->was,
                             .other = g_cli_review.texts + one->now, .same = &same, .longest = &longest))
             {
                 continue;
             }
             // a share as large as the best yet takes its place, the later winning a tie
-            const int is_move = (same * 100ull) >= (CLI_MOVE_MIN_SHARE * longest);
+            const int is_move = (same * 100ULL) >= (CLI_MOVE_MIN_SHARE * longest);
             if (is_move && ((best == s_compare->addeds) || ((same * best_longest) >= (best_same * longest))))
             {
                 best = at;

@@ -12,7 +12,7 @@ int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
 {
     CliDebugAnswer *const answer = cli_debug_answer_alloc();
     char expression[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea command = {expression, sizeof(expression), 0ull};
+    VerbaLinea command = {expression, sizeof(expression), 0ULL};
     mmgr_line_ch(&command, '`');
     mmgr_line_put(&command, args->text);
     mmgr_line_put(&answer->args, "{\"expression\":");
@@ -26,27 +26,27 @@ int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
         EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
         return 0;
     }
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const result =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &answer->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &answer->json, .object = answer->root, .name = "result"),
                    .length_pointer = &length);
     const char *const result_text = (result != NULL) ? result : "";
-    const unsigned long long size = length;
-    unsigned long long start = 0ull;
+    const unsigned long long size = (result != NULL) ? length : 0ULL;
+    unsigned long long start = 0ULL;
     unsigned long long end = size;
     while ((start < size) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = result_text[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = result_text[end - 1ull]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = result_text[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
-    const int failed = (end - start >= 6ull) &&
+    const int failed = (end - start >= 6ULL) &&
                        (memor.cmp(&(MemoriaCfg){.src = result_text + start, .other = "error:", .bytes = 6u}) == 0);
     if (failed)
     {
@@ -86,13 +86,13 @@ int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
         return 0;
     }
     char command[CLI_PATH_MAX_LEN + 64u];
-    VerbaLinea line = {command, sizeof(command), 0ull};
+    VerbaLinea line = {command, sizeof(command), 0ULL};
     mmgr_line_put(&line, "command script import \"");
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = script, .from = '\\', .to = '/');
     mmgr_line_ch(&line, '"');
     mmgr_line_finish(&line);
     char out_buf[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
     if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_command, CliDebugSessionErrMsgCtx, .session = args->session,
                     .text = command, .out = &out, .err_msg = args->err_msg))
     {
@@ -152,7 +152,7 @@ EMBED_INLINE int step_send(const DebugStepCtx *args)
     int wait = args->wait;
     VerbaLinea *err_msg = args->err_msg;
     char arguments[64];
-    VerbaLinea args_local = {arguments, sizeof(arguments), 0ull};
+    VerbaLinea args_local = {arguments, sizeof(arguments), 0ULL};
     mmgr_line_put(&args_local, "{\"threadId\":");
     mmgr_line_decimal_signed(&args_local, args->thread);
     mmgr_line_ch(&args_local, '}');
@@ -165,7 +165,7 @@ EMBED_INLINE int step_send(const DebugStepCtx *args)
         g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
         return answered;
     }
-    unsigned long long seq = 0ull;
+    unsigned long long seq = 0ULL;
     if (!EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = args->session->dap,
                     .command = args->how, .arguments = args_local.out, .length = args_local.at, .seq_pointer = &seq,
                     .err_msg = err_msg))
@@ -273,9 +273,9 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
                           .how = "stepIn", .thread = args->thread, .out = args->out, .err_msg = args->err_msg);
     }
     char command[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {command, sizeof(command), 0ull};
+    VerbaLinea line = {command, sizeof(command), 0ULL};
     char slashed[CLI_PATH_MAX_LEN];
-    VerbaLinea slashed_line = {slashed, sizeof(slashed), 0ull};
+    VerbaLinea slashed_line = {slashed, sizeof(slashed), 0ULL};
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &slashed_line, .text = args->root, .from = '\\',
                      .to = '/');
     mmgr_line_put(&line, "script print(orior_lldb.across(lldb.debugger.GetSelectedTarget(), ");
@@ -284,7 +284,7 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     mmgr_line_put(&line, ", \"" CLI_DEBUG_ACROSS "\"))");
     mmgr_line_finish(&line);
     char count_buf[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea count = {count_buf, sizeof(count_buf), 0ull};
+    VerbaLinea count = {count_buf, sizeof(count_buf), 0ULL};
     if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_script, CliDebugSessionErrMsgCtx, .session = native,
                     .err_msg = args->err_msg) ||
         !EMBED_CALL(cli_debug_session_err_msg_internal.lldb_command, CliDebugSessionErrMsgCtx, .session = native,
@@ -295,27 +295,27 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
         return 0;
     }
     // the count of places the script set a breakpoint at, the whole answer trimmed, 0 where it is no number
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = count.at;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = count.out[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = count.out[end - 1ull]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = count.out[end - 1ULL]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
-    unsigned long long positioned = 0ull;
-    int number = (end > start) && (end - start <= 19ull);
-    for (unsigned long long at = start; number && (at < end); at += 1ull)
+    unsigned long long positioned = 0ULL;
+    int number = (end > start) && (end - start <= 19ULL);
+    for (unsigned long long at = start; number && (at < end); at += 1ULL)
     {
         number = (count.out[at] >= '0') && (count.out[at] <= '9');
-        positioned = (positioned * 10ull) + (unsigned long long)(count.out[at] - '0');
+        positioned = (positioned * 10ULL) + (unsigned long long)(count.out[at] - '0');
     }
-    positioned = number ? positioned : 0ull;
-    if (positioned > 0ull)
+    positioned = number ? positioned : 0ULL;
+    if (positioned > 0ULL)
     {
         python->has_across = 1;
         python->across = native->info.id;

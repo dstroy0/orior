@@ -61,8 +61,8 @@ EMBED_INLINE void match_end_append(const ShapeMatchCtx *args)
 {
     if (args->matcher_out->ends_capacity == 0u)
     {
-        const unsigned long long required = ((unsigned long long)args->matcher_out->tokens->count + 1ull) *
-                                            ((unsigned long long)args->matcher_out->part_count + 1ull);
+        const unsigned long long required = ((unsigned long long)args->matcher_out->tokens->count + 1ULL) *
+                                            ((unsigned long long)args->matcher_out->part_count + 1ULL);
         const unsigned int capacity = (required < CLI_SHAPE_ENDS) ? (unsigned int)required : CLI_SHAPE_ENDS;
         args->matcher_out->ends =
             g_cli_cells->temporary_buf_alloc(capacity * sizeof(*args->matcher_out->ends), &g_cli_shape_cells);
@@ -165,8 +165,8 @@ EMBED_INLINE int match_same(const ShapeMatchCtx *args)
     }
     for (unsigned int offset = 0u; offset < length; offset += 1u)
     {
-        unsigned long long one_size = 0ull;
-        unsigned long long other_size = 0ull;
+        unsigned long long one_size = 0ULL;
+        unsigned long long other_size = 0ULL;
         const char *const one =
             EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher, .at = from + offset, .size = &one_size);
         const char *const other = EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher,
@@ -203,7 +203,7 @@ int cli_shape_from(const CliShapeMatcherCtx *args)
             return 0;
         }
         const unsigned long long size = args->matcher->parts->end[args->part] - args->matcher->parts->start[args->part];
-        unsigned long long own_size = 0ull;
+        unsigned long long own_size = 0ULL;
         const char *const own =
             EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher, .at = args->at, .size = &own_size);
         if ((kind != CLI_SHAPE_BREAK) &&

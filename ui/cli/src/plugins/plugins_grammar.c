@@ -11,7 +11,7 @@
 
 // the plugins whose grammars' stamps the list's capacity is taken with, and the bytes a whole grammar is written in
 #define CLI_PLUGIN_GRAMMARS_MAX 1024u
-#define CLI_PLUGIN_GRAMMAR_CAPACITY (4ull << 20u)
+#define CLI_PLUGIN_GRAMMAR_CAPACITY (4ULL << 20u)
 
 // A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from
 typedef struct
@@ -68,10 +68,10 @@ typedef struct
 // a text's stamp, FNV-1a over its bytes
 EMBED_INLINE unsigned long long cli_grammar_stamp(const PluginsGrammarCtx *args)
 {
-    unsigned long long stamp = 0xcbf29ce484222325ull;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    unsigned long long stamp = 0xcbf29ce484222325ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        stamp = (stamp ^ (unsigned char)args->text[at]) * 0x100000001b3ull;
+        stamp = (stamp ^ (unsigned char)args->text[at]) * 0x100000001b3ULL;
     }
     return stamp;
 }
@@ -85,13 +85,13 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
         return;
     }
     needle->found = 1;
-    needle->whole->at = 0ull;
+    needle->whole->at = 0ULL;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = needle->err_msg, .owner = &g_cli_plugins_cells);
     const unsigned int grammar = (root != CLI_JSON_NONE)
                                      ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -119,9 +119,9 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
     if (needle->made &&
         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = pairs,
                    .kind = CFG_JSON_ARRAY) &&
-        (needle->whole->at > 2ull) && (needle->whole->out[needle->whole->at - 1ull] == '}'))
+        (needle->whole->at > 2ULL) && (needle->whole->out[needle->whole->at - 1ULL] == '}'))
     {
-        needle->whole->at -= 1ull;
+        needle->whole->at -= 1ULL;
         mmgr_line_put(needle->whole, ",\"brackets\":");
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = pairs,
                    .out = needle->whole, .indent = 0u, .sorted = 0);
@@ -138,10 +138,10 @@ EMBED_INLINE int cli_grammar_resolved_store(const PluginsGrammarCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int grammar =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->whole->out, .size = args->whole->at, .nodes_more = 0u, .text_more = 0ull,
+                   .text = args->whole->out, .size = args->whole->at, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = err_msg, .owner = &g_cli_plugins_cells);
     const int stored =
         (grammar != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = key,
@@ -152,19 +152,19 @@ EMBED_INLINE int cli_grammar_resolved_store(const PluginsGrammarCtx *args)
 
 int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
 {
-    VerbaLinea named = {args->key, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea named = {args->key, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&named, "plugin:");
     mmgr_line_put(&named, args->id);
     // the plugin's id, and the folder its language stands for after a colon
     char plugin_id[CLI_NAME_MAX_LEN];
-    VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ull};
+    VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ULL};
     const char *name = args->id;
-    name += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
+    name += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = ":");
     // the colon lies at or after the id's first letter
     mmgr_line_put_n(&split, args->id, (unsigned long long)(name - args->id));
     name = (*name == ':') ? (name + 1) : name;
-    if ((mmgr_line_finish(&named) == 0ull) || (mmgr_line_finish(&split) == 0ull))
+    if ((mmgr_line_finish(&named) == 0ULL) || (mmgr_line_finish(&split) == 0ULL))
     {
         mmgr_line_put(args->err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;

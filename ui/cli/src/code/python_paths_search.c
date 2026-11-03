@@ -11,8 +11,8 @@
 
 // a file larger than this is not read; how long a tree's reading stands, in milliseconds; the most folders counted,
 // and the most one script names
-#define CLI_PY_LARGEST (1ull << 20u)
-#define CLI_PY_FRESH_FOR 30000ull
+#define CLI_PY_LARGEST (1ULL << 20u)
+#define CLI_PY_FRESH_FOR 30000ULL
 #define CLI_PY_COUNTS_MAX 1024u
 #define CLI_PY_SEEN 256u
 
@@ -54,8 +54,8 @@ EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
     static const char *const s_not[8] = {"venv",          ".venv",       "env",  "node_modules",
                                          "site-packages", "__pycache__", ".tox", ".nox"};
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL});
-    if ((length < 3ull) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3ull, .other = ".py", .cap = CLI_CELLS_POOL})))
+    if ((length < 3ULL) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3ULL, .other = ".py", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
@@ -87,20 +87,20 @@ EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
 EMBED_INLINE int cli_touches_path(const PythonPathsSearchCtx *args)
 {
     const unsigned char *bytes = args->bytes;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < args->size)
     {
         unsigned int letter = 0u;
         const unsigned long long step =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes,
                        .length = args->size, .at = at, .letter = &letter);
-        if ((step == 1ull) && (bytes[at] >= 0x80u))
+        if ((step == 1ULL) && (bytes[at] >= 0x80u))
         {
             return 0;
         }
         at += step;
     }
-    for (unsigned long long place = 0ull; (place + 8ull) <= args->size; place += 1ull)
+    for (unsigned long long place = 0ULL; (place + 8ULL) <= args->size; place += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = bytes + place, .other = "sys.path", .bytes = 8u}) == 0)
         {
@@ -161,12 +161,12 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
 {
     const char *file = args->file;
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, file);
-    unsigned long long size = 0ull;
-    if ((mmgr_line_finish(&line) == 0ull) ||
+    unsigned long long size = 0ULL;
+    if ((mmgr_line_finish(&line) == 0ULL) ||
         !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size) ||
         (size > CLI_PY_LARGEST))
     {

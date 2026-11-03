@@ -85,7 +85,7 @@ EMBED_INLINE int cli_git_in(const CarrySendCtx *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     char words[CLI_NAME_MAX_LEN * 4u];
-    VerbaLinea out = {words, sizeof(words), 0ull};
+    VerbaLinea out = {words, sizeof(words), 0ULL};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->folder,
                       .request = arguments, .count = count, .out = &out, .err_msg = err_msg);
 }
@@ -96,11 +96,11 @@ EMBED_INLINE int cli_has_remote(const CarrySendCtx *args)
     static const char *const s_remote[1] = {"remote"};
     char remotes[CLI_NAME_MAX_LEN * 4u];
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea out = {remotes, sizeof(remotes), 0ull};
-    VerbaLinea unrun = {why, sizeof(why), 0ull};
+    VerbaLinea out = {remotes, sizeof(remotes), 0ULL};
+    VerbaLinea unrun = {why, sizeof(why), 0ULL};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->folder,
                       .request = s_remote, .count = 1u, .out = &out, .err_msg = &unrun) &&
-           (out.at > 0ull);
+           (out.at > 0ULL);
 }
 
 // the folder `to` made to contain exactly what travels: 1, or 0 with why given
@@ -161,7 +161,7 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
         return 0;
     }
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea quiet = {why, sizeof(why), 0ull};
+    VerbaLinea quiet = {why, sizeof(why), 0ULL};
     if (EMBED_CALL(cli_git_in, CarrySendCtx, .folder = args->to, .request = s_diff, .count = 3u, .err_msg = &quiet))
     {
         mmgr_line_put(out, args->to);
@@ -177,7 +177,7 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
                                  .value_out = name, .capacity = sizeof(name));
 #endif
     char message[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea line = {message, sizeof(message), 0ull};
+    VerbaLinea line = {message, sizeof(message), 0ULL};
     mmgr_line_put(&line, "orior's settings from ");
     mmgr_line_put(&line, named ? name : "a machine");
     mmgr_line_finish(&line);
@@ -189,7 +189,7 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
     if (EMBED_CALL(cli_has_remote, CarrySendCtx, .folder = args->to))
     {
         char words[CLI_NAME_MAX_LEN * 4u];
-        VerbaLinea pushed = {words, sizeof(words), 0ull};
+        VerbaLinea pushed = {words, sizeof(words), 0ULL};
         if (!EMBED_CALL(cli_git_root_out_count_err_msg.push, CliGitRootOutCountErrMsgCfg, .root = args->to,
                         .out = &pushed, .err_msg = err_msg))
         {
@@ -227,7 +227,7 @@ int cli_machine_transfer_send(const CliMachineTransferHomeToCfg *args)
     if (sent && repository && EMBED_CALL(cli_has_remote, CarrySendCtx, .folder = args->to))
     {
         char words[CLI_NAME_MAX_LEN * 4u];
-        VerbaLinea pulled = {words, sizeof(words), 0ull};
+        VerbaLinea pulled = {words, sizeof(words), 0ULL};
         sent = EMBED_CALL(cli_git_root_out_count_err_msg.pull, CliGitRootOutCountErrMsgCfg, .root = args->to,
                           .out = &pulled, .err_msg = args->err_msg);
     }

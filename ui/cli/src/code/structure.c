@@ -368,10 +368,10 @@ static int cli_side_by_name(const StructureCtx *args)
     for (unsigned int at = 0u; at < args->side->tokens; at += 1u)
     {
         const CliToken *const token = &args->side->token[at];
-        unsigned long long hash = 0xcbf29ce484222325ull;
+        unsigned long long hash = 0xcbf29ce484222325ULL;
         for (unsigned int byte = token->start; byte < token->end; byte += 1u)
         {
-            hash = (hash ^ (unsigned char)args->side->text[byte]) * 0x100000001b3ull;
+            hash = (hash ^ (unsigned char)args->side->text[byte]) * 0x100000001b3ULL;
         }
         unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
         while ((g_cli_structure->token_names[bucket].name != 0u) &&
@@ -394,10 +394,10 @@ static int cli_side_by_name(const StructureCtx *args)
     }
     for (unsigned int line = 0u; line < args->side->lines; line += 1u)
     {
-        unsigned long long hash = 0xcbf29ce484222325ull;
+        unsigned long long hash = 0xcbf29ce484222325ULL;
         for (unsigned int at = args->side->line_first[line]; at < args->side->line_first[line + 1u]; at += 1u)
         {
-            hash = (hash ^ args->side->token_name[at]) * 0x100000001b3ull;
+            hash = (hash ^ args->side->token_name[at]) * 0x100000001b3ULL;
         }
         unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
         while ((g_cli_structure->line_names[bucket].name != 0u) &&

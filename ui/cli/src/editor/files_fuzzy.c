@@ -145,7 +145,7 @@ unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}), .letters = s_read,
                    .capacity_u64 = CLI_FUZZY_LETTERS);
     unsigned int requested_count = 0u;
-    for (unsigned long long at = 0ull; (at < count) && (requested_count < args->capacity); at += 1ull)
+    for (unsigned long long at = 0ULL; (at < count) && (requested_count < args->capacity); at += 1ULL)
     {
         if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = s_read[at]))
         {

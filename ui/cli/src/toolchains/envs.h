@@ -14,7 +14,6 @@
 #ifndef ENVS_H
 #define ENVS_H
 typedef struct CliEnvsRootCfg CliEnvsRootCfg;
-typedef struct CliEnvsOutCfg CliEnvsOutCfg;
 typedef struct CliEnvsCfg CliEnvsCfg;
 typedef struct CliEnvsOutFolderCfg CliEnvsOutFolderCfg;
 
@@ -27,8 +26,7 @@ extern CellOwner g_cli_envs_cells;
 
 // the environment at `place` in the tree at `root`, of `kind`, made ready to use into `environment`: for Pipenv, the
 // virtual environment Pipenv stores for the folder; for Nix, the folders its development shell puts on the PATH. 1, or
-// 0 with why given; and the packages `count` of `requires` names that the environment's Python has not installed,
-// written as a JSON array of names
+// 0 with why given
 int cli_envs_resolve(const CliEnvsRootCfg *args);
 
 struct CliEnvsRootCfg
@@ -38,15 +36,6 @@ struct CliEnvsRootCfg
     const char *place;
     CliTreeEnvironment *environment;
     VerbaLinea *err_msg;
-};
-
-struct CliEnvsOutCfg
-{
-    VerbaLinea *out;
-    const CliTreeEnvironment *environment_read;
-    const char *const *
-        requires;
-    unsigned int count;
 };
 
 struct CliEnvsCfg

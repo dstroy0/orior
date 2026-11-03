@@ -83,7 +83,7 @@ static int cli_next_line(const BridgeCtx *args)
     {
         const char *from = *at;
         const char *stop = from;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = (unsigned long long)(args->end - stop), .set = "\n");
         *at = (stop < args->end) ? (stop + 1) : stop;
         const unsigned int line = *number;
@@ -151,14 +151,14 @@ EMBED_INLINE unsigned long long cli_nth(const BridgeCtx *args)
         at = stop;
     }
     *word = end;
-    return 0ull;
+    return 0ULL;
 }
 
 EMBED_INLINE unsigned int cli_number(const BridgeCtx *args)
 {
     CliJson *json = args->json;
     char digits[24];
-    VerbaLinea line = {digits, sizeof(digits), 0ull};
+    VerbaLinea line = {digits, sizeof(digits), 0ULL};
     mmgr_line_decimal(&line, args->value, 1u);
     mmgr_line_finish(&line);
     return EMBED_CALL(cli_json_tree_text_length_kind.json_number_init, CliJsonTreeTextLengthKindCfg, .json = json,
@@ -191,7 +191,7 @@ EMBED_INLINE unsigned int cli_entry(const BridgeCtx *args)
     unsigned int object = args->object;
     const char *name = args->name;
     char key[CLI_PATH_MAX_LEN];
-    VerbaLinea named = {key, sizeof(key), 0ull};
+    VerbaLinea named = {key, sizeof(key), 0ULL};
     mmgr_line_put_n(&named, name, args->length);
     mmgr_line_finish(&named);
     const unsigned int had = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -233,7 +233,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_ARRAY);
     // the key the lines stand under, as its name in the text
     const char *key = NULL;
-    unsigned long long key_length = 0ull;
+    unsigned long long key_length = 0ULL;
     // where the lines under a pair go: the pair's own place in its key, or an identity block
     int under_pair = 0;
     int under_identity = 0;
@@ -329,7 +329,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
             const unsigned int last = args->json->node[identities].last;
             if (last != CLI_JSON_NONE)
             {
-                unsigned long long length = 0ull;
+                unsigned long long length = 0ULL;
                 const unsigned int rest = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                      .json_read = args->json, .object = last, .name = "rest");
                 const char *const had = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
@@ -370,7 +370,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
             continue;
         }
         char name[CLI_PATH_MAX_LEN];
-        VerbaLinea named = {name, sizeof(name), 0ull};
+        VerbaLinea named = {name, sizeof(name), 0ULL};
         mmgr_line_put_n(&named, key, key_length);
         mmgr_line_finish(&named);
         const unsigned int pairs =
@@ -461,7 +461,7 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
         const char *word = NULL;
         for (unsigned int index = 1u;
              EMBED_CALL(cli_nth, BridgeCtx, .text = parsed.rest, .length = parsed.remainder_length, .index = index,
-                        .word_pointer = &word) != 0ull;
+                        .word_pointer = &word) != 0ULL;
              index += 1u)
         {
             const unsigned long long length =
@@ -505,7 +505,7 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
             const unsigned int entry =
                 EMBED_CALL(cli_entry, BridgeCtx, .json = args->json, .object = names, .name = name,
                            .length = name_length, .made = cli_name_init, .line = parsed.line);
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const joined = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                   .json_read = args->json, .node = value, .length_pointer = &length);
             const unsigned int note = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word = parsed.word,
@@ -543,24 +543,24 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
 // whether a word is a kind in lower case, and whether a word is a name
 EMBED_INLINE int cli_is_kind(const BridgeCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         if (!(((args->word[at] >= 'a') && (args->word[at] <= 'z')) || (args->word[at] == '_')))
         {
             return 0;
         }
     }
-    return args->length != 0ull;
+    return args->length != 0ULL;
 }
 
 EMBED_INLINE int cli_is_name(const BridgeCtx *args)
 {
-    if ((args->length == 0ull) ||
+    if ((args->length == 0ULL) ||
         !(((args->word[0] | 0x20) >= 'a') && ((args->word[0] | 0x20) <= 'z')) && (args->word[0] != '_'))
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char letter = args->word[at];
         if (!(((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
@@ -663,18 +663,18 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     char relative[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, CLI_BRIDGE_DIR);
     mmgr_line_finish(&line);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliBridgeFiles files = {NULL, 0u, 0u};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_file_each,
                .context_bytess = &files);
     files = (CliBridgeFiles){
-        g_cli_cells->persistent_buf_alloc((files.count + 1ull) * sizeof(CliBridgeFile), &g_cli_editor_cells), 0u,
+        g_cli_cells->persistent_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), &g_cli_editor_cells), 0u,
         files.count};
     if (files.file == NULL)
     {
@@ -700,21 +700,21 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     for (unsigned int at = 0u; at < files.count; at += 1u)
     {
         CliBridgeFile *const one = &files.file[at];
-        VerbaLinea file = {path, sizeof(path), 0ull};
+        VerbaLinea file = {path, sizeof(path), 0ULL};
         mmgr_line_put(&file, folder);
         mmgr_line_ch(&file, '/');
         mmgr_line_put(&file, one->name);
-        one->bytes = (EMBED_CALL(cli_bridge_by_name, BridgeCtx, .name = one->name) && (mmgr_line_finish(&file) != 0ull))
+        one->bytes = (EMBED_CALL(cli_bridge_by_name, BridgeCtx, .name = one->name) && (mmgr_line_finish(&file) != 0ULL))
                          ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                       .size_pointer = &one->size, .owner = &g_cli_editor_cells)
                          : NULL;
         if (one->bytes != NULL)
         {
             const unsigned long long lines =
-                1ull + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = (const char *)one->bytes,
+                1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = (const char *)one->bytes,
                                   .size = one->size, .byte = '\n');
             nodes += (CLI_BRIDGE_LINE_NODES * lines) + CLI_BRIDGE_FILE_NODES;
-            text += (2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN;
+            text += (2ULL * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN;
         }
     }
     // a tree's node count is an unsigned int's, and a bridge past it reads as full
@@ -752,7 +752,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
                        .byte = '.') +
             1;
         const char *const text_of = (const char *)one->bytes;
-        VerbaLinea file = {path, sizeof(path), 0ull};
+        VerbaLinea file = {path, sizeof(path), 0ULL};
         mmgr_line_put(&file, folder);
         mmgr_line_ch(&file, '/');
         mmgr_line_put(&file, one->name);

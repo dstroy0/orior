@@ -9,7 +9,7 @@
 #include "symbols_internal.h"
 
 // the capacity the first cell of leaves holds
-#define CLI_LEAVES_MARKS 256ull
+#define CLI_LEAVES_MARKS 256ULL
 #define CLI_LEAVES_MAX (1u << 19u)
 
 typedef struct
@@ -59,7 +59,7 @@ EMBED_INLINE unsigned char cli_leaf_operation(const SymbolsLeavesCtx *args)
 EMBED_INLINE unsigned char cli_leaf_segment_number(const SymbolsLeavesCtx *args)
 {
     unsigned int value = 0u;
-    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         if ((args->text[at] < '0') || (args->text[at] > '9') || (value > 25u))
         {
@@ -76,19 +76,19 @@ EMBED_INLINE unsigned char cli_leaf_segment_number(const SymbolsLeavesCtx *args)
 // number it binds with or its digits' base, and in an operator's name the operation it does
 static void cli_leaf_get(const SymbolsLeavesCtx *args)
 {
-    args->leaf->is = 0ull;
+    args->leaf->is = 0ULL;
     args->leaf->binds = 0u;
     args->leaf->base = 10u;
     args->leaf->does = 0u;
     int operating = 0;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    if (length == 0ull)
+    if (length == 0ULL)
     {
         args->leaf->is = CLI_LEAF_BLANK;
         return;
     }
-    unsigned long long is = 0ull;
-    unsigned long long from = 0ull;
+    unsigned long long is = 0ULL;
+    unsigned long long from = 0ULL;
     unsigned int segment = 0u;
     int directive = 0;
     // the segment before this one names `binds` or `base`, and this one is a number
@@ -262,7 +262,7 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
                       : 0u;
         }
         segment += 1u;
-        from = to + 1ull;
+        from = to + 1ULL;
     }
     args->leaf->is = is;
 }
@@ -322,7 +322,7 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
     // the line stands in the copy at or past its first byte
     const unsigned long long start = (unsigned long long)(line - read->first);
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
-    unsigned long long byte = 0ull;
+    unsigned long long byte = 0ULL;
     unsigned int at = 0u;
     for (unsigned int run = 0u; !read->refused && (run < args->leaves->runs); run += 1u)
     {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tools_table.c: every C program a loop runs, a row each: its sources, its includes, its language and flags, how it
 // links, and the folders whose headers make it stale; and the file definitions every program of a run links. A
-// pattern names the files of one folder by their extension, `folder/*.c`, or one file, from the top of the tree; a
+// pattern names the files of one folder by their extension, a star before it, or one file, from the top of the tree; a
 // list of them ends at NULL
 #include "tools_internal.h"
 

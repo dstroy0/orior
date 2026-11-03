@@ -16,8 +16,8 @@ static void gather_cells_free(void)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_gather.json);
     g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
     g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
-    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
 }
 
 static int gather_cells_alloc(void)
@@ -52,7 +52,7 @@ typedef struct
 // a database of the entries `entries`, given to clangd from `folder` where one is given, with the compilers they name
 static void cli_of_entries(const CompileDbGatherCtx *args)
 {
-    CliJson *const json = &g_cli_gather.json;
+    const CliJson *const json = &g_cli_gather.json;
     args->database->has_folder = args->folder != NULL;
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->database->folder, .text = args->folder,
                .otherwise = "");
@@ -72,7 +72,7 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = arguments, .index = 0u),
                        .length_pointer = NULL);
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const char *const command =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -175,7 +175,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                .node = args->entries, .out = &out, .indent = 2u, .sorted = 0);
     if (mmgr_line_ok(&out))
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const there = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                       .size_pointer = &size, .owner = &g_cli_build_cells);
         const int same = (there != NULL) && (size == out.at) &&
@@ -232,7 +232,7 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)
         const unsigned long long name_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = file->path,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        name = (name_end != 0ull) ? (file->path + name_end) : name;
+        name = (name_end != 0ULL) ? (file->path + name_end) : name;
         char project[CLI_PATH_MAX_LEN] = "";
         unsigned int entries = CLI_JSON_NONE;
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_CELLS_POOL}))

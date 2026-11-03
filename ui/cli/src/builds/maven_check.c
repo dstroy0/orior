@@ -39,7 +39,7 @@ void cli_maven_update(const CliMavenSizeCheckCtx *args)
     mmgr_line_put(&title, "Update the snapshot ");
     mmgr_line_put_n(&title, args->coordinates, args->size);
     char line[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea command = {line, sizeof(line), 0ull};
+    VerbaLinea command = {line, sizeof(line), 0ULL};
     mmgr_line_put(&command, args->check->program);
     mmgr_line_put(&command, " -U dependency:get -Dartifact=");
     mmgr_line_put_n(&command, args->coordinates, args->size);
@@ -143,9 +143,9 @@ EMBED_INLINE void check_properties(const MavenCheckCtx *args)
     const CliXml *const xml = args->check->xml;
     const char *const text = xml->text;
     const CliMavenModel *const model = args->check->model;
-    for (unsigned long long at = 0ull; at + 1u < xml->size;)
+    for (unsigned long long at = 0ULL; at + 1u < xml->size;)
     {
-        unsigned long long off = 0ull;
+        unsigned long long off = 0ULL;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + at, .length_value = xml->size - at,
                         .required = "${", .size = 2u, .at_pointer = &off))
         {
@@ -164,7 +164,7 @@ EMBED_INLINE void check_properties(const MavenCheckCtx *args)
         {
             continue;
         }
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         if ((end == at) ||
             (EMBED_CALL(cli_maven_size_internal.property, CliMavenSizeCtx, .model_read = model, .name = text + at,
                         .size = end - at, .value_size = &value) != NULL) ||
@@ -208,10 +208,10 @@ EMBED_INLINE void check_parent(const MavenCheckCtx *args)
     const CliXml *const xml = check->xml;
     static char s_texts[3][1u << 12u];
     static const char *const s_names[3] = {"groupId", "artifactId", "version"};
-    unsigned long long sizes[3] = {0ull, 0ull, 0ull};
+    unsigned long long sizes[3] = {0ULL, 0ULL, 0ULL};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        VerbaLinea one = {s_texts[at], sizeof(s_texts[at]), 0ull};
+        VerbaLinea one = {s_texts[at], sizeof(s_texts[at]), 0ULL};
         if (!EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = xml, .of = args->index,
                         .name = s_names[at], .out = &one) ||
             !mmgr_line_ok(&one))
@@ -229,7 +229,7 @@ EMBED_INLINE void check_parent(const MavenCheckCtx *args)
                                             .of = args->index, .name = "version");
     const CliXmlElement *const at = &xml->element[(version != CLI_XML_NONE) ? version : args->index];
     static char s_coordinates[1u << 14u];
-    VerbaLinea coordinates = {s_coordinates, sizeof(s_coordinates), 0ull};
+    VerbaLinea coordinates = {s_coordinates, sizeof(s_coordinates), 0ULL};
     for (unsigned int one = 0u; one < 3u; one += 1u)
     {
         mmgr_line_put(&coordinates, (one > 0u) ? ":" : "");
@@ -252,8 +252,8 @@ EMBED_INLINE void check_phase(const MavenCheckCtx *args)
 {
     const CliXml *const xml = args->check->xml;
     static char s_phase[1u << 12u];
-    VerbaLinea phase = {s_phase, sizeof(s_phase), 0ull};
-    unsigned long long found = 0ull;
+    VerbaLinea phase = {s_phase, sizeof(s_phase), 0ULL};
+    unsigned long long found = 0ULL;
     if (!EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx, .xml = xml, .of = args->index,
                     .out = &phase) ||
         !mmgr_line_ok(&phase) ||
@@ -323,7 +323,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
     }
     for (unsigned int at = 0u; at < s_xml.opens; at += 1u)
     {
-        const CliXmlError left = {0ull, 0ull, CLI_XML_NOT_CLOSED, s_xml.open[at], 0ull, 0ull};
+        const CliXmlError left = {0ULL, 0ULL, CLI_XML_NOT_CLOSED, s_xml.open[at], 0ULL, 0ULL};
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
         EMBED_CALL(cli_maven_xml_error_internal.xml_error_write, CliMavenXmlErrorCtx, .xml = &s_xml, .error = &left,
                    .out = &msg);
@@ -344,7 +344,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
     const unsigned int version = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = &s_xml,
                                             .of = project, .name = "modelVersion");
     static char s_version[1u << 12u];
-    VerbaLinea model_version = {s_version, sizeof(s_version), 0ull};
+    VerbaLinea model_version = {s_version, sizeof(s_version), 0ULL};
     if ((version != CLI_XML_NONE) &&
         EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx, .xml = &s_xml, .of = version,
                    .out = &model_version) &&
@@ -364,7 +364,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder))
     {
-        VerbaLinea copy = {folder, sizeof(folder), 0ull};
+        VerbaLinea copy = {folder, sizeof(folder), 0ULL};
         mmgr_line_put(&copy, root);
         (void)mmgr_line_finish(&copy);
     }

@@ -153,7 +153,7 @@ int gui_problems_wheel(const GuiProblemsRowFrameCfg *args)
 // the baseline of text in `face` at `size` centered in a row of `pixel_height` from `top`
 EMBED_INLINE int problems_baseline(const ProblemsCtx *args)
 {
-    GuiGlyphs *glyphs = args->glyphs;
+    const GuiGlyphs *glyphs = args->glyphs;
     unsigned int face = args->face;
     unsigned int size = args->size;
     const float ascent =
@@ -211,8 +211,8 @@ EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
     const int pad =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_PAD_LEFT, .scale = scale);
     char text[160];
-    VerbaLinea line = {text, sizeof(text), 0ull};
-    const int running = (problems != NULL) && (problems->total != 0ull) && (problems->done < problems->total);
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    const int running = (problems != NULL) && (problems->total != 0ULL) && (problems->done < problems->total);
     if (running)
     {
         mmgr_line_put(&line, "Checking the tree: ");
@@ -237,7 +237,7 @@ EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(head.x + pad), .y = baseline, .text = text,
                      .length = line.at, .color = args->palette->text_2, .clip = args->inside);
     const char *const action = running ? "Stop" : "Check the tree";
-    const unsigned long long action_length = cellul.len(&(CatenaFinitaCfg){.src = action, .cap = 32ull});
+    const unsigned long long action_length = cellul.len(&(CatenaFinitaCfg){.src = action, .cap = 32ULL});
     const float action_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                           .face = GUI_FACE_HEAD, .size = size, .text = action, .length = action_length);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
@@ -319,7 +319,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             const int baseline = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
                                             .size = name_size, .top = rect.y, .pixel_height = rect.height);
             char digits[24];
-            VerbaLinea count = {digits, sizeof(digits), 0ull};
+            VerbaLinea count = {digits, sizeof(digits), 0ULL};
             mmgr_line_decimal(&count, file->count, 1u);
             const int count_pad =
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_COUNT_PAD, .scale = scale);
@@ -352,7 +352,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                            .color = args->palette->text, .clip = text_clip);
             const unsigned long long folder =
                 cellul.len(&(CatenaFinitaCfg){.src = file->folder, .cap = CLI_PATH_MAX_LEN});
-            if (folder != 0ull)
+            if (folder != 0ULL)
             {
                 (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
                                  .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = x + (float)gap,
@@ -379,10 +379,10 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             .radius = (unsigned int)(mark / 2),
             .color = EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity));
         char where_text[48];
-        VerbaLinea where = {where_text, sizeof(where_text), 0ull};
-        mmgr_line_decimal(&where, one->line + 1ull, 1u);
+        VerbaLinea where = {where_text, sizeof(where_text), 0ULL};
+        mmgr_line_decimal(&where, one->line + 1ULL, 1u);
         mmgr_line_ch(&where, ':');
-        mmgr_line_decimal(&where, one->col + 1ull, 1u);
+        mmgr_line_decimal(&where, one->col + 1ULL, 1u);
         const float where_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = where_size, .text = where_text, .length = where.at);
@@ -421,10 +421,10 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
         const CliProblemSpan *const one = &problems->span[at];
         const GuiColor color =
             EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity);
-        for (unsigned long long line = one->from_line; line <= one->to_line; line += 1ull)
+        for (unsigned long long line = one->from_line; line <= one->to_line; line += 1ULL)
         {
-            const unsigned long long from = (line == one->from_line) ? one->from_col : 0ull;
-            const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ull;
+            const unsigned long long from = (line == one->from_line) ? one->from_col : 0ULL;
+            const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ULL;
             GuiRect start;
             GuiRect end;
             if (!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = editor,

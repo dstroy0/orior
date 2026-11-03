@@ -126,7 +126,7 @@ void cli_py_unreachable(const CliInspectPySrcSizeCfg *args)
                        .from = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = first, .at = 0u)->from.line,
                        .to = last.line, .start = &from, .end = &to);
             char message[CLI_INSPECT_UNREACHED_CAPACITY];
-            VerbaLinea msg = {message, sizeof(message), 0ull};
+            VerbaLinea msg = {message, sizeof(message), 0ULL};
             mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
             mmgr_line_put_n(&msg, args->src + word->start, word->end - word->start);
             mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
@@ -137,7 +137,7 @@ void cli_py_unreachable(const CliInspectPySrcSizeCfg *args)
             EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,
                        .title_text = "Take out the code no path reaches");
             EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
-                       .text_text = "", .size = 0ull);
+                       .text_text = "", .size = 0ULL);
         }
         at = end;
     }
@@ -150,7 +150,7 @@ EMBED_INLINE void doc_note(const InspectPyDocCtx *args)
     const char *message = args->message;
     const char *code = args->code;
     char text[256];
-    VerbaLinea msg = {text, sizeof(text), 0ull};
+    VerbaLinea msg = {text, sizeof(text), 0ULL};
     mmgr_line_put(&msg, "PEP 257: ");
     mmgr_line_put(&msg, message);
     EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts, .from = args->tok->from,
@@ -166,7 +166,7 @@ EMBED_INLINE void doc_rewrite_fix(const InspectPyDocCtx *args)
     EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,
                .title_text = title);
     EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = args->tok->from,
-               .to = args->tok->to, .text_text = text->out, .size = mmgr_line_ok(text) ? text->at : 0ull);
+               .to = args->tok->to, .text_text = text->out, .size = mmgr_line_ok(text) ? text->at : 0ULL);
 }
 
 // the UTF-16 units of `size` bytes of `text`
@@ -174,7 +174,7 @@ EMBED_INLINE unsigned int doc_units(const InspectPyDocCtx *args)
 {
     const char *text = args->text_text;
     unsigned int units = 0u;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         unsigned int letter = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
@@ -188,7 +188,7 @@ EMBED_INLINE unsigned int doc_units(const InspectPyDocCtx *args)
 EMBED_INLINE DocPart doc_physical(const InspectPyDocCtx *args)
 {
     const char *src = args->src;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (unsigned int line = 0u; line < args->index; line += 1u)
     {
         const char *const newline =
@@ -215,7 +215,7 @@ EMBED_INLINE void doc_period(const InspectPyDocCtx *args)
     unsigned long long size = args->size;
     CliFacts *facts = args->facts;
     unsigned int first_line = 0u;
-    DocPart line = {0ull, 0ull};
+    DocPart line = {0ULL, 0ULL};
     for (unsigned int index = 0u;
          EMBED_CALL(doc_line, InspectPyDocCtx, .src = src, .part = args->inner, .index = index, .line = &line);
          index += 1u)
@@ -242,7 +242,7 @@ EMBED_INLINE void doc_period(const InspectPyDocCtx *args)
             EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,
                        .title_text = "End the summary line with a period");
             EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = place,
-                       .to = place, .text_text = ".", .size = 1ull);
+                       .to = place, .text_text = ".", .size = 1ULL);
             return;
         }
     }
@@ -256,11 +256,11 @@ static void doc_check(const InspectPyDocCtx *args)
     CliFacts *facts = args->facts;
     const char *const whole = src + args->tok->start;
     const unsigned long long length = args->tok->end - args->tok->start;
-    unsigned long long prefix = 0ull;
+    unsigned long long prefix = 0ULL;
     prefix = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = whole, .at = prefix,
                         .size = length, .set = "\"'");
-    prefix = (prefix == length) ? 0ull : prefix;
-    for (unsigned long long at = 0ull; at < prefix; at += 1u)
+    prefix = (prefix == length) ? 0ULL : prefix;
+    for (unsigned long long at = 0ULL; at < prefix; at += 1u)
     {
         if (cellul.chr(&(CatenaFinitaCfg){.src = "fFbBtT", .cap = CLI_CELLS_POOL, .byte = whole[at]}) != NULL)
         {
@@ -279,7 +279,7 @@ static void doc_check(const InspectPyDocCtx *args)
     }
     const DocPart inner = {args->tok->start + prefix + quote, args->tok->start + length - quote};
     static char s_fixed[1u << 20u];
-    VerbaLinea fixed = {s_fixed, sizeof(s_fixed), 0ull};
+    VerbaLinea fixed = {s_fixed, sizeof(s_fixed), 0ULL};
     if (!triple || (memor.cmp(&(MemoriaCfg){.src = body, .other = "\"\"\"", .bytes = 3u}) != 0))
     {
         EMBED_CALL(doc_note, InspectPyDocCtx, .facts = facts, .tok = args->tok,
@@ -304,8 +304,8 @@ static void doc_check(const InspectPyDocCtx *args)
     {
         return;
     }
-    DocPart first = {0ull, 0ull};
-    DocPart second = {0ull, 0ull};
+    DocPart first = {0ULL, 0ULL};
+    DocPart second = {0ULL, 0ULL};
     (void)EMBED_CALL(doc_line, InspectPyDocCtx, .src = src, .part = trimmed, .index = 0u, .line = &first);
     const int more = EMBED_CALL(doc_line, InspectPyDocCtx, .src = src, .part = trimmed, .index = 1u, .line = &second);
     if (!more)
@@ -314,7 +314,7 @@ static void doc_check(const InspectPyDocCtx *args)
             (memor.chr(&(MemoriaCfg){
                  .src = src + inner.start, .val = '\n', .bytes = (size_t)(inner.end - inner.start)}) != NULL);
         const int spaced = (inner.start != trimmed.start) || (inner.end != trimmed.end);
-        fixed.at = 0ull;
+        fixed.at = 0ULL;
         mmgr_line_put_n(&fixed, whole, prefix);
         mmgr_line_put_n(&fixed, broken ? "\"\"\"" : body, broken ? 3u : quote);
         mmgr_line_put_n(&fixed, src + trimmed.start, trimmed.end - trimmed.start);
@@ -378,7 +378,7 @@ static void doc_check(const InspectPyDocCtx *args)
                    .message = "the closing quotes of a docstring of more than one line stand on a line of their own.",
                    .code = "docstring-close");
         const CliInspectPosition close = {args->tok->to.line, args->tok->to.col - (unsigned int)quote};
-        fixed.at = 0ull;
+        fixed.at = 0ULL;
         mmgr_line_ch(&fixed, '\n');
         mmgr_line_put_n(&fixed, src + line.start, indent - line.start);
         EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,

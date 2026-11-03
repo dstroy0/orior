@@ -14,7 +14,7 @@ void cli_maven_model_free(const CliMavenTextSizeModelCtx *args)
 void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args)
 {
     const unsigned long long lists_bytes =
-        ((4ull * CLI_MAVEN_PROPERTIES) + (2ull * CLI_MAVEN_MANAGED)) * sizeof(unsigned int);
+        ((4ULL * CLI_MAVEN_PROPERTIES) + (2ULL * CLI_MAVEN_MANAGED)) * sizeof(unsigned int);
     unsigned int *const lists =
         g_cli_cells->persistent_buf_alloc(lists_bytes + CLI_MAVEN_MODEL_TEXT, &g_cli_maven_model_cells);
     if (lists == NULL)

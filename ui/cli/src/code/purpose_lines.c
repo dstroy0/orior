@@ -10,12 +10,12 @@
 CliSpan cli_purpose_trimmed_start(const CliPurposeLinesSpanCfg *args)
 {
     CliSpan span = args->span;
-    while (span.length > 0ull)
+    while (span.length > 0ULL)
     {
         unsigned int letter = 0u;
         const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)span.at, .length = span.length,
-                                                   .at = 0ull, .letter = &letter);
+                                                   .at = 0ULL, .letter = &letter);
         if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
         {
             break;
@@ -29,8 +29,8 @@ CliSpan cli_purpose_trim(const CliPurposeLinesSpanCfg *args)
 {
     CliSpan span = args->span;
     span = EMBED_CALL(cli_purpose_lines_span.purpose_trimmed_start, CliPurposeLinesSpanCfg, .span = span);
-    unsigned long long end = 0ull;
-    for (unsigned long long at = 0ull; at < span.length;)
+    unsigned long long end = 0ULL;
+    for (unsigned long long at = 0ULL; at < span.length;)
     {
         unsigned int letter = 0u;
         const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
@@ -55,7 +55,7 @@ int cli_purpose_license(const CliPurposeLinesCfg *args)
     for (unsigned int word = 0u; word < 2u; word += 1u)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL});
-        for (unsigned long long at = 0ull; (at + size) <= args->length; at += 1ull)
+        for (unsigned long long at = 0ULL; (at + size) <= args->length; at += 1ULL)
         {
             if (cellul.starts(&(CatenaFinitaCfg){.src = args->text + at, .other = s_words[word], .cap = size, .ci = 1}))
             {
@@ -78,7 +78,7 @@ void cli_purpose_uncommented(const CliPurposeLinesCountCfg *args)
             rest = (CliSpan){rest.at + size, rest.length - size};
         }
         const unsigned long long marks = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                    .text = rest.at, .at = 0ull, .size = rest.length, .set = "!/*#");
+                                                    .text = rest.at, .at = 0ULL, .size = rest.length, .set = "!/*#");
         rest = (CliSpan){rest.at + marks, rest.length - marks};
         rest = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = rest);
         if (at != 0u)

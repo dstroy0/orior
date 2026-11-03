@@ -27,7 +27,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_lowest(const SiftX86Ctx *args)
 {
 #if defined(_MSC_VER) && !defined(__clang__)
-    unsigned long index = 0ul;
+    unsigned long index = 0UL;
     _BitScanForward(&index, args->mask);
     // the bit index of a non-zero 32 bit mask is 0 to 31
     return (unsigned int)index;
@@ -70,7 +70,7 @@ unsigned long long cli_sift_window_sse2(const CliSiftWindowLengthCfg *args)
     const unsigned long long *anchors = args->anchors;
     unsigned int anchor_count = args->anchor_count;
     int fold = args->fold;
-    const unsigned long long alignments = args->length - needle_length + 1ull;
+    const unsigned long long alignments = args->length - needle_length + 1ULL;
     const unsigned long long first = anchors[0];
     const unsigned long long second = (anchor_count > 1u) ? anchors[1] : first;
     // a byte is set in each lane as the 8 bits it is
@@ -79,9 +79,9 @@ unsigned long long cli_sift_window_sse2(const CliSiftWindowLengthCfg *args)
     const __m128i want_second =
         _mm_set1_epi8((char)EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg, .byte = needle[second], .fold = fold));
     const unsigned int tested = (anchor_count < 2u) ? anchor_count : 2u;
-    unsigned long long count = 0ull;
-    unsigned long long at = 0ull;
-    while ((at + 16ull) <= alignments)
+    unsigned long long count = 0ULL;
+    unsigned long long at = 0ULL;
+    while ((at + 16ULL) <= alignments)
     {
         const __m128i a =
             EMBED_CALL(cli_fold16, SiftX86Ctx,
@@ -100,11 +100,11 @@ unsigned long long cli_sift_window_sse2(const CliSiftWindowLengthCfg *args)
                            .from = tested, .at = here, .fold = fold))
             {
                 EMBED_CALL(args->found, CliEachAtCfg, .context = args->context, .at = args->base + here);
-                count += 1ull;
+                count += 1ULL;
             }
             mask &= mask - 1u;
         }
-        at += 16ull;
+        at += 16ULL;
     }
     return count + EMBED_CALL(cli_sift_window.plain_window, CliSiftWindowCfg, .window = window, .length = args->length,
                               .needle = needle, .needle_length = needle_length, .anchors = anchors,
@@ -121,7 +121,7 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const CliSiftWindowLengt
     const unsigned long long *anchors = args->anchors;
     unsigned int anchor_count = args->anchor_count;
     int fold = args->fold;
-    const unsigned long long alignments = args->length - needle_length + 1ull;
+    const unsigned long long alignments = args->length - needle_length + 1ULL;
     const unsigned long long first = anchors[0];
     const unsigned long long second = (anchor_count > 1u) ? anchors[1] : first;
     // a byte is set in each lane as the 8 bits it is
@@ -130,9 +130,9 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const CliSiftWindowLengt
     const __m256i want_second =
         _mm256_set1_epi8((char)EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg, .byte = needle[second], .fold = fold));
     const unsigned int tested = (anchor_count < 2u) ? anchor_count : 2u;
-    unsigned long long count = 0ull;
-    unsigned long long at = 0ull;
-    while ((at + 32ull) <= alignments)
+    unsigned long long count = 0ULL;
+    unsigned long long at = 0ULL;
+    while ((at + 32ULL) <= alignments)
     {
         const __m256i a = EMBED_CALL(
             cli_fold32, SiftX86Ctx,
@@ -151,11 +151,11 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const CliSiftWindowLengt
                            .from = tested, .at = here, .fold = fold))
             {
                 EMBED_CALL(args->found, CliEachAtCfg, .context = args->context, .at = args->base + here);
-                count += 1ull;
+                count += 1ULL;
             }
             mask &= mask - 1u;
         }
-        at += 32ull;
+        at += 32ULL;
     }
     return count + EMBED_CALL(cli_sift_window.plain_window, CliSiftWindowCfg, .window = window, .length = args->length,
                               .needle = needle, .needle_length = needle_length, .anchors = anchors,

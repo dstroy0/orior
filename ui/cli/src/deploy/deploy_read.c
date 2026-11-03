@@ -34,7 +34,7 @@ EMBED_INLINE CliDeployPage *read_page(const DeployReadCtx *args)
         return NULL;
     }
     page->size = args->capacity;
-    page->used = 0ull;
+    page->used = 0ULL;
     return page;
 }
 
@@ -63,7 +63,7 @@ void *cli_deploy_on_position(const CliDeployPoolCtx *args)
     }
     if (newest != NULL)
     {
-        const unsigned long long at = (newest->used + 7u) & ~7ull;
+        const unsigned long long at = (newest->used + 7u) & ~7ULL;
         if ((at <= newest->size) && (args->size <= newest->size - at))
         {
             newest->used = at + args->size;
@@ -247,10 +247,10 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
                                  ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                               .json_read = json, .node = from, .length_pointer = NULL)
                                  : ".";
-    args->deployment->retain = 5ull;
+    args->deployment->retain = 5ULL;
     if (retain_node != CLI_JSON_NONE)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                               .json_read = json, .node = retain_node, .kind = CFG_JSON_NUMBER)
                                        ? (json->text + json->node[retain_node].text)
@@ -258,13 +258,13 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
         length = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                             .node = retain_node, .kind = CFG_JSON_NUMBER)
                      ? json->node[retain_node].length
-                     : 0ull;
-        unsigned long long value = 0ull;
+                     : 0ULL;
+        unsigned long long value = 0ULL;
         int whole = (length > 0u);
-        for (unsigned long long at = 0ull; whole && (at < length); at += 1u)
+        for (unsigned long long at = 0ULL; whole && (at < length); at += 1u)
         {
             whole = (digits[at] >= '0') && (digits[at] <= '9') &&
-                    (value <= (0xffffffffffffffffull - (unsigned long long)(digits[at] - '0')) / 10u);
+                    (value <= (0xffffffffffffffffULL - (unsigned long long)(digits[at] - '0')) / 10u);
             value = whole ? ((value * 10u) + (unsigned long long)(digits[at] - '0')) : value;
         }
         if (!whole)
@@ -310,7 +310,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     cli_deploy_root_internal.tree_free(args);
     *deployments = NULL;
     *count = 0u;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_deploy_cells);
     if ((bytes == NULL) ||
@@ -320,10 +320,10 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea read_err_msg = {why, sizeof(why), 0ULL};
     const unsigned int top =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
-                   .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &read_err_msg, .owner = &g_cli_deploy_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
     const CliJson *const json = &args->tree->json;
@@ -396,10 +396,10 @@ EMBED_INLINE int read_white(const DeployReadCtx *args)
 int cli_deploy_position(const CliDeployTextCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    unsigned long long start = 0ull;
-    unsigned long long end = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long end = 0ULL;
     unsigned int letter = 0u;
-    for (unsigned long long at = 0ull; at < length;)
+    for (unsigned long long at = 0ULL; at < length;)
     {
         const unsigned long long reserved =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
@@ -424,7 +424,7 @@ int cli_deploy_position(const CliDeployTextCtx *args)
                           .address_out = &args->position_out->address, .err_msg = args->err_msg);
     }
     args->position_out->here = 1;
-    VerbaLinea path = {args->position_out->path, sizeof(args->position_out->path), 0ull};
+    VerbaLinea path = {args->position_out->path, sizeof(args->position_out->path), 0ULL};
 #if defined(_WIN32)
     // a path with a drive stands on its own, as Rust's join takes one, as does a share's
     const int whole =
@@ -447,7 +447,7 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     }
 #endif
     mmgr_line_put(&path, trimmed);
-    if (mmgr_line_finish(&path) == 0ull)
+    if (mmgr_line_finish(&path) == 0ULL)
     {
         mmgr_line_put(args->err_msg, trimmed);
         mmgr_line_put(args->err_msg, ": its path is too long");
@@ -481,7 +481,7 @@ int cli_deploy_remote_run(const CliDeploySizeCtx *args)
         return 0;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea error_line = {why, sizeof(why) - 1u, 0ull};
+    VerbaLinea error_line = {why, sizeof(why) - 1u, 0ULL};
     if (EMBED_CALL(cli_link_size.remote_run, CliLinkSizeCfg, .address = &args->place->address, .line = args->line_text,
                    .input = args->input, .size = args->size, .out = args->out, .err_msg = &error_line))
     {

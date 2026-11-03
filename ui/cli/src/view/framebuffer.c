@@ -58,12 +58,12 @@ int gui_framebuffer_init(const GuiFramebufferMaxWidthCfg *args)
         EMBED_CALL(framebuffer_window_bytes, FramebufferCtx, .width = args->max_width, .height = args->max_height);
     const unsigned long long larger = (window > most) ? window : most;
     // the next raster's place lies at the end of this one's capacity, which so ends on a place boundary, a power of two
-    args->framebuffer->capacity = (larger + GUI_FRAMEBUFFER_POSITION - 1ull) & ~(GUI_FRAMEBUFFER_POSITION - 1ull);
-    if (args->framebuffer->capacity == 0ull)
+    args->framebuffer->capacity = (larger + GUI_FRAMEBUFFER_POSITION - 1ULL) & ~(GUI_FRAMEBUFFER_POSITION - 1ULL);
+    if (args->framebuffer->capacity == 0ULL)
     {
         return 0;
     }
-    const unsigned long long frames_bytes = 2ull * args->framebuffer->capacity;
+    const unsigned long long frames_bytes = 2ULL * args->framebuffer->capacity;
     args->framebuffer->pages = EMBED_CALL(cli_size_bytes_internal.pages_alloc, CliSizeBytesCtx, .size = frames_bytes);
     args->framebuffer->background_pages =
         EMBED_CALL(cli_size_bytes_internal.pages_alloc, CliSizeBytesCtx, .size = args->framebuffer->capacity);
@@ -140,7 +140,7 @@ GuiRaster *gui_framebuffer_flip(const GuiFramebufferMaxWidthCfg *args)
 
 void gui_framebuffer_free(const GuiFramebufferMaxWidthCfg *args)
 {
-    const unsigned long long frames_bytes = 2ull * args->framebuffer->capacity;
+    const unsigned long long frames_bytes = 2ULL * args->framebuffer->capacity;
     if ((args->framebuffer->pages != NULL) && (args->framebuffer->raster[0].pixels != NULL))
     {
         // the pages lie in this process's memory, whose sizes a size_t counts

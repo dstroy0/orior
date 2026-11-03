@@ -31,7 +31,7 @@ typedef struct
 static void run_notice(const CliEachNoticeCfg *args)
 {
     CliDbRunning *const running = (CliDbRunning *)args->context;
-    mmgr_line_put(&running->notices_line, (running->notices_line.at > 1ull) ? "," : "");
+    mmgr_line_put(&running->notices_line, (running->notices_line.at > 1ULL) ? "," : "");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &running->notices_line,
                .text_bytes = (const unsigned char *)args->notice,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->notice, .cap = CLI_CELLS_POOL}));
@@ -70,7 +70,7 @@ static int run_work(const CliEachLinkFailureCfg *args)
         }
     }
     running->has_tag = done;
-    running->notices_line = (VerbaLinea){running->notices, sizeof(running->notices), 0ull};
+    running->notices_line = (VerbaLinea){running->notices, sizeof(running->notices), 0ULL};
     mmgr_line_ch(&running->notices_line, '[');
     EMBED_CALL(cli_db_link_context_internal.link_notices, CliDbLinkContextCtx, .link = link, .each = run_notice,
                .context = running);
@@ -98,7 +98,7 @@ static int run_on_count(const CliDbRowCfg *args)
     CliDbCounting *const counting = (CliDbCounting *)args->context;
     if (!counting->has_count && (args->count > 0u) && !args->values[0].null)
     {
-        VerbaLinea line = {counting->count, sizeof(counting->count), 0ull};
+        VerbaLinea line = {counting->count, sizeof(counting->count), 0ULL};
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                    .text_bytes = (const unsigned char *)args->values[0].text, .length = args->values[0].size);
         mmgr_line_finish(&line);
@@ -133,7 +133,7 @@ EMBED_INLINE int run_queries(const DbRunCtx *args)
     VerbaLinea *out = args->out;
     const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->open->config.kind);
     char query[CLI_DB_FIELD];
-    VerbaLinea counting_line = {query, sizeof(query), 0ull};
+    VerbaLinea counting_line = {query, sizeof(query), 0ULL};
     if (EMBED_CALL(cli_sql_length_dialect.unbounded, CliSqlLengthDialectCfg, .statement = statement,
                    .length = args->size, .dialect = dialect, .out = &counting_line))
     {
@@ -173,18 +173,18 @@ EMBED_INLINE int run_queries(const DbRunCtx *args)
 int cli_db_run(const CliDbOutFailureCfg *args)
 {
     // the statement trimmed of its spaces, then of the semicolons at its end, then of the spaces before them
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned long long end = args->size;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
                                  .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[start]}) != NULL))
     {
-        start += 1ull;
+        start += 1ULL;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[end - 1u]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                               .text = args->statement + start, .at = end - start, .set = ";"));
@@ -192,7 +192,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
            (cellul.chr(&(CatenaFinitaCfg){
                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[end - 1u]}) != NULL))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     if (start == end)
     {
@@ -210,7 +210,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     CliDbRunning running_capacity;
     CliDbRunning *const running = &running_capacity;
     const unsigned long long from = args->out->at;
-    *running = (CliDbRunning){args->open, text, length, args->page, args->out, "", 0, 0, "", {NULL, 0ull, 0ull}, ""};
+    *running = (CliDbRunning){args->open, text, length, args->page, args->out, "", 0, 0, "", {NULL, 0ULL, 0ULL}, ""};
     const unsigned long long started = cli_clock_milliseconds();
     mmgr_line_ch(args->out, '{');
     // the rows buffered are taken before the query link, as every reader of them takes the two, and retained through
@@ -220,7 +220,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                    .work = run_work, .context = running, .failure = args->failure);
     const unsigned long long consumed = cli_clock_milliseconds() - started;
     char tag_buf[CLI_DB_TAG];
-    VerbaLinea tag_line = {tag_buf, sizeof(tag_buf), 0ull};
+    VerbaLinea tag_line = {tag_buf, sizeof(tag_buf), 0ULL};
     if (run_result && running->has_tag)
     {
         mmgr_line_put(&tag_line, running->tag);
@@ -295,7 +295,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = running->transaction, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(args->out, ",\"zone\":");
     char zone[CLI_NAME_MAX_LEN];
-    VerbaLinea zone_line = {zone, sizeof(zone), 0ull};
+    VerbaLinea zone_line = {zone, sizeof(zone), 0ULL};
     EMBED_CALL(cli_db_out_count.zone, CliDbOutCountCfg, .open = args->open, .out = &zone_line);
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)zone_line.out, .length = zone_line.at);

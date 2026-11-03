@@ -62,9 +62,6 @@ typedef struct
     CliFound reserve[CLI_FILES_MAX];
 } CliRanking;
 
-// the ranking, a cell taken for one ranking under the lock
-static CliRanking *s_ranking;
-
 typedef struct
 {
     VerbaLinea *out;

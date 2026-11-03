@@ -8,9 +8,9 @@
 // file or folder by its name wherever it is; one with a `/` names a path from the tree's top. A folder named takes
 // everything in it. A line starting with `#` and an empty line name nothing.
 //
-// A pattern starting with `!` includes the files it names and hides every other: `!src/**` alone includes the files
-// under src and no others. Several such patterns include the files any of them names, and a pattern with no `!` hides
-// files even among those. On Windows a pattern matches whatever the case
+// A pattern starting with `!` includes the files it names and hides every other: `!src/` with two stars after it alone
+// includes the files under src and no others. Several such patterns include the files any of them names, and a pattern
+// with no `!` hides files even among those. On Windows a pattern matches whatever the case
 #ifndef PATTERNS_H
 #define PATTERNS_H
 typedef struct CliPatternsPathCfg CliPatternsPathCfg;

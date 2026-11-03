@@ -48,7 +48,7 @@ int cli_notebook_for_diff(const CliNotebookTextCfg *args)
         mmgr_line_put(args->out, " (");
         mmgr_line_put(args->out, (named != NULL) ? named : "code");
         mmgr_line_put(args->out, ")\n");
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                               .json_read = args->json, .cell = cell, .length_pointer = &length);
         mmgr_line_put_n(args->out, source, length);
@@ -197,8 +197,8 @@ EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int other = args->other;
-    unsigned long long left_length = 0ull;
-    unsigned long long right_length = 0ull;
+    unsigned long long left_length = 0ULL;
+    unsigned long long right_length = 0ULL;
     const char *const left_text = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                              .json_read = json, .cell = args->one, .length_pointer = &left_length);
     const char *const right_text = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
@@ -245,7 +245,7 @@ EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
     }
     g_cli_cells->persistent_buf_release(lines, &g_cli_notebook_cells);
     // twice the lines in common over all the lines of both at least a half
-    return (4ull * shared) >= ((unsigned long long)left + right);
+    return (4ULL * shared) >= ((unsigned long long)left + right);
 }
 
 // Whether two cells are the same cell: by their ids where both carry one, and else of one kind and alike
@@ -281,7 +281,7 @@ EMBED_INLINE int cli_same_cell(const NotebookMergeCtx *args)
 // aligns lines, the table of runs stored in `runs`, a row of `m` and one more for each of `n` and one more
 static void cli_align(const NotebookMergeCtx *args)
 {
-    const unsigned long long width = (unsigned long long)args->m + 1ull;
+    const unsigned long long width = (unsigned long long)args->m + 1ULL;
 #define CLI_RUN(row_, column_) args->runs[((row_) * width) + (column_)]
     for (unsigned int j = 0u; j <= args->m; j += 1u)
     {
@@ -400,8 +400,8 @@ EMBED_INLINE int cli_change(const NotebookMergeCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int cell = args->cell;
-    unsigned long long length = 0ull;
-    unsigned long long base_length = 0ull;
+    unsigned long long length = 0ULL;
+    unsigned long long base_length = 0ULL;
     const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                           .json_read = json, .cell = cell, .length_pointer = &length);
     const char *const base_source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
@@ -421,8 +421,8 @@ EMBED_INLINE int cli_same_source(const NotebookMergeCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int other = args->other;
-    unsigned long long length = 0ull;
-    unsigned long long other_length = 0ull;
+    unsigned long long length = 0ULL;
+    unsigned long long other_length = 0ULL;
     const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                           .json_read = json, .cell = args->one, .length_pointer = &length);
     const char *const other_source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
@@ -560,10 +560,10 @@ unsigned int cli_notebook_merge(const CliNotebookCfg *args)
         EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->ours, .cells = NULL);
     const unsigned int their_count =
         EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->theirs, .cells = NULL);
-    const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ull;
-    const unsigned long long lists = (3ull * bases) + our_count + their_count;
+    const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ULL;
+    const unsigned long long lists = (3ULL * bases) + our_count + their_count;
     unsigned int *const cell =
-        g_cli_cells->temporary_buf_alloc((lists + ((bases + 1ull) * wider)) * sizeof(*cell), &g_cli_notebook_cells);
+        g_cli_cells->temporary_buf_alloc((lists + ((bases + 1ULL) * wider)) * sizeof(*cell), &g_cli_notebook_cells);
     if (cell == NULL)
     {
         return CLI_JSON_NONE;

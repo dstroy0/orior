@@ -15,7 +15,7 @@
 
 // the milliseconds between readings of what orior holds in RAM; orior's repository, a press on the name opening it; the
 // settings orior's folder saves; and the opacities and zoom of the scheme
-#define CLI_MODEL_MEMORY_MS 2000ull
+#define CLI_MODEL_MEMORY_MS 2000ULL
 #define CLI_MODEL_REPOSITORY "https://github.com/dstroy0/orior"
 #define CLI_MODEL_REDUCE_KEY "reduce-motion"
 #define CLI_MODEL_ZOOM_KEY "zoom"
@@ -28,7 +28,7 @@
 #define CLI_MODEL_ZOOM_PERCENT 100u
 // the most bytes of a log in; and two starts of a session, the seconds their boot times may read apart
 #define CLI_MACHINE_LOGON_MAX_LEN 128u
-#define CLI_MODEL_SESSION_SECONDS 60ull
+#define CLI_MODEL_SESSION_SECONDS 60ULL
 
 CliModel g_cli_model;
 
@@ -120,7 +120,7 @@ void cli_model_view_input(const CliModelCtx *args)
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key,
                      .input = (const CliViewInput *)args->input, .err_msg = &err_msg);
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_FRAME);
@@ -190,7 +190,7 @@ EMBED_INLINE void model_press(const ControllerModelCtx *args)
     }
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     switch (input->hit)
     {
     case CLI_HIT_WORDMARK:
@@ -254,7 +254,7 @@ EMBED_INLINE void model_wheel(const ControllerModelCtx *args)
                                          ? (top + (unsigned long long)input->rows_moved)
                                          : ((top > (unsigned long long)(-(long long)input->rows_moved))
                                                 ? (top - (unsigned long long)(-(long long)input->rows_moved))
-                                                : 0ull);
+                                                : 0ULL);
     const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = moved};
     EMBED_CALL(cli_model.view_input, CliModelCtx, .input = &scrolled, .on = 0);
 }
@@ -266,11 +266,11 @@ EMBED_INLINE void model_percent_read(const ControllerModelCtx *args)
     {
         return;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = 8ull});
-    unsigned long long end = 0ull;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = 8ULL});
+    unsigned long long end = 0ULL;
     const unsigned long long number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->value,
-                                                 .at = 0ull, .size = size, .end = &end);
-    if ((size != 0ull) && (size <= 3ull) && (end == size))
+                                                 .at = 0ULL, .size = size, .end = &end);
+    if ((size != 0ULL) && (size <= 3ULL) && (end == size))
     {
         // no more than three digits, far inside what an unsigned int represents
         *args->percent = (unsigned int)number;
@@ -280,9 +280,9 @@ EMBED_INLINE void model_percent_read(const ControllerModelCtx *args)
 // the color `key` saved as `value`, in place of the one saved under the name; cells grown as a name comes
 EMBED_INLINE void model_color_set(const ControllerModelCtx *args)
 {
-    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1ull;
+    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1ULL;
     const unsigned long long value_size =
-        cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ull;
+        cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ULL;
     char *const text = g_cli_cells->persistent_buf_alloc(name_size + value_size, &g_cli_controller_cells);
     if (text == NULL)
     {
@@ -294,13 +294,13 @@ EMBED_INLINE void model_color_set(const ControllerModelCtx *args)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_color[at].name, .other = args->key, .cap = CLI_CELLS_POOL}))
         {
-            g_cli_cells->persistent_buf_release((void *)s_color[at].name, &g_cli_controller_cells);
+            g_cli_cells->persistent_buf_release(s_color[at].name, &g_cli_controller_cells);
             s_color[at] = (CliSettingColor){text, text + name_size};
             return;
         }
     }
     CliSettingColor *const grown =
-        g_cli_cells->persistent_buf_alloc((s_colors + 1ull) * sizeof(*grown), &g_cli_controller_cells);
+        g_cli_cells->persistent_buf_alloc((s_colors + 1ULL) * sizeof(*grown), &g_cli_controller_cells);
     if (grown == NULL)
     {
         g_cli_cells->persistent_buf_release(text, &g_cli_controller_cells);
@@ -320,24 +320,24 @@ EMBED_INLINE void model_color_set(const ControllerModelCtx *args)
 EMBED_INLINE void model_setting(const ControllerModelCtx *args)
 {
     const char *const value =
-        args->key + cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_ZOOM_KEY, .cap = 32ull}))
+        args->key + cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1ULL;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_ZOOM_KEY, .cap = 32ULL}))
     {
         EMBED_CALL(model_percent_read, ControllerModelCtx, .value = value, .percent = &g_cli_model.zoom_percent);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_BAR_KEY, .cap = 32ull}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_BAR_KEY, .cap = 32ULL}))
     {
         EMBED_CALL(model_percent_read, ControllerModelCtx, .value = value, .percent = &g_cli_model.bar_percent);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_EDITOR_KEY, .cap = 32ull}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_EDITOR_KEY, .cap = 32ULL}))
     {
         EMBED_CALL(model_percent_read, ControllerModelCtx, .value = value, .percent = &g_cli_model.editor_percent);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_REDUCE_KEY, .cap = 32ull}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_REDUCE_KEY, .cap = 32ULL}))
     {
-        g_cli_model.motion_saved = cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "true", .cap = 8ull});
+        g_cli_model.motion_saved = cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "true", .cap = 8ULL});
     }
-    else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_COLOR_KEY, .cap = 32ull}))
+    else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = CLI_MODEL_COLOR_KEY, .cap = 32ULL}))
     {
         EMBED_CALL(model_color_set, ControllerModelCtx, .key = args->key + sizeof(CLI_MODEL_COLOR_KEY) - 1u,
                    .value = value);
@@ -429,10 +429,10 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
 // the tabs' snapshot: its rows and their paths and names in one cell
 static void *model_tabs_alloc(void)
 {
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < g_cli_model.tabs; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.tab[at]->path, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.tab[at]->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     CliTabs *const tabs = g_cli_cells->persistent_buf_alloc(
         sizeof(*tabs) + (g_cli_model.tabs * sizeof(CliTabRow)) + bytes, &g_cli_controller_cells);
@@ -448,11 +448,11 @@ static void *model_tabs_alloc(void)
     {
         const char *const path = g_cli_model.tab[at]->path;
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = size + 1ull});
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = size + 1ULL});
         const unsigned long long name_at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                       .text = text, .at = size, .set = "/\\");
         tabs->row[at] = (CliTabRow){text, text + name_at};
-        text += size + 1ull;
+        text += size + 1ULL;
     }
     return tabs;
 }
@@ -462,8 +462,8 @@ static void *model_status_alloc(void)
 {
     const char *const title = (g_cli_model.title != NULL) ? g_cli_model.title : "";
     const char *const path = (g_cli_model.active >= 0) ? g_cli_model.tab[g_cli_model.active]->path : "";
-    const unsigned long long title_size = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_PATH_MAX_LEN}) + 1ull;
-    const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ull;
+    const unsigned long long title_size = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+    const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     CliStatus *const status =
         g_cli_cells->persistent_buf_alloc(sizeof(*status) + title_size + path_size, &g_cli_controller_cells);
     if (status == NULL)
@@ -494,11 +494,11 @@ static void *model_status_alloc(void)
 // the settings in one cell
 static void *model_settings_alloc(void)
 {
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_colors; at += 1u)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = s_color[at].name, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = s_color[at].value, .cap = CLI_CELLS_POOL}) + 2ull;
+                 cellul.len(&(CatenaFinitaCfg){.src = s_color[at].value, .cap = CLI_CELLS_POOL}) + 2ULL;
     }
     CliSettings *const settings = g_cli_cells->persistent_buf_alloc(
         sizeof(*settings) + (s_colors * sizeof(CliSettingColor)) + bytes, &g_cli_controller_cells);
@@ -516,9 +516,9 @@ static void *model_settings_alloc(void)
     for (unsigned int at = 0u; at < s_colors; at += 1u)
     {
         const unsigned long long name =
-            cellul.len(&(CatenaFinitaCfg){.src = s_color[at].name, .cap = CLI_CELLS_POOL}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = s_color[at].name, .cap = CLI_CELLS_POOL}) + 1ULL;
         const unsigned long long value =
-            cellul.len(&(CatenaFinitaCfg){.src = s_color[at].value, .cap = CLI_CELLS_POOL}) + 1ull;
+            cellul.len(&(CatenaFinitaCfg){.src = s_color[at].value, .cap = CLI_CELLS_POOL}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_color[at].name, .bytes = name});
         memor.cpy(&(MemoriaCfg){.dst = text + name, .src = s_color[at].value, .bytes = value});
         settings->color[at] = (CliSettingColor){text, text + name};
@@ -575,7 +575,7 @@ static void model_memory_run(void *context)
     CliProcessMemory measured;
     const int read =
         EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured);
-    *(unsigned long long *)context = read ? measured.working : 0ull;
+    *(unsigned long long *)context = read ? measured.working : 0ULL;
 }
 
 static void model_memory_done(void *context)
@@ -631,20 +631,20 @@ unsigned long long cli_controller_model_due_ms(void)
     const unsigned long long dues[] = {EMBED_CALL(cli_model_commands.menu_due_ms, CliModelCtx, .at = 0u),
                                        EMBED_CALL(cli_model_panels.due_ms, CliModelCtx, .at = 0u),
                                        g_cli_model.memory_due_ms};
-    unsigned long long earliest = 0ull;
+    unsigned long long earliest = 0ULL;
     for (unsigned int at = 0u; at < (sizeof(dues) / sizeof(dues[0])); at += 1u)
     {
-        if ((dues[at] != 0ull) && ((earliest == 0ull) || (dues[at] < earliest)))
+        if ((dues[at] != 0ULL) && ((earliest == 0ULL) || (dues[at] < earliest)))
         {
             earliest = dues[at];
         }
     }
-    if (earliest == 0ull)
+    if (earliest == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long now_ms = cli_clock_milliseconds();
-    return (earliest > now_ms) ? (earliest - now_ms) : 1ull;
+    return (earliest > now_ms) ? (earliest - now_ms) : 1ULL;
 }
 
 // what the name does in this session: it stands on the first start in it, and goes home on any start after; the session
@@ -660,20 +660,20 @@ EMBED_INLINE void model_wordmark_read(const ControllerModelCtx *args)
     if (saved != NULL)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL});
-        unsigned long long end = 0ull;
+        unsigned long long end = 0ULL;
         const unsigned long long then =
-            EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = saved, .at = 0ull, .size = size, .end = &end);
+            EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = saved, .at = 0ULL, .size = size, .end = &end);
         const unsigned long long apart = (then > booted) ? (then - booted) : (booted - then);
         same = (end < size) && (saved[end] == ' ') && (apart < CLI_MODEL_SESSION_SECONDS) &&
-               cellul.eq(&(CatenaFinitaCfg){.src = saved + end + 1ull, .other = logon, .cap = sizeof(logon)});
+               cellul.eq(&(CatenaFinitaCfg){.src = saved + end + 1ULL, .other = logon, .cap = sizeof(logon)});
     }
     g_cli_model.wordmark = same ? CLI_WORDMARK_HOME : CLI_WORDMARK_STAND;
     char text[CLI_MACHINE_LOGON_MAX_LEN + 32u];
-    VerbaLinea now = {text, sizeof(text), 0ull};
+    VerbaLinea now = {text, sizeof(text), 0ULL};
     mmgr_line_decimal(&now, booted, 1u);
     mmgr_line_ch(&now, ' ');
     mmgr_line_put(&now, logon);
-    if (mmgr_line_finish(&now) != 0ull)
+    if (mmgr_line_finish(&now) != 0ULL)
     {
         EMBED_CALL(cli_model.value_save, CliModelCtx, .path = CLI_MODEL_WORDMARK_KEY, .value = text);
     }
@@ -689,16 +689,16 @@ EMBED_INLINE void model_root_read(const ControllerModelCtx *args)
         return;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN});
-    g_cli_model.root = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_controller_cells);
+    g_cli_model.root = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_controller_cells);
     if (g_cli_model.root != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = g_cli_model.root, .src = root, .bytes = size + 1ull});
+        memor.cpy(&(MemoriaCfg){.dst = g_cli_model.root, .src = root, .bytes = size + 1ULL});
         // a root's trailing slash is none of its name
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                                   .text = root, .at = size, .set = "/\\");
         const unsigned long long from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                    .text = root, .at = end, .set = "/\\");
-        g_cli_model.title = g_cli_cells->persistent_buf_alloc(end - from + 1ull, &g_cli_controller_cells);
+        g_cli_model.title = g_cli_cells->persistent_buf_alloc(end - from + 1ULL, &g_cli_controller_cells);
         if (g_cli_model.title != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = g_cli_model.title, .src = root + from, .bytes = end - from});
@@ -728,7 +728,7 @@ void cli_controller_model_begin(void)
             : NULL;
     const char *const reduce = cli_state_entry_value(entries, CLI_MODEL_REDUCE_KEY);
     g_cli_model.motion_saved =
-        (reduce != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = reduce, .other = "true", .cap = 8ull});
+        (reduce != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = reduce, .other = "true", .cap = 8ULL});
     EMBED_CALL(model_percent_read, ControllerModelCtx, .value = cli_state_entry_value(entries, CLI_MODEL_ZOOM_KEY),
                .percent = &g_cli_model.zoom_percent);
     EMBED_CALL(model_percent_read, ControllerModelCtx, .value = cli_state_entry_value(entries, CLI_MODEL_BAR_KEY),
@@ -738,7 +738,7 @@ void cli_controller_model_begin(void)
     for (unsigned int at = 0u; (entries != NULL) && (at < entries->count); at += 1u)
     {
         if (cellul.starts(
-                &(CatenaFinitaCfg){.src = entries->entry[at].key, .other = CLI_MODEL_COLOR_KEY, .cap = 32ull}))
+                &(CatenaFinitaCfg){.src = entries->entry[at].key, .other = CLI_MODEL_COLOR_KEY, .cap = 32ULL}))
         {
             EMBED_CALL(model_color_set, ControllerModelCtx,
                        .key = entries->entry[at].key + sizeof(CLI_MODEL_COLOR_KEY) - 1u,

@@ -38,7 +38,7 @@ EMBED_INLINE int lite_write(const DbLiteCtx *args)
     const int written = EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
                                    .pipe_handle = args->lite->child.in, .bytes = args->line, .size = size) &&
                         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
-                                   .pipe_handle = args->lite->child.in, .bytes = "\n", .size = 1ull);
+                                   .pipe_handle = args->lite->child.in, .bytes = "\n", .size = 1ULL);
     if (!written)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -51,7 +51,7 @@ EMBED_INLINE int lite_write(const DbLiteCtx *args)
 EMBED_INLINE int lite_line(const DbLiteCtx *args)
 {
     CliDbFailure *failure = args->failure;
-    args->lite->size = 0ull;
+    args->lite->size = 0ULL;
     int fits = 1;
     for (;;)
     {
@@ -61,13 +61,13 @@ EMBED_INLINE int lite_line(const DbLiteCtx *args)
                 EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                            .pipe_handle = args->lite->child.out, .piece = (char *)args->lite->in,
                            .capacity = sizeof(args->lite->in));
-            if (got == 0ull)
+            if (got == 0ULL)
             {
                 EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                            .message = "the connection broke: SQLite's process ended");
                 return 0;
             }
-            args->lite->start = 0ull;
+            args->lite->start = 0ULL;
             args->lite->end = got;
         }
         const unsigned char *const newline =
@@ -121,10 +121,10 @@ EMBED_INLINE int lite_query(const DbLiteCtx *args)
     {
         return 0;
     }
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long length = 0ULL;
     if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = args->lite->line,
-                    .size = args->lite->size, .out = &(VerbaLinea){NULL, 0ull, 0ull}))
+                    .size = args->lite->size, .out = &(VerbaLinea){NULL, 0ULL, 0ULL}))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                    .message = "SQLite's process printed what orior_cli cannot read");
@@ -214,22 +214,22 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
                                                         : "orior_cli has as many SQLite databases open as it can");
         return NULL;
     }
-    lite->start = 0ull;
-    lite->end = 0ull;
+    lite->start = 0ULL;
+    lite->end = 0ULL;
     lite->in_transaction = 0;
     lite->read_state = 0;
-    lite->count = 0ull;
+    lite->count = 0ULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = lite->path_text,
                .size = sizeof(lite->path_text));
     const CliSetting settings[2] = {{"PATH", lite->path_text}, {"PYTHONIOENCODING", "utf-8"}};
     const char *const words[5] = {python, "-I", "-u", shim, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &lite->child, .words = words,
                     .folder = NULL, .settings = settings, .count = 2u, .detached = 1, .err_msg = &err_msg))
     {
         char message[CLI_ERR_MSG_MAX_LEN + 16u];
-        VerbaLinea line = {message, sizeof(message), 0ull};
+        VerbaLinea line = {message, sizeof(message), 0ULL};
         mmgr_line_put(&line, "Python: ");
         mmgr_line_put_n(&line, err_msg.out, err_msg.at);
         mmgr_line_finish(&line);
@@ -239,14 +239,14 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         return NULL;
     }
     char request[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea query = {request, sizeof(request), 0ull};
+    VerbaLinea query = {request, sizeof(request), 0ULL};
     mmgr_line_put(&query, "{\"open\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &query,
                .text_bytes = (const unsigned char *)args->file,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&query, args->read_only ? ",\"readonly\":true}" : ",\"readonly\":false}");
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long length = 0ULL;
     if (!EMBED_CALL(lite_query, DbLiteCtx, .lite = lite, .request = query.out, .size = query.at,
                     .failure = args->failure))
     {
@@ -294,16 +294,16 @@ EMBED_INLINE unsigned long long lite_value_end(const DbLiteCtx *args)
     unsigned long long at = args->at;
     unsigned int depth = 0u;
     int quoted = 0;
-    for (; at < args->size; at += 1ull)
+    for (; at < args->size; at += 1ULL)
     {
         const char one = args->text[at];
         if (quoted)
         {
-            at += (one == '\\') ? 1ull : 0ull;
+            at += (one == '\\') ? 1ULL : 0ULL;
             quoted = (one != '"');
             if (!quoted && (depth == 0u))
             {
-                return at + 1ull;
+                return at + 1ULL;
             }
             continue;
         }
@@ -326,7 +326,7 @@ EMBED_INLINE unsigned long long lite_value_end(const DbLiteCtx *args)
             depth -= 1u;
             if (depth == 0u)
             {
-                return at + 1ull;
+                return at + 1ULL;
             }
         }
         else if ((depth == 0u) &&
@@ -343,15 +343,15 @@ EMBED_INLINE unsigned long long lite_value_end(const DbLiteCtx *args)
 EMBED_INLINE void lite_items(const DbLiteCtx *args)
 {
     const char *text = args->text;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
                     .size = args->length_value, .set = "[");
-    for (at += 1ull; at < args->length_value;)
+    for (at += 1ULL; at < args->length_value;)
     {
         while ((at < args->length_value) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n,", .cap = CLI_CELLS_POOL, .byte = text[at]}) != NULL))
         {
-            at += 1ull;
+            at += 1ULL;
         }
         if ((at >= args->length_value) || (text[at] == ']'))
         {
@@ -360,7 +360,7 @@ EMBED_INLINE void lite_items(const DbLiteCtx *args)
         const unsigned long long end =
             EMBED_CALL(lite_value_end, DbLiteCtx, .text = text, .size = args->length_value, .at = at);
         EMBED_CALL(args->each, CliEachItemSizeCfg, .context = args->context, .item = text + at, .size = end - at);
-        at = (end > at) ? end : at + 1ull;
+        at = (end > at) ? end : at + 1ULL;
     }
 }
 
@@ -385,7 +385,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     char tag[CLI_DB_TAG];
     for (int done = !args->lite->read_state; !done;)
     {
-        if (!EMBED_CALL(cli_db_failure_internal.lite_rows, CliDbFailureCtx, .lite = args->lite, .count = 4096ull,
+        if (!EMBED_CALL(cli_db_failure_internal.lite_rows, CliDbFailureCtx, .lite = args->lite, .count = 4096ULL,
                         .each_row = NULL, .context = NULL, .done = &done, .tag = tag, .failure = args->failure))
         {
             return 0;
@@ -393,7 +393,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     }
     // the request a cell of the statement's quoted size, six bytes at most for each of its bytes, and no more than a
     // line SQLite's process reads
-    const unsigned long long quoted = (6ull * args->size) + 16ull;
+    const unsigned long long quoted = (6ULL * args->size) + 16ULL;
     const unsigned long long capacity = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
     char *const request = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_db_cells);
     VerbaLinea query = mmgr_line_over(request, capacity);
@@ -415,8 +415,8 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     {
         return 0;
     }
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long length = 0ULL;
     args->lite->head.column_count = 0u;
     if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "done", .start = &start,
                    .length = &length) &&
@@ -429,7 +429,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
         return 1;
     }
     args->lite->read_state = 1;
-    args->lite->count = 0ull;
+    args->lite->count = 0ULL;
     args->lite->head.rows = 1;
     if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "columns", .start = &start,
                    .length = &length))
@@ -466,19 +466,19 @@ static void lite_value(const CliEachItemSizeCfg *args)
     read->values += 1u;
     if ((args->size == 4u) && (memor.cmp(&(MemoriaCfg){.src = args->item, .other = "null", .bytes = 4u}) == 0))
     {
-        *value = (CliDbValue){NULL, 0ull, 1};
+        *value = (CliDbValue){NULL, 0ULL, 1};
         return;
     }
     char *const text = lite->text + read->used;
     if (!EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->item, .length = args->size,
                     .out_capacity = text, .capacity = sizeof(lite->text) - read->used))
     {
-        *value = (CliDbValue){"", 0ull, 0};
+        *value = (CliDbValue){"", 0ULL, 0};
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     *value = (CliDbValue){text, length, 0};
-    read->used += length + 1ull;
+    read->used += length + 1ULL;
 }
 
 // a row of the line read and handed on
@@ -487,10 +487,10 @@ static void lite_row(const CliEachItemSizeCfg *args)
     void *context = args->context;
     CliDbLiteRead *const read = (CliDbLiteRead *)context;
     read->values = 0u;
-    read->used = 0ull;
+    read->used = 0ULL;
     EMBED_CALL(lite_items, DbLiteCtx, .text = args->item, .length_value = args->size, .each = lite_value,
                .context = read);
-    read->rows += 1ull;
+    read->rows += 1ULL;
     if (read->going && (read->each_row != NULL))
     {
         read->going = EMBED_CALL(read->each_row, CliDbRowCfg, .context = read->context, .values = read->lite->row,
@@ -509,12 +509,12 @@ int cli_db_lite_rows(const CliDbFailureCtx *args)
         *done = 1;
         return 1;
     }
-    CliDbLiteRead read = {args->lite, 0ull, 0u, args->each_row, args->context, 1, 0ull};
+    CliDbLiteRead read = {args->lite, 0ULL, 0u, args->each_row, args->context, 1, 0ULL};
     while (read.going && (read.rows < count))
     {
         const unsigned long long left = count - read.rows;
         char request[64];
-        VerbaLinea query = {request, sizeof(request), 0ull};
+        VerbaLinea query = {request, sizeof(request), 0ULL};
         mmgr_line_put(&query, "{\"rows\":");
         mmgr_line_decimal(&query, (left < CLI_DB_LITE_ROWS) ? left : CLI_DB_LITE_ROWS, 1u);
         mmgr_line_ch(&query, '}');
@@ -523,8 +523,8 @@ int cli_db_lite_rows(const CliDbFailureCtx *args)
         {
             return 0;
         }
-        unsigned long long start = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
         const unsigned long long before = read.rows;
         if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "rows", .start = &start,
                        .length = &length))
@@ -541,9 +541,9 @@ int cli_db_lite_rows(const CliDbFailureCtx *args)
         if (ended)
         {
             args->lite->read_state = 0;
-            VerbaLinea out = {args->tag, CLI_DB_TAG, 0ull};
+            VerbaLinea out = {args->tag, CLI_DB_TAG, 0ULL};
             mmgr_line_decimal(&out, args->lite->count, 1u);
-            mmgr_line_put(&out, (args->lite->count == 1ull) ? " row read" : " rows read");
+            mmgr_line_put(&out, (args->lite->count == 1ULL) ? " row read" : " rows read");
             mmgr_line_finish(&out);
             *done = 1;
             return 1;

@@ -16,11 +16,11 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
     CliFound found_tool;
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unknown = {why, sizeof(why), 0ull};
+    VerbaLinea unknown = {why, sizeof(why), 0ULL};
     const unsigned int one =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = args->tool, .err_msg = &unknown);
     if (one == CLI_JSON_NONE)
     {
@@ -74,11 +74,11 @@ int cli_executables_output(const CliExecutablesNameCtx *args)
     }
     words[((args->count < 14u) ? args->count : 14u) + 1u] = NULL;
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started =
         EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->folder, .settings = NULL,
                    .count = 0u, .run_result = args->run_result, .err_msg = &unstarted);
-    if (!started || (args->run_result->code != 0ll))
+    if (!started || (args->run_result->code != 0LL))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_ch(err_msg, ' ');
@@ -128,11 +128,11 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
         EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder);
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started =
         EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = has_folder ? folder : NULL,
                    .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &unstarted);
-    if (!started || (run_result->code != 0ll))
+    if (!started || (run_result->code != 0LL))
     {
         const char *from = started ? run_result->err : why;
         const char *to = started ? (run_result->err + run_result->err_size) : (why + unstarted.at);
@@ -152,10 +152,10 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     // Cargo's answer read into a tree sized to it
     CliJson json;
     char reason[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {reason, sizeof(reason), 0ull};
+    VerbaLinea unread = {reason, sizeof(reason), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ull,
+                   .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &unread, .owner = &g_cli_executables_cells);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (root == CLI_JSON_NONE)
@@ -189,7 +189,7 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
 {
     const CliLines *lines = args->lines;
     char mark[CLI_NAME_MAX_LEN + 4u];
-    VerbaLinea marked = {mark, sizeof(mark), 0ull};
+    VerbaLinea marked = {mark, sizeof(mark), 0ULL};
     mmgr_line_put(&marked, args->name);
     mmgr_line_put(&marked, " -> ");
     mmgr_line_finish(&marked);
@@ -212,13 +212,13 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
         char file[CLI_NAME_MAX_LEN];
         EMBED_CALL(cli_executables_name_out_folder_internal.program_file, CliExecutablesNameOutFolderCtx,
                    .name = args->name, .out = file);
-        VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put_n(&line, path, size);
         mmgr_line_finish(&line);
-        const int folder = ((size > 0ull) && ((path[size - 1ull] == '/') || (path[size - 1ull] == '\\'))) ||
+        const int folder = ((size > 0ULL) && ((path[size - 1ULL] == '/') || (path[size - 1ULL] == '\\'))) ||
                            EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->out);
-        const int assembly = (size > 4ull) && (path[size - 4ull] == '.') && ((path[size - 3ull] | 0x20) == 'd') &&
-                             ((path[size - 2ull] | 0x20) == 'l') && ((path[size - 1ull] | 0x20) == 'l');
+        const int assembly = (size > 4ULL) && (path[size - 4ULL] == '.') && ((path[size - 3ULL] | 0x20) == 'd') &&
+                             ((path[size - 2ULL] | 0x20) == 'l') && ((path[size - 1ULL] | 0x20) == 'l');
         if (folder || assembly)
         {
             char artifact[CLI_PATH_MAX_LEN];
@@ -234,13 +234,13 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
             {
                 artifact[0] = '\0';
             }
-            VerbaLinea joined = {args->out, CLI_PATH_MAX_LEN, 0ull};
+            VerbaLinea joined = {args->out, CLI_PATH_MAX_LEN, 0ULL};
             mmgr_line_put(&joined, artifact);
             const unsigned long long artifact_length =
                 cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_CELLS_POOL});
-            const int slashed = (artifact_length > 0ull) && ((artifact[artifact_length - 1ull] == '/') ||
-                                                             (artifact[artifact_length - 1ull] == '\\'));
-            mmgr_line_put(&joined, ((artifact_length > 0ull) && !slashed) ? "/" : "");
+            const int slashed = (artifact_length > 0ULL) && ((artifact[artifact_length - 1ULL] == '/') ||
+                                                             (artifact[artifact_length - 1ULL] == '\\'));
+            mmgr_line_put(&joined, ((artifact_length > 0ULL) && !slashed) ? "/" : "");
             mmgr_line_put(&joined, file);
             mmgr_line_finish(&joined);
         }
@@ -254,7 +254,7 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
 // `parts`, `count` of them, joined by `/` into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void cli_parts(const ExecutablesCtx *args)
 {
-    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? "/" : "");
@@ -276,7 +276,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         return 0;
     }
     char script[CLI_PATH_MAX_LEN];
-    VerbaLinea scripted = {script, sizeof(script), 0ull};
+    VerbaLinea scripted = {script, sizeof(script), 0ULL};
     mmgr_line_put_n(&scripted, args->id + 11, (unsigned long long)(colon - (args->id + 11)));
     mmgr_line_finish(&scripted);
     const char *const name = colon + 1;
@@ -295,7 +295,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    base = (base_end != 0ull) ? (full + base_end) : base;
+    base = (base_end != 0ULL) ? (full + base_end) : base;
     const unsigned int kind =
         EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
     if (kind == CLI_KIND_NONE)
@@ -326,7 +326,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         else
         {
             char named[CLI_NAME_MAX_LEN];
-            VerbaLinea line = {named, sizeof(named), 0ull};
+            VerbaLinea line = {named, sizeof(named), 0ULL};
             mmgr_line_put(&line, name);
             mmgr_line_put(
                 &line,
@@ -350,7 +350,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         EMBED_CALL(cli_executables_out_internal.build_folder, CliExecutablesOutCtx, .root = args->root, .script = full,
                    .tool = cmake ? "cmake" : "meson", .out = relative);
         char build[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {build, sizeof(build), 0ull};
+        VerbaLinea line = {build, sizeof(build), 0ULL};
         mmgr_line_put(&line, args->root);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, relative);
@@ -371,14 +371,14 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         const char *const system = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                               .values = args->values, .key = "GOOS", .fallback = host_system);
         char pair[CLI_NAME_MAX_LEN];
-        VerbaLinea line = {pair, sizeof(pair), 0ull};
+        VerbaLinea line = {pair, sizeof(pair), 0ULL};
         mmgr_line_put(&line, system);
         mmgr_line_ch(&line, '-');
         mmgr_line_put(&line, EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                         .values = args->values, .key = "GOARCH", .fallback = host_processor));
         mmgr_line_finish(&line);
         char named[CLI_NAME_MAX_LEN];
-        VerbaLinea program = {named, sizeof(named), 0ull};
+        VerbaLinea program = {named, sizeof(named), 0ULL};
         mmgr_line_put(&program, name);
         mmgr_line_put(&program,
                       (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_CELLS_POOL})) ? ".exe"

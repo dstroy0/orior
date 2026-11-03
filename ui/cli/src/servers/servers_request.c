@@ -28,12 +28,9 @@ typedef struct
 
 // what a server answers quickly and what a search of the tree answers, each read under its own lock
 static CliServersReadState s_quick = {0};
-static CliServersReadState s_search = {0};
 // the completions, under the quick reading's lock; and the usages and their paths, each in a cell of the answer's
 // size, under the search's
 static CliCompletions s_items;
-static CliServersUsage *s_usage;
-static char *s_usage_paths;
 
 typedef struct
 {
@@ -108,10 +105,10 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
                    .contents = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &s_quick.json, .object = root, .name = "contents"),
                    .out = &markdown);
-        const unsigned long long size = mmgr_line_ok(&markdown) ? markdown.at : 0ull;
-        unsigned long long from = 0ull;
-        unsigned long long to = 0ull;
-        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = (size > 0ull) ? displayed : "",
+        const unsigned long long size = mmgr_line_ok(&markdown) ? markdown.at : 0ULL;
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = (size > 0ULL) ? displayed : "",
                    .size = size, .from_u64s = &from, .to_u64s = &to);
         if (to > from)
         {
@@ -128,12 +125,12 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
 // it
 EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
 {
-    unsigned long long bytes = 0ull;
+    unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < s_items.count; at += 1u)
     {
         const CliCompletion *const one = &s_items.item[at];
-        bytes += (unsigned long long)one->label_size + one->detail_size + one->insert_size + 3ull +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ull;
+        bytes += (unsigned long long)one->label_size + one->detail_size + one->insert_size + 3ULL +
+                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ULL;
     }
     CliServerItems *const items = g_cli_cells->persistent_buf_alloc(
         sizeof(*items) + (s_items.count * sizeof(CliServerItem)) + bytes, args->owner);
@@ -152,16 +149,16 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
         item->label = text;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_items.text + one->label_at, .bytes = one->label_size});
         text[one->label_size] = '\0';
-        text += one->label_size + 1ull;
+        text += one->label_size + 1ULL;
         item->detail = text;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_items.text + one->detail_at, .bytes = one->detail_size});
         text[one->detail_size] = '\0';
-        text += one->detail_size + 1ull;
+        text += one->detail_size + 1ULL;
         item->insert = text;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_items.text + one->insert_at, .bytes = one->insert_size});
         text[one->insert_size] = '\0';
-        text += one->insert_size + 1ull;
-        const unsigned long long kind = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ull;
+        text += one->insert_size + 1ULL;
+        const unsigned long long kind = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ULL;
         item->kind = text;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = one->kind, .bytes = kind});
         text += kind;
@@ -183,7 +180,7 @@ static void request_tree_item(const CliDeclaredCfg *args)
                                                                                                         : named;
     }
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = args->name,
-                     .label_size = args->length, .kind = named, .detail = "", .detail_size = 0ull, .insert = args->name,
+                     .label_size = args->length, .kind = named, .detail = "", .detail_size = 0ULL, .insert = args->name,
                      .insert_size = args->length, .snippet = 0);
 }
 
@@ -197,16 +194,16 @@ EMBED_INLINE void request_tree_complete(const ServersRequestCtx *args)
     char tree[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = tree, .src = g_cli_servers.checked_root, .bytes = sizeof(tree)});
     char own[CLI_PATH_MAX_LEN];
-    VerbaLinea own_line = {own, sizeof(own), 0ull};
+    VerbaLinea own_line = {own, sizeof(own), 0ULL};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = tree, .path = path,
                .out = &own_line);
-    unsigned long long size = 0ull;
-    char *const text = (mmgr_line_finish(&own_line) != 0ull)
+    unsigned long long size = 0ULL;
+    char *const text = (mmgr_line_finish(&own_line) != 0ULL)
                            ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg, .path = path,
                                         .size_pointer = &size)
                            : NULL;
     char quiet[256];
-    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     if (text != NULL)
     {
         (void)EMBED_CALL(cli_symbols_path_text_size.complete, CliSymbolsPathTextSizeCfg, .path = own, .text = text,
@@ -233,7 +230,7 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
     {
         char root[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.checked_root, .bytes = sizeof(root)});
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         char *const text = (root[0] != '\0')
                                ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
                                             .path = path, .size_pointer = &size)

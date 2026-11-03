@@ -70,7 +70,7 @@ EMBED_INLINE void requests_text(const DebugRequestsCtx *args)
     unsigned int node = args->node;
     const char *name = args->name;
     VerbaLinea *out = args->out;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -93,7 +93,7 @@ EMBED_INLINE void requests_sign(const DebugRequestsCtx *args)
     const CliJson *json = args->json;
     unsigned int node = args->node;
     const char *name = args->name;
-    long long value = 0ll;
+    long long value = 0LL;
     (void)EMBED_CALL(cli_debug_json_node_internal.debug_sign, CliDebugJsonNodeCtx, .json = json,
                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = node, .name = name),
@@ -113,7 +113,7 @@ EMBED_INLINE void requests_line(const DebugRequestsCtx *args)
                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = node, .name = name),
                      .value_u64s = &line);
-    mmgr_line_decimal(args->out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
+    mmgr_line_decimal(args->out, ((line > 0ULL) ? line - 1ULL : 0ULL) & 0xffffffffULL, 1u);
 }
 
 // a path written by `named`, or as it came where none is given
@@ -344,10 +344,10 @@ void cli_debug_frame_write(const CliDebugOutCtx *args)
     }
     mmgr_line_put(args->out, ",\"line\":");
     EMBED_CALL(requests_line, DebugRequestsCtx, .json = args->json, .node = args->frame, .name = "line",
-               .fallback_u64 = 1ull, .out = args->out);
+               .fallback_u64 = 1ULL, .out = args->out);
     mmgr_line_put(args->out, ",\"col\":");
     EMBED_CALL(requests_line, DebugRequestsCtx, .json = args->json, .node = args->frame, .name = "column",
-               .fallback_u64 = 1ull, .out = args->out);
+               .fallback_u64 = 1ULL, .out = args->out);
     mmgr_line_put(args->out, ",\"ip\":");
     EMBED_CALL(requests_text, DebugRequestsCtx, .json = args->json, .node = args->frame,
                .name = "instructionPointerReference", .fallback = NULL, .out = args->out);
@@ -497,7 +497,7 @@ int cli_debug_history(const CliDebugOutErrMsgIdCfg *args)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = reply, .array = changes, .index = at);
-        unsigned long long step = 0ull;
+        unsigned long long step = 0ULL;
         (void)EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                          .json = reply,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
@@ -506,7 +506,7 @@ int cli_debug_history(const CliDebugOutErrMsgIdCfg *args)
         mmgr_line_put(args->out, (at > 0u) ? ",{\"step\":" : "{\"step\":");
         mmgr_line_decimal(args->out, step, 1u);
         mmgr_line_put(args->out, ",\"line\":");
-        EMBED_CALL(requests_line, DebugRequestsCtx, .json = reply, .node = one, .name = "line", .fallback_u64 = 1ull,
+        EMBED_CALL(requests_line, DebugRequestsCtx, .json = reply, .node = one, .name = "line", .fallback_u64 = 1ULL,
                    .out = args->out);
         mmgr_line_put(args->out, ",\"path\":");
         EMBED_CALL(requests_path, DebugRequestsCtx, .named = args->named, .context = args->context,
@@ -574,13 +574,13 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
         return 0;
     }
     const CliJson *const reply = &answer->json;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const data =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = reply,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
                                       .object = answer->root, .name = "data"),
                    .length_pointer = &length);
-    unsigned long long unreadable = 0ull;
+    unsigned long long unreadable = 0ULL;
     (void)EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                      .json = reply,
                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
@@ -591,15 +591,15 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
                .fallback = args->reference_text, .out = args->out);
     mmgr_line_put(args->out, ",\"bytes\":[");
     // the bytes read from memory, in a cell of the most the base64 text decodes to
-    const unsigned long long most = ((length / 4ull) + 1ull) * 3ull;
+    const unsigned long long most = ((length / 4ULL) + 1ULL) * 3ULL;
     unsigned char *const decoded = (data != NULL) ? g_cli_cells->temporary_buf_alloc(most, &g_cli_debug_cells) : NULL;
     const unsigned long long bytes = (decoded != NULL)
                                          ? EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = data,
                                                       .size = length, .out_bytes = decoded, .capacity = most)
-                                         : 0ull;
-    for (unsigned long long at = 0ull; at < bytes; at += 1ull)
+                                         : 0ULL;
+    for (unsigned long long at = 0ULL; at < bytes; at += 1ULL)
     {
-        mmgr_line_put(args->out, (at > 0ull) ? "," : "");
+        mmgr_line_put(args->out, (at > 0ULL) ? "," : "");
         mmgr_line_decimal(args->out, decoded[at], 1u);
     }
     g_cli_cells->persistent_buf_release(decoded, &g_cli_debug_cells);
@@ -642,7 +642,7 @@ int cli_debug_instructions(const CliDebugOutErrMsgIdReferenceCfg *args)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = reply, .array = instructions, .index = at);
-        unsigned long long line = 0ull;
+        unsigned long long line = 0ULL;
         mmgr_line_put(args->out, (at > 0u) ? ",{\"address\":" : "{\"address\":");
         EMBED_CALL(requests_text, DebugRequestsCtx, .json = reply, .node = one, .name = "address", .fallback = "",
                    .out = args->out);
@@ -662,7 +662,7 @@ int cli_debug_instructions(const CliDebugOutErrMsgIdReferenceCfg *args)
                                           .object = one, .name = "line"),
                        .value_u64s = &line))
         {
-            mmgr_line_decimal(args->out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
+            mmgr_line_decimal(args->out, ((line > 0ULL) ? line - 1ULL : 0ULL) & 0xffffffffULL, 1u);
         }
         else
         {

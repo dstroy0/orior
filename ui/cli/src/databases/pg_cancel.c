@@ -47,7 +47,7 @@ int cli_pg_canceller(const CliPgCancelCfg *args)
 int cli_pg_cancel_send(const CliPgCfg *args)
 {
     char address[CLI_NAME_MAX_LEN + 16u];
-    VerbaLinea named = {address, sizeof(address), 0ull};
+    VerbaLinea named = {address, sizeof(address), 0ULL};
     mmgr_line_put(&named, args->cancel_read->host);
     mmgr_line_ch(&named, ':');
     mmgr_line_decimal(&named, args->cancel_read->port, 1u);
@@ -62,8 +62,8 @@ int cli_pg_cancel_send(const CliPgCfg *args)
     }
     // the request is its length, the cancel code 80877102, the backend's number and its secret, each big-endian
     unsigned char request[16u + sizeof(args->cancel_read->secret)];
-    const unsigned long long length = 12ull + args->cancel_read->secret_size;
-    const unsigned long long words[3] = {length, 80877102ull, args->cancel_read->pid};
+    const unsigned long long length = 12ULL + args->cancel_read->secret_size;
+    const unsigned long long words[3] = {length, 80877102ULL, args->cancel_read->pid};
     for (unsigned int word = 0u; word < 3u; word += 1u)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)

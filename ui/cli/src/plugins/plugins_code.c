@@ -33,9 +33,9 @@ EMBED_INLINE void code_main_append(const PluginsCodeCtx *args)
     CliCodeMains *mains = args->mains;
     if (mains->mains < CLI_PLUGINS_MAINS)
     {
-        VerbaLinea main_line = {mains->main[mains->mains], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea main_line = {mains->main[mains->mains], CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&main_line, args->name);
-        mains->mains += (mmgr_line_finish(&main_line) != 0ull) ? 1u : 0u;
+        mains->mains += (mmgr_line_finish(&main_line) != 0ULL) ? 1u : 0u;
     }
 }
 
@@ -47,11 +47,11 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
     CliCodeMains *mains = args->mains;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
-                                         .json = &json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull,
+                                         .json = &json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                                          .err_msg = &err_msg, .owner = &g_cli_plugins_cells);
     mains->mains = 0u;
     const unsigned int main = (root != CLI_JSON_NONE)
@@ -88,10 +88,10 @@ EMBED_INLINE int code_own(const PluginsCodeCtx *args)
     while (own && (part[0] != '\0'))
     {
         const char *end = part;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
         const unsigned long long length = (unsigned long long)(end - part);
-        own = (length != 0ull) && !((length == 1u) && (part[0] == '.')) &&
+        own = (length != 0ULL) && !((length == 1u) && (part[0] == '.')) &&
               !((length == 2u) && (part[0] == '.') && (part[1] == '.'));
         part = (end[0] != '\0') ? (end + 1) : end;
     }
@@ -102,14 +102,14 @@ EMBED_INLINE int code_own(const PluginsCodeCtx *args)
 EMBED_INLINE int code_file_read(const PluginsCodeCtx *args)
 {
     char file[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {file, sizeof(file), 0ull};
+    VerbaLinea line = {file, sizeof(file), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
-    unsigned long long file_size = 0ull;
-    const unsigned long long capacity = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ull;
+    unsigned long long file_size = 0ULL;
+    const unsigned long long capacity = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ULL;
     const int found =
-        (mmgr_line_finish(&line) != 0ull) &&
+        (mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = file, .size_pointer = &file_size) &&
         (capacity > file_size);
     const unsigned long long size =

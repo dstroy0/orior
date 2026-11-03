@@ -58,15 +58,15 @@ EMBED_INLINE void cli_range(const ExecutablesCompareCtx *args)
 EMBED_INLINE void cli_differences(const ExecutablesCompareCtx *args)
 {
     args->found->ranges = 0u;
-    args->found->count = 0ull;
+    args->found->count = 0ULL;
     const unsigned long long shared = (args->old_size < args->now_size) ? args->old_size : args->now_size;
     int open = 0;
-    unsigned long long start = 0ull;
-    for (unsigned long long at = 0ull; at < shared; at += 1ull)
+    unsigned long long start = 0ULL;
+    for (unsigned long long at = 0ULL; at < shared; at += 1ULL)
     {
         if (args->old[at] != args->now[at])
         {
-            args->found->count += 1ull;
+            args->found->count += 1ULL;
             start = open ? start : at;
             open = 1;
         }
@@ -91,7 +91,7 @@ EMBED_INLINE void cli_differences(const ExecutablesCompareCtx *args)
 void cli_executables_compare_build(const CliExecutablesCfg *args)
 {
     char commit[CLI_NAME_MAX_LEN];
-    long long when = 0ll;
+    long long when = 0LL;
     int clean = 0;
     if (!EMBED_CALL(cli_git_root_commit.head, CliGitRootCommitCfg, .root = args->root, .commit = commit, .when = &when,
                     .clean = &clean) ||
@@ -110,7 +110,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char folder_buf[CLI_PATH_MAX_LEN];
     char allowed[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/orior/builds/");
     mmgr_line_put(&line, slug);
@@ -130,7 +130,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
                           .byte = '\\') +
                1)
             : args->file;
-    if ((mmgr_line_finish(&line) == 0ull) ||
+    if ((mmgr_line_finish(&line) == 0ULL) ||
         !EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = folder,
                     .name = commit, .out = folder_buf) ||
         !EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = folder_buf,
@@ -138,22 +138,22 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     {
         return;
     }
-    unsigned long long now_size = 0ull;
+    unsigned long long now_size = 0ULL;
     const unsigned char *const now = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                 .size_pointer = &now_size, .owner = &g_cli_executables_cells);
     if (now == NULL)
     {
         return;
     }
-    unsigned long long old_size = 0ull;
+    unsigned long long old_size = 0ULL;
     const unsigned char *const old = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = allowed,
                                                 .size_pointer = &old_size, .owner = &g_cli_executables_cells);
     if (old != NULL)
     {
         char print_buf[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+        VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ULL};
         char short_commit[16];
-        VerbaLinea shortened = {short_commit, sizeof(short_commit), 0ull};
+        VerbaLinea shortened = {short_commit, sizeof(short_commit), 0ULL};
         mmgr_line_put_n(&shortened, commit,
                         (cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_CELLS_POOL}) < 10u)
                             ? cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_CELLS_POOL})
@@ -162,7 +162,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         CliDifferences found;
         EMBED_CALL(cli_differences, ExecutablesCompareCtx, .old = old, .old_size = old_size, .now = now,
                    .now_size = now_size, .found = &found);
-        if (found.count == 0ull)
+        if (found.count == 0ULL)
         {
             mmgr_line_put(&print_line, name);
             mmgr_line_put(&print_line, " is the same, byte for byte, as the last build of commit ");
@@ -171,14 +171,14 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         else
         {
             // a Windows program's header's time stamp: four bytes, eight past the PE header
-            int stamped_file = (now_size >= 0x40ull) && (now[0] == 'M') && (now[1] == 'Z');
-            unsigned long long stamp = 0ull;
+            int stamped_file = (now_size >= 0x40ULL) && (now[0] == 'M') && (now[1] == 'Z');
+            unsigned long long stamp = 0ULL;
             for (unsigned int byte = 0u; stamped_file && (byte < 4u); byte += 1u)
             {
                 stamp |= (unsigned long long)now[0x3cu + byte] << (8u * byte);
             }
-            stamp += 8ull;
-            const unsigned long long stamp_end = stamp + 4ull;
+            stamp += 8ULL;
+            const unsigned long long stamp_end = stamp + 4ULL;
             mmgr_line_put(&print_line, name);
             mmgr_line_put(&print_line, " differs from the last build of commit ");
             mmgr_line_put(&print_line, short_commit);
@@ -198,8 +198,8 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
             }
             // MSVC's linker writes its Rich header between the DOS stub and the PE header
             int msvc = 0;
-            for (unsigned long long at = 0x80ull;
-                 stamped_file && !msvc && ((at + 4ull) <= stamp) && ((at + 4ull) <= now_size); at += 1ull)
+            for (unsigned long long at = 0x80ULL;
+                 stamped_file && !msvc && ((at + 4ULL) <= stamp) && ((at + 4ULL) <= now_size); at += 1ULL)
             {
                 msvc = memor.cmp(&(MemoriaCfg){.src = now + at, .other = "Rich", .bytes = 4u}) == 0;
             }
@@ -234,23 +234,23 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
         line = (stop[0] != '\0') ? (stop + 1) : stop;
-        if ((length == 0ull) || (from[0] == '#'))
+        if ((length == 0ULL) || (from[0] == '#'))
         {
             continue;
         }
-        if ((length >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "export ", .bytes = 7u}) == 0))
+        if ((length >= 7ULL) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "export ", .bytes = 7u}) == 0))
         {
             from += 7;
-            length -= 7ull;
+            length -= 7ULL;
         }
-        unsigned long long equals = 0ull;
+        unsigned long long equals = 0ULL;
         equals = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = equals,
                             .size = length, .set = "=");
         if (equals == length)
@@ -262,11 +262,11 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &name,
                    .length_pointer = &name_length);
         const char *value = from + equals + 1;
-        unsigned long long value_length = length - equals - 1ull;
+        unsigned long long value_length = length - equals - 1ULL;
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &value,
                    .length_pointer = &value_length);
-        int named = name_length != 0ull;
-        for (unsigned long long at = 0ull; named && (at < name_length); at += 1ull)
+        int named = name_length != 0ULL;
+        for (unsigned long long at = 0ULL; named && (at < name_length); at += 1ULL)
         {
             const char one = name[at];
             named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
@@ -280,23 +280,23 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
         char value_buf[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = name,
                    .length = name_length, .out = name_buf, .capacity = sizeof(name_buf));
-        if ((value_length > 0ull) && ((value[0] == '"') || (value[0] == '\'')))
+        if ((value_length > 0ULL) && ((value[0] == '"') || (value[0] == '\'')))
         {
-            unsigned long long end = 1ull;
+            unsigned long long end = 1ULL;
             while ((end < value_length) && (value[end] != value[0]))
             {
-                end += 1ull;
+                end += 1ULL;
             }
             EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value + 1,
-                       .length = end - 1ull, .out = value_buf, .capacity = sizeof(value_buf));
+                       .length = end - 1ULL, .out = value_buf, .capacity = sizeof(value_buf));
         }
         else
         {
             // a bare value up to ` #`, trimmed
-            unsigned long long end = 0ull;
-            end = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = value, .at = 0ull,
+            unsigned long long end = 0ULL;
+            end = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = value, .at = 0ULL,
                              .size = value_length, .first = ' ', .second = '#');
-            end = ((end + 1ull) < value_length) ? end : value_length;
+            end = ((end + 1ULL) < value_length) ? end : value_length;
             const char *bare = value;
             EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx,
                        .text_pointer = &bare, .length_pointer = &end);
@@ -321,7 +321,7 @@ static void cli_env_each(const CliEachNameValueCfg *args)
     CliEnvCreated *const made = (CliEnvCreated *)args->context;
     EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = made->command, .name = name,
                .value = value);
-    mmgr_line_put(made->displayed, (made->displayed->at != 0ull) ? " " : "");
+    mmgr_line_put(made->displayed, (made->displayed->at != 0ULL) ? " " : "");
     mmgr_line_put(made->displayed, name);
     // the value not shown, an ellipsis in its place
     mmgr_line_put(made->displayed, "=\xe2\x80\xa6");
@@ -374,7 +374,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
                    .value = s_path);
         mmgr_line_put(args->displayed_verba_linea_pointer,
-                      (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+                      (args->displayed_verba_linea_pointer->at != 0ULL) ? " " : "");
         mmgr_line_put(args->displayed_verba_linea_pointer, "PATH=<the system's PATH>");
     }
     else
@@ -402,7 +402,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}),
                              .byte = '.')
                 : NULL;
-        VerbaLinea named = {config, sizeof(config), 0ull};
+        VerbaLinea named = {config, sizeof(config), 0ULL};
         mmgr_line_put_n(&named, args->file,
                         (dot != NULL) ? (unsigned long long)(dot - args->file)
                                       : cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
@@ -410,15 +410,15 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         char dotnet[CLI_PATH_MAX_LEN];
         char dotnet_folder[CLI_PATH_MAX_LEN];
         char why[CLI_NAME_MAX_LEN];
-        VerbaLinea unfound = {why, sizeof(why), 0ull};
-        if ((mmgr_line_finish(&named) != 0ull) &&
+        VerbaLinea unfound = {why, sizeof(why), 0ULL};
+        if ((mmgr_line_finish(&named) != 0ULL) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = config) &&
             EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "dotnet", .name = "dotnet",
                        .path = dotnet, .err_msg = &unfound) &&
             EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = dotnet, .out = dotnet_folder))
         {
             mmgr_line_put(args->displayed_verba_linea_pointer,
-                          (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+                          (args->displayed_verba_linea_pointer->at != 0ULL) ? " " : "");
             mmgr_line_put(args->displayed_verba_linea_pointer, "DOTNET_ROOT=");
             mmgr_line_put(args->displayed_verba_linea_pointer, dotnet_folder);
             EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command,
@@ -436,6 +436,6 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = args->file,
                    .relative_out = relative);
     }
-    mmgr_line_put(args->displayed_verba_linea_pointer, (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+    mmgr_line_put(args->displayed_verba_linea_pointer, (args->displayed_verba_linea_pointer->at != 0ULL) ? " " : "");
     mmgr_line_put(args->displayed_verba_linea_pointer, under ? relative : args->file);
 }

@@ -49,7 +49,7 @@ typedef struct
 // `root`/`folder`/`stem` and `.extension` where one is given, into `path`
 EMBED_INLINE void query_join(const LearnFilesCtx *args)
 {
-    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->folder);
@@ -154,7 +154,7 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
     EMBED_CALL(query_join, LearnFilesCtx, .root = context->root, .folder = QUERY_LEARN_WORK, .stem = "base_nvcc.cubin",
                .extension = NULL, .path = cubin);
     const char *const compile[8] = {s_nvcc, "-cubin", "-arch=sm_86", "-O3", "-o", cubin, args->base, NULL};
-    long long code = -1ll;
+    long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = args->run, .name = "nvcc.txt", .words = compile, .code = &code,
                     .err_msg = err_msg))
@@ -162,9 +162,9 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
         return 0;
     }
     int list_entries = 0;
-    if (code == 0ll)
+    if (code == 0LL)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const bytes = qry_member_file_mapped(cubin, &size);
         if (bytes != NULL)
         {
@@ -178,27 +178,27 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
             }
         }
         const char *const listing[4] = {s_cuobjdump, "-sass", cubin, NULL};
-        long long listing_code = -1ll;
+        long long listing_code = -1LL;
         if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
                         .context = context, .run = args->run, .name = "base_nvcc.sass", .words = listing,
                         .code = &listing_code, .err_msg = err_msg))
         {
             return 0;
         }
-        list_entries = listing_code == 0ll;
+        list_entries = listing_code == 0LL;
     }
     const char *name = args->base;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_end != 0ull) ? (args->base + name_end) : name;
+    name = (name_end != 0ULL) ? (args->base + name_end) : name;
     char line[QUERY_LINE_MAX_LEN];
-    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line,
                   list_entries ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");
     mmgr_line_put(&print_line, name);
     mmgr_line_put(&print_line, list_entries ? "; its listing is the blob base_nvcc.sass" : "");
-    if (mmgr_line_finish(&print_line) != 0ull)
+    if (mmgr_line_finish(&print_line) != 0ULL)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
     }
@@ -209,7 +209,7 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
 int query_nvdisasm(const QueryLoopsErrMsgCfg *args)
 {
     char why[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {why, sizeof(why), 0ull};
+    VerbaLinea ignored = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(args->context_read->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                     .context = args->context_read->programs->context, .role = QUERY_ROLE_NVDISASM, .path = args->path,
                     .capacity = QUERY_PATH_MAX_LEN, .err_msg = &ignored))

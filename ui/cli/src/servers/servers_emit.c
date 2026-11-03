@@ -14,7 +14,7 @@
 // the most files whose diagnostics are stored, and the most bytes a report writes for each byte of it stored: an empty
 // report and its comma are 3 bytes, and it writes every member of a diagnostic
 #define CLI_SERVERS_PUBLISHED_MAX (1u << 16u)
-#define CLI_SERVERS_EMIT_WIDER 64ull
+#define CLI_SERVERS_EMIT_WIDER 64ULL
 
 CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_inspected = {"inspections' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
@@ -133,7 +133,7 @@ EMBED_INLINE const char *emit_message_get(const ServersEmitCtx *args)
 EMBED_INLINE int emit_has_line(const ServersEmitCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         unsigned long long end = at;
@@ -142,13 +142,13 @@ EMBED_INLINE int emit_has_line(const ServersEmitCtx *args)
         if ((end - at == args->length + args->also_length) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = args->names + at, .other = args->required, .bytes = (size_t)args->length}) == 0) &&
-            ((args->also_length == 0ull) || (memor.cmp(&(MemoriaCfg){.src = args->names + at + args->length,
+            ((args->also_length == 0ULL) || (memor.cmp(&(MemoriaCfg){.src = args->names + at + args->length,
                                                                      .other = args->also,
                                                                      .bytes = (size_t)args->also_length}) == 0)))
         {
             return 1;
         }
-        at = end + 1ull;
+        at = end + 1ULL;
     }
     return 0;
 }
@@ -168,7 +168,7 @@ int cli_servers_attribute_get(const CliServersLengthCtx *args)
     }
     *name = args->message + sizeof(s_head) - 1u;
     const unsigned long long rest = args->length - (sizeof(s_head) - 1u);
-    *name_size = 0ull;
+    *name_size = 0ULL;
     *name_size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (*name), .at = *name_size,
                             .size = rest, .set = "\"");
     if ((*name_size == rest) || !EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg,
@@ -178,7 +178,7 @@ int cli_servers_attribute_get(const CliServersLengthCtx *args)
     }
     *class_name = *name + *name_size + sizeof(s_middle) - 1u;
     const unsigned long long class_remainder = rest - *name_size - (sizeof(s_middle) - 1u);
-    *class_size = 0ull;
+    *class_size = 0ULL;
     *class_size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (*class_name),
                              .at = *class_size, .size = class_remainder, .set = "\"");
     if (*class_size == class_remainder)
@@ -187,7 +187,7 @@ int cli_servers_attribute_get(const CliServersLengthCtx *args)
     }
     {
         const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
-                                                   .text = *class_name, .at = 0ull, .size = *class_size, .set = "*");
+                                                   .text = *class_name, .at = 0ULL, .size = *class_size, .set = "*");
         *class_name += lead;
         *class_size -= lead;
     }
@@ -200,13 +200,13 @@ int cli_servers_attribute_get(const CliServersLengthCtx *args)
 // file's family sets stored one to a line as `class attribute`
 EMBED_INLINE int emit_supplied(const ServersEmitCtx *args)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const message =
         EMBED_CALL(emit_message_get, ServersEmitCtx, .json = args->json, .item = args->item, .size_pointer = &length);
     const char *name = NULL;
-    unsigned long long name_size = 0ull;
+    unsigned long long name_size = 0ULL;
     const char *class_name = NULL;
-    unsigned long long class_size = 0ull;
+    unsigned long long class_size = 0ULL;
     if (!EMBED_CALL(cli_servers_length_internal.attribute_get, CliServersLengthCtx, .message = message,
                     .length = length, .name_pointer = &name, .name_size = &name_size, .class_name = &class_name,
                     .class_size = &class_size))
@@ -214,7 +214,7 @@ EMBED_INLINE int emit_supplied(const ServersEmitCtx *args)
         return 0;
     }
     static char s_attribute[1024];
-    if (name_size + 1ull >= sizeof(s_attribute))
+    if (name_size + 1ULL >= sizeof(s_attribute))
     {
         return 0;
     }
@@ -222,7 +222,7 @@ EMBED_INLINE int emit_supplied(const ServersEmitCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = s_attribute + 1u, .src = name, .bytes = (size_t)name_size});
     return EMBED_CALL(emit_has_line, ServersEmitCtx, .names = args->supplied, .size = args->size,
                       .required = class_name, .length = class_size, .also = s_attribute,
-                      .also_length = name_size + 1ull);
+                      .also_length = name_size + 1ULL);
 }
 
 // whether a server's report that a name is undefined names one of `names`, as pyright writes it: `"name" is not
@@ -230,7 +230,7 @@ EMBED_INLINE int emit_supplied(const ServersEmitCtx *args)
 EMBED_INLINE int emit_free(const ServersEmitCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const message =
         EMBED_CALL(emit_message_get, ServersEmitCtx, .json = args->json, .item = args->item, .size_pointer = &length);
     static const char s_tail[] = "\" is not defined";
@@ -240,7 +240,7 @@ EMBED_INLINE int emit_free(const ServersEmitCtx *args)
         return 0;
     }
     return EMBED_CALL(emit_has_line, ServersEmitCtx, .names = args->names, .size = size, .required = message + 1u,
-                      .length = length - sizeof(s_tail), .also = "", .also_length = 0ull);
+                      .length = length - sizeof(s_tail), .also = "", .also_length = 0ULL);
 }
 
 // a name a build tool gives a file put on its own line
@@ -293,7 +293,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     {
         return 0;
     }
-    unsigned long long build_size = 0ull;
+    unsigned long long build_size = 0ULL;
     const unsigned char *const build = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &build_size, .owner = &g_cli_servers_cells);
     if (build == NULL)
@@ -301,7 +301,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
         return 0;
     }
     // each name a part of the file's text, and a break after it
-    const unsigned long long capacity = (build_size * 2ull) + 1ull;
+    const unsigned long long capacity = (build_size * 2ULL) + 1ULL;
     char *const joined = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
     VerbaLinea supplied = mmgr_line_over(joined, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = path, .text = (const char *)build,
@@ -310,7 +310,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     const int integer = mmgr_line_ok(&supplied);
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input, .key = key,
                      .adjacent_value = "", .text = integer ? supplied.out : "",
-                     .size_value = integer ? supplied.at : 0ull);
+                     .size_value = integer ? supplied.at : 0ULL);
     g_cli_cells->persistent_buf_release(joined, &g_cli_servers_cells);
     *names = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key,
                         .adjacent = &adjacent, .size = size);
@@ -321,14 +321,14 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
 // CLI_JSON_NONE where none is
 EMBED_INLINE unsigned int emit_stored_read(const ServersEmitCtx *args)
 {
-    CliKeyed *keyed = args->keyed_out;
+    const CliKeyed *keyed = args->keyed_out;
     const char *key = args->key;
     unsigned int hash = args->hash;
     const char *adjacent = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const char *const text = EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = keyed, .key = key,
                                         .hash = hash, .adjacent = &adjacent, .size = &size);
-    const unsigned int root = ((text != NULL) && (size > 0ull))
+    const unsigned int root = ((text != NULL) && (size > 0ULL))
                                   ? EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
                                                .read_state = &s_read_state, .text = text, .size = size)
                                   : CLI_JSON_NONE;
@@ -350,7 +350,7 @@ EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
         if (args->filtered)
         {
             const char *adjacent = NULL;
-            unsigned long long size = 0ull;
+            unsigned long long size = 0ULL;
             const char *const supplied =
                 EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_supplied,
                            .key = key, .adjacent = &adjacent, .size = &size);
@@ -389,7 +389,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                .read_state = &s_read_state);
     const unsigned int hash = EMBED_CALL(cli_keyed_key_adjacent.hash, CliKeyedKeyAdjacentCfg, .key = args->key);
     char displayed[CLI_PATH_MAX_LEN];
-    VerbaLinea where = {displayed, sizeof(displayed), 0ull};
+    VerbaLinea where = {displayed, sizeof(displayed), 0ULL};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->sink->tree,
                .path = path, .out = &where);
     (void)mmgr_line_finish(&where);
@@ -450,7 +450,7 @@ static void emit_reporting(const CliEachKeyAdjacentTextSizeCfg *args)
     unsigned long long size = args->size;
     VerbaLinea *const reporting = args->context;
     static const char s_report[] = "Cannot access attribute \\\"";
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text, .length_value = size, .required = s_report,
                    .size = sizeof(s_report) - 1u, .at_pointer = &at))
     {
@@ -464,13 +464,13 @@ static void emit_reporting(const CliEachKeyAdjacentTextSizeCfg *args)
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args)
 {
     const unsigned long long capacity =
-        EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published) + 1ull;
+        EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published) + 1ULL;
     char *const reporting = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
     VerbaLinea line = mmgr_line_over(reporting, capacity);
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &g_cli_servers_published, .each = emit_reporting,
                .context = &line);
-    const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ull;
-    for (unsigned long long at = 0ull; at < size;)
+    const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ULL;
+    for (unsigned long long at = 0ULL; at < size;)
     {
         const char *const key = reporting + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;

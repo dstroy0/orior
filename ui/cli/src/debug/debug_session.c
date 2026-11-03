@@ -80,7 +80,7 @@ CliDebugSession *cli_debug_position(void)
             session->watching = 0;
             session->scripted = 0;
             session->has_across = 0;
-            session->pid = 0ull;
+            session->pid = 0ULL;
             session->initialized = 0;
             memor.set(&(MemoriaCfg){.dst = &session->info, .val = 0, .bytes = sizeof(session->info)});
             return session;
@@ -125,7 +125,7 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
     char *const args_text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
     answer->args = mmgr_line_over(args_text, CLI_DEBUG_ARGS);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &answer->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     answer->root = CLI_JSON_NONE;
     return answer;
 }
@@ -155,16 +155,16 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
     CliLspAnswer reply;
     const int answered =
         EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap, .command = command,
-                   .arguments = (written > 0ull) ? answer->args.out : "{}", .length = (written > 0ull) ? written : 2ull,
+                   .arguments = (written > 0ULL) ? answer->args.out : "{}", .length = (written > 0ULL) ? written : 2ULL,
                    .wait = wait, .answer = &reply, .err_msg = err_msg);
-    answer->args.at = 0ull;
+    answer->args.at = 0ULL;
     if (!answered)
     {
         return 0;
     }
     answer->root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                               .json = &answer->json, .text = reply.text, .size = reply.size, .nodes_more = 0u,
-                              .text_more = 0ull, .err_msg = err_msg, .owner = &g_cli_debug_cells);
+                              .text_more = 0ULL, .err_msg = err_msg, .owner = &g_cli_debug_cells);
     g_cli_cells->persistent_buf_release(reply.message, &g_cli_debug_cells);
     return answer->root != CLI_JSON_NONE;
 }
@@ -233,7 +233,7 @@ void cli_debug_info_write(const CliDebugInfoCtx *args)
 
 void cli_debug_sessions(const CliDebugOutErrMsgIdStepCfg *args)
 {
-    unsigned long long last = 0ull;
+    unsigned long long last = 0ULL;
     int written = 0;
     mmgr_line_ch(args->out, '[');
     // by number, the order they were started in
@@ -296,7 +296,7 @@ int cli_debug_set(const CliDebugSessionCtx *args)
                                           .json_read = reply, .array = positioned, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
-        long long number = 0ll;
+        long long number = 0LL;
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = reply, .array = positioned, .index = at);
         if (!EMBED_CALL(cli_debug_json_node_internal.debug_sign, CliDebugJsonNodeCtx, .json = reply,
@@ -323,14 +323,14 @@ int cli_debug_set(const CliDebugSessionCtx *args)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = reply, .array = positioned, .index = at);
-        unsigned long long line = 0ull;
+        unsigned long long line = 0ULL;
         if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                        .json = reply,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
                                           .object = one, .name = "line"),
                        .value_u64s = &line))
         {
-            line = (line > 0ull) ? line - 1ull : 0ull;
+            line = (line > 0ULL) ? line - 1ULL : 0ULL;
         }
         else
         {
@@ -345,7 +345,7 @@ int cli_debug_set(const CliDebugSessionCtx *args)
         }
         mmgr_line_put(args->out, (at > 0u) ? ",[" : "[");
         // a line retains its low 32 bits, as the window's line numbers are
-        mmgr_line_decimal(args->out, line & 0xffffffffull, 1u);
+        mmgr_line_decimal(args->out, line & 0xffffffffULL, 1u);
         mmgr_line_put(args->out, EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx, .json = reply,
                                             .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                                .json_read = reply, .object = one, .name = "verified"))
@@ -366,12 +366,12 @@ void cli_debug_breakpoints(const CliDebugRootJsonCfg *args)
     int positioned = 0;
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
-        CliDebugSession *const session = &g_cli_debug.sessions[at];
+        const CliDebugSession *const session = &g_cli_debug.sessions[at];
         const int allocs = session->reserved && session->list_entries &&
                            EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx,
                                       .language = session->info.language, .file = args->path);
         const unsigned long long id = session->info.id;
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         CliDebugSession *const reserved =
             allocs ? EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = id, .err_msg = &err_msg)
                    : NULL;

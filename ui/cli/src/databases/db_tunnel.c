@@ -12,7 +12,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     static CliWords s_words;
     static char s_path[CLI_PATH_TEXT];
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     unsigned int local = 0u;
     memor.set(&(MemoriaCfg){.dst = args->tunnel, .val = 0, .bytes = sizeof(*args->tunnel)});
     if (!EMBED_CALL(cli_err_msg_port_internal.port_free, CliErrMsgPortCtx, .port_pointer = &local, .err_msg = &err_msg))
@@ -22,7 +22,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
         return 0;
     }
     char forward[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea forward_line = {forward, sizeof(forward), 0ull};
+    VerbaLinea forward_line = {forward, sizeof(forward), 0ULL};
     mmgr_line_put(&forward_line, "127.0.0.1:");
     mmgr_line_decimal(&forward_line, local, 1u);
     mmgr_line_ch(&forward_line, ':');
@@ -65,7 +65,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     if (!started)
     {
         char message[CLI_ERR_MSG_MAX_LEN + 64u];
-        VerbaLinea line = {message, sizeof(message), 0ull};
+        VerbaLinea line = {message, sizeof(message), 0ULL};
         mmgr_line_put(&line, "ssh, which the tunnel goes through: ");
         mmgr_line_put_n(&line, err_msg.out, err_msg.at);
         mmgr_line_finish(&line);
@@ -75,14 +75,14 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     const unsigned long long until = cli_clock_milliseconds() + CLI_DB_WAIT;
     for (;;)
     {
-        long long code = 0ll;
+        long long code = 0LL;
         if (EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &args->tunnel->child,
                        .code = &code) != 0)
         {
             // what ssh printed to its errors as it ended, trimmed
             char errors[CLI_DB_FIELD];
-            unsigned long long used = 0ull;
-            for (unsigned long long got = 1ull; (got > 0ull) && (used < sizeof(errors));)
+            unsigned long long used = 0ULL;
+            for (unsigned long long got = 1ULL; (got > 0ULL) && (used < sizeof(errors));)
             {
                 got = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                                  .pipe_handle = args->tunnel->child.err, .piece = errors + used,
@@ -97,11 +97,11 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
             }
             EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->tunnel->child);
             memor.set(&(MemoriaCfg){.dst = args->failure, .val = 0, .bytes = sizeof(*args->failure)});
-            VerbaLinea message = {args->failure->message, sizeof(args->failure->message), 0ull};
+            VerbaLinea message = {args->failure->message, sizeof(args->failure->message), 0ULL};
             mmgr_line_put(&message, "ssh ");
             mmgr_line_put(&message, args->through);
             mmgr_line_put(&message, " ended: ");
-            unsigned long long start = 0ull;
+            unsigned long long start = 0ULL;
             while ((start < used) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = errors[start]}) != NULL))
             {
@@ -133,18 +133,18 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
             args->tunnel->open = 1;
             return 1;
         }
-        err_msg.at = 0ull;
+        err_msg.at = 0ULL;
         if (cli_clock_milliseconds() > until)
         {
             EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->tunnel->child);
             (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->tunnel->child);
             EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->tunnel->child);
             char message[CLI_NAME_MAX_LEN + 64u];
-            VerbaLinea line = {message, sizeof(message), 0ull};
+            VerbaLinea line = {message, sizeof(message), 0ULL};
             mmgr_line_put(&line, "ssh ");
             mmgr_line_put(&line, args->through);
             mmgr_line_put(&line, " made no tunnel in ");
-            mmgr_line_decimal(&line, CLI_DB_WAIT / 1000ull, 1u);
+            mmgr_line_decimal(&line, CLI_DB_WAIT / 1000ULL, 1u);
             mmgr_line_put(&line, " s");
             mmgr_line_finish(&line);
             EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = message);
@@ -156,7 +156,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
 
 int cli_db_tunnel_alive(const CliDbHostCtx *args)
 {
-    long long code = 0ll;
+    long long code = 0LL;
     return args->tunnel->open && (EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx,
                                              .spawned = &args->tunnel->child, .code = &code) == 0);
 }

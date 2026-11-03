@@ -13,11 +13,11 @@
 #include "disasm_verify.h"
 
 // how long the build, each reading and Ghidra's analysis may take, in milliseconds
-#define CLI_DISASM_BUILD_PATIENCE (30ull * 60ull * 1000ull)
+#define CLI_DISASM_BUILD_PATIENCE (30ULL * 60ULL * 1000ULL)
 
-#define CLI_DISASM_READ_PATIENCE (5ull * 60ull * 1000ull)
+#define CLI_DISASM_READ_PATIENCE (5ULL * 60ULL * 1000ULL)
 
-#define CLI_DISASM_GHIDRA_PATIENCE (30ull * 60ull * 1000ull)
+#define CLI_DISASM_GHIDRA_PATIENCE (30ULL * 60ULL * 1000ULL)
 
 // the longest run PATH
 #define CLI_DISASM_PATH_TEXT (1u << 15u)
@@ -59,7 +59,7 @@ EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word, .folder = folder,
-                    .settings = settings, .count = count, .input = NULL, .length = 0ull,
+                    .settings = settings, .count = count, .input = NULL, .length = 0ULL,
                     .milliseconds_u64 = args->patience, .run_result = run_result, .err_msg = err_msg))
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
@@ -72,10 +72,10 @@ EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
         if (!run_result->stopped)
         {
             // an exit code is small and positive where it is not a signal's -1
-            mmgr_line_decimal(err_msg, (run_result->code < 0) ? 0ull : (unsigned long long)run_result->code, 1u);
+            mmgr_line_decimal(err_msg, (run_result->code < 0) ? 0ULL : (unsigned long long)run_result->code, 1u);
         }
         mmgr_line_put(err_msg, ": ");
-        mmgr_line_put_n(err_msg, run_result->err, (run_result->err_size < 600ull) ? run_result->err_size : 600ull);
+        mmgr_line_put_n(err_msg, run_result->err, (run_result->err_size < 600ULL) ? run_result->err_size : 600ULL);
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return NULL;
     }
@@ -167,7 +167,7 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
     {
         (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->ir,
                          .bytes = run_result->out, .size = run_result->out_size);
-        for (unsigned long long at = 0ull; (at < run_result->out_size) && (count < CLI_DISASM_FUNCTIONS);)
+        for (unsigned long long at = 0ULL; (at < run_result->out_size) && (count < CLI_DISASM_FUNCTIONS);)
         {
             unsigned long long end = at;
             end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = run_result->out,
@@ -176,20 +176,20 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
             word = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                     .text = run_result->out + at, .at = word - at, .set = " \t"));
             const int function =
-                ((end - word) > 0ull) && ((end - word) < CLI_NAME_MAX_LEN) && (run_result->out[at] == 'T');
+                ((end - word) > 0ULL) && ((end - word) < CLI_NAME_MAX_LEN) && (run_result->out[at] == 'T');
             if (function)
             {
                 memor.cpy(&(MemoriaCfg){.dst = args->names[count], .src = run_result->out + word, .bytes = end - word});
                 args->names[count][end - word] = '\0';
                 count += 1u;
             }
-            at = end + 1ull;
+            at = end + 1ULL;
         }
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (!args->gnu)
     {
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->ir,
                                                      .size_pointer = &size, .owner = &g_cli_programs_cells);
         if (text == NULL)
@@ -252,7 +252,7 @@ CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     static char s_symbol_list[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
-    VerbaLinea list_entries = {s_symbol_list, sizeof(s_symbol_list), 0ull};
+    VerbaLinea list_entries = {s_symbol_list, sizeof(s_symbol_list), 0ULL};
     mmgr_line_put(&list_entries, "--disassemble-symbols=");
     int any = 0;
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -316,7 +316,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
         mmgr_line_put(err_msg, "the loop's paths do not fit");
         return NULL;
     }
-    unsigned long long script_size = 0ull;
+    unsigned long long script_size = 0ULL;
     const unsigned char *const script_text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = source,
                                                         .size_pointer = &script_size, .owner = &g_cli_programs_cells);
     if (script_text == NULL)
@@ -332,7 +332,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = script_text,
                .owner = &g_cli_programs_cells);
     static char s_names_text[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
-    VerbaLinea list_entries = {s_names_text, sizeof(s_names_text), 0ull};
+    VerbaLinea list_entries = {s_names_text, sizeof(s_names_text), 0ULL};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         if (args->symbols[each][0] != '\0')
@@ -384,7 +384,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                .word = args->into);
     // the output emptied first, so that a script the analyzer could not run leaves nothing to read, not an older run's
     (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->into, .bytes = "",
-                     .size = 0ull);
+                     .size = 0ULL);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = folder, .settings = settings, .count = 1u,
@@ -396,7 +396,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->into,
                                                  .size_pointer = size, .owner = &g_cli_programs_cells);
-    if ((text == NULL) || (*size == 0ull))
+    if ((text == NULL) || (*size == 0ULL))
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text,
                    .owner = &g_cli_programs_cells);

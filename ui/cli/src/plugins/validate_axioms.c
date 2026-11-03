@@ -53,7 +53,7 @@ unsigned int cli_validate_mathematics(void)
         }
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, message->severity, "math", -1,
-            0ull,          0ull};
+            0ULL,          0ULL};
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = last->text + message->text, .length = message->text_size, .lifted = NULL);
     }
@@ -145,33 +145,33 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
             at += 1u;
         }
         char msg_buf[16384];
-        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
         int others = 0;
         int all_gaps = 1;
         int any_gap = 0;
         const char *const list = text + s_axioms[answer].list;
         const unsigned long long list_size = s_axioms[answer].list_size;
-        for (unsigned long long from = 0ull; from <= list_size;)
+        for (unsigned long long from = 0ULL; from <= list_size;)
         {
             const char *const comma =
                 memor.chr(&(MemoriaCfg){.src = list + from, .val = ',', .bytes = list_size - from});
             const unsigned long long end = (comma != NULL) ? (unsigned long long)(comma - list) : list_size;
             unsigned long long start = from;
             unsigned long long length = end - from;
-            while ((length > 0ull) && (cellul.chr(&(CatenaFinitaCfg){
+            while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
                                            .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start]}) != NULL))
             {
-                start += 1ull;
-                length -= 1ull;
+                start += 1ULL;
+                length -= 1ULL;
             }
-            while ((length > 0ull) &&
+            while ((length > 0ULL) &&
                    (cellul.chr(&(CatenaFinitaCfg){
-                        .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start + length - 1ull]}) != NULL))
+                        .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start + length - 1ULL]}) != NULL))
             {
-                length -= 1ull;
+                length -= 1ULL;
             }
-            from = end + 1ull;
-            if ((length == 0ull) || EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+            from = end + 1ULL;
+            if ((length == 0ULL) || EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
                                                .array = tool->trusted, .text = list + start, .length = length))
             {
                 continue;
@@ -218,20 +218,20 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         {
             continue;
         }
-        mmgr_line_put(args->untrusted, (args->untrusted->at > 0ull) ? ", " : "");
+        mmgr_line_put(args->untrusted, (args->untrusted->at > 0ULL) ? ", " : "");
         mmgr_line_put_n(args->untrusted, name, size);
         const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
         unsigned int letters = 0u;
-        for (unsigned long long byte = cut; byte < size; byte += 1ull)
+        for (unsigned long long byte = cut; byte < size; byte += 1ULL)
         {
             letters += (((unsigned char)name[byte] & 0xc0u) != 0x80u) ? 1u : 0u;
         }
         char message[20480];
-        VerbaLinea message_line = {message, sizeof(message), 0ull};
+        VerbaLinea message_line = {message, sizeof(message), 0ULL};
         mmgr_line_put_n(&message_line, name, size);
         mmgr_line_put(&message_line, " rests on ");
         mmgr_line_put_n(&message_line, msg_buf, msg.at);
-        const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ull, 0ull};
+        const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ULL, 0ULL};
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = message, .length = message_line.at, .lifted = NULL);
     }

@@ -26,14 +26,14 @@ EMBED_INLINE void cli_trim(const CheckersLinesCtx *args)
 {
     const char **at = args->at;
     unsigned long long *length = args->length;
-    while ((*length > 0ull) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[0]))
+    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[0]))
     {
         *at += 1;
-        *length -= 1ull;
+        *length -= 1ULL;
     }
-    while ((*length > 0ull) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[*length - 1ull]))
+    while ((*length > 0ULL) && EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = (*at)[*length - 1ULL]))
     {
-        *length -= 1ull;
+        *length -= 1ULL;
     }
 }
 
@@ -43,40 +43,40 @@ EMBED_INLINE int cli_line_parts(const CheckersLinesCtx *args)
 {
     const char *line = args->line;
     unsigned long long *path_length = args->path_length;
-    for (unsigned long long at = 1ull; at < args->length_value; at += 1ull)
+    for (unsigned long long at = 1ULL; at < args->length_value; at += 1ULL)
     {
         if (line[at] != ':')
         {
             continue;
         }
-        unsigned long long digits = 0ull;
-        digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = line, .at = at + 1ull,
+        unsigned long long digits = 0ULL;
+        digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = line, .at = at + 1ULL,
                             .size = args->length_value, .classes = CLI_TEXT_DIGITS, .set = "") -
-                 (at + 1ull);
-        if ((digits == 0ull) || ((at + 1ull + digits) >= args->length_value) || (line[at + 1ull + digits] != ':'))
+                 (at + 1ULL);
+        if ((digits == 0ULL) || ((at + 1ULL + digits) >= args->length_value) || (line[at + 1ULL + digits] != ':'))
         {
             continue;
         }
-        unsigned long long number = 0ull;
-        for (unsigned long long place = 0ull; place < digits; place += 1ull)
+        unsigned long long number = 0ULL;
+        for (unsigned long long place = 0ULL; place < digits; place += 1ULL)
         {
-            number = (number * 10ull) + (unsigned long long)(line[at + 1ull + place] - '0');
+            number = (number * 10ULL) + (unsigned long long)(line[at + 1ULL + place] - '0');
         }
-        const unsigned long long after = at + 2ull + digits;
-        unsigned long long col_digits = 0ull;
+        const unsigned long long after = at + 2ULL + digits;
+        unsigned long long col_digits = 0ULL;
         col_digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = line, .at = after,
                                 .size = args->length_value, .classes = CLI_TEXT_DIGITS, .set = "") -
                      after;
-        unsigned long long col = 1ull;
+        unsigned long long col = 1ULL;
         unsigned long long rest = after;
-        if ((col_digits > 0ull) && ((after + col_digits) < args->length_value) && (line[after + col_digits] == ':'))
+        if ((col_digits > 0ULL) && ((after + col_digits) < args->length_value) && (line[after + col_digits] == ':'))
         {
-            col = 0ull;
-            for (unsigned long long place = 0ull; place < col_digits; place += 1ull)
+            col = 0ULL;
+            for (unsigned long long place = 0ULL; place < col_digits; place += 1ULL)
             {
-                col = (col * 10ull) + (unsigned long long)(line[after + place] - '0');
+                col = (col * 10ULL) + (unsigned long long)(line[after + place] - '0');
             }
-            rest = after + col_digits + 1ull;
+            rest = after + col_digits + 1ULL;
         }
         *path_length = at;
         args->finding->line = number;
@@ -118,17 +118,17 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
     const char *const rest = args->finding->message;
     const unsigned long long length = args->finding->message_length;
     args->finding->code = "";
-    args->finding->code_length = 0ull;
-    const char *const close = ((length > 0ull) && (rest[0] == '['))
-                                  ? memor.chr(&(MemoriaCfg){.src = rest + 1, .val = ']', .bytes = length - 1ull})
+    args->finding->code_length = 0ULL;
+    const char *const close = ((length > 0ULL) && (rest[0] == '['))
+                                  ? memor.chr(&(MemoriaCfg){.src = rest + 1, .val = ']', .bytes = length - 1ULL})
                                   : NULL;
     if (close != NULL)
     {
         const char *code = rest + 1;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         while (((code + size) < close) && (code[size] != '(') && (code[size] != ','))
         {
-            size += 1ull;
+            size += 1ULL;
         }
         EMBED_CALL(cli_trim, CheckersLinesCtx, .at = &code, .length = &size);
         args->finding->code = code;
@@ -138,26 +138,26 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
         EMBED_CALL(cli_trim, CheckersLinesCtx, .at = &args->finding->message, .length = &args->finding->message_length);
         return;
     }
-    for (unsigned long long open = length; (length > 0ull) && (rest[length - 1ull] == ']') && (open >= 3ull);
-         open -= 1ull)
+    for (unsigned long long open = length; (length > 0ULL) && (rest[length - 1ULL] == ']') && (open >= 3ULL);
+         open -= 1ULL)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = rest + open - 3ull, .other = "  [", .bytes = 3u}) == 0)
+        if (memor.cmp(&(MemoriaCfg){.src = rest + open - 3ULL, .other = "  [", .bytes = 3u}) == 0)
         {
             args->finding->code = rest + open;
-            args->finding->code_length = length - open - 1ull;
-            args->finding->message_length = open - 3ull;
+            args->finding->code_length = length - open - 1ULL;
+            args->finding->message_length = open - 3ULL;
             EMBED_CALL(cli_trim, CheckersLinesCtx, .at = &args->finding->message,
                        .length = &args->finding->message_length);
             return;
         }
     }
-    unsigned long long first = 0ull;
+    unsigned long long first = 0ULL;
     while ((first < length) && !EMBED_CALL(cli_blank, CheckersLinesCtx, .letter = rest[first]))
     {
-        first += 1ull;
+        first += 1ULL;
     }
-    int code = (first >= 2ull) && (rest[0] >= 'A') && (rest[0] <= 'Z');
-    for (unsigned long long at = 1ull; code && (at < first); at += 1ull)
+    int code = (first >= 2ULL) && (rest[0] >= 'A') && (rest[0] <= 'Z');
+    for (unsigned long long at = 1ULL; code && (at < first); at += 1ULL)
     {
         code = (rest[at] >= '0') && (rest[at] <= '9');
     }
@@ -173,7 +173,7 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
 
 void cli_checkers_lines_read(const CliCheckersTextCtx *args)
 {
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         const CliTextLine bounds =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->text, .at = at, .size = args->size);
@@ -181,9 +181,9 @@ void cli_checkers_lines_read(const CliCheckersTextCtx *args)
         unsigned long long length = end - at;
         length -= bounds.stop - bounds.cut;
         const char *const line = args->text + at;
-        at = end + 1ull;
-        CliFinding finding = {0ull, 1ull, 0, 0ull, 0ull, 2u, NULL, 0ull, "", 0ull, "[]"};
-        unsigned long long path_length = 0ull;
+        at = end + 1ULL;
+        CliFinding finding = {0ULL, 1ULL, 0, 0ULL, 0ULL, 2u, NULL, 0ULL, "", 0ULL, "[]"};
+        unsigned long long path_length = 0ULL;
         if (!EMBED_CALL(cli_line_parts, CheckersLinesCtx, .line = line, .length_value = length,
                         .path_length = &path_length, .finding = &finding))
         {

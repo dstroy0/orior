@@ -52,7 +52,7 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
     const char *root = args->root;
     unsigned int count = 0u;
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea none = {why, sizeof(why), 0ULL};
     const CliDeployment *deployments = NULL;
     if (!EMBED_CALL(cli_deploy_root_internal.read, CliDeployRootCtx, .root = root, .tree = &s_tree,
                     .deployments = &deployments, .count_pointer = &count, .err_msg = &none))
@@ -63,9 +63,9 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
     {
         const CliDeployment *const deployment = &deployments[index];
         static char s_id[CLI_PATH_MAX_LEN];
-        VerbaLinea id = {s_id, sizeof(s_id), 0ull};
+        VerbaLinea id = {s_id, sizeof(s_id), 0ULL};
         // the folder it sends from and each place, and the words around them
-        const unsigned long long capacity = ((unsigned long long)deployment->tos + 2ull) * CLI_PATH_MAX_LEN;
+        const unsigned long long capacity = ((unsigned long long)deployment->tos + 2ULL) * CLI_PATH_MAX_LEN;
         char *const about_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
         VerbaLinea about = mmgr_line_over(about_text, capacity);
         mmgr_line_put(&id, "deploy/");
@@ -80,7 +80,7 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
         }
         mmgr_line_put(&about, ", a new release at each turned to once every place has it.");
         const int list_entries =
-            (mmgr_line_finish(&id) != 0ull) && mmgr_line_ok(&about) &&
+            (mmgr_line_finish(&id) != 0ULL) && mmgr_line_ok(&about) &&
             (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = s_id,
                         .group = "deploy", .title = deployment->name, .file = "deploy.json", .about = about_text,
                         .opens = "") != CLI_CATALOG_NONE);

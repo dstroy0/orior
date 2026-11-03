@@ -34,7 +34,7 @@ void cli_print_alloc(void)
     const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + letter_bytes;
     s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_print_cells);
     char *const cell = (s_work_state != NULL)
-                           ? g_cli_cells->persistent_buf_alloc(list_bytes + (2ull * CLI_PRINT_TEXT), &g_cli_print_cells)
+                           ? g_cli_cells->persistent_buf_alloc(list_bytes + (2ULL * CLI_PRINT_TEXT), &g_cli_print_cells)
                            : NULL;
     if (cell == NULL)
     {
@@ -122,7 +122,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
     listing_at->lines = 0u;
     listing_at->runs = 0u;
     listing_at->text_used = 0u;
-    listing_at->tab = 4ull;
+    listing_at->tab = 4ULL;
     const char *const title =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
@@ -132,7 +132,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                .otherwise = "");
     const unsigned int tab = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                         .object = args->node, .name = "tab");
-    unsigned long long tab_value = 0ull;
+    unsigned long long tab_value = 0ULL;
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = tab,
                    .kind = CFG_JSON_NUMBER))
     {
@@ -156,7 +156,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
         CliPrintLine *const line = &listing_at->line[listing_at->lines];
         const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = args->json, .object = item, .name = "number");
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         line->numbered = 0;
         if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = number,
                        .kind = CFG_JSON_NUMBER))
@@ -182,8 +182,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                 break;
             }
             CliPrintRun *const run_at = &listing_at->run[listing_at->runs];
-            unsigned long long length = 0ull;
-            unsigned long long color_length = 0ull;
+            unsigned long long length = 0ULL;
+            unsigned long long color_length = 0ULL;
             const char *const text =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -255,13 +255,13 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
                .otherwise = "");
     const unsigned int copies = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json, .object = args->node, .name = "copies");
-    unsigned long long value = 1ull;
+    unsigned long long value = 1ULL;
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = copies,
                    .kind = CFG_JSON_NUMBER))
     {
         const CfgJsonToken token = {CFG_JSON_NUMBER, args->json->node[copies].text,
                                     args->json->node[copies].text + args->json->node[copies].length, 0u, 0u};
-        value = (cfg_json_unsigned(args->json->text, &token, &value) && (value <= 0xffffffffull)) ? value : 1ull;
+        value = (cfg_json_unsigned(args->json->text, &token, &value) && (value <= 0xffffffffULL)) ? value : 1ULL;
     }
     // checked against the most 32 bits represent above
     args->layout_out->copies = (unsigned int)value;
@@ -295,7 +295,7 @@ EMBED_INLINE void cli_trim(const PageCtx *args)
 {
     const char **from = args->from;
     const char **to = args->to;
-    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ULL,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
     *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
@@ -312,15 +312,15 @@ EMBED_INLINE int cli_parse(const PageCtx *args)
     {
         return 0;
     }
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (const char *at = from; at < args->to_value; at += 1)
     {
         const unsigned long long digit = (unsigned long long)(at[0] - '0');
-        if ((at[0] < '0') || (at[0] > '9') || (total > ((args->most - digit) / 10ull)))
+        if ((at[0] < '0') || (at[0] > '9') || (total > ((args->most - digit) / 10ULL)))
         {
             return 0;
         }
-        total = (total * 10ull) + digit;
+        total = (total * 10ULL) + digit;
     }
     *value = total;
     return 1;
@@ -340,13 +340,13 @@ EMBED_INLINE int cli_parts(const PageCtx *args)
     while (part <= to)
     {
         const char *end = part;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = (unsigned long long)(to - end), .set = ",");
         const char *start = part;
         const char *stop = end;
         EMBED_CALL(cli_trim, PageCtx, .from = &start, .to = &stop);
         const char *dash = start;
-        dash += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = dash, .at = 0ull,
+        dash += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = dash, .at = 0ULL,
                            .size = (unsigned long long)(stop - dash), .set = "-");
         if (EMBED_CALL(args->each, CliEachFromDashToCfg, .context = args->context, .from = start,
                        .dash = (dash < stop) ? dash : NULL, .to = stop))
@@ -365,8 +365,8 @@ static int cli_prints_part(const CliEachFromDashToCfg *args)
     const unsigned long long page = *(const unsigned long long *)args->context;
     if (args->dash == NULL)
     {
-        unsigned long long value = 0ull;
-        return EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = ~0ull, .value = &value) &&
+        unsigned long long value = 0ULL;
+        return EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = ~0ULL, .value = &value) &&
                (value == page);
     }
     const char *low_from = from;
@@ -375,14 +375,14 @@ static int cli_prints_part(const CliEachFromDashToCfg *args)
     const char *high_to = to;
     EMBED_CALL(cli_trim, PageCtx, .from = &low_from, .to = &low_to);
     EMBED_CALL(cli_trim, PageCtx, .from = &high_from, .to = &high_to);
-    unsigned long long low = 1ull;
-    unsigned long long high = ~0ull;
-    low = EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = ~0ull, .value = &low)
+    unsigned long long low = 1ULL;
+    unsigned long long high = ~0ULL;
+    low = EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = ~0ULL, .value = &low)
               ? low
-              : 1ull;
-    high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = ~0ull, .value = &high)
+              : 1ULL;
+    high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = ~0ULL, .value = &high)
                ? high
-               : ~0ull;
+               : ~0ULL;
     return (page >= low) && (page <= high);
 }
 
@@ -406,11 +406,11 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
     const char *from = args->from;
     const char *to = args->to;
     CliRanges *const ranges = (CliRanges *)args->context;
-    unsigned long long low = 0ull;
-    unsigned long long high = 0x7fffffffull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0x7fffffffULL;
     if (args->dash == NULL)
     {
-        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = 0x7fffffffull, .value = &low))
+        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = from, .to_value = to, .most = 0x7fffffffULL, .value = &low))
         {
             return 0;
         }
@@ -424,15 +424,15 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
         const char *high_to = to;
         EMBED_CALL(cli_trim, PageCtx, .from = &low_from, .to = &low_to);
         EMBED_CALL(cli_trim, PageCtx, .from = &high_from, .to = &high_to);
-        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = 0x7fffffffull,
+        if (!EMBED_CALL(cli_parse, PageCtx, .from_value = low_from, .to_value = low_to, .most = 0x7fffffffULL,
                         .value = &low))
         {
             return 0;
         }
-        high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = 0x7fffffffull,
+        high = EMBED_CALL(cli_parse, PageCtx, .from_value = high_from, .to_value = high_to, .most = 0x7fffffffULL,
                           .value = &high)
                    ? high
-                   : 0x7fffffffull;
+                   : 0x7fffffffULL;
     }
     if (ranges->count < ranges->capacity)
     {
@@ -465,16 +465,16 @@ void cli_print_color(const CliPrintTextCfg *args)
     const char *from = args->text;
     const char *to = args->text + args->length;
     EMBED_CALL(cli_trim, PageCtx, .from = &from, .to = &to);
-    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = (unsigned long long)(to - from), .set = "#");
     const unsigned long long size = (unsigned long long)(to - from);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        const unsigned long long place = 2ull * at;
-        const unsigned int high = (place + 1ull < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place]) : 16u;
-        const unsigned int low = (place + 1ull < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place + 1u]) : 16u;
+        const unsigned long long place = 2ULL * at;
+        const unsigned int high = (place + 1ULL < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place]) : 16u;
+        const unsigned int low = (place + 1ULL < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place + 1u]) : 16u;
         // a byte is two hex digits, 0x22 where they are none
-        args->rgb[at] = ((size >= 6ull) && (high < 16u) && (low < 16u)) ? (unsigned char)((high << 4u) | low) : 0x22u;
+        args->rgb[at] = ((size >= 6ULL) && (high < 16u) && (low < 16u)) ? (unsigned char)((high << 4u) | low) : 0x22u;
     }
     if (args->gray)
     {
@@ -520,7 +520,7 @@ EMBED_INLINE void cli_row_append(const PageCtx *args)
         args->laid->full = 1;
     }
     args->row->numbered = 0;
-    args->row->number = 0ull;
+    args->row->number = 0ULL;
     args->row->first = args->laid->pieces;
     args->row->pieces = 0u;
 }
@@ -536,7 +536,7 @@ EMBED_INLINE void cli_letter_append(const PageCtx *args)
         return;
     }
     VerbaLinea line = {args->laid->text + args->laid->text_used, args->laid->text_capacity - args->laid->text_used,
-                       0ull};
+                       0ULL};
     EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
     if (!mmgr_line_ok(&line))
     {
@@ -560,33 +560,33 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
     float height = 0.0f;
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = args->layout, .width = &width,
                .height = &height);
-    unsigned long long widest = 0ull;
+    unsigned long long widest = 0ULL;
     for (unsigned int at = 0u; at < args->listing->lines; at += 1u)
     {
         widest = (args->listing->line[at].numbered && (args->listing->line[at].number > widest))
                      ? args->listing->line[at].number
                      : widest;
     }
-    unsigned long long digits = 0ull;
-    for (unsigned long long left = widest; left != 0ull; left /= 10ull)
+    unsigned long long digits = 0ULL;
+    for (unsigned long long left = widest; left != 0ULL; left /= 10ULL)
     {
-        digits += 1ull;
+        digits += 1ULL;
     }
-    laid->number_columns = (widest == 0ull) ? 0ull : (digits + 2ull);
+    laid->number_columns = (widest == 0ULL) ? 0ULL : (digits + 2ULL);
     // a page's columns and rows are whole and not negative, the floor of what fits
     const unsigned long long fit = (unsigned long long)floorf((width - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_ADVANCE);
-    const unsigned long long left = (fit > laid->number_columns) ? (fit - laid->number_columns) : 0ull;
-    const unsigned long long columns = (left > 8ull) ? left : 8ull;
+    const unsigned long long left = (fit > laid->number_columns) ? (fit - laid->number_columns) : 0ULL;
+    const unsigned long long columns = (left > 8ULL) ? left : 8ULL;
     const unsigned long long rows =
         (unsigned long long)floorf((height - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_LEADING);
     // a page contains far fewer rows than an unsigned int counts
-    laid->rows_per_page = (rows > 1ull) ? (unsigned int)rows : 1u;
+    laid->rows_per_page = (rows > 1ULL) ? (unsigned int)rows : 1u;
     const unsigned long long tab = args->listing->tab;
     for (unsigned int index = 0u; index < args->listing->lines; index += 1u)
     {
         const CliPrintLine *const line = &args->listing->line[index];
         CliPrintRow row = {line->numbered, line->number, laid->pieces, 0u};
-        unsigned long long column = 0ull;
+        unsigned long long column = 0ULL;
         for (unsigned int each = 0u; each < line->runs; each += 1u)
         {
             const CliPrintRun *const run = &args->listing->run[line->first + each];
@@ -601,24 +601,24 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
             const unsigned long long count =
                 EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->listing->text + run->text,
                            .size = run->length, .letters = letters, .capacity_u64 = s_work_state->letters_capacity);
-            for (unsigned long long at = 0ull; at < count; at += 1ull)
+            for (unsigned long long at = 0ULL; at < count; at += 1ULL)
             {
                 const unsigned int letter = letters[at];
                 const int control = (letter < 0x20u) || ((letter >= 0x7fu) && (letter <= 0x9fu));
                 const unsigned long long spaces =
-                    (letter == '\t') ? (tab - (column % ((tab > 1ull) ? tab : 1ull))) : (control ? 0ull : 1ull);
-                for (unsigned long long one = 0ull; one < spaces; one += 1ull)
+                    (letter == '\t') ? (tab - (column % ((tab > 1ULL) ? tab : 1ULL))) : (control ? 0ULL : 1ULL);
+                for (unsigned long long one = 0ULL; one < spaces; one += 1ULL)
                 {
                     if (column == columns)
                     {
                         EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);
                         EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
-                        column = 0ull;
-                        piece.column = 0ull;
+                        column = 0ULL;
+                        piece.column = 0ULL;
                     }
                     EMBED_CALL(cli_letter_append, PageCtx, .laid = laid, .piece = &piece,
                                .letter = (letter == '\t') ? ' ' : letter);
-                    column += 1ull;
+                    column += 1ULL;
                 }
             }
             EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);

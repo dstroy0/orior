@@ -10,7 +10,7 @@
 #include "cargo_tests.h"
 
 // the most bytes of one line of Cargo's words read
-#define CLI_CARGO_LINE_TEXT (1ull << 20u)
+#define CLI_CARGO_LINE_TEXT (1ULL << 20u)
 
 static CliCargoTests s_binary_tests;
 static char s_path[CLI_PATH_TEXT];
@@ -73,13 +73,13 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
     unsigned long long size = args->size;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ull};
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int message =
         (size <= CLI_CARGO_LINE_TEXT)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                         .text = args->line, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread,
+                         .text = args->line, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
                          .owner = &g_cli_tests_cells)
             : CLI_JSON_NONE;
     const char *const reason =
@@ -128,7 +128,7 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
 EMBED_INLINE int binary_read(const CargoBinaryCtx *args)
 {
     unsigned long long size = args->size;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const CliTextLine bounds =
@@ -187,8 +187,8 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
     {
         char error[4096];
         char path[CLI_PATH_MAX_LEN];
-        long long line = 0ll;
-        unsigned long long length = 0ull;
+        long long line = 0LL;
+        unsigned long long length = 0ULL;
         if (EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = run_result->err,
                        .size = run_result->err_size, .error = error, .capacity = sizeof(error), .length = &length,
                        .path = path, .line = &line))
@@ -210,7 +210,7 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
 {
     EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = args->root, .tests = &s_binary_tests);
     const CliCargoFound *one = NULL;
-    for (unsigned int at = 0u; (one == NULL) && (at < s_binary_tests.count); at += 1u)
+    for (unsigned int at = 0u; (one == NULL) && (s_binary_tests.found != NULL) && (at < s_binary_tests.count); at += 1u)
     {
         one = (cellul.eq(&(CatenaFinitaCfg){
                   .src = s_binary_tests.found[at].test.id, .other = args->id, .cap = CLI_CELLS_POOL}))
@@ -226,7 +226,7 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
     else
     {
         char folder[CLI_PATH_MAX_LEN];
-        VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+        VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
         mmgr_line_put_n(&folder_line, one->manifest,
                         cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_CELLS_POOL}) - 10u);
         mmgr_line_finish(&folder_line);

@@ -10,7 +10,7 @@
 
 // the most files waiting; and the bytes and the files a capacity holds past those of the tree it is made for
 #define CLI_SERVERS_WAITING (1u << 16u)
-#define CLI_SERVERS_CAPACITY_MORE (64ull << 10u)
+#define CLI_SERVERS_CAPACITY_MORE (64ULL << 10u)
 #define CLI_SERVERS_POSITIONS_MORE 64u
 
 // the files waiting by their places in the ring, sorted by where their paths stand, and the queue they are of
@@ -36,7 +36,7 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     unsigned long long bytes = CLI_SERVERS_CAPACITY_MORE;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_CELLS_POOL}) + 2ull;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_CELLS_POOL}) + 2ULL;
     }
     const unsigned int required = args->count + CLI_SERVERS_POSITIONS_MORE;
     const unsigned int positions = (required < CLI_SERVERS_WAITING) ? required : CLI_SERVERS_WAITING;
@@ -96,7 +96,7 @@ EMBED_INLINE void capacity_compact(const ServersCheckCapacityCtx *args)
     }
     s_ordering = queue;
     qsort(s_order, queue->count, sizeof(s_order[0]), capacity_order);
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < queue->count; at += 1u)
     {
         CliServersQueued *const one = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,

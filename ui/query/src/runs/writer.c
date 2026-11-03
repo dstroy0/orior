@@ -54,7 +54,7 @@ int query_writer_init(const QueryWriterCtx *args)
             // the line naming the run's database, printed on the console of whatever started the run, for a reader of
             // the run to find it by
             char line[QUERY_PATH_MAX_LEN + 64u];
-            VerbaLinea made = {line, sizeof(line), 0ull};
+            VerbaLinea made = {line, sizeof(line), 0ULL};
             mmgr_line_put(&made, "  orior_qry_writer: the run of ");
             mmgr_line_put(&made, args->writer->qry);
             mmgr_line_put(&made, " is made\n");
@@ -139,7 +139,7 @@ int query_writer_append(const QueryNameBytesCtx *args)
     {
         return 0;
     }
-    if (qry_member_append(args->name, args->bytes, args->size, args->priority) == 0ull)
+    if (qry_member_append(args->name, args->bytes, args->size, args->priority) == 0ULL)
     {
         mmgr_line_put(args->err_msg, args->name);
         mmgr_line_put(args->err_msg, " was not appended to the run");
@@ -158,7 +158,7 @@ int query_writer_file(const QueryPathBytesSizeCtx *args)
     {
         return 0;
     }
-    if (qry_member_filed(args->path, args->bytes, args->size) == 0ull)
+    if (qry_member_filed(args->path, args->bytes, args->size) == 0ULL)
     {
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, " was not written through the run's writer");
@@ -170,7 +170,7 @@ int query_writer_file(const QueryPathBytesSizeCtx *args)
 
 int query_writer_leave(const QueryPathBytesSizeCtx *args)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(args->path, &size);
     if (bytes == NULL)
     {
@@ -189,10 +189,10 @@ int query_writer_tee(const QueryWordsNameCtx *args)
 {
     long long *code = args->code;
     char console[QRY_NAME_MAX_LEN + 1u];
-    VerbaLinea console_line = {console, sizeof(console), 0ull};
+    VerbaLinea console_line = {console, sizeof(console), 0ULL};
     mmgr_line_put(&console_line, args->name);
     mmgr_line_put(&console_line, ".console");
-    if ((mmgr_line_finish(&console_line) == 0ull) || !EMBED_CALL(query_writer_member, WriterCtx, .writer = args->writer,
+    if ((mmgr_line_finish(&console_line) == 0ULL) || !EMBED_CALL(query_writer_member, WriterCtx, .writer = args->writer,
                                                                  .what = args->name, .err_msg = args->err_msg))
     {
         return 0;
@@ -211,7 +211,7 @@ int query_writer_tee(const QueryWordsNameCtx *args)
     {
         const unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
                                                   .process = &child, .piece = s_piece, .capacity_u64 = sizeof(s_piece));
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }

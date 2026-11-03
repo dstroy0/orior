@@ -59,8 +59,7 @@ typedef struct
 
 // the lists stored; the next number; and the wake the parts end on
 static CliPicks s_picks;
-static unsigned long long s_next = 1ull;
-static CliWake s_wake = CLI_WAKE_INIT;
+static unsigned long long s_next = 1ULL;
 
 typedef struct
 {
@@ -77,7 +76,7 @@ EMBED_INLINE void *picks_part(const PicksCtx *args)
 {
     unsigned char **at = args->at;
     void *const part = *at;
-    *at += (args->bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
 
@@ -88,8 +87,8 @@ EMBED_INLINE int picks_work_state_alloc(const PicksCtx *args)
     const unsigned int cores = cli_cores_for_work();
     const unsigned int parts = (cores < 1u) ? 1u : ((cores > CLI_PICKS_PARTS) ? CLI_PICKS_PARTS : cores);
     const unsigned long long bytes =
-        ((unsigned long long)args->rows * (sizeof(double) + 1ull + (2ull * sizeof(unsigned int)))) +
-        ((unsigned long long)parts * sizeof(CliPickPart)) + (5ull * 8ull);
+        ((unsigned long long)args->rows * (sizeof(double) + 1ULL + (2ULL * sizeof(unsigned int)))) +
+        ((unsigned long long)parts * sizeof(CliPickPart)) + (5ULL * 8ULL);
     void *const capacity = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
     if (capacity == NULL)
     {
@@ -114,27 +113,27 @@ EMBED_INLINE int picks_work_state_alloc(const PicksCtx *args)
 
 unsigned long long cli_picks_store(const CliPicksCfg *args)
 {
-    unsigned long long rows = (args->length == 0ull) ? 0ull : 1ull;
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    unsigned long long rows = (args->length == 0ULL) ? 0ULL : 1ULL;
+    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        rows += (args->texts[at] == '\n') ? 1ull : 0ull;
+        rows += (args->texts[at] == '\n') ? 1ULL : 0ULL;
     }
     // a row's start is an unsigned int's, and a text past one's reach is not stored
-    if ((s_picks.lists >= CLI_PICKS_LISTS) || (args->length >= 0xffffffffull))
+    if ((s_picks.lists >= CLI_PICKS_LISTS) || (args->length >= 0xffffffffULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        (rows * sizeof(unsigned int)) + args->length + 1ull + 8ull, &g_cli_editor_cells);
+        (rows * sizeof(unsigned int)) + args->length + 1ULL + 8ULL, &g_cli_editor_cells);
     if (cell == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     if (((s_picks.capacity == NULL) || (rows > s_picks.capacity_rows)) &&
         !EMBED_CALL(picks_work_state_alloc, PicksCtx, .rows = (unsigned int)rows))
     {
         g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
-        return 0ull;
+        return 0ULL;
     }
     CliPickList *const list = &s_picks.list[s_picks.lists];
     unsigned char *at = cell;
@@ -144,9 +143,9 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     list->id = s_next;
     list->count = (unsigned int)rows;
     unsigned int row = 0u;
-    for (unsigned long long at_text = 0ull; at_text < args->length; at_text += 1ull)
+    for (unsigned long long at_text = 0ULL; at_text < args->length; at_text += 1ULL)
     {
-        const int starts = (at_text == 0ull) || (args->texts[at_text - 1ull] == '\n');
+        const int starts = (at_text == 0ULL) || (args->texts[at_text - 1ULL] == '\n');
         if (starts)
         {
             list->row[row] = (unsigned int)at_text;
@@ -154,7 +153,7 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
         }
         list->text[at_text] = (args->texts[at_text] == '\n') ? '\0' : args->texts[at_text];
     }
-    if ((args->length > 0ull) && (args->texts[args->length - 1ull] == '\n'))
+    if ((args->length > 0ULL) && (args->texts[args->length - 1ULL] == '\n'))
     {
         // a text that ends with a newline has an empty row after it
         list->row[row] = (unsigned int)args->length;
@@ -162,7 +161,7 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     list->text[args->length] = '\0';
     s_picks.lists += 1u;
     const unsigned long long id = s_next;
-    s_next += 1ull;
+    s_next += 1ULL;
     return id;
 }
 

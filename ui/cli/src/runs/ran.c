@@ -40,7 +40,7 @@ typedef struct
 // the empty text a run that gave nothing points at, and the run handed out where the cells cannot meet a run, which
 // every run refuses
 static char s_nothing[1];
-static CliRunResult s_refused = {s_nothing, 0ull, s_nothing, 0ull, 1, -1ll, 0};
+static CliRunResult s_refused = {s_nothing, 0ULL, s_nothing, 0ULL, 1, -1LL, 0};
 
 CliRunResult *cli_run_result_alloc(void)
 {
@@ -51,7 +51,7 @@ CliRunResult *cli_run_result_alloc(void)
     }
     const CliWake wake = CLI_WAKE_INIT;
     work_state->wake = wake;
-    work_state->run_result = (CliRunResult){s_nothing, 0ull, s_nothing, 0ull, 1, -1ll, 0};
+    work_state->run_result = (CliRunResult){s_nothing, 0ULL, s_nothing, 0ULL, 1, -1LL, 0};
     return &work_state->run_result;
 }
 
@@ -82,8 +82,8 @@ EMBED_INLINE void cli_run_result_texts_free(const RanCtx *args)
     }
     args->run_result->out = s_nothing;
     args->run_result->err = s_nothing;
-    args->run_result->out_size = 0ull;
-    args->run_result->err_size = 0ull;
+    args->run_result->out_size = 0ULL;
+    args->run_result->err_size = 0ULL;
 }
 
 void cli_run_result_free(const CliWordsCtx *args)
@@ -106,7 +106,7 @@ static void cli_pipe_read(const RanCtx *args)
     int *whole = args->whole;
     CliRunResultPiece *first = NULL;
     CliRunResultPiece *last = NULL;
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (;;)
     {
         if ((last == NULL) || (last->size == CLI_RUN_RESULT_PIECE))
@@ -119,14 +119,15 @@ static void cli_pipe_read(const RanCtx *args)
                 char reserve[4096];
                 *whole = 0;
                 while (EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                                  .pipe_handle = args->pipe, .piece = reserve, .capacity = sizeof(reserve)) != 0ull)
+                                  .pipe_handle = args->pipe, .piece = reserve, .capacity = sizeof(reserve)) != 0ULL)
                 {
+                    // the rest read and dropped, so that the program does not stand on a full pipe
                 }
                 break;
             }
             piece->bytes = (char *)(void *)(piece + 1);
             piece->next = NULL;
-            piece->size = 0ull;
+            piece->size = 0ULL;
             if (last != NULL)
             {
                 last->next = piece;
@@ -140,16 +141,16 @@ static void cli_pipe_read(const RanCtx *args)
         const unsigned long long got = EMBED_CALL(
             cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = args->pipe,
             .piece = last->bytes + last->size, .capacity = CLI_RUN_RESULT_PIECE - last->size);
-        if (got == 0ull)
+        if (got == 0ULL)
         {
             break;
         }
         last->size += got;
         total += got;
     }
-    char *const joined = (total != 0ull) ? g_cli_cells->persistent_buf_alloc(total + 1ull, &g_cli_runs_cells) : NULL;
-    *whole = *whole && ((total == 0ull) || (joined != NULL));
-    unsigned long long at = 0ull;
+    char *const joined = (total != 0ULL) ? g_cli_cells->persistent_buf_alloc(total + 1ULL, &g_cli_runs_cells) : NULL;
+    *whole = *whole && ((total == 0ULL) || (joined != NULL));
+    unsigned long long at = 0ULL;
     for (CliRunResultPiece *piece = first; piece != NULL;)
     {
         CliRunResultPiece *const next = piece->next;
@@ -166,7 +167,7 @@ static void cli_pipe_read(const RanCtx *args)
         joined[at] = '\0';
     }
     *text = (joined != NULL) ? joined : s_nothing;
-    *size = (joined != NULL) ? at : 0ull;
+    *size = (joined != NULL) ? at : 0ULL;
 }
 
 // what the program reports went wrong read until it ends, its end reported
@@ -221,15 +222,15 @@ static void cli_on_watch(void *context)
 int cli_on_run(const CliWordsCtx *args)
 {
     return EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = args->words, .folder = args->folder,
-                      .settings = args->settings, .count = args->count, .input = NULL, .length = 0ull,
-                      .milliseconds_u64 = 0ull, .run_result = args->run_result, .err_msg = args->err_msg);
+                      .settings = args->settings, .count = args->count, .input = NULL, .length = 0ULL,
+                      .milliseconds_u64 = 0ULL, .run_result = args->run_result, .err_msg = args->err_msg);
 }
 
 int cli_run_result_feed(const CliWordsCtx *args)
 {
     return EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = args->words, .folder = args->folder,
                       .settings = args->settings, .count = args->count, .input = args->input, .length = args->length,
-                      .milliseconds_u64 = 0ull, .run_result = args->run_result, .err_msg = args->err_msg);
+                      .milliseconds_u64 = 0ULL, .run_result = args->run_result, .err_msg = args->err_msg);
 }
 
 int cli_run_result_within(const CliWordsCtx *args)
@@ -244,7 +245,7 @@ int cli_run_result_within(const CliWordsCtx *args)
     CliRunResultWorkState *const work_state = EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result);
     EMBED_CALL(cli_run_result_texts_free, RanCtx, .run_result = args->run_result);
     args->run_result->whole = 1;
-    args->run_result->code = -1ll;
+    args->run_result->code = -1LL;
     args->run_result->stopped = 0;
     const int started =
         (input != NULL)
@@ -269,7 +270,7 @@ int cli_run_result_within(const CliWordsCtx *args)
     // the reader and the writer each report their end, on a thread of their own or, where none starts, here; a watcher
     // that cannot start leaves the run to take its time
     const unsigned int watching =
-        ((args->milliseconds_u64 != 0ull) &&
+        ((args->milliseconds_u64 != 0ULL) &&
          EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &work_state->watcher))
             ? 1u
             : 0u;
@@ -281,7 +282,7 @@ int cli_run_result_within(const CliWordsCtx *args)
     }
     int whole = 1;
     char *out = s_nothing;
-    unsigned long long out_size = 0ull;
+    unsigned long long out_size = 0ULL;
     EMBED_CALL(cli_pipe_read, RanCtx, .pipe = work_state->spawned.out, .text = &out, .size = &out_size,
                .whole = &whole);
     if (!read_state)

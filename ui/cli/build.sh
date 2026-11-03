@@ -13,7 +13,7 @@
 set -u
 # A build is a guest of the machine: it runs niced, below the window and the host's own work, which take the
 # processor back from it the moment they want it.
-if [ -z "${ORIOR_GUEST:-}" ]; then
+if [[ -z "${ORIOR_GUEST:-}" ]]; then
     ORIOR_GUEST=1 exec nice -n 9 "$0" "$@"
 fi
 
@@ -22,7 +22,8 @@ TOP="$(cd "$HERE/../.." && pwd)"
 
 # the name of a program the tree builds, by its id in bin_names.tsv at the top of the tree, where every name is picked
 bin_named() {
-    awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$TOP/bin_names.tsv"
+    local id="$1"
+    awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$TOP/bin_names.tsv"
 }
 CLI_NAME="$(bin_named cli)"
 BUNDLE_NAME="$(bin_named plugins_bundle)"
@@ -41,15 +42,16 @@ BUILD_SUFFIX=""
 # bundler here runs with halting off
 SANITIZE="${ORIOR_SANITIZE:-}"
 SANITIZE_WORDS=()
-if [ -n "$SANITIZE" ]; then
+if [[ -n "$SANITIZE" ]]; then
     BUILD_SUFFIX="-$SANITIZE"
     SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer)
     LINK_WORDS+=("-fsanitize=$SANITIZE")
     # the address sanitizer leaves MMgr's whole-word string scans alone: the list says why
-    if [ "$SANITIZE" = "address" ]; then
+    if [[ "$SANITIZE" = "address" ]]; then
         IGNORED="$HERE/sanitize_ignore.txt"
         case "$(uname -s)" in
             MINGW*|MSYS*|CYGWIN*) IGNORED="$(cygpath -m "$IGNORED")" ;;
+            *) ;;
         esac
         SANITIZE_WORDS+=("-fsanitize-ignorelist=$IGNORED")
     fi
@@ -71,7 +73,7 @@ fi
 # were compiled. MMgr's objects carry no counters: MMgr's own suites and scan measure it
 OPTIMIZE_WORD=-O2
 COVERAGE_WORDS=()
-if [ -n "${ORIOR_COVERAGE:-}" ]; then
+if [[ -n "${ORIOR_COVERAGE:-}" ]]; then
     BUILD_SUFFIX="-coverage"
     OPTIMIZE_WORD=-O0
     COVERAGE_WORDS=(--coverage -fprofile-update=atomic)
@@ -79,6 +81,7 @@ if [ -n "${ORIOR_COVERAGE:-}" ]; then
     LINK_WORDS=(--coverage)
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) LINK_WORDS+=(-fuse-ld=lld) ;;
+        *) ;;
     esac
 fi
 
@@ -100,10 +103,10 @@ case "$(uname -s)" in
 esac
 LIBRARY=0
 WINDOW=0
-if [ "${1:-}" = "library" ]; then
+if [[ "${1:-}" = "library" ]]; then
     LIBRARY=1
     shift
-elif [ "${1:-}" = "window" ]; then
+elif [[ "${1:-}" = "window" ]]; then
     WINDOW=1
     shift
 fi
@@ -122,7 +125,7 @@ done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" -name '*.c' -not -path '*/bu
 SOURCES+=("$TOP/ui/gui/src/input_event.c")
 for folder in src/cu/includes/file_defs/qry/writer src/cu/includes/file_defs/qry/writer/platform; do
     for source in "$TOP/$folder"/*.c; do
-        [ -f "$source" ] && SOURCES+=("$source")
+        [[ -f "$source" ]] && SOURCES+=("$source")
     done
 done
 SOURCES+=("$TOP/src/cu/includes/file_defs/qry/qry_read.c" "$TOP/src/cu/includes/formats/cfg_json/cfg_json.c"
@@ -137,8 +140,9 @@ vector_words_of() {
     local target="$1"
     VECTOR_WORDS=()
     case "${ORIOR_VECTOR:-}" in
-        avx2) case "$target" in x86_64*) VECTOR_WORDS=(-mavx2) ;; esac ;;
+        avx2) case "$target" in x86_64*) VECTOR_WORDS=(-mavx2) ;; *) ;; esac ;;
         none) VECTOR_WORDS=(-DMMGR_VECTOR_OFF=1) ;;
+        *) ;;
     esac
 }
 
@@ -167,7 +171,7 @@ mmgr_built() {
     # that re-run drops the flags given on the command line, which leaves MMgr's host entries unbuilt
     local cached
     cached="$(sed -n 's/^CMAKE_C_COMPILER:[A-Z]*=//p' "$into/CMakeCache.txt" 2>/dev/null)"
-    if [ -n "$cached" ] && [ "$cached" != "$CC" ] && [ "$cached" != "$(command -v "$CC" 2>/dev/null)" ]; then
+    if [[ -n "$cached" ]] && [[ "$cached" != "$CC" ]] && [[ "$cached" != "$(command -v "$CC" 2>/dev/null)" ]]; then
         rm -rf "$into"
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
@@ -194,7 +198,7 @@ compiled() {
     local newest
     newest="$(find "$TOP/ui" "$TOP/src/cu/includes" -name '*.h' \
               -newer "$objects" 2>/dev/null | head -1)"
-    if [ "${BASH_SOURCE[0]}" -nt "$objects" ]; then
+    if [[ "${BASH_SOURCE[0]}" -nt "$objects" ]]; then
         newest="${BASH_SOURCE[0]}"
     fi
     OBJECTS=()
@@ -204,16 +208,16 @@ compiled() {
         local relative="${source#"$TOP/"}"
         local object="$objects/${relative//\//__}.o"
         OBJECTS+=("$object")
-        if [ -n "$newest" ] || [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-            while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do
-                wait -n
+        if [[ -n "$newest" ]] || [[ ! -f "$object" ]] || [[ "$source" -nt "$object" ]]; then
+            while [[ "$(jobs -rp | wc -l)" -ge "$JOBS" ]]; do
+                wait "$(jobs -rp | head -1)"
             done
             ( "${WORDS[@]}" -o "$object" "$source" > "$object.log" 2>&1 || echo "$source $object.log" >> "$failed" ) &
         fi
     done
     wait
     touch "$objects"
-    if [ -f "$failed" ]; then
+    if [[ -f "$failed" ]]; then
         while read -r source log; do
             echo "  build failed: ${source#"$TOP/"} did not compile"
             tail -20 "$log"
@@ -257,7 +261,7 @@ archived "$BUNDLE/library.a" "${HOST_OBJECTS[@]}" || { echo "  build failed: the
     "$OUT/plugins_bundled.c" || { echo "  build failed: the bundler did not write plugins_bundled.c"; exit 1; }
 
 # the program, for the target
-if [ "$TARGET" = "$HOST" ]; then
+if [[ "$TARGET" = "$HOST" ]]; then
     TARGET_OBJECTS=("${HOST_OBJECTS[@]}")
 else
     compiled "$TARGET" "$OUT/objects" "${SOURCES[@]}"
@@ -269,18 +273,18 @@ for source in "$OUT/plugins_bundled.c" "$HERE/src/command_line/orior_cli.c"; do
     name="$(basename "$source" .c)"
     "${WORDS[@]}" -I "$HERE/src" -o "$OUT/$name.o" "$source" || { echo "  build failed: $name.c did not compile"; exit 1; }
 done
-if [ "$LIBRARY" = 1 ]; then
+if [[ "$LIBRARY" = 1 ]]; then
     rm -f "$OUT/$CLI_NAME.lib"
     archived "$OUT/lib$CLI_NAME.a" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}" \
         || { echo "  build failed: the library was not archived"; exit 1; }
-    case "$TARGET" in *msvc*) cp "$OUT/lib$CLI_NAME.a" "$OUT/$CLI_NAME.lib" ;; esac
+    case "$TARGET" in *msvc*) cp "$OUT/lib$CLI_NAME.a" "$OUT/$CLI_NAME.lib" ;; *) ;; esac
     echo "  built ${OUT#"$TOP/"}/lib$CLI_NAME.a"
     exit 0
 fi
 # the window: its own sources, the system's body for the target among them, compiled as the command line's are and
 # linked with the same objects and the system's own libraries; on Windows a program of the windows subsystem entered
 # at main, which opens no console with it
-if [ "$WINDOW" = 1 ]; then
+if [[ "$WINDOW" = 1 ]]; then
     case "$TARGET" in
         *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
         *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
@@ -289,7 +293,7 @@ if [ "$WINDOW" = 1 ]; then
     GUI_SOURCES=()
     while IFS= read -r source; do
         case "$source" in
-            */system_*.c) [ "$(basename "$source")" = "$BODY" ] && GUI_SOURCES+=("$source") ;;
+            */system_*.c) [[ "$(basename "$source")" = "$BODY" ]] && GUI_SOURCES+=("$source") ;;
             */input_event.c) ;;
             *) GUI_SOURCES+=("$source") ;;
         esac
@@ -302,6 +306,7 @@ if [ "$WINDOW" = 1 ]; then
             ( cd "$TOP/ui/gui/src" && llvm-rc -no-preprocess -fo "$OUT/$GUI_NAME.res" orior.rc ) \
                 || { echo "  build failed: the window's resources did not compile"; exit 1; }
             RESOURCES=("$OUT/$GUI_NAME.res") ;;
+        *) ;;
     esac
     listed_into "$OUT/$GUI_NAME.objects" "${OBJECTS[@]}" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}" "${RESOURCES[@]}"
     ( cd "$TOP" && "$CC" "--target=$TARGET" -g "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \

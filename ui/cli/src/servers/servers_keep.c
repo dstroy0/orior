@@ -12,7 +12,7 @@
 #include "servers_internal.h"
 
 // how often the watcher looks, in milliseconds, and the most sliced files whose language is stored
-#define CLI_SERVERS_SAVE_LOOK 500ull
+#define CLI_SERVERS_SAVE_LOOK 500ULL
 #define CLI_SERVERS_SAVE_FILES 256u
 
 // the languages the sliced files opened as, by their keys, under their lock; the lock a server is started again and a
@@ -123,7 +123,7 @@ EMBED_INLINE void save_request(const ServersSaveCtx *args)
         if (waits >= 0)
         {
             one->requested[one->pending_requests % CLI_SERVERS_REQUESTS] = now;
-            one->pending_requests += 1ull;
+            one->pending_requests += 1ULL;
         }
         one->waits =
             (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u) : one->waits);
@@ -155,7 +155,7 @@ void cli_servers_language_note(const CliServersPathLanguageCtx *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_languages, .key = key,
-                     .adjacent_value = args->language, .text = "", .size_value = 0ull);
+                     .adjacent_value = args->language, .text = "", .size_value = 0ULL);
 }
 
 void cli_servers_language_forgotten(const CliServersPathLspCtx *args)
@@ -173,13 +173,13 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
     const char *named = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const int found = (EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_languages, .key = key,
                                   .adjacent = &named, .size = &size) != NULL) &&
                       (named != NULL);
-    VerbaLinea line = {args->language, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->language, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, found ? named : "");
-    const int integer = mmgr_line_finish(&line) != 0ull;
+    const int integer = mmgr_line_finish(&line) != 0ULL;
     return found && integer;
 }
 
@@ -208,11 +208,11 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
         CliServerSpec *const spec =
             has_sink ? g_cli_cells->temporary_buf_alloc(sizeof(CliServerSpec), &g_cli_servers_cells) : NULL;
         char why[1024];
-        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         server = (spec != NULL) ? EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = root,
                                              .language = language, .sink = &sink, .spec = spec, .err_msg = &err_msg)
                                 : NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_alloc,
                                                          CliServersPathSizeKindCfg, .path = path, .size_pointer = &size)
                                             : NULL;

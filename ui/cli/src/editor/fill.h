@@ -6,9 +6,9 @@
 // A paragraph is the lines around the line that share its comment's mark and its indent, as `#`, `//`, `///` and `--`
 // write a comment a line, up to a line of the mark alone; the lines of a Python docstring around it, up to a blank line
 // or the docstring's quotes, the opening quotes retained on the first line and the closing quotes on the last; or, in
-// plain text, the lines around it up to a blank line. A comment of `/** */` is written again whole: each paragraph of
-// its text filled, and each run of its tags of one kind lined up, `@param` and the rest, the names, then the
-// descriptions, starting in one column, a description that runs past the margin going on under its own first word
+// plain text, the lines around it up to a blank line. A block comment of documentation is written again whole: each
+// paragraph of its text filled, and each run of its tags of one kind lined up, `@param` and the rest, the names, then
+// the descriptions, starting in one column, a description that runs past the margin going on under its own first word
 // (fill.c, fill_comment.c)
 #ifndef FILL_H
 #define FILL_H

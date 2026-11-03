@@ -8,7 +8,7 @@
 #include "toolchains_internal.h"
 
 // how long a program may take to report its version before it is stopped, in milliseconds
-#define CLI_PATIENCE 6000ull
+#define CLI_PATIENCE 6000ULL
 
 // the PATH's folders for one call, and the folders a tool's places name, under the lock
 char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
@@ -61,12 +61,12 @@ EMBED_INLINE int cli_passed_over(const ToolchainsFindCtx *args)
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = item, .length_pointer = NULL);
         const unsigned long long length =
-            (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) : 0ull;
+            (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) : 0ULL;
         const char *part = args->dir;
         while ((name != NULL) && (part[0] != '\0'))
         {
             const char *end = part;
-            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                               .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
             if (((unsigned long long)(end - part) == length) &&
                 cellul.starts(&(CatenaFinitaCfg){.src = part, .other = name, .cap = length, .ci = 1}))
@@ -93,11 +93,11 @@ EMBED_INLINE int cli_dir_has_tool(const ToolchainsFindCtx *args)
         return 1;
     }
     char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->dir);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, inner);
-    return (mmgr_line_finish(&line) != 0ull) &&
+    return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path);
 }
 
@@ -284,7 +284,7 @@ static int cli_version_get(const ToolchainsFindCtx *args)
     }
     // the output read first, then the errors, each until it ends or the patience runs out
     const unsigned long long began = cli_clock_milliseconds();
-    long long code = 0ll;
+    long long code = 0LL;
     while (!EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &spawned, .code = &code))
     {
         if ((cli_clock_milliseconds() - began) >= CLI_PATIENCE)
@@ -298,39 +298,37 @@ static int cli_version_get(const ToolchainsFindCtx *args)
         }
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 40u);
     }
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     for (unsigned int stream = 0u; stream < 2u; stream += 1u)
     {
         const unsigned long long pipe = (stream == 0u) ? spawned.out : spawned.err;
-        for (;;)
+        // two bytes stay free of what is read, for the line's end and the 0 after it
+        unsigned long long got = 1ULL;
+        while ((got != 0ULL) && ((read + 2ULL) < sizeof(s_output_buf)))
         {
-            const unsigned long long got =
-                EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = pipe,
-                           .piece = s_output_buf + read, .capacity = sizeof(s_output_buf) - read - 2ull);
-            if (got == 0ull)
-            {
-                break;
-            }
-            read += got;
+            const unsigned long long capacity = sizeof(s_output_buf) - read - 2ULL;
+            got = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                             .pipe_handle = pipe, .piece = s_output_buf + read, .capacity = capacity);
+            read += (got < capacity) ? got : capacity;
         }
         s_output_buf[read] = '\n';
-        read += (read + 1ull < sizeof(s_output_buf)) ? 1ull : 0ull;
+        read += (read + 1ULL < sizeof(s_output_buf)) ? 1ULL : 0ULL;
     }
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
     s_output_buf[read] = '\0';
     const char *first = NULL;
     const char *numbered = NULL;
-    unsigned long long first_length = 0ull;
-    unsigned long long numbered_length = 0ull;
+    unsigned long long first_length = 0ULL;
+    unsigned long long numbered_length = 0ULL;
     const char *at = s_output_buf;
     while ((at[0] != '\0') && (numbered == NULL))
     {
         const char *end = at;
-        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = at;
         const char *to = end;
-        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
@@ -358,14 +356,14 @@ static int cli_version_get(const ToolchainsFindCtx *args)
         return 0;
     }
     // at most 120 letters, a letter whole
-    unsigned long long cut = 0ull;
+    unsigned long long cut = 0ULL;
     unsigned int letters = 0u;
     while ((cut < length) && (letters < 120u))
     {
-        cut += 1ull;
+        cut += 1ULL;
         while ((cut < length) && ((((unsigned char)line[cut]) & 0xc0u) == 0x80u))
         {
-            cut += 1ull;
+            cut += 1ULL;
         }
         letters += 1u;
     }
@@ -379,7 +377,7 @@ int cli_toolchains_version(const CliToolchainsIdErrMsgCfg *args)
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = args->id, .err_msg = args->err_msg);
     int done = 0;
     if (tool != CLI_JSON_NONE)
@@ -420,7 +418,7 @@ void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
     VerbaLinea *out = args->out;
     CliJson json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
+                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ULL);
     const unsigned int count = cli_toolchains_find_path();
     cli_toolchains_found_ref();
     mmgr_line_ch(out, '[');
@@ -532,8 +530,8 @@ void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
         {
             char line[512];
             char err_buf[CLI_PATH_MAX_LEN];
-            VerbaLinea version_line = {line, sizeof(line), 0ull};
-            VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+            VerbaLinea version_line = {line, sizeof(line), 0ULL};
+            VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
             if (EMBED_CALL(cli_version_get, ToolchainsFindCtx, .json = &json, .tool = tool, .found_read = &found,
                            .out = &version_line, .err_msg = &err_msg))
             {
@@ -555,7 +553,7 @@ int cli_toolchains_setup_line(const CliToolchainsIdErrMsgCfg *args)
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = args->id, .err_msg = args->err_msg);
     const char *const line =
         (tool != CLI_JSON_NONE)
@@ -593,7 +591,7 @@ int cli_toolchains_open_install(const CliToolchainsIdErrMsgCfg *args)
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ULL),
                    .id = args->id, .err_msg = args->err_msg);
     const char *const page =
         (tool != CLI_JSON_NONE)

@@ -16,7 +16,7 @@ typedef struct
 EMBED_INLINE int python_contains(const TestLinesCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at + size <= args->length; at += 1ull)
+    for (unsigned long long at = 0ULL; at + size <= args->length; at += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = args->part, .bytes = size}) == 0)
         {
@@ -34,36 +34,36 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
     const char **outcome = args->outcome_pointer;
     static const char *const s_words[6] = {" PASSED", " FAILED", " ERROR", " SKIPPED", " XFAIL", " XPASS"};
     static const char *const s_outcomes[6] = {"passed", "failed", "failed", "skipped", "skipped", "passed"};
-    while ((size > 0ull) &&
+    while ((size > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[size - 1ull]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[size - 1ULL]}) != NULL))
     {
-        size -= 1ull;
+        size -= 1ULL;
     }
     for (unsigned int word = 0u; word < 6u; word += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL});
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while ((at + length <= size) &&
                (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = s_words[word], .bytes = length}) != 0))
         {
-            at += 1ull;
+            at += 1ULL;
         }
         if (at + length > size)
         {
             continue;
         }
-        unsigned long long start = 0ull;
+        unsigned long long start = 0ULL;
         unsigned long long end = at;
         while ((start < end) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = args->line[start]}) != NULL))
         {
-            start += 1ull;
+            start += 1ULL;
         }
         while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ull]}) != NULL))
+                                     .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ULL]}) != NULL))
         {
-            end -= 1ull;
+            end -= 1ULL;
         }
         const unsigned long long after = at + length;
         const int ends = (after == size) || (args->line[after] == ' ') || (args->line[after] == '[');
@@ -85,50 +85,50 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
 int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
 {
     const char **outcome = args->outcome_pointer;
-    unsigned long long split = 0ull;
-    while ((split + 5ull <= args->size) &&
+    unsigned long long split = 0ULL;
+    while ((split + 5ULL <= args->size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->line + split, .other = " ... ", .bytes = 5u}) != 0))
     {
-        split += 1ull;
+        split += 1ULL;
     }
-    if (split + 5ull > args->size)
+    if (split + 5ULL > args->size)
     {
         return 0;
     }
-    unsigned long long open = 0ull;
-    open = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = args->line, .at = 0ull,
+    unsigned long long open = 0ULL;
+    open = EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = args->line, .at = 0ULL,
                       .size = split, .first = ' ', .second = '(');
-    if (open + 2ull > split)
+    if (open + 2ULL > split)
     {
         return 0;
     }
     const unsigned long long dotted_size =
-        EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->line + open + 2ull,
-                   .at = split - open - 2ull, .set = ")");
-    unsigned long long tail = split + 5ull;
+        EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->line + open + 2ULL,
+                   .at = split - open - 2ULL, .set = ")");
+    unsigned long long tail = split + 5ULL;
     unsigned long long tail_size = args->size - tail;
-    while ((tail_size > 0ull) &&
+    while ((tail_size > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->line[tail]}) != NULL))
     {
-        tail += 1ull;
-        tail_size -= 1ull;
+        tail += 1ULL;
+        tail_size -= 1ULL;
     }
-    while ((tail_size > 0ull) &&
+    while ((tail_size > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->line[tail + tail_size - 1ull]}) != NULL))
+                .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->line[tail + tail_size - 1ULL]}) != NULL))
     {
-        tail_size -= 1ull;
+        tail_size -= 1ULL;
     }
     const int ok =
-        (tail_size == 2ull) && (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "ok", .bytes = 2u}) == 0);
-    const int failed = ((tail_size == 4ull) &&
+        (tail_size == 2ULL) && (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "ok", .bytes = 2u}) == 0);
+    const int failed = ((tail_size == 4ULL) &&
                         (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "FAIL", .bytes = 4u}) == 0)) ||
-                       ((tail_size == 5ull) &&
+                       ((tail_size == 5ULL) &&
                         (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "ERROR", .bytes = 5u}) == 0));
     const int skipped =
-        ((tail_size >= 7ull) &&
+        ((tail_size >= 7ULL) &&
          (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "skipped", .bytes = 7u}) == 0)) ||
-        ((tail_size >= 16ull) &&
+        ((tail_size >= 16ULL) &&
          (memor.cmp(&(MemoriaCfg){.src = args->line + tail, .other = "expected failure", .bytes = 16u}) == 0));
     if (!ok && !failed && !skipped)
     {
@@ -136,24 +136,24 @@ int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
     }
     *outcome = ok ? "passed" : failed ? "failed" : "skipped";
     return EMBED_CALL(cli_test_runs_length_internal.test_unittest_id, CliTestRunsLengthCtx,
-                      .dotted = args->line + open + 2ull, .length = dotted_size, .id_out = args->id_out,
+                      .dotted = args->line + open + 2ULL, .length = dotted_size, .id_out = args->id_out,
                       .capacity = args->capacity);
 }
 
 void cli_test_dot(const CliTestRunsCtx *args)
 {
     char dotted[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea line = {dotted, sizeof(dotted), 0ull};
+    VerbaLinea line = {dotted, sizeof(dotted), 0ULL};
     const char *const path = cellul.find(
         &(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
     unsigned long long module = (path != NULL) ? (unsigned long long)(path - args->id)
                                                : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL});
-    while ((module >= 3ull) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->id + module - 3ull, .other = ".py", .bytes = 3u}) == 0))
+    while ((module >= 3ULL) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->id + module - 3ULL, .other = ".py", .bytes = 3u}) == 0))
     {
-        module -= 3ull;
+        module -= 3ULL;
     }
-    for (unsigned long long at = 0ull; at < module; at += 1ull)
+    for (unsigned long long at = 0ULL; at < module; at += 1ULL)
     {
         mmgr_line_ch(&line, ((args->id[at] == '/') || (args->id[at] == '\\')) ? '.' : args->id[at]);
     }
@@ -178,7 +178,7 @@ int cli_test_unittest_id(const CliTestRunsLengthCtx *args)
     // the last part that starts with a capital is the class: the parts before it the module, those after it the name
     unsigned long long class_start = args->length;
     unsigned long long class_end = args->length;
-    unsigned long long part = 0ull;
+    unsigned long long part = 0ULL;
     unsigned int parts = 0u;
     unsigned int class_part = 0u;
     int has_class = 0;
@@ -195,20 +195,20 @@ int cli_test_unittest_id(const CliTestRunsLengthCtx *args)
             has_class = 1;
         }
         parts += 1u;
-        part = end + 1ull;
+        part = end + 1ULL;
     }
     if (!has_class || (class_part == 0u) || (class_part + 1u >= parts))
     {
         return 0;
     }
-    VerbaLinea line = {args->id_out, args->capacity, 0ull};
-    for (unsigned long long at = 0ull; at + 1ull < class_start; at += 1ull)
+    VerbaLinea line = {args->id_out, args->capacity, 0ULL};
+    for (unsigned long long at = 0ULL; at + 1ULL < class_start; at += 1ULL)
     {
         mmgr_line_ch(&line, (args->dotted[at] == '.') ? '/' : args->dotted[at]);
     }
     mmgr_line_put(&line, ".py::");
     mmgr_line_put_n(&line, args->dotted + class_start, class_end - class_start);
     mmgr_line_put(&line, "::");
-    mmgr_line_put_n(&line, args->dotted + class_end + 1ull, args->length - class_end - 1ull);
-    return mmgr_line_finish(&line) != 0ull;
+    mmgr_line_put_n(&line, args->dotted + class_end + 1ULL, args->length - class_end - 1ULL);
+    return mmgr_line_finish(&line) != 0ULL;
 }
