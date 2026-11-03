@@ -108,6 +108,12 @@ typedef struct
     unsigned int value;
     CliAdded *read;
     VerbaLinea *err_msg;
+    unsigned int tool;
+    unsigned long long capacity;
+    const char *group;
+    const char *uses;
+    unsigned int made;
+    unsigned int programs;
 } ToolchainsAddedCtx;
 // The reader's added groups and tools: the `groups` and `tools` arrays of their file, each made where it is not there
 EMBED_INLINE void cli_added_lists(const ToolchainsAddedCtx *args)
@@ -330,6 +336,110 @@ EMBED_INLINE int cli_write(const ToolchainsAddedCtx *args)
     return (kind != CFG_JSON_NULL) && (kind != CFG_JSON_FALSE);
 }
 
+// the text member `key` of the tool `tool` in `json_read`, trimmed, into `id`, sized for `capacity`: empty where the
+// tool has none
+EMBED_INLINE void cli_member_trimmed(const ToolchainsAddedCtx *args)
+{
+    EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
+               .text = EMBED_CALL(
+                   cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json_read,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                      .json_read = args->json_read, .object = args->tool, .name = args->key),
+                   .length_pointer = NULL),
+               .out = args->id, .capacity = args->capacity);
+}
+
+// each program the tool `tool` in `json_read` names, trimmed and not empty, put on the list `programs` in `json`
+EMBED_INLINE void cli_programs_read(const ToolchainsAddedCtx *args)
+{
+    const CliJson *const supplied = args->json_read;
+    const unsigned int list_entries = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = supplied, .object = args->tool, .name = "programs");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = supplied,
+                                        .node = list_entries, .kind = CFG_JSON_ARRAY)
+                                 ? supplied->node[list_entries].first
+                                 : CLI_JSON_NONE;
+         item != CLI_JSON_NONE; item = supplied->node[item].next)
+    {
+        char program[CLI_NAME_MAX_LEN];
+        EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
+                   .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                      .json_read = supplied, .node = item, .length_pointer = NULL),
+                   .out = program, .capacity = sizeof(program));
+        if (program[0] != '\0')
+        {
+            EMBED_CALL(
+                cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->json, .array = args->programs,
+                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                    .json = args->json, .text = program,
+                                    .length = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL})));
+        }
+    }
+}
+
+// the value of the tool's member `key` put in `json`: the `id`, `name`, `group` or `for` made here as a text, the
+// list of `programs`, or else the member of the tool `tool` in `json_read` where it is written: its node, or
+// CLI_JSON_NONE
+EMBED_INLINE unsigned int cli_tool_value(const ToolchainsAddedCtx *args)
+{
+    const char *const named = args->key;
+    const char *text = NULL;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "id", .cap = CLI_CELLS_POOL}))
+    {
+        text = args->id;
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "name", .cap = CLI_CELLS_POOL}))
+    {
+        text = args->name;
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "group", .cap = CLI_CELLS_POOL}))
+    {
+        text = args->group;
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "for", .cap = CLI_CELLS_POOL}))
+    {
+        text = args->uses;
+    }
+    if (text != NULL)
+    {
+        return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                          .json = args->json, .text = text,
+                          .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "programs", .cap = CLI_CELLS_POOL}))
+    {
+        return args->programs;
+    }
+    const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                           .json_read = args->json_read, .object = args->tool, .name = named);
+    return EMBED_CALL(cli_write, ToolchainsAddedCtx, .json_read = args->json_read, .value = member)
+               ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = args->json,
+                            .from = args->json_read, .node = member)
+               : CLI_JSON_NONE;
+}
+
+// the tool `made` in `json` written as its struct is, each key of s_tool_keys in turn with its value where it has
+// one, the first five as an empty text where they have none
+EMBED_INLINE void cli_tool_written(const ToolchainsAddedCtx *args)
+{
+    for (unsigned int key = 0u; key < 21u; key += 1u)
+    {
+        const unsigned int value =
+            EMBED_CALL(cli_tool_value, ToolchainsAddedCtx, .key = s_tool_keys[key], .json = args->json, .id = args->id,
+                       .name = args->name, .group = args->group, .uses = args->uses, .programs = args->programs,
+                       .json_read = args->json_read, .tool = args->tool);
+        if ((value != CLI_JSON_NONE) || (key < 5u))
+        {
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
+                       .object = args->made, .name = s_tool_keys[key],
+                       .value = (value != CLI_JSON_NONE) ? value
+                                                         : EMBED_CALL(cli_json_tree_text_length_kind.json_string_init,
+                                                                      CliJsonTreeTextLengthKindCfg, .json = args->json,
+                                                                      .text = "", .length = 0u));
+        }
+    }
+}
+
 int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -341,34 +451,14 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
     char name[CLI_NAME_MAX_LEN];
     char group[CLI_NAME_MAX_LEN];
     char uses[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
-               .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                  .json_read = args->supplied,
-                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                     .json_read = args->supplied, .object = args->tool, .name = "name"),
-                                  .length_pointer = NULL),
-               .out = name, .capacity = sizeof(name));
-    EMBED_CALL(
-        cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
-        .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->supplied,
-                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                              .json_read = args->supplied, .object = args->tool, .name = "group"),
-                           .length_pointer = NULL),
-        .out = group, .capacity = sizeof(group));
-    EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
-               .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                  .json_read = args->supplied,
-                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                     .json_read = args->supplied, .object = args->tool, .name = "for"),
-                                  .length_pointer = NULL),
-               .out = uses, .capacity = sizeof(uses));
-    EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
-               .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                  .json_read = args->supplied,
-                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                     .json_read = args->supplied, .object = args->tool, .name = "id"),
-                                  .length_pointer = NULL),
-               .out = args->id_out, .capacity = CLI_NAME_MAX_LEN);
+    EMBED_CALL(cli_member_trimmed, ToolchainsAddedCtx, .json_read = args->supplied, .tool = args->tool, .key = "name",
+               .id = name, .capacity = sizeof(name));
+    EMBED_CALL(cli_member_trimmed, ToolchainsAddedCtx, .json_read = args->supplied, .tool = args->tool, .key = "group",
+               .id = group, .capacity = sizeof(group));
+    EMBED_CALL(cli_member_trimmed, ToolchainsAddedCtx, .json_read = args->supplied, .tool = args->tool, .key = "for",
+               .id = uses, .capacity = sizeof(uses));
+    EMBED_CALL(cli_member_trimmed, ToolchainsAddedCtx, .json_read = args->supplied, .tool = args->tool, .key = "id",
+               .id = args->id_out, .capacity = CLI_NAME_MAX_LEN);
     if (args->id_out[0] == '\0')
     {
         EMBED_CALL(cli_id_get, ToolchainsAddedCtx, .name = name, .id = args->id_out);
@@ -404,28 +494,8 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_OBJECT);
     const unsigned int programs =
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_ARRAY);
-    const unsigned int list_entries = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                 .json_read = args->supplied, .object = args->tool, .name = "programs");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->supplied, .node = list_entries, .kind = CFG_JSON_ARRAY)
-                                 ? args->supplied->node[list_entries].first
-                                 : CLI_JSON_NONE;
-         item != CLI_JSON_NONE; item = args->supplied->node[item].next)
-    {
-        char program[CLI_NAME_MAX_LEN];
-        EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx,
-                   .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                      .json_read = args->supplied, .node = item, .length_pointer = NULL),
-                   .out = program, .capacity = sizeof(program));
-        if (program[0] != '\0')
-        {
-            EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &json, .array = programs,
-                       .value =
-                           EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                      .json = &json, .text = program,
-                                      .length = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL})));
-        }
-    }
+    EMBED_CALL(cli_programs_read, ToolchainsAddedCtx, .json = &json, .json_read = args->supplied, .tool = args->tool,
+               .programs = programs);
     const char *refused = NULL;
     if (json.node[programs].count == 0u)
     {
@@ -448,60 +518,8 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
         return 0;
     }
     // the tool written as its struct is, the given members past the five made here copied across
-    for (unsigned int key = 0u; key < 21u; key += 1u)
-    {
-        const char *const named = s_tool_keys[key];
-        unsigned int value = CLI_JSON_NONE;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "id", .cap = CLI_CELLS_POOL}))
-        {
-            value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                               .json = &json, .text = args->id_out,
-                               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id_out, .cap = CLI_CELLS_POOL}));
-        }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "name", .cap = CLI_CELLS_POOL})) ||
-                 (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "group", .cap = CLI_CELLS_POOL})) ||
-                 (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "for", .cap = CLI_CELLS_POOL})))
-        {
-            const char *text;
-            if (named[0] == 'n')
-            {
-                text = name;
-            }
-            else if (named[0] == 'g')
-            {
-                text = group;
-            }
-            else
-            {
-                text = uses;
-            }
-            value =
-                EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = &json,
-                           .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
-        }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "programs", .cap = CLI_CELLS_POOL}))
-        {
-            value = programs;
-        }
-        else
-        {
-            const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                   .json_read = args->supplied, .object = args->tool, .name = named);
-            value = EMBED_CALL(cli_write, ToolchainsAddedCtx, .json_read = args->supplied, .value = member)
-                        ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = &json,
-                                     .from = args->supplied, .node = member)
-                        : CLI_JSON_NONE;
-        }
-        if ((value != CLI_JSON_NONE) || (key < 5u))
-        {
-            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = made,
-                       .name = named,
-                       .value = (value != CLI_JSON_NONE) ? value
-                                                         : EMBED_CALL(cli_json_tree_text_length_kind.json_string_init,
-                                                                      CliJsonTreeTextLengthKindCfg, .json = &json,
-                                                                      .text = "", .length = 0u));
-        }
-    }
+    EMBED_CALL(cli_tool_written, ToolchainsAddedCtx, .json = &json, .made = made, .id = args->id_out, .name = name,
+               .group = group, .uses = uses, .programs = programs, .json_read = args->supplied, .tool = args->tool);
     CliGroupFound found = {group, 0};
     EMBED_CALL(cli_groups_get, ToolchainsAddedCtx, .bundled = &bundled, .tools_value = tools, .json_read = &json,
                .added_tools = added_tools, .added_groups = groups, .each = cli_group_find, .context = &found);
