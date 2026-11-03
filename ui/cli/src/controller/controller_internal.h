@@ -40,7 +40,8 @@ typedef struct
 // one shown before; the editor's rows and columns as the window last said; whether the editor takes the keys, and the
 // strip's tool shown; the lines the map stands for and whether the window has said; the place wanted for the next frame
 // of the tab shown; what orior's folder has been asked for the session; the asks under way and whether the tree's check
-// runs; the parts to publish; and when the next timer is due
+// runs; less motion as the saved setting and as the system asks for it; the parts to publish; and when the next timer
+// is due
 typedef struct
 {
     char *root;
@@ -72,6 +73,7 @@ typedef struct
     unsigned int bar_percent;
     unsigned int editor_percent;
     int motion_saved;
+    int motion_system;
     unsigned long long memory_bytes;
     unsigned long long memory_due_ms;
     unsigned long long shown;

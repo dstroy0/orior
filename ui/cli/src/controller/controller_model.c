@@ -467,6 +467,11 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
     case CLI_INPUT_MENU_AWAY:
         EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = input);
         break;
+    case CLI_INPUT_MOTION_SYSTEM:
+        // Reduce Motion's mark reads the system's wish as well as the saved setting
+        g_cli_model.motion_system = input->index != 0u;
+        g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MENUS);
+        break;
     default:
         break;
     }

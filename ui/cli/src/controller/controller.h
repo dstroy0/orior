@@ -21,8 +21,9 @@
 // whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, the size
 // in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it, the terminal's panel's
 // height dragged to `rows` pixels at a scale of one, a part's menu asked for at x, y on what the window's layout found
-// there, as the system's gesture for one asks, and the menus open closed by the right button pressed or the wheel
-// turned away from them, the window resized or its keys gone to another window
+// there, as the system's gesture for one asks, the menus open closed by the right button pressed or the wheel turned
+// away from them, the window resized or its keys gone to another window, and the system's wish for less motion, 1 or 0
+// in `index`
 #define CLI_INPUT_KEY 0u
 #define CLI_INPUT_TEXT 1u
 #define CLI_INPUT_POINTER_DOWN 2u
@@ -40,6 +41,7 @@
 #define CLI_INPUT_TERMINAL_HEIGHT 14u
 #define CLI_INPUT_MENU 15u
 #define CLI_INPUT_MENU_AWAY 16u
+#define CLI_INPUT_MOTION_SYSTEM 17u
 
 // what the pointer hit, as the window's layout places it; a key sent while the name's pane stands names the wordmark,
 // no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal, Split, and the panel on none of

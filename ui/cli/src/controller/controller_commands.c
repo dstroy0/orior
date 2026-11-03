@@ -140,7 +140,8 @@ EMBED_INLINE int commands_item_checked(const ControllerCommandsCtx *args)
         return -1;
     }
     const int motion = cellul.eq(&(CatenaFinitaCfg){.src = checks, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN});
-    return (motion && g_cli_model.motion_saved) || EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = checks);
+    return (motion && (g_cli_model.motion_saved || g_cli_model.motion_system)) ||
+           EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = checks);
 }
 
 // whether the row `at` of the menu at `level` can be marked
@@ -658,7 +659,11 @@ void cli_model_command_run(const CliModelCtx *args)
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN}))
     {
-        g_cli_model.motion_saved = !g_cli_model.motion_saved;
+        // on or off as its word says, else turned from what shows, the saved setting or the system's wish
+        const char *const word = (args->at != 0u) ? args->words[0] : "";
+        const int on = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = CLI_LABEL_MAX_LEN});
+        const int off = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "off", .cap = CLI_LABEL_MAX_LEN});
+        g_cli_model.motion_saved = on || (!off && !(g_cli_model.motion_saved || g_cli_model.motion_system));
         EMBED_CALL(cli_model.value_save, CliModelCtx, .path = "reduce-motion",
                    .value = g_cli_model.motion_saved ? "true" : "false");
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_SETTINGS);

@@ -478,6 +478,9 @@ void gui_window_motion_tell(const GuiWindowReducedCfg *args)
 {
     args->window->motion_system = args->reduced;
     EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = args->window);
+    // the controller marks Reduce Motion by the system's wish as well as the saved setting
+    const CliInput told = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = args->reduced ? 1u : 0u};
+    cli_controller_input(&told, NULL);
 }
 
 void gui_window_show(const GuiWindowDisplayedCfg *args)
