@@ -30,7 +30,21 @@ typedef struct
     const unsigned char *list;
     unsigned long long size;
     VerbaLinea *names;
+    QueryContext *context;
+    const char *folder;
+    const char *crystal;
+    VerbaLinea *err_msg;
+    const char *latest;
+    const char *base;
+    long long *code;
 } CrossCtx;
+
+// the part's files, the paths of the carrier, the cross and the vendor's disassembler, and the cross's run
+static QueryFiles s_files;
+static char s_transport[QUERY_PATH_MAX_LEN];
+static char s_cross[QUERY_PATH_MAX_LEN];
+static char s_nvdisasm[QUERY_PATH_MAX_LEN];
+static QueryRun s_here;
 // the names the latest list names, a line each: questions.txt, and each question's code and cases, into `names`
 EMBED_INLINE void query_list_by_name(const CrossCtx *args)
 {
@@ -72,6 +86,122 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
     }
 }
 
+// the questions.txt of the run at `latest` read and carried into the cross's run with every code and cases it names,
+// what was carried told to `context`: 1, or 0 with why given into `err_msg`
+EMBED_INLINE int query_list_carried(const CrossCtx *args)
+{
+    static QueryWriter s_other;
+    s_other = s_here.writer;
+    s_other.member = 0;
+    const unsigned char *list = NULL;
+    unsigned long long size = 0ULL;
+    memor.cpy(&(MemoriaCfg){.dst = s_other.qry,
+                            .src = args->latest,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->latest, .cap = CLI_CELLS_POOL}) + 1u});
+    if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other,
+                    .name = "questions.txt", .bytes_u8s = &list, .size_pointer = &size))
+    {
+        mmgr_line_put(args->err_msg, args->latest);
+        mmgr_line_put(args->err_msg, " contains no questions.txt");
+        return 0;
+    }
+    // the names a list writes, two of each line's words with a line ended after each, take less than the line, so a
+    // cell of the list's size and the first name's line fits them
+    static const char s_first[] = "questions.txt\n";
+    char *const names_text = g_cli_cells->persistent_buf_alloc(size + sizeof(s_first), &g_query_cells);
+    int whole = names_text != NULL;
+    if (whole)
+    {
+        VerbaLinea names = {names_text, size + sizeof(s_first), 0ULL};
+        EMBED_CALL(query_list_by_name, CrossCtx, .list = list, .size = size, .names = &names);
+        mmgr_line_finish(&names);
+        char carried[QUERY_LINE_MAX_LEN];
+        VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
+        mmgr_line_put(&transferred_line, "  ");
+        whole = EMBED_CALL(query_from_writer_internal.writer_machine_transfer_list, QueryFromWriterCtx,
+                           .writer = &s_here.writer, .from = args->latest, .list_entries = names_text,
+                           .err_msg = &transferred_line);
+        if (whole && (mmgr_line_finish(&transferred_line) != 0ULL))
+        {
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = carried);
+        }
+        else if (!whole)
+        {
+            mmgr_line_put_most(args->err_msg, carried + 2, transferred_line.at - 2u);
+        }
+    }
+    g_cli_cells->persistent_buf_release(names_text, &g_query_cells);
+    return whole;
+}
+
+// the work's forms lists, forms_work.txt and forms.txt, and gated.txt carried into the cross's run from the latest run
+// in `folder` that contains them, with the `crystal` where there is one: 1, or 0 with why given into `err_msg`
+EMBED_INLINE int query_forms_carried(const CrossCtx *args)
+{
+    char work[QUERY_PATH_MAX_LEN];
+    char forms_work[QUERY_PATH_MAX_LEN];
+    char forms[QUERY_PATH_MAX_LEN];
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = args->context,
+               .under = QUERY_LEARN_WORK, .path_out = work);
+    VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ULL};
+    mmgr_line_put(&forms_work_line, work);
+    mmgr_line_put(&forms_work_line, "/forms_work.txt");
+    mmgr_line_finish(&forms_work_line);
+    VerbaLinea forms_line = {forms, sizeof(forms), 0ULL};
+    mmgr_line_put(&forms_line, work);
+    mmgr_line_put(&forms_line, "/forms.txt");
+    mmgr_line_finish(&forms_line);
+    const char *const files[3] = {forms_work, forms, "gated.txt"};
+    return EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_here,
+                      .folder = args->folder, .files = files, .count = 3u, .crystal = args->crystal,
+                      .err_msg = args->err_msg);
+}
+
+// the carrier run over the list with the part out, the `base` compiled where one is named, and the cross read over
+// what the carrier wrote, where its report lies told to `context`; the last exit code into `code`: 1, or 0 with why
+// given into `err_msg`
+EMBED_INLINE int query_cross_steps(const CrossCtx *args)
+{
+    const char *const carried[9] = {s_transport,     "--dry", "--full", s_files.machine, s_files.layout, "--list",
+                                    "questions.txt", NULL,    NULL};
+    int whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
+                           .context = args->context, .run = &s_here, .name = "cubin_run.txt", .words = carried,
+                           .code = args->code, .err_msg = args->err_msg);
+    if (whole && (*args->code != 0LL))
+    {
+        mmgr_line_put(args->err_msg, "the carrier did not read the list");
+        whole = 0;
+    }
+    if (whole && (args->base != NULL))
+    {
+        whole = EMBED_CALL(query_loops_context_err_msg.base_compile, QueryLoopsContextErrMsgCfg,
+                           .context = args->context, .run = &s_here, .base = args->base, .err_msg = args->err_msg);
+    }
+    if (whole)
+    {
+        const char *const crossed[8] = {
+            s_cross, "questions.txt", s_nvdisasm, "SM86", "measuring_stick_query.md", "gated.txt", NULL, NULL};
+        whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                           .context = args->context, .run = &s_here, .name = "orior_measuring_stick_query",
+                           .words = crossed, .code = args->code, .err_msg = args->err_msg);
+    }
+    if (whole)
+    {
+        char line[QUERY_PATH_MAX_LEN + 160u];
+        VerbaLinea print_line = {line, sizeof(line), 0ULL};
+        mmgr_line_put(&print_line, "  the report is the blob measuring_stick_query.md of ");
+        mmgr_line_put(&print_line, s_here.writer.qry);
+        mmgr_line_put(&print_line, "; the vendor's feedback is its blob gated.txt");
+        if (mmgr_line_finish(&print_line) != 0ULL)
+        {
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = line);
+        }
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context,
+                   .text = "  a live run runs those encodings with: orior_cubin_run --gated gated.txt ...");
+    }
+    return whole;
+}
+
 int query_cross_run(const QueryLoopCfg *args)
 {
     QueryContext *context = args->context;
@@ -84,13 +214,8 @@ int query_cross_run(const QueryLoopCfg *args)
     {
         return -1;
     }
-    static QueryFiles s_files;
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = context->root, .part = "sm_86",
                .files = &s_files);
-    static char s_transport[QUERY_PATH_MAX_LEN];
-    static char s_cross[QUERY_PATH_MAX_LEN];
-    static char s_nvdisasm[QUERY_PATH_MAX_LEN];
-    static QueryRun s_here;
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                     .name = "orior_cubin_run", .binary = s_transport, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
@@ -122,72 +247,10 @@ int query_cross_run(const QueryLoopCfg *args)
             mmgr_line_put(err_msg, " contains a questions.txt to read");
             whole = 0;
         }
-        static QueryWriter s_other;
-        s_other = s_here.writer;
-        s_other.member = 0;
-        const unsigned char *list = NULL;
-        unsigned long long size = 0ULL;
-        if (whole)
-        {
-            memor.cpy(
-                &(MemoriaCfg){.dst = s_other.qry,
-                              .src = latest,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = latest, .cap = CLI_CELLS_POOL}) + 1u});
-            whole = EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other,
-                               .name = "questions.txt", .bytes_u8s = &list, .size_pointer = &size);
-            if (!whole)
-            {
-                mmgr_line_put(err_msg, latest);
-                mmgr_line_put(err_msg, " contains no questions.txt");
-            }
-        }
-        // the names a list writes, two of each line's words with a line ended after each, take less than the line,
-        // so a cell of the list's size and the first name's line fits them
-        static const char s_first[] = "questions.txt\n";
-        char *const names_text =
-            whole ? g_cli_cells->persistent_buf_alloc(size + sizeof(s_first), &g_query_cells) : NULL;
-        whole = whole && (names_text != NULL);
-        if (whole)
-        {
-            VerbaLinea names = {names_text, size + sizeof(s_first), 0ULL};
-            EMBED_CALL(query_list_by_name, CrossCtx, .list = list, .size = size, .names = &names);
-            mmgr_line_finish(&names);
-            char carried[QUERY_LINE_MAX_LEN];
-            VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
-            mmgr_line_put(&transferred_line, "  ");
-            whole = EMBED_CALL(query_from_writer_internal.writer_machine_transfer_list, QueryFromWriterCtx,
-                               .writer = &s_here.writer, .from = latest, .list_entries = names_text,
-                               .err_msg = &transferred_line);
-            if (whole && (mmgr_line_finish(&transferred_line) != 0ULL))
-            {
-                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = carried);
-            }
-            else if (!whole)
-            {
-                mmgr_line_put_most(err_msg, carried + 2, transferred_line.at - 2u);
-            }
-        }
-        g_cli_cells->persistent_buf_release(names_text, &g_query_cells);
-        if (whole)
-        {
-            char work[QUERY_PATH_MAX_LEN];
-            char forms_work[QUERY_PATH_MAX_LEN];
-            char forms[QUERY_PATH_MAX_LEN];
-            EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
-                       .under = QUERY_LEARN_WORK, .path_out = work);
-            VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ULL};
-            mmgr_line_put(&forms_work_line, work);
-            mmgr_line_put(&forms_work_line, "/forms_work.txt");
-            mmgr_line_finish(&forms_work_line);
-            VerbaLinea forms_line = {forms, sizeof(forms), 0ULL};
-            mmgr_line_put(&forms_line, work);
-            mmgr_line_put(&forms_line, "/forms.txt");
-            mmgr_line_finish(&forms_line);
-            const char *const files[3] = {forms_work, forms, "gated.txt"};
-            whole = EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_here,
-                               .folder = folder, .files = files, .count = 3u, .crystal = has_crystal ? crystal : NULL,
-                               .err_msg = err_msg);
-        }
+        whole =
+            whole && EMBED_CALL(query_list_carried, CrossCtx, .latest = latest, .context = context, .err_msg = err_msg);
+        whole = whole && EMBED_CALL(query_forms_carried, CrossCtx, .context = context, .folder = folder,
+                                    .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
     }
     const unsigned char *questions_blob = NULL;
     unsigned long long questions_size = 0ULL;
@@ -201,46 +264,8 @@ int query_cross_run(const QueryLoopCfg *args)
     whole = whole && EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_here,
                                 .paths_letters = read, .count = (base != NULL) ? 3u : 2u, .err_msg = err_msg);
     long long code = -1LL;
-    if (whole)
-    {
-        const char *const carried[9] = {s_transport,     "--dry", "--full", s_files.machine, s_files.layout, "--list",
-                                        "questions.txt", NULL,    NULL};
-        whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
-                           .context = context, .run = &s_here, .name = "cubin_run.txt", .words = carried, .code = &code,
-                           .err_msg = err_msg);
-        if (whole && (code != 0LL))
-        {
-            mmgr_line_put(err_msg, "the carrier did not read the list");
-            whole = 0;
-        }
-    }
-    if (whole && (base != NULL))
-    {
-        whole = EMBED_CALL(query_loops_context_err_msg.base_compile, QueryLoopsContextErrMsgCfg, .context = context,
-                           .run = &s_here, .base = base, .err_msg = err_msg);
-    }
-    if (whole)
-    {
-        const char *const crossed[8] = {
-            s_cross, "questions.txt", s_nvdisasm, "SM86", "measuring_stick_query.md", "gated.txt", NULL, NULL};
-        whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                           .context = context, .run = &s_here, .name = "orior_measuring_stick_query", .words = crossed,
-                           .code = &code, .err_msg = err_msg);
-    }
-    if (whole)
-    {
-        char line[QUERY_PATH_MAX_LEN + 160u];
-        VerbaLinea print_line = {line, sizeof(line), 0ULL};
-        mmgr_line_put(&print_line, "  the report is the blob measuring_stick_query.md of ");
-        mmgr_line_put(&print_line, s_here.writer.qry);
-        mmgr_line_put(&print_line, "; the vendor's feedback is its blob gated.txt");
-        if (mmgr_line_finish(&print_line) != 0ULL)
-        {
-            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
-        }
-        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
-                   .text = "  a live run runs those encodings with: orior_cubin_run --gated gated.txt ...");
-    }
+    whole = whole && EMBED_CALL(query_cross_steps, CrossCtx, .context = context, .base = base, .code = &code,
+                                .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context,
                     .run_out = &s_here, .err_msg = err_msg) ||
         !whole)
