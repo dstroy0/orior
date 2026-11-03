@@ -66,13 +66,11 @@ void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
         while ((at < count) && !stopped)
         {
             // a line longer than the capacity is handed on in pieces of the capacity's length
-            if ((piece[at] == '\n') || (worker->line_size == sizeof(worker->line)))
+            const int ends = (piece[at] == '\n') || (worker->line_size == sizeof(worker->line));
+            stopped = ends ? cli_test_stop() : stopped;
+            if (ends && !stopped)
             {
-                stopped = cli_test_stop();
-                if (!stopped)
-                {
-                    EMBED_CALL(read_line_on_end, TestReadCtx, .worker = worker, .line = line, .fresh_pointer = &fresh);
-                }
+                EMBED_CALL(read_line_on_end, TestReadCtx, .worker = worker, .line = line, .fresh_pointer = &fresh);
             }
             if ((piece[at] != '\n') && !stopped)
             {

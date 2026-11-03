@@ -226,32 +226,34 @@ void cli_format_edition_get(const CliFormatCtx *args)
         const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
         end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
         const char *at = line;
+        line = (end[0] == '\n') ? (end + 1) : end;
         at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = " \t");
-        if (((end - at) >= 7) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "edition", .bytes = 7u}) == 0))
+        if (((end - at) < 7) || (memor.cmp(&(MemoriaCfg){.src = at, .other = "edition", .bytes = 7u}) != 0))
         {
-            at += 7;
-            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                             .size = (unsigned long long)(end - at), .set = " \t");
-            if ((at < end) && (at[0] == '='))
-            {
-                at += 1;
-                const char *stop = end;
-                at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                                 .size = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
-                stop = at + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = at,
-                                       .at = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
-                // the edition lies between its quotes, its end at or past its start
-                const unsigned long long length = (unsigned long long)(stop - at);
-                if (length < CLI_NAME_MAX_LEN)
-                {
-                    memor.cpy(&(MemoriaCfg){.dst = args->edition, .src = at, .bytes = length});
-                    args->edition[length] = '\0';
-                }
-                return;
-            }
+            continue;
         }
-        line = (end[0] == '\n') ? (end + 1) : end;
+        at += 7;
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
+                         .size = (unsigned long long)(end - at), .set = " \t");
+        if ((at >= end) || (at[0] != '='))
+        {
+            continue;
+        }
+        at += 1;
+        const char *stop = end;
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
+                         .size = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
+        stop = at + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = at,
+                               .at = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
+        // the edition lies between its quotes, its end at or past its start
+        const unsigned long long length = (unsigned long long)(stop - at);
+        if (length < CLI_NAME_MAX_LEN)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = args->edition, .src = at, .bytes = length});
+            args->edition[length] = '\0';
+        }
+        return;
     }
 }
 

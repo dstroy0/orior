@@ -351,6 +351,38 @@ EMBED_INLINE void cover_lines(const TestCoverageCtx *args)
     args->read->at += 1ULL;
 }
 
+// the object of `file` at `read`, its `ran` and `could` lists recorded and each other member passed over, read to past
+// its close
+EMBED_INLINE void cover_file_object(const TestCoverageCtx *args)
+{
+    CliCoverRead *const read = args->read;
+    read->at += 1ULL;
+    EMBED_CALL(cover_white, TestCoverageCtx, .read = read);
+    while ((read->at < read->size) && (read->text[read->at] != '}'))
+    {
+        char key[16];
+        VerbaLinea key_line = {key, sizeof(key), 0ULL};
+        (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = read, .out = &key_line);
+        mmgr_line_finish(&key_line);
+        EMBED_CALL(cover_white, TestCoverageCtx, .read = read);
+        read->at += 1ULL;
+        const int run_result = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_CELLS_POOL}));
+        const int could = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "could", .cap = CLI_CELLS_POOL}));
+        if (run_result || could)
+        {
+            EMBED_CALL(cover_lines, TestCoverageCtx, .read = read, .file = args->file, .could = could ? 1u : 0u);
+        }
+        else
+        {
+            EMBED_CALL(cover_skip, TestCoverageCtx, .read = read);
+        }
+        EMBED_CALL(cover_white, TestCoverageCtx, .read = read);
+        read->at += ((read->at < read->size) && (read->text[read->at] == ',')) ? 1ULL : 0ULL;
+        EMBED_CALL(cover_white, TestCoverageCtx, .read = read);
+    }
+    read->at += 1ULL;
+}
+
 // one coverage file a process wrote, JSON whole and an object, each file it names recorded with the lines it marks
 EMBED_INLINE void cover_read(const TestCoverageCtx *args)
 {
@@ -382,32 +414,7 @@ EMBED_INLINE void cover_read(const TestCoverageCtx *args)
         EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
         if ((read.at < size) && (text[read.at] == '{'))
         {
-            read.at += 1ULL;
-            EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-            while ((read.at < size) && (text[read.at] != '}'))
-            {
-                char key[16];
-                VerbaLinea key_line = {key, sizeof(key), 0ULL};
-                (void)EMBED_CALL(cover_string, TestCoverageCtx, .read = &read, .out = &key_line);
-                mmgr_line_finish(&key_line);
-                EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-                read.at += 1ULL;
-                const int run_result =
-                    (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_CELLS_POOL}));
-                const int could = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "could", .cap = CLI_CELLS_POOL}));
-                if (run_result || could)
-                {
-                    EMBED_CALL(cover_lines, TestCoverageCtx, .read = &read, .file = file, .could = could ? 1u : 0u);
-                }
-                else
-                {
-                    EMBED_CALL(cover_skip, TestCoverageCtx, .read = &read);
-                }
-                EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-                read.at += ((read.at < size) && (text[read.at] == ',')) ? 1ULL : 0ULL;
-                EMBED_CALL(cover_white, TestCoverageCtx, .read = &read);
-            }
-            read.at += 1ULL;
+            EMBED_CALL(cover_file_object, TestCoverageCtx, .read = &read, .file = file);
         }
         else
         {

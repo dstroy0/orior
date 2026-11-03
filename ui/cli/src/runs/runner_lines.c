@@ -127,12 +127,12 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
 }
 
-// the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else from
-// the buffer, which holds both, a line ending at the most it holds at the latest
+// the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered or no buffer
+// is held, else from the buffer, which holds both, a line ending at the most it holds at the latest
 EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
 {
     const char *bytes = args->bytes;
-    if (args->transport->pending_size == 0ULL)
+    if ((args->transport->pending_size == 0ULL) || (args->transport->pending == NULL))
     {
         EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = bytes, .length = args->size);
         return;
@@ -185,7 +185,7 @@ EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
                        .length = got - from);
         }
     }
-    if (args->transport->pending_size != 0ULL)
+    if ((args->transport->pending_size != 0ULL) && (args->transport->pending != NULL))
     {
         EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = "", .size = 0ULL);
     }
@@ -337,33 +337,33 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             {
                 to -= 1;
             }
-            if (((to - from) >= 5) && (memor.cmp(&(MemoriaCfg){.src = to - 5, .other = ".html", .bytes = 5u}) == 0))
-            {
-                char word_text[CLI_PATH_MAX_LEN];
-                char path[CLI_PATH_MAX_LEN];
-                VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
-                mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
-                if (mmgr_line_finish(&line) != 0ULL)
-                {
-                    const int whole = (word_text[0] == '/') || (word_text[0] == '\\') ||
-                                      ((word_text[0] != '\0') && (word_text[1] == ':'));
-                    if (whole)
-                    {
-                        memor.cpy(&(MemoriaCfg){
-                            .dst = path,
-                            .src = word_text,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}) + 1u});
-                    }
-                    else
-                    {
-                        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word_text,
-                                   .joined = path);
-                    }
-                    EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views,
-                               .count = &count);
-                }
-            }
             at = end;
+            if (((to - from) < 5) || (memor.cmp(&(MemoriaCfg){.src = to - 5, .other = ".html", .bytes = 5u}) != 0))
+            {
+                continue;
+            }
+            char word_text[CLI_PATH_MAX_LEN];
+            char path[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
+            mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
+            if (mmgr_line_finish(&line) == 0ULL)
+            {
+                continue;
+            }
+            const int whole =
+                (word_text[0] == '/') || (word_text[0] == '\\') || ((word_text[0] != '\0') && (word_text[1] == ':'));
+            if (whole)
+            {
+                memor.cpy(&(MemoriaCfg){
+                    .dst = path,
+                    .src = word_text,
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}) + 1u});
+            }
+            else
+            {
+                EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word_text, .joined = path);
+            }
+            EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views, .count = &count);
         }
     }
     return count;

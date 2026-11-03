@@ -95,6 +95,7 @@ typedef struct
     const unsigned int *share_of;
     const unsigned int *sizes;
     CliTestRun *run_out;
+    unsigned int positioned;
 } TestPythonCtx;
 
 // the files of a run's supplied tests: the file each test is of, each file's first test and how many tests it has, and
@@ -172,6 +173,26 @@ EMBED_INLINE void test_files_sorted(const TestPythonCtx *args)
     }
 }
 
+// the tests of each of the `files` that `share_of` gives the share `share`, file after file in s_by_size's order, laid
+// in `run_out`'s order from `positioned`: the place after the last
+EMBED_INLINE unsigned int test_share_laid(const TestPythonCtx *args)
+{
+    unsigned int positioned = args->positioned;
+    for (unsigned int at = 0u; at < args->files; at += 1u)
+    {
+        const unsigned int file = s_by_size[at];
+        for (unsigned int one = 0u; (args->share_of[file] == args->share) && (one < args->count); one += 1u)
+        {
+            if (s_file_of[one] == file)
+            {
+                args->run_out->order[positioned] = one;
+                positioned += 1u;
+            }
+        }
+    }
+    return positioned;
+}
+
 // the `count` tests of `run_out` laid in its order share by share: each of the `shares` that `sizes` gives a test, its
 // first place and size, its tests those of the `files` that `share_of` gives it, file after file in s_by_size's order
 EMBED_INLINE void test_shares_laid(const TestPythonCtx *args)
@@ -186,18 +207,9 @@ EMBED_INLINE void test_shares_laid(const TestPythonCtx *args)
             continue;
         }
         run->share_from[run->shares] = positioned;
-        for (unsigned int at = 0u; at < args->files; at += 1u)
-        {
-            const unsigned int file = s_by_size[at];
-            for (unsigned int one = 0u; (args->share_of[file] == share) && (one < args->count); one += 1u)
-            {
-                if (s_file_of[one] == file)
-                {
-                    run->order[positioned] = one;
-                    positioned += 1u;
-                }
-            }
-        }
+        positioned =
+            EMBED_CALL(test_share_laid, TestPythonCtx, .run_out = run, .files = args->files, .share_of = args->share_of,
+                       .share = share, .count = args->count, .positioned = positioned);
         run->share_size[run->shares] = positioned - run->share_from[run->shares];
         run->shares += 1u;
     }

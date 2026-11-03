@@ -85,21 +85,16 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
         for (at += 1ULL; at < args->reply->size; at += 1ULL)
         {
             const char letter = args->reply->text[at];
+            const int closes = (letter == '}') || (letter == ']');
+            depth += ((letter == '{') || (letter == '[')) ? 1ULL : 0ULL;
+            depth -= closes ? 1ULL : 0ULL;
+            if (closes && (depth == 0ULL))
+            {
+                return at + 1ULL;
+            }
             if (letter == '"')
             {
                 at = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = at);
-            }
-            else if ((letter == '{') || (letter == '['))
-            {
-                depth += 1ULL;
-            }
-            else if ((letter == '}') || (letter == ']'))
-            {
-                depth -= 1ULL;
-                if (depth == 0ULL)
-                {
-                    return at + 1ULL;
-                }
             }
         }
         return args->reply->size;

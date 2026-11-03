@@ -184,40 +184,41 @@ EMBED_INLINE unsigned int cli_split(const ToolchainsPathCtx *args)
     const char *from = args->text;
     for (const char *at = args->text;; at += 1)
     {
-        if ((at[0] == CLI_SEPARATOR) || (at[0] == '\0'))
+        if ((at[0] != CLI_SEPARATOR) && (at[0] != '\0'))
         {
-            char folder[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {folder, sizeof(folder), 0ULL};
-            mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-            if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
-            {
-                char key[CLI_PATH_MAX_LEN];
-                EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folder, .key = key);
-                int seen = 0;
-                unsigned int each = 0u;
-                while (!seen && (each < count))
-                {
-                    char path_buf[CLI_PATH_MAX_LEN];
-                    EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folders[each],
-                               .key = path_buf);
-                    seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
-                    each += 1u;
-                }
-                if (!seen && (count < args->capacity))
-                {
-                    memor.cpy(&(MemoriaCfg){
-                        .dst = args->folders[count],
-                        .src = folder,
-                        .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-                    count += 1u;
-                }
-            }
-            if (at[0] == '\0')
-            {
-                break;
-            }
-            from = at + 1;
+            continue;
         }
+        char folder[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {folder, sizeof(folder), 0ULL};
+        mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
+        if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
+        {
+            char key[CLI_PATH_MAX_LEN];
+            EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folder, .key = key);
+            int seen = 0;
+            unsigned int each = 0u;
+            while (!seen && (each < count))
+            {
+                char path_buf[CLI_PATH_MAX_LEN];
+                EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folders[each],
+                           .key = path_buf);
+                seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
+                each += 1u;
+            }
+            if (!seen && (count < args->capacity))
+            {
+                memor.cpy(
+                    &(MemoriaCfg){.dst = args->folders[count],
+                                  .src = folder,
+                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                count += 1u;
+            }
+        }
+        if (at[0] == '\0')
+        {
+            break;
+        }
+        from = at + 1;
     }
     return count;
 }
@@ -519,26 +520,27 @@ int cli_toolchains_join(const CliToolchainsFolderCfg *args)
     const char *from = args->path_read;
     for (const char *at = args->path_read;; at += 1)
     {
-        if ((at[0] == CLI_SEPARATOR) || (at[0] == '\0'))
+        if ((at[0] != CLI_SEPARATOR) && (at[0] != '\0'))
         {
-            char dir[CLI_PATH_MAX_LEN];
-            char path_buf[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {dir, sizeof(dir), 0ULL};
-            mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-            if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
-            {
-                EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = dir, .key = path_buf);
-                if (cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL}))
-                {
-                    return 0;
-                }
-            }
-            if (at[0] == '\0')
-            {
-                break;
-            }
-            from = at + 1;
+            continue;
         }
+        char dir[CLI_PATH_MAX_LEN];
+        char path_buf[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {dir, sizeof(dir), 0ULL};
+        mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
+        if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
+        {
+            EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = dir, .key = path_buf);
+            if (cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL}))
+            {
+                return 0;
+            }
+        }
+        if (at[0] == '\0')
+        {
+            break;
+        }
+        from = at + 1;
     }
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path_read, .cap = CLI_CELLS_POOL});
     while ((length != 0ULL) && (args->path_read[length - 1u] == CLI_SEPARATOR))

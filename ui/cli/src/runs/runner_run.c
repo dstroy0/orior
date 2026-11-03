@@ -94,52 +94,53 @@ static int cli_find_init(const RunnerRunCtx *args)
     const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &args->run->catalog,
                                       .text_u32 = args->run->catalog.job[0].id);
     const QuerySink sink = {cli_run_print, args->run};
-    if (!args->made->looked)
+    if (args->made->looked)
     {
-        args->made->looked = 1;
-        VerbaLinea why = {args->made->why, sizeof(args->made->why), 0ULL};
-        args->made->found = EMBED_CALL(cli_executables_path.init, CliExecutablesPathCfg, .root = args->run->root,
-                                       .id = id, .values = args->run->values, .lines = args->run->lines,
-                                       .path = args->made->file, .err_msg = &why);
-        mmgr_line_finish(&why);
-        if (args->made->found)
-        {
-            static char s_path[1u << 16u];
-            static char s_folders[256][CLI_PATH_MAX_LEN];
-            EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path,
-                       .size = sizeof(s_path));
+        return args->made->found;
+    }
+    args->made->looked = 1;
+    VerbaLinea why = {args->made->why, sizeof(args->made->why), 0ULL};
+    args->made->found =
+        EMBED_CALL(cli_executables_path.init, CliExecutablesPathCfg, .root = args->run->root, .id = id,
+                   .values = args->run->values, .lines = args->run->lines, .path = args->made->file, .err_msg = &why);
+    mmgr_line_finish(&why);
+    if (args->made->found)
+    {
+        static char s_path[1u << 16u];
+        static char s_folders[256][CLI_PATH_MAX_LEN];
+        EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path,
+                   .size = sizeof(s_path));
 #if defined(_WIN32)
-            const char separator = ';';
+        const char separator = ';';
 #else
-            const char separator = ':';
+        const char separator = ':';
 #endif
-            unsigned int count = 0u;
-            const char *from = s_path;
-            for (const char *at = s_path;; at += 1)
-            {
-                if (((at[0] == separator) || (at[0] == '\0')) && (at > from) && (count < 256u))
-                {
-                    VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ULL};
-                    mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-                    count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
-                }
-                if (at[0] == '\0')
-                {
-                    break;
-                }
-                from = (at[0] == separator) ? (at + 1) : from;
-            }
-            EMBED_CALL(cli_binary_path_orior_path_count.print, CliBinaryPathOriorPathCountCfg, .path = args->made->file,
-                       .orior_path = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = count, .sink = sink);
-            EMBED_CALL(cli_executables_root.built_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
-                       .lines = args->run->lines, .sink = sink);
-            EMBED_CALL(cli_executables_table.compare_build, CliExecutablesCfg, .root = args->run->root, .id = id,
-                       .file = args->made->file, .sink = sink);
-        }
-        else
+        unsigned int count = 0u;
+        const char *from = s_path;
+        for (const char *at = s_path;; at += 1)
         {
-            EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = args->made->why);
+            if (((at[0] == separator) || (at[0] == '\0')) && (at > from) && (count < 256u))
+            {
+                VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ULL};
+                mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
+                count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
+            }
+            if (at[0] == '\0')
+            {
+                break;
+            }
+            from = (at[0] == separator) ? (at + 1) : from;
         }
+        EMBED_CALL(cli_binary_path_orior_path_count.print, CliBinaryPathOriorPathCountCfg, .path = args->made->file,
+                   .orior_path = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = count, .sink = sink);
+        EMBED_CALL(cli_executables_root.built_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
+                   .lines = args->run->lines, .sink = sink);
+        EMBED_CALL(cli_executables_table.compare_build, CliExecutablesCfg, .root = args->run->root, .id = id,
+                   .file = args->made->file, .sink = sink);
+    }
+    else
+    {
+        EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = args->made->why);
     }
     return args->made->found;
 }

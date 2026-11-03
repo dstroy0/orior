@@ -443,11 +443,9 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
                 const long long along =
                     ((long long)from_x * EMBED_CALL(busy_sine, BusyCtx, .turn = turn)) -
                     ((long long)from_y * EMBED_CALL(busy_sine, BusyCtx, .turn = turn + (GUI_BUSY_STAGES / 4u)));
-                if ((turn == 0u) || (along > best))
-                {
-                    best = along;
-                    best_stage = turn;
-                }
+                const int further = (turn == 0u) || (along > best);
+                best = further ? along : best;
+                best_stage = further ? turn : best_stage;
             }
             // a stage of the turn is a byte
             sector[at] = (unsigned char)best_stage;

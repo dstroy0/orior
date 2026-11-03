@@ -235,30 +235,31 @@ EMBED_INLINE int cli_wraps_prose(const FormatWidthCtx *args)
     const char *part = args->text;
     for (const char *at = args->text;; at += 1)
     {
-        if ((at[0] == '\n') || (at[0] == ',') || (at[0] == '{') || (at[0] == '}') || (at[0] == '\0'))
+        if ((at[0] != '\n') && (at[0] != ',') && (at[0] != '{') && (at[0] != '}') && (at[0] != '\0'))
         {
-            char piece[CLI_NAME_MAX_LEN * 4u];
-            // the part lies before `at`, its end at or past its start
-            const unsigned long long length = (unsigned long long)(at - part);
-            if (length < sizeof(piece))
-            {
-                memor.cpy(&(MemoriaCfg){.dst = piece, .src = part, .bytes = length});
-                piece[length] = '\0';
-                if ((cellul.find(&(CatenaFinitaCfg){
-                         .src = piece, .cap = CLI_CELLS_POOL, .other = "proseWrap", .other_cap = CLI_CELLS_POOL}) !=
-                     NULL) &&
-                    (cellul.find(&(CatenaFinitaCfg){
-                         .src = piece, .cap = CLI_CELLS_POOL, .other = "always", .other_cap = CLI_CELLS_POOL}) != NULL))
-                {
-                    return 1;
-                }
-            }
-            if (at[0] == '\0')
-            {
-                return 0;
-            }
-            part = at + 1;
+            continue;
         }
+        char piece[CLI_NAME_MAX_LEN * 4u];
+        // the part lies before `at`, its end at or past its start
+        const unsigned long long length = (unsigned long long)(at - part);
+        if (length < sizeof(piece))
+        {
+            memor.cpy(&(MemoriaCfg){.dst = piece, .src = part, .bytes = length});
+            piece[length] = '\0';
+            if ((cellul.find(&(CatenaFinitaCfg){
+                     .src = piece, .cap = CLI_CELLS_POOL, .other = "proseWrap", .other_cap = CLI_CELLS_POOL}) !=
+                 NULL) &&
+                (cellul.find(&(CatenaFinitaCfg){
+                     .src = piece, .cap = CLI_CELLS_POOL, .other = "always", .other_cap = CLI_CELLS_POOL}) != NULL))
+            {
+                return 1;
+            }
+        }
+        if (at[0] == '\0')
+        {
+            return 0;
+        }
+        part = at + 1;
     }
 }
 

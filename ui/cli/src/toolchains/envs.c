@@ -167,6 +167,21 @@ EMBED_INLINE int cli_next_line(const EnvsCtx *args)
     return 1;
 }
 
+// each name of the list after the `=` that starts `span`, its names between commas or semicolons, added to `required`
+EMBED_INLINE void cli_requires_list(const EnvsCtx *args)
+{
+    const CliSpan rest = args->span;
+    unsigned long long from = 1ULL;
+    for (unsigned long long place = 1ULL; place <= rest.length; place += 1ULL)
+    {
+        if ((place == rest.length) || (rest.at[place] == ',') || (rest.at[place] == ';'))
+        {
+            EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = (CliSpan){rest.at + from, place - from});
+            from = place + 1ULL;
+        }
+    }
+}
+
 // the names `setup.cfg` requires under `[options]`, `install_requires`, those on its line and those indented below it
 EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
 {
@@ -200,16 +215,7 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
             {
                 continue;
             }
-            unsigned long long from = 1ULL;
-            for (unsigned long long place = 1ULL; place <= rest.length; place += 1ULL)
-            {
-                if ((place == rest.length) || (rest.at[place] == ',') || (rest.at[place] == ';'))
-                {
-                    EMBED_CALL(cli_add, EnvsCtx, .required = args->required,
-                               .name = (CliSpan){rest.at + from, place - from});
-                    from = place + 1ULL;
-                }
-            }
+            EMBED_CALL(cli_requires_list, EnvsCtx, .required = args->required, .span = rest);
         }
         else if (allocating && (line.length > 0ULL) && ((line.at[0] == ' ') || (line.at[0] == '\t')))
         {
