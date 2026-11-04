@@ -61,6 +61,7 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &args->window->editor);
     EMBED_CALL(gui_menubar.init, GuiMenubarCfg, .menubar = &args->window->menubar);
     EMBED_CALL(gui_strip_table.init, GuiStripInitCfg, .strip = &args->window->strip);
+    EMBED_CALL(gui_sides.init, GuiSidesCfg, .sides = &args->window->sides);
     EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &args->window->icons);
     EMBED_CALL(cli_explorer.init, GuiExplorerCfg, .explorer = &args->window->explorer);
     EMBED_CALL(cli_autohide_still.init, GuiAutohideStillCfg, .claim = &args->window->claim);
@@ -456,11 +457,12 @@ EMBED_INLINE int window_over_parts(const GuiWindowCtx *args)
     return 0;
 }
 
-// whether the strip's tool shown has the side pane as its window
+// whether the strip's tool shown has the side pane as its window and the pane has not collapsed
 EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
 {
     // the tool shown is among the tools
-    return (args->window_read->strip.displayed >= 0) && g_cli_tools[args->window_read->strip.displayed].side;
+    return (args->window_read->strip.displayed >= 0) && g_cli_tools[args->window_read->strip.displayed].side &&
+           !args->window_read->strip.collapsed;
 }
 
 // the terminal read again of its tabs and the work's inside laid again with its panel at its foot as the panel stands,
@@ -505,6 +507,17 @@ EMBED_INLINE void window_side(const GuiWindowCtx *args)
         window_autohide_layout(args);
     }
     window_view_resize(args);
+}
+
+// the side laid again as the pane's waits have shown or collapsed it or a preview has changed its tool, the explorer
+// listed as it shows
+EMBED_INLINE void window_sides_laid(const GuiWindowCtx *args)
+{
+    if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "explorer"))
+    {
+        cli_files_explorer_show(cli_command_line_root());
+    }
+    EMBED_CALL(window_side, GuiWindowCtx, .window = args->window);
 }
 
 // the menus open closed, as menu.js closes them on a press or the wheel away from them, the window resized or its keys
@@ -683,6 +696,12 @@ void gui_window_tick(const GuiWindowCfg *args)
         EMBED_CALL(window_map_span, GuiWindowCtx, .window = args->window);
     }
     args->window->autohide_moving = moving;
+    // the side pane's waits reached: the pane collapsed or shown again, or a tool's pane shown as a preview
+    if (EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &args->window->sides, .strip = &args->window->strip,
+                   .menu_open = g_cli_menus_open.levels > 0u, .time_ms = now_ms))
+    {
+        EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = args->window);
+    }
     args->window->pending =
         EMBED_CALL(gui_wordmark_frame.tick, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark,
                    .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = args->window->palette,
@@ -786,6 +805,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
                    .background_fill = &window->background_fill),
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark),
         EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
+        EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &window->sides),
         // the circle's clock stops while the window is off screen, a wake from a module's thread waking it as any does
         window->off_screen ? 0ULL : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &window->busy),
         cli_servers_panels_due_ms(),
@@ -1347,8 +1367,18 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
         return;
     }
-    // the tools are fewer than an int counts
-    window->strip.displayed = (window->strip.displayed == (int)args->at) ? -1 : (int)args->at;
+    // a side tool's pane shown, or collapsed where it shows; another tool's window shown or hidden; the tools are
+    // fewer than an int counts
+    if (g_cli_tools[args->at].side)
+    {
+        EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &window->sides, .strip = &window->strip, .at = args->at,
+                   .time_ms = cli_clock_milliseconds());
+    }
+    else
+    {
+        window->strip.displayed = (window->strip.displayed == (int)args->at) ? -1 : (int)args->at;
+        window->strip.collapsed = 0;
+    }
     EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
     EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
     if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "explorer"))
@@ -1730,6 +1760,8 @@ void gui_window_start(const GuiWindowCfg *args)
     }
     EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
     EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+    // the pane in sight collapses a rest after the window begins, the pointer never coming to it
+    EMBED_CALL(gui_sides.settle, GuiSidesCfg, .sides = &window->sides, .time_ms = cli_clock_milliseconds());
     if (window->wordmark.exists && !window->wordmark.tree_read)
     {
         EMBED_CALL(cli_wordmark_still.tree_read, GuiWordmarkStillCfg, .wordmark = &window->wordmark);
@@ -2541,6 +2573,12 @@ static void window_press(const GuiInputHandlerCfg *args)
     window->dragging = (pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER);
     window->terminal_dragged = (pressed.hit == CLI_HIT_TERMINAL) ? (pressed.index + 1u) : 0u;
     window->moved = pressed;
+    // a press on the icon a preview shows ends the preview with its pane standing and does nothing more
+    if (EMBED_CALL(gui_sides.press, GuiSidesCfg, .sides = &window->sides, .strip = &window->strip,
+                   .frame = &window->frame, .x = input->x, .y = input->y))
+    {
+        return;
+    }
     EMBED_CALL(window_pressed, GuiWindowCtx, .window = window, .hit = &pressed, .on = window_shift(input));
 }
 
@@ -2599,6 +2637,13 @@ static void window_move(const GuiInputHandlerCfg *args)
     window->pending = EMBED_CALL(gui_strip_frame_x.move, GuiStripFrameXCfg, .strip = &window->strip,
                                  .frame = &window->frame, .x = args->input->x, .y = args->input->y) ||
                       window->pending;
+    // the side pane's waits begun and ended by where the pointer stands, and a preview it has left taken back
+    if (EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &window->sides, .strip = &window->strip,
+                   .frame = &window->frame, .x = args->input->x, .y = args->input->y,
+                   .time_ms = cli_clock_milliseconds()))
+    {
+        EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = window);
+    }
     window->pending = (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "problems")
                            ? EMBED_CALL(gui_problems_frame.move, GuiProblemsFrameCfg, .problems_out = &window->problems,
                                         .frame = &window->frame, .x = args->input->x, .y = args->input->y)
@@ -2662,6 +2707,7 @@ static void window_leave(const GuiInputHandlerCfg *args)
     GuiWindow *window = args->window;
     const int adjacent_before = window->claim.adjacent;
     EMBED_CALL(cli_autohide_still.leave, GuiAutohideStillCfg, .claim = &window->claim);
+    EMBED_CALL(gui_sides.leave, GuiSidesCfg, .sides = &window->sides, .time_ms = cli_clock_milliseconds());
     if (window->claim.adjacent != adjacent_before)
     {
         window->autohide_moving = 1;

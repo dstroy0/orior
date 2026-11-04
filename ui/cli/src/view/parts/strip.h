@@ -54,12 +54,14 @@ extern const CliTool g_cli_tools[];
 extern const unsigned int g_cli_tools_count;
 
 // The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; whether
-// the Problems tool is marked, as it is while errors stand; and whether the terminal's panel is open, which shows the
+// that tool's side pane has collapsed, its width back to the editor, the tool unlit while it stands so; whether the
+// Problems tool is marked, as it is while errors stand; and whether the terminal's panel is open, which shows the
 // Terminal tool, at `terminal_at` among the tools, as the tool whose window shows is
 typedef struct
 {
     int pointed;
     int displayed;
+    int collapsed;
     int problems_marked;
     int terminal_open;
     unsigned int terminal_at;
@@ -73,8 +75,8 @@ GuiRect gui_strip_button(const GuiStripCfg *args);
 int gui_strip_hit(const GuiStripFrameCfg *args);
 // the pointer moved to x, y: the tool it stands on marked: 1 where that changed
 int gui_strip_move(const GuiStripFrameXCfg *args);
-// the strip drawn: its tint and the frame's gap's, and each tool's button, the one shown on its ground in signal,
-// the one pointed on the pointed ground, and the Problems tool's mark in the error's color while it is marked
+// the strip drawn: its tint and the frame's gap's, and each tool's button, the one whose window shows on its ground in
+// signal, the one pointed on the pointed ground, and the Problems tool's mark in the error's color while it is marked
 void gui_strip_draw(const GuiStripFrameRasterCfg *args);
 struct GuiStripFrameRasterCfg
 {

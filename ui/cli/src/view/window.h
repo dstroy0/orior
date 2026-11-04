@@ -26,6 +26,7 @@
 #include "parts/tabs.h"
 #include "parts/terminal.h"
 #include "parts/wordmark.h"
+#include "sides.h"
 #include "stages.h"
 #include "view.h"
 
@@ -61,10 +62,11 @@ typedef struct
 
 // The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame
 // is presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
-// palette; the parts, the editor's frame, names and map, the terminal's panes and their frames, each taken of the
-// module whose state it is and released by the window; the hover and the completion as the panels last had them;
-// when the caret's blink begins, each frame of the view putting it an input rest later, the caret's ink in the last
-// frame drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame whole;
+// palette; the parts and the side pane's waits, the editor's frame, token table and map, the terminal's panes and their
+// frames, each taken of the module whose state it is and released by the window; the hover and the completion as the
+// panels last had them; when the caret's blink begins, each frame of the view putting it an input rest later, the
+// caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn again over the
+// frame pays with no frame whole;
 // the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of the
 // window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim and
 // whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
@@ -92,6 +94,7 @@ typedef struct GuiWindow
     GuiMinimap minimap;
     GuiMenubar menubar;
     GuiStrip strip;
+    GuiSides sides;
     GuiExplorer explorer;
     GuiHover hover;
     GuiSuggest suggest;
