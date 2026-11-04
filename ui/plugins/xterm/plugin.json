@@ -8,6 +8,7 @@
   "pairs": [],
   "quotes": [],
   "grammar": {
+    "perLine": true,
     "tokenizer": {
       "root": [
         ["\u001b\\[(?:[0-9:]*;)*[34]8[;:][0-9;:]*m", "conceal"],

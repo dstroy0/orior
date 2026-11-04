@@ -470,6 +470,18 @@ int cli_document_shape(const CliDocumentTextCfg *args)
     return one != NULL;
 }
 
+const unsigned short *cli_document_line_units(const CliDocumentLineUnitsCfg *args)
+{
+    const CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
+    if ((one == NULL) || (args->line >= one->lines.lines))
+    {
+        *args->count = 0ULL;
+        return NULL;
+    }
+    *args->count = one->lines.length[args->line];
+    return one->lines.unit + one->lines.start[args->line];
+}
+
 // a line's units put after the spare lines, the text of the line being made running on from `open` where it is given
 EMBED_INLINE void cli_units_append(const DocumentStoreCtx *args)
 {

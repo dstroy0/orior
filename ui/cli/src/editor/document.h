@@ -28,6 +28,7 @@ typedef struct CliDocumentLinesOutCfg CliDocumentLinesOutCfg;
 typedef struct CliDocumentOutKeyHeadInputCfg CliDocumentOutKeyHeadInputCfg;
 typedef struct CliDocumentKeyLineCfg CliDocumentKeyLineCfg;
 typedef struct CliDocumentTextCfg CliDocumentTextCfg;
+typedef struct CliDocumentLineUnitsCfg CliDocumentLineUnitsCfg;
 typedef struct CliDocumentUnitsCfg CliDocumentUnitsCfg;
 typedef struct CliDocumentOutThenCfg CliDocumentOutThenCfg;
 typedef struct CliDocumentKeyLowCfg CliDocumentKeyLowCfg;
@@ -150,6 +151,9 @@ int cli_document_shape(const CliDocumentTextCfg *args);
 // the census stored with the text stored under `key`, into `histogram`: 1, or 0 where none is stored under the key
 int cli_document_histogram(const CliDocumentCfg *args);
 int cli_document_edit(const CliDocumentErrMsgCfg *args);
+// the units of the line `line` of the text read whole stored under `key`, where they stand, their count into `count`:
+// NULL where no such text or line is stored. They stand until the text is next edited, stored again or let go
+const unsigned short *cli_document_line_units(const CliDocumentLineUnitsCfg *args);
 int cli_document_has_head(const CliDocumentCfg *args);
 int cli_document_find(const CliDocumentOutNeedleCfg *args);
 
@@ -399,6 +403,13 @@ struct CliDocumentTextCfg
     CliShape *shape;
 };
 
+struct CliDocumentLineUnitsCfg
+{
+    const char *key;
+    unsigned long long line;
+    unsigned long long *count;
+};
+
 struct CliDocumentUnitsCfg
 {
     const unsigned short *units;
@@ -538,6 +549,15 @@ EMBED_TABLE_LAYOUT(CliDocumentTextNs, store, shape);
 EMBED_TABLE_STORAGE CliDocumentTextNs cli_document_text EMBED_UNUSED = {
     .store = cli_document_store,
     .shape = cli_document_shape,
+};
+
+typedef struct
+{
+    const unsigned short *(*line_units)(const CliDocumentLineUnitsCfg *args);
+} CliDocumentLineUnitsNs;
+EMBED_TABLE_LAYOUT(CliDocumentLineUnitsNs, line_units);
+EMBED_TABLE_STORAGE CliDocumentLineUnitsNs cli_document_line EMBED_UNUSED = {
+    .line_units = cli_document_line_units,
 };
 
 typedef struct

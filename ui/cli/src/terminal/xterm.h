@@ -1,11 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// xterm.h: a shell's output read as an xterm reads it onto the rows a terminal's pane shows at its foot. Printed
-// letters land at the cursor in the colors and weight of the moment; the control letters and the escape sequences move
-// the cursor, erase, insert and delete, scroll a region, set the colors from the 16, the 256 and any red, green and
-// blue, switch to the second screen full-screen programs draw on, and ask where the cursor is and what the terminal is.
-// What the xterm does not read it reads past. A line that leaves the top of the main screen is handed to `history`, and
-// the history is marked cleared where the output asks; the second screen hands nothing on (xterm.c)
+// xterm.h: a shell's output read as an xterm reads it into the text a terminal's pane shows. The text, stored under
+// `key`, is the only store: each of the screen's rows a line of it, the lines above the main screen's first the
+// history. Printed letters are written into the row at the cursor from the output's bytes where they lie, in place of
+// the letters they cover, the SGR of the style of the moment put before them where the line's style there is another
+// and the style that stood after them put back where letters follow; the xterm grammar plugin colors the text by those
+// sequences. The control letters and the other escape sequences move the cursor, erase, insert and delete, scroll a
+// region, switch to the second screen full-screen programs draw on, and ask where the cursor is and what the terminal
+// is, each an edit of the text's lines or the cursor alone. A line that leaves the main screen's top as the whole
+// screen scrolls joins the history where it stands; the output's asking the history cleared takes its lines out. What
+// the xterm does not read it reads past (xterm.c)
 #ifndef CLI_TERMINAL_XTERM_H
 #define CLI_TERMINAL_XTERM_H
 #include "embed_dispatch_layout.h"
@@ -13,9 +17,8 @@
 typedef struct CliTerminalXtermSizeCfg CliTerminalXtermSizeCfg;
 typedef struct CliTerminalXtermCfg CliTerminalXtermCfg;
 typedef struct CliTerminalXtermBytesCfg CliTerminalXtermBytesCfg;
-typedef struct CliTerminalXtermLineCfg CliTerminalXtermLineCfg;
 
-// a cell's weight and marks, a bit each
+// a style's weight and marks, a bit each
 #define CLI_TERMINAL_BOLD 0x01u
 #define CLI_TERMINAL_DIM 0x02u
 #define CLI_TERMINAL_ITALIC 0x04u
@@ -35,16 +38,7 @@ typedef struct CliTerminalXtermLineCfg CliTerminalXtermLineCfg;
 #define CLI_TERMINAL_ANSWER_MAX 256u
 #define CLI_TERMINAL_PLACE_MAX 4096u
 
-// One cell: its letter, a code point, its colors and its marks
-typedef struct
-{
-    unsigned int letter;
-    unsigned int foreground;
-    unsigned int background;
-    unsigned int marks;
-} CliTerminalCell;
-
-// What is printed next is drawn in: its colors and its marks
+// A style: its colors and its marks
 typedef struct
 {
     unsigned int foreground;
@@ -61,27 +55,21 @@ typedef struct
     int wrap_pending;
 } CliTerminalCursor;
 
-// What takes the lines that leave the top of the main screen: `put`, handed each line's cells, and its context
-typedef struct
-{
-    void (*put)(const CliTerminalXtermLineCfg *args);
-    void *context;
-} CliTerminalXtermHistory;
-
-// An xterm: its size; the one cell its main screen, its second screen, a mark for each row changed since the drawing
-// last read it, the command being read, the answer for the shell and the place the shell reported lie in; which of the
-// two screens is drawn on; the cursor, the region that scrolls and the cursor saved; the modes; where the reading of
-// the output stands; what takes the lines that leave the main screen's top, and whether the output asked the history
-// cleared since the window last read it
+// An xterm: its size; the key of the text it writes into, NULL before the text is stored, the main screen's first line,
+// the history the lines above it, and the first line of the screen drawn on, the main screen's or the second's after
+// it; the one cell the command being read, the answer for the shell and the place the shell reported lie in; the
+// cursor, the region that scrolls and the cursor saved; the modes; where the reading of the output stands and the bytes
+// of a letter cut across two writes; whether the text or the cursor moved since the drawing last read them; and whether
+// the text refused an edit, after which nothing more is written into it
 typedef struct
 {
     unsigned int columns;
     unsigned int rows;
+    const char *key;
+    unsigned long long history;
+    unsigned long long base;
+    int second;
     unsigned char *cell;
-    CliTerminalCell *main;
-    CliTerminalCell *second;
-    CliTerminalCell *shown;
-    unsigned char *changed;
     unsigned char *command;
     unsigned int command_size;
     unsigned char *answer;
@@ -99,26 +87,48 @@ typedef struct
     int inserts;
     unsigned int state;
     unsigned int ending;
-    unsigned int letter;
     unsigned int letter_bytes_left;
-    CliTerminalXtermHistory history;
-    int history_cleared;
+    unsigned int letter_size;
+    unsigned char letter[4];
+    int moved;
+    int refused;
 } CliTerminalXterm;
 
-// an xterm `columns` wide and `rows` tall, its cursor home and every cell blank: 1, or 0 where its cells are not had;
-// the xterm resized, each row cut or padded and the rows a shorter main screen loses from its top while the cursor
-// would fall off its foot handed to the history: 1, or 0 where its cells are not had and it stands as it was; and its
-// cells released
+// An xterm `columns` wide and `rows` tall, its cursor home, writing into the text under `key` whose main screen starts
+// at the line `history`, the text holding that many lines and the screen's rows after them: 1, or 0 where its cell is
+// not had. The xterm resized, the text's rows with it: the rows a shorter main screen loses from its top while the
+// cursor would fall off its foot joining the history, the rest let go from its foot, and a taller screen's rows put at
+// its foot: 1, or 0 where the text refused. And its cell released
 int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args);
 int cli_terminal_xterm_resize(const CliTerminalXtermSizeCfg *args);
 void cli_terminal_xterm_free(const CliTerminalXtermCfg *args);
-// `size` bytes of a shell's output read onto the xterm, a letter or a sequence cut by the end read on with the next
+// `size` bytes of a shell's output read into the text, a letter or a sequence cut by the end read on with the next
 void cli_terminal_xterm_write(const CliTerminalXtermBytesCfg *args);
+// the place among a row's `count` units at `units` where the letter of column `column` starts, the sequences before it
+// passed over: `count` where the row's letters end first
+typedef struct
+{
+    const unsigned short *units;
+    unsigned long long count;
+    unsigned int column;
+} CliTerminalXtermUnitsCfg;
+unsigned long long cli_terminal_xterm_column_unit(const CliTerminalXtermUnitsCfg *args);
+// the `size` bytes at `bytes` with the escape sequences among them taken out in place, the letters after each moved up:
+// the count of the bytes left
+typedef struct
+{
+    unsigned char *bytes;
+    unsigned long long size;
+} CliTerminalXtermPlainCfg;
+unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args);
+
 struct CliTerminalXtermSizeCfg
 {
     CliTerminalXterm *xterm;
     unsigned int columns;
     unsigned int rows;
+    const char *key;
+    unsigned long long history;
 };
 
 struct CliTerminalXtermCfg
@@ -131,14 +141,6 @@ struct CliTerminalXtermBytesCfg
     CliTerminalXterm *xterm;
     const unsigned char *bytes;
     unsigned long long size;
-};
-
-// a line the main screen's top lets go: its `columns` cells and the history's context
-struct CliTerminalXtermLineCfg
-{
-    void *context;
-    const CliTerminalCell *cells;
-    unsigned int columns;
 };
 
 typedef struct

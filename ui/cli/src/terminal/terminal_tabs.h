@@ -36,16 +36,15 @@ typedef struct
     unsigned int views;
 } CliTerminalPanel;
 
-// One pane: the key of its tab's text, NULL before it is stored; the text's line the xterm's rows start on; the
-// xterm's columns and rows, 0 before it is sized, its cells row by row as it stands, the cursor's column and row and
-// whether it is shown; and whether its shell is the one the keys go to
+// One pane: the key of its tab's text, NULL before it is stored; the text's line the screen drawn on starts on; the
+// xterm's columns and rows, 0 before it is sized, the cursor's column and row and whether it is shown; and whether its
+// shell is the one the keys go to
 typedef struct
 {
     const char *key;
     unsigned long long xterm_line;
     unsigned int columns;
     unsigned int rows;
-    const CliTerminalCell *cell;
     unsigned int cursor_x;
     unsigned int cursor_y;
     int cursor_shown;

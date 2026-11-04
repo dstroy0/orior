@@ -418,29 +418,26 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     }
     // the texts decoded once into one tree of the report's own, each read appending to it
     CliJson json;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL,
-               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CfgJsonToken *const scanned =
-        (tokens_most != 0u)
-            ? g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken),
-                                               &g_cli_servers_cells)
-            : NULL;
-    const int reserved = (nodes == 0u) ||
-                         ((scanned != NULL) &&
-                          EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &json,
-                                     .nodes_max = nodes, .text_max = bytes, .what = "a file's report",
-                                     .owner = &g_cli_servers_cells));
+        (tokens_most != 0u) ? g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken),
+                                                               &g_cli_servers_cells)
+                            : NULL;
+    const int reserved =
+        (nodes == 0u) || ((scanned != NULL) && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
+                                                          .json = &json, .nodes_max = nodes, .text_max = bytes,
+                                                          .what = "a file's report", .owner = &g_cli_servers_cells));
     unsigned int roots[SERVERS_EMIT_STORES] = {CLI_JSON_NONE, CLI_JSON_NONE, CLI_JSON_NONE};
     for (unsigned int store = 0u; reserved && (store < SERVERS_EMIT_STORES); store += 1u)
     {
         char quiet[256];
         VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
-        roots[store] = (tokens[store] != 0u) ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read,
-                                                          CliJsonTreeTextSizeTokensCfg, .json = &json,
-                                                          .text = stored[store], .size = sizes[store],
-                                                          .tokens = scanned, .tokens_max = tokens[store],
-                                                          .err_msg = &ignored)
-                                             : CLI_JSON_NONE;
+        roots[store] = (tokens[store] != 0u)
+                           ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
+                                        .json = &json, .text = stored[store], .size = sizes[store], .tokens = scanned,
+                                        .tokens_max = tokens[store], .err_msg = &ignored)
+                           : CLI_JSON_NONE;
     }
     g_cli_cells->persistent_buf_release(scanned, &g_cli_servers_cells);
     if (!reserved || (displayed_length == 0ULL))
@@ -487,8 +484,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
     for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = report->json.node[id].next)
     {
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = id, .filtered = 0,
-                   .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
+        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = id, .filtered = 0, .key = args->key,
+                   .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
     }
     report->count = laid;
     int taken = 0;

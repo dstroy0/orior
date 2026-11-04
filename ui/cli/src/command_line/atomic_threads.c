@@ -32,9 +32,10 @@ _Static_assert(sizeof(CliTurnstile) == 64u, "a turnstile takes one cache line");
 // the turnstile this thread passed through last
 static _Thread_local unsigned int t_turnstile_at = 0u;
 
-// One step `step` of a backoff on `word`, last read as `read`. Below CLI_ATOMIC_SLEEP_STEP, `step` pauses. From it, where
-// a reader passes, the sleeper bit set and a sleep on the word while it reads that, `step` / CLI_ATOMIC_SLEEP_STEP
-// milliseconds at the most, unless the word moved first. The step after it, doubled up to CLI_ATOMIC_STEP_MOST
+// One step `step` of a backoff on `word`, last read as `read`. Below CLI_ATOMIC_SLEEP_STEP, `step` pauses. From it,
+// where a reader passes, the sleeper bit set and a sleep on the word while it reads that, `step` /
+// CLI_ATOMIC_SLEEP_STEP milliseconds at the most, unless the word moved first. The step after it, doubled up to
+// CLI_ATOMIC_STEP_MOST
 static unsigned int atomic_threads_backed_off(_Atomic unsigned int *word, unsigned int read, unsigned int step)
 {
     if (step < CLI_ATOMIC_SLEEP_STEP)
@@ -54,9 +55,8 @@ static unsigned int atomic_threads_backed_off(_Atomic unsigned int *word, unsign
     // a word that moved before the bit went on ends the step awake; one with the bit on is slept on
     if (((read & CLI_TURNSTILE_PASSING) != 0u) && (expected == read))
     {
-        (void)cli_atomic_wait(&(CliAtomicThreadsCfg){.word = word,
-                                                     .seen = read | CLI_TURNSTILE_SLEEPER,
-                                                     .milliseconds_u64 = step / CLI_ATOMIC_SLEEP_STEP});
+        (void)cli_atomic_wait(&(CliAtomicThreadsCfg){
+            .word = word, .seen = read | CLI_TURNSTILE_SLEEPER, .milliseconds_u64 = step / CLI_ATOMIC_SLEEP_STEP});
     }
     return (step < CLI_ATOMIC_STEP_MOST) ? (step * 2u) : CLI_ATOMIC_STEP_MOST;
 }
@@ -93,8 +93,8 @@ void cli_turnstile_leave(const CliAtomicThreadsCfg *args)
     // the count moves only at the end of a pass, so it reads the same until the exchange; the sleeper bit may come on
     // between, and the exchange returns it
     const unsigned int read = atomic_load_explicit(word, memory_order_relaxed);
-    const unsigned int was = atomic_exchange_explicit(word, (read & ~CLI_TURNSTILE_BITS) + CLI_TURNSTILE_PASS,
-                                                      memory_order_release);
+    const unsigned int was =
+        atomic_exchange_explicit(word, (read & ~CLI_TURNSTILE_BITS) + CLI_TURNSTILE_PASS, memory_order_release);
     if ((was & CLI_TURNSTILE_SLEEPER) != 0u)
     {
         cli_atomic_wake(&(CliAtomicThreadsCfg){.word = word});

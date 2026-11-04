@@ -135,11 +135,15 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_view_map_release((CliDocumentMap *)window->minimap.lines);
     cli_view_frame_release((CliViewFrame *)window->terminal.frame[0]);
     cli_view_frame_release((CliViewFrame *)window->terminal.frame[1]);
+    g_cli_cells->persistent_buf_release((void *)window->terminal.names[0], &g_cli_view_cells);
+    g_cli_cells->persistent_buf_release((void *)window->terminal.names[1], &g_cli_view_cells);
     window->editor.frame = NULL;
     window->editor.names = NULL;
     window->minimap.lines = NULL;
     window->terminal.frame[0] = NULL;
     window->terminal.frame[1] = NULL;
+    window->terminal.names[0] = NULL;
+    window->terminal.names[1] = NULL;
     window->hover.panel = NULL;
     window->suggest.panel = NULL;
     window->signature.panel = NULL;
@@ -207,8 +211,8 @@ EMBED_INLINE const char *window_shown_key(const GuiWindowCtx *args)
     return (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL;
 }
 
-// the terminal read again of its tabs: the panel, its panes, and each pane's frame of its tab's text taken anew, the
-// frame it had released
+// the terminal read again of its tabs: the panel, its panes, and each pane's frame of its tab's text and the table of
+// its runs' tokens, taken anew, those it had released
 EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
 {
     GuiTerminal *const terminal = &args->window->terminal;
@@ -216,9 +220,13 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     for (unsigned int view = 0u; view < 2u; view += 1u)
     {
         const int shown = cli_terminal_tabs_view(view, &terminal->view[view]);
+        const char *const key = shown ? terminal->view[view].key : NULL;
         cli_view_frame_release((CliViewFrame *)terminal->frame[view]);
-        terminal->frame[view] =
-            (shown && (terminal->view[view].key != NULL)) ? cli_view_frame_alloc(terminal->view[view].key) : NULL;
+        terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
+        g_cli_cells->persistent_buf_release((void *)terminal->names[view], &g_cli_view_cells);
+        terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
+                                                           .key = key, .owner = &g_cli_view_cells)
+                                              : NULL;
     }
     args->window->pending = 1;
 }

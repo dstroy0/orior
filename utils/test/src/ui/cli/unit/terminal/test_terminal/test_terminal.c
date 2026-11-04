@@ -1,15 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_terminal.c: an xterm reads a shell's output: letters at the cursor in their colors, the cursor moved, lines
-// erased and scrolled off the top to the history, the second screen, the answers to where the cursor is, the folder a
-// shell reports, wrapping at the last column and letters past ASCII cut between two reads; a shell started in a
-// pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent once it settles, and its end
-// printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its pane is sized, the keys it
-// takes and those it lets go to the window, the panel and its panes as they stand, and the lines that leave the
-// xterm's top in the tab's text and its history's file; the panel's place stored as the window ends and read back as
-// it starts, a tab's shell started in its folder and the rows standing at the end written to its history; and the
-// panel's menu, Split Terminal shown on while a shell stands beside the one shown, opened where it was asked for
+// test_terminal.c: an xterm reads a shell's output into a text, a line each of its screen's rows: letters at the
+// cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the main screen's
+// top as it scrolls joining the history above it and the history cleared, the second screen's rows after the main
+// screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column, letters past
+// ASCII cut between two reads, a column's place among a line's units and a line's letters with its sequences left
+// out; a shell started in a pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent
+// once it settles, and its end printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its
+// pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they stand, the
+// panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder and the
+// rows standing at the end written to its history; and the panel's menu, Split Terminal shown on while a shell stands
+// beside the one shown, opened where it was asked for
 #include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/terminal/keys.h"
@@ -22,28 +25,75 @@
 #include <string.h>
 
 static CliTerminalXterm s_xterm;
-static char s_text[256];
-// the lines the xterm handed its history, each's first letter, and how many
-static char s_history[16];
-static unsigned int s_history_count;
+static char s_text[1024];
+// the key of the text the xterm writes into, and whether a text stands under it
+static const char *const s_key = "terminal-check";
+static int s_stored;
 
-// a line the xterm let go from its top: its first letter put after those before it
-static void history_taken(const CliTerminalXtermLineCfg *args)
-{
-    if (s_history_count < sizeof(s_history))
-    {
-        s_history[s_history_count] = (char)args->cells[0].letter;
-        s_history_count += 1u;
-    }
-}
-
-// the xterm opened `columns` wide and `rows` tall, the lines it lets go taken by history_taken
+// the xterm opened `columns` wide and `rows` tall, at most 64, writing into a text of `rows` empty lines and no
+// history stored under s_key
 static void xterm_open(unsigned int columns, unsigned int rows)
 {
-    s_history_count = 0u;
-    s_xterm.history = (CliTerminalXtermHistory){history_taken, NULL};
+    char lines[64];
+    TEST_ASSERT_LESS_OR_EQUAL_UINT(sizeof(lines), rows);
+    for (unsigned int at = 0u; (at + 1u) < rows; at += 1u)
+    {
+        lines[at] = '\n';
+    }
+    CliShape shape = {0ULL, 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .text = lines, .size = rows - 1u,
+                                .key = s_key, .shape = &shape));
+    s_stored = 1;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_terminal_xterm_size.init, CliTerminalXtermSizeCfg, .xterm = &s_xterm,
-                                .columns = columns, .rows = rows));
+                                .columns = columns, .rows = rows, .key = s_key, .history = 0ULL));
+}
+
+// the lines the text under s_key holds
+static unsigned long long text_lines(void)
+{
+    CliShape shape = {0ULL, 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = s_key, .shape = &shape));
+    return shape.lines;
+}
+
+// the units of the line `line` of the text under `key` into s_text, a byte each, those past ASCII as '?', as many as
+// s_text fits and ended by a 0: their count
+static unsigned long long line_bytes(const char *key, unsigned long long line)
+{
+    unsigned long long count = 0ULL;
+    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = key,
+                                                   .line = line, .count = &count);
+    const unsigned long long capacity = sizeof(s_text) - 1u;
+    const unsigned long long fits = (units == NULL) ? 0ULL : ((count < capacity) ? count : capacity);
+    for (unsigned long long at = 0ULL; at < fits; at += 1ULL)
+    {
+        // a unit below 128 is its own byte
+        s_text[at] = (units[at] < 128u) ? (char)units[at] : '?';
+    }
+    s_text[fits] = '\0';
+    return fits;
+}
+
+// the line `line` of the text under s_key as it stands, its sequences among its letters, into s_text
+static const char *xterm_line_text(unsigned long long line)
+{
+    (void)line_bytes(s_key, line);
+    return s_text;
+}
+
+// the letters of the line `line` of the text under `key` into s_text, the sequences among them and the blanks at its
+// end left out
+static const char *line_letters(const char *key, unsigned long long line)
+{
+    // the bytes read as unsigned are the same bytes
+    unsigned long long size = EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
+                                         .bytes = (unsigned char *)s_text, .size = line_bytes(key, line));
+    while ((size > 0ULL) && (s_text[size - 1ULL] == ' '))
+    {
+        size -= 1ULL;
+    }
+    s_text[size] = '\0';
+    return s_text;
 }
 
 // `text`, a C string, read onto the xterm
@@ -58,21 +108,10 @@ static void xterm_put(const char *text)
                .bytes = (const unsigned char *)text, .size = size);
 }
 
-// the letters of row `y` of the screen drawn on, each below 128, its blanks at the end left off
+// the letters of row `y` of the screen drawn on, the sequences among them and the blanks at its end left out
 static const char *xterm_row_text(unsigned int y)
 {
-    const CliTerminalCell *const row = s_xterm.shown + ((unsigned long long)y * s_xterm.columns);
-    unsigned int end = s_xterm.columns;
-    while ((end > 0u) && (row[end - 1u].letter == (unsigned int)' '))
-    {
-        end -= 1u;
-    }
-    for (unsigned int x = 0u; x < end; x += 1u)
-    {
-        s_text[x] = (char)row[x].letter;
-    }
-    s_text[end] = '\0';
-    return s_text;
+    return line_letters(s_key, s_xterm.base + y);
 }
 
 // the bytes the key `name` sends with the modifiers `mods` into s_text, ended by a 0: 1, or 0 where it sends nothing
@@ -150,6 +189,11 @@ void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
 void tearDown(void)
 {
     EMBED_CALL(cli_terminal_xterm.free, CliTerminalXtermCfg, .xterm = &s_xterm);
+    if (s_stored)
+    {
+        EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
+        s_stored = 0;
+    }
 }
 
 void test_letters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line(void)
@@ -162,24 +206,59 @@ void test_letters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line
     TEST_ASSERT_EQUAL_UINT(1u, s_xterm.cursor.y);
 }
 
-void test_the_16_colors_and_bold_are_set_and_a_reset_takes_them_off(void)
+void test_the_16_colors_and_bold_are_written_before_their_letters_and_a_reset_takes_them_off(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\x1b[31;1mX\x1b[0mY\x1b[94mZ");
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_INDEXED | 1u, s_xterm.shown[0].foreground);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_BOLD, s_xterm.shown[0].marks);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_DEFAULT, s_xterm.shown[1].foreground);
-    TEST_ASSERT_EQUAL_HEX32(0u, s_xterm.shown[1].marks);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_INDEXED | 12u, s_xterm.shown[2].foreground);
+    TEST_ASSERT_EQUAL_STRING("\x1b[0;1;31mX\x1b[0mY\x1b[0;94mZ", xterm_line_text(0ULL));
+    TEST_ASSERT_EQUAL_STRING("XYZ", xterm_row_text(0u));
 }
 
 void test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_them(void)
 {
     xterm_open(10u, 2u);
     xterm_put("\x1b[38;5;200mA\x1b[48;2;1;2;3mB\x1b[38:2::4:5:6mC");
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_INDEXED | 200u, s_xterm.shown[0].foreground);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_DIRECT | 0x010203u, s_xterm.shown[1].background);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_DIRECT | 0x040506u, s_xterm.shown[2].foreground);
+    TEST_ASSERT_EQUAL_STRING("\x1b[0;38;5;200mA\x1b[0;38;5;200;48;2;1;2;3mB\x1b[0;38;2;4;5;6;48;2;1;2;3mC",
+                             xterm_line_text(0ULL));
+}
+
+void test_letters_written_over_others_put_the_style_after_them_back_where_letters_follow(void)
+{
+    xterm_open(10u, 2u);
+    xterm_put("\x1b[32mabc\r\x1b[0mX");
+    TEST_ASSERT_EQUAL_STRING("X\x1b[0;32mbc", xterm_line_text(0ULL));
+    TEST_ASSERT_EQUAL_STRING("Xbc", xterm_row_text(0u));
+    // the same column written over again in a color leaves one sequence before it and none behind
+    xterm_put("\r\x1b[33mY\r\x1b[33mZ");
+    TEST_ASSERT_EQUAL_STRING("\x1b[0;33mZ\x1b[0;32mbc", xterm_line_text(0ULL));
+}
+
+void test_letters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them(void)
+{
+    xterm_open(10u, 2u);
+    xterm_put("\x1b[31mab\x1b[32mcd\x1b[0me\r\x1b[2P");
+    TEST_ASSERT_EQUAL_STRING("\x1b[0;32mcd\x1b[0me", xterm_line_text(0ULL));
+    xterm_put("\x1b[C\x1b[P");
+    TEST_ASSERT_EQUAL_STRING("\x1b[0;32mc\x1b[0me", xterm_line_text(0ULL));
+}
+
+void test_a_column_is_found_past_the_sequences_and_a_line_read_without_them(void)
+{
+    xterm_open(10u, 2u);
+    xterm_put("\x1b[31mab\x1b[0mc");
+    unsigned long long count = 0ULL;
+    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
+                                                   .key = s_key, .line = 0ULL, .count = &count);
+    TEST_ASSERT_NOT_NULL(units);
+    TEST_ASSERT_EQUAL_UINT64(14ULL, count);
+    static const unsigned long long s_places[4] = {7ULL, 8ULL, 13ULL, 14ULL};
+    for (unsigned int column = 0u; column < 4u; column += 1u)
+    {
+        TEST_ASSERT_EQUAL_UINT64(s_places[column],
+                                 EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg, .units = units,
+                                            .count = count, .column = column));
+    }
+    TEST_ASSERT_EQUAL_STRING("abc", xterm_row_text(0u));
 }
 
 void test_where_the_cursor_is_is_answered_after_it_is_placed(void)
@@ -199,28 +278,37 @@ void test_a_line_is_erased_from_the_cursor_to_its_end(void)
     TEST_ASSERT_EQUAL_STRING("ab", xterm_row_text(0u));
 }
 
-void test_lines_scrolled_off_the_main_screen_go_to_the_history_and_a_clear_of_it_is_marked(void)
+void test_lines_scrolled_off_the_main_screen_join_the_history_and_a_clear_of_it_takes_them_out(void)
 {
     xterm_open(10u, 3u);
     xterm_put("1\r\n2\r\n3\r\n4\r\n5");
     TEST_ASSERT_EQUAL_STRING("3", xterm_row_text(0u));
-    TEST_ASSERT_EQUAL_UINT(2u, s_history_count);
-    TEST_ASSERT_EQUAL_MEMORY("12", s_history, 2u);
-    TEST_ASSERT_FALSE(s_xterm.history_cleared);
+    TEST_ASSERT_EQUAL_UINT64(2ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(2ULL, s_xterm.base);
+    TEST_ASSERT_EQUAL_UINT64(5ULL, text_lines());
+    TEST_ASSERT_EQUAL_STRING("1", xterm_line_text(0ULL));
+    TEST_ASSERT_EQUAL_STRING("2", xterm_line_text(1ULL));
     xterm_put("\x1b[3J");
-    TEST_ASSERT_TRUE(s_xterm.history_cleared);
+    TEST_ASSERT_EQUAL_UINT64(0ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
+    TEST_ASSERT_EQUAL_STRING("3", xterm_row_text(0u));
+    TEST_ASSERT_EQUAL_STRING("5", xterm_row_text(2u));
 }
 
-void test_the_second_screen_is_drawn_on_and_left_with_the_main_screen_as_it_was(void)
+void test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_main_screen_as_it_was(void)
 {
     xterm_open(10u, 3u);
     xterm_put("main\x1b[?1049h");
-    TEST_ASSERT_TRUE(s_xterm.shown == s_xterm.second);
+    TEST_ASSERT_TRUE(s_xterm.second);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, s_xterm.base);
+    TEST_ASSERT_EQUAL_UINT64(6ULL, text_lines());
     TEST_ASSERT_EQUAL_STRING("", xterm_row_text(0u));
     xterm_put("full\x1b[?1049l");
-    TEST_ASSERT_TRUE(s_xterm.shown == s_xterm.main);
+    TEST_ASSERT_FALSE(s_xterm.second);
+    TEST_ASSERT_EQUAL_UINT64(0ULL, s_xterm.base);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
     TEST_ASSERT_EQUAL_STRING("main", xterm_row_text(0u));
-    TEST_ASSERT_EQUAL_UINT(0u, s_history_count);
+    TEST_ASSERT_EQUAL_UINT64(0ULL, s_xterm.history);
 }
 
 void test_the_folder_a_shell_reports_is_read_from_osc_7_ended_by_a_bell_or_a_string_terminator(void)
@@ -247,10 +335,15 @@ void test_a_letter_past_ascii_is_read_whole_across_two_reads(void)
     xterm_open(10u, 2u);
     xterm_put("\xc3");
     xterm_put("\xa9!");
-    TEST_ASSERT_EQUAL_HEX32(0xe9u, s_xterm.shown[0].letter);
-    TEST_ASSERT_EQUAL_UINT((unsigned int)'!', s_xterm.shown[1].letter);
     xterm_put("\xff");
-    TEST_ASSERT_EQUAL_HEX32(0xfffdu, s_xterm.shown[2].letter);
+    unsigned long long count = 0ULL;
+    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
+                                                   .key = s_key, .line = 0ULL, .count = &count);
+    TEST_ASSERT_NOT_NULL(units);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, count);
+    TEST_ASSERT_EQUAL_HEX16(0xe9u, units[0]);
+    TEST_ASSERT_EQUAL_HEX16((unsigned int)'!', units[1]);
+    TEST_ASSERT_EQUAL_HEX16(0xfffdu, units[2]);
 }
 
 void test_lines_inserted_and_deleted_stay_inside_the_region(void)
@@ -265,7 +358,8 @@ void test_lines_inserted_and_deleted_stay_inside_the_region(void)
     TEST_ASSERT_EQUAL_STRING("", xterm_row_text(1u));
     TEST_ASSERT_EQUAL_STRING("", xterm_row_text(2u));
     TEST_ASSERT_EQUAL_STRING("d", xterm_row_text(3u));
-    TEST_ASSERT_EQUAL_UINT(0u, s_history_count);
+    TEST_ASSERT_EQUAL_UINT64(0ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(4ULL, text_lines());
 }
 
 void test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history(void)
@@ -277,8 +371,10 @@ void test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history(void)
     TEST_ASSERT_EQUAL_STRING("3", xterm_row_text(0u));
     TEST_ASSERT_EQUAL_STRING("4", xterm_row_text(1u));
     TEST_ASSERT_EQUAL_UINT(1u, s_xterm.cursor.y);
-    TEST_ASSERT_EQUAL_UINT(2u, s_history_count);
-    TEST_ASSERT_EQUAL_MEMORY("12", s_history, 2u);
+    TEST_ASSERT_EQUAL_UINT64(2ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(4ULL, text_lines());
+    TEST_ASSERT_EQUAL_STRING("1", xterm_line_text(0ULL));
+    TEST_ASSERT_EQUAL_STRING("2", xterm_line_text(1ULL));
 }
 
 // the shell `words` started on an 80 by 24 xterm, `typed` typed into it at once where it is not NULL, and drained
@@ -320,23 +416,14 @@ static int shell_run(const char *const *words, const char *typed)
     return ended;
 }
 
-// whether a row of the screen drawn on holds `text`, a C string
+// whether a row of the screen drawn on shows `text`, a C string
 static int xterm_holds(const char *text)
 {
     for (unsigned int y = 0u; y < s_xterm.rows; y += 1u)
     {
-        const char *const row = xterm_row_text(y);
-        for (unsigned int from = 0u; row[from] != '\0'; from += 1u)
+        if (strstr(xterm_row_text(y), text) != NULL)
         {
-            unsigned int at = 0u;
-            while ((text[at] != '\0') && (row[from + at] == text[at]))
-            {
-                at += 1u;
-            }
-            if (text[at] == '\0')
-            {
-                return 1;
-            }
+            return 1;
         }
     }
     return 0;
@@ -366,28 +453,19 @@ void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void
     TEST_ASSERT_TRUE(xterm_holds("[exited 0]"));
 }
 
-// whether a row of the pane `view` shows `text`, a C string
+// whether a row of the pane `view` shows `text`, a C string, among the letters of its tab's text's line
 static int pane_holds(unsigned int view, const char *text)
 {
     CliTerminalView shown;
-    if (!cli_terminal_tabs_view(view, &shown) || (shown.cell == NULL))
+    if (!cli_terminal_tabs_view(view, &shown) || (shown.key == NULL))
     {
         return 0;
     }
     for (unsigned int y = 0u; y < shown.rows; y += 1u)
     {
-        for (unsigned int from = 0u; from < shown.columns; from += 1u)
+        if (strstr(line_letters(shown.key, shown.xterm_line + y), text) != NULL)
         {
-            unsigned int at = 0u;
-            while ((text[at] != '\0') && ((from + at) < shown.columns) &&
-                   (shown.cell[((unsigned long long)y * shown.columns) + from + at].letter == (unsigned int)text[at]))
-            {
-                at += 1u;
-            }
-            if (text[at] == '\0')
-            {
-                return 1;
-            }
+            return 1;
         }
     }
     return 0;

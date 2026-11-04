@@ -30,46 +30,47 @@ extern "C"
 #define CLI_TURNSTILE_SLEEPER 2u
 #define CLI_TURNSTILE_PASS 4u
 
-typedef struct
-{
-    _Alignas(64) _Atomic unsigned int word;
-} CliTurnstile;
+    typedef struct
+    {
+        _Alignas(64) _Atomic unsigned int word;
+    } CliTurnstile;
 
-// A set of turnstiles, zeros at rest: one set to each thing that readers read while a writer releases its parts
-typedef struct
-{
-    CliTurnstile turnstile[CLI_TURNSTILES];
-} CliTurnstiles;
+    // A set of turnstiles, zeros at rest: one set to each thing that readers read while a writer releases its parts
+    typedef struct
+    {
+        CliTurnstile turnstile[CLI_TURNSTILES];
+    } CliTurnstiles;
 
-// A sleep on `word` while it reads `seen`, at most `milliseconds_u64`, CLI_ATOMIC_FOREVER for no end: 1 where the word
-// moved off `seen`, 0 where it did not. A sleep is free to end early, so a sleeper tests what it waits for in a loop.
-// And every thread asleep on `word` woken
-int cli_atomic_wait(const CliAtomicThreadsCfg *args);
-void cli_atomic_wake(const CliAtomicThreadsCfg *args);
+    // A sleep on `word` while it reads `seen`, at most `milliseconds_u64`, CLI_ATOMIC_FOREVER for no end: 1 where the
+    // word moved off `seen`, 0 where it did not. A sleep is free to end early, so a sleeper tests what it waits for in
+    // a loop. And every thread asleep on `word` woken
+    int cli_atomic_wait(const CliAtomicThreadsCfg *args);
+    void cli_atomic_wake(const CliAtomicThreadsCfg *args);
 
-// A pass begun through a free turnstile of `turnstiles`, the one this thread passed through last tried first: its place,
-// which the end of the pass takes as `at`. Where every turnstile has a reader passing, the thread backs off and sleeps
-// until one is free. What the pass reads of a published pointer is read after the pass begins, and no part of it is read
-// after the pass ends
-unsigned int cli_turnstile_enter(const CliAtomicThreadsCfg *args);
-// the pass through the turnstile at `at` of `turnstiles` ended, and a thread asleep on the turnstile woken
-void cli_turnstile_leave(const CliAtomicThreadsCfg *args);
-// Every pass through `turnstiles` begun before this call waited out: a writer swaps a published pointer, calls this, and
-// then releases what the old pointer led to. A pass begun after the swap reads the new pointer, and is not waited on
-// @warning A turnstile's count wraps after 2^30 passes; a writer asleep on a turnstile through exactly that many passes
-//          reads the count it began with and waits on until the pass after them ends
-void cli_turnstiles_drain(const CliAtomicThreadsCfg *args);
+    // A pass begun through a free turnstile of `turnstiles`, the one this thread passed through last tried first: its
+    // place, which the end of the pass takes as `at`. Where every turnstile has a reader passing, the thread backs off
+    // and sleeps until one is free. What the pass reads of a published pointer is read after the pass begins, and no
+    // part of it is read after the pass ends
+    unsigned int cli_turnstile_enter(const CliAtomicThreadsCfg *args);
+    // the pass through the turnstile at `at` of `turnstiles` ended, and a thread asleep on the turnstile woken
+    void cli_turnstile_leave(const CliAtomicThreadsCfg *args);
+    // Every pass through `turnstiles` begun before this call waited out: a writer swaps a published pointer, calls
+    // this, and then releases what the old pointer led to. A pass begun after the swap reads the new pointer, and is
+    // not waited on
+    // @warning A turnstile's count wraps after 2^30 passes; a writer asleep on a turnstile through exactly
+    //          that many passes reads the count it began with and waits on until the pass after them ends
+    void cli_turnstiles_drain(const CliAtomicThreadsCfg *args);
 
-// the word slept on, the value it was read at, and the most milliseconds the sleep lasts; the turnstiles passed through,
-// and the place of the one a pass ends
-struct CliAtomicThreadsCfg
-{
-    _Atomic unsigned int *word;
-    unsigned int seen;
-    unsigned long long milliseconds_u64;
-    CliTurnstiles *turnstiles;
-    unsigned int at;
-};
+    // the word slept on, the value it was read at, and the most milliseconds the sleep lasts; the turnstiles passed
+    // through, and the place of the one a pass ends
+    struct CliAtomicThreadsCfg
+    {
+        _Atomic unsigned int *word;
+        unsigned int seen;
+        unsigned long long milliseconds_u64;
+        CliTurnstiles *turnstiles;
+        unsigned int at;
+    };
 
 #ifdef __cplusplus
 }

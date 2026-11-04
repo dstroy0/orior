@@ -166,7 +166,8 @@ EMBED_INLINE void notices_shown(const CliNoticesCtx *args)
     s_notices.shown = notice.cell;
     s_notices.shown_kind = notice.kind;
     s_notices.shown_failed = notice.failed;
-    s_notices.shown_until_ms = cli_clock_milliseconds() + (notice.failed ? CLI_NOTICES_FAILED_MS : CLI_NOTICES_SHOWN_MS);
+    s_notices.shown_until_ms =
+        cli_clock_milliseconds() + (notice.failed ? CLI_NOTICES_FAILED_MS : CLI_NOTICES_SHOWN_MS);
 }
 
 // whether the kind `kind` is put away
@@ -319,8 +320,7 @@ void cli_notices_press(unsigned int part)
         return;
     }
     const char *const kind = s_notices.shown_kind;
-    if ((part == CLI_NOTICES_PRESS_SILENCE) && (kind != NULL) &&
-        !EMBED_CALL(notices_away, CliNoticesCtx, .kind = kind))
+    if ((part == CLI_NOTICES_PRESS_SILENCE) && (kind != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .kind = kind))
     {
         const unsigned long long had =
             (s_notices.away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_CELLS_POOL})
@@ -439,8 +439,8 @@ void cli_notices_end(void)
     }
     for (unsigned int at = 0u; at < s_notices.waiting_count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(
-            s_notices.waiting[(s_notices.waiting_first + at) % CLI_NOTICES_LISTED].cell, &g_cli_command_line_cells);
+        g_cli_cells->persistent_buf_release(s_notices.waiting[(s_notices.waiting_first + at) % CLI_NOTICES_LISTED].cell,
+                                            &g_cli_command_line_cells);
     }
     g_cli_cells->persistent_buf_release(s_notices.list, &g_cli_command_line_cells);
     g_cli_cells->persistent_buf_release(s_notices.waiting, &g_cli_command_line_cells);

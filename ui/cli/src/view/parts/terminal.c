@@ -27,7 +27,7 @@ typedef struct
     int y;
     unsigned long long *row;
     unsigned long long *column;
-    const CliTerminalCell *cell;
+    unsigned int letter;
     GuiRect box;
     GuiRect place;
     int baseline;
@@ -130,37 +130,6 @@ EMBED_INLINE GuiRect terminal_tab(const TerminalCtx *args)
         }
         x += width + between;
     }
-}
-
-// a cell's color `value`: one of the sixteen from the palette, the 6 by 6 by 6 cube with each part 0 or 55 and 40 a
-// step, the 24 grays from 8 by tens, or red, green and blue; `color` where it is the default
-EMBED_INLINE GuiColor terminal_color(const TerminalCtx *args)
-{
-    const unsigned int kind = args->value & CLI_TERMINAL_COLOR_KIND;
-    const unsigned int index = args->value & 0xffu;
-    if (kind == CLI_TERMINAL_COLOR_DIRECT)
-    {
-        return GUI_RGB((args->value >> 16u) & 0xffu, (args->value >> 8u) & 0xffu, args->value & 0xffu);
-    }
-    if (kind != CLI_TERMINAL_COLOR_INDEXED)
-    {
-        return args->color;
-    }
-    if (index < GUI_TERMINAL_COLORS)
-    {
-        return args->palette->terminal[index];
-    }
-    if (index < 232u)
-    {
-        const unsigned int cube = index - 16u;
-        const unsigned int red = cube / 36u;
-        const unsigned int green = (cube / 6u) % 6u;
-        const unsigned int blue = cube % 6u;
-        return GUI_RGB((red != 0u) ? (55u + (40u * red)) : 0u, (green != 0u) ? (55u + (40u * green)) : 0u,
-                       (blue != 0u) ? (55u + (40u * blue)) : 0u);
-    }
-    const unsigned int gray = 8u + (10u * (index - 232u));
-    return GUI_RGB(gray, gray, gray);
 }
 
 int gui_terminal_size(const GuiTerminalCfg *args)
@@ -389,65 +358,36 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
     }
 }
 
-// the cell `cell` drawn in `box`, clipped to `place`: its ground where it has one of its own, the selection's where it
-// is `chosen` and the signal's where the cursor stands on it `solid`; its letter in its color, face and marks; and the
-// cursor's outline where it stands on it and is not solid
+// the letter `letter` drawn in `box`, clipped to `place`, in `color`: on the selection's ground where it is `chosen`
+// and the signal's where the cursor stands on it `solid`; and the cursor's outline where it stands on it and is not
+// solid
 EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
 {
-    const CliTerminalCell *const at = args->cell;
     const GuiPalette *const palette = args->palette;
     const GuiRect box = args->box;
     const int width = args->width;
     const int height = args->height;
     const int one = args->one;
-    const int inverse = (at->marks & CLI_TERMINAL_INVERSE) != 0u;
-    const GuiColor foreground =
-        EMBED_CALL(terminal_color, TerminalCtx, .palette = palette, .value = at->foreground, .color = palette->text);
-    const GuiColor background = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette, .value = at->background,
-                                           .color = inverse ? palette->well : 0u);
-    GuiColor ground =
-        inverse ? (at->foreground != CLI_TERMINAL_COLOR_DEFAULT ? foreground : palette->text) : background;
-    GuiColor ink = inverse ? background : foreground;
-    ground = args->chosen ? palette->selection : ground;
+    GuiColor ground = args->chosen ? palette->selection : 0u;
     ground = (args->cursor && args->solid) ? palette->signal : ground;
-    ink = (args->cursor && args->solid) ? palette->well : ink;
-    // a dim letter is drawn at three fifths of its ink
-    ink =
-        ((at->marks & CLI_TERMINAL_DIM) != 0u) ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u)) : ink;
+    const GuiColor ink = (args->cursor && args->solid) ? palette->well : args->color;
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->place);
     if (GUI_ALPHA_OF(ground) != 0u)
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                    .color = ground);
     }
-    if (at->letter > (unsigned int)' ')
+    if (args->letter > (unsigned int)' ')
     {
-        const unsigned int bold = ((at->marks & CLI_TERMINAL_BOLD) != 0u) ? 1u : 0u;
-        const unsigned int italic = ((at->marks & CLI_TERMINAL_ITALIC) != 0u) ? 2u : 0u;
         float advance = 0.0f;
-        const GuiGlyphCell *const glyph =
-            EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
-                       .face = GUI_FACE_CODE + bold + italic, .letter = at->letter, .size = args->size, .color = ink,
-                       .advance = &advance);
+        const GuiGlyphCell *const glyph = EMBED_CALL(
+            gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs, .face = GUI_FACE_CODE,
+            .letter = args->letter, .size = args->size, .color = ink, .advance = &advance);
         if (glyph != NULL)
         {
             EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = args->raster, .cell = glyph,
                        .x = box.x, .y = box.y + args->baseline, .clip = on);
         }
-    }
-    if ((at->marks & CLI_TERMINAL_UNDERLINE) != 0u)
-    {
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){box.x, box.y + args->baseline + one, width, one}, .other = on),
-                   .color = ink);
-    }
-    if ((at->marks & CLI_TERMINAL_STRIKE) != 0u)
-    {
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){box.x, box.y + (height / 2), width, one}, .other = on),
-                   .color = ink);
     }
     if (args->cursor && !args->solid)
     {
@@ -502,45 +442,72 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const CliPosition from = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->anchor : frame->cursor);
     const CliPosition to = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->cursor : frame->anchor);
     const int selected = (from.line != to.line) || (from.col != to.col);
-    const unsigned int count = (frame != NULL) ? frame->count : shown->rows;
+    const CliDocumentNames *const names = args->terminal_read->names[args->view];
+    const unsigned int count = (frame != NULL) ? frame->count : 0u;
     for (unsigned int y = 0u; (y < count) && (y < shown->rows); y += 1u)
     {
-        const unsigned long long line = (frame != NULL) ? frame->row[y].number : (shown->xterm_line + y);
-        const int overlaid = (line >= shown->xterm_line) && (line < (shown->xterm_line + shown->rows));
-        // the xterm's row a line of its rows stands for, far inside what an unsigned int counts
-        const unsigned int xterm_row = overlaid ? (unsigned int)(line - shown->xterm_line) : 0u;
-        const char *const text = ((frame != NULL) && !overlaid) ? (frame->bytes + frame->row[y].text) : NULL;
-        const unsigned long long length = (text != NULL) ? frame->row[y].length : 0ULL;
+        const unsigned long long line = frame->row[y].number;
+        const char *const text = frame->bytes + frame->row[y].text;
+        const unsigned long long length = frame->row[y].length;
+        // a line's runs stand in the frame's runs cell as its columns and then each run's token's place in the table,
+        // none where that cell could not be met
+        const CliDocumentLineRuns none = {0u, 0u};
+        const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[y] : none;
+        const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at) : NULL;
+        const unsigned int *const name_of =
+            (frame->runs != NULL) ? (frame->runs->word_text + runs.at + runs.runs) : NULL;
         const int on_chosen = selected && (line >= from.line) && (line <= to.line);
         const unsigned long long chosen_from = (line == from.line) ? from.col : 0ULL;
         const unsigned long long chosen_to = (line == to.line) ? to.col : ~0ULL;
+        const int cursor_row = shown->cursor_shown && (line == (shown->xterm_line + shown->cursor_y));
         unsigned long long units = 0ULL;
         unsigned long long at = 0ULL;
-        for (unsigned int x = 0u; x < shown->columns; x += 1u)
+        unsigned int x = 0u;
+        unsigned int next = 0u;
+        GuiColor color = palette->text;
+        int concealed = 0;
+        while ((at < length) && (x < shown->columns))
         {
-            CliTerminalCell one_cell = {(unsigned int)' ', CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
-            if (overlaid)
+            while ((next < runs.runs) && (units >= column_of[next]))
             {
-                one_cell = shown->cell[((unsigned long long)xterm_row * shown->columns) + x];
+                const char *const token =
+                    ((names != NULL) && (name_of[next] < names->count)) ? names->name[name_of[next]] : "";
+                const unsigned long long token_length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL});
+                // a run the grammar conceals takes no column: an SGR sequence among the letters
+                concealed = cellul.eq(&(CatenaFinitaCfg){.src = token, .other = "conceal", .cap = 64ULL});
+                color = (token_length != 0ULL)
+                            ? EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
+                                         .name_read = token, .length = token_length)
+                            : palette->text;
+                next += 1u;
             }
-            else if (at < length)
-            {
-                unsigned long long consumed = 0ULL;
-                one_cell.letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at,
-                                             .length = &consumed);
-                at += (consumed != 0ULL) ? consumed : 1ULL;
-            }
+            unsigned long long consumed = 0ULL;
+            const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
+                                                   .at = at, .length = &consumed);
+            at += (consumed != 0ULL) ? consumed : 1ULL;
             // a column is counted in the units of the text the view chooses in, a letter past the basic plane two
             const int chosen = on_chosen && (units >= chosen_from) && (units < chosen_to);
-            units += (one_cell.letter >= 0x10000u) ? 2ULL : 1ULL;
+            units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+            if (concealed)
+            {
+                continue;
+            }
             // a pane's columns and rows are far inside what an int represents
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .palette = palette, .cell = &one_cell,
+                       .palette = palette, .letter = letter, .color = color,
                        .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = place,
                        .size = size, .baseline = baseline, .width = cell, .height = row, .one = one, .chosen = chosen,
-                       .cursor =
-                           overlaid && shown->cursor_shown && (x == shown->cursor_x) && (xterm_row == shown->cursor_y),
-                       .solid = solid);
+                       .cursor = cursor_row && (x == shown->cursor_x), .solid = solid);
+            x += 1u;
+        }
+        // the cursor past the line's letters, on a blank of its own
+        if (cursor_row && (shown->cursor_x >= x) && (shown->cursor_x < shown->columns))
+        {
+            EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
+                       .palette = palette, .letter = (unsigned int)' ', .color = palette->text,
+                       .box = (GuiRect){left + ((int)shown->cursor_x * cell), top + ((int)y * row), cell, row},
+                       .place = place, .size = size, .baseline = baseline, .width = cell, .height = row, .one = one,
+                       .chosen = 0, .cursor = 1, .solid = solid);
         }
     }
 }

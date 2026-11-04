@@ -63,7 +63,8 @@ int cli_atomic_wait(const CliAtomicThreadsCfg *args)
     const uint32_t timeout = (milliseconds == CLI_ATOMIC_FOREVER) ? 0u : (uint32_t)((micro != 0ULL) ? micro : 1ULL);
     (void)__ulock_wait(CLI_ULOCK_COMPARE_AND_WAIT | CLI_ULOCK_NO_ERRNO, (void *)args->word, args->seen, timeout);
 #else
-    // a system with no address wait sleeps the time, or a millisecond for a sleep with no end, and its sleeper tests again
+    // a system with no address wait sleeps the time, or a millisecond for a sleep with no end, and its sleeper tests
+    // again
     const unsigned long long slept = (milliseconds == CLI_ATOMIC_FOREVER) ? 1ULL : milliseconds;
     struct timespec span;
     span.tv_sec = (time_t)(slept / 1000ULL);
