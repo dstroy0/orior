@@ -307,6 +307,16 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
                .color = args->palette->side_background, .grain = 0u);
     EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS], .color = args->palette->surface,
                .grain = 0u);
+    // the tabs row's surface at each sixteenth of its alpha, as the claim fades the row
+    for (unsigned int part = 1u; part < GUI_BASE_PARTS; part += 1u)
+    {
+        // an alpha by a share of sixteenths, rounded, is a byte
+        const GuiColor faded =
+            (args->palette->surface & 0x00ffffffu) |
+            ((((GUI_ALPHA_OF(args->palette->surface) * part) + (GUI_BASE_PARTS / 2u)) / GUI_BASE_PARTS) << 24u);
+        EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS_PART + part - 1u],
+                   .color = faded, .grain = 0u);
+    }
     for (unsigned int level = 0u; level < GUI_BASE_GRAIN_LEVELS; level += 1u)
     {
         EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_GLASS + level],
@@ -368,7 +378,16 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                .rect = (GuiRect){0, 0, (int)args->base->width, (int)args->base->height}, .layer = GUI_BASE_GLASS);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->work, .layer = GUI_BASE_CLEAR);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->side, .layer = GUI_BASE_SIDE);
-    EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->tabs, .layer = GUI_BASE_TABS);
+    // the tabs row's surface at the share of it shown, by sixteenths, none of it leaving the lattice; a share is no
+    // more than GUI_FIXED_ONE and not negative
+    const unsigned int tabs_part = (frame->tabs_share >= GUI_FIXED_ONE)
+                                       ? GUI_BASE_PARTS
+                                       : (((unsigned int)frame->tabs_share * GUI_BASE_PARTS) / GUI_FIXED_ONE);
+    if (tabs_part != 0u)
+    {
+        EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->tabs,
+                   .layer = (tabs_part >= GUI_BASE_PARTS) ? GUI_BASE_TABS : (GUI_BASE_TABS_PART + tabs_part - 1u));
+    }
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->editor, .layer = GUI_BASE_EDITOR);
     // the terminal's panel on the ink at half as the side is, its views on the editor's ground
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->terminal, .layer = GUI_BASE_SIDE);

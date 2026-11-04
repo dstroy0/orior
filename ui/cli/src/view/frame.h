@@ -99,7 +99,9 @@ typedef struct
 // three as the slat its edge shows, the part's rectangle cut to its grown share, and the edges of each slat's pane and
 // of the controls' in the frame's words; the controls' glass pane with its
 // lip and the pane's share of the glass, 0 while the controls stand in the bar; the controls' opacity; the panes'
-// corner radius; and the work's
+// corner radius; the work's; the tabs row whole, its foot at the foot of the row shown, risen out of the work's head as
+// the claim takes it away, with the share of it shown, which is its opacity, GUI_FIXED_ONE whole; and the map whole,
+// its left at the left of the map's column, past the editor's right edge as the claim closes the column
 typedef struct
 {
     unsigned int width;
@@ -133,6 +135,9 @@ typedef struct
     int controls_alpha;
     unsigned int pane_radius;
     unsigned int radius;
+    GuiRect tabs_row;
+    int tabs_share;
+    GuiRect map_whole;
 } GuiFrame;
 
 // a size in the page's pixels at `scale`, a percent, rounded to a whole pixel

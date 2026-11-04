@@ -151,13 +151,14 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_BOTTOM, .scale = scale);
     const int pad_left =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_LEFT, .scale = scale);
-    // the tabs row is away while the claim holds and the head's inset is not taken; the map while the right is not
-    // revealed
-    const int tabs_height = EMBED_CALL(
-        frame_share, FrameCtx,
-        .share = GUI_FIXED_ONE -
-                 EMBED_CALL(frame_share, FrameCtx, .share = claim->claim, .pixels = GUI_FIXED_ONE - claim->inset_top),
-        .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale));
+    // the tabs row is away while the claim holds and the head's inset is not taken, risen out of the work's head whole
+    // and faded by the share away; the map is away while the right is not revealed
+    const int tabs_share =
+        GUI_FIXED_ONE -
+        EMBED_CALL(frame_share, FrameCtx, .share = claim->claim, .pixels = GUI_FIXED_ONE - claim->inset_top);
+    const int tabs_whole =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale);
+    const int tabs_height = EMBED_CALL(frame_share, FrameCtx, .share = tabs_share, .pixels = tabs_whole);
     const int inner_width = args->frame->work.width - pad_left - pad_right;
     const int inside_height = args->frame->work.height - pad_top - pad_bottom;
     const int terminal = EMBED_CALL(frame_terminal_height, FrameCtx, .frame = args->frame, .pixels = inside_height);
@@ -179,11 +180,13 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         side = args->side_width;
     }
     const int rest = inner_width - side;
+    const int map_whole =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_WIDTH, .scale = scale);
     const int map_width = EMBED_CALL(
         frame_share, FrameCtx,
         .share = GUI_FIXED_ONE - EMBED_CALL(frame_share, FrameCtx, .share = claim->claim,
                                             .pixels = GUI_FIXED_ONE - claim->reveal_right),
-        .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_WIDTH, .scale = scale));
+        .pixels = map_whole);
     int map;
     if (map_width > rest)
     {
@@ -211,10 +214,16 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     args->frame->terminal_views = (GuiRect){args->frame->terminal.x, args->frame->terminal.y + terminal - views,
                                             (views > 0) ? inner_width : 0, views};
     args->frame->tabs = (GuiRect){args->frame->inside.x + side, args->frame->inside.y, rest, tabs_height};
+    args->frame->tabs_row = (GuiRect){args->frame->tabs.x, args->frame->inside.y + tabs_height - tabs_whole, rest,
+                                      tabs_whole};
+    args->frame->tabs_share = tabs_share;
     args->frame->editor =
         (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height, rest - map, inner_height - tabs_height};
     args->frame->map = (GuiRect){args->frame->editor.x + args->frame->editor.width, args->frame->editor.y, map,
                                  args->frame->editor.height};
+    // the map stands whole from its column's left, the claim closing the column sliding it out past the editor's edge
+    args->frame->map_whole = (GuiRect){args->frame->map.x, args->frame->map.y,
+                                       (map_whole > map) ? map_whole : map, args->frame->map.height};
 }
 
 // every part laid out for the frame's size, scale, side and claim

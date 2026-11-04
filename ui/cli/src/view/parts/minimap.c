@@ -26,7 +26,17 @@ typedef struct
     GuiRaster *raster;
     const GuiPalette *palette;
     const CliViewFrame *editor;
+    GuiRect clip;
+    GuiColor color;
 } MinimapCtx;
+
+// `place` filled with `color` no further than `clip`
+EMBED_INLINE void map_fill(const MinimapCtx *args)
+{
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip),
+               .color = args->color);
+}
 // a row's height in pixels at `scale`, one at the least
 EMBED_INLINE int map_row_height(const MinimapCtx *args)
 {
@@ -132,31 +142,31 @@ EMBED_INLINE void map_strip_draw(const MinimapCtx *args)
     const int share =
         (int)((float)args->place.height / ((args->editor->lines > 1ULL) ? (float)args->editor->lines : 1.0f));
     const int pixel_height = (share > mark) ? share : mark;
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = (GuiRect){left, args->place.y, strip_width, args->place.height},
+    EMBED_CALL(map_fill, MinimapCtx, .raster = raster, .clip = args->clip,
+               .place = (GuiRect){left, args->place.y, strip_width, args->place.height},
                .color = args->palette->editor_background);
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = (GuiRect){left, args->place.y,
-                                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
-                                 args->place.height},
+    EMBED_CALL(map_fill, MinimapCtx, .raster = raster, .clip = args->clip,
+               .place = (GuiRect){left, args->place.y,
+                                  EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+                                  args->place.height},
                .color = args->palette->widget_line);
     if (args->editor->find.open)
     {
         for (unsigned long long at = 0ULL; at < args->editor->matches; at += 1ULL)
         {
-            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                       .rect = (GuiRect){left + inset,
-                                         EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place,
-                                                    .lines = args->editor->lines, .line = args->editor->match[at][0]),
-                                         strip_width - inset, pixel_height},
+            EMBED_CALL(map_fill, MinimapCtx, .raster = raster, .clip = args->clip,
+                       .place = (GuiRect){left + inset,
+                                          EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place,
+                                                     .lines = args->editor->lines, .line = args->editor->match[at][0]),
+                                          strip_width - inset, pixel_height},
                        .color = args->palette->map_match);
         }
     }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = (GuiRect){left + inset,
-                                 EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place, .lines = args->editor->lines,
-                                            .line = args->editor->cursor.line),
-                                 strip_width - inset, mark},
+    EMBED_CALL(map_fill, MinimapCtx, .raster = raster, .clip = args->clip,
+               .place = (GuiRect){left + inset,
+                                  EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place, .lines = args->editor->lines,
+                                             .line = args->editor->cursor.line),
+                                  strip_width - inset, mark},
                .color = args->palette->caret);
 }
 
@@ -166,16 +176,18 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     const GuiEditor *const painter = args->editor;
     const CliViewFrame *const editor = painter->frame;
     int scale = args->scale;
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->place))
+    const GuiRect shown =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = shown))
     {
         return;
     }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->place,
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = shown,
                .color = palette->editor_background);
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-               .rect = (GuiRect){args->place.x, args->place.y,
-                                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
-                                 args->place.height},
+    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = shown,
+               .place = (GuiRect){args->place.x, args->place.y,
+                                  EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+                                  args->place.height},
                .color = palette->line);
     if ((editor == NULL) || (editor->lines == 0ULL))
     {
@@ -191,7 +203,7 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
     const int cell = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_CHAR, .scale = scale);
     const int bar_height = ((row_height * 3) / 4 > 0) ? (row_height * 3) / 4 : 1;
     const GuiRect rows = EMBED_CALL(
-        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place,
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = shown,
         .other = (GuiRect){args->place.x, args->place.y, args->place.width - strip_width, args->place.height});
     const unsigned long long first = at->start;
     const unsigned long long reach = at->start + (unsigned long long)at->fit;
@@ -207,9 +219,9 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
         const unsigned long long top_row = (selected_from.line > first) ? selected_from.line : first;
         const unsigned long long bottom_row = (selected_to.line < end - 1ULL) ? selected_to.line : end - 1ULL;
         // the rows are within the map's, which an int counts
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                   .rect = (GuiRect){rows.x, args->place.y + ((int)(top_row - first) * row_height), rows.width,
-                                     (int)(bottom_row - top_row + 1ULL) * row_height},
+        EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = rows,
+                   .place = (GuiRect){rows.x, args->place.y + ((int)(top_row - first) * row_height), rows.width,
+                                      (int)(bottom_row - top_row + 1ULL) * row_height},
                    .color = palette->map_selection);
     }
     if (editor->find.open)
@@ -219,9 +231,9 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
             const unsigned long long line = editor->match[each][0];
             if ((line >= first) && (line < end))
             {
-                EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                           .rect = (GuiRect){rows.x, args->place.y + ((int)(line - first) * row_height), rows.width,
-                                             row_height},
+                EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = rows,
+                           .place = (GuiRect){rows.x, args->place.y + ((int)(line - first) * row_height), rows.width,
+                                              row_height},
                            .color = palette->map_match);
             }
         }
@@ -256,21 +268,20 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
                        .color = (color & 0x00ffffffu) | (MAP_BAR_ALPHA << 24u));
         }
     }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){args->place.x, args->place.y + at->slider_top, args->place.width,
-                                                   at->slider_height},
-                                  .other = args->place),
+    EMBED_CALL(map_fill, MinimapCtx, .raster = args->raster, .clip = shown,
+               .place = (GuiRect){args->place.x, args->place.y + at->slider_top, args->place.width, at->slider_height},
                .color = args->map->dragging ? palette->map_slider_on : palette->map_slider);
     EMBED_CALL(map_strip_draw, MinimapCtx, .raster = args->raster, .palette = palette, .editor = editor,
-               .place = args->place, .scale = scale);
+               .place = args->place, .clip = shown, .scale = scale);
 }
 
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args)
 {
     int scale = args->scale;
     unsigned long long *top = args->top;
-    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->place, .x = args->x, .y = args->y) ||
+    const GuiRect shown =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip);
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = shown, .x = args->x, .y = args->y) ||
         (args->editor->frame == NULL) || (args->editor->frame->lines == 0ULL))
     {
         return 0;

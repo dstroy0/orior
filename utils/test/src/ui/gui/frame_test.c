@@ -81,6 +81,9 @@ int main(void)
                   (frame.bar_edges.right == 1440 * GUI_FIXED_ONE) && (frame.status_edges.top == (920 - 27) * GUI_FIXED_ONE) &&
                   (frame.strip_edges.right == 44 * GUI_FIXED_ONE),
               "at rest each pane's edges are its rectangle's in the frame's words");
+    cli_check(same(frame.tabs_row, frame.tabs.x, frame.tabs.y, frame.tabs.width, 31) &&
+                  (frame.tabs_share == GUI_FIXED_ONE),
+              "outside the claim the tabs row stands whole where it is shown, at its full opacity");
     numbers.claim = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(same(frame.work, 12, 12, 1440 - 24, 920 - 24),
@@ -89,6 +92,8 @@ int main(void)
     cli_check(frame.strip.x + frame.strip.width == 0, "the strip stands off the window's left");
     cli_check(frame.status.y == 920, "the status bar stands off the window's foot");
     cli_check((frame.tabs.height == 0) && (frame.map.width == 0), "the tabs row and the map are away");
+    cli_check((frame.tabs_row.height == 31) && (frame.tabs_row.y + 31 == frame.tabs.y) && (frame.tabs_share == 0),
+              "the tabs row stands whole, risen out of the work's head, at no opacity");
     cli_check(frame.controls.y + frame.controls.height == 0, "the controls stand off with the bar");
     cli_check(frame.pane_radius == 7u, "the panes are rounded as the work is");
     cli_check(EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = (GuiRect[4]){{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}) == 0u,
@@ -97,6 +102,11 @@ int main(void)
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check((frame.work.x == 28) && (frame.work.y == 26) && (frame.bar.y == -21) && (frame.status.y == 920 - 27 + 14),
               "halfway through the claim's slide every edge stands halfway");
+    cli_check((frame.tabs_row.height == 31) && (frame.tabs_row.y + 31 == frame.tabs.y + frame.tabs.height) &&
+                  (frame.tabs.height == 16) && (frame.tabs_share == GUI_FIXED_ONE / 2),
+              "halfway, the tabs row stands whole, risen by half out of the work's head, at half its opacity");
+    cli_check((frame.map.width == 42) && same(frame.map_whole, frame.map.x, frame.map.y, 84, frame.map.height),
+              "halfway, the map's column is half closed and the map stands whole from its left, past the editor's edge");
     cli_check((frame.bar_edges.top == -(41 * GUI_FIXED_ONE) / 2) &&
                   (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_FIXED_ONE)),
               "the bar's edges carry the half pixel its rectangle rounds away");

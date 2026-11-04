@@ -61,14 +61,15 @@ void gui_minimap_clear(const GuiMinimapCfg *args);
 void gui_minimap_on_position(const GuiMinimapPositionCfg *args);
 // the lines the map placed stands for, first and last: 1, or 0 where the text has none
 int gui_minimap_span(const GuiMinimapFirstCfg *args);
-// the map drawn in `place` at `scale`: the editor's ground and the line along its left; then, while the text has lines,
-// the selection's rows, the matches' rows, each line's bars in their tokens' colors, the slider, and the overview strip
-// at its right with the matches and the caret's line
+// the map drawn in `place` at `scale`, no pixel of it outside `clip`, where it shows as the claim slides it out past
+// the editor's edge: the editor's ground and the line along its left; then, while the text has lines, the selection's
+// rows, the matches' rows, each line's bars in their tokens' colors, the slider, and the overview strip at its right
+// with the matches and the caret's line
 void gui_minimap_draw(const GuiMinimapPositionCfg *args);
-// a press at x, y: on the strip, the view's top given as that part of the text; on the map outside the slider, the top
-// given as the row's line centered, and the slider's drag begun; on the slider, the top given as it is and the drag
-// begun: 1, or 0 where the press is outside the map or the text has no lines; the pointer moved to `y` while the drag
-// runs, the top given as the slider's run gives it: 1, or 0 where no drag runs; and the drag ended
+// a press at x, y within `clip`: on the strip, the view's top set to that part of the text; on the map outside the
+// slider, the top set to center the row's line, and the slider's drag begun; on the slider, the top as it stands and
+// the drag begun: 1, or 0 where the press is outside the map shown or the text has no lines; the pointer moved to `y`
+// while the drag runs, the top set by the slider's run: 1, or 0 where no drag runs; and the drag ended
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args);
 int gui_minimap_drag(const GuiMinimapPositionScaleCfg *args);
 void gui_minimap_release(const GuiMinimapCfg *args);
@@ -76,6 +77,7 @@ struct GuiMinimapPositionScaleCfg
 {
     GuiMinimap *map;
     GuiRect place;
+    GuiRect clip;
     int scale;
     const GuiEditor *editor;
     float on_screen;
@@ -88,6 +90,7 @@ struct GuiMinimapPositionCfg
 {
     GuiMinimap *map;
     GuiRect place;
+    GuiRect clip;
     int scale;
     const GuiEditor *editor;
     float on_screen;

@@ -128,6 +128,16 @@ int main(void)
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.laid_count == 5u), "the controls' pane standing lays the map again");
+    // halfway through the claim's slide with the head not revealed, the tabs row's surface lies at half its alpha
+    numbers.claim = GUI_FIXED_ONE / 2;
+    numbers.reveal_top = 0;
+    numbers.inset_top = 0;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
+    const GuiColor half_surface = (palette->surface & 0x00ffffffu) | ((((GUI_ALPHA_OF(palette->surface) * 8u) + 8u) / 16u) << 24u);
+    cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + (frame.tabs.height / 2)) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = palette->background_fill, .color = half_surface),
+              "halfway through the claim a pixel of the tabs row is its surface at half its alpha over the lattice");
 
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &background_fill);
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);

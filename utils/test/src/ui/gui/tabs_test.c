@@ -72,6 +72,13 @@ int main(void)
     const GuiRect changed_mark = {changed.x + left, changed.y, (int)roundf(mark), changed.height};
     cli_check(colored(&raster, changed_mark, palette->hover), "the mark stands before a changed tab's name in the hover's color");
     cli_check(!colored(&raster, plain_mark, palette->hover), "a tab as it opened has no mark");
+    // halfway through the claim the row stands whole, risen by half out of the work's head, each tab with it
+    GuiAutohideNumbers numbers = frame.claim;
+    numbers.claim = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    const GuiRect risen = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    cli_check((risen.y == frame.tabs_row.y) && (risen.height == frame.tabs_row.height - 1) && (risen.y < frame.tabs.y),
+              "halfway through the claim a tab stands whole in the row risen out of the work's head");
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
     return cli_on_check();
 }

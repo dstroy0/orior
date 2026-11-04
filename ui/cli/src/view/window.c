@@ -329,8 +329,9 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     {
         return;
     }
-    EMBED_CALL(gui_minimap_position.place, GuiMinimapPositionCfg, .map = &window->minimap, .place = window->frame.map,
-               .scale = window->frame.scale, .editor = &window->editor,
+    EMBED_CALL(gui_minimap_position.place, GuiMinimapPositionCfg, .map = &window->minimap,
+               .place = window->frame.map_whole, .clip = window->frame.map, .scale = window->frame.scale,
+               .editor = &window->editor,
                .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = window));
     unsigned long long first = 0ULL;
     unsigned long long last = 0ULL;
@@ -1872,7 +1873,8 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
                                   .size = code_size),
                .scale = frame->scale);
     EMBED_CALL(gui_minimap_position.draw, GuiMinimapPositionCfg, .map = &args->window->minimap, .raster = raster,
-               .palette = palette, .editor = &args->window->editor, .place = frame->map, .scale = frame->scale,
+               .palette = palette, .editor = &args->window->editor, .place = frame->map_whole, .clip = frame->map,
+               .scale = frame->scale,
                .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = args->window));
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->side) &&
         (args->window->strip.displayed >= 0))
@@ -2518,7 +2520,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     unsigned long long top = 0ULL;
     if ((pressed.hit == CLI_HIT_NONE) &&
         EMBED_CALL(gui_minimap_position_scale.press, GuiMinimapPositionScaleCfg, .map = &window->minimap,
-                   .place = window->frame.map, .scale = window->frame.scale, .editor = &window->editor,
+                   .place = window->frame.map_whole, .clip = window->frame.map, .scale = window->frame.scale,
+                   .editor = &window->editor,
                    .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = window), .x = input->x,
                    .y = input->y, .top = &top))
     {
