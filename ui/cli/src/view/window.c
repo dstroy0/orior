@@ -17,8 +17,6 @@
 #include "../text/text.h"
 #include "parts/chrome.h"
 
-#include <math.h>
-
 // orior's repository, a press on the name opening it; the keys of orior's folder the settings, the session's wordmark
 // and the strip's group stand under; and two starts of a session, the seconds their boot times may read apart, and the
 // most bytes of a log in
@@ -99,9 +97,6 @@ typedef struct
     unsigned int percent;
     const GuiPreferenceChange *change;
     GuiRect caret;
-    unsigned long long through;
-    unsigned int from;
-    unsigned int to;
     GuiWindowHit *hit;
     const char *name;
     const char *const *words;
@@ -299,8 +294,9 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                                                  window->rows};
         cli_servers_panels_frame(&placed);
     }
-    // the caret's breath begins again with every frame, which saves the caret at full ink while the keys go
-    window->caret_blink_start_ms = cli_clock_milliseconds();
+    // every frame the view answers shows the caret through the input rest, its blink beginning after it, so the caret
+    // stands shown while the keys go
+    window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     window->pending = 1;
 }
 
@@ -639,91 +635,35 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the milliseconds each rest of the caret's breath takes, at full ink and at dim ink alike
-#define GUI_CARET_STEADY_MS ((GUI_CARET_BLINK_PERIOD_MS - (2ULL * GUI_CARET_FADE_MS)) / 2ULL)
-
-// the ink of a slide `through` its milliseconds, from `from` to `to`, eased on a cosine: still at both ends, moving
-// fastest in the middle
-EMBED_INLINE unsigned int window_caret_slid(const GuiWindowCtx *args)
-{
-    // the share of the slide passed, 0 to 1, is a double's
-    const double eased =
-        (1.0 - cos(3.14159265358979323846 * ((double)args->through / (double)GUI_CARET_FADE_MS))) / 2.0;
-    // an ink between two bytes, rounded, is a byte
-    return (unsigned int)((double)args->from + (((double)args->to - (double)args->from) * eased) + 0.5);
-}
-
-// the caret's breath, its ink at each stage of it, made once: full through the first rest, sliding down, dim through
-// the second rest, and sliding up again
-#define GUI_CARET_BLINK_STEP_MS 16ULL
-static unsigned char s_caret_color[(GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS) + 1ULL];
-static int s_caret_color_created;
-
-static void window_caret_init(void)
-{
-    for (unsigned long long stage = 0ULL; stage <= GUI_CARET_BLINK_PERIOD_MS / GUI_CARET_BLINK_STEP_MS; stage += 1ULL)
-    {
-        const unsigned long long at = stage * GUI_CARET_BLINK_STEP_MS;
-        unsigned int text_color = 255u;
-        if ((at >= GUI_CARET_STEADY_MS) && (at < GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS))
-        {
-            text_color = EMBED_CALL(window_caret_slid, GuiWindowCtx, .through = at - GUI_CARET_STEADY_MS, .from = 255u,
-                                    .to = GUI_CARET_DIM);
-        }
-        else if ((at >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) &&
-                 (at < (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS))
-        {
-            text_color = GUI_CARET_DIM;
-        }
-        else if (at >= (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS)
-        {
-            text_color = EMBED_CALL(window_caret_slid, GuiWindowCtx,
-                                    .through = at - (2ULL * GUI_CARET_STEADY_MS) - GUI_CARET_FADE_MS,
-                                    .from = GUI_CARET_DIM, .to = 255u);
-        }
-        // an ink is a byte
-        s_caret_color[stage] = (unsigned char)text_color;
-    }
-    s_caret_color_created = 1;
-}
-
-// the caret's ink, 0 to 255, where its breath stands since it began; full while no cursor stands or less
-// motion is asked for
+// the caret's ink, 0 or 255: shown through the input rest before its blink begins, then shown for the first half of
+// each blink and hidden for the second; shown while no cursor stands or less motion is asked for
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still || (now_ms < begun_ms))
     {
         return 255u;
     }
-    if (!s_caret_color_created)
-    {
-        window_caret_init();
-    }
-    return s_caret_color[((now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS) /
-                         GUI_CARET_BLINK_STEP_MS];
+    return (((now_ms - begun_ms) % GUI_CARET_BLINK_PERIOD_MS) < (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) ? 255u : 0u;
 }
 
-// the deadline the caret's ink next changes at: the steady time's end while it is steady, else the next millisecond,
-// which the system holds to the display's refresh; 0 where no cursor stands
+// the deadline the caret's ink next changes at: the end of the first half of its blink while the input rest runs, else
+// the end of the half of the blink it stands in; 0 where no cursor stands or less motion is asked for
 EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    const unsigned long long half_ms = GUI_CARET_BLINK_PERIOD_MS / 2ULL;
     if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
     {
         return 0ULL;
     }
-    const unsigned long long phase_ms = (now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS;
-    if (phase_ms < GUI_CARET_STEADY_MS)
+    if (now_ms < begun_ms)
     {
-        return now_ms + GUI_CARET_STEADY_MS - phase_ms;
+        return begun_ms + half_ms;
     }
-    const unsigned long long dim_end_ms = (2ULL * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS;
-    if ((phase_ms >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) && (phase_ms < dim_end_ms))
-    {
-        return now_ms + dim_end_ms - phase_ms;
-    }
-    return now_ms + 1ULL;
+    return now_ms + half_ms - ((now_ms - begun_ms) % half_ms);
 }
 
 void gui_window_tick(const GuiWindowCfg *args)

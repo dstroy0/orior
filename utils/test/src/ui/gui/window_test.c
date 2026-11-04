@@ -13,6 +13,7 @@
 #include "../../../../../ui/cli/src/machine/reach.h"
 #include "../../../../../ui/cli/src/view/window.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -305,6 +306,33 @@ static void reduce_motion_checked(void)
     (void)asked("reduce-motion", "off");
 }
 
+// the caret's ink as the window draws it at the moment `now_ms`
+static unsigned int caret_ink_at(unsigned long long now_ms)
+{
+    g_test_clock_ms = now_ms;
+    (void)EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = &s_window);
+    g_test_clock_ms = GUI_TEST_CLOCK_MACHINE;
+    return s_window.caret_color;
+}
+
+static void caret_checked(void)
+{
+    tabs_closed("first.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("first.txt"), "a file opens for the caret");
+    const unsigned long long typed_ms = cli_clock_milliseconds();
+    typed("x");
+    const unsigned long long begun_ms = s_window.caret_blink_start_ms;
+    cli_check(begun_ms >= typed_ms + GUI_CARET_INPUT_REST_MS, "a key puts the caret's blink past the input rest");
+    cli_check(caret_ink_at(begun_ms - 1ULL) == 255u, "the caret stands shown through the input rest");
+    cli_check(caret_ink_at(begun_ms) == 255u, "shown as its blink begins");
+    cli_check(caret_ink_at(begun_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL) - 1ULL) == 255u,
+              "shown through the first half of the blink");
+    cli_check(caret_ink_at(begun_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) == 0u, "hidden from its second half");
+    cli_check(caret_ink_at(begun_ms + GUI_CARET_BLINK_PERIOD_MS - 1ULL) == 0u, "hidden to the blink's end");
+    cli_check(caret_ink_at(begun_ms + GUI_CARET_BLINK_PERIOD_MS) == 255u, "shown again as the next blink begins");
+    cli_check(GUI_CARET_BLINK_PERIOD_MS == 1060ULL, "a blink takes 1.06 seconds");
+}
+
 static void terminal_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -365,6 +393,7 @@ int main(void)
     save_rows_checked();
     failed_save_checked();
     reduce_motion_checked();
+    caret_checked();
     terminal_menu_checked();
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();

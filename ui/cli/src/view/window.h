@@ -63,8 +63,8 @@ typedef struct
 // is presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
 // palette; the parts, the editor's frame, names and map, the terminal's panes and their frames, each taken of the
 // module whose state it is and released by the window; the hover and the completion as the panels last had them;
-// when the caret's breath last began, each frame of the view beginning it again, the caret's ink in the last frame
-// drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame whole;
+// when the caret's blink begins, each frame of the view putting it an input rest later, the caret's ink in the last
+// frame drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame whole;
 // the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of the
 // window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim and
 // whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
@@ -155,14 +155,13 @@ typedef struct GuiWindow
     unsigned int pressed;
 } GuiWindow;
 
-// the double-click window, the pixels a press may move and still count, and the caret's blink: its period; each fade,
-// down from full ink and up again, which the caret eases through on a cosine, the steady times at full and at dim
-// taking what the period leaves; and the dim ink, 0 to 255
+// the double-click window, the pixels a press may move and still count, the caret's blink, shown for the first half of
+// its period and hidden for the second, and the input rest the caret stands shown through after a key before its blink
+// begins
 #define GUI_DOUBLE_CLICK_MS 500ull
 #define GUI_CLICK_ADJACENT 4
-#define GUI_CARET_BLINK_PERIOD_MS 1500ull
-#define GUI_CARET_FADE_MS 300ull
-#define GUI_CARET_DIM 64u
+#define GUI_CARET_BLINK_PERIOD_MS 1060ull
+#define GUI_CARET_INPUT_REST_MS 300ull
 
 // the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with the reason
 // written; and ended, the session saved, the modules it began ended and every cell released
@@ -214,7 +213,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
 // the system's wish for less motion set, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
-// folder, stills the lattice, the claim's slides, the name's flight and the caret's breath
+// folder, stills the lattice, the claim's slides, the name's flight and the caret's blink
 void gui_window_motion_wish(const GuiWindowReducedCfg *args);
 // the window gone off the screen, `displayed` 0, its ground's clock standing still, or back on it, 1, a frame owed
 void gui_window_show(const GuiWindowDisplayedCfg *args);
