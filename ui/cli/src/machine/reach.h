@@ -35,13 +35,13 @@ int cli_reach_store_in(const CliReachCfg *args);
 int cli_reach_store(const CliReachCfg *args);
 void cli_reach_forget(void);
 
-// this window's door: opened for every process the container starts and for the command line, which it stores for the
-// tree `root`, each command that comes copied into a cell of its own on the door's thread, pushed on a list any thread
-// pushes to and only the window's thread takes whole, and `woken` called: 1, or 0 with the reason written; on the
-// window's thread, every command waiting run by `run` in the order it came, its name, words and their count handed on,
-// and answered on the command's own channel as `run` returns, 1 where it ran, 1 where any came; and the door's key and
-// every command
-// waiting let go
+// This window's door: opened for every process the container starts and for the command line, which it stores for the
+// tree `root`: 1, or 0 with the reason written. A command that comes is read where the door's thread received it, its
+// texts places in that body, pushed on the waiting with a compare and swap, and `woken` called; that thread sleeps on
+// the command's address until the window has run it, and the body stands as it was until then. On the window's thread,
+// every command waiting run by `run` in the order it came, its name, words and their count handed on, answered on the
+// command's own channel as `run` returns, 1 where it ran, and its door's thread woken: 1 where any came. And the door
+// closed: every command waiting woken unrun, and the door's key let go
 int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg);
 int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count));
 void cli_reach_close(void);
