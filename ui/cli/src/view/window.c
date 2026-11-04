@@ -635,12 +635,17 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the caret's ink, 0 or 255: shown through the input rest before its blink begins, then shown for the first half of
-// each blink and hidden for the second; shown while no cursor stands or less motion is asked for
+// the caret's ink, 0 or 255: hidden while the editor does not have the keys; else shown through the input rest before
+// its blink begins, then shown for the first half of each blink and hidden for the second; shown while no cursor
+// stands or less motion is asked for
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    if (!args->window_read->editing)
+    {
+        return 0u;
+    }
     if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still || (now_ms < begun_ms))
     {
         return 255u;
@@ -649,13 +654,14 @@ EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 }
 
 // the deadline the caret's ink next changes at: the end of the first half of its blink while the input rest runs, else
-// the end of the half of the blink it stands in; 0 where no cursor stands or less motion is asked for
+// the end of the half of the blink it stands in; 0 where the editor does not have the keys, no cursor stands or less
+// motion is asked for
 EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
     const unsigned long long half_ms = GUI_CARET_BLINK_PERIOD_MS / 2ULL;
-    if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
+    if (!args->window_read->editing || !(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
     {
         return 0ULL;
     }
@@ -2088,8 +2094,8 @@ void gui_window_draw(const GuiWindowCfg *args)
     // the menus open go over every part
     EMBED_CALL(gui_menubar_glyphs_frame.menus_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &args->window->menubar,
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
-    // the caret last, at the ink its breath stands at, where no panel or menu lies over it: drawn over the frame
-    // whole, its breath's steps draw it again alone; none stands while the view is not drawn
+    // the caret last, at the ink its blink stands at, where no panel or menu lies over it: drawn over the frame
+    // whole, its blink's flips draw it again alone; none stands while the view is not drawn
     args->window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = args->window);
     args->window->editor.caret_color = args->window->caret_color;
     const GuiRect caret =

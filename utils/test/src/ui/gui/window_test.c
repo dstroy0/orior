@@ -338,6 +338,8 @@ static void terminal_menu_checked(void)
     tabs_closed("first.txt", "one\n", NULL, NULL);
     cli_check(asked("toggle", NULL), "the terminal opens through the door");
     cli_check(cli_terminal_tabs_checked("terminal-keys"), "and takes the keys");
+    cli_check(caret_ink_at(cli_clock_milliseconds()) == 0u,
+              "the editor's caret is hidden while the terminal has the keys");
     key_pressed("ContextMenu");
     cli_check(g_cli_menus_open.levels == 1u, "the menu key opens a menu");
     cli_check(g_cli_menus_open.open == -1, "under no title of the bar");
