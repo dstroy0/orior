@@ -44,12 +44,14 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 
 // the terminal's panel in the page's pixels: its least height, min-height; what it leaves the views above it at the
 // least, the 16rem of its max-height; the share of the window's height it reaches at the most, in percent, the 75vh of
-// its max-height; its top line; and its strip of tabs under that with the strip's foot line
+// its max-height; its top line; its strip of tabs under that with the strip's foot line; and how far below its place
+// the panel starts as it shows, coming up to it
 #define GUI_TERMINAL_LEAST 96
 #define GUI_TERMINAL_SHELL_LEAST 256
 #define GUI_TERMINAL_MOST_PERCENT 75
 #define GUI_TERMINAL_LINE 1
 #define GUI_TERMINAL_STRIP 27
+#define GUI_TERMINAL_ARRIVES 14
 // how far either side of the panel's top line its grip reaches, the 6px grip set 3px above it
 #define GUI_TERMINAL_GRIP 3
 
@@ -58,13 +60,16 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // the parts a fading part's share stands at, sixteenths, which the base lays the part's ground at and its colors fade
 // by, so each stage of a fade lays the colors every fade before it laid
 #define GUI_FRAME_PARTS 16
-// `color_` at `share_`, a number of GUI_FIXED_ONE from 0 to it, of its alpha, rounded: a fading part's color
+// `color_` at `share_`, a number of GUI_FIXED_ONE from 0 to it, of its alpha, rounded: a fading part's color; the color
+// itself at a whole share, with no arithmetic
 #define GUI_FRAME_FADED(color_, share_)                                                                                \
-    (((color_) & 0x00ffffffu) |                                                                                        \
-     ((GuiColor)((((unsigned long long)GUI_ALPHA_OF(color_) * (unsigned long long)(share_)) +                          \
-                  (unsigned long long)(GUI_FIXED_ONE / 2)) /                                                           \
-                 (unsigned long long)GUI_FIXED_ONE)                                                                    \
-      << 24u))
+    (((share_) >= GUI_FIXED_ONE)                                                                                       \
+         ? (GuiColor)(color_)                                                                                          \
+         : (((color_) & 0x00ffffffu) |                                                                                 \
+            ((GuiColor)((((unsigned long long)GUI_ALPHA_OF(color_) * (unsigned long long)(share_)) +                   \
+                         (unsigned long long)(GUI_FIXED_ONE / 2)) /                                                    \
+                        (unsigned long long)GUI_FIXED_ONE)                                                             \
+             << 24u)))
 
 // The claim's numbers, each 0 to GUI_FIXED_ONE as the page's claim runs them: the claim, GUI_FIXED_ONE while the work
 // has taken the edges' parts' inset; each edge's reveal, 1 while its part is back; the controls' way down from the
@@ -114,7 +119,9 @@ typedef struct
 // left at the left of the map's column, past the editor's right edge as the claim closes the column; and the side pane
 // as it slides: the share of its way gone, GUI_FIXED_ONE gone and 0 standing, the side's rectangle moved up and toward
 // the left by that share of its own size, which is where the pane is drawn, and the share of it shown, its opacity at
-// the parts a fading part's share stands at
+// the parts a fading part's share stands at; and the terminal's panel as it arrives: the share of its way left,
+// GUI_FIXED_ONE as it begins and 0 arrived, the panel's rectangle and its views' moved down by that share of
+// GUI_TERMINAL_ARRIVES, which is where the panel is drawn, and the share of it shown, its opacity at those parts
 typedef struct
 {
     unsigned int width;
@@ -154,6 +161,10 @@ typedef struct
     int side_away;
     GuiRect side_pane;
     int side_share;
+    int terminal_away;
+    GuiRect terminal_drawn;
+    GuiRect terminal_views_drawn;
+    int terminal_share;
 } GuiFrame;
 
 // a size in the page's pixels at `scale`, a percent, rounded to a whole pixel
@@ -162,7 +173,8 @@ int gui_scale(const GuiFramePixelsCfg *args);
 void gui_frame_layout(const GuiFrameScaleCfg *args);
 // the work's inside laid again with a side shown at its left where `displayed` is 1, the tabs row and the editor past
 // it, its pane `away` of its way gone, or with no side where it is 0; and with the terminal's panel `height` page's
-// pixels tall at its foot, between its least and its most, or with none where `height` is 0
+// pixels tall at its foot, between its least and its most, `away` of its way below its place as it arrives, or with
+// none where `height` is 0
 void gui_frame_side(const GuiFrameDisplayedCfg *args);
 void gui_frame_terminal(const GuiFrameDisplayedCfg *args);
 // the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the

@@ -284,11 +284,13 @@ EMBED_INLINE int terminal_baseline(const TerminalCtx *args)
     return (int)((((float)args->pixels - ascent - descent) / 2.0f) + ascent + 0.5f);
 }
 
-// the strip drawn: each tab, the one shown on the ground with the signal under it, and the two tools
+// the strip drawn inside `place`: each tab, the one shown on the ground with the signal under it, and the two tools,
+// each color at the share of its alpha the panel has reached
 EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
 {
     const CliTerminalPanel *const panel = &args->terminal_read->panel;
     const GuiPalette *const palette = args->palette;
+    const int share = args->frame->terminal_share;
     const GuiRect strip = EMBED_CALL(terminal_strip, TerminalCtx, .frame = args->frame);
     const unsigned int size = (unsigned int)EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
                                                        .pixels = (int)GUI_TERMINAL_TAB_SIZE);
@@ -298,9 +300,12 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_CLOSE_PAD);
     const int shown_line =
         EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_SHOWN_LINE);
-    const GuiRect tabs_clip = {strip.x, strip.y,
-                               EMBED_CALL(terminal_tool, TerminalCtx, .frame = args->frame, .at = 0u).x - strip.x,
-                               strip.height};
+    const GuiRect tabs_clip =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){strip.x, strip.y,
+                                    EMBED_CALL(terminal_tool, TerminalCtx, .frame = args->frame, .at = 0u).x - strip.x,
+                                    strip.height},
+                   .other = args->place);
     for (unsigned int at = 0u; at < panel->tabs; at += 1u)
     {
         GuiRect close;
@@ -318,19 +323,20 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                        .radius = (unsigned int)EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
                                                           .pixels = GUI_TERMINAL_RADIUS),
-                       .color = palette->background_fill);
+                       .color = GUI_FRAME_FADED(palette->background_fill, share));
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                        .rect =
                            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                       .one = (GuiRect){tab.x, tab.y + tab.height - shown_line, tab.width, shown_line},
                                       .other = on),
-                       .color = palette->signal);
+                       .color = GUI_FRAME_FADED(palette->signal, share));
         }
         char label_text[CLI_PATH_MAX_LEN];
         VerbaLinea label_line = {label_text, sizeof(label_text), 0ULL};
         const int exited = cli_terminal_tabs_label(at, &label_line);
         const unsigned long long label_length = mmgr_line_finish(&label_line);
-        const GuiColor text = exited ? palette->text_3 : (shown ? palette->text : palette->text_2);
+        const GuiColor text =
+            GUI_FRAME_FADED(exited ? palette->text_3 : (shown ? palette->text : palette->text_2), share);
         const int baseline = tab.y + EMBED_CALL(terminal_baseline, TerminalCtx, .glyphs = args->glyphs, .size = size,
                                                 .pixels = tab.height);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
@@ -340,7 +346,7 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
                          .glyphs = args->glyphs, .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(close.x + close_pad), .y = baseline, .text = "\xc3\x97", .length = 2ULL,
-                         .color = palette->text_3, .clip = on);
+                         .color = GUI_FRAME_FADED(palette->text_3, share), .clip = on);
     }
     const int icon = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_ICON);
     // each icon's lines on the 16 a side its paths are drawn on, from 3.5 to 12.5 across a box `icon` wide
@@ -352,7 +358,8 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         const GuiRect tool = EMBED_CALL(terminal_tool, TerminalCtx, .frame = args->frame, .at = at);
         const int x = tool.x + ((tool.width - icon) / 2);
         const int y = tool.y + ((tool.height - icon) / 2);
-        const GuiColor color = ((at == 1u) && (panel->beside >= 0)) ? palette->signal : palette->text_2;
+        const GuiColor color =
+            GUI_FRAME_FADED(((at == 1u) && (panel->beside >= 0)) ? palette->signal : palette->text_2, share);
         const int lines[2][4][4] = {
             {{x + middle, y + near, x + middle, y + far}, {x + near, y + middle, x + far, y + middle}, {0}, {0}},
             {{x + (icon * 5 / 32), y + near, x + (icon * 27 / 32), y + near},
@@ -410,7 +417,8 @@ EMBED_INLINE GuiColor terminal_color(const TerminalCtx *args)
 // the letter `letter` drawn in `box`, clipped to `place`, in the style `style` with `color` its foreground: its ground
 // where the style has one of its own, the selection's where it is `chosen` and the signal's where the cursor stands on
 // it `solid`; the letter in its color and face, dim at three fifths, inverse with its colors swapped, underlined and
-// struck through; and the cursor's outline where it stands on it and is not solid
+// struck through; and the cursor's outline where it stands on it and is not solid; every color at the share of its
+// alpha the panel has reached as it arrives
 EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -430,6 +438,9 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
     // a dim letter is drawn at three fifths of its ink
     ink = ((style->marks & CLI_TERMINAL_DIM) != 0u) ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u))
                                                     : ink;
+    // both at the share of their alpha the panel has reached as it arrives
+    ground = GUI_FRAME_FADED(ground, args->frame->terminal_share);
+    ink = GUI_FRAME_FADED(ink, args->frame->terminal_share);
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->place);
     if (GUI_ALPHA_OF(ground) != 0u)
     {
@@ -476,7 +487,7 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                        .rect =
                            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = edges[edge], .other = on),
-                       .color = palette->signal);
+                       .color = GUI_FRAME_FADED(palette->signal, args->frame->terminal_share));
         }
     }
 }
@@ -611,13 +622,20 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const GuiPalette *const palette = args->palette;
     const GuiRect place = EMBED_CALL(terminal_view, TerminalCtx, .terminal_read = args->terminal_read,
                                      .frame = args->frame, .view = args->view);
+    // the pane's pixels inside `place`, the panel's as the work's inside cuts it, and its colors at the share of their
+    // alpha the panel has reached
+    const GuiRect inside =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = place, .other = args->place);
+    const int share = args->frame->terminal_share;
     if ((panel->views == 2u) && shown->focused)
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                   .rect = (GuiRect){place.x, place.y, place.width,
-                                     EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
-                                                .pixels = GUI_TERMINAL_CHOSEN_LINE)},
-                   .color = palette->signal);
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){place.x, place.y, place.width,
+                                                       EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
+                                                                  .pixels = GUI_TERMINAL_CHOSEN_LINE)},
+                                      .other = inside),
+                   .color = GUI_FRAME_FADED(palette->signal, share));
     }
     const unsigned int size = (unsigned int)EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame,
                                                        .pixels = (int)GUI_TERMINAL_TEXT_SIZE);
@@ -697,8 +715,8 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                                                    .value = style.foreground, .color = palette->text);
             // a pane's columns and rows are far inside what an int represents
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .palette = palette, .letter = letter, .color = foreground, .style = &style,
-                       .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = place,
+                       .frame = args->frame, .palette = palette, .letter = letter, .color = foreground, .style = &style,
+                       .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = inside,
                        .size = size, .baseline = baseline, .width = cell, .height = row, .one = one, .chosen = chosen,
                        .cursor = cursor_row && (x == shown->cursor_x), .solid = solid);
             x += 1u;
@@ -708,9 +726,10 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         {
             const CliTerminalStyle plain = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .palette = palette, .letter = (unsigned int)' ', .color = palette->text, .style = &plain,
+                       .frame = args->frame, .palette = palette, .letter = (unsigned int)' ', .color = palette->text,
+                       .style = &plain,
                        .box = (GuiRect){left + ((int)shown->cursor_x * cell), top + ((int)y * row), cell, row},
-                       .place = place, .size = size, .baseline = baseline, .width = cell, .height = row, .one = one,
+                       .place = inside, .size = size, .baseline = baseline, .width = cell, .height = row, .one = one,
                        .chosen = 0, .cursor = 1, .solid = solid);
         }
     }
@@ -726,14 +745,22 @@ void gui_terminal_draw(const GuiTerminalCfg *args)
     }
     const int line = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_LINE);
     const GuiRect strip = EMBED_CALL(terminal_strip, TerminalCtx, .frame = args->frame);
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-               .rect = (GuiRect){place.x, place.y, place.width, line}, .color = args->palette->line);
+    // the panel is drawn inside the work's inside, which cuts it off where it stands below its place as it arrives, in
+    // its colors at the share of their alpha it has reached
+    const GuiRect inside =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = place, .other = args->frame->inside);
+    const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, args->frame->terminal_share);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){place.x, strip.y + strip.height, place.width, line}, .other = place),
-               .color = args->palette->line);
+                                  .one = (GuiRect){place.x, place.y, place.width, line}, .other = inside),
+               .color = line_color);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+               .rect =
+                   EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                              .one = (GuiRect){place.x, strip.y + strip.height, place.width, line}, .other = inside),
+               .color = line_color);
     EMBED_CALL(terminal_strip_draw, TerminalCtx, .terminal_read = args->terminal_read, .frame = args->frame,
-               .glyphs = args->glyphs, .raster = args->raster, .palette = args->palette);
+               .glyphs = args->glyphs, .raster = args->raster, .palette = args->palette, .place = inside);
     for (unsigned int view = 0u; view < panel->views; view += 1u)
     {
         if (view == 1u)
@@ -741,9 +768,13 @@ void gui_terminal_draw(const GuiTerminalCfg *args)
             const GuiRect beside = EMBED_CALL(terminal_view, TerminalCtx, .terminal_read = args->terminal_read,
                                               .frame = args->frame, .view = 1u);
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                       .rect = (GuiRect){beside.x - line, beside.y, line, beside.height}, .color = args->palette->line);
+                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                          .one = (GuiRect){beside.x - line, beside.y, line, beside.height},
+                                          .other = inside),
+                       .color = line_color);
         }
         EMBED_CALL(terminal_view_draw, TerminalCtx, .terminal_read = args->terminal_read, .frame = args->frame,
-                   .glyphs = args->glyphs, .raster = args->raster, .palette = args->palette, .view = view);
+                   .glyphs = args->glyphs, .raster = args->raster, .palette = args->palette, .view = view,
+                   .place = inside);
     }
 }

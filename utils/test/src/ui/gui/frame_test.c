@@ -56,6 +56,20 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the side taken away gives the tabs row its capacity back");
 
+    EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240);
+    cli_check(same(frame.terminal_drawn, frame.terminal.x, frame.terminal.y, frame.terminal.width, frame.terminal.height) &&
+                  same(frame.terminal_views_drawn, frame.terminal_views.x, frame.terminal_views.y, frame.terminal_views.width, frame.terminal_views.height) &&
+                  (frame.terminal_share == GUI_FIXED_ONE) && (frame.terminal.height == 240),
+              "the terminal's panel open is drawn at its place, whole");
+    EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240, .away = GUI_FIXED_ONE / 2);
+    cli_check(same(frame.terminal_drawn, frame.terminal.x, frame.terminal.y + 7, frame.terminal.width, frame.terminal.height) &&
+                  (frame.terminal_views_drawn.y == frame.terminal_views.y + 7) && (frame.terminal_share == GUI_FIXED_ONE / 2) &&
+                  (frame.editor.height == frame.inside.height - 31 - 240),
+              "halfway through its arrival the panel is drawn seven pixels below its place at half its opacity, the editor laid for its place");
+    EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 0);
+    cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.terminal_drawn),
+              "the panel closed is drawn nowhere");
+
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 2880u, .height = 1840u, .scale = 200);
     cli_check(same(frame.bar, 0, 0, 2880, 82), "at twice the scale the bar is twice as tall");
     cli_check(same(frame.status, 0, 1840 - 54, 2880, 54), "at twice the scale the status bar is twice as tall");

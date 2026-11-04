@@ -161,6 +161,18 @@ int main(void)
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.side.x + frame.side.width - 2,
                               .y = frame.side.y + frame.side.height - 2) == GUI_BASE_CLEAR),
               "the side pane halfway gone lies at its halfway part where it stands, and the side it has left is the lattice");
+    // the terminal's panel halfway through its arrival: its ground and its views' where they stand, each at the part
+    // halfway, and the band above it that it has yet to come up to the lattice
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
+    EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240, .away = GUI_FIXED_ONE / 2);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    cli_check((frame.terminal_drawn.y > frame.terminal.y) &&
+                  (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal_drawn.x + 2, .y = frame.terminal_drawn.y + 2) ==
+                   GUI_BASE_SIDE_PART + ((GUI_BASE_PARTS / 2u) - 1u)) &&
+                  (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal_views_drawn.x + 2, .y = frame.terminal_views_drawn.y + 2) ==
+                   GUI_BASE_EDITOR_PART + ((GUI_BASE_PARTS / 2u) - 1u)) &&
+                  (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal.x + 2, .y = frame.terminal.y + 2) == GUI_BASE_CLEAR),
+              "the panel halfway through its arrival lies at its halfway part where it stands, its views at the editor's, and the band above it is the lattice");
 
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &background_fill);
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);

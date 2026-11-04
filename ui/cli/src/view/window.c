@@ -62,6 +62,7 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_menubar.init, GuiMenubarCfg, .menubar = &args->window->menubar);
     EMBED_CALL(gui_strip_table.init, GuiStripInitCfg, .strip = &args->window->strip);
     EMBED_CALL(gui_sides.init, GuiSidesCfg, .sides = &args->window->sides);
+    EMBED_CALL(gui_docks.init, GuiDocksCfg, .docks = &args->window->docks);
     EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &args->window->icons);
     EMBED_CALL(cli_explorer.init, GuiExplorerCfg, .explorer = &args->window->explorer);
     EMBED_CALL(cli_autohide_still.init, GuiAutohideStillCfg, .claim = &args->window->claim);
@@ -108,6 +109,7 @@ typedef struct
     unsigned int *percent_out;
     int edited;
     const CliViewInput *view_input;
+    int starting;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -354,10 +356,13 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
 {
     args->window->pending = 1;
-    // the claim's slides and the side pane's run through the stages, each stage's frame laid with both at its moment
+    // the claim's slides, the side pane's and the terminal panel's arrival run through the stages, each stage's frame
+    // laid with all of them at its moment
     if (EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &args->window->claim,
                    .time_ms = args->time_ms) ||
         (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &args->window->sides,
+                    .time_ms = args->time_ms) != 0ULL) ||
+        (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &args->window->docks,
                     .time_ms = args->time_ms) != 0ULL))
     {
         if ((args->window->stages.stage == NULL) || (args->window->stages.created_for != args->window->claim.sent) ||
@@ -370,11 +375,12 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
             }
             args->window->stage = NULL;
             args->window->stages_stale = 0;
-            (void)EMBED_CALL(
-                gui_stages_autohide.init, GuiStagesAutohideCfg, .stages = &args->window->stages,
-                .claim = &args->window->claim, .sides_read = &args->window->sides, .strip_read = &args->window->strip,
-                .frame = &args->window->frame, .base = &args->window->base, .palette = args->window->palette,
-                .menubar = &args->window->menubar, .glyphs = &args->window->glyphs, .time_ms = args->time_ms);
+            (void)EMBED_CALL(gui_stages_autohide.init, GuiStagesAutohideCfg, .stages = &args->window->stages,
+                             .claim = &args->window->claim, .sides_read = &args->window->sides,
+                             .strip_read = &args->window->strip, .docks_read = &args->window->docks,
+                             .frame = &args->window->frame, .base = &args->window->base,
+                             .palette = args->window->palette, .menubar = &args->window->menubar,
+                             .glyphs = &args->window->glyphs, .time_ms = args->time_ms);
         }
         const GuiStage *const stage = EMBED_CALL(gui_stages_read.at, GuiStagesReadCfg,
                                                  .stages_read = &args->window->stages, .time_ms = args->time_ms);
@@ -388,8 +394,8 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
             return;
         }
     }
-    // at rest, or the stages' cell not taken: the frame the numbers and the side's slide lay now, and no stage left
-    // standing
+    // at rest, or the stages' cell not taken: the frame the numbers, the side's slide and the panel's arrival lay now,
+    // and no stage left standing
     args->window->stage = NULL;
     args->window->stages_stale = 0;
     EMBED_CALL(gui_stages_autohide.free, GuiStagesAutohideCfg, .stages = &args->window->stages);
@@ -397,6 +403,8 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
                                                     .strip_read = &args->window->strip, .time_ms = args->time_ms);
     args->window->frame.side_away =
         EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &args->window->sides, .time_ms = args->time_ms);
+    args->window->frame.terminal_away =
+        EMBED_CALL(gui_docks.away, GuiDocksCfg, .docks_read = &args->window->docks, .time_ms = args->time_ms);
     GuiAutohideNumbers numbers;
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &args->window->claim, .time_ms = args->time_ms,
                .numbers = &numbers);
@@ -475,7 +483,8 @@ EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
 }
 
 // the terminal read again of its tabs and the work's inside laid again with its panel at its foot as the panel stands,
-// the editor's and the screens' sizes handed on where they moved
+// a panel opened coming in from the foot unless the window is `starting`, the editor's and the screens' sizes handed
+// on where they moved
 EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
 {
     EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = args->window);
@@ -492,8 +501,19 @@ EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
     }
     if (height != args->window->frame.terminal_height)
     {
-        EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &args->window->frame, .height = height);
-        if (args->window->stage != NULL)
+        const unsigned long long now_ms = cli_clock_milliseconds();
+        if ((args->window->frame.terminal_height == 0) && !args->starting)
+        {
+            EMBED_CALL(gui_docks.show, GuiDocksCfg, .docks = &args->window->docks, .still = args->window->motion_still,
+                       .time_ms = now_ms);
+        }
+        EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &args->window->frame, .height = height,
+                   .away =
+                       EMBED_CALL(gui_docks.away, GuiDocksCfg, .docks_read = &args->window->docks, .time_ms = now_ms));
+        // a movement under way, or the arrival begun, runs on with the panel as it now stands
+        if ((args->window->stage != NULL) ||
+            (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &args->window->docks, .time_ms = now_ms) !=
+             0ULL))
         {
             args->window->stages_stale = 1;
             window_autohide_layout(args);
@@ -697,9 +717,11 @@ void gui_window_tick(const GuiWindowCfg *args)
     const int moving =
         EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &args->window->claim, .time_ms = now_ms) ||
         (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &args->window->sides, .time_ms = now_ms) !=
+         0ULL) ||
+        (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &args->window->docks, .time_ms = now_ms) !=
          0ULL);
-    // the frame laid for the claim's numbers and the side's slide while a slide moves and as it comes to rest; a tick
-    // with both at rest owes nothing for them
+    // the frame laid for the claim's numbers, the side's slide and the panel's arrival while any of them moves and as
+    // they come to rest; a tick with all at rest owes nothing for them
     if (moving || args->window->autohide_moving)
     {
         EMBED_CALL(window_autohide_layout, GuiWindowCtx, .window = args->window);
@@ -817,8 +839,9 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long deadlines[] = {
         EMBED_CALL(gui_autohide.next_deadline_ms, GuiAutohideCfg, .autohide_read = &window->claim),
-        // the side pane's slide reads its next stage a stage on
-        (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &window->sides, .time_ms = now_ms) != 0ULL)
+        // the side pane's slide and the terminal panel's arrival read their next stage a stage on
+        ((EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &window->sides, .time_ms = now_ms) != 0ULL) ||
+         (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &window->docks, .time_ms = now_ms) != 0ULL))
             ? now_ms + GUI_STAGE_MS
             : 0ULL,
         EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg,
@@ -1760,7 +1783,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
     cli_terminal_tabs_restore(entries, root);
-    EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_terminal, GuiWindowCtx, .window = window, .starting = 1);
     if (root != NULL)
     {
         EMBED_CALL(window_group_read, GuiWindowCtx, .window = window, .entries = entries);
@@ -1946,7 +1969,11 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
                        .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = &slid);
         }
     }
-    EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &args->window->terminal, .frame = frame,
+    // the panel drawn where it stands as it arrives, its rectangle and its views' moved down by its way left
+    GuiFrame arriving = *frame;
+    arriving.terminal = frame->terminal_drawn;
+    arriving.terminal_views = frame->terminal_views_drawn;
+    EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &args->window->terminal, .frame = &arriving,
                .glyphs = &args->window->glyphs, .raster = raster, .palette = palette);
     window_panels_draw(args);
 }

@@ -145,8 +145,9 @@ EMBED_INLINE int frame_terminal_height(const FrameCtx *args)
 }
 
 // the work's inside laid out: the inside the work less its padding, the terminal's panel across its foot where it is
-// open, above it the side `side_width` pixels of it at the left, the tabs row across the rest, and under it the editor
-// with the map's column at its right, the row and the column away by the claim's numbers
+// open, drawn down from there by its arrival, above it the side `side_width` pixels of it at the left, the tabs row
+// across the rest, and under it the editor with the map's column at its right, the row and the column away by the
+// claim's numbers
 EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
 {
     const int scale = args->frame->scale;
@@ -227,6 +228,18 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     const int views = (terminal > head) ? (terminal - head) : 0;
     args->frame->terminal_views = (GuiRect){args->frame->terminal.x, args->frame->terminal.y + terminal - views,
                                             (views > 0) ? inner_width : 0, views};
+    // the panel drawn down from its place by the share of its way left as it arrives, its views with it, at the part of
+    // its opacity reached
+    const int arriving = args->frame->terminal_away;
+    const int down = EMBED_CALL(frame_share, FrameCtx, .share = arriving,
+                                .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                     .pixels = GUI_TERMINAL_ARRIVES, .scale = scale));
+    args->frame->terminal_drawn = (GuiRect){args->frame->terminal.x, args->frame->terminal.y + down,
+                                            args->frame->terminal.width, args->frame->terminal.height};
+    args->frame->terminal_views_drawn =
+        (GuiRect){args->frame->terminal_views.x, args->frame->terminal_views.y + down,
+                  args->frame->terminal_views.width, args->frame->terminal_views.height};
+    args->frame->terminal_share = EMBED_CALL(frame_part_share, FrameCtx, .share = GUI_FIXED_ONE - arriving);
     args->frame->tabs = (GuiRect){args->frame->inside.x + side, args->frame->inside.y, rest, tabs_height};
     args->frame->tabs_row =
         (GuiRect){args->frame->tabs.x, args->frame->inside.y + tabs_height - tabs_whole, rest, tabs_whole};
@@ -454,6 +467,7 @@ void gui_frame_side(const GuiFrameDisplayedCfg *args)
 void gui_frame_terminal(const GuiFrameDisplayedCfg *args)
 {
     args->frame->terminal_height = args->height;
+    args->frame->terminal_away = args->away;
     EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
 }
 
@@ -473,6 +487,7 @@ void gui_frame_layout(const GuiFrameScaleCfg *args)
     args->frame->scale = scale;
     args->frame->side_displayed = 0;
     args->frame->side_away = 0;
+    args->frame->terminal_away = 0;
     memor.set(&(MemoriaCfg){.dst = &args->frame->claim, .val = 0, .bytes = sizeof(args->frame->claim)});
     args->frame->claim.grown_top = GUI_FIXED_ONE;
     args->frame->claim.grown_left = GUI_FIXED_ONE;

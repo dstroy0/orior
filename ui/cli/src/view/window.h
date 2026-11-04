@@ -8,6 +8,7 @@
 #define GUI_WINDOW_H
 #include "base.h"
 #include "claim.h"
+#include "docks.h"
 #include "embed_dispatch_layout.h"
 #include "framebuffer.h"
 #include "ground.h"
@@ -95,6 +96,7 @@ typedef struct GuiWindow
     GuiMenubar menubar;
     GuiStrip strip;
     GuiSides sides;
+    GuiDocks docks;
     GuiExplorer explorer;
     GuiHover hover;
     GuiSuggest suggest;
