@@ -147,9 +147,13 @@ EMBED_INLINE unsigned long long xterm_sequence_units(const XtermCtx *args)
     return ((end < count) && (unit >= 0x40u) && (unit <= 0x7eu)) ? (end + 1ULL - at) : (count - at);
 }
 
-// the units the letter at `at` takes: two for a surrogate pair, else one
+// the units the letter at `at` takes: two for a surrogate pair, else one; one byte where no units are passed
 EMBED_INLINE unsigned long long xterm_letter_units(const XtermCtx *args)
 {
+    if (args->units == NULL)
+    {
+        return 1ULL;
+    }
     const unsigned short unit = args->units[args->at];
     const int high = (unit >= 0xd800u) && (unit <= 0xdbffu);
     const int paired = high && ((args->at + 1ULL) < args->units_count) && (args->units[args->at + 1ULL] >= 0xdc00u) &&
@@ -305,41 +309,52 @@ EMBED_INLINE void xterm_rendition(const XtermCtx *args)
     }
 }
 
-// the style the SGR sequences of a row's units before `at` set, from the plain style
-EMBED_INLINE CliTerminalStyle xterm_style_at(const XtermCtx *args)
+// the style `style` changed by the SGR sequences of a row's units before `at`, the units the text's or the bytes where
+// no units are passed
+EMBED_INLINE void xterm_style_apply(const XtermCtx *args)
 {
-    CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
     unsigned long long place = 0ULL;
     while ((place < args->at) && (place < args->units_count))
     {
-        const unsigned long long sequence = EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units,
-                                                       .units_count = args->units_count, .at = place);
-        if ((sequence >= 3ULL) && (args->units[place + sequence - 1ULL] == (unsigned short)'m'))
+        const unsigned long long sequence =
+            EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units, .bytes = args->bytes,
+                       .units_count = args->units_count, .at = place);
+        if ((sequence >= 3ULL) && (EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes,
+                                              .at = place + sequence - 1ULL) == (unsigned int)'m'))
         {
             unsigned int numbers[XTERM_NUMBERS];
             unsigned int count = 1u;
             numbers[0] = XTERM_ABSENT;
             for (unsigned long long at = place + 2ULL; at < (place + sequence - 1ULL); at += 1ULL)
             {
-                const unsigned short unit = args->units[at];
+                const unsigned int unit =
+                    EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes, .at = at);
                 const unsigned int was = (numbers[count - 1u] == XTERM_ABSENT) ? 0u : numbers[count - 1u];
-                if ((unit >= (unsigned short)'0') && (unit <= (unsigned short)'9'))
+                if ((unit >= (unsigned int)'0') && (unit <= (unsigned int)'9'))
                 {
                     // a number of more than nine digits stands at its first nine, far below what an unsigned int counts
-                    numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unsigned int)(unit - '0')) : was;
+                    numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unit - (unsigned int)'0')) : was;
                 }
-                else if (((unit == (unsigned short)';') || (unit == (unsigned short)':')) && (count < XTERM_NUMBERS))
+                else if (((unit == (unsigned int)';') || (unit == (unsigned int)':')) && (count < XTERM_NUMBERS))
                 {
                     numbers[count] = XTERM_ABSENT;
                     count += 1u;
                 }
             }
-            EMBED_CALL(xterm_rendition, XtermCtx, .style = &style, .numbers = numbers, .number_count = count);
+            EMBED_CALL(xterm_rendition, XtermCtx, .style = args->style, .numbers = numbers, .number_count = count);
         }
         place += (sequence != 0ULL) ? sequence
                                     : EMBED_CALL(xterm_letter_units, XtermCtx, .units = args->units,
                                                  .units_count = args->units_count, .at = place);
     }
+}
+
+// the style the SGR sequences of a row's units before `at` set, from the plain style
+EMBED_INLINE CliTerminalStyle xterm_style_at(const XtermCtx *args)
+{
+    CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
+    EMBED_CALL(xterm_style_apply, XtermCtx, .units = args->units, .units_count = args->units_count, .at = args->at,
+               .style = &style);
     return style;
 }
 
@@ -1616,6 +1631,12 @@ unsigned long long cli_terminal_xterm_column_unit(const CliTerminalXtermUnitsCfg
 {
     return EMBED_CALL(xterm_column_start, XtermCtx, .units = args->units, .units_count = args->count,
                       .x = args->column);
+}
+
+void cli_terminal_xterm_style_read(const CliTerminalXtermStyleCfg *args)
+{
+    EMBED_CALL(xterm_style_apply, XtermCtx, .bytes = args->bytes, .units_count = args->size, .at = args->size,
+               .style = args->style);
 }
 
 unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args)

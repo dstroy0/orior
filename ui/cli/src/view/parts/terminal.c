@@ -28,6 +28,7 @@ typedef struct
     unsigned long long *row;
     unsigned long long *column;
     unsigned int letter;
+    const CliTerminalStyle *style;
     GuiRect box;
     GuiRect place;
     int baseline;
@@ -358,19 +359,60 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
     }
 }
 
-// the letter `letter` drawn in `box`, clipped to `place`, in `color`: on the selection's ground where it is `chosen`
-// and the signal's where the cursor stands on it `solid`; and the cursor's outline where it stands on it and is not
-// solid
+// a terminal color `value`: one of the sixteen from the palette, the 6 by 6 by 6 cube with each part 0 or 55 and 40 a
+// step, the 24 grays from 8 by tens, or red, green and blue; `color` where it is the default
+EMBED_INLINE GuiColor terminal_color(const TerminalCtx *args)
+{
+    const unsigned int kind = args->value & CLI_TERMINAL_COLOR_KIND;
+    const unsigned int index = args->value & 0xffu;
+    if (kind == CLI_TERMINAL_COLOR_DIRECT)
+    {
+        return GUI_RGB((args->value >> 16u) & 0xffu, (args->value >> 8u) & 0xffu, args->value & 0xffu);
+    }
+    if (kind != CLI_TERMINAL_COLOR_INDEXED)
+    {
+        return args->color;
+    }
+    if (index < GUI_TERMINAL_COLORS)
+    {
+        return args->palette->terminal[index];
+    }
+    if (index < 232u)
+    {
+        const unsigned int cube = index - 16u;
+        const unsigned int red = cube / 36u;
+        const unsigned int green = (cube / 6u) % 6u;
+        const unsigned int blue = cube % 6u;
+        return GUI_RGB((red != 0u) ? (55u + (40u * red)) : 0u, (green != 0u) ? (55u + (40u * green)) : 0u,
+                       (blue != 0u) ? (55u + (40u * blue)) : 0u);
+    }
+    const unsigned int gray = 8u + (10u * (index - 232u));
+    return GUI_RGB(gray, gray, gray);
+}
+
+// the letter `letter` drawn in `box`, clipped to `place`, in the style `style` with `color` its foreground: its ground
+// where the style has one of its own, the selection's where it is `chosen` and the signal's where the cursor stands on
+// it `solid`; the letter in its color and face, dim at three fifths, inverse with its colors swapped, underlined and
+// struck through; and the cursor's outline where it stands on it and is not solid
 EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
 {
     const GuiPalette *const palette = args->palette;
+    const CliTerminalStyle *const style = args->style;
     const GuiRect box = args->box;
     const int width = args->width;
     const int height = args->height;
     const int one = args->one;
-    GuiColor ground = args->chosen ? palette->selection : 0u;
+    const int inverse = (style->marks & CLI_TERMINAL_INVERSE) != 0u;
+    const GuiColor background = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette, .value = style->background,
+                                           .color = inverse ? palette->well : 0u);
+    GuiColor ground = inverse ? args->color : background;
+    GuiColor ink = inverse ? background : args->color;
+    ground = args->chosen ? palette->selection : ground;
     ground = (args->cursor && args->solid) ? palette->signal : ground;
-    const GuiColor ink = (args->cursor && args->solid) ? palette->well : args->color;
+    ink = (args->cursor && args->solid) ? palette->well : ink;
+    // a dim letter is drawn at three fifths of its ink
+    ink = ((style->marks & CLI_TERMINAL_DIM) != 0u) ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u))
+                                                    : ink;
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->place);
     if (GUI_ALPHA_OF(ground) != 0u)
     {
@@ -379,15 +421,32 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
     }
     if (args->letter > (unsigned int)' ')
     {
+        const unsigned int bold = ((style->marks & CLI_TERMINAL_BOLD) != 0u) ? 1u : 0u;
+        const unsigned int italic = ((style->marks & CLI_TERMINAL_ITALIC) != 0u) ? 2u : 0u;
         float advance = 0.0f;
-        const GuiGlyphCell *const glyph = EMBED_CALL(
-            gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs, .face = GUI_FACE_CODE,
-            .letter = args->letter, .size = args->size, .color = ink, .advance = &advance);
+        const GuiGlyphCell *const glyph =
+            EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
+                       .face = GUI_FACE_CODE + bold + italic, .letter = args->letter, .size = args->size, .color = ink,
+                       .advance = &advance);
         if (glyph != NULL)
         {
             EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = args->raster, .cell = glyph,
                        .x = box.x, .y = box.y + args->baseline, .clip = on);
         }
+    }
+    if ((style->marks & CLI_TERMINAL_UNDERLINE) != 0u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){box.x, box.y + args->baseline + one, width, one}, .other = on),
+                   .color = ink);
+    }
+    if ((style->marks & CLI_TERMINAL_STRIKE) != 0u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){box.x, box.y + (height / 2), width, one}, .other = on),
+                   .color = ink);
     }
     if (args->cursor && !args->solid)
     {
@@ -465,7 +524,10 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         unsigned int x = 0u;
         unsigned int next = 0u;
         GuiColor color = palette->text;
+        int colored = 0;
         int concealed = 0;
+        // the style of the letters, from the plain one at the line's start, each concealed run's sequence read into it
+        CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
         while ((at < length) && (x < shown->columns))
         {
             while ((next < runs.runs) && (units >= column_of[next]))
@@ -473,12 +535,22 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                 const char *const token =
                     ((names != NULL) && (name_of[next] < names->count)) ? names->name[name_of[next]] : "";
                 const unsigned long long token_length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL});
-                // a run the grammar conceals takes no column: an SGR sequence among the letters
+                // a run the grammar conceals takes no column: an SGR sequence among the letters, read into the style
+                // of the letters after it where it lies, a byte to each of its units
                 concealed = cellul.eq(&(CatenaFinitaCfg){.src = token, .other = "conceal", .cap = 64ULL});
-                color = (token_length != 0ULL)
-                            ? EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
-                                         .name_read = token, .length = token_length)
-                            : palette->text;
+                const unsigned long long run_end =
+                    ((next + 1u) < runs.runs) ? column_of[next + 1u] : (units + (length - at));
+                const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;
+                if (concealed)
+                {
+                    EMBED_CALL(cli_terminal_xterm_style_read, CliTerminalXtermStyleCfg,
+                               .bytes = (const unsigned char *)(text + at),
+                               .size = (run_size < (length - at)) ? run_size : (length - at), .style = &style);
+                }
+                colored = (token_length != 0ULL) && !concealed;
+                color = colored ? EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
+                                             .name_read = token, .length = token_length)
+                                : palette->text;
                 next += 1u;
             }
             unsigned long long consumed = 0ULL;
@@ -492,19 +564,30 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
             {
                 continue;
             }
+            // the grammar's token colors the sixteen; a color past them, of the 256 or red, green and blue, is the
+            // style's own, and a letter of no token's color takes the style's
+            const unsigned int kind = style.foreground & CLI_TERMINAL_COLOR_KIND;
+            const int wide =
+                (kind == CLI_TERMINAL_COLOR_DIRECT) ||
+                ((kind == CLI_TERMINAL_COLOR_INDEXED) && ((style.foreground & 0xffu) >= GUI_TERMINAL_COLORS));
+            const GuiColor foreground = (colored && !wide)
+                                            ? color
+                                            : EMBED_CALL(terminal_color, TerminalCtx, .palette = palette,
+                                                         .value = style.foreground, .color = palette->text);
             // a pane's columns and rows are far inside what an int represents
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .palette = palette, .letter = letter, .color = color,
+                       .palette = palette, .letter = letter, .color = foreground, .style = &style,
                        .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = place,
                        .size = size, .baseline = baseline, .width = cell, .height = row, .one = one, .chosen = chosen,
                        .cursor = cursor_row && (x == shown->cursor_x), .solid = solid);
             x += 1u;
         }
-        // the cursor past the line's letters, on a blank of its own
+        // the cursor past the line's letters, on a blank of its own in the plain style
         if (cursor_row && (shown->cursor_x >= x) && (shown->cursor_x < shown->columns))
         {
+            const CliTerminalStyle plain = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
-                       .palette = palette, .letter = (unsigned int)' ', .color = palette->text,
+                       .palette = palette, .letter = (unsigned int)' ', .color = palette->text, .style = &plain,
                        .box = (GuiRect){left + ((int)shown->cursor_x * cell), top + ((int)y * row), cell, row},
                        .place = place, .size = size, .baseline = baseline, .width = cell, .height = row, .one = one,
                        .chosen = 0, .cursor = 1, .solid = solid);
