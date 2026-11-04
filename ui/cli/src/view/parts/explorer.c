@@ -1,8 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// explorer.c: the explorer's rows as the listing stands, the side's scroll and the row the pointer marks being the
-// window's own. A file's mark is its type's as the page's icons give them, else the first two letters of its type
-// quieter
+// explorer.c: the explorer's rows as the listing stands. A file's mark is its type's as the page's icons draw them,
+// else the first two letters of its type quieter
 #include "explorer.h"
 
 #include "../../command_line/cli_internal.h"
@@ -168,138 +167,13 @@ static const GuiMark s_named[] = {
     {"procfile", "\xe2\x89\xa1", 7u},
 };
 
-// the most bytes of a name a mark is looked up by
-
-void gui_explorer_init(const GuiExplorerCfg *args)
-{
-    memor.set(&(MemoriaCfg){.dst = args->explorer, .val = 0, .bytes = sizeof(*args->explorer)});
-    args->explorer->pointed = GUI_EXPLORER_NONE;
-}
-
 typedef struct
 {
-    const GuiExplorer *explorer;
-    const GuiFrame *frame;
     const char *name;
     unsigned long long length;
     char *text;
-    GuiRaster *raster;
-    int x;
-    int y;
-    int side;
-    int open;
-    GuiColor color;
-    GuiGlyphs *glyphs;
-    unsigned int face;
-    unsigned int size;
-    int top;
-    int pixel_height;
-    GuiIcons *icons;
-    const GuiPalette *palette;
-    unsigned int row;
-    GuiRect clip;
+    unsigned int at;
 } ExplorerCtx;
-
-unsigned int gui_explorer_rows(const GuiExplorerFrameXYCfg *args)
-{
-    (void)args;
-    return cli_files_explorer_rows();
-}
-
-// where the rows begin in the side, below the explorer's head and the pane's
-EMBED_INLINE int explorer_rows_top(const ExplorerCtx *args)
-{
-    return args->frame->side.y +
-           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                      .pixels = GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_EXPLORER_PANE_HEAD,
-                      .scale = args->frame->scale);
-}
-
-GuiRect gui_explorer_row_rect(const GuiExplorerRowFrameCfg *args)
-{
-    const int pixel_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ROW, .scale = args->frame->scale);
-    // the rows and the scroll are far fewer than an int counts
-    const int from_top = (int)args->row - (int)args->explorer_read->scroll;
-    return (GuiRect){args->frame->side.x,
-                     EMBED_CALL(explorer_rows_top, ExplorerCtx, .frame = args->frame) + (from_top * pixel_height),
-                     args->frame->side.width - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
-                                                          .scale = args->frame->scale),
-                     pixel_height};
-}
-
-int gui_explorer_hit(const GuiExplorerFrameXYCfg *args)
-{
-    unsigned int *row = args->row_pointer;
-    const int top = EMBED_CALL(explorer_rows_top, ExplorerCtx, .frame = args->frame);
-    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->frame->side, .x = args->x,
-                    .y = args->y) ||
-        (args->y < top))
-    {
-        return 0;
-    }
-    // the pixel stands below the rows' top: the row counted is not negative
-    const unsigned int at =
-        (unsigned int)((args->y - top) / EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                    .pixels = GUI_EXPLORER_ROW, .scale = args->frame->scale)) +
-        args->explorer_read->scroll;
-    if (at >= gui_explorer_frame_xy.rows(args))
-    {
-        return 0;
-    }
-    *row = at;
-    return 1;
-}
-
-int gui_explorer_move(const GuiExplorerFrameXCfg *args)
-{
-    unsigned int row = 0u;
-    // the rows are far fewer than an int counts
-    const int pointed = EMBED_CALL(gui_explorer_frame_xy.hit, GuiExplorerFrameXYCfg, .explorer_read = args->explorer,
-                                   .frame = args->frame, .x = args->x, .y = args->y, .row_pointer = &row)
-                            ? (int)row
-                            : GUI_EXPLORER_NONE;
-    if (pointed == args->explorer->pointed)
-    {
-        return 0;
-    }
-    args->explorer->pointed = pointed;
-    return 1;
-}
-
-int gui_explorer_wheel(const GuiExplorerFrameCfg *args)
-{
-    const int pixel_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ROW, .scale = args->frame->scale);
-    const int capacity = args->frame->side.y + args->frame->side.height -
-                         EMBED_CALL(explorer_rows_top, ExplorerCtx, .frame = args->frame);
-    const int displayed = (pixel_height > 0) ? capacity / pixel_height : 0;
-    // the rows are far fewer than an int counts
-    const int count =
-        (int)EMBED_CALL(gui_explorer_frame_xy.rows, GuiExplorerFrameXYCfg, .explorer_read = args->explorer);
-    const int most = (count > displayed) ? count - displayed : 0;
-    const int required = (int)args->explorer->scroll + args->rows;
-    int clamped;
-    if (required < 0)
-    {
-        clamped = 0;
-    }
-    else if (required > most)
-    {
-        clamped = most;
-    }
-    else
-    {
-        clamped = required;
-    }
-    // the scroll clamped is not negative
-    if ((unsigned int)clamped == args->explorer->scroll)
-    {
-        return 0;
-    }
-    args->explorer->scroll = (unsigned int)clamped;
-    return 1;
-}
 
 // the mark of the file `name`, `length` bytes, its text into `text`, sized GUI_EXPLORER_MARK_MOST, and the mark's
 // color, 0 for the quieter one
@@ -350,112 +224,63 @@ unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
     return 0u;
 }
 
-// an arrow drawn in a box at x, y of `side` pixels, pointing right where closed and down where open
-EMBED_INLINE void explorer_arrow_draw(const ExplorerCtx *args)
+// the pane's head: the tree's name
+static const char *explorer_title(const GuiPaneCfg *args)
 {
-    GuiRaster *raster = args->raster;
-    GuiColor color = args->color;
-    const int half = args->side / 2;
-    // an arrow is drawn whole inside `clip` or not at all, its strokes lines the clip does not cut
-    const GuiRect box = {args->x, args->y, args->side, args->side};
-    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->clip);
-    if ((met.width != box.width) || (met.height != box.height))
-    {
-        return;
-    }
-    if (args->open)
-    {
-        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x, .y0 = args->y + 1,
-                   .x1 = args->x + half, .y1 = args->y + half + 1, .color = color);
-        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + half,
-                   .y0 = args->y + half + 1, .x1 = args->x + args->side - 1, .y1 = args->y + 1, .color = color);
-    }
-    else
-    {
-        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + 1, .y0 = args->y,
-                   .x1 = args->x + half + 1, .y1 = args->y + half, .color = color);
-        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + half + 1,
-                   .y0 = args->y + half, .x1 = args->x + 1, .y1 = args->y + args->side - 1, .color = color);
-    }
+    return (args->tree != NULL) ? args->tree : "";
 }
 
-// a baseline that centers a face's letters in a row from `top`, `pixel_height` pixels
-EMBED_INLINE int explorer_baseline(const ExplorerCtx *args)
+static unsigned int explorer_rows(const GuiPaneCfg *args)
 {
-    const GuiGlyphs *glyphs = args->glyphs;
-    unsigned int face = args->face;
-    unsigned int size = args->size;
-    const float ascent =
-        EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
-    const float descent =
-        EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
-    return args->top + (int)((((float)args->pixel_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    (void)args;
+    return cli_files_explorer_rows();
 }
 
-// one row drawn: its ground where pointed or shown, its guides, its arrow, its icon or mark, and its name
-EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
+// the row of the file the editor shows, its path the shown view's; a view's place is far inside an int
+static int explorer_current(const GuiPaneCfg *args)
 {
-    const GuiExplorer *explorer = args->explorer;
+    (void)args;
+    const int shown = cli_view_shown();
+    const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL;
+    CliExplorerRow listed;
+    for (unsigned int at = 0u; (shown_path != NULL) && cli_files_explorer_row(at, &listed); at += 1u)
+    {
+        if (!listed.dir &&
+            cellul.eq(&(CatenaFinitaCfg){.src = listed.path, .other = shown_path, .cap = CLI_PATH_MAX_LEN}))
+        {
+            // the rows are far fewer than an int counts
+            return (int)at;
+        }
+    }
+    return GUI_PANE_NONE;
+}
+
+// one row drawn: its guides, its arrow, its icon or mark, and its name
+static void explorer_row_draw(const GuiPaneCfg *args)
+{
     GuiRaster *raster = args->raster;
     GuiGlyphs *glyphs = args->glyphs;
-    GuiIcons *icons = args->icons;
-    const GuiFrame *frame = args->frame;
-    unsigned int row = args->row;
-    GuiRect clip = args->clip;
+    const GuiFrame *const frame = args->frame;
+    const GuiRect rect = args->rect;
+    const GuiRect clip = args->clip;
     const int scale = frame->scale;
     CliExplorerRow listed;
-    const GuiRect rect = EMBED_CALL(gui_explorer_row_frame.row_rect, GuiExplorerRowFrameCfg, .frame = frame,
-                                    .explorer_read = explorer, .row = row);
-    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = clip);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met) || !cli_files_explorer_row(row, &listed))
+    if (!cli_files_explorer_row(args->row, &listed))
     {
         return;
     }
     const CliExplorerRow *const node = &listed;
-    // the row of the file the editor shows, its path the shown view's; a view's place is far inside an int
-    const int shown = cli_view_shown();
-    const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL;
-    const int current = (shown_path != NULL) &&
-                        cellul.eq(&(CatenaFinitaCfg){.src = node->path, .other = shown_path, .cap = CLI_PATH_MAX_LEN});
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = node->name, .cap = CLI_PATH_MAX_LEN});
-    // the rows are far fewer than an int counts
-    if (explorer->pointed == (int)row)
-    {
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = met,
-                   .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
-    }
-    else if (current)
-    {
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = met,
-                   .color = GUI_FRAME_FADED(args->palette->selection_idle, args->frame->side_share));
-    }
-    const int guide =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_GUIDE, .scale = scale);
-    int x =
-        rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_PAD_LEFT, .scale = scale);
-    for (unsigned int level = 0u; level < node->depth; level += 1u)
-    {
-        EMBED_CALL(
-            gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-            .rect = EMBED_CALL(
-                gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                .one = (GuiRect){x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale),
-                                 rect.y,
-                                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
-                                 rect.height},
-                .other = clip),
-            .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
-        x += guide;
-    }
+    int x = gui_pane.guides(args);
     const int twisty =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_TWISTY, .scale = scale);
     if (node->dir)
     {
         const int arrow =
-            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ARROW, .scale = scale);
-        EMBED_CALL(explorer_arrow_draw, ExplorerCtx, .raster = raster, .x = x + ((twisty - arrow) / 2),
+            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_ARROW, .scale = scale);
+        EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = raster, .x = x + ((twisty - arrow) / 2),
                    .y = rect.y + ((rect.height - arrow) / 2), .side = arrow, .open = node->open,
-                   .color = GUI_FRAME_FADED(args->palette->text_2, args->frame->side_share), .clip = clip);
+                   .color = GUI_FRAME_FADED(args->palette->text_2, frame->side_share), .clip = clip);
     }
     x += twisty;
     const int icon = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON, .scale = scale);
@@ -464,14 +289,14 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
         const unsigned int size =
             (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 14, .scale = scale);
         const GuiMask *const mask_bits =
-            EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = "folder", .size = size,
+            EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = args->icons, .name = "folder", .size = size,
                        .stroke = GUI_ICON_STROKE * (float)size / GUI_ICON_UNITS);
         if (mask_bits != NULL)
         {
             // the icon's side is far inside what an int represents
             EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = raster, .mask_bits = mask_bits,
                        .x = x + ((icon - (int)size) / 2), .y = rect.y + ((rect.height - (int)size) / 2),
-                       .color = GUI_FRAME_FADED(args->palette->link, args->frame->side_share), .clip = met);
+                       .color = GUI_FRAME_FADED(args->palette->link, frame->side_share), .clip = clip);
         }
     }
     else
@@ -487,16 +312,16 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
         (void)EMBED_CALL(
             gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
             .face = GUI_FACE_CODE_BOLD, .size = size, .x_f32 = (float)x + (((float)icon - pixel_width) / 2.0f),
-            .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_CODE_BOLD, .size = size,
-                            .top = rect.y, .pixel_height = rect.height),
+            .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                            .face = GUI_FACE_CODE_BOLD, .size = size, .top = rect.y, .pixel_height = rect.height),
             .text = text, .length = length,
             .color = GUI_FRAME_FADED((color != 0u) ? args->palette->mark[color - 1u] : args->palette->text_3,
-                                     args->frame->side_share),
-            .clip = met);
+                                     frame->side_share),
+            .clip = clip);
     }
     x += icon + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON_GAP, .scale = scale);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = (int)GUI_EXPLORER_ROW_SIZE, .scale = scale);
+                                                       .pixels = (int)GUI_PANE_ROW_SIZE, .scale = scale);
     GuiColor color;
     if (node->dir)
     {
@@ -512,90 +337,40 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
     }
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)x,
-                     .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-                                     .size = size, .top = rect.y, .pixel_height = rect.height),
-                     .text = node->name, .length = name_length,
-                     .color = GUI_FRAME_FADED(color, args->frame->side_share), .clip = met);
+                     .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                     .face = GUI_FACE_HEAD, .size = size, .top = rect.y, .pixel_height = rect.height),
+                     .text = node->name, .length = name_length, .color = GUI_FRAME_FADED(color, frame->side_share),
+                     .clip = clip);
 }
 
-void gui_explorer_draw(const GuiExplorerFrameXYCfg *args)
+// a folder's row pressed opens or closes it; a file's opens the file
+static int explorer_press(const GuiPaneCfg *args)
 {
-    GuiRaster *raster = args->raster;
-    GuiGlyphs *glyphs = args->glyphs;
-    const int scale = args->frame->scale;
-    const GuiRect side = args->frame->side;
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = side))
+    CliExplorerRow row;
+    const int listed = cli_files_explorer_row(args->row, &row);
+    if (cli_files_explorer_press(args->row) || !listed || row.dir)
     {
-        return;
+        return 0;
     }
-    const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    // the pane no further than the work's inside, as its pane slides out of it
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){side.x + side.width - one, side.y, one, side.height},
-                                  .other = args->frame->inside),
-               .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
-    const GuiRect inside =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){side.x, side.y, side.width - one, side.height}, .other = args->frame->inside);
-    const int head = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_HEAD, .scale = scale);
-    const unsigned int head_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                            .pixels = (int)GUI_EXPLORER_HEAD_SIZE, .scale = scale);
-    (void)EMBED_CALL(
-        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-        .size = head_size,
-        .x_f32 = (float)(side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 15, .scale = scale)),
-        .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = head_size,
-                        .top = side.y, .pixel_height = head),
-        .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ULL}),
-        .color = GUI_FRAME_FADED(args->palette->text_2, args->frame->side_share), .clip = inside);
-    if (!args->folders)
+    *args->open_out = (GuiPaneOpen){row.path, {0ULL, 0ULL}, 0};
+    return 1;
+}
+
+// the tree listed as the pane shows
+static void explorer_read(const GuiPaneCfg *args)
+{
+    if (args->event == GUI_PANE_SHOWN)
     {
-        return;
-    }
-    // the pane's line, its head with the arrow open and the tree's name, and its body on the editor's ground
-    const int line_y = side.y + head;
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
-               .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
-    const int pane_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_PANE_HEAD, .scale = scale);
-    const int pane_y = line_y + one;
-    const int arrow =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ARROW, .scale = scale);
-    EMBED_CALL(explorer_arrow_draw, ExplorerCtx, .raster = raster,
-               .x = side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale),
-               .y = pane_y + ((pane_height - arrow) / 2), .side = arrow, .open = 1,
-               .color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share), .clip = inside);
-    (void)EMBED_CALL(
-        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-        .size = head_size,
-        .x_f32 = (float)(side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 19, .scale = scale)),
-        .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = head_size,
-                        .top = pane_y, .pixel_height = pane_height),
-        .text = args->tree, .length = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_NAME_MAX_LEN}),
-        .color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share), .clip = inside);
-    const int rows_top = EMBED_CALL(explorer_rows_top, ExplorerCtx, .frame = args->frame);
-    const GuiRect body =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, .other = inside);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = body))
-    {
-        return;
-    }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
-               .color = GUI_FRAME_FADED(args->palette->editor_background, args->frame->side_share));
-    const unsigned int rows = gui_explorer_frame_xy.rows(args);
-    for (unsigned int row = args->explorer_read->scroll; row < rows; row += 1u)
-    {
-        if (EMBED_CALL(gui_explorer_row_frame.row_rect, GuiExplorerRowFrameCfg, .frame = args->frame,
-                       .explorer_read = args->explorer_read, .row = row)
-                .y >= body.y + body.height)
-        {
-            break;
-        }
-        EMBED_CALL(explorer_row_draw, ExplorerCtx, .explorer = args->explorer_read, .raster = raster, .glyphs = glyphs,
-                   .icons = args->icons, .palette = args->palette, .frame = args->frame, .row = row, .clip = body);
+        cli_files_explorer_show(args->root);
     }
 }
+
+const GuiPaneKind gui_explorer_kind = {
+    .tool = "explorer",
+    .title = explorer_title,
+    .rows = explorer_rows,
+    .row_draw = explorer_row_draw,
+    .current = explorer_current,
+    .press = explorer_press,
+    .read = explorer_read,
+};

@@ -479,10 +479,6 @@ void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args)
     GuiGlyphs *glyphs = args->glyphs;
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_HEAD_SIZE, .scale = args->frame->scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_HEAD, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size);
     // the titles stand in the bar's pane, the slat its edge shows
     const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->bar_band,
                                     .other = args->frame->bar);
@@ -505,7 +501,8 @@ void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args)
         const char *const text = EMBED_CALL(menubar_title_text, MenubarCtx, .menubar = args->menubar_read,
                                             .title = title, .length = &length);
         const int baseline =
-            title->rect.y + (int)((((float)title->rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+            EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
+                       .size = size, .top = title->rect.y, .pixel_height = title->rect.height);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = size,
                          .x_f32 =
@@ -542,10 +539,6 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                                                        .pixels = (int)GUI_HEAD_SIZE, .scale = scale);
     const unsigned int keys_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                             .pixels = (int)GUI_KEYS_SIZE, .scale = scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_HEAD, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size);
     const int item_pad =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_ITEM_PAD_X, .scale = scale);
     const int check_x =
@@ -604,7 +597,9 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                                                               .scale = scale),
                            .color = args->palette->selection_idle);
             }
-            const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+            const int baseline =
+                EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
+                           .size = size, .top = rect.y, .pixel_height = rect.height);
             // a row of items is never one that cannot be chosen, and a state shows on only as the window answers it
             const int disabled = (row->list == 0u) && !cli_menus_selectable(level, at);
             const int checked =

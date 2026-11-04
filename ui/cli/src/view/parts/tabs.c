@@ -172,10 +172,6 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                .color = line_color);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_CODE, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_CODE, .size = size);
     const unsigned int count = cli_view_count();
     const int shown = cli_view_shown();
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -214,7 +210,9 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                                       .one = (GuiRect){rect.x + rect.width - one, rect.y, one, rect.height},
                                       .other = args->frame->tabs),
                    .color = line_color);
-        const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+        const int baseline =
+            EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE,
+                       .size = size, .top = rect.y, .pixel_height = rect.height);
         const int left =
             rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT, .scale = scale);
         // the mark of changes not saved before the name, in the hover's color, as tabs.js draws its dot

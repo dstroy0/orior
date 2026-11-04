@@ -13,6 +13,7 @@
 #ifndef TESTING_H
 #define TESTING_H
 #include "../command_line/cli_internal.h"
+#include "../machine/state.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTestingRulesTextCfg CliTestingRulesTextCfg;
@@ -211,6 +212,138 @@ EMBED_TABLE_LAYOUT(CliTestingRootNs, tests_python_find, tests_find);
 EMBED_TABLE_STORAGE CliTestingRootNs cli_testing_root EMBED_UNUSED = {
     .tests_python_find = cli_tests_python_find,
     .tests_find = cli_tests_find,
+};
+
+// The tests pane as the window lists it (tests_pane.c): the tree's tests by file, in rows, each test's last outcome as
+// a run reports it on a thread of the run's own, the run going and the summary of the last, and the coverage of the
+// last run that recorded it. A test a run reports that the finder did not list is not added.
+// a test's outcomes, in the order the worst of a file's tests is picked: running, failed, passed, skipped, not run
+#define CLI_TESTS_NONE 0u
+#define CLI_TESTS_RUNNING 1u
+#define CLI_TESTS_FAILED 2u
+#define CLI_TESTS_PASSED 3u
+#define CLI_TESTS_SKIPPED 4u
+// the rows: a file, a test, a failed test's message, the coverage's head and a file's coverage
+#define CLI_TESTS_ROW_FILE 0u
+#define CLI_TESTS_ROW_TEST 1u
+#define CLI_TESTS_ROW_MESSAGE 2u
+#define CLI_TESTS_ROW_COVER_HEAD 3u
+#define CLI_TESTS_ROW_COVER 4u
+// the pane's actions: Run All, Run Failed, Coverage, Stop and the Parallel choice
+#define CLI_TESTS_RUN 1u
+#define CLI_TESTS_RUN_FAILED 2u
+#define CLI_TESTS_COVER 3u
+#define CLI_TESTS_STOP 4u
+#define CLI_TESTS_PARALLEL 5u
+// the most bytes of a summary with its end
+#define CLI_TESTS_SUMMARY 320u
+
+// A row of the pane: its kind; the file's path in the tree; its name, a file's own, a test's label, a message's first
+// line or a coverage row's path, and the name's bytes; a file row's folder, the bytes of `path` before the name; the
+// outcome, a file's worst or a test's own; a file row's counts of passed, failed and skipped tests, a coverage row's
+// lines that ran in `passed` and missed in `failed`; whether a file row's tests show; a test row's time in
+// milliseconds, 0 where it has not run; and the line a press opens at, a failed test's where it failed, else where it
+// is written, a coverage row's first line missed
+typedef struct
+{
+    unsigned int kind;
+    const char *path;
+    const char *name;
+    unsigned long long name_length;
+    unsigned long long folder_length;
+    unsigned int outcome;
+    unsigned int passed;
+    unsigned int failed;
+    unsigned int skipped;
+    int open;
+    unsigned int milliseconds;
+    unsigned long long line;
+} CliTestsRow;
+
+typedef struct CliTestsPaneCfg CliTestsPaneCfg;
+
+// what wakes the window as a run reports, `woken`, from the run's thread; and the Parallel choice restored from the
+// saved `entries`, on where none is saved
+void cli_tests_pane_begin(const CliTestsPaneCfg *args);
+// the tree's tests at `root` read anew, none where `root` is NULL, every outcome forgotten; not while a run goes; and
+// whether the tests have been read
+void cli_tests_pane_read(const CliTestsPaneCfg *args);
+int cli_tests_pane_loaded(const CliTestsPaneCfg *args);
+// how many rows there are; the row `at` into `row`: 1, or 0 past the last; and the file row `at` closed or opened
+unsigned int cli_tests_pane_rows(const CliTestsPaneCfg *args);
+int cli_tests_pane_row(const CliTestsPaneCfg *args);
+void cli_tests_pane_toggle(const CliTestsPaneCfg *args);
+// every test of the tree at `root` run, the tests read anew first, with coverage recorded where `cover`, or where
+// `failed` the tests whose last outcome failed run again, spread over the cores where the Parallel choice is on: 1, or
+// 0 with why posted as a notice; the run going stopped; whether one goes; and whether any test's last outcome failed
+int cli_tests_pane_run(const CliTestsPaneCfg *args);
+void cli_tests_pane_stop(const CliTestsPaneCfg *args);
+int cli_tests_pane_running(const CliTestsPaneCfg *args);
+int cli_tests_pane_any_failed(const CliTestsPaneCfg *args);
+// what a run reports, as test_runs.h hands it: a run started marks the tests it was handed running; a result sets its
+// test's outcome, time and message; the coverage lists the files' lines; the end counts the run and leaves no test
+// running; each wakes the window
+void cli_tests_pane_event(const CliEachJsonSizeCfg *args);
+// whether a report came since the last ask, which clears it; and whether a summary stands, a run going or ended
+int cli_tests_pane_changed(const CliTestsPaneCfg *args);
+int cli_tests_pane_said(const CliTestsPaneCfg *args);
+// the summary into `text`, sized CLI_TESTS_SUMMARY: while a run goes the runner, its processes and the tests done,
+// after one its counts and seconds, or why no test ran: the bytes written, 0 where no run has gone, with `failed_out`
+// set where the run's end counted a failure
+unsigned long long cli_tests_pane_summary(const CliTestsPaneCfg *args);
+// whether a run spreads its files over the cores, and the choice set `on` or off and saved in orior's folder
+int cli_tests_pane_parallel(const CliTestsPaneCfg *args);
+void cli_tests_pane_parallel_set(const CliTestsPaneCfg *args);
+struct CliTestsPaneCfg
+{
+    void (*woken)(void);
+    const CliStateEntries *entries;
+    const char *root;
+    unsigned int at;
+    CliTestsRow *row;
+    int failed;
+    int cover;
+    char *text;
+    int *failed_out;
+    int on;
+};
+
+typedef struct
+{
+    void (*begin)(const CliTestsPaneCfg *args);
+    void (*read)(const CliTestsPaneCfg *args);
+    int (*loaded)(const CliTestsPaneCfg *args);
+    unsigned int (*rows)(const CliTestsPaneCfg *args);
+    int (*row)(const CliTestsPaneCfg *args);
+    void (*toggle)(const CliTestsPaneCfg *args);
+    int (*run)(const CliTestsPaneCfg *args);
+    void (*stop)(const CliTestsPaneCfg *args);
+    int (*running)(const CliTestsPaneCfg *args);
+    int (*any_failed)(const CliTestsPaneCfg *args);
+    int (*changed)(const CliTestsPaneCfg *args);
+    int (*said)(const CliTestsPaneCfg *args);
+    unsigned long long (*summary)(const CliTestsPaneCfg *args);
+    int (*parallel)(const CliTestsPaneCfg *args);
+    void (*parallel_set)(const CliTestsPaneCfg *args);
+} CliTestsPaneNs;
+EMBED_TABLE_LAYOUT(CliTestsPaneNs, begin, read, loaded, rows, row, toggle, run, stop, running, any_failed, changed,
+                   said, summary, parallel, parallel_set);
+EMBED_TABLE_STORAGE CliTestsPaneNs cli_tests_pane EMBED_UNUSED = {
+    .begin = cli_tests_pane_begin,
+    .read = cli_tests_pane_read,
+    .loaded = cli_tests_pane_loaded,
+    .rows = cli_tests_pane_rows,
+    .row = cli_tests_pane_row,
+    .toggle = cli_tests_pane_toggle,
+    .run = cli_tests_pane_run,
+    .stop = cli_tests_pane_stop,
+    .running = cli_tests_pane_running,
+    .any_failed = cli_tests_pane_any_failed,
+    .changed = cli_tests_pane_changed,
+    .said = cli_tests_pane_said,
+    .summary = cli_tests_pane_summary,
+    .parallel = cli_tests_pane_parallel,
+    .parallel_set = cli_tests_pane_parallel_set,
 };
 
 #endif

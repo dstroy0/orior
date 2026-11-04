@@ -78,11 +78,8 @@ static int signature_label_layout(const SignatureCtx *args)
                                                        .pixels = GUI_PANEL_CODE_SIZE, .scale = scale);
     const int line_height =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_CODE_LINE, .scale = scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_CODE, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_CODE, .size = size);
-    const int baseline = (int)((((float)line_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = 0, .pixel_height = line_height);
     const GuiColor type = EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
                                      .name_read = "type", .length = 4ULL);
     float pen = (float)x;

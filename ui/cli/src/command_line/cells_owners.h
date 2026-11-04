@@ -34,46 +34,48 @@
                             "cli_maven_model") owner_(g_cli_notebook_cells,                                            \
                                                       "cli_notebooks") owner_(g_cli_platform_cells, "cli_platform")    \
                             owner_(g_cli_plugins_cells, "cli_plugins") owner_(g_cli_print_cells, "cli_print") owner_(  \
-                                g_cli_profile_cells,                                                                   \
-                                "cli_profile") owner_(g_cli_programs_cells,                                            \
-                                                      "cli_programs") owner_(g_cli_purpose_cells,                      \
-                                                                             "cli_purpose") owner_(g_cli_python_cells, \
-                                                                                                   "cli_python_paths") \
-                                owner_(g_cli_qry_listing_cells, "cli_qry_listed") owner_(                              \
-                                    g_cli_queue_cells, "cli_queue") owner_(g_cli_requests_cells,                       \
-                                                                           "cli_requests") owner_(g_cli_review_cells,  \
-                                                                                                  "cli_review")        \
-                                    owner_(g_cli_runs_cells, "cli_runs") owner_(                                       \
-                                        g_cli_schema_cells,                                                            \
-                                        "cli_schemas") owner_(g_cli_scons_work_states_cells,                           \
-                                                              "cli_scons_work_states") owner_(g_cli_sea_cells,         \
-                                                                                              "cli_sea")               \
-                                        owner_(g_cli_search_cells, "cli_files_search") owner_(                         \
-                                            g_cli_servers_cells, "cli_servers") owner_(g_cli_servers_check_cells,      \
-                                                                                       "cli_servers_check")            \
-                                            owner_(g_cli_servers_check_work_state_cells, "the tree's check") owner_(   \
-                                                g_cli_servers_edits_cells,                                             \
-                                                "cli_servers_edits") owner_(g_cli_servers_launch_cells,                \
-                                                                            "cli_servers_launch")                      \
-                                                owner_(g_cli_settings_cells, "cli_settings") owner_(                   \
-                                                    g_cli_shape_cells,                                                 \
-                                                    "cli_shape") owner_(g_cli_state_cells,                             \
-                                                                        "cli_state") owner_(g_cli_templates_cells,     \
-                                                                                            "cli_templates")           \
-                                                    owner_(g_cli_test_report_cells, "cli_test_report") owner_(         \
-                                                        g_cli_tests_cells,                                             \
-                                                        "cli_tests") owner_(g_cli_text_cells,                          \
-                                                                            "cli_text") owner_(g_cli_terminal_cells,   \
-                                                                                               "cli_terminal")         \
-                                                        owner_(g_cli_tls_cells, "cli_tls") owner_(                     \
-                                                            g_cli_toolchains_cells,                                    \
-                                                            "cli_toolchains") owner_(g_cli_toolchains_found_cells,     \
-                                                                                     "cli_toolchains_found")           \
-                                                            owner_(g_cli_toolchains_words_cells,                       \
-                                                                   "cli_toolchains_words") owner_(g_cli_trust_cells,   \
-                                                                                                  "cli_trust")         \
-                                                                owner_(g_cli_versions_cells, "cli_version_catalogs")   \
-                                                                    owner_(g_cli_views_cells, "cli_views")             \
+                                g_cli_profile_cells, "cli_profile") owner_(g_cli_programs_cells,                       \
+                                                                           "cli_programs") owner_(g_cli_purpose_cells, \
+                                                                                                  "cli_purpose")       \
+                                owner_(g_cli_python_cells, "cli_python_paths") owner_(                                 \
+                                    g_cli_qry_listing_cells, "cli_qry_listed") owner_(g_cli_queue_cells, "cli_queue")  \
+                                    owner_(g_cli_requests_cells, "cli_requests") owner_(                               \
+                                        g_cli_review_cells,                                                            \
+                                        "cli_review") owner_(g_cli_runs_cells, "cli_runs") owner_(g_cli_schema_cells,  \
+                                                                                                  "cli_schemas")       \
+                                        owner_(g_cli_scons_work_states_cells, "cli_scons_work_states") owner_(         \
+                                            g_cli_sea_cells,                                                           \
+                                            "cli_sea") owner_(g_cli_search_cells,                                      \
+                                                              "cli_files_search") owner_(g_cli_servers_cells,          \
+                                                                                         "cli_servers")                \
+                                            owner_(g_cli_servers_check_cells, "cli_servers_check") owner_(             \
+                                                g_cli_servers_check_work_state_cells,                                  \
+                                                "the tree's check") owner_(g_cli_servers_edits_cells,                  \
+                                                                           "cli_servers_edits")                        \
+                                                owner_(g_cli_servers_launch_cells, "cli_servers_launch") owner_(       \
+                                                    g_cli_settings_cells,                                              \
+                                                    "cli_settings") owner_(g_cli_shape_cells,                          \
+                                                                           "cli_shape") owner_(g_cli_state_cells,      \
+                                                                                               "cli_state")            \
+                                                    owner_(g_cli_templates_cells, "cli_templates") owner_(             \
+                                                        g_cli_test_report_cells,                                       \
+                                                        "cli_test_report") owner_(g_cli_tests_pane_cells,              \
+                                                                                  "cli_tests_pane")                    \
+                                                        owner_(g_cli_tests_cells, "cli_tests") owner_(                 \
+                                                            g_cli_text_cells, "cli_text") owner_(g_cli_terminal_cells, \
+                                                                                                 "cli_terminal")       \
+                                                            owner_(g_cli_tls_cells, "cli_tls") owner_(                 \
+                                                                g_cli_toolchains_cells,                                \
+                                                                "cli_toolchains") owner_(g_cli_toolchains_found_cells, \
+                                                                                         "cli_toolchains_"             \
+                                                                                         "found")                      \
+                                                                owner_(g_cli_toolchains_words_cells,                   \
+                                                                       "cli_toolchains_"                               \
+                                                                       "words") owner_(g_cli_trust_cells, "cli_trust") \
+                                                                    owner_(g_cli_versions_cells,                       \
+                                                                           "cli_version_"                              \
+                                                                           "catalogs") owner_(g_cli_views_cells,       \
+                                                                                              "cli_views")             \
                                                                         owner_(g_cli_watch_cells, "cli_watch") owner_( \
                                                                             g_cli_watch_folders_cells,                 \
                                                                             "cli_watch_folders")                       \

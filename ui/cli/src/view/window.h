@@ -13,18 +13,16 @@
 #include "framebuffer.h"
 #include "ground.h"
 #include "parts/busy.h"
-#include "parts/changes.h"
 #include "parts/editor.h"
-#include "parts/explorer.h"
 #include "parts/hover.h"
 #include "parts/menubar.h"
 #include "parts/minimap.h"
+#include "parts/pane.h"
 #include "parts/preferences.h"
 #include "parts/problems.h"
 #include "parts/signature.h"
 #include "parts/statusbar.h"
 #include "parts/strip.h"
-#include "parts/structure.h"
 #include "parts/suggest.h"
 #include "parts/tabs.h"
 #include "parts/terminal.h"
@@ -99,13 +97,10 @@ typedef struct GuiWindow
     GuiStrip strip;
     GuiSides sides;
     GuiDocks docks;
-    GuiExplorer explorer;
+    GuiPane panes[GUI_PANE_TOOLS];
     GuiHover hover;
     GuiSuggest suggest;
     GuiSignature signature;
-    GuiProblems problems;
-    GuiStructure structure;
-    GuiChanges changes;
     GuiTerminal terminal;
     CliHoverPanel hover_panel;
     CliCompletionPanel completion_panel;

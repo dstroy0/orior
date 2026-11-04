@@ -155,11 +155,8 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
                .scale = scale);
     const GuiRect clip =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->suggest->rect, .other = bounds);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_CODE, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_CODE, .size = size);
-    const int baseline = (int)((((float)row_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = 0, .pixel_height = row_height);
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
         const unsigned int at = panel->first + row;

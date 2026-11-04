@@ -196,11 +196,8 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     }
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_STATUS_SIZE, .scale = scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_HEAD, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size);
-    const int baseline = bar.y + (int)((((float)bar.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_HEAD, .size = size, .top = bar.y, .pixel_height = bar.height);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_GAP, .scale = scale);
     char text[GUI_STATUS_TEXT];
     // the items from the right: the lock, the indentation, the encoding, the line ends, the selection and the cursor,

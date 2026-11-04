@@ -139,6 +139,9 @@ void gui_glyph_cell_layout(const GuiGlyphsRasterCfg *args);
 // advance of its glyphs at `size`
 float gui_glyphs_ascent(const GuiGlyphsFaceCfg *args);
 float gui_glyphs_descent(const GuiGlyphsFaceCfg *args);
+// the baseline of text in `face` at `size` centered in a box `pixel_height` pixels high from `top`: the box's height
+// less the face's, halved, then the ascent down, rounded
+int gui_glyphs_baseline(const GuiGlyphsFaceCfg *args);
 float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args);
 // `length` bytes of the UTF-8 `text` drawn in `face` at `size` from `x` on the baseline `y` in `color`, no further than
 // `clip`: the x after it; and the width the text takes
@@ -182,6 +185,8 @@ struct GuiGlyphsFaceCfg
     const GuiGlyphs *glyphs_read;
     unsigned int face;
     unsigned int size;
+    int top;
+    int pixel_height;
 };
 
 struct GuiGlyphsCfg
@@ -210,12 +215,14 @@ typedef struct
     unsigned int (*face_had)(const GuiGlyphsFaceCfg *args);
     float (*ascent)(const GuiGlyphsFaceCfg *args);
     float (*descent)(const GuiGlyphsFaceCfg *args);
+    int (*baseline)(const GuiGlyphsFaceCfg *args);
 } GuiGlyphsFaceNs;
-EMBED_TABLE_LAYOUT(GuiGlyphsFaceNs, face_had, ascent, descent);
+EMBED_TABLE_LAYOUT(GuiGlyphsFaceNs, face_had, ascent, descent, baseline);
 EMBED_TABLE_STORAGE GuiGlyphsFaceNs gui_glyphs_face EMBED_UNUSED = {
     .face_had = gui_face_had,
     .ascent = gui_glyphs_ascent,
     .descent = gui_glyphs_descent,
+    .baseline = gui_glyphs_baseline,
 };
 
 typedef struct

@@ -20,12 +20,9 @@ void gui_bar_draw(const GuiChromeRasterCfg *args)
                                     .other = args->frame->bar);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_HEAD_SIZE, .scale = args->frame->scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_HEAD, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size);
     const int baseline =
-        args->frame->bar.y + (int)((((float)args->frame->bar.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+        EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
+                   .size = size, .top = args->frame->bar.y, .pixel_height = args->frame->bar.height);
     unsigned long long length = 0ULL;
     length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_CELLS_POOL});
     const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BAR_NAME_WIDTH,

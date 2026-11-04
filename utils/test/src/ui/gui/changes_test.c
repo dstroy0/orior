@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // changes_test.c: the Changes pane's check: a repository with two files git does not yet track lists them as rows,
-// each not yet tracked, the deeper one with its folder; the pane draws the rows under the Commit group's title on the
-// side, the row pointed on a ground of its own; a press lands on a row; and no tree leaves no rows
+// each not yet tracked, the deeper one with its folder; the pane's kind draws the rows under the Commit group's title on
+// the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the kind reads on the
+// pane's showing and a save and not on the view's change; and no tree leaves no rows
+#include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/view/parts/changes.h"
-#include "../../../../../ui/cli/src/view/parts/pane.h"
 #include "../cli/cli_check.h"
 
 #include <string.h>
@@ -61,8 +62,13 @@ int main(void)
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = sub);
     file_written(s_root, "sub/deep.txt", "two\n");
 
-    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
-    cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 2u, "the two files not yet tracked are rows");
+    const GuiPaneKind *const kind = &gui_changes_kind;
+    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "commit") == kind, "the Commit tool has the kind");
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_VIEW, .root = s_root);
+    cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "the view's change reads no changes");
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SHOWN, .root = s_root);
+    cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 2u,
+              "the pane shown reads the two files not yet tracked as rows");
     CliChangedRow fresh;
     CliChangedRow deep;
     cli_check(row_with_name("fresh.txt", &fresh) && (fresh.state == 'U') && (fresh.folder_length == 0ULL),
@@ -72,38 +78,44 @@ int main(void)
               "the deeper file carries its folder");
     cli_check(!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 2u, .row = &fresh), "no row stands past the last");
 
-    GuiChanges changes;
-    EMBED_CALL(gui_changes.init, GuiChangesCfg, .changes_out = &changes);
-    cli_check((changes.pointed == GUI_PANE_NONE) && (changes.scroll == 0u), "the pane begins pointing at no row");
+    GuiPane pane;
+    EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    const GuiRect first = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .frame = &frame, .row = 0u, .scroll = 0u);
-    const GuiRect second = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .frame = &frame, .row = 1u, .scroll = 0u);
-    cli_check(EMBED_CALL(gui_changes_frame.move, GuiChangesFrameCfg, .changes_out = &changes, .frame = &frame,
+    const GuiRect first =
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 0u);
+    const GuiRect second =
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 1u);
+    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
                          .x = first.x + 20, .y = first.y + 3) &&
-                  (changes.pointed == 0),
+                  (pane.pointed == 0),
               "the pointer on the first row marks it");
-    EMBED_CALL(gui_changes_row_frame.draw, GuiChangesRowFrameCfg, .changes = &changes, .frame = &frame,
-               .raster = &raster, .glyphs = &glyphs, .palette = palette);
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+               .glyphs = &glyphs, .palette = palette, .title = "Commit", .tree = "");
     const GuiColor on_first = raster.pixels[((unsigned int)(first.y + 2) * raster.width) + (unsigned int)first.x + 2u];
     const GuiColor on_second =
         raster.pixels[((unsigned int)(second.y + 2) * raster.width) + (unsigned int)second.x + 2u];
     cli_check(on_first != on_second, "the row pointed is drawn on a ground of its own");
     unsigned int hit_row = 0u;
-    cli_check(EMBED_CALL(gui_changes_row_frame.hit, GuiChangesRowFrameCfg, .changes = &changes, .frame = &frame,
-                         .x = second.x + 20, .y = second.y + (second.height / 2), .row_pointer = &hit_row) &&
+    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = second.x + 20,
+                         .y = second.y + (second.height / 2), .row_pointer = &hit_row) &&
                   (hit_row == 1u),
               "a press on the second row lands on it");
-    cli_check(!EMBED_CALL(gui_changes_row_frame.hit, GuiChangesRowFrameCfg, .changes = &changes, .frame = &frame,
-                          .x = second.x + 20, .y = second.y + second.height + 4, .row_pointer = &hit_row),
+    cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = second.x + 20,
+                          .y = second.y + second.height + 4, .row_pointer = &hit_row),
               "a press under the last row lands on none");
-    cli_check(!EMBED_CALL(gui_changes_row_frame.wheel, GuiChangesRowFrameCfg, .changes_out = &changes, .frame = &frame,
-                          .rows = 2),
+    GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
+    CliChangedRow pressed;
+    cli_check(EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 1u, .row = &pressed) &&
+                  EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 1u, .open_out = &open) &&
+                  (strcmp(open.path, pressed.path) == 0) && !open.placed,
+              "a row pressed opens its file where the path's own place puts it");
+    cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .rows = 2),
               "two rows do not scroll");
 
-    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = NULL);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);

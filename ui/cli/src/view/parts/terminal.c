@@ -273,17 +273,6 @@ unsigned int gui_terminal_hit(const GuiTerminalCfg *args)
     return CLI_HIT_TERMINAL_PANEL;
 }
 
-// the baseline of text in `face` at `size`, from the top of a row `pixels` tall
-EMBED_INLINE int terminal_baseline(const TerminalCtx *args)
-{
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                    .face = GUI_FACE_CODE, .size = args->size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                     .face = GUI_FACE_CODE, .size = args->size);
-    // a row's baseline is far inside what an int represents
-    return (int)((((float)args->pixels - ascent - descent) / 2.0f) + ascent + 0.5f);
-}
-
 // the strip drawn inside `place`: each tab, the one shown on the ground with the signal under it, and the two tools,
 // each color at the share of its alpha the panel has reached
 EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
@@ -337,8 +326,8 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
         const unsigned long long label_length = mmgr_line_finish(&label_line);
         const GuiColor text =
             GUI_FRAME_FADED(exited ? palette->text_3 : (shown ? palette->text : palette->text_2), share);
-        const int baseline = tab.y + EMBED_CALL(terminal_baseline, TerminalCtx, .glyphs = args->glyphs, .size = size,
-                                                .pixels = tab.height);
+        const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
+                                        .face = GUI_FACE_CODE, .size = size, .top = tab.y, .pixel_height = tab.height);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
                          .glyphs = args->glyphs, .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(tab.x + pad_left), .y = baseline, .text = label_text, .length = label_length,
@@ -642,8 +631,8 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const int cell = EMBED_CALL(terminal_cell_width, TerminalCtx, .frame = args->frame, .glyphs = args->glyphs);
     const int row = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_ROW);
     const int one = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = 1);
-    const int baseline =
-        EMBED_CALL(terminal_baseline, TerminalCtx, .glyphs = args->glyphs, .size = size, .pixels = row);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = 0, .pixel_height = row);
     const int left =
         place.x + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_SIDE);
     const int top =

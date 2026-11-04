@@ -1,28 +1,106 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pane.c: the side's panes' shared arithmetic and drawing, each in the frame's words at the frame's scale
+// pane.c: the side pane's arithmetic, drawing and input, each in the frame's words at the frame's scale, the kinds
+// supplying what differs between the tools
 #include "pane.h"
 
+#include "../../command_line/cli_internal.h"
+#include "changes.h"
 #include "explorer.h"
+#include "problems.h"
+#include "structure.h"
+#include "tests.h"
+
+// the kinds, one a tool that has a pane
+static const GuiPaneKind *const s_kinds[] = {
+    &gui_explorer_kind, &gui_problems_kind, &gui_structure_kind, &gui_changes_kind, &gui_tests_kind,
+};
+
+void gui_pane_init(const GuiPaneCfg *args)
+{
+    args->pane->pointed = GUI_PANE_NONE;
+    args->pane->action = 0u;
+    args->pane->scroll = 0u;
+}
+
+const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args)
+{
+    for (unsigned int at = 0u; at < sizeof(s_kinds) / sizeof(s_kinds[0]); at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_kinds[at]->tool, .other = args->tool, .cap = 32ULL}))
+        {
+            return s_kinds[at];
+        }
+    }
+    return NULL;
+}
+
+typedef struct
+{
+    const GuiPaneKind *kind;
+    const GuiFrame *frame;
+    int pixels;
+} PaneCtx;
+
+// `pixels` of the page at the frame's scale
+EMBED_INLINE int pane_scaled(const PaneCtx *args)
+{
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = args->pixels, .scale = args->frame->scale);
+}
+
+// the top of the pane's head in the frame's side, under the group's title and the line
+EMBED_INLINE int pane_head_top(const PaneCtx *args)
+{
+    return args->frame->side.y +
+           EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame, .pixels = GUI_PANE_SIDE_HEAD + GUI_PANE_LINE);
+}
+
+// the rectangle of what the kind stands under the pane's head, empty where it stands nothing
+EMBED_INLINE GuiRect pane_head_rect(const GuiPaneCfg *args)
+{
+    const GuiPaneKind *const kind = args->kind;
+    const GuiFrame *const frame = args->frame;
+    const int top =
+        EMBED_CALL(pane_head_top, PaneCtx, .frame = frame) +
+        EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (kind->title != NULL) ? GUI_PANE_HEAD : 0);
+    return (GuiRect){
+        frame->side.x, top, frame->side.width - EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 1),
+        (kind->head != NULL) ? EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = kind->head(args)) : 0};
+}
 
 int gui_pane_rows_top(const GuiPaneCfg *args)
 {
-    return args->frame->side.y +
-           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                      .pixels = GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_EXPLORER_PANE_HEAD,
-                      .scale = args->frame->scale);
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = args->kind, .frame = args->frame);
+    return head.y + head.height;
+}
+
+int gui_pane_row_height(const GuiPaneCfg *args)
+{
+    return EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame,
+                      .pixels = (args->kind->row_height != NULL) ? args->kind->row_height(args) : GUI_PANE_ROW);
 }
 
 GuiRect gui_pane_row_rect(const GuiPaneCfg *args)
 {
-    const int pixel_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_ROW, .scale = args->frame->scale);
-    // the rows scrolled off are no more than the row, and the rows are far fewer than an int counts
-    const int from_top = (int)args->row - (int)args->scroll;
-    return (GuiRect){args->frame->side.x, gui_pane.rows_top(args) + (from_top * pixel_height),
-                     args->frame->side.width - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
-                                                          .scale = args->frame->scale),
-                     pixel_height};
+    const unsigned int scroll = args->pane_read->scroll;
+    int y = gui_pane.rows_top(args);
+    if (args->kind->row_height == NULL)
+    {
+        // rows of one height: the rows scrolled off are no more than the row, and the rows are far fewer than an int
+        // counts
+        y += ((int)args->row - (int)scroll) * gui_pane.row_height(args);
+    }
+    else
+    {
+        GuiPaneCfg each = *args;
+        for (each.row = scroll; each.row < args->row; each.row += 1u)
+        {
+            y += gui_pane.row_height(&each);
+        }
+    }
+    return (GuiRect){args->frame->side.x, y,
+                     args->frame->side.width - EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame, .pixels = 1),
+                     gui_pane.row_height(args)};
 }
 
 int gui_pane_hit(const GuiPaneCfg *args)
@@ -34,28 +112,73 @@ int gui_pane_hit(const GuiPaneCfg *args)
     {
         return 0;
     }
-    const int pixel_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_ROW, .scale = args->frame->scale);
-    // the pointer stands below the top, and the rows it is down are far fewer than an unsigned int counts
-    const unsigned int row = args->scroll + (unsigned int)((args->y - top) / pixel_height);
-    if (row >= args->count)
+    const unsigned int count = args->kind->rows(args);
+    if (args->kind->row_height == NULL)
     {
-        return 0;
+        // the pointer stands below the top, and the rows it is down are far fewer than an unsigned int counts
+        const unsigned int row = args->pane_read->scroll + (unsigned int)((args->y - top) / gui_pane.row_height(args));
+        if (row >= count)
+        {
+            return 0;
+        }
+        *args->row_pointer = row;
+        return 1;
     }
-    *args->row_pointer = row;
-    return 1;
+    int row_top = top;
+    GuiPaneCfg each = *args;
+    for (each.row = args->pane_read->scroll; each.row < count; each.row += 1u)
+    {
+        const int pixel_height = gui_pane.row_height(&each);
+        if (args->y < row_top + pixel_height)
+        {
+            *args->row_pointer = each.row;
+            return 1;
+        }
+        row_top += pixel_height;
+    }
+    return 0;
 }
 
-int gui_pane_scrolled(const GuiPaneCfg *args)
+unsigned int gui_pane_head_hit(const GuiPaneCfg *args)
 {
-    const int pixel_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_ROW, .scale = args->frame->scale);
+    if ((args->kind->head == NULL) || (args->kind->head_hit == NULL))
+    {
+        return 0u;
+    }
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = args->kind, .frame = args->frame);
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = head, .x = args->x, .y = args->y))
+    {
+        return 0u;
+    }
+    GuiPaneCfg hit = *args;
+    hit.rect = head;
+    return args->kind->head_hit(&hit);
+}
+
+int gui_pane_move(const GuiPaneCfg *args)
+{
+    unsigned int row = 0u;
+    GuiPaneCfg at = *args;
+    at.pane_read = args->pane;
+    at.row_pointer = &row;
+    // the rows are fewer than an int counts
+    const int pointed = gui_pane.hit(&at) ? (int)row : GUI_PANE_NONE;
+    const unsigned int action = gui_pane.head_hit(&at);
+    const int changed = (pointed != args->pane->pointed) || (action != args->pane->action);
+    args->pane->pointed = pointed;
+    args->pane->action = action;
+    return changed;
+}
+
+int gui_pane_wheel(const GuiPaneCfg *args)
+{
+    const int pixel_height = EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame, .pixels = GUI_PANE_ROW);
     const int capacity = args->frame->side.y + args->frame->side.height - gui_pane.rows_top(args);
     const int displayed = (pixel_height > 0) ? capacity / pixel_height : 0;
     // the rows are far fewer than an int counts
-    const int count = (int)args->count;
+    const int count = (int)args->kind->rows(args);
     const int most = (count > displayed) ? count - displayed : 0;
-    const int required = (int)*args->scroll_pointer + args->rows;
+    const int required = (int)args->pane->scroll + args->rows;
     int clamped;
     if (required < 0)
     {
@@ -70,21 +193,12 @@ int gui_pane_scrolled(const GuiPaneCfg *args)
         clamped = required;
     }
     // the scroll clamped is not negative
-    if ((unsigned int)clamped == *args->scroll_pointer)
+    if ((unsigned int)clamped == args->pane->scroll)
     {
         return 0;
     }
-    *args->scroll_pointer = (unsigned int)clamped;
+    args->pane->scroll = (unsigned int)clamped;
     return 1;
-}
-
-int gui_pane_baseline(const GuiPaneCfg *args)
-{
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                    .face = args->face, .size = args->size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                     .face = args->face, .size = args->size);
-    return args->top + (int)((((float)args->pixel_height - ascent - descent) / 2.0f) + ascent + 0.5f);
 }
 
 void gui_pane_arrow_draw(const GuiPaneCfg *args)
@@ -114,76 +228,153 @@ void gui_pane_arrow_draw(const GuiPaneCfg *args)
     }
 }
 
-GuiRect gui_pane_body(const GuiPaneCfg *args)
-{
-    GuiRaster *raster = args->raster;
-    GuiGlyphs *glyphs = args->glyphs;
-    const int scale = args->frame->scale;
-    const GuiRect side = args->frame->side;
-    const GuiRect none = {0, 0, 0, 0};
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = side))
-    {
-        return none;
-    }
-    const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    // the pane no further than the work's inside, as its pane slides out of it
-    const GuiRect inside =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){side.x, side.y, side.width - one, side.height}, .other = args->frame->inside);
-    const int line_y =
-        side.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_HEAD, .scale = scale);
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
-               .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
-    const int pane_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_PANE_HEAD, .scale = scale);
-    const int pane_y = line_y + one;
-    const int arrow = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_ARROW, .scale = scale);
-    const unsigned int head_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                            .pixels = (int)GUI_PANE_HEAD_SIZE, .scale = scale);
-    const GuiColor head_color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share);
-    EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = raster,
-               .x = side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale),
-               .y = pane_y + ((pane_height - arrow) / 2), .side = arrow, .open = 1, .color = head_color,
-               .clip = inside);
-    (void)EMBED_CALL(
-        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-        .size = head_size,
-        .x_f32 = (float)(side.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 19, .scale = scale)),
-        .y = EMBED_CALL(gui_pane.baseline, GuiPaneCfg, .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = head_size,
-                        .top = pane_y, .pixel_height = pane_height),
-        .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ULL}),
-        .color = head_color, .clip = inside);
-    const int rows_top = gui_pane.rows_top(args);
-    const GuiRect body =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, .other = inside);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = body))
-    {
-        return none;
-    }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
-               .color = GUI_FRAME_FADED(args->palette->editor_background, args->frame->side_share));
-    return body;
-}
-
 int gui_pane_guides(const GuiPaneCfg *args)
 {
-    const int scale = args->frame->scale;
-    const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    const int guide = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_GUIDE, .scale = scale);
-    const int in = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale);
-    int x = args->rect.x +
-            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANE_PAD_LEFT, .scale = scale);
+    const GuiFrame *const frame = args->frame;
+    const int one = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 1);
+    const int guide = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_GUIDE);
+    const int in = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 7);
+    int x = args->rect.x + EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_PAD_LEFT);
     for (unsigned int level = 0u; level < args->depth; level += 1u)
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                    .rect =
                        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                   .one = (GuiRect){x + in, args->rect.y, one, args->rect.height}, .other = args->clip),
-                   .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
+                   .color = GUI_FRAME_FADED(args->palette->line, frame->side_share));
         x += guide;
     }
     return x;
+}
+
+void gui_pane_draw(const GuiPaneCfg *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const GuiFrame *const frame = args->frame;
+    const GuiPaneKind *const kind = args->kind;
+    const GuiRect side = frame->side;
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = side))
+    {
+        return;
+    }
+    const int one = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 1);
+    const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, frame->side_share);
+    // the side no further than the work's inside, as it slides out of it: its edge, and the group's title at its head
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){side.x + side.width - one, side.y, one, side.height},
+                                  .other = frame->inside),
+               .color = line_color);
+    const GuiRect inside =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){side.x, side.y, side.width - one, side.height}, .other = frame->inside);
+    const int side_head = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_SIDE_HEAD);
+    const unsigned int side_head_size =
+        (unsigned int)EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (int)GUI_PANE_SIDE_HEAD_SIZE);
+    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                     .face = GUI_FACE_HEAD, .size = side_head_size,
+                     .x_f32 = (float)(side.x + EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 15)),
+                     .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                     .face = GUI_FACE_HEAD, .size = side_head_size, .top = side.y,
+                                     .pixel_height = side_head),
+                     .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ULL}),
+                     .color = GUI_FRAME_FADED(args->palette->text_2, frame->side_share), .clip = inside);
+    if (kind == NULL)
+    {
+        return;
+    }
+    // the pane's line, its head with the arrow open and the kind's title where it has one, what the kind stands under
+    // the head, and the body on the editor's ground
+    const int line_y = side.y + side_head;
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
+               .color = line_color);
+    const char *const title = (kind->title != NULL) ? kind->title(args) : NULL;
+    if (title != NULL)
+    {
+        const int pane_y = EMBED_CALL(pane_head_top, PaneCtx, .frame = frame);
+        const int pane_height = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_HEAD);
+        const int arrow = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_ARROW);
+        const unsigned int head_size =
+            (unsigned int)EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (int)GUI_PANE_HEAD_SIZE);
+        const GuiColor head_color = GUI_FRAME_FADED(args->palette->text, frame->side_share);
+        EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = raster,
+                   .x = side.x + EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 7),
+                   .y = pane_y + ((pane_height - arrow) / 2), .side = arrow, .open = 1, .color = head_color,
+                   .clip = inside);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_HEAD, .size = head_size,
+                         .x_f32 = (float)(side.x + EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 19)),
+                         .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                         .face = GUI_FACE_HEAD, .size = head_size, .top = pane_y,
+                                         .pixel_height = pane_height),
+                         .text = title, .length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = 64ULL}),
+                         .color = head_color, .clip = inside);
+    }
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = kind, .frame = frame);
+    if ((head.height > 0) && (kind->head_draw != NULL))
+    {
+        GuiPaneCfg under = *args;
+        under.rect = head;
+        under.clip = inside;
+        kind->head_draw(&under);
+    }
+    const int rows_top = head.y + head.height;
+    const GuiRect body =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, .other = inside);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = body))
+    {
+        return;
+    }
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
+               .color = GUI_FRAME_FADED(args->palette->editor_background, frame->side_share));
+    // the rows from the one scrolled to, each on its ground where pointed or current, drawn by the kind
+    const unsigned int count = kind->rows(args);
+    const int current = (kind->current != NULL) ? kind->current(args) : GUI_PANE_NONE;
+    GuiPaneCfg each = *args;
+    for (each.row = args->pane_read->scroll; each.row < count; each.row += 1u)
+    {
+        each.rect = gui_pane.row_rect(&each);
+        if (each.rect.y >= body.y + body.height)
+        {
+            break;
+        }
+        each.clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = each.rect, .other = body);
+        // the rows are fewer than an int counts
+        if (args->pane_read->pointed == (int)each.row)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = each.clip,
+                       .color = line_color);
+        }
+        else if (current == (int)each.row)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = each.clip,
+                       .color = GUI_FRAME_FADED(args->palette->selection_idle, frame->side_share));
+        }
+        kind->row_draw(&each);
+    }
+}
+
+int gui_pane_press(const GuiPaneCfg *args)
+{
+    return (args->kind->press != NULL) && args->kind->press(args);
+}
+
+void gui_pane_action(const GuiPaneCfg *args)
+{
+    if (args->kind->action != NULL)
+    {
+        args->kind->action(args);
+    }
+}
+
+void gui_pane_read(const GuiPaneCfg *args)
+{
+    if (args->kind->read != NULL)
+    {
+        args->kind->read(args);
+    }
 }

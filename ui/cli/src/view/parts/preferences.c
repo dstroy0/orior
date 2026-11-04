@@ -584,20 +584,6 @@ int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
     return moved;
 }
 
-// the baseline of a row of text of `size` in the middle of `rect`
-EMBED_INLINE int preferences_baseline(const PreferencesCtx *args)
-{
-    const GuiGlyphs *glyphs = args->glyphs;
-    unsigned int face = args->face;
-    unsigned int size = args->size;
-    const float ascent =
-        EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
-    const float descent =
-        EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
-    // a row's baseline is far inside what an int represents
-    return args->rect.y + (int)((((float)args->rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
-}
-
 // the row of Settings at `row`: the words and its value, the value brighter than the words and the row marked brighter
 // than any
 EMBED_INLINE void preferences_row_draw(const PreferencesCtx *args)
@@ -617,8 +603,8 @@ EMBED_INLINE void preferences_row_draw(const PreferencesCtx *args)
     // a size in pixels is not negative
     const unsigned int size = (unsigned int)EMBED_CALL(
         gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PREFERENCES_SIZE, .scale = preferences->scale);
-    const int baseline = EMBED_CALL(preferences_baseline, PreferencesCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-                                    .size = size, .rect = rect);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_HEAD, .size = size, .top = rect.y, .pixel_height = rect.height);
     const int marked = preferences->marked == row;
     const float after =
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
@@ -664,8 +650,8 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
     // a size in pixels is not negative
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_PREFERENCES_CODE, .scale = scale);
-    const int baseline = EMBED_CALL(preferences_baseline, PreferencesCtx, .glyphs = glyphs, .face = GUI_FACE_CODE,
-                                    .size = size, .rect = cell);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = cell.y, .pixel_height = cell.height);
     const int marked = preferences->marked == at;
     const int left = cell.x + side + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 8, .scale = scale);
     const GuiRect name_clip =
@@ -789,8 +775,8 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
         (void)mmgr_line_finish(&line);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)row.x,
-                         .y = EMBED_CALL(preferences_baseline, PreferencesCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-                                         .size = size, .rect = row),
+                         .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                         .face = GUI_FACE_HEAD, .size = size, .top = row.y, .pixel_height = row.height),
                          .text = output, .length = length, .color = palette->fail,
                          .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = row, .other = clip));
     }
@@ -835,8 +821,9 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
         const GuiColor color = (section == args->preferences_read->section) ? palette->text : palette->text_3;
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)rect.x,
-                         .y = EMBED_CALL(preferences_baseline, PreferencesCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
-                                         .size = size, .rect = rect),
+                         .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                         .face = GUI_FACE_HEAD, .size = size, .top = rect.y,
+                                         .pixel_height = rect.height),
                          .text = s_sections[section],
                          .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = s_sections[section]),
                          .color = color, .clip = clip);

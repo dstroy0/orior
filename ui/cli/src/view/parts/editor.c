@@ -534,12 +534,9 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
     EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster, .rect = bar,
                .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
                .color = args->palette->widget_line, .clip = args->place);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_HEAD, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size);
     const GuiRect field = {bar.x + pad, bar.y + pad, field_width, field_height};
-    const int baseline = field.y + (int)((((float)field_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_HEAD, .size = size, .top = field.y, .pixel_height = field_height);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = field, .other = args->place),
                .color = args->palette->editor_background);
@@ -788,12 +785,9 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
     const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = glyphs, .size = size);
     const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
                                   .editor_read = args->editor, .cell = cell, .scale = scale);
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                    .face = GUI_FACE_CODE, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_CODE, .size = size);
-    // the baseline inside a row: the row's height less the face's, halved, then the ascent down
-    const int baseline = (int)((((float)line_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+    // the baseline inside a row, from the row's top
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = 0, .pixel_height = line_height);
     const int numbers_right =
         args->place.x + gutter -
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_GUTTER_AFTER, .scale = scale);

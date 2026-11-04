@@ -498,6 +498,14 @@ float gui_glyphs_descent(const GuiGlyphsFaceCfg *args)
     return fabsf(font->descent) * (float)args->size / font->units;
 }
 
+int gui_glyphs_baseline(const GuiGlyphsFaceCfg *args)
+{
+    const float ascent = gui_glyphs_face.ascent(args);
+    const float descent = gui_glyphs_face.descent(args);
+    // a baseline is far inside what an int represents
+    return args->top + (int)((((float)args->pixel_height - ascent - descent) / 2.0f) + ascent + 0.5f);
+}
+
 float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args)
 {
     float advance = 0.0f;

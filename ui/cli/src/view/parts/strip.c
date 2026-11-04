@@ -5,6 +5,7 @@
 #include "strip.h"
 
 #include "../../command_line/cli_internal.h"
+#include "pane.h"
 
 // the tools, the top group then the foot group
 const CliTool g_cli_tools[] = {
@@ -26,6 +27,7 @@ const CliTool g_cli_tools[] = {
     {"runs", "runs", "Runs", "", CLI_TOOL_FOOTER, 0, 1},
 };
 const unsigned int g_cli_tools_count = sizeof(g_cli_tools) / sizeof(g_cli_tools[0]);
+_Static_assert(sizeof(g_cli_tools) / sizeof(g_cli_tools[0]) <= GUI_PANE_TOOLS, "the side has a pane state a tool");
 
 void gui_strip_init(const GuiStripInitCfg *args)
 {

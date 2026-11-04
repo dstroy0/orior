@@ -54,17 +54,6 @@ typedef struct
     GuiColor color;
     char mark;
 } PanelCtx;
-// the baseline of a line `pixel_height` pixels high whose top is `y`, the face centered in it
-EMBED_INLINE int layout_baseline(const PanelCtx *args)
-{
-    unsigned int face = args->face;
-    unsigned int size = args->size;
-    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = args->layout_read->glyphs,
-                                    .face = face, .size = size);
-    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg,
-                                     .glyphs_read = args->layout_read->glyphs, .face = face, .size = size);
-    return args->y + (int)((((float)args->pixel_height - ascent - descent) / 2.0f) + ascent + 0.5f);
-}
 
 // `length` bytes of `text` drawn in `face` at `size` from the pen on the line whose top is `y`, where there is a
 // raster: the pen moved past them
@@ -77,8 +66,9 @@ EMBED_INLINE void layout_run(const PanelCtx *args)
     GuiColor color = args->color;
     if (args->layout->raster != NULL)
     {
-        const int baseline = EMBED_CALL(layout_baseline, PanelCtx, .layout_read = args->layout, .face = face,
-                                        .size = size, .y = args->layout->y, .pixel_height = args->pixel_height);
+        const int baseline =
+            EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->layout->glyphs, .face = face,
+                       .size = size, .top = args->layout->y, .pixel_height = args->pixel_height);
         args->layout->x =
             EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->layout->raster,
                        .glyphs = args->layout->glyphs, .face = face, .size = size, .x_f32 = args->layout->x,

@@ -1,95 +1,187 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pane.h: what the side's panes of rows share under their group's title: the line under the title, the pane's head with
-// its arrow and its name, the body on the editor's ground, rows of one height from the head down, the row at a point,
-// the scroll the wheel turns no further than the last row fills the pane, a row's baseline, the guides down a row's
-// levels and the arrow before a row (pane.c)
+// pane.h: the side's one pane, drawn and driven the same for every tool from a table of kinds. The side carries the
+// group's title at its head; under it the tool's kind supplies the pane's head, what stands under the head before the
+// rows, the rows as the CLI lists them, a row's height, how a row draws, the row current, what a press on a row opens,
+// what a press on the head does, and the reading of its data as the events that change it come. The pane's own state
+// is the row the pointer stands on, the head's action it stands on and the rows scrolled off the top, one state a tool
+// (pane.c)
 #ifndef GUI_PARTS_PANE_H
 #define GUI_PARTS_PANE_H
+#include "../../editor/document.h"
 #include "../frame.h"
 #include "../glyphs.h"
+#include "../icons.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct GuiPaneCfg GuiPaneCfg;
+typedef struct GuiPaneKind GuiPaneKind;
 
-// no row; and the sizes in the page's pixels: a row, a row's padding at the left, a guide's width, the arrow's side,
-// the head's text size and a row's
+// no row; the most tools the side has a pane for; and the sizes in the page's pixels: the side's head with the group's
+// title, the line under it, the pane's head, a row, a row's padding at the left, a guide's width, the arrow's side,
+// the group title's text size, the pane head's and a row's
 #define GUI_PANE_NONE (-1)
+#define GUI_PANE_TOOLS 16u
+#define GUI_PANE_SIDE_HEAD 30
+#define GUI_PANE_LINE 1
+#define GUI_PANE_HEAD 22
 #define GUI_PANE_ROW 22
 #define GUI_PANE_PAD_LEFT 8
 #define GUI_PANE_GUIDE 12
 #define GUI_PANE_ARROW 5
+#define GUI_PANE_SIDE_HEAD_SIZE 12u
 #define GUI_PANE_HEAD_SIZE 12u
 #define GUI_PANE_ROW_SIZE 13u
 
-// the top of the rows in `frame`'s side, under the group's title and the pane's head; the rectangle of the row `row`
-// with `scroll` rows scrolled off the top; and the row at x, y: 1 with its number into `row_pointer`, else 0, `count`
-// rows standing
+// the events a kind reads its data on: its pane shown, the view shown or edited, and a file saved
+#define GUI_PANE_SHOWN 1u
+#define GUI_PANE_VIEW 2u
+#define GUI_PANE_SAVED 3u
+
+// A pane: the row the pointer stands on, GUI_PANE_NONE for none; the head's action it stands on, 0 for none; and how
+// many rows are scrolled off the pane's top
+typedef struct
+{
+    int pointed;
+    unsigned int action;
+    unsigned int scroll;
+} GuiPane;
+
+// What a row pressed opens: the file's path in the tree, and the place in it where `placed`
+typedef struct
+{
+    const char *path;
+    CliPosition place;
+    int placed;
+} GuiPaneOpen;
+
+// A kind of pane, the one of the tool `tool`: the pane head's title, NULL where the kind draws no pane head of its
+// own; how many rows the CLI lists; a row's height in the page's pixels, GUI_PANE_ROW where NULL; the page pixels under
+// the head before the rows, none where NULL, drawn by `head_draw` in `rect` cut to `clip`, and the action at x, y in
+// them by `head_hit`, 0 for none, run by `action` as `which` for the tree at `root`; the row `row` drawn in `rect` cut
+// to `clip`; the row current for `cursor_line`, GUI_PANE_NONE where none or NULL; the row `row` pressed, 1 with what
+// it opens into `open_out`; and the data read anew on `event` for the tree at `root` and the view `key` at `path`. An
+// action that runs the tree's code saves every view first through `save_all` with `context`
+struct GuiPaneKind
+{
+    const char *tool;
+    const char *(*title)(const GuiPaneCfg *args);
+    unsigned int (*rows)(const GuiPaneCfg *args);
+    int (*row_height)(const GuiPaneCfg *args);
+    int (*head)(const GuiPaneCfg *args);
+    void (*head_draw)(const GuiPaneCfg *args);
+    unsigned int (*head_hit)(const GuiPaneCfg *args);
+    void (*action)(const GuiPaneCfg *args);
+    void (*row_draw)(const GuiPaneCfg *args);
+    int (*current)(const GuiPaneCfg *args);
+    int (*press)(const GuiPaneCfg *args);
+    void (*read)(const GuiPaneCfg *args);
+};
+
+// a pane pointing at no row and no action, scrolled to its top
+void gui_pane_init(const GuiPaneCfg *args);
+// the kind of the tool `tool`, NULL where the tool has no pane
+const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args);
+// the top of the kind's rows in `frame`'s side, under the group's title, the pane's head and what the kind stands
+// under it; the height of the row `row` in pixels; the rectangle of the row `row` as `pane_read` is scrolled; and the
+// row at x, y: 1 with its number into `row_pointer`, else 0
 int gui_pane_rows_top(const GuiPaneCfg *args);
+int gui_pane_row_height(const GuiPaneCfg *args);
 GuiRect gui_pane_row_rect(const GuiPaneCfg *args);
 int gui_pane_hit(const GuiPaneCfg *args);
-// `*scroll_pointer` turned `rows` rows, down where positive, of `count` rows, no further than the last fills the pane:
-// 1 where it changed
-int gui_pane_scrolled(const GuiPaneCfg *args);
-// the baseline of text in `face` at `size` centered in a row of `pixel_height` from `top`
-int gui_pane_baseline(const GuiPaneCfg *args);
-// the pane drawn under the group's title: its line, its head with the arrow open and `title`, and its body on the
-// editor's ground, inside the work's inside: the body's rectangle, which the rows are cut to, empty where none shows
-GuiRect gui_pane_body(const GuiPaneCfg *args);
+// the head's action at x, y, 0 for none
+unsigned int gui_pane_head_hit(const GuiPaneCfg *args);
+// the pointer moved to x, y: the row and the action it stands on marked: 1 where either changed
+int gui_pane_move(const GuiPaneCfg *args);
+// the wheel turned `rows` rows, down where positive: the rows scrolled, no further than the last fills the pane: 1
+// where the scroll changed
+int gui_pane_wheel(const GuiPaneCfg *args);
+// the side drawn: its edge and `title`, the group's, at its head; and where `kind` is not NULL its pane: the line, the
+// pane's head with the arrow open and the kind's title, what the kind stands under it, and the rows on the editor's
+// ground inside the work's inside, the row pointed on the line's ground and the row current on the idle selection's
+void gui_pane_draw(const GuiPaneCfg *args);
 // a guide down each of `depth` levels from the row `rect`'s left padding, cut to `clip`: the x past them
 int gui_pane_guides(const GuiPaneCfg *args);
 // an arrow `side` pixels across at x, y, down where `open` and right where not, drawn whole inside `clip` or not at
 // all, in `color`
 void gui_pane_arrow_draw(const GuiPaneCfg *args);
+// the row `row` pressed: 1 with what it opens into `open_out`; the head's action `which` run for the tree at `root`;
+// and the kind's data read anew on `event`
+int gui_pane_press(const GuiPaneCfg *args);
+void gui_pane_action(const GuiPaneCfg *args);
+void gui_pane_read(const GuiPaneCfg *args);
 struct GuiPaneCfg
 {
+    GuiPane *pane;
+    const GuiPane *pane_read;
+    const GuiPaneKind *kind;
     const GuiFrame *frame;
+    const char *tool;
     unsigned int row;
-    unsigned int scroll;
-    unsigned int *scroll_pointer;
-    unsigned int count;
     int rows;
     int x;
     int y;
     unsigned int *row_pointer;
-    GuiGlyphs *glyphs;
-    unsigned int face;
-    unsigned int size;
-    int top;
-    int pixel_height;
     GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    GuiIcons *icons;
     const GuiPalette *palette;
     const char *title;
+    const char *tree;
     GuiRect rect;
     GuiRect clip;
     unsigned int depth;
     int side;
     int open;
     GuiColor color;
+    unsigned long long cursor_line;
+    unsigned int which;
+    GuiPaneOpen *open_out;
+    const char *root;
+    const char *key;
+    const char *path;
+    unsigned int event;
+    void (*save_all)(void *context);
+    void *context;
 };
 
 typedef struct
 {
+    void (*init)(const GuiPaneCfg *args);
+    const GuiPaneKind *(*kind_of)(const GuiPaneCfg *args);
     int (*rows_top)(const GuiPaneCfg *args);
+    int (*row_height)(const GuiPaneCfg *args);
     GuiRect (*row_rect)(const GuiPaneCfg *args);
     int (*hit)(const GuiPaneCfg *args);
-    int (*scrolled)(const GuiPaneCfg *args);
-    int (*baseline)(const GuiPaneCfg *args);
-    GuiRect (*body)(const GuiPaneCfg *args);
+    unsigned int (*head_hit)(const GuiPaneCfg *args);
+    int (*move)(const GuiPaneCfg *args);
+    int (*wheel)(const GuiPaneCfg *args);
+    void (*draw)(const GuiPaneCfg *args);
     int (*guides)(const GuiPaneCfg *args);
     void (*arrow_draw)(const GuiPaneCfg *args);
+    int (*press)(const GuiPaneCfg *args);
+    void (*action)(const GuiPaneCfg *args);
+    void (*read)(const GuiPaneCfg *args);
 } GuiPaneNs;
-EMBED_TABLE_LAYOUT(GuiPaneNs, rows_top, row_rect, hit, scrolled, baseline, body, guides, arrow_draw);
+EMBED_TABLE_LAYOUT(GuiPaneNs, init, kind_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
+                   arrow_draw, press, action, read);
 EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
+    .init = gui_pane_init,
+    .kind_of = gui_pane_kind_of,
     .rows_top = gui_pane_rows_top,
+    .row_height = gui_pane_row_height,
     .row_rect = gui_pane_row_rect,
     .hit = gui_pane_hit,
-    .scrolled = gui_pane_scrolled,
-    .baseline = gui_pane_baseline,
-    .body = gui_pane_body,
+    .head_hit = gui_pane_head_hit,
+    .move = gui_pane_move,
+    .wheel = gui_pane_wheel,
+    .draw = gui_pane_draw,
     .guides = gui_pane_guides,
     .arrow_draw = gui_pane_arrow_draw,
+    .press = gui_pane_press,
+    .action = gui_pane_action,
+    .read = gui_pane_read,
 };
 
 #endif
