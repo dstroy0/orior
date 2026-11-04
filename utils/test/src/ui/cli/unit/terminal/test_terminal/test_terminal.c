@@ -222,26 +222,6 @@ void test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_t
                              xterm_line_text(0ULL));
 }
 
-void test_a_style_is_read_from_the_sgr_sequences_among_bytes_onto_the_style_before_them(void)
-{
-    CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
-    static const char s_written[] = "\x1b[0;1;3;4;9;38;5;200;48;2;1;2;3m";
-    EMBED_CALL(cli_terminal_xterm_style_read, CliTerminalXtermStyleCfg, .bytes = (const unsigned char *)s_written,
-               .size = sizeof(s_written) - 1u, .style = &style);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_INDEXED | 200u, style.foreground);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_DIRECT | 0x010203u, style.background);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_BOLD | CLI_TERMINAL_ITALIC | CLI_TERMINAL_UNDERLINE | CLI_TERMINAL_STRIKE,
-                            style.marks);
-    // a sequence with no reset adds to the style it is read onto
-    static const char s_added[] = "\x1b[2;7m";
-    EMBED_CALL(cli_terminal_xterm_style_read, CliTerminalXtermStyleCfg, .bytes = (const unsigned char *)s_added,
-               .size = sizeof(s_added) - 1u, .style = &style);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_BOLD | CLI_TERMINAL_DIM | CLI_TERMINAL_ITALIC | CLI_TERMINAL_UNDERLINE |
-                                CLI_TERMINAL_INVERSE | CLI_TERMINAL_STRIKE,
-                            style.marks);
-    TEST_ASSERT_EQUAL_HEX32(CLI_TERMINAL_COLOR_INDEXED | 200u, style.foreground);
-}
-
 void test_letters_written_over_others_put_the_style_after_them_back_where_letters_follow(void)
 {
     xterm_open(10u, 2u);

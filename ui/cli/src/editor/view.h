@@ -30,9 +30,9 @@ typedef struct CliViewFullCfg CliViewFullCfg;
 typedef struct CliViewSaveCfg CliViewSaveCfg;
 
 // what the window sends: a key, text typed, the pointer, a scroll, the view's size, and a completion accepted, whose
-// `text` replaces the `column` units before the cursor, and a place, the cursor put at the line `row` and the unit
-// `column`; the pointer's events; the tab's width in cells where nothing sets the indentation; and the milliseconds
-// within which edits of one kind undo as one step
+// `text` replaces the `column` units before the cursor, a place, the cursor put at the line `row` and the unit
+// `column`, and a wheel turned, the top moved by its rows from where it stands; the pointer's events; the tab's width
+// in cells where nothing sets the indentation; and the milliseconds within which edits of one kind undo as one step
 #define CLI_VIEW_KEY 0u
 #define CLI_VIEW_TEXT 1u
 #define CLI_VIEW_POINTER 2u
@@ -40,6 +40,7 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_SIZE 4u
 #define CLI_VIEW_COMPLETE 5u
 #define CLI_VIEW_POSITION 6u
+#define CLI_VIEW_WHEEL 7u
 #define CLI_VIEW_POINTER_DOWN 0u
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u
@@ -49,8 +50,11 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_WORD_LINES 3000ull
 
 // One input: its kind; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
-// its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line; a size's rows
-// and columns; and whether the pointer stands in the gutter, where a press toggles the fold at its row
+// its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line, and the furthest
+// line down a wheel takes the top to, CLI_VIEW_WHEEL_UNBOUND where the text's last line alone bounds it; a size's rows
+// and columns; whether the pointer stands in the gutter, where a press toggles the fold at its row; and a wheel's rows,
+// down the text from the top positive
+#define CLI_VIEW_WHEEL_UNBOUND (~0ULL)
 typedef struct
 {
     unsigned int kind;
@@ -66,6 +70,7 @@ typedef struct
     unsigned int rows;
     unsigned int columns;
     int gutter;
+    long long wheel_rows;
 } CliViewInput;
 
 // A row of a frame: its line's number in the file, and where its UTF-8 starts among the frame's bytes and its length,
@@ -156,13 +161,37 @@ void cli_view_words_release(CliDocumentWords *words);
 // full; and the view closed, its steps freed
 int cli_view_open(const CliViewCfg *args);
 void cli_view_close(const CliViewCfg *args);
+
+// A frame laid of the view under `key`: its cursor, its top line, its lines and its rows
+typedef struct
+{
+    const char *key;
+    CliPosition cursor;
+    unsigned long long top;
+    unsigned long long lines;
+    unsigned int rows;
+} CliViewDrawn;
+
+// What watches the views: handed each frame laid of a view, each view opened, under `key` on the file at `path` from
+// the tree's top, empty for none, and each view about to close, while it still stands open
+typedef struct
+{
+    void (*drawn)(const CliViewDrawn *drawn);
+    void (*opened)(const char *key, const char *path);
+    void (*closing)(const char *key);
+} CliViewWatcher;
+
+// the views watched by `watcher` from here on, NULL for none
+void cli_view_watch(const CliViewWatcher *watcher);
 // the views open in the order they were opened, which are the files open as the window's tabs: how many; the key of the
-// one at `at` and its file's path from the tree's top, each NULL past them; the place of the one shown and of the one
+// one at `at`, its file's path from the tree's top and its file's name, the last part of that path, each NULL past
+// them; the place of the one shown and of the one
 // shown before it, each -1 for none; the one at `at` shown, the one shown before it saved; and whether the close of the
 // one at `at` waits on a second press, set as `closing` asks
 unsigned int cli_view_count(void);
 const char *cli_view_key(unsigned int at);
 const char *cli_view_path_at(unsigned int at);
+const char *cli_view_name_at(unsigned int at);
 int cli_view_shown(void);
 int cli_view_last(void);
 void cli_view_show(unsigned int at);
@@ -171,7 +200,8 @@ void cli_view_closing_set(unsigned int at, int closing);
 // the files open as views (view_files.c): the file at `path`, a whole path inside the tree `root` or one from its top,
 // opened as a view where none is open on it: its text read whole or paged under the key `window:` and its path from the
 // tree's top, its grammar applied, the view opened at `rows` and `columns`; the view shown, the one shown before it
-// saved, its cursor put at `place` where it is not NULL: the view's place, or -1 where the file was refused, why
+// saved, its cursor put at `place` where it is not NULL, and else at the line and the column the path ends in, each a
+// colon and digits counted from 1, a line alone at its start: the view's place, or -1 where the file was refused, why
 // written into `err_msg`. The view at `at` closed and its text let go. And the session, the views' paths in order, a
 // line each, the shown one's first, saved in orior's folder under a key of the tree `root`'s own, and the views it
 // names opened again from `entries`

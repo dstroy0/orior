@@ -298,6 +298,107 @@ void tearDown(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
 }
 
+void test_a_wheel_moves_the_top_by_its_rows_from_where_it_stands_and_stops_at_the_texts_ends(void)
+{
+    fresh("a\nb\nc\nd\ne\nf");
+    CliViewInput wheel = view_key("");
+    wheel.kind = CLI_VIEW_WHEEL;
+    wheel.top = CLI_VIEW_WHEEL_UNBOUND;
+    wheel.wheel_rows = 3LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(3ull, cli_view_top(s_key));
+    wheel.wheel_rows = -1LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(2ull, cli_view_top(s_key));
+    wheel.wheel_rows = -5LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(0ull, cli_view_top(s_key));
+    wheel.wheel_rows = 50LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(5ull, cli_view_top(s_key));
+}
+
+void test_a_wheel_takes_the_top_no_further_down_than_the_line_it_is_bounded_at(void)
+{
+    fresh("a\nb\nc\nd\ne\nf");
+    CliViewInput wheel = view_key("");
+    wheel.kind = CLI_VIEW_WHEEL;
+    wheel.top = 2ull;
+    wheel.wheel_rows = 4LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(2ull, cli_view_top(s_key));
+    wheel.wheel_rows = -1LL;
+    input_sent(&wheel);
+    TEST_ASSERT_EQUAL_UINT64(1ull, cli_view_top(s_key));
+}
+
+// what the views last handed the watcher: the moment and its key and path, and the last frame's view
+static char s_watched[256];
+static CliViewDrawn s_drawn;
+
+static void watched_put(const char *moment, const char *key, const char *path)
+{
+    VerbaLinea line = {s_watched, sizeof(s_watched), 0ull};
+    mmgr_line_put(&line, moment);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put(&line, key);
+    if (path != NULL)
+    {
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, path);
+    }
+    (void)mmgr_line_finish(&line);
+}
+
+static void watched_drawn(const CliViewDrawn *drawn)
+{
+    s_drawn = *drawn;
+    watched_put("drawn", drawn->key, NULL);
+}
+
+static void watched_opened(const char *key, const char *path)
+{
+    watched_put("opened", key, path);
+}
+
+static void watched_closing(const char *key)
+{
+    watched_put("closing", key, NULL);
+}
+
+void test_the_watcher_is_handed_each_view_opened_each_frame_made_and_each_view_closing(void)
+{
+    static const CliViewWatcher s_watcher = {watched_drawn, watched_opened, watched_closing};
+    cli_view_watch(&s_watcher);
+    fresh_named("one\ntwo\nthree", "check/watched.c");
+    TEST_ASSERT_EQUAL_STRING("opened check:view check/watched.c", s_watched);
+    key_times("Down", 1u);
+    CliViewFrame *const frame = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_STRING("drawn check:view", s_watched);
+    TEST_ASSERT_EQUAL_UINT64(1ull, s_drawn.cursor.line);
+    TEST_ASSERT_EQUAL_UINT64(0ull, s_drawn.top);
+    TEST_ASSERT_EQUAL_UINT64(3ull, s_drawn.lines);
+    TEST_ASSERT_EQUAL_UINT(20u, s_drawn.rows);
+    cli_view_frame_release(frame);
+    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
+    TEST_ASSERT_EQUAL_STRING("closing check:view", s_watched);
+    cli_view_watch(NULL);
+}
+
+void test_a_views_name_is_the_last_part_of_its_files_path(void)
+{
+    fresh_named("a", "check/sub\\named.txt");
+    unsigned int at = 0u;
+    while ((at < cli_view_count()) &&
+           !cellul.eq(&(CatenaFinitaCfg){.src = cli_view_key(at), .other = s_key, .cap = CLI_NAME_MAX_LEN}))
+    {
+        at += 1u;
+    }
+    TEST_ASSERT_EQUAL_STRING("named.txt", cli_view_name_at(at));
+    TEST_ASSERT_NULL(cli_view_name_at(cli_view_count()));
+}
+
 void test_a_view_does_not_open_on_a_text_not_stored(void)
 {
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = "check:none", .path = ""));

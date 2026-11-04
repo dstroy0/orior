@@ -163,23 +163,12 @@ typedef struct
     int on_hover;
 } CliServersPanelsPointerCfg;
 
-// The view shown drawn anew: its cursor's line and unit, its top line, its lines, and the editor's rows
-typedef struct
-{
-    unsigned long long line;
-    unsigned long long col;
-    unsigned long long top;
-    unsigned long long lines;
-    unsigned int rows;
-} CliServersPanelsFrameCfg;
-
-// the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun and ended; every
-// panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on the panels, 1 where the key was
-// theirs; the completion's row `at` accepted; the completion's rows turned by the wheel; the view shown drawn anew, its
-// cursor at `line`, `col`, its top line `top` of `lines`, at the editor's `rows`; their timers taken, 1 where any came,
-// and the clock's reading of the next, 0 for none; the view under `key` of the file at `path` from the tree's top
-// handed to its language's server, and let go; and what they show: the hover, the completion and its row `row` shown,
-// each 1 where it stands, else 0, and the signature, NULL for none
+// the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun, watching the views,
+// each view opened on a file handed to its language's server, each about to close let go of it, and each frame of the
+// view shown followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on
+// the panels, 1 where the key was theirs; the completion's row `at` accepted; the completion's rows turned by the
+// wheel; their timers taken, 1 where any came, and the clock's reading of the next, 0 for none; and what they show: the
+// hover, the completion and its row `row` shown, each 1 where it stands, else 0, and the signature, NULL for none
 void cli_servers_panels_begin(const char *root);
 void cli_servers_panels_end(void);
 void cli_servers_panels_hide(void);
@@ -188,11 +177,8 @@ void cli_servers_panels_text(const char *text, unsigned long long length);
 int cli_servers_panels_key(const char *name);
 void cli_servers_panels_accept(unsigned int at);
 void cli_servers_panels_wheel(int rows);
-void cli_servers_panels_frame(const CliServersPanelsFrameCfg *args);
 int cli_servers_panels_step(void);
 unsigned long long cli_servers_panels_due_ms(void);
-void cli_servers_panels_serve(const char *key, const char *path);
-void cli_servers_panels_close(const char *key);
 int cli_servers_panels_hover(CliHoverPanel *panel);
 int cli_servers_panels_completion(CliCompletionPanel *panel);
 int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out);

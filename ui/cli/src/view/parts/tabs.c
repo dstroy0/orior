@@ -4,8 +4,6 @@
 // and its close mark, and the tabs stand in a row from the row's left; tabs past the row's right edge are cut off at it
 #include "tabs.h"
 
-#include "../../text/text.h"
-
 #include <math.h>
 
 // the close mark's text, its text while the close waits on a second, and the mark of changes not saved
@@ -15,17 +13,9 @@ static const char s_changed[] = "\xe2\x97\x8f";
 
 const char *gui_tab_name(const GuiTabsCfg *args)
 {
-    const char *const path = cli_view_path_at(args->at);
-    if (path == NULL)
-    {
-        *args->length = 0ULL;
-        return "";
-    }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-    const unsigned long long name_at =
-        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = size, .set = "/\\");
-    *args->length = size - name_at;
-    return path + name_at;
+    const char *const name = cli_view_name_at(args->at);
+    *args->length = (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_PATH_MAX_LEN}) : 0ULL;
+    return (name != NULL) ? name : "";
 }
 
 typedef struct

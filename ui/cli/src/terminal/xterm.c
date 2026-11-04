@@ -1633,12 +1633,6 @@ unsigned long long cli_terminal_xterm_column_unit(const CliTerminalXtermUnitsCfg
                       .x = args->column);
 }
 
-void cli_terminal_xterm_style_read(const CliTerminalXtermStyleCfg *args)
-{
-    EMBED_CALL(xterm_style_apply, XtermCtx, .bytes = args->bytes, .units_count = args->size, .at = args->size,
-               .style = args->style);
-}
-
 unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args)
 {
     unsigned char *const bytes = args->bytes;

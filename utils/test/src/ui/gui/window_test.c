@@ -306,6 +306,27 @@ static void reduce_motion_checked(void)
     (void)asked("reduce-motion", "off");
 }
 
+// a file opened through the door with a line and a column after its path, each a colon and digits counted from 1,
+// the cursor standing there; with a line alone, at the line's start
+static void place_checked(void)
+{
+    tabs_closed("placed.txt", "one\ntwo\nthree\n", NULL, NULL);
+    char path[CLI_PATH_MAX_LEN];
+    tree_path("placed.txt:2:3", path);
+    cli_check(asked("file", path), "a path with a line and a column opens through the door");
+    const int shown = cli_view_shown();
+    cli_check((shown >= 0) && (strcmp(cli_view_path_at((unsigned int)shown), "placed.txt") == 0),
+              "the file of the path before the line and the column stands as the tab shown");
+    const CliViewFrame *const frame = s_window.editor.frame;
+    cli_check((frame != NULL) && (frame->cursor.line == 1ULL) && (frame->cursor.col == 2ULL),
+              "the cursor stands at the line and the column");
+    tree_path("placed.txt:3", path);
+    (void)asked("file", path);
+    cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->cursor.line == 2ULL) &&
+                  (s_window.editor.frame->cursor.col == 0ULL),
+              "a line alone puts the cursor at the line's start");
+}
+
 // the caret's ink as the window draws it at the moment `now_ms`
 static unsigned int caret_ink_at(unsigned long long now_ms)
 {
@@ -390,11 +411,17 @@ int main(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
     }
     cli_check(!s_window.wordmark.exists, "the name's pane leaves once the tree is read");
+    const char *const slash = strrchr(s_root, '/');
+    const char *const backslash = strrchr(s_root, '\\');
+    const char *const last = (backslash > slash) ? backslash : slash;
+    cli_check((s_window.title != NULL) && (strcmp(s_window.title, (last != NULL) ? last + 1 : s_root) == 0),
+              "the window's title is the tree's name, the last part of its folder");
     saves_checked();
     closes_checked();
     save_rows_checked();
     failed_save_checked();
     reduce_motion_checked();
+    place_checked();
     caret_checked();
     terminal_menu_checked();
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);

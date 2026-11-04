@@ -1003,14 +1003,13 @@ void cli_terminal_tabs_wheel(unsigned int view, int rows)
         return;
     }
     TerminalTab *const tab = s_terminal.tab[at];
-    // the view's top moved by the wheel's rows, down where positive, between the text's first line and the xterm's
-    // rows; a top and a wheel's rows are far inside what a long long counts
-    const long long moved = (long long)cli_view_top(tab->key) + (long long)rows;
-    // a top between none and the screen drawn on's first line is what an unsigned long long counts
-    const unsigned long long base = tab->xterm.base;
-    const unsigned long long top =
-        (moved < 0LL) ? 0ULL : (((unsigned long long)moved > base) ? base : (unsigned long long)moved);
-    EMBED_CALL(terminal_scroll, TerminalCtx, .tab = tab, .first = top);
+    // the view's top moved by the wheel's rows, down where positive, between the text's first line and the first line
+    // of the screen drawn on
+    const CliViewInput wheeled = {.kind = CLI_VIEW_WHEEL, .wheel_rows = rows, .top = tab->xterm.base};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &wheeled,
+                     .err_msg = &err_msg);
     terminal_dirty();
 }
 

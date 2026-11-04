@@ -475,20 +475,27 @@ void test_a_javascript_local_is_named(void)
                        "delimiter.statement");
 }
 
-void test_a_terminal_line_colors_its_text_by_the_sgr_before_it_and_conceals_the_sequences(void)
+void test_an_sgr_sequence_is_a_keyword_each_number_its_dotted_token_and_the_letters_after_it_plain(void)
 {
-    assert_plugin_line("xterm", "\x1b[31mred\x1b[0m plain", "0 conceal|5 terminal.1|8 conceal|12 ");
+    assert_plugin_line("xterm", "\x1b[31mred\x1b[0m plain",
+                       "0 keyword|2 keyword.foreground.1|4 keyword|5 |8 keyword|10 keyword.reset|11 keyword|12 ");
 }
 
-void test_a_terminal_color_among_other_numbers_and_a_bright_one_switched_to_are_read(void)
+void test_a_leading_zero_is_a_keyword_of_its_own_and_a_bright_color_its_number_among_the_sixteen(void)
 {
-    assert_plugin_line("xterm", "\x1b[01;34mdir\x1b[0m", "0 conceal|8 terminal.4|11 conceal");
-    assert_plugin_line("xterm", "\x1b[32mok\x1b[91m!", "0 conceal|5 terminal.2|7 conceal|12 terminal.9");
+    assert_plugin_line("xterm", "\x1b[01;34mdir",
+                       "0 keyword|2 keyword|3 keyword.bold|4 keyword|5 keyword.foreground.4|7 keyword|8 ");
+    assert_plugin_line("xterm", "\x1b[91m!\x1b[m",
+                       "0 keyword|2 keyword.foreground.9|4 keyword|5 |6 keyword.reset|8 keyword");
 }
 
-void test_a_terminal_color_of_the_256_leaves_the_text_plain(void)
+void test_a_color_of_the_256_and_of_red_green_and_blue_are_keywords_by_their_parts(void)
 {
-    assert_plugin_line("xterm", "\x1b[38;5;31mx", "0 conceal|10 ");
+    assert_plugin_line("xterm", "\x1b[38;5;31mx",
+                       "0 keyword|2 keyword.foreground.indexed|4 keyword|7 keyword.foreground.index|9 keyword|10 ");
+    assert_plugin_line("xterm", "\x1b[48;2;1;2;3mx",
+                       "0 keyword|2 keyword.background.direct|4 keyword|7 keyword.background.red|8 keyword|"
+                       "9 keyword.background.green|10 keyword|11 keyword.background.blue|12 keyword|13 ");
 }
 
 void test_a_pattern_not_read_here_is_refused(void)

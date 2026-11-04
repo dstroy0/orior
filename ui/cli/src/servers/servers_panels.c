@@ -1317,9 +1317,11 @@ static void panels_serve_run(PanelsServeAsk *ask)
     g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
 }
 
-void cli_servers_panels_serve(const char *key, const char *path)
+// a view opened, under `key` on the file at `path` from the tree's top, handed to its language's server; a view on no
+// file, as a terminal's, served by none
+static void panels_opened(const char *key, const char *path)
 {
-    if (s_panels.root == NULL)
+    if ((s_panels.root == NULL) || (path == NULL) || (path[0] == '\0'))
     {
         return;
     }
@@ -1332,7 +1334,8 @@ void cli_servers_panels_serve(const char *key, const char *path)
     }
 }
 
-void cli_servers_panels_close(const char *key)
+// the view under `key`, about to close, let go of its server, the server closed where no view stands served at its file
+static void panels_closing(const char *key)
 {
     char full[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full))
@@ -1418,15 +1421,18 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     s_panels.view_rows = rows;
 }
 
-void cli_servers_panels_frame(const CliServersPanelsFrameCfg *args)
+// a frame laid of a view: where it is the view shown's, its cursor, its top line of its lines and its rows taken as the
+// panels follow them, the server asked again where the cursor or the view moved
+static void panels_drawn(const CliViewDrawn *args)
 {
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    s_panels.rows = args->rows;
-    if (key == NULL)
+    if ((key == NULL) ||
+        !cellul.eq(&(CatenaFinitaCfg){.src = key, .other = args->key, .cap = CLI_NAME_MAX_LEN}))
     {
         return;
     }
-    s_panels.cursor = (CliPosition){args->line, args->col};
+    s_panels.rows = args->rows;
+    s_panels.cursor = args->cursor;
     const int rested = s_panels.view_sent && (s_panels.view_top == args->top) && (s_panels.view_rows == args->rows);
     s_panels.view_top = args->top;
     s_panels.view_lines = args->lines;
@@ -1441,8 +1447,8 @@ void cli_servers_panels_frame(const CliServersPanelsFrameCfg *args)
     {
         EMBED_CALL(panels_completion_ask, PanelsCtx, .at = 0u);
     }
-    const int moved =
-        (args->line != s_panels.signature_position.line) || (args->col != s_panels.signature_position.col);
+    const int moved = (args->cursor.line != s_panels.signature_position.line) ||
+                      (args->cursor.col != s_panels.signature_position.col);
     if ((s_panels.signature != NULL) && !s_panels.signature_asking && moved)
     {
         EMBED_CALL(panels_signature_ask, PanelsCtx, .at = 0u);
@@ -1491,13 +1497,18 @@ int cli_servers_panels_step(void)
     return did;
 }
 
+// the views' moments the panels take: each frame laid, each view opened and each view about to close
+static const CliViewWatcher s_panels_watcher = {panels_drawn, panels_opened, panels_closing};
+
 void cli_servers_panels_begin(const char *root)
 {
     s_panels.root = root;
+    cli_view_watch(&s_panels_watcher);
 }
 
 void cli_servers_panels_end(void)
 {
+    cli_view_watch(NULL);
     cli_servers_panels_hide();
     s_panels.root = NULL;
 }

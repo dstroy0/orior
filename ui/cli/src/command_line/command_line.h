@@ -61,12 +61,13 @@ void cli_console_let_go(void);
 // sandbox, every process it starts contained under it, the door opened for the command line, `woken` called from the
 // door's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
 // its runs, walked into the tree's branches and handed to the servers on the watch's own thread; every server,
-// session and process of the window's ended as it ends; the tree open, NULL for none; and the words the program was
-// started with
+// session and process of the window's ended as it ends; the tree open, NULL for none; the tree's name, the last part of
+// its folder, empty for none; and the words the program was started with
 int cli_command_line_window(int *window);
 void cli_command_line_tree_begin(void (*woken)(void));
 void cli_command_line_tree_end(void);
 const char *cli_command_line_root(void);
+const char *cli_command_line_tree_name(void);
 const CliOutcome *cli_command_line_launched(void);
 
 // the parts of the status bar a press can land on: the notice, its Silence and Focus

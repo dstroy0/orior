@@ -107,8 +107,6 @@ typedef struct
     unsigned int *percent_out;
     int edited;
     const CliViewInput *view_input;
-    unsigned long long *number;
-    unsigned long long *colon;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -253,7 +251,7 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
     }
 }
 
-// the shown view's frame, names and map taken anew of it, those it had released, the panels handed the frame; `edited`
+// the shown view's frame, names and map taken anew of it, those it had released; `edited`
 // where the text changed, which the map's lines no longer show
 EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
 {
@@ -286,13 +284,6 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
         cli_view_map_release((CliDocumentMap *)window->minimap.lines);
         window->minimap.lines =
             ((key != NULL) && window->map_known) ? cli_view_map_alloc(key, window->map_first, window->map_last) : NULL;
-    }
-    const CliViewFrame *const frame = window->editor.frame;
-    if (frame != NULL)
-    {
-        const CliServersPanelsFrameCfg placed = {frame->cursor.line, frame->cursor.col, frame->top, frame->lines,
-                                                 window->rows};
-        cli_servers_panels_frame(&placed);
     }
     // every frame the view answers shows the caret through the input rest, its blink beginning after it, so the caret
     // stands shown while the keys go
@@ -1270,7 +1261,6 @@ EMBED_INLINE void window_tab_close(const GuiWindowCtx *args)
         args->window->pending = 1;
         return;
     }
-    cli_servers_panels_close(key);
     cli_view_file_close(args->at);
     EMBED_CALL(window_shown, GuiWindowCtx, .window = args->window);
 }
@@ -1325,22 +1315,19 @@ EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args)
     }
 }
 
-// the file at `name` opened as a view and shown, its cursor at `place` where it is not NULL, and handed to its
-// language's server; a file refused posted as a failure's notice
+// the file at `name` opened as a view and shown, its cursor at `place` where it is not NULL, and else where the path's
+// line and column put it; a file refused posted as a failure's notice
 EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const int at =
-        cli_view_file_open(cli_command_line_root(), args->name, window->rows, window->columns, args->place, &err_msg);
-    if (at < 0)
+    if (cli_view_file_open(cli_command_line_root(), args->name, window->rows, window->columns, args->place, &err_msg) <
+        0)
     {
         cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be opened.", 1);
         return;
     }
-    // the view is among the views
-    cli_servers_panels_serve(cli_view_key((unsigned int)at), cli_view_path_at((unsigned int)at));
     EMBED_CALL(window_shown, GuiWindowCtx, .window = window);
 }
 
@@ -1518,65 +1505,6 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
     }
 }
 
-// the number after the last colon of the first `count` bytes of `name` into `number`, the colon's place into `colon`:
-// 1, or 0 where they do not end in a colon and digits
-EMBED_INLINE int window_colon_number(const GuiWindowCtx *args)
-{
-    unsigned long long *const number = args->number;
-    unsigned long long *const colon = args->colon;
-    const unsigned long long length = args->count;
-    const unsigned long long after = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                                                .text = args->name, .at = length, .set = ":");
-    const int digits = (after > 1ULL) && (after < length) &&
-                       (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name,
-                                   .at = after, .size = length, .classes = CLI_TEXT_DIGITS, .set = "") == length);
-    if (digits)
-    {
-        *number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = after, .size = length,
-                             .end = NULL);
-        *colon = after - 1ULL;
-    }
-    return digits;
-}
-
-// the file a path `name` names opened, the line and the column after it, each a colon and digits and counted from 1,
-// its cursor's
-EMBED_INLINE void window_file_place_open(const GuiWindowCtx *args)
-{
-    char path[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ULL};
-    mmgr_line_put(&line, args->name);
-    if (mmgr_line_finish(&line) == 0ULL)
-    {
-        return;
-    }
-    // a path is far inside what an unsigned int counts
-    unsigned int length = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)});
-    unsigned long long first = 0ULL;
-    unsigned long long second = 0ULL;
-    unsigned long long colon = 0ULL;
-    int numbers = 0;
-    if (EMBED_CALL(window_colon_number, GuiWindowCtx, .name = path, .count = length, .number = &second,
-                   .colon = &colon))
-    {
-        length = (unsigned int)colon;
-        numbers = 1;
-        if (EMBED_CALL(window_colon_number, GuiWindowCtx, .name = path, .count = length, .number = &first,
-                       .colon = &colon))
-        {
-            length = (unsigned int)colon;
-            numbers = 2;
-        }
-    }
-    path[length] = '\0';
-    const unsigned long long place_line = (numbers == 2) ? first : second;
-    const unsigned long long place_col = (numbers == 2) ? second : 1ULL;
-    const CliPosition place = {(place_line != 0ULL) ? (place_line - 1ULL) : 0ULL,
-                               (place_col != 0ULL) ? (place_col - 1ULL) : 0ULL};
-    EMBED_CALL(window_file_open, GuiWindowCtx, .window = args->window, .name = path,
-               .place = (numbers != 0) ? &place : NULL);
-}
-
 // a command the command line asks for, through the door or as the window started: the file a path names opened, or a
 // command of the menus, the window's or the view's run: 1, or 0 where it is none of them
 static int window_command_named(const char *command, const char *const *words, unsigned int count)
@@ -1590,7 +1518,7 @@ static int window_command_named(const char *command, const char *const *words, u
     {
         if (count != 0u)
         {
-            EMBED_CALL(window_file_place_open, GuiWindowCtx, .window = window, .name = words[0]);
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = words[0], .place = NULL);
         }
         return count != 0u;
     }
@@ -1762,12 +1690,7 @@ void gui_window_start(const GuiWindowCfg *args)
     s_woken = args->woken;
     window->view_shown = -1;
     const char *const root = cli_command_line_root();
-    // the tree's name, the last part of its folder
-    window->title = (root != NULL)
-                        ? (root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = root,
-                                             .at = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}),
-                                             .set = "/\\"))
-                        : "";
+    window->title = cli_command_line_tree_name();
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = window_colored, .threaded = 1);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -1792,11 +1715,6 @@ void gui_window_start(const GuiWindowCfg *args)
     {
         EMBED_CALL(window_group_read, GuiWindowCtx, .window = window, .entries = entries);
         cli_view_session_restore(root, entries, window->rows, window->columns);
-        const unsigned int count = cli_view_count();
-        for (unsigned int at = 0u; at < count; at += 1u)
-        {
-            cli_servers_panels_serve(cli_view_key(at), cli_view_path_at(at));
-        }
     }
     // the command the window was started with run as the menus run it
     const CliOutcome *const launch = cli_command_line_launched();
@@ -2502,23 +2420,9 @@ static void window_wheel(const GuiInputHandlerCfg *args)
                                      .x = args->input->x, .y = args->input->y)))
     {
         EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
-        const unsigned long long top = cli_view_top(key);
-        // a wheel's rows are far inside what a long long represents, and a top above the first line stops at it
-        unsigned long long moved;
-        if (args->input->rows >= 0)
-        {
-            moved = top + (unsigned long long)args->input->rows;
-        }
-        else if (top > (unsigned long long)(-(long long)args->input->rows))
-        {
-            moved = top - (unsigned long long)(-(long long)args->input->rows);
-        }
-        else
-        {
-            moved = 0ULL;
-        }
-        GuiWindowHit scrolled = {CLI_HIT_EDITOR, 0u, 0u, moved, 0ULL};
-        EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = &scrolled);
+        const CliViewInput wheeled = {
+            .kind = CLI_VIEW_WHEEL, .wheel_rows = args->input->rows, .top = CLI_VIEW_WHEEL_UNBOUND};
+        EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &wheeled, .edited = 0);
     }
 }
 

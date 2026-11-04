@@ -181,6 +181,8 @@ static CliView *s_views;
 // the place of the view shown and of the one shown before it, each -1 for none
 static int s_shown = -1;
 static int s_last = -1;
+// what watches the views, NULL for none
+static const CliViewWatcher *s_watcher;
 
 typedef struct
 {
@@ -577,12 +579,25 @@ int cli_view_open(const CliViewCfg *args)
     view->paged = paged;
     EMBED_CALL(cli_editorconfig.indent, CliEditorconfigCfg, .path = path, .indent = &view->indent);
     EMBED_CALL(view_language_read, ViewCtx, .view = view);
+    if ((s_watcher != NULL) && (s_watcher->opened != NULL))
+    {
+        s_watcher->opened(view->key, view->path);
+    }
     return 1;
+}
+
+void cli_view_watch(const CliViewWatcher *watcher)
+{
+    s_watcher = watcher;
 }
 
 void cli_view_close(const CliViewCfg *args)
 {
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if ((view != NULL) && (s_watcher != NULL) && (s_watcher->closing != NULL))
+    {
+        s_watcher->closing(view->key);
+    }
     if (view != NULL)
     {
         EMBED_CALL(view_steps_cut, ViewCtx, .view = view, .from_u32 = 0u);
@@ -631,6 +646,17 @@ const char *cli_view_key(unsigned int at)
 const char *cli_view_path_at(unsigned int at)
 {
     return (at < cli_view_count()) ? s_views[at].path : NULL;
+}
+
+const char *cli_view_name_at(unsigned int at)
+{
+    const char *const path = cli_view_path_at(at);
+    if (path == NULL)
+    {
+        return NULL;
+    }
+    return path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                             .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}), .set = "/\\");
 }
 
 int cli_view_shown(void)
@@ -4243,6 +4269,18 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
                       .err_msg = args->err_msg);
 }
 
+// the view's top put at the line `line`, no further down than the text's last line; a line a closed fold hides goes
+// past the fold the way the view scrolls
+EMBED_INLINE void view_top_put(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
+    const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
+    const unsigned long long top = (args->line > last) ? last : args->line;
+    view->top = (top > view->top) ? EMBED_CALL(view_displayed_down, ViewCtx, .view_read = view, .line = top)
+                                  : EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = top);
+}
+
 int cli_view_input(const CliViewInputCfg *args)
 {
     const char *key = args->key;
@@ -4270,12 +4308,18 @@ int cli_view_input(const CliViewInputCfg *args)
         break;
     }
     case CLI_VIEW_SCROLL: {
-        const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
-        const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
-        const unsigned long long top = (args->input->top > last) ? last : args->input->top;
-        // a top a closed fold hides goes past the fold the way the view scrolls
-        view->top = (top > view->top) ? EMBED_CALL(view_displayed_down, ViewCtx, .view_read = view, .line = top)
-                                      : EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = top);
+        EMBED_CALL(view_top_put, ViewCtx, .view = view, .line = args->input->top);
+        break;
+    }
+    case CLI_VIEW_WHEEL: {
+        // a wheel's rows are far inside what a long long represents; up past the first line the top stands at it, and
+        // down past the line it is bounded at it stands at that
+        const long long rows = args->input->wheel_rows;
+        const unsigned long long up = (rows < 0LL) ? (unsigned long long)(-rows) : 0ULL;
+        const unsigned long long down = (rows > 0LL) ? (unsigned long long)rows : 0ULL;
+        const unsigned long long line = (view->top > up) ? (view->top - up + down) : down;
+        EMBED_CALL(view_top_put, ViewCtx, .view = view,
+                   .line = (line < args->input->top) ? line : args->input->top);
         break;
     }
     case CLI_VIEW_SIZE: {
@@ -4674,6 +4718,11 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     {
         cli_view_frame_release(frame);
         return NULL;
+    }
+    if ((s_watcher != NULL) && (s_watcher->drawn != NULL))
+    {
+        const CliViewDrawn drawn = {view->key, view->cursor, view->top, lines, view->rows};
+        s_watcher->drawn(&drawn);
     }
     return frame;
 }

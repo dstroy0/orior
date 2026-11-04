@@ -116,14 +116,6 @@ typedef struct
     unsigned int column;
 } CliTerminalXtermUnitsCfg;
 unsigned long long cli_terminal_xterm_column_unit(const CliTerminalXtermUnitsCfg *args);
-// the style `style` changed by the SGR sequences among the `size` bytes at `bytes`, read as the xterm reads its output
-typedef struct
-{
-    const unsigned char *bytes;
-    unsigned long long size;
-    CliTerminalStyle *style;
-} CliTerminalXtermStyleCfg;
-void cli_terminal_xterm_style_read(const CliTerminalXtermStyleCfg *args);
 // the `size` bytes at `bytes` with the escape sequences among them taken out in place, the letters after each moved up:
 // the count of the bytes left
 typedef struct

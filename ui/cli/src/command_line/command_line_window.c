@@ -186,6 +186,18 @@ const char *cli_command_line_root(void)
     return s_window.root;
 }
 
+const char *cli_command_line_tree_name(void)
+{
+    if (s_window.root == NULL)
+    {
+        return "";
+    }
+    return s_window.root +
+           EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = s_window.root,
+                      .at = cellul.len(&(CatenaFinitaCfg){.src = s_window.root, .cap = CLI_PATH_MAX_LEN}),
+                      .set = "/\\");
+}
+
 const CliOutcome *cli_command_line_launched(void)
 {
     return &s_window.outcome;

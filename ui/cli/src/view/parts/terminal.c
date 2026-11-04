@@ -38,7 +38,24 @@ typedef struct
     int chosen;
     int cursor;
     int solid;
+    const char *token;
+    unsigned long long length;
+    const char *word;
+    CliTerminalStyle *style_out;
 } TerminalCtx;
+
+// a mark the xterm grammar's tokens set: the word past `keyword.` that puts it on, the same with `.off` after it
+// taking it off
+typedef struct
+{
+    const char *word;
+    unsigned int mark;
+} TerminalMark;
+
+static const TerminalMark s_terminal_marks[] = {
+    {"bold", CLI_TERMINAL_BOLD},           {"dim", CLI_TERMINAL_DIM},         {"italic", CLI_TERMINAL_ITALIC},
+    {"underline", CLI_TERMINAL_UNDERLINE}, {"inverse", CLI_TERMINAL_INVERSE}, {"strike", CLI_TERMINAL_STRIKE},
+};
 
 // `pixels` in the page's pixels at the frame's scale
 EMBED_INLINE int terminal_scaled(const TerminalCtx *args)
@@ -464,6 +481,127 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
     }
 }
 
+// whether the `length` bytes at `token` are the word `word` whole
+EMBED_INLINE int terminal_word_is(const TerminalCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = 32ULL});
+    return (args->length == length) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->token, .other = args->word, .bytes = length}) == 0);
+}
+
+// the number the `size` bytes at `text` write, their first nine digits at the most
+EMBED_INLINE unsigned int terminal_run_number(const TerminalCtx *args)
+{
+    unsigned int number = 0u;
+    for (unsigned int at = 0u; (at < args->size) && (at < 9u); at += 1u)
+    {
+        const char letter = args->text[at];
+        // a digit's value is far inside what an unsigned int counts
+        number = ((letter >= '0') && (letter <= '9')) ? ((number * 10u) + (unsigned int)(letter - '0')) : number;
+    }
+    return number;
+}
+
+// `style_out` changed by the run of `size` bytes at `text` whose token is the `length` bytes at `token`: 1 where the
+// token is keyword or keyword.<what>, an escape sequence among the letters, which takes no column; else 0, nothing
+// changed. Past `keyword.`: reset is the plain style; a mark's word puts it on and the word with .off after it takes it
+// off, normal taking bold and dim off; foreground.<n> and background.<n> are the color n of the sixteen, .default the
+// default, .index the color of the 256 at the run's number, .direct red, green and blue at none, and .red, .green
+// and .blue each that part at the run's number, 255 at the most
+EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
+{
+    static const char s_keyword[] = "keyword";
+    static const char s_foreground[] = "foreground.";
+    static const char s_background[] = "background.";
+    static const char s_off[] = ".off";
+    const unsigned long long head = sizeof(s_keyword) - 1u;
+    const int keyword = (args->length >= head) &&
+                        (memor.cmp(&(MemoriaCfg){.src = args->token, .other = s_keyword, .bytes = head}) == 0) &&
+                        ((args->length == head) || (args->token[head] == '.'));
+    if (!keyword || (args->length == head))
+    {
+        return keyword;
+    }
+    const char *const tail = args->token + head + 1u;
+    const unsigned long long tail_length = args->length - head - 1u;
+    CliTerminalStyle *const style = args->style_out;
+    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .word = "reset"))
+    {
+        *style = (CliTerminalStyle){CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
+        return 1;
+    }
+    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .word = "normal"))
+    {
+        style->marks &= ~(CLI_TERMINAL_BOLD | CLI_TERMINAL_DIM);
+        return 1;
+    }
+    for (unsigned int at = 0u; at < (sizeof(s_terminal_marks) / sizeof(s_terminal_marks[0])); at += 1u)
+    {
+        const TerminalMark *const one = &s_terminal_marks[at];
+        const unsigned long long word_length = cellul.len(&(CatenaFinitaCfg){.src = one->word, .cap = 32ULL});
+        const int matched = (tail_length >= word_length) &&
+                          (memor.cmp(&(MemoriaCfg){.src = tail, .other = one->word, .bytes = word_length}) == 0);
+        if (matched && (tail_length == word_length))
+        {
+            style->marks |= one->mark;
+            return 1;
+        }
+        if (matched && EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail + word_length,
+                                .length = tail_length - word_length, .word = s_off))
+        {
+            style->marks &= ~one->mark;
+            return 1;
+        }
+    }
+    const unsigned long long side = sizeof(s_foreground) - 1u;
+    const int foreground = (tail_length > side) &&
+                           (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_foreground, .bytes = side}) == 0);
+    const int background = (tail_length > side) &&
+                           (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_background, .bytes = side}) == 0);
+    if (!foreground && !background)
+    {
+        return 1;
+    }
+    unsigned int *const color = foreground ? &style->foreground : &style->background;
+    const char *const part = tail + side;
+    const unsigned long long part_length = tail_length - side;
+    const unsigned int number = EMBED_CALL(terminal_run_number, TerminalCtx, .text = args->text, .size = args->size);
+    const unsigned int sixteen = EMBED_CALL(terminal_run_number, TerminalCtx, .text = part,
+                                            .size = (part_length < 3ULL) ? (unsigned int)part_length : 3u);
+    const int digits = (part_length != 0ULL) && (part_length < 3ULL) && (part[0] >= '0') && (part[0] <= '9') &&
+                       ((part_length == 1ULL) || ((part[1] >= '0') && (part[1] <= '9')));
+    if (digits && (sixteen < GUI_TERMINAL_COLORS))
+    {
+        *color = CLI_TERMINAL_COLOR_INDEXED | sixteen;
+    }
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "default"))
+    {
+        *color = CLI_TERMINAL_COLOR_DEFAULT;
+    }
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "index"))
+    {
+        *color = CLI_TERMINAL_COLOR_INDEXED | (number & 0xffu);
+    }
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "direct"))
+    {
+        *color = CLI_TERMINAL_COLOR_DIRECT;
+    }
+    else
+    {
+        const int red = EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "red");
+        const int green =
+            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "green");
+        const int blue =
+            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "blue");
+        const unsigned int shift = red ? 16u : (green ? 8u : 0u);
+        const unsigned int parts = ((*color & CLI_TERMINAL_COLOR_KIND) == CLI_TERMINAL_COLOR_DIRECT) ? *color : 0u;
+        *color = (red || green || blue) ? (CLI_TERMINAL_COLOR_DIRECT | (parts & 0x00ffffffu & ~(0xffu << shift)) |
+                                           (((number < 255u) ? number : 255u) << shift))
+                                        : *color;
+    }
+    return 1;
+}
+
 // the pane `view` drawn: its view's rows of the text, the xterm's cells over the rows from the line they start on, each
 // cell with the selection's ground where the view chose it, and the cursor
 EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
@@ -523,10 +661,8 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         unsigned long long at = 0ULL;
         unsigned int x = 0u;
         unsigned int next = 0u;
-        GuiColor color = palette->text;
-        int colored = 0;
-        int concealed = 0;
-        // the style of the letters, from the plain one at the line's start, each concealed run's sequence read into it
+        int sequence = 0;
+        // the style of the letters, from the plain one at the line's start, changed by each keyword run's token
         CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
         while ((at < length) && (x < shown->columns))
         {
@@ -534,23 +670,16 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
             {
                 const char *const token =
                     ((names != NULL) && (name_of[next] < names->count)) ? names->name[name_of[next]] : "";
-                const unsigned long long token_length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL});
-                // a run the grammar conceals takes no column: an SGR sequence among the letters, read into the style
-                // of the letters after it where it lies, a byte to each of its units
-                concealed = cellul.eq(&(CatenaFinitaCfg){.src = token, .other = "conceal", .cap = 64ULL});
                 const unsigned long long run_end =
                     ((next + 1u) < runs.runs) ? column_of[next + 1u] : (units + (length - at));
                 const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;
-                if (concealed)
-                {
-                    EMBED_CALL(cli_terminal_xterm_style_read, CliTerminalXtermStyleCfg,
-                               .bytes = (const unsigned char *)(text + at),
-                               .size = (run_size < (length - at)) ? run_size : (length - at), .style = &style);
-                }
-                colored = (token_length != 0ULL) && !concealed;
-                color = colored ? EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette,
-                                             .name_read = token, .length = token_length)
-                                : palette->text;
+                const unsigned long long within = (run_size < (length - at)) ? run_size : (length - at);
+                // a keyword is an escape sequence among the letters, a byte to each of its units: it takes no column,
+                // and its token changes the style of the letters after it; a run is far shorter than an unsigned int
+                // counts
+                sequence = EMBED_CALL(terminal_token_read, TerminalCtx, .token = token,
+                                      .length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL}),
+                                      .text = text + at, .size = (unsigned int)within, .style_out = &style);
                 next += 1u;
             }
             unsigned long long consumed = 0ULL;
@@ -560,20 +689,12 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
             // a column is counted in the units of the text the view chooses in, a letter past the basic plane two
             const int chosen = on_chosen && (units >= chosen_from) && (units < chosen_to);
             units += (letter >= 0x10000u) ? 2ULL : 1ULL;
-            if (concealed)
+            if (sequence)
             {
                 continue;
             }
-            // the grammar's token colors the sixteen; a color past them, of the 256 or red, green and blue, is the
-            // style's own, and a letter of no token's color takes the style's
-            const unsigned int kind = style.foreground & CLI_TERMINAL_COLOR_KIND;
-            const int wide =
-                (kind == CLI_TERMINAL_COLOR_DIRECT) ||
-                ((kind == CLI_TERMINAL_COLOR_INDEXED) && ((style.foreground & 0xffu) >= GUI_TERMINAL_COLORS));
-            const GuiColor foreground = (colored && !wide)
-                                            ? color
-                                            : EMBED_CALL(terminal_color, TerminalCtx, .palette = palette,
-                                                         .value = style.foreground, .color = palette->text);
+            const GuiColor foreground = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette,
+                                                   .value = style.foreground, .color = palette->text);
             // a pane's columns and rows are far inside what an int represents
             EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
                        .palette = palette, .letter = letter, .color = foreground, .style = &style,

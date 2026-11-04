@@ -24,7 +24,39 @@ typedef struct
     char *relative;
     unsigned long long length;
     unsigned int rows;
+    CliPosition *place;
 } ViewFilesCtx;
+
+// the line and the column the `length` bytes at `path` end in, each a colon and digits counted from 1, as a place
+// counted from 0 into `place`, a line alone standing at the line's start: how many bytes stand before them, `length`
+// where the bytes end in no colon and digits
+EMBED_INLINE unsigned long long view_files_place(const ViewFilesCtx *args)
+{
+    unsigned long long length = args->length;
+    unsigned long long numbers[2] = {0ULL, 0ULL};
+    unsigned int found = 0u;
+    int reading = 1;
+    while (reading && (found < 2u))
+    {
+        const unsigned long long after = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                    .text = args->path, .at = length, .set = ":");
+        reading = (after > 1ULL) && (after < length) &&
+                  (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->path,
+                              .at = after, .size = length, .classes = CLI_TEXT_DIGITS, .set = "") == length);
+        if (reading)
+        {
+            numbers[found] = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->path, .at = after,
+                                        .size = length, .end = NULL);
+            found += 1u;
+            length = after - 1ULL;
+        }
+    }
+    // the last number read is the column where two were read, and the line where one was
+    const unsigned long long line = (found == 2u) ? numbers[1] : numbers[0];
+    const unsigned long long col = (found == 2u) ? numbers[0] : 1ULL;
+    *args->place = (CliPosition){(line != 0ULL) ? (line - 1ULL) : 0ULL, (col != 0ULL) ? (col - 1ULL) : 0ULL};
+    return length;
+}
 
 // the bytes of `path` from the tree's top where it is a whole path inside the tree, into `relative`, sized for
 // CLI_PATH_MAX_LEN: how many, a path that is not whole being from the tree's top already
@@ -91,9 +123,24 @@ EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
 int cli_view_file_open(const char *root, const char *path, unsigned int rows, unsigned int columns,
                        const CliPosition *place, VerbaLinea *err_msg)
 {
+    // the path less the line and the column it ends in, which put the cursor where no place is passed
+    char path_read[CLI_PATH_MAX_LEN];
+    VerbaLinea copied = {path_read, sizeof(path_read), 0ULL};
+    mmgr_line_put(&copied, path);
+    if (mmgr_line_finish(&copied) == 0ULL)
+    {
+        mmgr_line_put(err_msg, "the path is longer than a path is read");
+        return -1;
+    }
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = path_read, .cap = sizeof(path_read)});
+    CliPosition read = {0ULL, 0ULL};
+    const unsigned long long before =
+        EMBED_CALL(view_files_place, ViewFilesCtx, .path = path_read, .length = whole, .place = &read);
+    path_read[before] = '\0';
+    const CliPosition *const placed_at = (place != NULL) ? place : ((before != whole) ? &read : NULL);
     char relative[CLI_PATH_MAX_LEN];
     const unsigned long long length =
-        EMBED_CALL(view_files_relative, ViewFilesCtx, .root = root, .path = path, .relative = relative);
+        EMBED_CALL(view_files_relative, ViewFilesCtx, .root = root, .path = path_read, .relative = relative);
     int at = EMBED_CALL(view_files_by_path, ViewFilesCtx, .path = relative, .length = length);
     char key[CLI_PATH_MAX_LEN + sizeof(CLI_VIEW_KEY_HEAD)];
     VerbaLinea keyed = {key, sizeof(key), 0ULL};
@@ -136,9 +183,9 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
     }
     // the view is among the views
     cli_view_show((unsigned int)at);
-    if (place != NULL)
+    if (placed_at != NULL)
     {
-        const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = place->line, .column = place->col};
+        const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = placed_at->line, .column = placed_at->col};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = cli_view_key((unsigned int)at),
                          .input = &placed, .err_msg = err_msg);
     }

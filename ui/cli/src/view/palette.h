@@ -141,7 +141,9 @@ unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args);
 int gui_palette_color_low(const GuiPaletteAtSizeCfg *args);
 // a contrast in tenths as its ratio, `2.8:1`, into `size` bytes
 void gui_palette_contrast_text(const GuiPaletteSizeCfg *args);
-// the color of the token named by `length` bytes of `name`, the editor's text color where no token has the name
+// the color of the token of `length` bytes at `name`: a dotted token the color of its longest head the palette
+// colors, keyword.foreground.1 a keyword's where neither it nor keyword.foreground stands in it; the editor's text
+// color where no head does
 GuiColor gui_palette_token(const GuiPaletteLengthCfg *args);
 struct GuiPaletteAtSizeCfg
 {
