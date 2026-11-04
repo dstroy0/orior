@@ -1181,20 +1181,59 @@ EMBED_INLINE void xterm_control(const XtermCtx *args)
     }
 }
 
-// an operating-system command read: OSC 7, the folder the shell stands in as a file URL, becomes the place reported
+// a hexadecimal digit's value, or 16 where `byte` is none
+EMBED_INLINE unsigned int xterm_hex(const XtermCtx *args)
+{
+    const unsigned int digit = args->byte;
+    return ((digit >= (unsigned int)'0') && (digit <= (unsigned int)'9'))   ? (digit - (unsigned int)'0')
+           : ((digit >= (unsigned int)'a') && (digit <= (unsigned int)'f')) ? (digit - (unsigned int)'a' + 10u)
+           : ((digit >= (unsigned int)'A') && (digit <= (unsigned int)'F')) ? (digit - (unsigned int)'A' + 10u)
+                                                                            : 16u;
+}
+
+// an operating-system command read: OSC 7, the folder the shell stands in as a file URL, `file://host/path`, its path
+// written into the xterm's folder with its %XX escapes read, the folder left empty where the path is empty or does not
+// fit
 EMBED_INLINE void xterm_command(const XtermCtx *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     const unsigned char *const body = xterm->command;
-    if ((xterm->command_size < 2u) || (body[0] != (unsigned char)'7') || (body[1] != (unsigned char)';'))
+    const unsigned int size = xterm->command_size;
+    if ((xterm->folder == NULL) || (size < 2u) || (body[0] != (unsigned char)'7') || (body[1] != (unsigned char)';'))
     {
         return;
     }
-    const unsigned int size = xterm->command_size - 2u;
-    const unsigned int taken = (size < (CLI_TERMINAL_PLACE_MAX - 1u)) ? size : (CLI_TERMINAL_PLACE_MAX - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = xterm->place, .src = body + 2, .bytes = taken});
-    xterm->place[taken] = '\0';
-    xterm->place_reported = 1;
+    // the path starts past the host where the place is a file URL, else at the place's start
+    static const char s_file_scheme[] = "file://";
+    unsigned int from = 2u;
+    unsigned int matched = 0u;
+    while ((matched < (sizeof(s_file_scheme) - 1u)) && ((from + matched) < size) &&
+           (body[from + matched] == (unsigned char)s_file_scheme[matched]))
+    {
+        matched += 1u;
+    }
+    if (matched == (sizeof(s_file_scheme) - 1u))
+    {
+        from += matched;
+        while ((from < size) && (body[from] != (unsigned char)'/'))
+        {
+            from += 1u;
+        }
+    }
+    VerbaLinea folder = {xterm->folder, xterm->folder_size, 0ULL};
+    for (unsigned int at = from; at < size; at += 1u)
+    {
+        const unsigned int high = ((at + 2u) < size) ? EMBED_CALL(xterm_hex, XtermCtx, .byte = body[at + 1u]) : 16u;
+        const unsigned int low = (high < 16u) ? EMBED_CALL(xterm_hex, XtermCtx, .byte = body[at + 2u]) : 16u;
+        const int escaped = (body[at] == (unsigned char)'%') && (low < 16u);
+        // two hexadecimal digits are one byte, and a byte read as a char is the same byte
+        mmgr_line_ch(&folder, escaped ? (char)((high * 16u) + low) : (char)body[at]);
+        at += escaped ? 2u : 0u;
+    }
+    const int written = mmgr_line_ok(&folder) && (mmgr_line_finish(&folder) != 0ULL);
+    xterm->folder[0] = written ? xterm->folder[0] : '\0';
+    xterm->folder_reported = 1;
+    xterm->folder_known = 1;
 }
 
 // a control letter: the bell read past, backspace, a tab to the next stop, a line fed, and a carriage return
@@ -1505,9 +1544,8 @@ int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     memor.set(&(MemoriaCfg){.dst = xterm, .val = 0, .bytes = sizeof(*xterm)});
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_TERMINAL_COMMAND_MAX +
-                                                                      CLI_TERMINAL_ANSWER_MAX + CLI_TERMINAL_PLACE_MAX,
-                                                                  &g_cli_terminal_cells);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
+        (unsigned long long)CLI_TERMINAL_COMMAND_MAX + CLI_TERMINAL_ANSWER_MAX, &g_cli_terminal_cells);
     if (cell == NULL)
     {
         return 0;
@@ -1515,7 +1553,8 @@ int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args)
     xterm->cell = cell;
     xterm->command = cell;
     xterm->answer = cell + CLI_TERMINAL_COMMAND_MAX;
-    xterm->place = (char *)(xterm->answer + CLI_TERMINAL_ANSWER_MAX);
+    xterm->folder = args->folder;
+    xterm->folder_size = args->folder_size;
     xterm->columns = (args->columns > 1u) ? args->columns : 2u;
     xterm->rows = (args->rows > 1u) ? args->rows : 2u;
     xterm->key = args->key;

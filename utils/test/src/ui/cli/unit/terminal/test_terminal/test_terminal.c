@@ -311,14 +311,24 @@ void test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_mai
     TEST_ASSERT_EQUAL_UINT64(0ULL, s_xterm.history);
 }
 
-void test_the_folder_a_shell_reports_is_read_from_osc_7_ended_by_a_bell_or_a_string_terminator(void)
+void test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_bell_or_a_string_terminator(void)
 {
+    char folder[16];
     xterm_open(10u, 2u);
-    xterm_put("\x1b]7;file://host/d/x\x07");
-    TEST_ASSERT_TRUE(s_xterm.place_reported);
-    TEST_ASSERT_EQUAL_STRING("file://host/d/x", s_xterm.place);
+    s_xterm.folder = folder;
+    s_xterm.folder_size = sizeof(folder);
+    TEST_ASSERT_FALSE(s_xterm.folder_known);
+    xterm_put("\x1b]7;file://host/d/x%20y\x07");
+    TEST_ASSERT_TRUE(s_xterm.folder_reported);
+    TEST_ASSERT_TRUE(s_xterm.folder_known);
+    TEST_ASSERT_EQUAL_STRING("/d/x y", folder);
     xterm_put("\x1b]7;file://host/e\x1b\\");
-    TEST_ASSERT_EQUAL_STRING("file://host/e", s_xterm.place);
+    TEST_ASSERT_EQUAL_STRING("/e", folder);
+    // a path alone stands as it is, and one past the folder's bytes leaves it empty
+    xterm_put("\x1b]7;/f/g\x07");
+    TEST_ASSERT_EQUAL_STRING("/f/g", folder);
+    xterm_put("\x1b]7;file://host/a/long/folder/path\x07");
+    TEST_ASSERT_EQUAL_STRING("", folder);
     TEST_ASSERT_EQUAL_STRING("", xterm_row_text(0u));
 }
 

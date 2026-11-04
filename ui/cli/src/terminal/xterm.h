@@ -32,11 +32,10 @@ typedef struct CliTerminalXtermBytesCfg CliTerminalXtermBytesCfg;
 #define CLI_TERMINAL_COLOR_DIRECT 0x02000000u
 #define CLI_TERMINAL_COLOR_KIND 0xff000000u
 
-// the most bytes of an operating-system command read, the bytes the xterm answers the shell between two reads of its
-// answer, and the bytes of the place a shell reports
+// the most bytes of an operating-system command read, and the bytes the xterm answers the shell between two reads of
+// its answer
 #define CLI_TERMINAL_COMMAND_MAX 4096u
 #define CLI_TERMINAL_ANSWER_MAX 256u
-#define CLI_TERMINAL_PLACE_MAX 4096u
 
 // A style: its colors and its marks
 typedef struct
@@ -57,10 +56,11 @@ typedef struct
 
 // An xterm: its size; the key of the text it writes into, NULL before the text is stored, the main screen's first line,
 // the history the lines above it, and the first line of the screen drawn on, the main screen's or the second's after
-// it; the one cell the command being read, the answer for the shell and the place the shell reported lie in; the
-// cursor, the region that scrolls and the cursor saved; the modes; where the reading of the output stands and the bytes
-// of a letter cut across two writes; whether the text or the cursor moved since the drawing last read them; and whether
-// the text refused an edit, after which nothing more is written into it
+// it; the one cell the command being read and the answer for the shell lie in; the folder the path of a folder the
+// shell reports is written into, NULL for none, and its bytes, whether a folder was reported since the terminal last
+// read it and whether one ever was; the cursor, the region that scrolls and the cursor saved; the modes; where the
+// reading of the output stands and the bytes of a letter cut across two writes; whether the text or the cursor moved
+// since the drawing last read them; and whether the text refused an edit, after which nothing more is written into it
 typedef struct
 {
     unsigned int columns;
@@ -74,8 +74,10 @@ typedef struct
     unsigned int command_size;
     unsigned char *answer;
     unsigned int answer_size;
-    char *place;
-    int place_reported;
+    char *folder;
+    unsigned long long folder_size;
+    int folder_reported;
+    int folder_known;
     CliTerminalCursor cursor;
     CliTerminalCursor saved;
     unsigned int top;
@@ -95,10 +97,11 @@ typedef struct
 } CliTerminalXterm;
 
 // An xterm `columns` wide and `rows` tall, its cursor home, writing into the text under `key` whose main screen starts
-// at the line `history`, the text holding that many lines and the screen's rows after them: 1, or 0 where its cell is
-// not had. The xterm resized, the text's rows with it: the rows a shorter main screen loses from its top while the
-// cursor would fall off its foot joining the history, the rest let go from its foot, and a taller screen's rows put at
-// its foot: 1, or 0 where the text refused. And its cell released
+// at the line `history`, the text holding that many lines and the screen's rows after them, and the path of a folder
+// the shell reports into the `folder_size` bytes at `folder`: 1, or 0 where its cell is not had. The xterm resized, the
+// text's rows with it: the rows a shorter main screen loses from its top while the cursor would fall off its foot
+// joining the history, the rest let go from its foot, and a taller screen's rows put at its foot: 1, or 0 where the
+// text refused. And its cell released
 int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args);
 int cli_terminal_xterm_resize(const CliTerminalXtermSizeCfg *args);
 void cli_terminal_xterm_free(const CliTerminalXtermCfg *args);
@@ -129,6 +132,8 @@ struct CliTerminalXtermSizeCfg
     unsigned int rows;
     const char *key;
     unsigned long long history;
+    char *folder;
+    unsigned long long folder_size;
 };
 
 struct CliTerminalXtermCfg
