@@ -72,6 +72,8 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
     EMBED_CALL(gui_suggest.init, GuiSuggestCfg, .suggest = &args->window->suggest);
     EMBED_CALL(cli_problems.init, GuiProblemsCfg, .problems_out = &args->window->problems);
+    EMBED_CALL(gui_structure.init, GuiStructureCfg, .structure_out = &args->window->structure);
+    EMBED_CALL(gui_changes.init, GuiChangesCfg, .changes_out = &args->window->changes);
     if (!EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &args->window->background_fill))
     {
         mmgr_line_put(err_msg, "the lattice has no slot left for the ground");
@@ -254,13 +256,36 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
     }
 }
 
-// the shown view's frame, names and map taken anew of it, those it had released; `edited`
-// where the text changed, which the map's lines no longer show
+// the outline read anew of the view shown, where the Structure tool's pane shows; none where no view is shown
+EMBED_INLINE void window_outline_take(const GuiWindowCtx *args)
+{
+    if (!EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "structure"))
+    {
+        return;
+    }
+    const int shown = cli_view_shown();
+    // the view shown is among the views
+    EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL,
+               .path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL);
+}
+
+// the changes read anew of the tree, where the Commit tool's pane shows
+EMBED_INLINE void window_changes_take(const GuiWindowCtx *args)
+{
+    if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "commit"))
+    {
+        EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = cli_command_line_root());
+    }
+}
+
+// the shown view's frame, names and map taken anew of it, those it had released, and its outline where the Structure
+// tool's pane shows; `edited` where the text changed, which the map's lines no longer show
 EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
     const int shown = cli_view_shown();
+    EMBED_CALL(window_outline_take, GuiWindowCtx, .window = window);
     if (shown != window->view_shown)
     {
         // another file shown: the map stands anew beside it, at the editor's size
@@ -541,13 +566,15 @@ EMBED_INLINE void window_side(const GuiWindowCtx *args)
 }
 
 // the side laid again as the pane's waits have shown or collapsed it or a preview has changed its tool, the explorer
-// listed as it shows
+// listed as it shows and the outline read as the Structure tool shows
 EMBED_INLINE void window_sides_laid(const GuiWindowCtx *args)
 {
     if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "explorer"))
     {
         cli_files_explorer_show(cli_command_line_root());
     }
+    EMBED_CALL(window_outline_take, GuiWindowCtx, .window = args->window);
+    EMBED_CALL(window_changes_take, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_side, GuiWindowCtx, .window = args->window);
 }
 
@@ -1357,6 +1384,7 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     if (EMBED_CALL(cli_view_save_table.save, CliViewSaveCfg, .key = key, .full = full, .err_msg = &err_msg))
     {
         cli_notices_break();
+        EMBED_CALL(window_changes_take, GuiWindowCtx, .window = args->window);
     }
     else
     {
@@ -1968,6 +1996,18 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
             EMBED_CALL(gui_problems_row_frame.draw, GuiProblemsRowFrameCfg, .problems = &args->window->problems,
                        .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = &slid);
         }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "structure"))
+        {
+            EMBED_CALL(gui_structure_row_frame.draw, GuiStructureRowFrameCfg, .structure = &args->window->structure,
+                       .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = &slid,
+                       .cursor_line =
+                           (args->window->editor.frame != NULL) ? args->window->editor.frame->cursor.line : 0ULL);
+        }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "commit"))
+        {
+            EMBED_CALL(gui_changes_row_frame.draw, GuiChangesRowFrameCfg, .changes = &args->window->changes,
+                       .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = &slid);
+        }
     }
     // the panel drawn where it stands as it arrives, its rectangle and its views' moved down by its way left
     GuiFrame arriving = *frame;
@@ -2244,6 +2284,22 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
                 input->hit = CLI_HIT_PROBLEM_ROW;
             }
         }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "structure"))
+        {
+            if (EMBED_CALL(gui_structure_row_frame.hit, GuiStructureRowFrameCfg, .structure = &window->structure,
+                           .frame = &window->frame, .x = x, .y = y, .row_pointer = &input->index))
+            {
+                input->hit = CLI_HIT_OUTLINE_ROW;
+            }
+        }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "commit"))
+        {
+            if (EMBED_CALL(gui_changes_row_frame.hit, GuiChangesRowFrameCfg, .changes = &window->changes,
+                           .frame = &window->frame, .x = x, .y = y, .row_pointer = &input->index))
+            {
+                input->hit = CLI_HIT_CHANGE_ROW;
+            }
+        }
         else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "explorer") &&
                  EMBED_CALL(gui_explorer_frame_xy.hit, GuiExplorerFrameXYCfg, .explorer_read = &window->explorer,
                             .frame = &window->frame, .x = x, .y = y, .row_pointer = &input->index))
@@ -2410,6 +2466,32 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         window->pending = 1;
         break;
     }
+    case CLI_HIT_CHANGE_ROW: {
+        // the row's file opened
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+        CliChangedRow changed;
+        if (EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = hit->index, .row = &changed))
+        {
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = changed.path, .place = NULL);
+        }
+        window->pending = 1;
+        break;
+    }
+    case CLI_HIT_OUTLINE_ROW: {
+        // the row's declaration: the cursor put on its line in the view shown, the file opened there
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+        CliOutlineRow row;
+        const int shown = cli_view_shown();
+        if ((shown >= 0) && EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = hit->index, .row = &row))
+        {
+            const CliPosition place = {row.line, 0ULL};
+            // the view shown is among the views
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = cli_view_path_at((unsigned int)shown),
+                       .place = &place);
+        }
+        window->pending = 1;
+        break;
+    }
     case CLI_HIT_EXPLORER_ROW: {
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
         CliExplorerRow row;
@@ -2470,12 +2552,27 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = args->input->x,
                    .y = args->input->y))
     {
-        const int moved =
-            EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "problems")
-                ? EMBED_CALL(gui_problems_row_frame.wheel, GuiProblemsRowFrameCfg, .problems_out = &window->problems,
-                             .frame = &window->frame, .rows = args->input->rows)
-                : EMBED_CALL(gui_explorer_frame.wheel, GuiExplorerFrameCfg, .explorer = &window->explorer,
-                             .frame = &window->frame, .rows = args->input->rows);
+        int moved;
+        if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "problems"))
+        {
+            moved = EMBED_CALL(gui_problems_row_frame.wheel, GuiProblemsRowFrameCfg, .problems_out = &window->problems,
+                               .frame = &window->frame, .rows = args->input->rows);
+        }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "structure"))
+        {
+            moved = EMBED_CALL(gui_structure_row_frame.wheel, GuiStructureRowFrameCfg,
+                               .structure_out = &window->structure, .frame = &window->frame, .rows = args->input->rows);
+        }
+        else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "commit"))
+        {
+            moved = EMBED_CALL(gui_changes_row_frame.wheel, GuiChangesRowFrameCfg, .changes_out = &window->changes,
+                               .frame = &window->frame, .rows = args->input->rows);
+        }
+        else
+        {
+            moved = EMBED_CALL(gui_explorer_frame.wheel, GuiExplorerFrameCfg, .explorer = &window->explorer,
+                               .frame = &window->frame, .rows = args->input->rows);
+        }
         window->pending = moved || window->pending;
         return;
     }
@@ -2693,12 +2790,28 @@ static void window_move(const GuiInputHandlerCfg *args)
     {
         EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = window);
     }
-    window->pending = (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "problems")
-                           ? EMBED_CALL(gui_problems_frame.move, GuiProblemsFrameCfg, .problems_out = &window->problems,
-                                        .frame = &window->frame, .x = args->input->x, .y = args->input->y)
-                           : EMBED_CALL(gui_explorer_frame_x.move, GuiExplorerFrameXCfg, .explorer = &window->explorer,
-                                        .frame = &window->frame, .x = args->input->x, .y = args->input->y)) ||
-                      window->pending;
+    int pane_moved;
+    if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "problems"))
+    {
+        pane_moved = EMBED_CALL(gui_problems_frame.move, GuiProblemsFrameCfg, .problems_out = &window->problems,
+                                .frame = &window->frame, .x = args->input->x, .y = args->input->y);
+    }
+    else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "structure"))
+    {
+        pane_moved = EMBED_CALL(gui_structure_frame.move, GuiStructureFrameCfg, .structure_out = &window->structure,
+                                .frame = &window->frame, .x = args->input->x, .y = args->input->y);
+    }
+    else if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "commit"))
+    {
+        pane_moved = EMBED_CALL(gui_changes_frame.move, GuiChangesFrameCfg, .changes_out = &window->changes,
+                                .frame = &window->frame, .x = args->input->x, .y = args->input->y);
+    }
+    else
+    {
+        pane_moved = EMBED_CALL(gui_explorer_frame_x.move, GuiExplorerFrameXCfg, .explorer = &window->explorer,
+                                .frame = &window->frame, .x = args->input->x, .y = args->input->y);
+    }
+    window->pending = pane_moved || window->pending;
     // the slider dragged goes to the part of the text it stands over, as a press on the map does
     unsigned long long top = 0ULL;
     if (EMBED_CALL(gui_minimap_position_scale.drag, GuiMinimapPositionScaleCfg, .map = &window->minimap,

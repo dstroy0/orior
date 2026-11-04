@@ -19,6 +19,7 @@ typedef struct GuiExplorerFrameXCfg GuiExplorerFrameXCfg;
 typedef struct GuiExplorerCfg GuiExplorerCfg;
 typedef struct GuiExplorerRowFrameCfg GuiExplorerRowFrameCfg;
 typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
+typedef struct GuiExplorerMarkCfg GuiExplorerMarkCfg;
 
 // no row; and the sizes in the page's pixels:
 // the explorer's head, the line over the pane and the pane's head, a row, a row's padding at the left, a guide's
@@ -38,6 +39,8 @@ typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
 #define GUI_EXPLORER_ROW_SIZE 13u
 #define GUI_EXPLORER_MARK_SIZE 11u
 #define GUI_EXPLORER_ARROW 5
+// the most bytes of a file's mark text with its end, and of the name it is read from
+#define GUI_EXPLORER_MARK_MOST 64u
 
 // The explorer: the row the pointer stands on, GUI_EXPLORER_NONE for none; and how many rows are scrolled off the
 // pane's top
@@ -49,6 +52,9 @@ typedef struct
 
 // an explorer holding no rows
 void gui_explorer_init(const GuiExplorerCfg *args);
+// the mark of the file `name`, `length` bytes, as the page's icons draw a file's type: its text into `text`, sized
+// GUI_EXPLORER_MARK_MOST, and which of the palette's mark colors it takes, counted from 1, 0 for the quieter one
+unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args);
 // how many rows there are
 unsigned int gui_explorer_rows(const GuiExplorerFrameXYCfg *args);
 // the rectangle of the row `row` in the frame's side as the rows are scrolled; and the row at x, y: 1 with its number
@@ -154,6 +160,22 @@ typedef struct
 EMBED_TABLE_LAYOUT(GuiExplorerFrameNs, wheel);
 EMBED_TABLE_STORAGE GuiExplorerFrameNs gui_explorer_frame EMBED_UNUSED = {
     .wheel = gui_explorer_wheel,
+};
+
+struct GuiExplorerMarkCfg
+{
+    const char *name;
+    unsigned long long length;
+    char *text;
+};
+
+typedef struct
+{
+    unsigned int (*mark)(const GuiExplorerMarkCfg *args);
+} GuiExplorerMarkNs;
+EMBED_TABLE_LAYOUT(GuiExplorerMarkNs, mark);
+EMBED_TABLE_STORAGE GuiExplorerMarkNs gui_explorer_mark_table EMBED_UNUSED = {
+    .mark = gui_explorer_mark,
 };
 
 #endif

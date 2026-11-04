@@ -169,7 +169,6 @@ static const GuiMark s_named[] = {
 };
 
 // the most bytes of a name a mark is looked up by
-#define EXPLORER_NAME_MOST 64u
 
 void gui_explorer_init(const GuiExplorerCfg *args)
 {
@@ -302,22 +301,22 @@ int gui_explorer_wheel(const GuiExplorerFrameCfg *args)
     return 1;
 }
 
-// the mark of the file named by `length` bytes of `name`: its text into `text`, sized EXPLORER_NAME_MOST, and the
-// mark's color, 0 for the quieter one
-EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
+// the mark of the file `name`, `length` bytes, its text into `text`, sized GUI_EXPLORER_MARK_MOST, and the mark's
+// color, 0 for the quieter one
+unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
 {
     char *text = args->text;
-    char lower[EXPLORER_NAME_MOST];
+    char lower[GUI_EXPLORER_MARK_MOST];
     const unsigned long long saved =
-        (args->length < EXPLORER_NAME_MOST - 1ULL) ? args->length : EXPLORER_NAME_MOST - 1ULL;
+        (args->length < GUI_EXPLORER_MARK_MOST - 1ULL) ? args->length : GUI_EXPLORER_MARK_MOST - 1ULL;
     memor.cpy(&(MemoriaCfg){.dst = lower, .src = args->name, .bytes = saved});
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .size = saved, .text_out = lower);
     lower[saved] = '\0';
     for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_named[at].type, .cap = EXPLORER_NAME_MOST}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_named[at].type, .cap = GUI_EXPLORER_MARK_MOST}))
         {
-            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
+            VerbaLinea line = {text, GUI_EXPLORER_MARK_MOST, 0ULL};
             mmgr_line_put(&line, s_named[at].text);
             (void)mmgr_line_finish(&line);
             return s_named[at].color;
@@ -332,9 +331,9 @@ EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
         if ((type[0] != '\0') &&
-            cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_marks[at].type, .cap = EXPLORER_NAME_MOST}))
+            cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_marks[at].type, .cap = GUI_EXPLORER_MARK_MOST}))
         {
-            VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
+            VerbaLinea line = {text, GUI_EXPLORER_MARK_MOST, 0ULL};
             mmgr_line_put(&line, s_marks[at].text);
             (void)mmgr_line_finish(&line);
             return s_marks[at].color;
@@ -344,9 +343,9 @@ EMBED_INLINE unsigned int explorer_mark(const ExplorerCtx *args)
     const char *from = (type[0] != '\0') ? type : lower;
     from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = ".");
-    VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ULL};
+    VerbaLinea line = {text, GUI_EXPLORER_MARK_MOST, 0ULL};
     mmgr_line_put_n(&line, from,
-                    (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = EXPLORER_NAME_MOST}) < 2ULL) ? 1ULL : 2ULL);
+                    (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = GUI_EXPLORER_MARK_MOST}) < 2ULL) ? 1ULL : 2ULL);
     (void)mmgr_line_finish(&line);
     return 0u;
 }
@@ -477,12 +476,12 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
     }
     else
     {
-        char text[EXPLORER_NAME_MOST];
-        const unsigned int color =
-            EMBED_CALL(explorer_mark, ExplorerCtx, .name = node->name, .length = name_length, .text = text);
+        char text[GUI_EXPLORER_MARK_MOST];
+        const unsigned int color = EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = node->name,
+                                              .length = name_length, .text = text);
         const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                            .pixels = (int)GUI_EXPLORER_MARK_SIZE, .scale = scale);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = EXPLORER_NAME_MOST});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_EXPLORER_MARK_MOST});
         const float pixel_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                              .face = GUI_FACE_CODE_BOLD, .size = size, .text = text, .length = length);
         (void)EMBED_CALL(

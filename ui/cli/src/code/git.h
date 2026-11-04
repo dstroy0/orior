@@ -178,6 +178,44 @@ typedef struct
     unsigned long long length;
 } CliGitPart;
 
+// The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
+// the repository containing it, as rows in the order git lists them, at most CLI_CHANGES_ROWS. A row is the file's path
+// from the tree's top, its name, the last part of that path, the bytes of the folder before it, and its state letter as
+// cli_git_change reads it
+#define CLI_CHANGES_ROWS 4096u
+typedef struct
+{
+    const char *path;
+    const char *name;
+    unsigned long long folder_length;
+    char state;
+} CliChangedRow;
+typedef struct CliGitChangesCfg CliGitChangesCfg;
+// the changes read anew of the tree at `root`, every repository of it; none where `root` is NULL
+void cli_changes_read(const CliGitChangesCfg *args);
+// how many rows the changes have; and the row `at` into `row`: 1, or 0 past the last
+unsigned int cli_changes_rows(const CliGitChangesCfg *args);
+int cli_changes_row(const CliGitChangesCfg *args);
+struct CliGitChangesCfg
+{
+    const char *root;
+    unsigned int at;
+    CliChangedRow *row;
+};
+
+typedef struct
+{
+    void (*read)(const CliGitChangesCfg *args);
+    unsigned int (*rows)(const CliGitChangesCfg *args);
+    int (*row)(const CliGitChangesCfg *args);
+} CliChangesNs;
+EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row);
+EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
+    .read = cli_changes_read,
+    .rows = cli_changes_rows,
+    .row = cli_changes_row,
+};
+
 // the commit the tree at `root` stands at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,
 // and whether the tree has no change past it: 1, or 0 where the tree is in no repository or has no commit
 int cli_git_head(const CliGitRootCommitCfg *args);

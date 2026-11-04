@@ -13,6 +13,7 @@
 #include "framebuffer.h"
 #include "ground.h"
 #include "parts/busy.h"
+#include "parts/changes.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
 #include "parts/hover.h"
@@ -23,6 +24,7 @@
 #include "parts/signature.h"
 #include "parts/statusbar.h"
 #include "parts/strip.h"
+#include "parts/structure.h"
 #include "parts/suggest.h"
 #include "parts/tabs.h"
 #include "parts/terminal.h"
@@ -102,6 +104,8 @@ typedef struct GuiWindow
     GuiSuggest suggest;
     GuiSignature signature;
     GuiProblems problems;
+    GuiStructure structure;
+    GuiChanges changes;
     GuiTerminal terminal;
     CliHoverPanel hover_panel;
     CliCompletionPanel completion_panel;

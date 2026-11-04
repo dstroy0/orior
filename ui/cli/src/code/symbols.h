@@ -607,4 +607,48 @@ EMBED_TABLE_STORAGE CliSymbolsPathTextSizeStateNs cli_symbols_path_text_size_sta
     .pair = cli_symbols_pair,
 };
 
+// The outline, the declarations of the view shown as rows (symbols_outline.c): a row is a declaration's name, `length`
+// bytes, what it is, its line counted from 0, and how deep it stands, its line's indent in steps of the text's smallest
+// indent, no deeper than CLI_OUTLINE_DEEPEST. A text longer than CLI_OUTLINE_LINES_MOST lines has no rows, and at most
+// CLI_OUTLINE_ROWS are read
+#define CLI_OUTLINE_DEEPEST 5u
+#define CLI_OUTLINE_ROWS 4096u
+#define CLI_OUTLINE_LINES_MOST 50000ULL
+typedef struct
+{
+    const char *name;
+    unsigned long long length;
+    const char *kind;
+    unsigned long long line;
+    unsigned int depth;
+} CliOutlineRow;
+typedef struct CliOutlineCfg CliOutlineCfg;
+
+// the outline read anew of the text under `key`, the file at `path`, in the language of the path, its rows in the order
+// of their lines; none where `key` is NULL or no text read whole stands under it
+void cli_outline_read(const CliOutlineCfg *args);
+// how many rows the outline has; and the row `at` into `row`: 1, or 0 past the last
+unsigned int cli_outline_rows(const CliOutlineCfg *args);
+int cli_outline_row(const CliOutlineCfg *args);
+struct CliOutlineCfg
+{
+    const char *key;
+    const char *path;
+    unsigned int at;
+    CliOutlineRow *row;
+};
+
+typedef struct
+{
+    void (*read)(const CliOutlineCfg *args);
+    unsigned int (*rows)(const CliOutlineCfg *args);
+    int (*row)(const CliOutlineCfg *args);
+} CliOutlineNs;
+EMBED_TABLE_LAYOUT(CliOutlineNs, read, rows, row);
+EMBED_TABLE_STORAGE CliOutlineNs cli_outline EMBED_UNUSED = {
+    .read = cli_outline_read,
+    .rows = cli_outline_rows,
+    .row = cli_outline_row,
+};
+
 #endif

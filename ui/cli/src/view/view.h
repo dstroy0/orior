@@ -16,7 +16,8 @@
 
 // what a pixel of the main window stands on, as the window lays it; a key sent while the name's pane stands names the
 // wordmark, no view taking it. In the terminal: its pane, a tab, a tab's ×, New Terminal, Split, and the panel on none
-// of these. On the status bar: the notice it shows, the Silence beside it, and Focus
+// of these. On the status bar: the notice it shows, the Silence beside it, and Focus. In the Outline pane and the
+// Changes pane: a row
 #define CLI_HIT_NONE 0u
 #define CLI_HIT_MENU_TITLE 1u
 #define CLI_HIT_MENU_ROW 2u
@@ -43,6 +44,8 @@
 #define CLI_HIT_STATUS_NOTICE 23u
 #define CLI_HIT_STATUS_SILENCE 24u
 #define CLI_HIT_STATUS_FOCUS 25u
+#define CLI_HIT_OUTLINE_ROW 26u
+#define CLI_HIT_CHANGE_ROW 27u
 
 // A place on the screen in the system's own pixels, and whether the window filled its monitor there
 typedef struct
