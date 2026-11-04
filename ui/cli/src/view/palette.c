@@ -465,6 +465,26 @@ void gui_palette_contrast_text(const GuiPaletteSizeCfg *args)
 
 GuiColor gui_palette_token(const GuiPaletteLengthCfg *args)
 {
+    // a color of the terminal's sixteen, as the xterm grammar's tokens carry it: `terminal.` and its number
+    static const char s_terminal[] = "terminal.";
+    const unsigned long long head = sizeof(s_terminal) - 1u;
+    if ((args->length > head) && (args->length <= (head + 2ULL)) &&
+        (memor.cmp(&(MemoriaCfg){.src = args->name_read, .other = s_terminal, .bytes = head}) == 0))
+    {
+        unsigned int number = 0u;
+        int digits = 1;
+        for (unsigned long long at = head; at < args->length; at += 1ULL)
+        {
+            const char letter = args->name_read[at];
+            digits = digits && (letter >= '0') && (letter <= '9');
+            // a name's two digits at the most, far inside what an unsigned int counts
+            number = (number * 10u) + (unsigned int)(digits ? (letter - '0') : 0);
+        }
+        if (digits && (number < GUI_TERMINAL_COLORS))
+        {
+            return args->palette->terminal[number];
+        }
+    }
     for (unsigned int at = 0u; at < args->palette->token_count; at += 1u)
     {
         const char *const known = args->palette->token[at].name;

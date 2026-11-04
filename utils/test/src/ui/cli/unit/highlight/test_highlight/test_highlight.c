@@ -475,6 +475,22 @@ void test_a_javascript_local_is_named(void)
                        "delimiter.statement");
 }
 
+void test_a_terminal_line_colors_its_text_by_the_sgr_before_it_and_conceals_the_sequences(void)
+{
+    assert_plugin_line("xterm", "\x1b[31mred\x1b[0m plain", "0 conceal|5 terminal.1|8 conceal|12 ");
+}
+
+void test_a_terminal_color_among_other_numbers_and_a_bright_one_switched_to_are_read(void)
+{
+    assert_plugin_line("xterm", "\x1b[01;34mdir\x1b[0m", "0 conceal|8 terminal.4|11 conceal");
+    assert_plugin_line("xterm", "\x1b[32mok\x1b[91m!", "0 conceal|5 terminal.2|7 conceal|12 terminal.9");
+}
+
+void test_a_terminal_color_of_the_256_leaves_the_text_plain(void)
+{
+    assert_plugin_line("xterm", "\x1b[38;5;31mx", "0 conceal|10 ");
+}
+
 void test_a_pattern_not_read_here_is_refused(void)
 {
     static const char s_bad[] = "{\"tokenizer\": {\"root\": [[{\"pattern\": \"(?<=a)b\"}, \"x\"]]}}";

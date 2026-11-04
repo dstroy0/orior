@@ -34,6 +34,9 @@ extern void test_rusts_head_names_its_parameters_and_their_types(void);
 extern void test_a_rust_local_and_its_type_are_named(void);
 extern void test_javascripts_head_names_its_parameters(void);
 extern void test_a_javascript_local_is_named(void);
+extern void test_a_terminal_line_colors_its_text_by_the_sgr_before_it_and_conceals_the_sequences(void);
+extern void test_a_terminal_color_among_other_numbers_and_a_bright_one_switched_to_are_read(void);
+extern void test_a_terminal_color_of_the_256_leaves_the_text_plain(void);
 extern void test_a_pattern_not_read_here_is_refused(void);
 extern void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock(void);
 
@@ -122,8 +125,11 @@ int main(void)
   run_test(test_a_rust_local_and_its_type_are_named, "test_a_rust_local_and_its_type_are_named", 455);
   run_test(test_javascripts_head_names_its_parameters, "test_javascripts_head_names_its_parameters", 462);
   run_test(test_a_javascript_local_is_named, "test_a_javascript_local_is_named", 471);
-  run_test(test_a_pattern_not_read_here_is_refused, "test_a_pattern_not_read_here_is_refused", 478);
-  run_test(test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock, "test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock", 484);
+  run_test(test_a_terminal_line_colors_its_text_by_the_sgr_before_it_and_conceals_the_sequences, "test_a_terminal_line_colors_its_text_by_the_sgr_before_it_and_conceals_the_sequences", 478);
+  run_test(test_a_terminal_color_among_other_numbers_and_a_bright_one_switched_to_are_read, "test_a_terminal_color_among_other_numbers_and_a_bright_one_switched_to_are_read", 483);
+  run_test(test_a_terminal_color_of_the_256_leaves_the_text_plain, "test_a_terminal_color_of_the_256_leaves_the_text_plain", 489);
+  run_test(test_a_pattern_not_read_here_is_refused, "test_a_pattern_not_read_here_is_refused", 494);
+  run_test(test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock, "test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock", 500);
 
   return UNITY_END();
 }

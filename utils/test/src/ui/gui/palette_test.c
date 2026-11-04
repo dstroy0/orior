@@ -158,6 +158,9 @@ int main(void)
     cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "comment", .length = 7ull) == GUI_RGB(0x6eu, 0x6bu, 0x99u), "comment finds --t-comment");
     cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "operator-memory", .length = 15ull) == GUI_RGB(0xf2u, 0x9bu, 0xb0u),
               "a name with a dash finds its color");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "terminal.1", .length = 10ull) == dark->terminal[1], "terminal.1 is the terminal's red");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "terminal.15", .length = 11ull) == dark->terminal[15], "terminal.15 is the terminal's bright white");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "terminal.16", .length = 11ull) == dark->editor_text, "a terminal color past the sixteen is the editor's text");
     cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keywords", .length = 8ull) == dark->editor_text, "a name no token has is the editor's text");
     cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "", .length = 0ull) == dark->editor_text, "an empty name is the editor's text");
     cli_check(GUI_ALPHA_OF(dark->line) < 0xffu, "the line color is translucent");
