@@ -299,6 +299,9 @@ void test_a_file_opens_by_its_extension(void)
     languages_read();
     TEST_ASSERT_EQUAL_STRING("yaml", language_of("config/app.yml"));
     TEST_ASSERT_EQUAL_STRING("zig", language_of("build.zig"));
+    // a file of text with SGR sequences in it opens with the grammar the terminal colors its text by
+    TEST_ASSERT_EQUAL_STRING("xterm", language_of("logs/build.ansi"));
+    TEST_ASSERT_EQUAL_STRING("xterm", language_of("art/title.ans"));
 }
 
 void test_the_languages_keys_are_in_a_capacity_at_their_max(void)
