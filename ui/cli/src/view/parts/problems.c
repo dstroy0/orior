@@ -416,8 +416,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                        .one = (GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, .other = on);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = message_size, .x_f32 = (float)(mark_x + mark + gap),
-                         .y = baseline, .text = inner_one->message,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = inner_one->message, .cap = CLI_CELLS_POOL}),
+                         .y = baseline, .text = inner_one->message, .length = inner_one->message_length,
                          .color = args->palette->text, .clip = text_clip);
     }
 }

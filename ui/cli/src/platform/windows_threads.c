@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_threads.c: the command line's locks, wakes and threads on Windows: a slim reader-writer lock taken for
-// writing, a condition variable waited on with it, and a thread of its own
+// windows_threads.c: the command line's wakes, address waits and threads on Windows: a thread asleep on a word's
+// address with WaitOnAddress until the word moves, woken with WakeByAddressAll, and a thread of its own
+#include "../command_line/atomic_threads.h"
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -11,6 +12,23 @@
 // the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
 // the sleep
 #define CLI_WAKE_RECHECK_MS 10ul
+
+int cli_atomic_wait(const CliAtomicThreadsCfg *args)
+{
+    unsigned int seen = args->seen;
+    // a sleep past the longest a DWORD counts short of INFINITE sleeps that long
+    const DWORD waited =
+        (args->milliseconds_u64 == CLI_ATOMIC_FOREVER)
+            ? INFINITE
+            : (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
+    (void)WaitOnAddress(args->word, &seen, sizeof(seen), waited);
+    return atomic_load_explicit(args->word, memory_order_acquire) != args->seen;
+}
+
+void cli_atomic_wake(const CliAtomicThreadsCfg *args)
+{
+    WakeByAddressAll(args->word);
+}
 
 void cli_wake_wait(const CliWakeCtx *args)
 {

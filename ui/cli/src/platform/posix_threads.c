@@ -1,19 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_threads.c: the command line's wakes and threads on Linux and macOS: a wake is a futex on a generation word on
-// Linux and a timed sleep elsewhere, a thread is started and let go, and the processors the machine has are read
+// posix_threads.c: the command line's wakes, address waits and threads on Linux and macOS: a thread asleep on a word's
+// address until the word moves, a futex on Linux and __ulock_wait on macOS, and a timed sleep on a system with neither;
+// a thread is started and let go, and the processors the machine has are read
 #if !defined(_WIN32)
 // the count of processors online is the system's, outside strict C11 and POSIX alike
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
 #include <limits.h>
+#include <stdint.h>
 #include <time.h>
 #if defined(__linux__)
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #endif
+#include "../command_line/atomic_threads.h"
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
@@ -33,19 +36,62 @@
 // the sleep
 #define CLI_WAKE_RECHECK_MS 10ULL
 
-// a sleep of `milliseconds` on the wake's word, ended early where the word moves off `seen`: 1 where it moved
-static int wake_sleep(CliWake *wake, unsigned int seen, unsigned long long milliseconds)
+#if defined(__APPLE__)
+// macOS's address wait and wake, which the C++ library's atomic waits call as well: the operation, compare and wait
+// with the wake reaching every sleeper and the error returned rather than set in errno; the timeout in microseconds, 0
+// for none
+extern int __ulock_wait(uint32_t operation, void *address, uint64_t value, uint32_t timeout_us);
+extern int __ulock_wake(uint32_t operation, void *address, uint64_t wake_value);
+#define CLI_ULOCK_COMPARE_AND_WAIT 1u
+#define CLI_ULOCK_WAKE_ALL 0x00000100u
+#define CLI_ULOCK_NO_ERRNO 0x01000000u
+#endif
+
+int cli_atomic_wait(const CliAtomicThreadsCfg *args)
 {
+    const unsigned long long milliseconds = args->milliseconds_u64;
+#if defined(__linux__)
     struct timespec span;
     // the seconds and nanoseconds to wait, each within what a time_t and a long represent
     span.tv_sec = (time_t)(milliseconds / 1000ULL);
     span.tv_nsec = (long)((milliseconds % 1000ULL) * 1000000ULL);
-#if defined(__linux__)
-    (void)syscall(SYS_futex, &wake->generation, FUTEX_WAIT_PRIVATE, seen, &span, NULL, 0);
+    (void)syscall(SYS_futex, args->word, FUTEX_WAIT_PRIVATE, args->seen,
+                  (milliseconds == CLI_ATOMIC_FOREVER) ? NULL : &span, NULL, 0);
+#elif defined(__APPLE__)
+    // the microseconds a uint32_t counts, at least 1, since 0 waits with no end
+    const unsigned long long micro = (milliseconds < 4294967ULL) ? (milliseconds * 1000ULL) : 4294967295ULL;
+    const uint32_t timeout = (milliseconds == CLI_ATOMIC_FOREVER) ? 0u : (uint32_t)((micro != 0ULL) ? micro : 1ULL);
+    (void)__ulock_wait(CLI_ULOCK_COMPARE_AND_WAIT | CLI_ULOCK_NO_ERRNO, (void *)args->word, args->seen, timeout);
 #else
-    (void)nanosleep(&span, NULL);
+    // a system with no address wait sleeps the time, or a millisecond for a sleep with no end, and its sleeper tests again
+    const unsigned long long slept = (milliseconds == CLI_ATOMIC_FOREVER) ? 1ULL : milliseconds;
+    struct timespec span;
+    span.tv_sec = (time_t)(slept / 1000ULL);
+    span.tv_nsec = (long)((slept % 1000ULL) * 1000000ULL);
+    if (atomic_load_explicit(args->word, memory_order_acquire) == args->seen)
+    {
+        (void)nanosleep(&span, NULL);
+    }
 #endif
-    return atomic_load_explicit(&wake->generation, memory_order_acquire) != seen;
+    return atomic_load_explicit(args->word, memory_order_acquire) != args->seen;
+}
+
+void cli_atomic_wake(const CliAtomicThreadsCfg *args)
+{
+#if defined(__linux__)
+    (void)syscall(SYS_futex, args->word, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
+#elif defined(__APPLE__)
+    (void)__ulock_wake(CLI_ULOCK_COMPARE_AND_WAIT | CLI_ULOCK_WAKE_ALL | CLI_ULOCK_NO_ERRNO, (void *)args->word, 0u);
+#else
+    (void)args;
+#endif
+}
+
+// a sleep of `milliseconds` on the wake's word, ended early where the word moves off `seen`: 1 where it moved
+static int wake_sleep(CliWake *wake, unsigned int seen, unsigned long long milliseconds)
+{
+    return cli_atomic_wait(
+        &(CliAtomicThreadsCfg){.word = &wake->generation, .seen = seen, .milliseconds_u64 = milliseconds});
 }
 
 void cli_wake_wait(const CliWakeCtx *args)
@@ -81,9 +127,7 @@ void cli_wake_wait_seen(const CliWakeCtx *args)
 void cli_wake_all(const CliWakeCtx *args)
 {
     (void)atomic_fetch_add_explicit(&args->wake->generation, 1u, memory_order_release);
-#if defined(__linux__)
-    (void)syscall(SYS_futex, &args->wake->generation, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
-#endif
+    cli_atomic_wake(&(CliAtomicThreadsCfg){.word = &args->wake->generation});
 }
 
 static void *cli_thread_entry(void *supplied)

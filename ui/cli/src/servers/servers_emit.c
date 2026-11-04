@@ -22,8 +22,9 @@ CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_
 CliKeyed g_cli_servers_input = {"names build tools give", {NULL}, 0u, 4096u};
 CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 
-// what is read to pass a file's diagnostics on
-static CliServersReadState s_read_state = {0};
+// the stores a file's report is read from, in the order its diagnostics stand: its server's, its inspections' and its
+// checkers'
+#define SERVERS_EMIT_STORES 3u
 
 void cli_servers_uri_get(const CliServersPathUriCtx *args)
 {
@@ -325,22 +326,13 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     return *names != NULL;
 }
 
-// the stored text of `key`, whose hash is `hash`, in `keyed` read into the reading's tree under its lock: its root,
-// CLI_JSON_NONE where none is
-EMBED_INLINE unsigned int emit_stored_read(const ServersEmitCtx *args)
+// the diagnostics of an array of `json` at `array`: its count, 0 where it is no array
+EMBED_INLINE unsigned int emit_array_count(const ServersEmitCtx *args)
 {
-    const CliKeyed *keyed = args->keyed_out;
-    const char *key = args->key;
-    unsigned int hash = args->hash;
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    const char *const text = EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = keyed, .key = key,
-                                        .hash = hash, .adjacent = &adjacent, .size = &size);
-    const unsigned int root = ((text != NULL) && (size > 0ULL))
-                                  ? EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
-                                               .read_state = &s_read_state, .text = text, .size = size)
-                                  : CLI_JSON_NONE;
-    return root;
+    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                      .node = args->array, .kind = CFG_JSON_ARRAY)
+               ? args->json->node[args->array].count
+               : 0u;
 }
 
 // each report of an array written as orior's diagnostic, after those written, those the filter refuses left out where
@@ -348,7 +340,7 @@ EMBED_INLINE unsigned int emit_stored_read(const ServersEmitCtx *args)
 EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
 {
     const char *key = args->key;
-    const CliJson *const json = &s_read_state.json;
+    const CliJson *const json = args->json;
     for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                         .node = args->array, .kind = CFG_JSON_ARRAY)
                                  ? json->node[args->array].first
@@ -393,61 +385,132 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_lock, CliServersReadStateAnswerCtx,
-               .read_state = &s_read_state);
     const unsigned int hash = EMBED_CALL(cli_keyed_key_adjacent.hash, CliKeyedKeyAdjacentCfg, .key = args->key);
     char displayed[CLI_PATH_MAX_LEN];
     VerbaLinea where = {displayed, sizeof(displayed), 0ULL};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->sink->tree,
                .path = path, .out = &where);
-    (void)mmgr_line_finish(&where);
-    // the reports read one after another, the file's published, then its inspections', then each checker's
-    const unsigned int published = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_published,
-                                              .key = args->key, .hash = hash);
-    const unsigned int inspected = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_inspected,
-                                              .key = args->key, .hash = hash);
-    const unsigned int by_checker = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_checked,
-                                               .key = args->key, .hash = hash);
-    const CliJson *const json = &s_read_state.json;
-    unsigned int most = (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                    .node = published, .kind = CFG_JSON_ARRAY)
-                             ? json->node[published].count
-                             : 0u) +
-                        (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                    .node = inspected, .kind = CFG_JSON_ARRAY)
-                             ? json->node[inspected].count
-                             : 0u);
-    const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                  .json_read = json, .node = by_checker, .kind = CFG_JSON_OBJECT)
-                                           ? json->node[by_checker].first
-                                           : CLI_JSON_NONE;
-    for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json->node[id].next)
+    const unsigned long long displayed_length = mmgr_line_finish(&where);
+    // the file's stored texts, the server's, the inspections' and the checkers', and the nodes and bytes the tree they
+    // are read into takes, a node for each token and the bytes of each text, as a tree read whole takes
+    CliKeyed *const stores[SERVERS_EMIT_STORES] = {&g_cli_servers_published, &g_cli_servers_inspected,
+                                                   &g_cli_servers_checked};
+    const char *stored[SERVERS_EMIT_STORES];
+    unsigned long long sizes[SERVERS_EMIT_STORES];
+    unsigned int tokens[SERVERS_EMIT_STORES];
+    unsigned int nodes = 0u;
+    unsigned int tokens_most = 0u;
+    unsigned long long bytes = 0ULL;
+    for (unsigned int store = 0u; store < SERVERS_EMIT_STORES; store += 1u)
     {
-        most += EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = id,
-                           .kind = CFG_JSON_ARRAY)
-                    ? json->node[id].count
-                    : 0u;
+        const char *adjacent = NULL;
+        sizes[store] = 0ULL;
+        stored[store] = EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = stores[store], .key = args->key,
+                                   .hash = hash, .adjacent = &adjacent, .size = &sizes[store]);
+        tokens[store] = ((stored[store] != NULL) && (sizes[store] > 0ULL))
+                            ? (EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
+                                          .text = stored[store], .size = sizes[store]) +
+                               1u)
+                            : 0u;
+        nodes += tokens[store];
+        bytes += (tokens[store] != 0u) ? sizes[store] : 0ULL;
+        tokens_most = (tokens[store] > tokens_most) ? tokens[store] : tokens_most;
     }
-    CliServerDiagnostic *const items =
-        g_cli_cells->temporary_buf_alloc(((most != 0u) ? most : 1u) * sizeof(*items), &g_cli_servers_cells);
-    if (items != NULL)
+    // the texts decoded once into one tree of the report's own, each read appending to it
+    CliJson json;
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    CfgJsonToken *const scanned =
+        (tokens_most != 0u)
+            ? g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken),
+                                               &g_cli_servers_cells)
+            : NULL;
+    const int reserved = (nodes == 0u) ||
+                         ((scanned != NULL) &&
+                          EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &json,
+                                     .nodes_max = nodes, .text_max = bytes, .what = "a file's report",
+                                     .owner = &g_cli_servers_cells));
+    unsigned int roots[SERVERS_EMIT_STORES] = {CLI_JSON_NONE, CLI_JSON_NONE, CLI_JSON_NONE};
+    for (unsigned int store = 0u; reserved && (store < SERVERS_EMIT_STORES); store += 1u)
     {
-        unsigned int laid = 0u;
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .array = published, .filtered = 1, .key = args->key, .uri = uri,
-                   .items = items, .capacity = most, .laid = &laid);
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .array = inspected, .filtered = 0, .key = args->key, .uri = uri,
-                   .items = items, .capacity = most, .laid = &laid);
-        for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json->node[id].next)
+        char quiet[256];
+        VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
+        roots[store] = (tokens[store] != 0u) ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read,
+                                                          CliJsonTreeTextSizeTokensCfg, .json = &json,
+                                                          .text = stored[store], .size = sizes[store],
+                                                          .tokens = scanned, .tokens_max = tokens[store],
+                                                          .err_msg = &ignored)
+                                             : CLI_JSON_NONE;
+    }
+    g_cli_cells->persistent_buf_release(scanned, &g_cli_servers_cells);
+    if (!reserved || (displayed_length == 0ULL))
+    {
+        if (json.node != NULL)
         {
-            EMBED_CALL(emit_items_lay, ServersEmitCtx, .array = id, .filtered = 0, .key = args->key, .uri = uri,
-                       .items = items, .capacity = most, .laid = &laid);
+            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         }
-        EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = displayed,
-                   .item = items, .count = laid);
+        return;
     }
-    g_cli_cells->persistent_buf_release(items, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_read_state);
+    // the diagnostics the tree contains at the most: the server's, the inspections', and each checker's array
+    unsigned int most = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]) +
+                        EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[1]);
+    const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                  .json_read = &json, .node = roots[2], .kind = CFG_JSON_OBJECT)
+                                           ? json.node[roots[2]].first
+                                           : CLI_JSON_NONE;
+    for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
+    {
+        most += EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = id);
+    }
+    // the report's cell: its head, its diagnostics laid where they are read, and its path after them
+    CliServerReport *const report = g_cli_cells->persistent_buf_alloc(
+        sizeof(CliServerReport) + ((unsigned long long)most * sizeof(CliServerDiagnostic)) + displayed_length + 1ULL,
+        &g_cli_servers_cells);
+    if (report == NULL)
+    {
+        if (json.node != NULL)
+        {
+            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        }
+        return;
+    }
+    report->json = json;
+    char *const report_path = (char *)(void *)(report->item + most);
+    VerbaLinea placed = {report_path, displayed_length + 1ULL, 0ULL};
+    mmgr_line_put_n(&placed, displayed, displayed_length);
+    (void)mmgr_line_finish(&placed);
+    report->path = report_path;
+    unsigned int laid = 0u;
+    EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = roots[0], .filtered = 1,
+               .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
+    EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = roots[1], .filtered = 0,
+               .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
+    for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = report->json.node[id].next)
+    {
+        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = id, .filtered = 0,
+                   .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
+    }
+    report->count = laid;
+    int taken = 0;
+    EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = report->path,
+               .item = report->item, .count = laid, .report = report, .taken = &taken);
+    if (!taken)
+    {
+        cli_servers_report_release(report);
+    }
+}
+
+void cli_servers_report_release(CliServerReport *report)
+{
+    if (report == NULL)
+    {
+        return;
+    }
+    if (report->json.node != NULL)
+    {
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &report->json);
+    }
+    g_cli_cells->persistent_buf_release(report, &g_cli_servers_cells);
 }
 
 // a file recorded among those whose server reports an attribute, where it does, put on the line that is `context`: its

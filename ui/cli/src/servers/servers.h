@@ -33,6 +33,7 @@
 #define SERVERS_H
 #include "../command_line/callback_cfg.h"
 #include "../text/edits.h"
+#include "../text/json_tree.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliServersRootCfg CliServersRootCfg;
@@ -53,8 +54,8 @@ typedef struct CliServersCfg CliServersCfg;
 typedef struct CliServersPathSizeKindCfg CliServersPathSizeKindCfg;
 
 // One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
-// severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes, the reader's while the
-// call lasts
+// severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes in the texts of the report
+// it stands in
 typedef struct
 {
     unsigned long long from_line;
@@ -66,14 +67,34 @@ typedef struct
     unsigned long long message_length;
 } CliServerDiagnostic;
 
-// A file's diagnostics handed to whoever the sink names, in place of those it stood with, on the thread that found them
+// A file's report decoded once where the servers store it: the tree its stored texts are read into, the server's, the
+// inspections' and the checkers' in that order, its path as the sink's tree writes it, and its diagnostics, whose
+// messages lie in the tree's texts. The head, the diagnostics and the path are one cell, and the tree is a cell of its
+// own; cli_servers_report_release releases both
+typedef struct
+{
+    CliJson json;
+    const char *path;
+    unsigned int count;
+    CliServerDiagnostic item[];
+} CliServerReport;
+
+// A file's diagnostics handed to the sink's function, in place of those it stood with, on the thread that found
+// them: its path, its diagnostics and the report they stand in, NULL with none. A sink that reads the report after the
+// call returns sets `*taken` to 1 and releases the report itself; the report of any other sink is released as the call
+// returns
 typedef struct
 {
     void *context;
     const char *path;
     const CliServerDiagnostic *item;
     unsigned int count;
+    CliServerReport *report;
+    int *taken;
 } CliServerDiagnosticsCfg;
+
+// a report's cell and its tree's cell released (servers_emit.c)
+void cli_servers_report_release(CliServerReport *report);
 
 // How far the tree's check has gone, the total 0 where it is over
 typedef struct
@@ -178,8 +199,8 @@ int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out);
 const CliSignaturePanel *cli_servers_panels_signature(void);
 
 // One row of the problems: a file's, with its path, its name and how many bytes of its path its folder takes, its
-// diagnostics' count and whether they are closed; or a diagnostic's, with its severity, its message's first line and
-// its place. Each text stands until the file's next report is taken
+// diagnostics' count and whether they are closed; or a diagnostic's, with its severity, its message and the bytes of
+// its first line, and its place. Each text lies in the file's report and stands until the reading thread's next step
 typedef struct
 {
     int is_file;
@@ -190,6 +211,7 @@ typedef struct
     int closed;
     unsigned int severity;
     const char *message;
+    unsigned long long message_length;
     unsigned long long line;
     unsigned long long col;
 } CliProblemRow;
@@ -216,12 +238,15 @@ typedef struct
     unsigned int rows;
 } CliProblemsCounts;
 
-// the problems begun, `woken` called from the thread a report comes on; where the servers report for the tree `root`;
-// the reports come taken, 1 where any did or the check moved; and every report let go, the check stopped
-// (servers_problems.c). On the window's thread: the problems counted; whether the tree's check runs; the row `at` into
-// `row`: 1, or 0 past them; the span `at` of the file `path`'s diagnostics into `span`: 1, or 0 past them; a press on
-// the row `at`, a file's rows closed or opened, or a diagnostic's row into `row`: 1 where it was a diagnostic's, its
-// file to be opened at its place; and the tree's check of `root` started, or stopped where it runs
+// The problems (servers_problems.c): begun, `woken` called from the thread a report comes on; where the servers report
+// for the tree `root`; and every report released as they end, the check stopped. A report comes in on the thread that
+// read it and is published whole with an atomic swap, and what it replaced is released once no reader reads it. A step
+// ends the calling thread's pass through the problems and begins its next, reading what was published last: 1 where it
+// differs from what its last step read or the check moved. From one step to the next, on that thread: the problems
+// counted; whether the tree's check runs; the row `at` into `row`: 1, or 0 past them; the span `at` of the file
+// `path`'s diagnostics into `span`: 1, or 0 past them; a press on the row `at`, a file's rows closed or opened, or a
+// diagnostic's row into `row`: 1 where it was a diagnostic's, its file to be opened at its place; and the tree's check
+// of `root` started, or stopped where it runs
 void cli_servers_problems_begin(void (*woken)(void));
 CliServersSink cli_servers_problems_sink(const char *root);
 int cli_servers_problems_step(void);
