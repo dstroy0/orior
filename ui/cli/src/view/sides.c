@@ -2,14 +2,52 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sides.c: the side pane's waits. Each begins as the pointer comes onto a place or leaves it, and a tick runs those
 // it reaches: the pane collapses only where, at that moment, the pointer stands on neither it nor the strip and no menu
-// is open, and is looked at again a rest later
+// is open, and is looked at again a rest later. Each change of the pane's collapse begins its slide from where it
+// stands, read on the claim's table of the page's ease
 #include "sides.h"
+
+#include "claim.h"
 
 typedef struct
 {
+    GuiSides *sides;
+    const GuiSides *sides_read;
+    GuiStrip *strip;
     const GuiStrip *strip_read;
     const GuiFrame *frame;
+    int collapsed;
+    int still;
+    unsigned long long time_ms;
 } SidesCtx;
+
+// the share of its way the pane has gone at `time_ms` on its slide
+EMBED_INLINE int sides_away_at(const SidesCtx *args)
+{
+    const GuiSides *const sides = args->sides_read;
+    if ((sides->slide_ms == 0ULL) || (args->time_ms >= sides->slide_ms + GUI_SIDES_SLIDE_MS))
+    {
+        return sides->slide_to;
+    }
+    const unsigned long long elapsed_ms = (args->time_ms > sides->slide_ms) ? args->time_ms - sides->slide_ms : 0ULL;
+    // a share of a time under a second is a word
+    const int way = (int)((elapsed_ms * (unsigned long long)GUI_FIXED_ONE) / GUI_SIDES_SLIDE_MS);
+    const int eased = EMBED_CALL(gui_autohide_share.ease, GuiAutohideShareCfg, .share = way);
+    // the way between two shares by an eased share is within a long long and comes back between the two
+    return sides->slide_from +
+           (int)(((long long)(sides->slide_to - sides->slide_from) * (long long)eased) / (long long)GUI_FIXED_ONE);
+}
+
+// the pane's collapse set to `collapsed` at `time_ms`, its slide begun from where it stands toward the way it goes, or
+// the pane standing there at once where motion is still
+EMBED_INLINE void sides_collapsed_set(const SidesCtx *args)
+{
+    GuiSides *const sides = args->sides;
+    const int to = args->collapsed ? GUI_FIXED_ONE : 0;
+    sides->slide_from = EMBED_CALL(sides_away_at, SidesCtx, .sides_read = sides, .time_ms = args->time_ms);
+    sides->slide_to = to;
+    sides->slide_ms = (args->still || (sides->slide_from == to)) ? 0ULL : args->time_ms;
+    args->strip->collapsed = args->collapsed;
+}
 
 void gui_sides_init(const GuiSidesCfg *args)
 {
@@ -26,6 +64,9 @@ void gui_sides_init(const GuiSidesCfg *args)
     sides->previewed = GUI_STRIP_NONE;
     sides->before_displayed = GUI_STRIP_NONE;
     sides->before_collapsed = 0;
+    sides->slide_ms = 0ULL;
+    sides->slide_from = 0;
+    sides->slide_to = 0;
 }
 
 void gui_sides_settle(const GuiSidesCfg *args)
@@ -49,10 +90,10 @@ EMBED_INLINE GuiRect sides_edge(const SidesCtx *args)
     const int foot = EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal)
                          ? frame->inside.y + frame->inside.height
                          : frame->terminal.y;
-    return (GuiRect){frame->inside.x, frame->inside.y,
-                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDES_EDGE,
-                                .scale = frame->scale),
-                     foot - frame->inside.y};
+    return (GuiRect){
+        frame->inside.x, frame->inside.y,
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDES_EDGE, .scale = frame->scale),
+        foot - frame->inside.y};
 }
 
 void gui_sides_toggle(const GuiSidesCfg *args)
@@ -63,12 +104,20 @@ void gui_sides_toggle(const GuiSidesCfg *args)
     // the tools are fewer than an int counts
     if ((strip->displayed == (int)args->at) && !strip->collapsed)
     {
-        strip->collapsed = 1;
+        EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 1, .still = args->still,
+                   .time_ms = args->time_ms);
         sides->collapse_ms = 0ULL;
         return;
     }
+    // a pane where none showed comes in from where a collapsed one stands
+    if (!EMBED_CALL(sides_has_pane, SidesCtx, .strip_read = strip))
+    {
+        sides->slide_ms = 0ULL;
+        sides->slide_to = GUI_FIXED_ONE;
+    }
     strip->displayed = (int)args->at;
-    strip->collapsed = 0;
+    EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,
+               .time_ms = args->time_ms);
     sides->collapse_ms = args->time_ms + GUI_SIDES_REST_MS;
 }
 
@@ -78,15 +127,15 @@ int gui_sides_move(const GuiSidesCfg *args)
     GuiStrip *const strip = args->strip;
     const GuiFrame *const frame = args->frame;
     const int has_pane = EMBED_CALL(sides_has_pane, SidesCtx, .strip_read = strip);
-    const int over_pane = has_pane && !strip->collapsed &&
-                          EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = frame->side, .x = args->x,
-                                     .y = args->y);
+    const int over_pane =
+        has_pane && !strip->collapsed &&
+        EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = frame->side, .x = args->x, .y = args->y);
     const int over_strip =
         EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = frame->strip, .x = args->x, .y = args->y);
-    const int over_edge = has_pane && strip->collapsed &&
-                          EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
-                                     .rect = EMBED_CALL(sides_edge, SidesCtx, .frame = frame), .x = args->x,
-                                     .y = args->y);
+    const int over_edge =
+        has_pane && strip->collapsed &&
+        EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                   .rect = EMBED_CALL(sides_edge, SidesCtx, .frame = frame), .x = args->x, .y = args->y);
     // the pane: no wait while the pointer stands on it, and the wait begun as it leaves
     if (over_pane && !sides->over_pane)
     {
@@ -111,8 +160,8 @@ int gui_sides_move(const GuiSidesCfg *args)
         sides->edge_off_ms = args->time_ms + GUI_SIDES_EDGE_GRACE_MS;
     }
     // the icon of a side tool the pointer stands on: its rest begun as the pointer comes onto it and ended as it leaves
-    const int icon = (over_strip && (strip->pointed >= 0) && g_cli_tools[strip->pointed].side) ? strip->pointed
-                                                                                               : GUI_STRIP_NONE;
+    const int icon =
+        (over_strip && (strip->pointed >= 0) && g_cli_tools[strip->pointed].side) ? strip->pointed : GUI_STRIP_NONE;
     if (icon != sides->icon)
     {
         sides->icon = icon;
@@ -126,7 +175,8 @@ int gui_sides_move(const GuiSidesCfg *args)
     {
         sides->previewing = 0;
         strip->displayed = sides->before_displayed;
-        strip->collapsed = sides->before_collapsed;
+        EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = sides->before_collapsed,
+                   .still = args->still, .time_ms = args->time_ms);
         sides->collapse_ms = args->time_ms + GUI_SIDES_REST_MS;
         return 1;
     }
@@ -190,7 +240,8 @@ int gui_sides_tick(const GuiSidesCfg *args)
         if (has_pane && strip->collapsed)
         {
             // the pane shown stands over the edge, which is gone with the pointer's place on it
-            strip->collapsed = 0;
+            EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0,
+                       .still = args->still, .time_ms = now_ms);
             sides->over_edge = 0;
             sides->edge_off_ms = 0ULL;
             sides->collapse_ms = now_ms + GUI_SIDES_REST_MS;
@@ -209,8 +260,15 @@ int gui_sides_tick(const GuiSidesCfg *args)
         }
         sides->previewed = sides->icon;
         changed = (strip->displayed != sides->icon) || strip->collapsed;
+        // a pane where none showed comes in from where a collapsed one stands
+        if (!has_pane)
+        {
+            sides->slide_ms = 0ULL;
+            sides->slide_to = GUI_FIXED_ONE;
+        }
         strip->displayed = sides->icon;
-        strip->collapsed = 0;
+        EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,
+                   .time_ms = now_ms);
         sides->collapse_ms = now_ms + GUI_SIDES_REST_MS;
     }
     // the wait to collapse reached: the pane collapsed where the pointer stands on neither it nor the strip and no menu
@@ -226,7 +284,8 @@ int gui_sides_tick(const GuiSidesCfg *args)
             }
             else
             {
-                strip->collapsed = 1;
+                EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 1,
+                           .still = args->still, .time_ms = now_ms);
                 changed = 1;
             }
         }
@@ -247,4 +306,24 @@ unsigned long long gui_sides_next_deadline_ms(const GuiSidesCfg *args)
         }
     }
     return earliest;
+}
+
+int gui_sides_away(const GuiSidesCfg *args)
+{
+    return EMBED_CALL(sides_away_at, SidesCtx, .sides_read = args->sides_read, .time_ms = args->time_ms);
+}
+
+unsigned long long gui_sides_slide_end_ms(const GuiSidesCfg *args)
+{
+    const unsigned long long slide_ms = args->sides_read->slide_ms;
+    return ((slide_ms != 0ULL) && (args->time_ms < slide_ms + GUI_SIDES_SLIDE_MS)) ? slide_ms + GUI_SIDES_SLIDE_MS
+                                                                                   : 0ULL;
+}
+
+int gui_sides_stands(const GuiSidesCfg *args)
+{
+    return EMBED_CALL(sides_has_pane, SidesCtx, .strip_read = args->strip_read) &&
+           (!args->strip_read->collapsed ||
+            (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = args->sides_read,
+                        .time_ms = args->time_ms) != 0ULL));
 }

@@ -25,18 +25,7 @@ typedef struct
     unsigned int size;
     int scale;
     unsigned long long *length;
-    GuiColor color;
-    int share;
 } TabsCtx;
-
-// `color` at `share`, a number of GUI_FIXED_ONE, of its alpha: the row's colors as the claim fades the row
-EMBED_INLINE GuiColor tabs_faded(const TabsCtx *args)
-{
-    // an alpha by a share of GUI_FIXED_ONE, rounded, is a byte; a share is no more than GUI_FIXED_ONE and not negative
-    const unsigned long long alpha = ((unsigned long long)GUI_ALPHA_OF(args->color) * (unsigned long long)args->share) +
-                                     (unsigned long long)(GUI_FIXED_ONE / 2);
-    return (args->color & 0x00ffffffu) | ((GuiColor)(alpha / (unsigned long long)GUI_FIXED_ONE) << 24u);
-}
 
 // the close mark the tab `tab` shows, ×? while its close waits on a second, its length into `length`
 EMBED_INLINE const char *tabs_close_text(const TabsCtx *args)
@@ -170,13 +159,13 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     // the row's colors at the share of it shown, the claim fading the row as it lifts it away
     const int share = args->frame->tabs_share;
-    const GuiColor line_color = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->line, .share = share);
-    const GuiColor ground = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->tab_background, .share = share);
-    const GuiColor shown_line = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->tab_line, .share = share);
-    const GuiColor mark = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->hover, .share = share);
-    const GuiColor text = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->text, .share = share);
-    const GuiColor text_2 = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->text_2, .share = share);
-    const GuiColor text_3 = EMBED_CALL(tabs_faded, TabsCtx, .color = args->palette->text_3, .share = share);
+    const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, share);
+    const GuiColor ground = GUI_FRAME_FADED(args->palette->tab_background, share);
+    const GuiColor shown_line = GUI_FRAME_FADED(args->palette->tab_line, share);
+    const GuiColor mark = GUI_FRAME_FADED(args->palette->hover, share);
+    const GuiColor text = GUI_FRAME_FADED(args->palette->text, share);
+    const GuiColor text_2 = GUI_FRAME_FADED(args->palette->text_2, share);
+    const GuiColor text_3 = GUI_FRAME_FADED(args->palette->text_3, share);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){args->frame->tabs.x, args->frame->tabs.y + args->frame->tabs.height - one,
                                  args->frame->tabs.width, one},
@@ -233,8 +222,7 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         {
             (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                              .face = GUI_FACE_CODE, .size = size, .x_f32 = (float)left, .y = baseline,
-                             .text = s_changed, .length = sizeof(s_changed) - 1u, .color = mark,
-                             .clip = met);
+                             .text = s_changed, .length = sizeof(s_changed) - 1u, .color = mark, .clip = met);
         }
         unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = at, .length = &length);
@@ -242,8 +230,8 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                          .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(left + EMBED_CALL(tabs_changed_width, TabsCtx, .glyphs = glyphs, .tab = at,
                                                             .size = size, .scale = scale)),
-                         .y = baseline, .text = name, .length = length,
-                         .color = displayed ? text : text_2, .clip = met);
+                         .y = baseline, .text = name, .length = length, .color = displayed ? text : text_2,
+                         .clip = met);
         const GuiRect close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = glyphs,
                                          .frame = args->frame, .at = at);
         unsigned long long close_length = 0ULL;
@@ -252,7 +240,6 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                          .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(close.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                                .pixels = GUI_TAB_CLOSE_PAD, .scale = scale)),
-                         .y = baseline, .text = close_text, .length = close_length, .color = text_3,
-                         .clip = met);
+                         .y = baseline, .text = close_text, .length = close_length, .color = text_3, .clip = met);
     }
 }

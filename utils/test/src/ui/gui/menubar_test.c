@@ -32,7 +32,7 @@ int main(void)
         cli_check(0, error_text);
         return cli_on_check();
     }
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     for (unsigned int at = 0u; at < MENUBAR_TEST_ROWS; at += 1u)
     {

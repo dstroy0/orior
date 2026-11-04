@@ -314,8 +314,18 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
         const GuiColor faded =
             (args->palette->surface & 0x00ffffffu) |
             ((((GUI_ALPHA_OF(args->palette->surface) * part) + (GUI_BASE_PARTS / 2u)) / GUI_BASE_PARTS) << 24u);
-        EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS_PART + part - 1u],
-                   .color = faded, .grain = 0u);
+        EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS_PART + part - 1u], .color = faded,
+                   .grain = 0u);
+    }
+    // the side's ground at each sixteenth of its alpha, as its pane slides
+    for (unsigned int part = 1u; part < GUI_BASE_PARTS; part += 1u)
+    {
+        // an alpha by a share of sixteenths, rounded, is a byte
+        const GuiColor faded =
+            (args->palette->side_background & 0x00ffffffu) |
+            ((((GUI_ALPHA_OF(args->palette->side_background) * part) + (GUI_BASE_PARTS / 2u)) / GUI_BASE_PARTS) << 24u);
+        EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_SIDE_PART + part - 1u], .color = faded,
+                   .grain = 0u);
     }
     for (unsigned int level = 0u; level < GUI_BASE_GRAIN_LEVELS; level += 1u)
     {
@@ -377,7 +387,18 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
     EMBED_CALL(base_layout, BaseCtx, .base = args->base,
                .rect = (GuiRect){0, 0, (int)args->base->width, (int)args->base->height}, .layer = GUI_BASE_GLASS);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->work, .layer = GUI_BASE_CLEAR);
-    EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->side, .layer = GUI_BASE_SIDE);
+    // the side's ground where its pane stands as it slides, inside the work's inside, at the share of it shown by
+    // sixteenths, the side it leaves the lattice; a share is no more than GUI_FIXED_ONE and not negative
+    const unsigned int side_part = (frame->side_share >= GUI_FIXED_ONE)
+                                       ? GUI_BASE_PARTS
+                                       : (((unsigned int)frame->side_share * GUI_BASE_PARTS) / GUI_FIXED_ONE);
+    if (side_part != 0u)
+    {
+        EMBED_CALL(base_layout, BaseCtx, .base = args->base,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = frame->side_pane,
+                                      .other = frame->inside),
+                   .layer = (side_part >= GUI_BASE_PARTS) ? GUI_BASE_SIDE : (GUI_BASE_SIDE_PART + side_part - 1u));
+    }
     // the tabs row's surface at the share of it shown, by sixteenths, none of it leaving the lattice; a share is no
     // more than GUI_FIXED_ONE and not negative
     const unsigned int tabs_part = (frame->tabs_share >= GUI_FIXED_ONE)

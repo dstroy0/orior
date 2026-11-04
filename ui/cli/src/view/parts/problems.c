@@ -177,12 +177,19 @@ EMBED_INLINE int problems_baseline(const ProblemsCtx *args)
     return args->top + (int)((((float)args->pixel_height - ascent - descent) / 2.0f) + ascent + 0.5f);
 }
 
-// a file row's arrow, pointing down where its rows are open and right where closed, `side` pixels across at x, y
+// a file row's arrow, pointing down where its rows are open and right where closed, `side` pixels across at x, y,
+// drawn whole inside `inside` or not at all, its strokes lines that are not cut
 EMBED_INLINE void problems_arrow_draw(const ProblemsCtx *args)
 {
     GuiRaster *raster = args->raster;
     GuiColor color = args->color;
     const int half = args->side / 2;
+    const GuiRect box = {args->x, args->y, args->side, args->side};
+    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->inside);
+    if ((met.width != box.width) || (met.height != box.height))
+    {
+        return;
+    }
     if (args->open)
     {
         EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x, .y0 = args->y + 1,
@@ -250,15 +257,16 @@ EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
     (void)mmgr_line_finish(&line);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(head.x + pad), .y = baseline, .text = text,
-                     .length = line.at, .color = args->palette->text_2, .clip = args->inside);
+                     .length = line.at, .color = GUI_FRAME_FADED(args->palette->text_2, args->frame->side_share),
+                     .clip = args->inside);
     const char *const action = running ? "Stop" : "Check the tree";
     const unsigned long long action_length = cellul.len(&(CatenaFinitaCfg){.src = action, .cap = 32ULL});
     const float action_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                           .face = GUI_FACE_HEAD, .size = size, .text = action, .length = action_length);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(head.x + head.width - pad) - action_width,
-                     .y = baseline, .text = action, .length = action_length, .color = args->palette->link,
-                     .clip = args->inside);
+                     .y = baseline, .text = action, .length = action_length,
+                     .color = GUI_FRAME_FADED(args->palette->link, args->frame->side_share), .clip = args->inside);
 }
 
 void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
@@ -272,13 +280,16 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
         return;
     }
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    const GuiRect inside = {side.x, side.y, side.width - one, side.height};
+    // the pane no further than the work's inside, as its pane slides out of it
+    const GuiRect inside =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){side.x, side.y, side.width - one, side.height}, .other = args->frame->inside);
     const int line_y =
         side.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_HEAD, .scale = scale);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                   .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
-               .color = args->palette->line);
+               .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
     EMBED_CALL(problems_head_draw, ProblemsCtx, .problems_read = args->problems, .raster = raster, .glyphs = glyphs,
                .palette = args->palette, .frame = args->frame, .inside = inside);
     const int rows_top = gui_problems_row_frame.rows_top(args);
@@ -290,7 +301,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
         return;
     }
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
-               .color = args->palette->editor_background);
+               .color = GUI_FRAME_FADED(args->palette->editor_background, args->frame->side_share));
     const unsigned int name_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                             .pixels = (int)GUI_PROBLEMS_NAME_SIZE, .scale = scale);
     const unsigned int where_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
@@ -321,7 +332,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
         if (args->problems->pointed == (int)row)
         {
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = on,
-                       .color = args->palette->bar_title_hover);
+                       .color = GUI_FRAME_FADED(args->palette->bar_title_hover, args->frame->side_share));
         }
         CliProblemRow read;
         if (!cli_servers_problems_row(row, &read))
@@ -334,7 +345,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             // a file's row: the arrow, the name, the folder after it quieter, and the count at the right
             EMBED_CALL(problems_arrow_draw, ProblemsCtx, .raster = raster, .x = rect.x + pad,
                        .y = rect.y + ((rect.height - arrow) / 2), .side = arrow, .open = !file->closed,
-                       .color = args->palette->text);
+                       .color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share), .inside = body);
             const int baseline = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
                                             .size = name_size, .top = rect.y, .pixel_height = rect.height);
             char digits[24];
@@ -355,12 +366,13 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                        .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = badge, .other = on),
                        .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                           .pixels = GUI_PROBLEMS_COUNT_RADIUS, .scale = scale),
-                       .color = args->palette->line);
+                       .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
             (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                              .face = GUI_FACE_CODE, .size = count_size, .x_f32 = (float)(badge.x + count_pad),
                              .y = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_CODE,
                                              .size = count_size, .top = badge.y, .pixel_height = badge.height),
-                             .text = digits, .length = count.at, .color = args->palette->text_2, .clip = on);
+                             .text = digits, .length = count.at,
+                             .color = GUI_FRAME_FADED(args->palette->text_2, args->frame->side_share), .clip = on);
             const GuiRect text_clip =
                 EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                            .one = (GuiRect){rect.x, rect.y, badge.x - gap - rect.x, rect.height}, .other = on);
@@ -368,14 +380,15 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             x = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                            .face = GUI_FACE_HEAD, .size = name_size, .x_f32 = x, .y = baseline, .text = file->name,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = file->name, .cap = CLI_PATH_MAX_LEN}),
-                           .color = args->palette->text, .clip = text_clip);
+                           .color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share), .clip = text_clip);
             // the folder is the front of the file's path, before its name
             if (file->folder_length != 0ULL)
             {
                 (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
                                  .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = x + (float)gap,
                                  .y = baseline, .text = file->path, .length = file->folder_length,
-                                 .color = args->palette->text_3, .clip = text_clip);
+                                 .color = GUI_FRAME_FADED(args->palette->text_3, args->frame->side_share),
+                                 .clip = text_clip);
             }
             continue;
         }
@@ -388,15 +401,16 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                                                                   .pixels = 1, .scale = scale),
                                                        rect.height},
                                       .other = on),
-                   .color = args->palette->line);
+                   .color = GUI_FRAME_FADED(args->palette->line, args->frame->side_share));
         const int mark_x = rect.x + pad + guide;
-        EMBED_CALL(
-            gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-            .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                               .one = (GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark}, .other = on),
-            .radius = (unsigned int)(mark / 2),
-            .color =
-                EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = inner_one->severity));
+        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark},
+                                      .other = on),
+                   .radius = (unsigned int)(mark / 2),
+                   .color = GUI_FRAME_FADED(EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette,
+                                                       .severity = inner_one->severity),
+                                            args->frame->side_share));
         char where_text[48];
         VerbaLinea where = {where_text, sizeof(where_text), 0ULL};
         mmgr_line_decimal(&where, inner_one->line + 1ULL, 1u);
@@ -410,14 +424,15 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
         const float where_x = (float)(rect.x + rect.width - pad) - where_width;
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_CODE, .size = where_size, .x_f32 = where_x, .y = baseline, .text = where_text,
-                         .length = where.at, .color = args->palette->text_3, .clip = on);
+                         .length = where.at, .color = GUI_FRAME_FADED(args->palette->text_3, args->frame->side_share),
+                         .clip = on);
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, .other = on);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = message_size, .x_f32 = (float)(mark_x + mark + gap),
                          .y = baseline, .text = inner_one->message, .length = inner_one->message_length,
-                         .color = args->palette->text, .clip = text_clip);
+                         .color = GUI_FRAME_FADED(args->palette->text, args->frame->side_share), .clip = text_clip);
     }
 }
 

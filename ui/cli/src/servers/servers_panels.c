@@ -1426,8 +1426,7 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
 static void panels_drawn(const CliViewDrawn *args)
 {
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    if ((key == NULL) ||
-        !cellul.eq(&(CatenaFinitaCfg){.src = key, .other = args->key, .cap = CLI_NAME_MAX_LEN}))
+    if ((key == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = key, .other = args->key, .cap = CLI_NAME_MAX_LEN}))
     {
         return;
     }

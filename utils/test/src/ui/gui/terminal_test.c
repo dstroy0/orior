@@ -41,7 +41,7 @@ int main(void)
         return cli_on_check();
     }
     const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240);
     cli_check(frame.terminal_views.height > 0, "the frame lays the terminal's panel with a pane");

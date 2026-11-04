@@ -21,8 +21,9 @@ typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 
 // the grain's levels, 0 to its most alpha; the sixteenths a share is laid in; the layers: nothing over the lattice, the
 // editor's ground, the side's, the tabs row's surface, that surface at each of its sixteenths of its alpha as the claim
-// fades the row, the glass sheet at each grain level, a pane at each, and a pane's edge at each of its sixteenths of a
-// pixel at each, the edge's tint between the sheet's and the pane's by its share; and the entries in all
+// fades the row, the side's ground at each of its sixteenths as its pane slides, the glass sheet at each grain level, a
+// pane at each, and a pane's edge at each of its sixteenths of a pixel at each, the edge's tint between the sheet's and
+// the pane's by its share; and the entries in all
 #define GUI_BASE_GRAIN_LEVELS 19u
 #define GUI_BASE_PARTS ((unsigned int)GUI_FRAME_PARTS)
 #define GUI_BASE_CLEAR 0u
@@ -30,7 +31,8 @@ typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 #define GUI_BASE_SIDE 2u
 #define GUI_BASE_TABS 3u
 #define GUI_BASE_TABS_PART 4u
-#define GUI_BASE_GLASS (GUI_BASE_TABS_PART + GUI_BASE_PARTS - 1u)
+#define GUI_BASE_SIDE_PART (GUI_BASE_TABS_PART + GUI_BASE_PARTS - 1u)
+#define GUI_BASE_GLASS (GUI_BASE_SIDE_PART + GUI_BASE_PARTS - 1u)
 #define GUI_BASE_PANE (GUI_BASE_GLASS + GUI_BASE_GRAIN_LEVELS)
 #define GUI_BASE_PANE_PART (GUI_BASE_PANE + GUI_BASE_GRAIN_LEVELS)
 #define GUI_BASE_ENTRIES (GUI_BASE_PANE_PART + ((GUI_BASE_PARTS - 1u) * GUI_BASE_GRAIN_LEVELS))

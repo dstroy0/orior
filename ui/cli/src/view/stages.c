@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// stages.c: the claim's movement made once: every stage's frame, holes, map and titles laid as a slide is sent, sized
+// stages.c: the claim's movement laid once: every stage's frame, holes, map and titles laid as a slide is sent, sized
 // in one pass and written in a second into one cell, and read by index for the rest of the slide
 #include "stages.h"
 
@@ -17,6 +17,8 @@ typedef struct
 {
     const GuiAutohide *autohide_read;
     GuiAutohide *claim;
+    const GuiSides *sides_read;
+    const GuiStrip *strip_read;
     const StagesSlats *panel_bands;
     unsigned int at;
     unsigned int count;
@@ -54,7 +56,7 @@ EMBED_INLINE unsigned long long stages_moment(const StagesCtx *args)
                                           : args->time_ms + ((unsigned long long)args->at * GUI_STAGE_MS);
 }
 
-// `laid` at the claim's numbers at `moment`, and the base and the menu bar laid for it
+// `laid` at the claim's numbers and the side's slide at `moment`, and the base and the menu bar laid for it
 EMBED_INLINE void stages_one_layout(const StagesCtx *args)
 {
     GuiAutohide *claim = args->claim;
@@ -65,6 +67,10 @@ EMBED_INLINE void stages_one_layout(const StagesCtx *args)
     GuiAutohideNumbers numbers;
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = claim, .time_ms = args->moment,
                .numbers = &numbers);
+    args->laid->side_displayed = EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = args->sides_read,
+                                            .strip_read = args->strip_read, .time_ms = args->moment);
+    args->laid->side_away =
+        EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = args->sides_read, .time_ms = args->moment);
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = args->laid, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = base, .frame = args->laid, .palette = palette,
                      .controls_steady = args->laid->controls_pane_share >= GUI_FIXED_ONE);
@@ -77,8 +83,11 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     GuiAutohide *claim = args->claim;
     const GuiFrame *frame = args->frame;
     gui_stages_autohide.free(args);
-    const unsigned long long end_ms =
+    const unsigned long long claim_end_ms =
         EMBED_CALL(gui_autohide.animation_end_ms, GuiAutohideCfg, .autohide_read = claim, .time_ms = args->time_ms);
+    const unsigned long long side_end_ms =
+        EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = args->sides_read, .time_ms = args->time_ms);
+    const unsigned long long end_ms = (side_end_ms > claim_end_ms) ? side_end_ms : claim_end_ms;
     // the stages are the slide's time over a stage's, and one for the end: far fewer than an int counts
     const unsigned int count = (unsigned int)((end_ms - args->time_ms + GUI_STAGE_MS - 1ULL) / GUI_STAGE_MS) + 1u;
     const StagesSlats from = EMBED_CALL(stages_bands_read, StagesCtx, .autohide_read = claim);
@@ -88,8 +97,9 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     unsigned long long titles = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .base = args->base,
-                   .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
+        EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .sides_read = args->sides_read,
+                   .strip_read = args->strip_read, .base = args->base, .palette = args->palette,
+                   .menubar = args->menubar, .glyphs = args->glyphs,
                    .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
                                         .end_ms = end_ms));
         words += (2ULL * (unsigned long long)args->base->bands) + 2ULL;
@@ -116,8 +126,9 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     laid = *frame;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .base = args->base,
-                   .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
+        EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .sides_read = args->sides_read,
+                   .strip_read = args->strip_read, .base = args->base, .palette = args->palette,
+                   .menubar = args->menubar, .glyphs = args->glyphs,
                    .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
                                         .end_ms = end_ms));
         GuiStage *const one = &stage[at];

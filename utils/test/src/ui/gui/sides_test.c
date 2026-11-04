@@ -4,7 +4,9 @@
 // collapses a rest after the pointer leaves it and not while the pointer stands on the strip or a menu is open; the
 // pointer resting on the edge brings it back, a tremble off the edge within the grace still resting there and a leave
 // past it ending the rest; and a rest on another side tool's icon shows its pane as a preview, which the pointer
-// leaving the strip and the pane takes back and a press on the icon ends with its pane standing
+// leaving the strip and the pane takes back and a press on the icon ends with its pane standing; and the slide, a
+// pane coming in from all its way gone and one collapsed going over its slide on the ease, its width standing until the
+// slide ends
 #include "../../../../../ui/cli/src/view/sides.h"
 #include "../cli/cli_check.h"
 
@@ -24,7 +26,7 @@ static unsigned int tool_at(const char *name)
 int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     GuiStrip strip;
@@ -131,5 +133,33 @@ int main(void)
     cli_check(strip.collapsed && (strip.displayed == (int)search), "a press on the icon of the pane shown collapses it");
     cli_check(EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &sides) == 0ULL,
               "with the pane collapsed by a press and the pointer at rest, no wait stands");
+
+    // the slide: a pane where none showed comes in from all its way gone, and one collapsed goes over the slide, its
+    // width standing until the slide ends; with motion still it stands where it goes at once
+    GuiStrip sliding;
+    EMBED_CALL(gui_strip_table.init, GuiStripInitCfg, .strip = &sliding);
+    GuiSides slid;
+    EMBED_CALL(gui_sides.init, GuiSidesCfg, .sides = &slid);
+    EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &slid, .strip = &sliding, .at = explorer, .time_ms = 10000ULL);
+    cli_check((EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 10000ULL) == GUI_FIXED_ONE) &&
+                  (EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 10220ULL) == 0) &&
+                  EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &slid, .strip_read = &sliding,
+                             .time_ms = 10000ULL),
+              "a pane shown where none showed takes its width at once and comes in over its slide");
+    EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &slid, .strip = &sliding, .at = explorer, .time_ms = 11000ULL);
+    const int halfway = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11110ULL);
+    cli_check((EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11000ULL) == 0) &&
+                  (halfway > 0) && (halfway < GUI_FIXED_ONE) &&
+                  (EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11220ULL) == GUI_FIXED_ONE),
+              "a pane collapsed goes over its slide on the ease");
+    cli_check(EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &slid, .strip_read = &sliding,
+                         .time_ms = 11219ULL) &&
+                  !EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &slid, .strip_read = &sliding,
+                              .time_ms = 11220ULL),
+              "and its width stands until its slide ends");
+    EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &slid, .strip = &sliding, .at = explorer, .still = 1,
+               .time_ms = 12000ULL);
+    cli_check(EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 12000ULL) == 0,
+              "with motion still the pane stands shown at once");
     return cli_on_check();
 }

@@ -47,7 +47,7 @@ int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 800u, .height = 600u, .scale = 100);
     GuiBase base;
     cli_check(EMBED_CALL(gui_base_width.init, GuiBaseWidthCfg, .base = &base, .width = 800u, .height = 600u), "a base for a window of eight hundred by six hundred is made");
@@ -151,6 +151,16 @@ int main(void)
     const GuiColor half_surface = (palette->surface & 0x00ffffffu) | ((((GUI_ALPHA_OF(palette->surface) * 8u) + 8u) / 16u) << 24u);
     cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + (frame.tabs.height / 2)) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = palette->background_fill, .color = half_surface),
               "halfway through the claim a pixel of the tabs row is its surface at half its alpha over the lattice");
+    // the side pane halfway gone: its ground where it stands at the part halfway, and the side it has left the lattice
+    numbers.claim = 0;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1, .away = GUI_FIXED_ONE / 2);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    cli_check((EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.side.x + 2, .y = frame.side.y + 2) ==
+               GUI_BASE_SIDE_PART + ((GUI_BASE_PARTS / 2u) - 1u)) &&
+                  (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.side.x + frame.side.width - 2,
+                              .y = frame.side.y + frame.side.height - 2) == GUI_BASE_CLEAR),
+              "the side pane halfway gone lies at its halfway part where it stands, and the side it has left is the lattice");
 
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &background_fill);
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);

@@ -23,8 +23,6 @@ typedef struct
     int pixel_height;
     int radius;
     GuiMask *shadow;
-    GuiColor color;
-    int share;
 } ControlsCtx;
 
 // the rectangle of the control `which` among the frame's controls
@@ -194,27 +192,6 @@ void gui_controls_shadow_free(const GuiChromeRasterCfg *args)
     args->shadow->height = 0u;
 }
 
-// `color` at `share`, a number of GUI_FIXED_ONE, of its alpha
-EMBED_INLINE GuiColor controls_fade(const ControlsCtx *args)
-{
-    int within;
-    if (args->share < 0)
-    {
-        within = 0;
-    }
-    else if (args->share > GUI_FIXED_ONE)
-    {
-        within = GUI_FIXED_ONE;
-    }
-    else
-    {
-        within = args->share;
-    }
-    // an alpha by a share of GUI_FIXED_ONE, rounded, is a byte
-    return (args->color & 0x00ffffffu) |
-           ((GuiColor)((((int)GUI_ALPHA_OF(args->color) * within) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE) << 24u);
-}
-
 void gui_controls_draw(const GuiChromeRasterCfg *args)
 {
     const int box =
@@ -232,8 +209,7 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
                        .y = args->frame->controls_pane.y - reach +
                             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = CONTROLS_SHADOW_DOWN,
                                        .scale = args->frame->scale),
-                       .color = EMBED_CALL(controls_fade, ControlsCtx, .color = args->palette->lifted,
-                                           .share = args->frame->controls_pane_share),
+                       .color = GUI_FRAME_FADED(args->palette->lifted, args->frame->controls_pane_share),
                        .clip = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height});
         }
     }
@@ -258,8 +234,7 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
                    .background_fill = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
                    .inner = (pane & 0x00ffffffu) | (alpha << 24u), .corners_only = 1);
     }
-    const GuiColor text_color = EMBED_CALL(controls_fade, ControlsCtx, .color = args->palette->status_text,
-                                           .share = args->frame->controls_alpha);
+    const GuiColor text_color = GUI_FRAME_FADED(args->palette->status_text, args->frame->controls_alpha);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)
     {
         const GuiRect button = EMBED_CALL(controls_button, ControlsCtx, .frame = args->frame, .which = which);

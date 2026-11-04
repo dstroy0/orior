@@ -18,18 +18,21 @@
 typedef struct GuiSidesCfg GuiSidesCfg;
 
 // the times in milliseconds: the pointer away before the pane collapses, its rest on the edge before the pane shows,
-// how long it may be off the edge and still rest on it, and its rest on an icon before the icon's pane shows; and the
-// edge's width in the page's pixels
+// how long it may be off the edge and still rest on it, its rest on an icon before the icon's pane shows, and the
+// pane's slide, up and toward the left on the page's ease, as style.css sets it; and the edge's width in the page's
+// pixels
 #define GUI_SIDES_REST_MS 700ULL
 #define GUI_SIDES_EDGE_REST_MS 250ULL
 #define GUI_SIDES_EDGE_GRACE_MS 120ULL
 #define GUI_SIDES_ICON_REST_MS 350ULL
+#define GUI_SIDES_SLIDE_MS 220ULL
 #define GUI_SIDES_EDGE 12
 
 // The pane's waits: whether the pointer stands on the pane, on the strip and on the edge; when the pane is looked at to
 // collapse, 0 for no wait; when the pointer's rest on the edge shows the pane, 0 for none; when its rest on the edge
 // ends while it is off the edge, 0 for none; the icon the pointer rests on, GUI_STRIP_NONE for none, and when its pane
-// shows, 0 for none; and whether a preview stands, the icon it shows and the tool and the pane's collapse before it
+// shows, 0 for none; whether a preview stands, the icon it shows and the tool and the pane's collapse before it; and
+// its slide: when it began, 0 for none, and the share of its way gone it runs from and to, GUI_FIXED_ONE gone
 typedef struct
 {
     int over_pane;
@@ -44,6 +47,9 @@ typedef struct
     int previewed;
     int before_displayed;
     int before_collapsed;
+    unsigned long long slide_ms;
+    int slide_from;
+    int slide_to;
 } GuiSides;
 
 // no wait, no rest and no preview
@@ -67,16 +73,24 @@ int gui_sides_press(const GuiSidesCfg *args);
 int gui_sides_tick(const GuiSidesCfg *args);
 // when the next wait ends, 0 for none
 unsigned long long gui_sides_next_deadline_ms(const GuiSidesCfg *args);
+// the share of its way the pane has gone at `time_ms`, GUI_FIXED_ONE gone, 0 standing; whether the side stands in the
+// work at `time_ms` for the strip's tool `strip_read`, a collapsing pane holding its width until its slide ends: 1 or
+// 0; and when the slide ends, 0 where none runs at `time_ms`
+int gui_sides_away(const GuiSidesCfg *args);
+int gui_sides_stands(const GuiSidesCfg *args);
+unsigned long long gui_sides_slide_end_ms(const GuiSidesCfg *args);
 struct GuiSidesCfg
 {
     GuiSides *sides;
     const GuiSides *sides_read;
     GuiStrip *strip;
+    const GuiStrip *strip_read;
     const GuiFrame *frame;
     unsigned int at;
     int x;
     int y;
     int menu_open;
+    int still;
     unsigned long long time_ms;
 };
 
@@ -90,8 +104,12 @@ typedef struct
     int (*press)(const GuiSidesCfg *args);
     int (*tick)(const GuiSidesCfg *args);
     unsigned long long (*next_deadline_ms)(const GuiSidesCfg *args);
+    int (*away)(const GuiSidesCfg *args);
+    int (*stands)(const GuiSidesCfg *args);
+    unsigned long long (*slide_end_ms)(const GuiSidesCfg *args);
 } GuiSidesNs;
-EMBED_TABLE_LAYOUT(GuiSidesNs, init, settle, toggle, move, leave, press, tick, next_deadline_ms);
+EMBED_TABLE_LAYOUT(GuiSidesNs, init, settle, toggle, move, leave, press, tick, next_deadline_ms, away, stands,
+                   slide_end_ms);
 EMBED_TABLE_STORAGE GuiSidesNs gui_sides EMBED_UNUSED = {
     .init = gui_sides_init,
     .settle = gui_sides_settle,
@@ -101,6 +119,9 @@ EMBED_TABLE_STORAGE GuiSidesNs gui_sides EMBED_UNUSED = {
     .press = gui_sides_press,
     .tick = gui_sides_tick,
     .next_deadline_ms = gui_sides_next_deadline_ms,
+    .away = gui_sides_away,
+    .stands = gui_sides_stands,
+    .slide_end_ms = gui_sides_slide_end_ms,
 };
 
 #endif

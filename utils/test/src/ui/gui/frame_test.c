@@ -14,7 +14,7 @@ static int same(GuiRect rect, int x, int y, int width, int height)
 
 int main(void)
 {
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     cli_check(same(frame.bar, 0, 0, 1440, 41), "the bar runs across the top, forty-one pixels tall");
     cli_check(same(frame.status, 0, 920 - 27, 1440, 27), "the status bar runs across the foot, twenty-seven tall");
@@ -45,6 +45,13 @@ int main(void)
                   (frame.editor.y == 41 + 2 + 31),
               "the editor moves past the side");
     cli_check((frame.map.x == 1440 - 12 - 2 - 84) && (frame.map.width == 84), "the map's column stays at the right");
+    cli_check(same(frame.side_pane, frame.side.x, frame.side.y, 304, frame.side.height) &&
+                  (frame.side_share == GUI_FIXED_ONE),
+              "the pane standing is drawn on the side, whole");
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1, .away = GUI_FIXED_ONE / 2);
+    cli_check(same(frame.side_pane, frame.side.x - 152, frame.side.y - ((frame.side.height + 1) / 2), 304, frame.side.height) &&
+                  (frame.side_share == GUI_FIXED_ONE / 2) && (frame.side.width == 304) && (frame.editor.x == 44 + 1 + 304),
+              "halfway gone, the pane stands up and to the left by half its size at half its opacity, its width still the side's");
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the side taken away gives the tabs row its capacity back");

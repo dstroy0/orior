@@ -354,8 +354,11 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
 {
     args->window->pending = 1;
+    // the claim's slides and the side pane's run through the stages, each stage's frame laid with both at its moment
     if (EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &args->window->claim,
-                   .time_ms = args->time_ms))
+                   .time_ms = args->time_ms) ||
+        (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &args->window->sides,
+                    .time_ms = args->time_ms) != 0ULL))
     {
         if ((args->window->stages.stage == NULL) || (args->window->stages.created_for != args->window->claim.sent) ||
             args->window->stages_stale)
@@ -367,10 +370,11 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
             }
             args->window->stage = NULL;
             args->window->stages_stale = 0;
-            (void)EMBED_CALL(gui_stages_autohide.init, GuiStagesAutohideCfg, .stages = &args->window->stages,
-                             .claim = &args->window->claim, .frame = &args->window->frame, .base = &args->window->base,
-                             .palette = args->window->palette, .menubar = &args->window->menubar,
-                             .glyphs = &args->window->glyphs, .time_ms = args->time_ms);
+            (void)EMBED_CALL(
+                gui_stages_autohide.init, GuiStagesAutohideCfg, .stages = &args->window->stages,
+                .claim = &args->window->claim, .sides_read = &args->window->sides, .strip_read = &args->window->strip,
+                .frame = &args->window->frame, .base = &args->window->base, .palette = args->window->palette,
+                .menubar = &args->window->menubar, .glyphs = &args->window->glyphs, .time_ms = args->time_ms);
         }
         const GuiStage *const stage = EMBED_CALL(gui_stages_read.at, GuiStagesReadCfg,
                                                  .stages_read = &args->window->stages, .time_ms = args->time_ms);
@@ -384,10 +388,15 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
             return;
         }
     }
-    // at rest, or the stages' cell not taken: the frame the numbers lay now, and no stage left standing
+    // at rest, or the stages' cell not taken: the frame the numbers and the side's slide lay now, and no stage left
+    // standing
     args->window->stage = NULL;
     args->window->stages_stale = 0;
     EMBED_CALL(gui_stages_autohide.free, GuiStagesAutohideCfg, .stages = &args->window->stages);
+    args->window->frame.side_displayed = EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &args->window->sides,
+                                                    .strip_read = &args->window->strip, .time_ms = args->time_ms);
+    args->window->frame.side_away =
+        EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &args->window->sides, .time_ms = args->time_ms);
     GuiAutohideNumbers numbers;
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &args->window->claim, .time_ms = args->time_ms,
                .numbers = &numbers);
@@ -457,12 +466,12 @@ EMBED_INLINE int window_over_parts(const GuiWindowCtx *args)
     return 0;
 }
 
-// whether the strip's tool shown has the side pane as its window and the pane has not collapsed
+// whether the side stands in the work now: the strip's tool shown has the side pane as its window and the pane has not
+// collapsed, or its width stands as it slides away
 EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
 {
-    // the tool shown is among the tools
-    return (args->window_read->strip.displayed >= 0) && g_cli_tools[args->window_read->strip.displayed].side &&
-           !args->window_read->strip.collapsed;
+    return EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &args->window_read->sides,
+                      .strip_read = &args->window_read->strip, .time_ms = cli_clock_milliseconds());
 }
 
 // the terminal read again of its tabs and the work's inside laid again with its panel at its foot as the panel stands,
@@ -498,7 +507,9 @@ EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
 EMBED_INLINE void window_side(const GuiWindowCtx *args)
 {
     const int side = EMBED_CALL(window_side_show, GuiWindowCtx, .window_read = args->window);
-    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &args->window->frame, .displayed = side);
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &args->window->frame, .displayed = side,
+               .away = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &args->window->sides,
+                                  .time_ms = cli_clock_milliseconds()));
     args->window->pending = 1;
     // a movement under way runs on with the side as it now stands
     if (args->window->stage != NULL)
@@ -583,7 +594,9 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &args->window->frame, .width = width,
                .height = height, .scale = scale);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &args->window->frame,
-               .displayed = EMBED_CALL(window_side_show, GuiWindowCtx, .window_read = args->window));
+               .displayed = EMBED_CALL(window_side_show, GuiWindowCtx, .window_read = args->window),
+               .away = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &args->window->sides,
+                                  .time_ms = cli_clock_milliseconds()));
     args->window->stages_stale = 1;
     EMBED_CALL(window_autohide_layout, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_view_resize, GuiWindowCtx, .window = args->window);
@@ -682,9 +695,11 @@ void gui_window_tick(const GuiWindowCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     (void)EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &args->window->claim);
     const int moving =
-        EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &args->window->claim, .time_ms = now_ms);
-    // the frame laid for the claim's numbers while a slide moves and as it comes to rest; a tick with the claim at
-    // rest owes nothing for it
+        EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &args->window->claim, .time_ms = now_ms) ||
+        (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &args->window->sides, .time_ms = now_ms) !=
+         0ULL);
+    // the frame laid for the claim's numbers and the side's slide while a slide moves and as it comes to rest; a tick
+    // with both at rest owes nothing for them
     if (moving || args->window->autohide_moving)
     {
         EMBED_CALL(window_autohide_layout, GuiWindowCtx, .window = args->window);
@@ -698,7 +713,7 @@ void gui_window_tick(const GuiWindowCfg *args)
     args->window->autohide_moving = moving;
     // the side pane's waits reached: the pane collapsed or shown again, or a tool's pane shown as a preview
     if (EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &args->window->sides, .strip = &args->window->strip,
-                   .menu_open = g_cli_menus_open.levels > 0u, .time_ms = now_ms))
+                   .still = args->window->motion_still, .menu_open = g_cli_menus_open.levels > 0u, .time_ms = now_ms))
     {
         EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = args->window);
     }
@@ -799,8 +814,13 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
 {
     const GuiWindow *const window = args->window_read;
+    const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long deadlines[] = {
         EMBED_CALL(gui_autohide.next_deadline_ms, GuiAutohideCfg, .autohide_read = &window->claim),
+        // the side pane's slide reads its next stage a stage on
+        (EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &window->sides, .time_ms = now_ms) != 0ULL)
+            ? now_ms + GUI_STAGE_MS
+            : 0ULL,
         EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg,
                    .background_fill = &window->background_fill),
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark),
@@ -826,7 +846,6 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
     {
         return 0ULL;
     }
-    const unsigned long long now_ms = cli_clock_milliseconds();
     return (earliest > now_ms) ? earliest - now_ms : 1ULL;
 }
 
@@ -1372,7 +1391,7 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
     if (g_cli_tools[args->at].side)
     {
         EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &window->sides, .strip = &window->strip, .at = args->at,
-                   .time_ms = cli_clock_milliseconds());
+                   .still = window->motion_still, .time_ms = cli_clock_milliseconds());
     }
     else
     {
@@ -1913,15 +1932,18 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     {
         // the tool shown is among the tools
         const CliTool *const tool = &g_cli_tools[args->window->strip.displayed];
+        // the pane drawn where it stands as it slides, the side its rectangle moved by its way gone
+        GuiFrame slid = *frame;
+        slid.side = frame->side_pane;
         EMBED_CALL(gui_explorer_frame_xy.draw, GuiExplorerFrameXYCfg, .explorer_read = &args->window->explorer,
                    .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
-                   .frame = frame, .title = tool->label,
+                   .frame = &slid, .title = tool->label,
                    .folders = cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ULL}),
                    .tree = (args->window->title != NULL) ? args->window->title : "");
         if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "problems"))
         {
             EMBED_CALL(gui_problems_row_frame.draw, GuiProblemsRowFrameCfg, .problems = &args->window->problems,
-                       .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
+                       .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = &slid);
         }
     }
     EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &args->window->terminal, .frame = frame,
@@ -2639,7 +2661,7 @@ static void window_move(const GuiInputHandlerCfg *args)
                       window->pending;
     // the side pane's waits begun and ended by where the pointer stands, and a preview it has left taken back
     if (EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &window->sides, .strip = &window->strip,
-                   .frame = &window->frame, .x = args->input->x, .y = args->input->y,
+                   .still = window->motion_still, .frame = &window->frame, .x = args->input->x, .y = args->input->y,
                    .time_ms = cli_clock_milliseconds()))
     {
         EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = window);

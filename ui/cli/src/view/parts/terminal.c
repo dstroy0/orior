@@ -540,24 +540,24 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
         const TerminalMark *const one = &s_terminal_marks[at];
         const unsigned long long word_length = cellul.len(&(CatenaFinitaCfg){.src = one->word, .cap = 32ULL});
         const int matched = (tail_length >= word_length) &&
-                          (memor.cmp(&(MemoriaCfg){.src = tail, .other = one->word, .bytes = word_length}) == 0);
+                            (memor.cmp(&(MemoriaCfg){.src = tail, .other = one->word, .bytes = word_length}) == 0);
         if (matched && (tail_length == word_length))
         {
             style->marks |= one->mark;
             return 1;
         }
         if (matched && EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail + word_length,
-                                .length = tail_length - word_length, .word = s_off))
+                                  .length = tail_length - word_length, .word = s_off))
         {
             style->marks &= ~one->mark;
             return 1;
         }
     }
     const unsigned long long side = sizeof(s_foreground) - 1u;
-    const int foreground = (tail_length > side) &&
-                           (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_foreground, .bytes = side}) == 0);
-    const int background = (tail_length > side) &&
-                           (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_background, .bytes = side}) == 0);
+    const int foreground =
+        (tail_length > side) && (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_foreground, .bytes = side}) == 0);
+    const int background =
+        (tail_length > side) && (memor.cmp(&(MemoriaCfg){.src = tail, .other = s_background, .bytes = side}) == 0);
     if (!foreground && !background)
     {
         return 1;

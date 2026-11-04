@@ -37,7 +37,7 @@ int main(void)
         return cli_on_check();
     }
     const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     cli_check(frame.tabs.width > 0, "the frame lays a tabs row");
     // the same file's view as it opened, changed, and changed with its close waiting

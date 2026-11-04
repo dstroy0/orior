@@ -4318,8 +4318,7 @@ int cli_view_input(const CliViewInputCfg *args)
         const unsigned long long up = (rows < 0LL) ? (unsigned long long)(-rows) : 0ULL;
         const unsigned long long down = (rows > 0LL) ? (unsigned long long)rows : 0ULL;
         const unsigned long long line = (view->top > up) ? (view->top - up + down) : down;
-        EMBED_CALL(view_top_put, ViewCtx, .view = view,
-                   .line = (line < args->input->top) ? line : args->input->top);
+        EMBED_CALL(view_top_put, ViewCtx, .view = view, .line = (line < args->input->top) ? line : args->input->top);
         break;
     }
     case CLI_VIEW_SIZE: {

@@ -34,7 +34,8 @@ typedef struct
 EMBED_INLINE void map_fill(const MinimapCtx *args)
 {
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip),
+               .rect =
+                   EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place, .other = args->clip),
                .color = args->color);
 }
 // a row's height in pixels at `scale`, one at the least
@@ -164,8 +165,8 @@ EMBED_INLINE void map_strip_draw(const MinimapCtx *args)
     }
     EMBED_CALL(map_fill, MinimapCtx, .raster = raster, .clip = args->clip,
                .place = (GuiRect){left + inset,
-                                  EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place, .lines = args->editor->lines,
-                                             .line = args->editor->cursor.line),
+                                  EMBED_CALL(map_strip_y, MinimapCtx, .place = args->place,
+                                             .lines = args->editor->lines, .line = args->editor->cursor.line),
                                   strip_width - inset, mark},
                .color = args->palette->caret);
 }

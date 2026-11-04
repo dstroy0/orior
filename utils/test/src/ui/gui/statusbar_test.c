@@ -113,7 +113,7 @@ int main(void)
     EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "2 spaces"), "an indentation of spaces is written as its step");
 
-    GuiFrame frame;
+    GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 900u, .height = 300u, .scale = 100);
     GuiRaster raster;
     GuiRaster bare_base;
