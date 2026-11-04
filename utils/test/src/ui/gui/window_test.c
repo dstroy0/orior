@@ -15,7 +15,6 @@
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 static GuiWindow s_window;
@@ -382,11 +381,8 @@ int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     cli_check_folder("window_tree", s_root);
-#if defined(_WIN32)
-    cli_check(_putenv_s("ORIOR_ROOT", s_root) == 0, "the tree is set");
-#else
-    cli_check(setenv("ORIOR_ROOT", s_root, 1) == 0, "the tree is set");
-#endif
+    cli_check(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_ROOT", .value = s_root),
+              "the tree is set");
     char error_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &s_window, .err_msg = &why,

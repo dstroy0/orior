@@ -21,7 +21,6 @@
 #include "ui/cli/src/terminal/terminal_tabs.h"
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
-#include <stdlib.h>
 #include <string.h>
 
 static CliTerminalXterm s_xterm;
@@ -29,6 +28,16 @@ static char s_text[1024];
 // the key of the text the xterm writes into, and whether a text stands under it
 static const char *const s_key = "terminal-check";
 static int s_stored;
+// the home the suite's tabs store their history and place under; the shell they start and the command that prints the
+// folder a shell stands in, each this system's
+static const char s_home[] = "build/harness/terminal_home";
+#if defined(_WIN32)
+static const char s_shell[] = "cmd.exe";
+static const char s_folder_command[] = "cd";
+#else
+static const char s_shell[] = "/bin/sh";
+static const char s_folder_command[] = "pwd";
+#endif
 
 // the xterm opened `columns` wide and `rows` tall, at most 64, writing into a text of `rows` empty lines and no
 // history stored under s_key
@@ -516,13 +525,10 @@ static int typed(const char *text)
 
 void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_SHELL", "cmd.exe"));
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_SHELL", "/bin/sh", 1));
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_SHELL", .value = s_shell));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     // the first tab's history emptied, which it reads back as it starts
     char home[CLI_PATH_MAX_LEN];
     TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home));
@@ -597,11 +603,8 @@ static void place_restored(void)
 
 void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     cli_terminal_tabs_restore(NULL, NULL);
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("new", NULL, 0u));
@@ -631,15 +634,10 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
 
 void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_SHELL", "cmd.exe"));
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-    const char *const asked = "cd";
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_SHELL", "/bin/sh", 1));
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-    const char *const asked = "pwd";
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_SHELL", .value = s_shell));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     char home[CLI_PATH_MAX_LEN];
     TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home));
     char folder[CLI_PATH_MAX_LEN];
@@ -677,7 +675,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .index = 0u, .clicks = 1u});
     TEST_ASSERT_TRUE(cli_terminal_tabs_pointer(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .up = 1}));
     TEST_ASSERT_TRUE(cli_terminal_tabs_panel().keys);
-    TEST_ASSERT_TRUE(typed(asked));
+    TEST_ASSERT_TRUE(typed(s_folder_command));
     TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
     TEST_ASSERT_TRUE(tabs_until("place_folder"));
     terminal_ended();
@@ -744,11 +742,8 @@ static void terminal_menu_opened(void)
 
 void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_the_one_shown(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     menus_answered();
     cli_terminal_tabs_restore(NULL, NULL);
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
@@ -788,11 +783,8 @@ static void menus_key(const char *name)
 
 void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     menus_answered();
     cli_terminal_tabs_restore(NULL, NULL);
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
@@ -842,11 +834,8 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
 
 void test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
-#endif
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     cli_terminal_tabs_restore(NULL, NULL);
     TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "a panel closed takes no keys");
     TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));

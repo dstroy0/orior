@@ -5,7 +5,6 @@
 // Silence putting a kind away until it is shown again
 #include "ui/cli/src/command_line/command_line.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
-#include <stdlib.h>
 #include <string.h>
 
 void setUp(void)
@@ -121,11 +120,8 @@ void test_focus_stops_every_notice_until_it_ends(void)
 
 void test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back(void)
 {
-#if defined(_WIN32)
-    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/notices_home"));
-#else
-    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/notices_home", 1));
-#endif
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
+                                .value = "build/harness/notices_home"));
     notices_rested();
     key_pressed("Ctrl+S");
     cli_notice_post("Formatted 3 places.", 0);

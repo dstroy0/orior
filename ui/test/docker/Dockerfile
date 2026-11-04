@@ -5,8 +5,8 @@
 # orior's window is built with, WebKitGTK's WebDriver, a display of X's that draws in memory and a
 # session bus, Rust as rustup installs it, rsync, which brings the tree in, ssh for the tunnels'
 # tests, the tools the window's tests drive, clangd, clang and lld, which builds the page's lattice to wasm, lldb's and gdb's debuggers, debugpy and
-# pytest, TeX and Poppler, which make a LaTeX file's pages and draw them, and VNC and noVNC, which show the display to
-# a browser. harness.py window test --docker runs the
+# pytest, Ruby, which Unity's runner generator runs on, TeX and Poppler, which make a LaTeX file's pages and draw them,
+# and VNC and noVNC, which show the display to a browser. harness.py window test --docker runs the
 # harness here, which builds the window and drives it through WebDriver.
 #
 # BASE is the system and LLVM the version of its own clang, whose runtime and archiver are named by it: Ubuntu 24.04
@@ -25,6 +25,7 @@ RUN apt-get update \
       libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
       cmake ninja-build clangd clang clang-tidy lld libclang-rt-${LLVM}-dev llvm-${LLVM} cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
+      ruby \
  && rm -rf /var/lib/apt/lists/*
 # lldb's debugger for editors goes by its version's name, and before LLVM 18 by lldb-vscode; orior looks for lldb-dap.
 RUN found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap /usr/bin/lldb-vscode* /usr/lib/llvm-*/bin/lldb-vscode 2>/dev/null | head -1)" && test -n "$found" && ln -sf "$found" /usr/local/bin/lldb-dap
