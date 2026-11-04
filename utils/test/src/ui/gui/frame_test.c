@@ -110,6 +110,12 @@ int main(void)
     cli_check((frame.bar_edges.top == -(41 * GUI_FIXED_ONE) / 2) &&
                   (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_FIXED_ONE)),
               "the bar's edges carry the half pixel its rectangle rounds away");
+    // three tenths through the claim: the tabs row's share at the base's sixteenth nearest it, the row's height at the
+    // claim's own share
+    numbers.claim = (GUI_FIXED_ONE * 3) / 10;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.tabs_share == (11 * GUI_FIXED_ONE) / 16) && (frame.tabs.height == 22),
+              "the row's share stands at the sixteenth nearest the claim's, its height at the claim's own share");
     // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
     // stays until the capacity is taken, then moves down under the bar
     numbers.claim = GUI_FIXED_ONE;

@@ -24,7 +24,7 @@ typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 // fades the row, the glass sheet at each grain level, a pane at each, and a pane's edge at each of its sixteenths of a
 // pixel at each, the edge's tint between the sheet's and the pane's by its share; and the entries in all
 #define GUI_BASE_GRAIN_LEVELS 19u
-#define GUI_BASE_PARTS 16u
+#define GUI_BASE_PARTS ((unsigned int)GUI_FRAME_PARTS)
 #define GUI_BASE_CLEAR 0u
 #define GUI_BASE_EDITOR 1u
 #define GUI_BASE_SIDE 2u

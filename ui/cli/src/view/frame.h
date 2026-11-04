@@ -55,6 +55,9 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_FIXED_ONE 65536
+// the parts a fading part's share stands at, sixteenths, which the base lays the part's ground at and its colors fade
+// by, so each stage of a fade lays the colors every fade before it laid
+#define GUI_FRAME_PARTS 16
 
 // The claim's numbers, each 0 to GUI_FIXED_ONE as the page's claim runs them: the claim, GUI_FIXED_ONE while the work
 // has taken the edges' parts' inset; each edge's reveal, 1 while its part is back; the controls' way down from the

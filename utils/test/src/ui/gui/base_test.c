@@ -128,6 +128,19 @@ int main(void)
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.laid_count == 5u), "the controls' pane standing lays the map again");
+    // the controls' tab halfway down with the bar away: its pane laid by the base at the part halfway from the sheet's
+    // tint to a pane's, as a slat's edge is
+    numbers.reveal_top = 0;
+    numbers.inset_top = 0;
+    numbers.reveal_down = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    cli_check((frame.controls_pane_share == GUI_FIXED_ONE / 2) &&
+                  (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.controls_pane.x + (frame.controls_pane.width / 2),
+                              .y = frame.controls_pane.y + (frame.controls_pane.height / 2)) ==
+                   GUI_BASE_PANE_PART + (((GUI_BASE_PARTS / 2u) - 1u) * GUI_BASE_GRAIN_LEVELS)),
+              "the controls' pane coming down is laid by the base at its share's part");
+    numbers.reveal_down = 0;
     // halfway through the claim's slide with the head not revealed, the tabs row's surface lies at half its alpha
     numbers.claim = GUI_FIXED_ONE / 2;
     numbers.reveal_top = 0;

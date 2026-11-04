@@ -238,8 +238,8 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
         }
     }
     // the controls' own pane, with its lip, while they stand off the bar as their tab or its ghost: a pane on the
-    // table whose tint thickens from the sheet's to a pane's by the share, whole while it comes down, and its
-    // corners alone once it stands, the base laying the rest of it
+    // table whose tint goes from the sheet's to a pane's by the share, its corners alone, the base laying the rest of
+    // it at the same part of the way
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = args->palette->glass);
     if (args->frame->controls_pane_share >= GUI_FIXED_ONE)
     {
@@ -256,7 +256,7 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
             (GuiColor)(sheet + (((((int)GUI_ALPHA_OF(pane) - sheet) * share) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE));
         EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = args->raster,
                    .background_fill = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
-                   .inner = (pane & 0x00ffffffu) | (alpha << 24u), .corners_only = 0);
+                   .inner = (pane & 0x00ffffffu) | (alpha << 24u), .corners_only = 1);
     }
     const GuiColor text_color = EMBED_CALL(controls_fade, ControlsCtx, .color = args->palette->status_text,
                                            .share = args->frame->controls_alpha);

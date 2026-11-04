@@ -414,13 +414,19 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
         }
     }
     // the panes that have slid in, each the slat its edge shows, and the controls' pane where it stands, each laid
-    // from its edges in the frame's words
+    // from its edges in the frame's words; the controls' pane coming down at its share's part, the tint between the
+    // sheet's and a pane's
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->bar_edges);
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->strip_edges);
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->status_edges);
     if (controls_steady)
     {
         EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->controls_edges);
+    }
+    else if (frame->controls_pane_share > 0)
+    {
+        EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->controls_pane,
+                   .layer = EMBED_CALL(base_part_layer, BaseCtx, .share = frame->controls_pane_share));
     }
     EMBED_CALL(base_bands_read, BaseCtx, .base = args->base);
     args->base->laid = 1;

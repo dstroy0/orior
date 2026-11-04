@@ -44,6 +44,14 @@ EMBED_INLINE int frame_share(const FrameCtx *args)
     return (int)((scaled + ((scaled >= 0LL) ? (GUI_FIXED_ONE / 2) : -(GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
 }
 
+// `share`, a number of GUI_FIXED_ONE from 0 to it, at the nearest of the parts a fading part's share stands at
+EMBED_INLINE int frame_part_share(const FrameCtx *args)
+{
+    // a share in parts, rounded, is a small count
+    const int part = ((args->share * GUI_FRAME_PARTS) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE;
+    return (part * GUI_FIXED_ONE) / GUI_FRAME_PARTS;
+}
+
 // `share`, a number of GUI_FIXED_ONE, of `pixels`, a count of pixels in the frame's words, saved in those words
 EMBED_INLINE int frame_part(const FrameCtx *args)
 {
@@ -216,7 +224,7 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     args->frame->tabs = (GuiRect){args->frame->inside.x + side, args->frame->inside.y, rest, tabs_height};
     args->frame->tabs_row = (GuiRect){args->frame->tabs.x, args->frame->inside.y + tabs_height - tabs_whole, rest,
                                       tabs_whole};
-    args->frame->tabs_share = tabs_share;
+    args->frame->tabs_share = EMBED_CALL(frame_part_share, FrameCtx, .share = tabs_share);
     args->frame->editor =
         (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height, rest - map, inner_height - tabs_height};
     args->frame->map = (GuiRect){args->frame->editor.x + args->frame->editor.width, args->frame->editor.y, map,
@@ -327,9 +335,9 @@ static void frame_layout(const FrameCtx *args)
     }
     else
     {
-        args->frame->controls_pane_share = pane_share;
+        args->frame->controls_pane_share = EMBED_CALL(frame_part_share, FrameCtx, .share = pane_share);
     }
-    args->frame->controls_alpha = claim->controls_alpha;
+    args->frame->controls_alpha = EMBED_CALL(frame_part_share, FrameCtx, .share = claim->controls_alpha);
     // the slats: the head's and the left's span from the work's own edge, the wordmark's corner theirs; the foot's
     // from the status bar's own ends
     int from = 0;
