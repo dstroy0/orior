@@ -68,8 +68,10 @@ typedef struct
 // the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of the
 // window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim and
 // whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
-// settings ask it; the tree's name, the last part of its folder; whether the editor takes the keys and whether the
-// window is to close; what orior takes in RAM and when it is next read; the view shown when the frame was last taken,
+// settings ask it; the tree's name, the last part of its folder; the entries of orior's folder read as the window
+// began, which the modules restored from them read in place until the window ends; whether the editor takes the keys
+// and whether the window is to close; what orior takes in RAM and when it is next read; the view shown when the frame
+// was last taken,
 // -1 for none; the editor's rows and columns, the bar's titles shown and whether the rest fold, and the lines the map
 // stands for, each as last handed on; the terminal's two panes' columns and rows and its height as last handed on; what
 // the pointer last moved onto; whether the pointer drags the terminal's top edge, whether it drags in the editor, and
@@ -125,6 +127,7 @@ typedef struct GuiWindow
     int motion_still;
     int off_screen;
     const char *title;
+    CliStateEntries *entries;
     int editing;
     int closing;
     unsigned long long memory_bytes;

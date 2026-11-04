@@ -124,6 +124,10 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_servers_problems_end();
     cli_servers_panels_end();
     cli_files_explorer_end();
+    // the notices read the entries in place, so they let go before the entries do
+    cli_notices_end();
+    g_cli_cells->persistent_buf_release(window->entries, &g_cli_view_cells);
+    window->entries = NULL;
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release((CliViewFrame *)window->editor.frame);
@@ -1819,10 +1823,12 @@ void gui_window_start(const GuiWindowCfg *args)
     cli_servers_problems_begin(args->woken);
     cli_servers_panels_begin(root);
     char folder[CLI_PATH_MAX_LEN];
+    // the entries stand until the window ends, read in place by the modules that restore from them
     CliStateEntries *const entries =
         EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
             ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_cli_view_cells})
             : NULL;
+    window->entries = entries;
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -1838,7 +1844,6 @@ void gui_window_start(const GuiWindowCfg *args)
             cli_servers_panels_serve(cli_view_key(at), cli_view_path_at(at));
         }
     }
-    g_cli_cells->persistent_buf_release(entries, &g_cli_view_cells);
     // the command the window was started with run as the menus run it
     const CliOutcome *const launch = cli_command_line_launched();
     if (launch->command[0] != '\0')

@@ -83,8 +83,8 @@ const CliOutcome *cli_command_line_launched(void);
 // `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press on the
 // status bar's
 // part `part`; Focus on or off; the kind `kind` shown again; the timers whose time came taken, 1 where anything
-// changed; the clock's reading of the next timer, 0 for none; and the kinds put away read from `entries` as the window
-// begins
+// changed; the clock's reading of the next timer, 0 for none; the kinds put away read in place in `entries` as the
+// window begins, which stand until the window ends; and every notice let go as the window ends, before its entries go
 #define CLI_NOTICES_ANSWERS_MS 1500ULL
 #define CLI_NOTICES_REST_MS 2000ULL
 #define CLI_NOTICES_SHOWN_MS 5000ULL
@@ -100,6 +100,7 @@ void cli_notices_show_again(const char *kind);
 int cli_notices_step(void);
 unsigned long long cli_notices_due_ms(void);
 void cli_notices_restore(const CliStateEntries *entries);
+void cli_notices_end(void);
 // the notice the status bar shows, its first line, NULL for none, and whether it is a failure's; whether Focus is on,
 // and how many notices wait on it
 const char *cli_notice_shown(void);
