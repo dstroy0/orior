@@ -23,18 +23,8 @@ typedef struct
 // the share of its way the pane has gone at `time_ms` on its slide
 EMBED_INLINE int sides_away_at(const SidesCtx *args)
 {
-    const GuiSides *const sides = args->sides_read;
-    if ((sides->slide_ms == 0ULL) || (args->time_ms >= sides->slide_ms + GUI_SIDES_SLIDE_MS))
-    {
-        return sides->slide_to;
-    }
-    const unsigned long long elapsed_ms = (args->time_ms > sides->slide_ms) ? args->time_ms - sides->slide_ms : 0ULL;
-    // a share of a time under a second is a word
-    const int way = (int)((elapsed_ms * (unsigned long long)GUI_FIXED_ONE) / GUI_SIDES_SLIDE_MS);
-    const int eased = EMBED_CALL(gui_autohide_share.ease, GuiAutohideShareCfg, .share = way);
-    // the way between two shares by an eased share is within a long long and comes back between the two
-    return sides->slide_from +
-           (int)(((long long)(sides->slide_to - sides->slide_from) * (long long)eased) / (long long)GUI_FIXED_ONE);
+    return EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &args->sides_read->slide,
+                      .time_ms = args->time_ms, .lasts_ms = GUI_SIDES_SLIDE_MS);
 }
 
 // the pane's collapse set to `collapsed` at `time_ms`, its slide begun from where it stands toward the way it goes, or
@@ -43,9 +33,8 @@ EMBED_INLINE void sides_collapsed_set(const SidesCtx *args)
 {
     GuiSides *const sides = args->sides;
     const int to = args->collapsed ? GUI_FIXED_ONE : 0;
-    sides->slide_from = EMBED_CALL(sides_away_at, SidesCtx, .sides_read = sides, .time_ms = args->time_ms);
-    sides->slide_to = to;
-    sides->slide_ms = (args->still || (sides->slide_from == to)) ? 0ULL : args->time_ms;
+    const int from = EMBED_CALL(sides_away_at, SidesCtx, .sides_read = sides, .time_ms = args->time_ms);
+    sides->slide = (args->still || (from == to)) ? (GuiSlide){to, to, 0ULL} : (GuiSlide){from, to, args->time_ms};
     args->strip->collapsed = args->collapsed;
 }
 
@@ -64,9 +53,7 @@ void gui_sides_init(const GuiSidesCfg *args)
     sides->previewed = GUI_STRIP_NONE;
     sides->before_displayed = GUI_STRIP_NONE;
     sides->before_collapsed = 0;
-    sides->slide_ms = 0ULL;
-    sides->slide_from = 0;
-    sides->slide_to = 0;
+    sides->slide = (GuiSlide){0, 0, 0ULL};
 }
 
 void gui_sides_settle(const GuiSidesCfg *args)
@@ -112,8 +99,7 @@ void gui_sides_toggle(const GuiSidesCfg *args)
     // a pane where none showed comes in from where a collapsed one stands
     if (!EMBED_CALL(sides_has_pane, SidesCtx, .strip_read = strip))
     {
-        sides->slide_ms = 0ULL;
-        sides->slide_to = GUI_FIXED_ONE;
+        sides->slide = (GuiSlide){GUI_FIXED_ONE, GUI_FIXED_ONE, 0ULL};
     }
     strip->displayed = (int)args->at;
     EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,
@@ -263,8 +249,7 @@ int gui_sides_tick(const GuiSidesCfg *args)
         // a pane where none showed comes in from where a collapsed one stands
         if (!has_pane)
         {
-            sides->slide_ms = 0ULL;
-            sides->slide_to = GUI_FIXED_ONE;
+            sides->slide = (GuiSlide){GUI_FIXED_ONE, GUI_FIXED_ONE, 0ULL};
         }
         strip->displayed = sides->icon;
         EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,
@@ -315,9 +300,8 @@ int gui_sides_away(const GuiSidesCfg *args)
 
 unsigned long long gui_sides_slide_end_ms(const GuiSidesCfg *args)
 {
-    const unsigned long long slide_ms = args->sides_read->slide_ms;
-    return ((slide_ms != 0ULL) && (args->time_ms < slide_ms + GUI_SIDES_SLIDE_MS)) ? slide_ms + GUI_SIDES_SLIDE_MS
-                                                                                   : 0ULL;
+    return EMBED_CALL(gui_autohide_slide.slide_end_ms, GuiAutohideSlideCfg, .slide = &args->sides_read->slide,
+                      .time_ms = args->time_ms, .lasts_ms = GUI_SIDES_SLIDE_MS);
 }
 
 int gui_sides_stands(const GuiSidesCfg *args)

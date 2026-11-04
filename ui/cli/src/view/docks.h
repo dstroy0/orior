@@ -7,6 +7,7 @@
 // it stands for the share of its way left, and the stages lay every moment of it with the claim's slides (docks.c)
 #ifndef GUI_DOCKS_H
 #define GUI_DOCKS_H
+#include "claim.h"
 #include "embed_dispatch_layout.h"
 #include "frame.h"
 
@@ -15,10 +16,10 @@ typedef struct GuiDocksCfg GuiDocksCfg;
 // how long a panel's arrival takes, in milliseconds
 #define GUI_DOCKS_ARRIVING_MS 140ULL
 
-// The docks: when the panel shown last began arriving, 0 for none
+// The docks: the panel's arrival, a slide of the way it has left, from all of it to none
 typedef struct
 {
-    unsigned long long arrive_ms;
+    GuiSlide arrive;
 } GuiDocks;
 
 // no arrival

@@ -118,24 +118,47 @@ int gui_ease(const GuiAutohideShareCfg *args)
                       .share = args->share);
 }
 
+static int s_ease_out[GUI_EASE_STEPS + 1u];
+static int s_ease_out_created;
+
+int gui_ease_out(const GuiAutohideShareCfg *args)
+{
+    if (!s_ease_out_created)
+    {
+        EMBED_CALL(gui_autohide_table.ease_table_init, GuiAutohideTableCfg, .table = s_ease_out, .x1 = 0.0, .y1 = 0.0,
+                   .x2 = 0.58, .y2 = 1.0);
+        s_ease_out_created = 1;
+    }
+    return EMBED_CALL(gui_autohide_share.ease_table_read, GuiAutohideShareCfg, .table_read = s_ease_out,
+                      .share = args->share);
+}
+
+// how long a slide lasts: as the slide's cfg has it, the claim's own where it has none
+EMBED_INLINE unsigned long long slide_lasts_ms(const GuiAutohideSlideCfg *args)
+{
+    return (args->lasts_ms != 0ULL) ? args->lasts_ms : GUI_AUTOHIDE_ANIMATION_MS;
+}
+
 int gui_slide_at(const GuiAutohideSlideCfg *args)
 {
     const unsigned long long start = args->slide->start_ms;
-    if (args->time_ms <= start)
+    const unsigned long long lasts_ms = slide_lasts_ms(args);
+    if ((args->time_ms <= start) || (args->slide->from == args->slide->to))
     {
         return args->slide->from;
     }
-    if (args->time_ms >= start + GUI_AUTOHIDE_ANIMATION_MS)
+    if (args->time_ms >= start + lasts_ms)
     {
         return args->slide->to;
     }
     // the way along the slide, a share of its length, below GUI_FIXED_ONE; the slide's span by the curve's number is
     // within a long long and comes back to a number of GUI_FIXED_ONE
-    const int share = (int)(((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / GUI_AUTOHIDE_ANIMATION_MS);
+    const int share = (int)(((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms);
+    const int eased = (args->curve == GUI_CURVE_EASE_OUT)
+                          ? EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = share)
+                          : EMBED_CALL(gui_autohide_share.ease, GuiAutohideShareCfg, .share = share);
     return args->slide->from +
-           (int)(((long long)(args->slide->to - args->slide->from) *
-                  (long long)EMBED_CALL(gui_autohide_share.ease, GuiAutohideShareCfg, .share = share)) /
-                 GUI_FIXED_ONE);
+           (int)(((long long)(args->slide->to - args->slide->from) * (long long)eased) / GUI_FIXED_ONE);
 }
 
 void gui_slide_to(const GuiAutohideTargetCfg *args)
@@ -153,8 +176,13 @@ void gui_slide_to(const GuiAutohideTargetCfg *args)
 
 int gui_slide_running(const GuiAutohideSlideCfg *args)
 {
-    return (args->slide->from != args->slide->to) &&
-           (args->time_ms < args->slide->start_ms + GUI_AUTOHIDE_ANIMATION_MS);
+    return gui_autohide_slide.slide_end_ms(args) != 0ULL;
+}
+
+unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args)
+{
+    const unsigned long long end_ms = args->slide->start_ms + slide_lasts_ms(args);
+    return ((args->slide->from != args->slide->to) && (args->time_ms < end_ms)) ? end_ms : 0ULL;
 }
 
 void gui_autohide_init(const GuiAutohideStillCfg *args)
@@ -479,12 +507,8 @@ void gui_autohide_still(const GuiAutohideStillCfg *args)
 // the later of `end_ms` and the moment `slide` ends, where it runs at `time_ms`
 EMBED_INLINE unsigned long long autohide_later(const ClaimCtx *args)
 {
-    const GuiSlide *slide = args->slide_read;
-    if (!EMBED_CALL(gui_autohide_slide.slide_running, GuiAutohideSlideCfg, .slide = slide, .time_ms = args->time_ms))
-    {
-        return args->end_ms;
-    }
-    const unsigned long long slide_end_ms = slide->start_ms + GUI_AUTOHIDE_ANIMATION_MS;
+    const unsigned long long slide_end_ms = EMBED_CALL(gui_autohide_slide.slide_end_ms, GuiAutohideSlideCfg,
+                                                       .slide = args->slide_read, .time_ms = args->time_ms);
     return (slide_end_ms > args->end_ms) ? slide_end_ms : args->end_ms;
 }
 

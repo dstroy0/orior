@@ -47,14 +47,19 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 #define GUI_AUTOHIDE_GHOST_ALPHA 22938
 #define GUI_AUTOHIDE_TRAIL 16u
 
-// A slide: a number of GUI_FIXED_ONE running from `from` to `to` over GUI_AUTOHIDE_ANIMATION_MS on the page's ease
-// curve, from `start_ms`
+// A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
+// claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one stands at them
 typedef struct
 {
     int from;
     int to;
     unsigned long long start_ms;
 } GuiSlide;
+
+// the curves a slide runs on: the page's ease, cubic-bezier(0.25, 0.1, 0.25, 1), and its ease-out,
+// cubic-bezier(0, 0, 0.58, 1)
+#define GUI_CURVE_EASE 0u
+#define GUI_CURVE_EASE_OUT 1u
 
 // A sample of the pointer's path: its position and time
 typedef struct
@@ -112,21 +117,25 @@ typedef struct
     int pulled_bottom;
 } GuiAutohide;
 
-// the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), at `share` of the way, 0 to GUI_FIXED_ONE: its number, 0 to
-// GUI_FIXED_ONE, read from a table of the curve at sixty-four steps, the step between two entries laid straight
+// the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), and its ease-out, cubic-bezier(0, 0, 0.58, 1), at `share`
+// of the way, 0 to GUI_FIXED_ONE: its number, 0 to GUI_FIXED_ONE, read from a table of the curve at sixty-four steps,
+// the step between two entries laid straight
 int gui_ease(const GuiAutohideShareCfg *args);
+int gui_ease_out(const GuiAutohideShareCfg *args);
 // a CSS cubic-bezier(x1, y1, x2, y2) made into a table of its number at each of GUI_EASE_STEPS steps of the way, its
 // ends 0 and GUI_FIXED_ONE; and such a table read at `share` of the way, 0 to GUI_FIXED_ONE, the step between two
 // entries laid straight
 #define GUI_EASE_STEPS 64u
 void gui_ease_table_init(const GuiAutohideTableCfg *args);
 int gui_ease_table_read(const GuiAutohideShareCfg *args);
-// a slide's number at `time_ms`; and the slide sent to `to` from where it stands now, starting after `delay_ms`, a
-// slide already bound for `to` left running
+// a slide's number at `time_ms`, the slide `lasts_ms` long, GUI_AUTOHIDE_ANIMATION_MS where 0, on `curve`, the page's
+// ease where 0; and the claim's slide sent to `to` from where it stands now, starting after `delay_ms`, a slide already
+// bound for `to` left running
 int gui_slide_at(const GuiAutohideSlideCfg *args);
 void gui_slide_to(const GuiAutohideTargetCfg *args);
-// whether a slide still runs at `time_ms`
+// whether a slide still runs at `time_ms`; and when it ends where it runs, 0 where it does not
 int gui_slide_running(const GuiAutohideSlideCfg *args);
+unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args);
 
 // a claim not holding, every number at 0 and the controls whole
 void gui_autohide_init(const GuiAutohideStillCfg *args);
@@ -224,16 +233,20 @@ struct GuiAutohideSlideCfg
 {
     const GuiSlide *slide;
     unsigned long long time_ms;
+    unsigned long long lasts_ms;
+    unsigned int curve;
 };
 
 typedef struct
 {
     int (*ease)(const GuiAutohideShareCfg *args);
+    int (*ease_out)(const GuiAutohideShareCfg *args);
     int (*ease_table_read)(const GuiAutohideShareCfg *args);
 } GuiAutohideShareNs;
-EMBED_TABLE_LAYOUT(GuiAutohideShareNs, ease, ease_table_read);
+EMBED_TABLE_LAYOUT(GuiAutohideShareNs, ease, ease_out, ease_table_read);
 EMBED_TABLE_STORAGE GuiAutohideShareNs gui_autohide_share EMBED_UNUSED = {
     .ease = gui_ease,
+    .ease_out = gui_ease_out,
     .ease_table_read = gui_ease_table_read,
 };
 
@@ -250,11 +263,13 @@ typedef struct
 {
     int (*slide_at)(const GuiAutohideSlideCfg *args);
     int (*slide_running)(const GuiAutohideSlideCfg *args);
+    unsigned long long (*slide_end_ms)(const GuiAutohideSlideCfg *args);
 } GuiAutohideSlideNs;
-EMBED_TABLE_LAYOUT(GuiAutohideSlideNs, slide_at, slide_running);
+EMBED_TABLE_LAYOUT(GuiAutohideSlideNs, slide_at, slide_running, slide_end_ms);
 EMBED_TABLE_STORAGE GuiAutohideSlideNs gui_autohide_slide EMBED_UNUSED = {
     .slide_at = gui_slide_at,
     .slide_running = gui_slide_running,
+    .slide_end_ms = gui_slide_end_ms,
 };
 
 typedef struct

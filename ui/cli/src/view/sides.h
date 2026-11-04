@@ -11,6 +11,7 @@
 // strip's (sides.c)
 #ifndef GUI_SIDES_H
 #define GUI_SIDES_H
+#include "claim.h"
 #include "embed_dispatch_layout.h"
 #include "frame.h"
 #include "parts/strip.h"
@@ -32,7 +33,8 @@ typedef struct GuiSidesCfg GuiSidesCfg;
 // collapse, 0 for no wait; when the pointer's rest on the edge shows the pane, 0 for none; when its rest on the edge
 // ends while it is off the edge, 0 for none; the icon the pointer rests on, GUI_STRIP_NONE for none, and when its pane
 // shows, 0 for none; whether a preview stands, the icon it shows and the tool and the pane's collapse before it; and
-// its slide: when it began, 0 for none, and the share of its way gone it runs from and to, GUI_FIXED_ONE gone
+// its slide, the share of its way gone running from and to, GUI_FIXED_ONE gone, over GUI_SIDES_SLIDE_MS on the page's
+// ease, standing where its ends are one
 typedef struct
 {
     int over_pane;
@@ -47,9 +49,7 @@ typedef struct
     int previewed;
     int before_displayed;
     int before_collapsed;
-    unsigned long long slide_ms;
-    int slide_from;
-    int slide_to;
+    GuiSlide slide;
 } GuiSides;
 
 // no wait, no rest and no preview
