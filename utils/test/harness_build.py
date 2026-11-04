@@ -18,6 +18,8 @@ the compiler and the linker's tools.
     harness.py source static-sizes <list>     each object's .bss and .data bytes, the largest last
     harness.py source static-symbols <name>...  the zero-filled statics of a CLI object, largest first
     harness.py source format                  clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed
+    harness.py source repeats [folder] [lines]  the runs of C lines standing in two or more places under the folder,
+                                              blank and comment lines dropped, the longest first
     harness.py source page-names <file>...    the page's modules named, each parsed as a module and read for the
                                               names they share: each import the module it names exports and the
                                               importer uses, and each top-level name of one of them that another uses
@@ -322,6 +324,62 @@ def cmd_source_format(a):
     return 0
 
 
+def source_lines(path):
+    """A C source's lines with their numbers, blank lines, comment lines and bare braces dropped and whitespace folded:
+    a run of them compares by what it does."""
+    folded = []
+    with open(path, encoding="utf-8", errors="replace") as source:
+        for number, raw in enumerate(source, 1):
+            text = " ".join(raw.split())
+            if not text or text.startswith("//") or text in ("{", "}", "};", "else"):
+                continue
+            folded.append((number, text))
+    return folded
+
+
+def cmd_source_repeats(a):
+    """The runs of a.lines or more folded lines that stand in two or more places under a.folder, each run grown while
+    every place continues alike, the longest first with where each stands."""
+    window = a.lines
+    files = sorted(os.path.join(folder, name) for folder, _, names in os.walk(os.path.join(ROOT, *a.folder.split("/"))) for name in names if name.endswith(".c"))
+    per_file = {path: source_lines(path) for path in files}
+    windows = {}
+    for path, folded in per_file.items():
+        for at in range(len(folded) - window + 1):
+            windows.setdefault("\n".join(text for _, text in folded[at:at + window]), []).append((path, at))
+    seen = set()
+    runs = []
+    for key, places in windows.items():
+        if len(places) < 2 or places[0] in seen:
+            continue
+        length = window
+        partners = places
+        while True:
+            advanced = [(path, at + 1) for path, at in partners]
+            keys = set()
+            for path, at in advanced:
+                folded = per_file[path]
+                if at + window > len(folded):
+                    keys = None
+                    break
+                keys.add("\n".join(text for _, text in folded[at:at + window]))
+            if keys is None or len(keys) != 1 or len(windows.get(next(iter(keys)), [])) < len(partners):
+                break
+            partners = advanced
+            length += 1
+            seen.update(partners)
+        seen.update(places)
+        runs.append((length, places))
+    runs.sort(key=lambda run: -run[0])
+    repeated = 0
+    for length, places in runs:
+        repeated += length * (len(places) - 1)
+        spots = ", ".join("%s:%d" % (findroot.rel(path), per_file[path][at][0]) for path, at in places)
+        print("%3d lines x%d: %s" % (length, len(places), spots))
+    print("repeated lines: %d in %d runs" % (repeated, len(runs)))
+    return 0
+
+
 PAGE = os.path.join(ROOT, "ui", "gui", "src-js")
 
 # the characters and words after which a / opens a regular expression
@@ -571,6 +629,10 @@ def register(sub):
     p.set_defaults(fn=cmd_source_static_symbols)
     p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed")
     p.set_defaults(fn=cmd_source_format)
+    p = source.add_parser("repeats", help="the runs of C lines standing in two or more places under the folder, the longest first")
+    p.add_argument("folder", nargs="?", default="ui/cli/src/view", help="the folder read, from the top of the tree")
+    p.add_argument("lines", nargs="?", type=int, default=6, help="the fewest folded lines a run has")
+    p.set_defaults(fn=cmd_source_repeats)
     p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")
     p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")
     p.set_defaults(fn=cmd_source_page_names)

@@ -115,6 +115,7 @@ typedef struct
     const CliViewInput *view_input;
     int starting;
     unsigned int event;
+    const CliItem *item;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -1679,6 +1680,17 @@ EMBED_INLINE int window_tool_key(const GuiWindowCtx *args)
     return -1;
 }
 
+// a menu's choice: the menus laid again and, `on` where an item was chosen, the `item`'s command run with its keys
+EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
+{
+    EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = args->window);
+    if (args->on)
+    {
+        EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
+                   .value = args->item->keys);
+    }
+}
+
 // the key `name` taken, `on` where the name's pane stands and no view takes it: the menu key opens the terminal's menu
 // at its key field while the panel takes the keys; the panel takes them ahead of the window while no menu is open; the
 // menus', a command's own, a tool's, the panels' and else the view's
@@ -1703,12 +1715,7 @@ static void window_key_take(const GuiWindowCtx *args)
     int chose = 0;
     if (cli_menus_key(name, &chosen, &chose))
     {
-        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
-        if (chose)
-        {
-            EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = chosen.command,
-                       .value = chosen.keys);
-        }
+        EMBED_CALL(window_menu_chosen, GuiWindowCtx, .window = window, .on = chose, .item = &chosen);
         return;
     }
     if (args->on)
@@ -2388,12 +2395,7 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         CliItem chosen;
         const int chose =
             (hit->level < g_cli_menus_open.levels) && cli_menus_row_press(hit->level, hit->index, &chosen);
-        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
-        if (chose)
-        {
-            EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = chosen.command,
-                       .value = chosen.keys);
-        }
+        EMBED_CALL(window_menu_chosen, GuiWindowCtx, .window = window, .on = chose, .item = &chosen);
         return;
     }
     // a press on neither closes every menu open

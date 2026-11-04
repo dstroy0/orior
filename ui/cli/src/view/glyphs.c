@@ -49,6 +49,9 @@ typedef struct
     unsigned int letter;
     GuiColor color;
     float *advance;
+    const char *const (*families)[4];
+    unsigned int count;
+    unsigned int path_at;
 } GlyphsCtx;
 // the face `face` read from the file at `path` through the ranges capacity `ranges`, its ranges then saved in a cell of
 // their own count: 1, or 0 where there is no path, no file or no font in it
@@ -214,12 +217,10 @@ void gui_glyphs_free(const GuiGlyphsCfg *args)
     }
 }
 
-int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args)
+// the face `face` read from the first of `count` `families` found in the system's font folders, the path `path_at` of
+// the family's four, through a ranges capacity of the read's own: 1 where it is read
+EMBED_INLINE int glyphs_family_read(const GlyphsCtx *args)
 {
-    if (args->glyphs->has[GUI_FACE_HEAD_BOLD])
-    {
-        return 0;
-    }
     unsigned int (*const ranges)[3] =
         g_cli_cells->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
     if (ranges == NULL)
@@ -227,11 +228,23 @@ int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args)
         return 0;
     }
     char paths[4][CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_sans,
-               .count = sizeof(s_sans) / sizeof(s_sans[0]), .paths = paths);
-    args->glyphs->has[GUI_FACE_HEAD_BOLD] = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = args->glyphs,
-                                                       .face = GUI_FACE_HEAD_BOLD, .path = paths[1], .ranges = ranges);
+    EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = args->families, .count = args->count,
+               .paths = paths);
+    const int read = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = args->glyphs, .face = args->face,
+                                .path = paths[args->path_at], .ranges = ranges);
     g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    return read;
+}
+
+int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args)
+{
+    if (args->glyphs->has[GUI_FACE_HEAD_BOLD])
+    {
+        return 0;
+    }
+    args->glyphs->has[GUI_FACE_HEAD_BOLD] =
+        EMBED_CALL(glyphs_family_read, GlyphsCtx, .glyphs = args->glyphs, .face = GUI_FACE_HEAD_BOLD,
+                   .families = s_sans, .count = sizeof(s_sans) / sizeof(s_sans[0]), .path_at = 1u);
     return args->glyphs->has[GUI_FACE_HEAD_BOLD];
 }
 
@@ -252,18 +265,9 @@ EMBED_INLINE int glyphs_symbol_read(const GlyphsCtx *args)
         return glyphs->has[GUI_FACE_SYMBOL];
     }
     glyphs->symbol_looked = 1;
-    unsigned int (*const ranges)[3] =
-        g_cli_cells->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
-    if (ranges == NULL)
-    {
-        return 0;
-    }
-    char paths[4][CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_symbol,
-               .count = sizeof(s_symbol) / sizeof(s_symbol[0]), .paths = paths);
-    glyphs->has[GUI_FACE_SYMBOL] = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = glyphs, .face = GUI_FACE_SYMBOL,
-                                              .path = paths[0], .ranges = ranges);
-    g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    glyphs->has[GUI_FACE_SYMBOL] =
+        EMBED_CALL(glyphs_family_read, GlyphsCtx, .glyphs = glyphs, .face = GUI_FACE_SYMBOL, .families = s_symbol,
+                   .count = sizeof(s_symbol) / sizeof(s_symbol[0]), .path_at = 0u);
     return glyphs->has[GUI_FACE_SYMBOL];
 }
 

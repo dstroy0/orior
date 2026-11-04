@@ -24,6 +24,7 @@ typedef struct
     int pulled;
     int *from;
     int *to;
+    int rounded;
     GuiEdges edges;
     int left;
     int top;
@@ -59,31 +60,6 @@ EMBED_INLINE int frame_part(const FrameCtx *args)
     return (int)(((long long)args->share * (long long)args->pixels) / GUI_FIXED_ONE);
 }
 
-// a slat along an edge in the frame's words: the part's span from `first` to `end` along the edge, grown by `grown`
-// from the point `pulled`, the middle where none has been, into `from` and `to`
-EMBED_INLINE void frame_band_edges(const FrameCtx *args)
-{
-    int *from = args->from;
-    int *to = args->to;
-    const int middle = (args->first + args->end) / 2;
-    const int required = (args->pulled < 0) ? middle : args->pulled;
-    int at;
-    if (required < args->first)
-    {
-        at = args->first;
-    }
-    else if (required > args->end)
-    {
-        at = args->end;
-    }
-    else
-    {
-        at = required;
-    }
-    *from = at - EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = at - args->first);
-    *to = at + EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = args->end - at);
-}
-
 // the pane's edges met with the span `left` to `right` across and `top` to `bottom` down, each in the frame's words
 EMBED_INLINE GuiEdges frame_edges_intersect(const FrameCtx *args)
 {
@@ -95,7 +71,8 @@ EMBED_INLINE GuiEdges frame_edges_intersect(const FrameCtx *args)
 }
 
 // a slat along an edge: the part's span from `first` to `end` along the edge, grown by `grown` from the point
-// `pulled`, the middle where none has been, into `from` and `to`
+// `pulled`, the middle where none has been, into `from` and `to`; the grown ends rounded to the nearest pixel where
+// `rounded`, the span in pixels, else cut in the frame's words
 EMBED_INLINE void frame_band(const FrameCtx *args)
 {
     int *from = args->from;
@@ -115,8 +92,12 @@ EMBED_INLINE void frame_band(const FrameCtx *args)
     {
         at = required;
     }
-    *from = at - EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = at - args->first);
-    *to = at + EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = args->end - at);
+    const int before = at - args->first;
+    const int after = args->end - at;
+    *from = at - (args->rounded ? EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = before)
+                                : EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = before));
+    *to = at + (args->rounded ? EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = after)
+                              : EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = after));
 }
 
 // the terminal's panel's height in the inside `pixels` tall: the height asked at the scale, no less than its least and,
@@ -364,16 +345,16 @@ static void frame_layout(const FrameCtx *args)
     EMBED_CALL(frame_band, FrameCtx,
                .first = (args->frame->work.x < args->frame->bar.x) ? args->frame->work.x : args->frame->bar.x,
                .end = args->frame->bar.x + args->frame->bar.width, .grown = claim->grown_top,
-               .pulled = claim->pulled_top, .from = &from, .to = &to);
+               .pulled = claim->pulled_top, .from = &from, .to = &to, .rounded = 1);
     args->frame->bar_band = (GuiRect){from, args->frame->bar.y, to - from, args->frame->bar.height};
     EMBED_CALL(frame_band, FrameCtx,
                .first = (args->frame->work.y < args->frame->strip.y) ? args->frame->work.y : args->frame->strip.y,
                .end = args->frame->strip.y + args->frame->strip.height, .grown = claim->grown_left,
-               .pulled = claim->pulled_left, .from = &from, .to = &to);
+               .pulled = claim->pulled_left, .from = &from, .to = &to, .rounded = 1);
     args->frame->strip_band = (GuiRect){args->frame->strip.x, from, args->frame->strip.width, to - from};
     EMBED_CALL(frame_band, FrameCtx, .first = args->frame->status.x,
                .end = args->frame->status.x + args->frame->status.width, .grown = claim->grown_bottom,
-               .pulled = claim->pulled_bottom, .from = &from, .to = &to);
+               .pulled = claim->pulled_bottom, .from = &from, .to = &to, .rounded = 1);
     args->frame->status_band = (GuiRect){from, args->frame->status.y, to - from, args->frame->status.height};
     // a pane's corners are rounded by the claim's share of the work's radius; the radii are not negative
     args->frame->pane_radius = (unsigned int)EMBED_CALL(
@@ -420,7 +401,7 @@ static void frame_layout(const FrameCtx *args)
     int to_edge = 0;
     const int head_first =
         ((args->frame->work.x < args->frame->bar.x) ? args->frame->work.x : args->frame->bar.x) * GUI_FIXED_ONE;
-    EMBED_CALL(frame_band_edges, FrameCtx, .first = head_first,
+    EMBED_CALL(frame_band, FrameCtx, .first = head_first,
                .end = (args->frame->bar.x + args->frame->bar.width) * GUI_FIXED_ONE, .grown = claim->grown_top,
                .pulled = claim->pulled_top * GUI_FIXED_ONE, .from = &from_edge, .to = &to_edge);
     args->frame->bar_edges =
@@ -431,17 +412,16 @@ static void frame_layout(const FrameCtx *args)
                    .bottom = bar_top + (bar_height * GUI_FIXED_ONE));
     const int left_first =
         (args->frame->work.y * GUI_FIXED_ONE < strip_top) ? args->frame->work.y * GUI_FIXED_ONE : strip_top;
-    EMBED_CALL(frame_band_edges, FrameCtx, .first = left_first, .end = footer - gap_autohidden,
-               .grown = claim->grown_left, .pulled = claim->pulled_left * GUI_FIXED_ONE, .from = &from_edge,
-               .to = &to_edge);
+    EMBED_CALL(frame_band, FrameCtx, .first = left_first, .end = footer - gap_autohidden, .grown = claim->grown_left,
+               .pulled = claim->pulled_left * GUI_FIXED_ONE, .from = &from_edge, .to = &to_edge);
     args->frame->strip_edges =
         EMBED_CALL(frame_edges_intersect, FrameCtx,
                    .edges = (GuiEdges){strip_left, from_edge, strip_left + (strip_width * GUI_FIXED_ONE), to_edge},
                    .left = strip_left, .top = strip_top, .right = strip_left + (strip_width * GUI_FIXED_ONE),
                    .bottom = footer - gap_autohidden);
-    EMBED_CALL(frame_band_edges, FrameCtx, .first = gap_autohidden,
-               .end = (pixel_width * GUI_FIXED_ONE) - gap_autohidden, .grown = claim->grown_bottom,
-               .pulled = claim->pulled_bottom * GUI_FIXED_ONE, .from = &from_edge, .to = &to_edge);
+    EMBED_CALL(frame_band, FrameCtx, .first = gap_autohidden, .end = (pixel_width * GUI_FIXED_ONE) - gap_autohidden,
+               .grown = claim->grown_bottom, .pulled = claim->pulled_bottom * GUI_FIXED_ONE, .from = &from_edge,
+               .to = &to_edge);
     args->frame->status_edges =
         EMBED_CALL(frame_edges_intersect, FrameCtx,
                    .edges = (GuiEdges){from_edge, status_top, to_edge, status_top + (status_height * GUI_FIXED_ONE)},

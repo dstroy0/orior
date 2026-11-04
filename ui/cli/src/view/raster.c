@@ -99,6 +99,7 @@ typedef struct
     unsigned int color_u32;
     float share_f32;
     float threshold;
+    GuiRect *on_out;
 } GuiRasterCtx;
 // the raster's own rectangle
 EMBED_INLINE GuiRect raster_rect(const GuiRasterCtx *args)
@@ -106,6 +107,16 @@ EMBED_INLINE GuiRect raster_rect(const GuiRasterCtx *args)
     // a raster's sides are far inside what an int represents
     const GuiRect rect = {0, 0, (int)args->raster_read->width, (int)args->raster_read->height};
     return rect;
+}
+
+// `rect` cut to the raster, into `on_out`: whether anything is drawn there in `color`, nothing where the cut is empty
+// or the color has no alpha
+EMBED_INLINE int raster_drawn(const GuiRasterCtx *args)
+{
+    *args->on_out = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
+                               .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster_read));
+    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = *args->on_out) &&
+           (GUI_ALPHA_OF(args->color) != 0u);
 }
 
 unsigned int gui_raster_pitch(const GuiRasterWidthCfg *args)
@@ -170,13 +181,13 @@ EMBED_INLINE void raster_append(const GuiRasterCtx *args)
 
 void gui_raster_fill(const GuiRasterRectColorCfg *args)
 {
-    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
-                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
-    const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on) || (alpha == 0u))
+    GuiRect on;
+    if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->raster, .rect = args->rect, .color = args->color,
+                    .on_out = &on))
     {
         return;
     }
+    const unsigned int alpha = GUI_ALPHA_OF(args->color);
     // the rectangle lies on the raster: its coordinates are not negative
     GuiColor *row = &args->raster->pixels[((unsigned int)on.y * args->raster->width) + (unsigned int)on.x];
     if (alpha >= 255u)
@@ -310,13 +321,13 @@ EMBED_INLINE unsigned int raster_corner_cover(const GuiRasterCtx *args)
 
 void gui_raster_round(const GuiRasterRectColorCfg *args)
 {
-    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
-                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
-    const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on) || (alpha == 0u))
+    GuiRect on;
+    if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->raster, .rect = args->rect, .color = args->color,
+                    .on_out = &on))
     {
         return;
     }
+    const unsigned int alpha = GUI_ALPHA_OF(args->color);
     if (args->radius == 0u)
     {
         gui_raster_rect_color.fill(args);
@@ -1077,15 +1088,15 @@ void gui_raster_mask(const GuiRasterXYColorCfg *args)
 {
     // a mask's sides are far inside what an int represents
     const GuiRect laid = {args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height};
-    const GuiRect on =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = laid, .other = args->clip),
-                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
-    const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on) || (alpha == 0u))
+    GuiRect on;
+    if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->raster,
+                    .rect =
+                        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = laid, .other = args->clip),
+                    .color = args->color, .on_out = &on))
     {
         return;
     }
+    const unsigned int alpha = GUI_ALPHA_OF(args->color);
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         // the row and column inside the mask are not negative, the rectangle drawn lying inside it
@@ -1227,15 +1238,14 @@ void gui_raster_span_layout(const GuiRasterXYColorCountCfg *args)
 void gui_raster_stenciled_over(const GuiRasterXYCfg *args)
 {
     // the mask's sides are far inside what an int represents
-    const GuiRect on =
-        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height},
-                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->picture));
-    const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on) || (alpha == 0u))
+    GuiRect on;
+    if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->picture,
+                    .rect = (GuiRect){args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height},
+                    .color = args->color, .on_out = &on))
     {
         return;
     }
+    const unsigned int alpha = GUI_ALPHA_OF(args->color);
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         // the row and column inside the mask are not negative, the rectangle drawn lying inside it

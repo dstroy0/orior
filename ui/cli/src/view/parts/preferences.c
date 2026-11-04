@@ -385,11 +385,7 @@ EMBED_INLINE void preferences_settings_key(const PreferencesCtx *args)
 
 void gui_preferences_key(const GuiPreferencesPaletteNameCfg *args)
 {
-    args->change->kind = GUI_PREFERENCE_NOTHING;
-    args->change->at = 0u;
-    args->change->by = 0;
-    args->change->round = 0;
-    args->change->color = 0u;
+    *args->change = (GuiPreferenceChange){GUI_PREFERENCE_NOTHING, 0u, 0, 0, 0u};
     if (args->preferences->entering)
     {
         EMBED_CALL(preferences_entering_key, PreferencesCtx, .preferences_out = args->preferences,
@@ -452,11 +448,7 @@ int gui_preferences_type(const GuiPreferencesSizeCfg *args)
 int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args)
 {
     const GuiPalette *palette = args->palette;
-    args->change->kind = GUI_PREFERENCE_NOTHING;
-    args->change->at = 0u;
-    args->change->by = 0;
-    args->change->round = 0;
-    args->change->color = 0u;
+    *args->change = (GuiPreferenceChange){GUI_PREFERENCE_NOTHING, 0u, 0, 0, 0u};
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                    .rect = EMBED_CALL(gui_preferences_row.close_rect, GuiPreferencesRowCfg,
                                       .preferences_read = args->preferences),
