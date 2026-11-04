@@ -8,7 +8,6 @@
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
 #include "../../cli/src/command_line/callback_cfg.h"
-#include "../../cli/src/controller/controller.h"
 #include "../../cli/src/view/view.h"
 #include "embed_dispatch_layout.h"
 #include "input_event.h"

@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// suggest.h: the completion panel, as the controller ranks and publishes it: listed under the prefix's first cell, the
-// chosen row on the selection's ground, each row its kind's mark, its label with the prefix in signal and its detail
-// quieter at the right; a detail pane beside the list for the chosen item. What keys and presses do to it is the
-// controller's (suggest.c)
+// suggest.h: the completion panel, as the panels over the editor rank and carry it (servers/servers.h): listed under
+// the prefix's first cell, the chosen row on the selection's ground, each row its kind's mark, its label with the
+// prefix in signal and its detail quieter at the right; a detail pane beside the list for the chosen item. What keys
+// and presses do to it is the panels' (suggest.c)
 #ifndef GUI_PARTS_SUGGEST_H
 #define GUI_PARTS_SUGGEST_H
-#include "../../controller/controller_parts.h"
+#include "../../servers/servers.h"
 #include "embed_dispatch_layout.h"
 #include "panel.h"
 
@@ -31,8 +31,8 @@ typedef struct GuiSuggestCfg GuiSuggestCfg;
 #define GUI_SUGGEST_DETAIL_PAD_X 11
 #define GUI_SUGGEST_DETAIL_PAD_Y 6
 
-// The completion: the panel as last published, NULL for none, the controller's and read alone; and the list's
-// rectangle, the rows' and the detail pane's, where they were drawn last
+// The completion: the panel shown, NULL for none, its rows read from the panels; and the list's rectangle, the rows'
+// and the detail pane's, where they were drawn last
 typedef struct
 {
     const CliCompletionPanel *panel;

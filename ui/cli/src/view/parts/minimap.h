@@ -39,9 +39,9 @@ typedef struct
     int slider_height;
 } GuiMapPosition;
 
-// The minimap: the lines as last published, NULL for none, the controller's and read alone; the view's top the map last
-// stood beside and how many rows above the slider the map began, stored so the map stands still while the view does;
-// the place it last stood at; and the drag, whether one runs, where it began and the view's top then
+// The minimap: the lines as the window last took them of the view, NULL for none, read alone; the view's top the map
+// last stood beside and how many rows above the slider the map began, stored so the map stands still while the view
+// does; the place it last stood at; and the drag, whether one runs, where it began and the view's top then
 typedef struct
 {
     const CliDocumentMap *lines;

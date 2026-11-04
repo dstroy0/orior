@@ -23,7 +23,6 @@ typedef struct CliPagesOutErrMsgCfg CliPagesOutErrMsgCfg;
 typedef struct CliPagesFromCfg CliPagesFromCfg;
 typedef struct CliPagesOutErrMsgNeedleCfg CliPagesOutErrMsgNeedleCfg;
 typedef struct CliPagesPathCfg CliPagesPathCfg;
-typedef struct CliPagesPlaceCfg CliPagesPlaceCfg;
 typedef struct CliPagesCfg CliPagesCfg;
 typedef struct CliPagesViewCfg CliPagesViewCfg;
 
@@ -86,20 +85,13 @@ char *cli_pages_lines_alloc(const CliPagesFromCfg *args);
 // the page's changes written, each as its document writes it, `edits[at]` edits of `changes[at]`, `count` changes,
 // its edits placed against the text as it stood before any of them, written from the last to the first, the text's
 // shape written after; the lines written since the file was read, each run written as `[from, to]`; the text's matches
-// for `needle`, each `[line, from col, to col]`, read 16384 lines at a time until `most` are found. Each 1, or 0 with
-// why written into `err_msg`. And the text saved in two steps. On the files' lane, written whole to a file beside its
-// file once its index is whole, and that file's index read whole into a text not yet stored: the text read, or NULL
-// with why written into `err_msg` and nothing left beside the file. Then the text `read` put in its place: where
-// `whole` is 1, on the controller's thread, the file beside moved over the file and `read` stored in place of the text,
-// so no line is read of the file between; where it is 0, on the files' lane, the file beside removed, `read` let go and
-// the file left as it was: 1, or 0 with why written into `err_msg`, `read` let go. And `read` let go alone, its cells
-// freed and no file touched (pages_edit.c)
+// for `needle`, each `[line, from col, to col]`, read 16384 lines at a time until `most` are found; and the text saved
+// to its file through a file beside it, the file read afresh, its index whole before the save answers, its shape
+// written. Each 1, or 0 with the reason written (pages_edit.c)
 int cli_pages_edit(const CliPagesOutErrMsgCfg *args);
 int cli_pages_change(const CliPagesPathCfg *args);
 int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args);
-struct CliPaged *cli_pages_save_beside_alloc(const CliPagesPathCfg *args);
-int cli_pages_save_place(const CliPagesPlaceCfg *args);
-void cli_pages_read_free(const CliPagesPlaceCfg *args);
+int cli_pages_save(const CliPagesPathCfg *args);
 
 struct CliPagesOutCfg
 {
@@ -149,13 +141,6 @@ struct CliPagesPathCfg
     VerbaLinea *err_msg;
 };
 
-struct CliPagesPlaceCfg
-{
-    struct CliPaged *read;
-    int whole;
-    VerbaLinea *err_msg;
-};
-
 struct CliPagesCfg
 {
     const char *key;
@@ -175,25 +160,14 @@ typedef struct
     int (*open)(const CliPagesPathCfg *args);
     int (*shape)(const CliPagesPathCfg *args);
     int (*change)(const CliPagesPathCfg *args);
-    struct CliPaged *(*save_beside_alloc)(const CliPagesPathCfg *args);
+    int (*save)(const CliPagesPathCfg *args);
 } CliPagesPathNs;
-EMBED_TABLE_LAYOUT(CliPagesPathNs, open, shape, change, save_beside_alloc);
+EMBED_TABLE_LAYOUT(CliPagesPathNs, open, shape, change, save);
 EMBED_TABLE_STORAGE CliPagesPathNs cli_pages_path EMBED_UNUSED = {
     .open = cli_pages_open,
     .shape = cli_pages_shape,
     .change = cli_pages_change,
-    .save_beside_alloc = cli_pages_save_beside_alloc,
-};
-
-typedef struct
-{
-    int (*save_place)(const CliPagesPlaceCfg *args);
-    void (*read_free)(const CliPagesPlaceCfg *args);
-} CliPagesPlaceNs;
-EMBED_TABLE_LAYOUT(CliPagesPlaceNs, save_place, read_free);
-EMBED_TABLE_STORAGE CliPagesPlaceNs cli_pages_place EMBED_UNUSED = {
-    .save_place = cli_pages_save_place,
-    .read_free = cli_pages_read_free,
+    .save = cli_pages_save,
 };
 
 typedef struct

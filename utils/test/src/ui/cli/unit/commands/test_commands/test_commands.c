@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_commands.c: the command catalog: menu words and commands are unique, a command is one word, a job menu's commands are not
-// job paths, and an item requires each <argument> outside brackets
+// job paths, and an item requires each <argument> outside brackets; and the menus open: a menu's serial, new as it opens and
+// the same while it stands open
 #include "ui/cli/src/command_line/commands.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -105,6 +106,37 @@ void test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_
         }
     }
     TEST_ASSERT_EQUAL_UINT(2u, found);
+}
+
+// the place on the bar of the menu titled `name`
+static unsigned int title_at(const char *name)
+{
+    unsigned int at = 0u;
+    while ((at < cli_menu_titles()) && !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(cli_menu_title_menu(at)), .other = name, .cap = CLI_LABEL_MAX_LEN}))
+    {
+        at += 1u;
+    }
+    TEST_ASSERT_LESS_THAN_UINT_MESSAGE(cli_menu_titles(), at, name);
+    return at;
+}
+
+void test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open(void)
+{
+    cli_menus_bar(cli_menu_titles(), 0);
+    cli_menus_title_press(title_at("View"));
+    TEST_ASSERT_EQUAL_UINT(1u, g_cli_menus_open.levels);
+    const unsigned int serial = g_cli_menus_open.level[0].serial;
+    // the View menu's second row is a line, which no pointer marks: its third is marked
+    cli_menus_row_move(0u, 1u);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(1, g_cli_menus_open.level[0].pointed, "a line is never marked");
+    cli_menus_row_move(0u, 2u);
+    TEST_ASSERT_EQUAL_INT(2, g_cli_menus_open.level[0].pointed);
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(serial, g_cli_menus_open.level[0].serial, "a row marked leaves the menu the one opened");
+    cli_menus_close(0u);
+    TEST_ASSERT_EQUAL_UINT(0u, g_cli_menus_open.levels);
+    cli_menus_title_press(title_at("View"));
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(serial, g_cli_menus_open.level[0].serial, "the menu closed and opened again is opened anew");
+    cli_menus_close(0u);
 }
 
 void test_arguments_outside_brackets_are_required(void)

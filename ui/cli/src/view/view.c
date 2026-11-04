@@ -8,6 +8,7 @@
 #include "view.h"
 
 #include "../command_line/cli_internal.h"
+#include "../command_line/command_line.h"
 #include "window.h"
 
 // the events and the orders the rings hold, each a power of two, the bytes of the events' names and text on their way,
@@ -469,9 +470,9 @@ static void view_frame(void)
     }
 }
 
-// what the view's thread runs: every event in turn, the newest of each part the controller published, the tick where it
-// is due and what is owed drawn, until the view ends; the window's own moving things come to it by the clock, each no
-// sooner than the monitor's next refresh after the last frame shown
+// what the view's thread runs: every event in turn, the window's modules stepped, the tick where its time came and what
+// is owed drawn, until the view ends; the window's own moving things come to it by the clock, each no sooner than the
+// monitor's next refresh after the last frame shown
 static void view_run(void *context)
 {
     (void)context;
@@ -480,7 +481,7 @@ static void view_run(void *context)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_view.wake);
         view_events_take();
-        EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
+        EMBED_CALL(gui_window_table.step, GuiWindowCfg, .window = window);
         const unsigned long long now_ms = cli_clock_milliseconds();
         if ((s_view.tick_at_ms != 0ULL) && (now_ms >= s_view.tick_at_ms))
         {
@@ -488,8 +489,8 @@ static void view_run(void *context)
             EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = window);
         }
         view_preferences_follow();
-        // the controller said the window is to close
-        if ((window->status != NULL) && window->status->closing && !s_view.close_ordered)
+        // a command asked the window to close
+        if (window->closing && !s_view.close_ordered)
         {
             const CliViewOrder order = {.kind = CLI_VIEW_ORDER_ACT, .act = GUI_ACT_CLOSE};
             s_view.close_ordered = view_order_write(&order);
@@ -521,10 +522,10 @@ static void view_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.ended);
 }
 
-// what the controller publishes wakes the view's thread
-static void view_woken(void *context)
+// what a module's thread brings, a command through the door, a server's report or a line the walk colored, wakes the
+// view's thread
+static void view_woken(void)
 {
-    (void)context;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
 }
 
@@ -589,15 +590,8 @@ int cli_view_begin(const CliViewBeginCfg *args)
         g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
         return 0;
     }
-    cli_controller_tree_begin();
-    if (!cli_controller_begin(view_woken, NULL))
-    {
-        mmgr_line_put(args->err_msg, "the controller could not begin");
-        cli_controller_tree_end();
-        g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
-        return 0;
-    }
-    EMBED_CALL(gui_window_table.start, GuiWindowCfg, .window = &s_view.window);
+    cli_command_line_tree_begin(view_woken);
+    EMBED_CALL(gui_window_table.start, GuiWindowCfg, .window = &s_view.window, .woken = view_woken);
     s_view.thread.run = view_run;
     s_view.thread.context = NULL;
     s_view.thread.priority = CLI_PRIORITY_WORK;
@@ -607,7 +601,7 @@ int cli_view_begin(const CliViewBeginCfg *args)
         (void)EMBED_ATOMIC_ADD_32(&s_view.running, (embed_u32)-1);
         mmgr_line_put(args->err_msg, "the view's thread could not be started");
         EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_view.window);
-        cli_controller_tree_end();
+        cli_command_line_tree_end();
         g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
         return 0;
     }
@@ -623,7 +617,7 @@ void cli_view_end(void)
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_view.ended, .milliseconds_u64 = 1ULL);
     }
-    cli_controller_tree_end();
+    cli_command_line_tree_end();
     g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
     s_view.cell = NULL;
 }

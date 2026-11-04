@@ -279,62 +279,30 @@ void test_a_text_is_stored_with_its_shape_until_it_is_released(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = "stored", .shape = &shape));
 }
 
-// the reading `reading` put as its file holds it, asserted to read `required`
-static void assert_reading_put(CliDocumentReading *reading, const char *required)
+// the text stored under `key` put as its file had it, asserted to read `required`
+static void assert_file_put(const char *key, const char *required)
 {
     char put[64];
     char why[128];
     VerbaLinea out = {put, sizeof(put), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.put, CliDocumentReadingCfg, .reading = reading, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = key, .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT(required, put, out.at);
 }
 
 void test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read(void)
 {
     CliShape shape;
-    CliDocumentReading reading;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "one\n\xC5\xBFtwo\n", .size = 10ull, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "put", .reading = &reading));
-    assert_reading_put(&reading, "one\n\xC5\xBFtwo\n");
-    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading), "a text read and not moved");
+    assert_file_put("put", "one\n\xC5\xBFtwo\n");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "a\r\nb", .size = 4ull, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "put", .reading = &reading));
-    assert_reading_put(&reading, "a\r\nb");
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading));
+    assert_file_put("put", "a\r\nb");
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "put");
-    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "put", .reading = &reading), "no text is stored under the key");
-}
-
-void test_a_reading_ends_moved_where_the_text_was_edited_or_stored_again_while_it_read(void)
-{
-    CliShape shape;
-    CliDocumentReading reading;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "moved", .text = "one\ntwo", .size = 7ull, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "moved", .reading = &reading));
-    const CliEdit edit = {{0ull, 0ull}, {0ull, 0ull}, "x", 1ull};
-    const CliEdit *const changes[1] = {&edit};
-    const unsigned int edits[1] = {1u};
     char why[128];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "moved", .changes = changes, .edits = edits, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading), "an edit while the text was read");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "moved", .reading = &reading));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "moved", .text = "three", .size = 5ull, .shape = &shape));
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading), "the text stored again while it was read");
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "moved");
-}
-
-void test_a_text_released_while_it_is_read_stands_until_the_reading_ends(void)
-{
-    CliShape shape;
-    CliDocumentReading reading;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "closed", .text = "some\nlines", .size = 10ull, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "closed", .reading = &reading));
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "closed");
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = "closed", .shape = &shape));
-    assert_reading_put(&reading, "some\nlines");
-    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading), "a release is no edit");
+    char put[8];
+    VerbaLinea out = {put, sizeof(put), 0ull};
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = "put", .out = &out, .err_msg = &err_msg), "no text is stored under the key");
 }
 
 void test_find_with_case(void)

@@ -94,6 +94,145 @@ typedef struct
     char tree[CLI_PATH_MAX_LEN];
 } CliServersSink;
 
+// The hover: the Markdown of its parts, `length` bytes, and the word's line and its first unit and the unit after it
+typedef struct
+{
+    const char *text;
+    unsigned long long length;
+    unsigned long long line;
+    unsigned long long from;
+    unsigned long long to;
+} CliHoverPanel;
+
+// the rows of the completion's list shown at once
+#define CLI_COMPLETION_ROWS 10u
+
+// One row of the completion: its label and how long, its kind, its detail and how long, and how many bytes of the label
+// the prefix marks
+typedef struct
+{
+    const char *label;
+    unsigned long long label_length;
+    const char *kind;
+    const char *detail;
+    unsigned long long detail_length;
+    unsigned int marked;
+} CliCompletionRow;
+
+// The completion: the line and the first unit the prefix stands at; the prefix; how many items answer it; where the
+// first row shown stands among them; the rows shown; and where the row chosen stands among the items
+typedef struct
+{
+    unsigned long long line;
+    unsigned long long from;
+    const char *prefix;
+    unsigned int count;
+    unsigned int first;
+    unsigned int rows;
+    unsigned int chosen;
+} CliCompletionPanel;
+
+// The pointer moved: whether it stands on the editor's text, at the row `row` from the view's top and the cell
+// `column`, and whether it stands on the hover's box
+typedef struct
+{
+    int in_text;
+    unsigned long long row;
+    unsigned long long column;
+    int on_hover;
+} CliServersPanelsPointerCfg;
+
+// The view shown drawn anew: its cursor's line and unit, its top line, its lines, and the editor's rows
+typedef struct
+{
+    unsigned long long line;
+    unsigned long long col;
+    unsigned long long top;
+    unsigned long long lines;
+    unsigned int rows;
+} CliServersPanelsFrameCfg;
+
+// the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun and ended; every
+// panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on the panels, 1 where the key was
+// theirs; the completion's row `at` accepted; the completion's rows turned by the wheel; the view shown drawn anew, its
+// cursor at `line`, `col`, its top line `top` of `lines`, at the editor's `rows`; their timers taken, 1 where any came,
+// and the clock's reading of the next, 0 for none; the view under `key` of the file at `path` from the tree's top
+// handed to its language's server, and let go; and what they show: the hover, the completion and its row `row` shown,
+// each 1 where it stands, else 0, and the signature, NULL for none
+void cli_servers_panels_begin(const char *root);
+void cli_servers_panels_end(void);
+void cli_servers_panels_hide(void);
+void cli_servers_panels_pointer(const CliServersPanelsPointerCfg *args);
+void cli_servers_panels_text(const char *text, unsigned long long length);
+int cli_servers_panels_key(const char *name);
+void cli_servers_panels_accept(unsigned int at);
+void cli_servers_panels_wheel(int rows);
+void cli_servers_panels_frame(const CliServersPanelsFrameCfg *args);
+int cli_servers_panels_step(void);
+unsigned long long cli_servers_panels_due_ms(void);
+void cli_servers_panels_serve(const char *key, const char *path);
+void cli_servers_panels_close(const char *key);
+int cli_servers_panels_hover(CliHoverPanel *panel);
+int cli_servers_panels_completion(CliCompletionPanel *panel);
+int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out);
+const CliSignaturePanel *cli_servers_panels_signature(void);
+
+// One row of the problems: a file's, with its path, its name and how many bytes of its path its folder takes, its
+// diagnostics' count and whether they are closed; or a diagnostic's, with its severity, its message's first line and
+// its place. Each text stands until the file's next report is taken
+typedef struct
+{
+    int is_file;
+    const char *path;
+    const char *name;
+    unsigned long long folder_length;
+    unsigned int count;
+    int closed;
+    unsigned int severity;
+    const char *message;
+    unsigned long long line;
+    unsigned long long col;
+} CliProblemRow;
+
+// One span a file's diagnostic underlines: its severity, and its first place and the place after it
+typedef struct
+{
+    unsigned int severity;
+    unsigned long long from_line;
+    unsigned long long from_col;
+    unsigned long long to_line;
+    unsigned long long to_col;
+} CliProblemSpan;
+
+// The problems counted: the files, the diagnostics and the errors; the check's files done and total, the total 0 where
+// none runs; and the rows shown
+typedef struct
+{
+    unsigned int files;
+    unsigned int items;
+    unsigned int errors;
+    unsigned long long done;
+    unsigned long long total;
+    unsigned int rows;
+} CliProblemsCounts;
+
+// the problems begun, `woken` called from the thread a report comes on; where the servers report for the tree `root`;
+// the reports come taken, 1 where any did or the check moved; and every report let go, the check stopped
+// (servers_problems.c). On the window's thread: the problems counted; whether the tree's check runs; the row `at` into
+// `row`: 1, or 0 past them; the span `at` of the file `path`'s diagnostics into `span`: 1, or 0 past them; a press on
+// the row `at`, a file's rows closed or opened, or a diagnostic's row into `row`: 1 where it was a diagnostic's, its
+// file to be opened at its place; and the tree's check of `root` started, or stopped where it runs
+void cli_servers_problems_begin(void (*woken)(void));
+CliServersSink cli_servers_problems_sink(const char *root);
+int cli_servers_problems_step(void);
+void cli_servers_problems_end(void);
+CliProblemsCounts cli_servers_problems_counts(void);
+int cli_servers_problems_checking(void);
+int cli_servers_problems_row(unsigned int at, CliProblemRow *row);
+int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan *span);
+int cli_servers_problems_press(unsigned int at, CliProblemRow *row);
+void cli_servers_problems_check(const char *root);
+
 // the file at `path` handed to its language's server, started at `root` where it is not running, and its text to the
 // inspections and the checkers: `true` or `false` written as a server took it; its new text given; and the file let go
 // as the editor closes it, read again as the disk stores it. Each 1, or 0 with why given (servers_files.c)

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // strip.h: the tool strip down the window's left edge: an icon a tool window, the top group from the strip's head,
 // Explorer, Search, Structure, Commit and the more menu, and the foot group up from its foot, Run, Debug, Terminal,
-// Profile, Containers, Database, Comms, Problems, Tests, Git and Runs, the tools as the CLI lists them. The icon of the
-// window that shows is drawn in signal on a square of it, and the one under the pointer on the pointed ground (strip.c)
+// Profile, Containers, Database, Comms, Problems, Tests, Git and Runs, the tools as listed here. The icon of the window
+// that shows is drawn in signal on a square of it, and the one under the pointer on the pointed ground (strip.c)
 #ifndef GUI_PARTS_STRIP_H
 #define GUI_PARTS_STRIP_H
-#include "../../controller/controller_parts.h"
 #include "../frame.h"
 #include "../icons.h"
 #include "../palette.h"
@@ -32,6 +31,27 @@ typedef struct GuiStripInitCfg GuiStripInitCfg;
 // the mark's side in the page's pixels and how far in from the button's corner it stands
 #define GUI_STRIP_MARK 6
 #define GUI_STRIP_MARK_IN 7
+
+// the groups a tool stands in
+#define CLI_TOOL_TOP 0u
+#define CLI_TOOL_FOOTER 1u
+
+// A tool of the strip: its name, its icon's name, its label, its keys, empty where it has none, its group, whether it
+// opens a menu in place of a window of its own, and whether its window is the side pane beside the editor
+typedef struct
+{
+    const char *name;
+    const char *glyph;
+    const char *label;
+    const char *keys;
+    unsigned int group;
+    int menu;
+    int side;
+} CliTool;
+
+// the tools, the top group then the foot group, and how many (strip.c)
+extern const CliTool g_cli_tools[];
+extern const unsigned int g_cli_tools_count;
 
 // The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; whether
 // the Problems tool is marked, as it is while errors stand; and whether the terminal's panel is open, which shows the

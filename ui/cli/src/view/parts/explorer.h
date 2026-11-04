@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // explorer.h: the explorer in the side pane beside the editor: the group's title at its head and, for the explorer's
 // group, the pane of the tree's files, its head the tree's name and its rows the folders and files, a folder at a
-// time as each is opened, as the controller publishes them. The wheel scrolls the rows and the pointer marks the row it
-// stands on; a row is a line down from each folder above it, the folder's arrow, the folder's icon or the file's mark,
-// and the name (explorer.c)
+// time as each is opened, read where the explorer's listing stands (editor/files.h). The wheel scrolls the rows and the
+// pointer marks the row it stands on; a row is a line down from each folder above it, the folder's arrow, the folder's
+// icon or the file's mark, and the name (explorer.c)
 #ifndef GUI_PARTS_EXPLORER_H
 #define GUI_PARTS_EXPLORER_H
-#include "../../controller/controller_parts.h"
+#include "../../editor/files.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../icons.h"
@@ -39,11 +39,10 @@ typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
 #define GUI_EXPLORER_MARK_SIZE 11u
 #define GUI_EXPLORER_ARROW 5
 
-// The explorer: the rows as last published, NULL for none, the controller's and read alone; the row the pointer stands
-// on, GUI_EXPLORER_NONE for none; and how many rows are scrolled off the pane's top
+// The explorer: the row the pointer stands on, GUI_EXPLORER_NONE for none; and how many rows are scrolled off the
+// pane's top
 typedef struct
 {
-    const CliExplorerRows *rows;
     int pointed;
     unsigned int scroll;
 } GuiExplorer;

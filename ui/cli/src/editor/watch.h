@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// watch.h: changes to the tree's files made outside the window, gathered in batches for the controller to take: the
+// watch.h: changes to the tree's files from outside the window, gathered in batches for the window's tree to take: the
 // folders whose entries changed, the files whose text did, and whether git's view did.
 //
 // On Windows the system reports each change as it is made, through ReadDirectoryChangesW over the whole tree.

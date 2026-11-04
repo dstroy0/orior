@@ -13,6 +13,7 @@
 // (view.c)
 #ifndef VIEW_H
 #define VIEW_H
+#include "../machine/state.h"
 #include "document.h"
 #include "embed_dispatch_layout.h"
 
@@ -26,6 +27,7 @@ typedef struct CliViewCfg CliViewCfg;
 typedef struct CliViewPathKindCfg CliViewPathKindCfg;
 typedef struct CliViewFullKindCfg CliViewFullKindCfg;
 typedef struct CliViewFullCfg CliViewFullCfg;
+typedef struct CliViewSaveCfg CliViewSaveCfg;
 
 // what the window sends: a key, text typed, the pointer, a scroll, the view's size, and a completion accepted, whose
 // `text` replaces the `column` units before the cursor, and a place, the cursor put at the line `row` and the unit
@@ -154,6 +156,31 @@ void cli_view_words_release(CliDocumentWords *words);
 // full; and the view closed, its steps freed
 int cli_view_open(const CliViewCfg *args);
 void cli_view_close(const CliViewCfg *args);
+// the views open in the order they were opened, which are the files open as the window's tabs: how many; the key of the
+// one at `at` and its file's path from the tree's top, each NULL past them; the place of the one shown and of the one
+// shown before it, each -1 for none; the one at `at` shown, the one shown before it saved; and whether the close of the
+// one at `at` waits on a second press, set as `closing` asks
+unsigned int cli_view_count(void);
+const char *cli_view_key(unsigned int at);
+const char *cli_view_path_at(unsigned int at);
+int cli_view_shown(void);
+int cli_view_last(void);
+void cli_view_show(unsigned int at);
+int cli_view_closing(unsigned int at);
+void cli_view_closing_set(unsigned int at, int closing);
+// the files open as views (view_files.c): the file at `path`, a whole path inside the tree `root` or one from its top,
+// opened as a view where none is open on it: its text read whole or paged under the key `window:` and its path from the
+// tree's top, its grammar applied, the view opened at `rows` and `columns`; the view shown, the one shown before it
+// saved, its cursor put at `place` where it is not NULL: the view's place, or -1 where the file was refused, why
+// written into `err_msg`. The view at `at` closed and its text let go. And the session, the views' paths in order, a
+// line each, the shown one's first, saved in orior's folder under a key of the tree `root`'s own, and the views it
+// names opened again from `entries`
+int cli_view_file_open(const char *root, const char *path, unsigned int rows, unsigned int columns,
+                       const CliPosition *place, VerbaLinea *err_msg);
+void cli_view_file_close(unsigned int at);
+void cli_view_session_save(const char *root);
+void cli_view_session_restore(const char *root, const CliStateEntries *entries, unsigned int rows,
+                              unsigned int columns);
 // `input` taken by the view under `key`: 1, or 0 with why given where no view is open under the key or an edit could
 // not be made
 int cli_view_input(const CliViewInputCfg *args);
@@ -179,6 +206,10 @@ int cli_view_changed_alloc(const CliViewCfg *args);
 void cli_view_saved(const CliViewCfg *args);
 void cli_view_unsaved(const CliViewCfg *args);
 int cli_view_modified(const CliViewCfg *args);
+// the text of the view under `key` written to its file, the whole path `full`, as the tree writes every file, a paged
+// text through its pages: 1 with the view's save point put where it stands, or 0 with the save point lost and why
+// written into `err_msg`
+int cli_view_save(const CliViewSaveCfg *args);
 // the place of the cell `column` of the row `row` from the top of the view under `key`: its line into `line`, the
 // lines a closed fold hides stepped over, and its column in units into `col`, the line's end where the cell is past
 // it: 1, or 0 where no view is open under the key
@@ -266,6 +297,22 @@ struct CliViewFullCfg
 {
     const char *key;
     const char *full;
+};
+
+struct CliViewSaveCfg
+{
+    const char *key;
+    const char *full;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    int (*save)(const CliViewSaveCfg *args);
+} CliViewSaveNs;
+EMBED_TABLE_LAYOUT(CliViewSaveNs, save);
+EMBED_TABLE_STORAGE CliViewSaveNs cli_view_save_table EMBED_UNUSED = {
+    .save = cli_view_save,
 };
 
 typedef struct

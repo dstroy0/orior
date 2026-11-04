@@ -30,7 +30,7 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 #define GUI_BUSY_REACH 7
 #define GUI_BUSY_EDGE 8
 
-// The circle: when the controller last said an ask stands, one past the millisecond and 0 where none does; whether the
+// The circle: when the window last found an ask standing, one past the millisecond and 0 where none does; whether the
 // circle is shown, since when, and whether it stands still at one stage for less motion; the one cell its pictures lie
 // in, their side and stages, each stage's three lanes of a blit side by side pixels; the pixels saved from under it,
 // the rectangle they came from, and whether any are saved
@@ -57,7 +57,7 @@ typedef struct
 // a circle with nothing asked; and its cell given back
 void gui_busy_init(const GuiBusyStillCfg *args);
 void gui_busy_free(const GuiBusyStillCfg *args);
-// whether the controller says an ask stands; and when it began to, in `*since`: 1, or 0 where none stands
+// whether an ask stands; and when it began to, in `*since`: 1, or 0 where none stands
 void gui_busy_work(const GuiBusyRunningCfg *args);
 int gui_busy_waiting(const GuiBusySinceCfg *args);
 // the tick come: the circle come where an ask has stood past the wait, gone where none has and it has stood

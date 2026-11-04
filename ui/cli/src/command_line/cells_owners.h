@@ -73,9 +73,7 @@
                                                                    "cli_toolchains_words") owner_(g_cli_trust_cells,   \
                                                                                                   "cli_trust")         \
                                                                 owner_(g_cli_versions_cells, "cli_version_catalogs")   \
-                                                                    owner_(g_cli_controller_cells,                     \
-                                                                           "cli_controller") owner_(g_cli_views_cells, \
-                                                                                                    "cli_views")       \
+                                                                    owner_(g_cli_views_cells, "cli_views")             \
                                                                         owner_(g_cli_watch_cells, "cli_watch") owner_( \
                                                                             g_cli_watch_folders_cells,                 \
                                                                             "cli_watch_folders")                       \

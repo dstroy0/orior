@@ -10,6 +10,7 @@
 // code (command_line*.c)
 #ifndef COMMAND_LINE_H
 #define COMMAND_LINE_H
+#include "../machine/state.h"
 #include "cli_internal.h"
 #include "embed_dispatch_layout.h"
 
@@ -53,6 +54,58 @@ int cli_command_line_tree(const CliCommandLineNamedCfg *args);
 // from outside a terminal; started from a terminal, the process retains the terminal's console; elsewhere nothing
 // (platform/windows.c, platform/posix.c)
 void cli_console_let_go(void);
+
+// the window's command line and its tree (command_line_window.c): the command line run on the words the program was
+// started with, as the system gives them: the code to exit with, 1 in `window` where the words open the window
+// instead; the tree the window opens on found and readied: orior_cli run on the machine where it is in a Flatpak's
+// sandbox, every process it starts contained under it, the door opened for the command line, `woken` called from the
+// door's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
+// its runs, walked into the tree's branches and handed to the servers on the watch's own thread; every server,
+// session and process of the window's ended as it ends; the tree open, NULL for none; and the words the program was
+// started with
+int cli_command_line_window(int *window);
+void cli_command_line_tree_begin(void (*woken)(void));
+void cli_command_line_tree_end(void);
+const char *cli_command_line_root(void);
+const CliOutcome *cli_command_line_launched(void);
+
+// the parts of the status bar a press can land on: the notice, its Silence and Focus
+#define CLI_NOTICES_PRESS_NOTICE 1u
+#define CLI_NOTICES_PRESS_SILENCE 2u
+#define CLI_NOTICES_PRESS_FOCUS 3u
+
+// the notices (notices.c), as the page's status bar shows them: the notice `text` posted, a failure's where `failed` is
+// 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any other
+// waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus stops every one until it ends; a
+// notice whose kind is put away shows not at all; one shown stands CLI_NOTICES_SHOWN_MS on the status bar, a failure's
+// CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its kind away for good,
+// saved in orior's folder. Any input, a press of the pointer, or the key `name` while the editor takes the keys where
+// `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press on the
+// status bar's
+// part `part`; Focus on or off; the kind `kind` shown again; the timers whose time came taken, 1 where anything
+// changed; the clock's reading of the next timer, 0 for none; and the kinds put away read from `entries` as the window
+// begins
+#define CLI_NOTICES_ANSWERS_MS 1500ULL
+#define CLI_NOTICES_REST_MS 2000ULL
+#define CLI_NOTICES_SHOWN_MS 5000ULL
+#define CLI_NOTICES_FAILED_MS 15000ULL
+void cli_notice_post(const char *text, int failed);
+void cli_notices_input(void);
+void cli_notices_pointer(void);
+void cli_notices_key(const char *name, int editing);
+void cli_notices_break(void);
+void cli_notices_press(unsigned int part);
+void cli_notices_focus(int on);
+void cli_notices_show_again(const char *kind);
+int cli_notices_step(void);
+unsigned long long cli_notices_due_ms(void);
+void cli_notices_restore(const CliStateEntries *entries);
+// the notice the status bar shows, its first line, NULL for none, and whether it is a failure's; whether Focus is on,
+// and how many notices wait on it
+const char *cli_notice_shown(void);
+int cli_notice_failed(void);
+int cli_notices_focused(void);
+unsigned int cli_notices_waiting(void);
 
 struct CliCommandLineInputCfg
 {

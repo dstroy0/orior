@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// controller_terminal.c: the terminal's model, on the controller's thread (controller_internal.h). Each tab is a pane
-// as the editor's are: a text stored under a key of its own with a view on it, which scrolls it, chooses in it and is
-// drawn from; its shell; and the xterm reading the shell's output onto the rows at the text's foot. A line that leaves
+// terminal_tabs.c: the terminal's tabs, on the window's thread. Each tab is a pane as the editor's are: a text stored
+// under a key of its own with a view on it, which scrolls it, chooses in it and is drawn from; its shell; and the xterm
+// reading the shell's output onto the rows at the text's foot. A line that leaves
 // the xterm's top is put in the text above the rows and after the tab's history, the file of its number in orior's
 // folder, as a change not saved is stored; a tab of that number reads its history back as it starts. Besides the tabs:
 // the tab shown and the one beside it where the panel is split; the one the keys go to; whether the panel is open and
@@ -12,14 +12,13 @@
 // at the next key typed into it. The place, whether the panel is open, the tab shown and the one beside it, the height
 // and each tab's number and folder, is stored as a value of orior's folder TERMINAL_PLACE_REST_MS after the last change
 // and as the window ends, when each tab's rows are written after its history too, and read back as the window starts
-#include "controller_internal.h"
+#include "terminal_tabs.h"
 
 #include "../command_line/cells.h"
-#include "../command_line/commands.h"
+#include "../editor/view.h"
 #include "../machine/state.h"
-#include "../terminal/keys.h"
-#include "../terminal/shells.h"
 #include "../text/text.h"
+#include "keys.h"
 
 // the panel's height at first, in pixels at a scale of one; the tabs closed that wait for their shells to end, at the
 // most; how long the window's end waits for every shell; the most bytes a paste sends; the most bytes a key sends; the
@@ -56,9 +55,9 @@ typedef struct
 
 // The terminal: its tabs and how many the cell of them has places for; the tabs closed whose shells have yet to end;
 // the tab shown, the one beside it, the one the keys go to and the one the pointer chooses in, each -1 for none;
-// whether the panel is open, whether it takes the keys and whether the editor took them before it did; its height; the
-// columns and rows the window last said its two views have, 0 before it said; the clock's reading the place is stored
-// at, 0 for none; and whether the place was read back, before which nothing is stored
+// whether the panel is open and whether it takes the keys; its height; the columns and rows the window last sized its
+// two views to, 0 before it sized them; the clock's reading the place is stored at, 0 for none; whether the place was
+// read back, before which nothing is stored; and the tree's top folder a shell with no folder of its own starts in
 typedef struct
 {
     TerminalTab **tab;
@@ -72,12 +71,12 @@ typedef struct
     int choosing;
     int open;
     int keys;
-    int editing_before;
     unsigned int height;
     unsigned int columns[2];
     unsigned int rows[2];
     unsigned long long place_ms;
     int restored;
+    const char *root;
 } TerminalModel;
 
 static TerminalModel s_terminal = {.shown = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
@@ -94,7 +93,10 @@ typedef struct
     unsigned long long past;
     const CliTerminalCell *cells;
     unsigned int columns;
-    const CliInput *input;
+    unsigned long long row;
+    unsigned long long column;
+    unsigned int clicks;
+    int shift;
     unsigned int pointer;
     int on;
     const char *place;
@@ -103,11 +105,9 @@ typedef struct
     unsigned long long *read_at;
 } TerminalCtx;
 
-// the terminal's part marked to be published again, and its place to be stored TERMINAL_PLACE_REST_MS after this change
-// where no other comes before then
+// the terminal's place stored TERMINAL_PLACE_REST_MS after this change where no other comes before then
 EMBED_INLINE void terminal_dirty(void)
 {
-    g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_TERMINAL);
     s_terminal.place_ms = cli_clock_milliseconds() + TERMINAL_PLACE_REST_MS;
 }
 
@@ -566,7 +566,7 @@ EMBED_INLINE void terminal_start(const TerminalCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     mmgr_line_put(&err_msg, "\r\n");
     if (!EMBED_CALL(cli_terminal_shell.start, CliTerminalShellCfg, .shell = &tab->shell, .xterm = &tab->xterm,
-                    .words = NULL, .folder = own_folder ? folder : g_cli_model.root, .err_msg = &err_msg))
+                    .words = NULL, .folder = own_folder ? folder : s_terminal.root, .err_msg = &err_msg))
     {
         mmgr_line_put(&err_msg, "\r\n");
         EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = &tab->xterm,
@@ -678,31 +678,22 @@ EMBED_INLINE void terminal_free(const TerminalCtx *args)
     g_cli_cells->persistent_buf_release(args->tab, &g_cli_terminal_cells);
 }
 
-// the keys sent to the shell of the tab `at`, the editor letting them go
+// the keys sent to the shell of the tab `at`
 EMBED_INLINE void terminal_focus(const TerminalCtx *args)
 {
     s_terminal.focused = args->at;
-    if (!s_terminal.keys)
-    {
-        s_terminal.editing_before = g_cli_model.editing;
-    }
     s_terminal.keys = 1;
-    EMBED_CALL(cli_model.editing, CliModelCtx, .on = 0);
     terminal_fit_all();
 }
 
 // the panel opened, with a tab where there is none, its shells started as they show, taking the keys where `on` is 2;
-// or closed where `on` is 0, the keys handed back to the editor where it took them before
+// or closed where `on` is 0, the keys let go
 EMBED_INLINE void terminal_toggle(const TerminalCtx *args)
 {
     s_terminal.open = args->on != 0;
     terminal_dirty();
     if (!s_terminal.open)
     {
-        if (s_terminal.keys && s_terminal.editing_before)
-        {
-            EMBED_CALL(cli_model.editing, CliModelCtx, .on = 1);
-        }
         s_terminal.keys = 0;
         return;
     }
@@ -904,13 +895,13 @@ EMBED_INLINE void terminal_paste(const TerminalCtx *args)
     g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
 }
 
-int cli_model_terminal_command(const CliModelCtx *args)
+int cli_terminal_tabs_command(const char *name, const char *const *words, unsigned int count)
 {
     static const char *const s_commands[9] = {"terminal-view", "toggle", "terminal-close", "new",          "split",
                                               "clear",         "kill",   "terminal-paste", "terminal-copy"};
     unsigned int command = 0u;
     while ((command < 9u) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = s_commands[command], .cap = CLI_LABEL_MAX_LEN}))
+           !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_commands[command], .cap = CLI_LABEL_MAX_LEN}))
     {
         command += 1u;
     }
@@ -949,14 +940,14 @@ int cli_model_terminal_command(const CliModelCtx *args)
         return 1;
     case 7u: {
         // the words handed to the paste, a space between each, else the clipboard's text
-        char words[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {words, sizeof(words), 0ULL};
-        for (unsigned int word = 0u; word < args->at; word += 1u)
+        char text_words[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {text_words, sizeof(text_words), 0ULL};
+        for (unsigned int word = 0u; word < count; word += 1u)
         {
             mmgr_line_put(&line, (word != 0u) ? " " : "");
-            mmgr_line_put(&line, args->words[word]);
+            mmgr_line_put(&line, words[word]);
         }
-        EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (args->at != 0u) ? words : NULL,
+        EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (count != 0u) ? text_words : NULL,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         return 1;
     }
@@ -970,7 +961,7 @@ int cli_model_terminal_command(const CliModelCtx *args)
 
 // the panel's menu as terminal.js gives it: Copy, which needs text chosen, Paste, a line, Clear, New Terminal, Split
 // Terminal, on while a shell stands beside the one shown, and Close
-static const CliItem s_terminal_menu[CLI_MODEL_TERMINAL_MENU_ROWS] = {
+static const CliItem s_terminal_menu[CLI_TERMINAL_MENU_ROWS] = {
     {.label = "Copy",
      .command = "terminal-copy",
      .keys = "Ctrl+Shift+C",
@@ -995,53 +986,52 @@ EMBED_INLINE int terminal_chosen(const TerminalCtx *args)
            ((cursor.line != anchor.line) || (cursor.col != anchor.col));
 }
 
-int cli_model_terminal_checked(const CliModelCtx *args)
+int cli_terminal_tabs_checked(const char *name)
 {
     const int at = terminal_target();
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN}))
     {
         return EMBED_CALL(terminal_chosen, TerminalCtx, .tab = (at >= 0) ? s_terminal.tab[at] : NULL);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-keys", .cap = CLI_LABEL_MAX_LEN}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-keys", .cap = CLI_LABEL_MAX_LEN}))
     {
         return s_terminal.open && s_terminal.keys;
     }
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
+    return cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
            (s_terminal.beside >= 0);
 }
 
-const CliItem *cli_model_terminal_menu(const CliModelCtx *args)
+const CliItem *cli_terminal_tabs_menu(void)
 {
-    (void)args;
     return s_terminal_menu;
 }
 
-int cli_model_terminal_key(const CliModelCtx *args)
+int cli_terminal_tabs_key(const char *key)
 {
     if (!s_terminal.open || !s_terminal.keys)
     {
         return 0;
     }
-    const char *name = args->path;
+    const char *name = key;
     unsigned int mods = 0u;
     for (unsigned int read = 0u; read < 3u; read += 1u)
     {
         const unsigned int mod =
-            cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Ctrl+", .cap = 64ULL})    ? CLI_INPUT_MOD_CONTROL
-            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Mod+", .cap = 64ULL})   ? CLI_INPUT_MOD_CONTROL
-            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Alt+", .cap = 64ULL})   ? CLI_INPUT_MOD_ALT
-            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Shift+", .cap = 64ULL}) ? CLI_INPUT_MOD_SHIFT
+            cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Ctrl+", .cap = 64ULL})    ? CLI_TERMINAL_MOD_CONTROL
+            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Mod+", .cap = 64ULL})   ? CLI_TERMINAL_MOD_CONTROL
+            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Alt+", .cap = 64ULL})   ? CLI_TERMINAL_MOD_ALT
+            : cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Shift+", .cap = 64ULL}) ? CLI_TERMINAL_MOD_SHIFT
                                                                                               : 0u;
-        const unsigned int skipped = (mod == CLI_INPUT_MOD_SHIFT) ? 6u
-                                                                  : ((mod == 0u)        ? 0u
-                                                                     : (name[0] == 'C') ? 5u
-                                                                                        : 4u);
+        const unsigned int skipped = (mod == CLI_TERMINAL_MOD_SHIFT) ? 6u
+                                                                     : ((mod == 0u)        ? 0u
+                                                                        : (name[0] == 'C') ? 5u
+                                                                                           : 4u);
         mods |= mod;
         name += skipped;
     }
-    const int control = (mods & CLI_INPUT_MOD_CONTROL) != 0u;
-    const int alt = (mods & CLI_INPUT_MOD_ALT) != 0u;
-    const int shift = (mods & CLI_INPUT_MOD_SHIFT) != 0u;
+    const int control = (mods & CLI_TERMINAL_MOD_CONTROL) != 0u;
+    const int alt = (mods & CLI_TERMINAL_MOD_ALT) != 0u;
+    const int shift = (mods & CLI_TERMINAL_MOD_SHIFT) != 0u;
     const int at = terminal_target();
     TerminalTab *const target = (at >= 0) ? s_terminal.tab[at] : NULL;
     // Ctrl+Shift+V pastes and Ctrl+Shift+C copies what is chosen; Ctrl+C copies where something is chosen, and else
@@ -1076,20 +1066,19 @@ int cli_model_terminal_key(const CliModelCtx *args)
     return !control || alt;
 }
 
-int cli_model_terminal_text(const CliModelCtx *args)
+int cli_terminal_tabs_text(const char *bytes, unsigned long long length)
 {
     if (!s_terminal.open || !s_terminal.keys)
     {
         return 0;
     }
-    EMBED_CALL(terminal_send, TerminalCtx, .bytes = args->path, .size = args->length);
+    EMBED_CALL(terminal_send, TerminalCtx, .bytes = bytes, .size = length);
     return 1;
 }
 
-// the pointer's event `pointer` at the row and the column `input` names handed to the view of the tab `at`
+// the pointer's event `pointer` at the row `row` and the column `column` handed to the view of the tab `at`
 EMBED_INLINE void terminal_point(const TerminalCtx *args)
 {
-    const CliInput *const input = args->input;
     const TerminalTab *const tab = s_terminal.tab[args->at];
     if (!tab->stored)
     {
@@ -1097,10 +1086,10 @@ EMBED_INLINE void terminal_point(const TerminalCtx *args)
     }
     const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
                                   .pointer = args->pointer,
-                                  .row = input->row,
-                                  .column = input->column,
-                                  .clicks = input->clicks,
-                                  .shift = (input->mods & CLI_INPUT_MOD_SHIFT) != 0u};
+                                  .row = args->row,
+                                  .column = args->column,
+                                  .clicks = args->clicks,
+                                  .shift = args->shift};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &pointed,
@@ -1108,39 +1097,39 @@ EMBED_INLINE void terminal_point(const TerminalCtx *args)
     terminal_dirty();
 }
 
-void cli_model_terminal_press(const CliModelCtx *args)
+void cli_terminal_tabs_press(const CliTerminalTabsPressCfg *args)
 {
-    const CliInput *const input = (const CliInput *)args->input;
     // a place pressed among the tabs is far inside what an int counts
-    const int at = (input->index < s_terminal.tabs) ? (int)input->index : -1;
-    switch (input->hit)
+    const int at = (args->index < s_terminal.tabs) ? (int)args->index : -1;
+    switch (args->hit)
     {
-    case CLI_HIT_TERMINAL: {
-        const int viewed = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (input->index != 0u) ? 1u : 0u);
+    case CLI_TERMINAL_HIT_PANE: {
+        const int viewed = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (args->index != 0u) ? 1u : 0u);
         if (viewed >= 0)
         {
             EMBED_CALL(terminal_focus, TerminalCtx, .at = viewed);
             s_terminal.choosing = viewed;
-            EMBED_CALL(terminal_point, TerminalCtx, .at = viewed, .input = input, .pointer = CLI_VIEW_POINTER_DOWN);
+            EMBED_CALL(terminal_point, TerminalCtx, .at = viewed, .row = args->row, .column = args->column,
+                       .clicks = args->clicks, .shift = args->shift, .pointer = CLI_VIEW_POINTER_DOWN);
         }
         break;
     }
-    case CLI_HIT_TERMINAL_TAB:
+    case CLI_TERMINAL_HIT_TAB:
         if (at >= 0)
         {
             EMBED_CALL(terminal_show, TerminalCtx, .at = at);
         }
         break;
-    case CLI_HIT_TERMINAL_TAB_CLOSE:
+    case CLI_TERMINAL_HIT_TAB_CLOSE:
         if (at >= 0)
         {
             EMBED_CALL(terminal_close, TerminalCtx, .at = at, .on = 1);
         }
         break;
-    case CLI_HIT_TERMINAL_NEW:
-        (void)cli_model_terminal_command(&(CliModelCtx){.path = "new"});
+    case CLI_TERMINAL_HIT_NEW:
+        (void)cli_terminal_tabs_command("new", NULL, 0u);
         break;
-    case CLI_HIT_TERMINAL_SPLIT:
+    case CLI_TERMINAL_HIT_SPLIT:
         terminal_split();
         break;
     default:
@@ -1150,24 +1139,22 @@ void cli_model_terminal_press(const CliModelCtx *args)
     }
 }
 
-int cli_model_terminal_pointer(const CliModelCtx *args)
+int cli_terminal_tabs_pointer(const CliTerminalTabsPressCfg *args)
 {
-    const CliInput *const input = (const CliInput *)args->input;
     if ((s_terminal.choosing < 0) || (s_terminal.choosing >= (int)s_terminal.tabs))
     {
         return 0;
     }
-    const int up = input->kind == CLI_INPUT_POINTER_UP;
-    EMBED_CALL(terminal_point, TerminalCtx, .at = s_terminal.choosing, .input = input,
-               .pointer = up ? CLI_VIEW_POINTER_UP : CLI_VIEW_POINTER_MOVED);
-    s_terminal.choosing = up ? -1 : s_terminal.choosing;
+    EMBED_CALL(terminal_point, TerminalCtx, .at = s_terminal.choosing, .row = args->row, .column = args->column,
+               .clicks = args->clicks, .shift = args->shift,
+               .pointer = args->up ? CLI_VIEW_POINTER_UP : CLI_VIEW_POINTER_MOVED);
+    s_terminal.choosing = args->up ? -1 : s_terminal.choosing;
     return 1;
 }
 
-void cli_model_terminal_wheel(const CliModelCtx *args)
+void cli_terminal_tabs_wheel(unsigned int view, int rows)
 {
-    const CliInput *const input = (const CliInput *)args->input;
-    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (input->index != 0u) ? 1u : 0u);
+    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (view != 0u) ? 1u : 0u);
     if ((at < 0) || !s_terminal.tab[at]->stored)
     {
         return;
@@ -1175,7 +1162,7 @@ void cli_model_terminal_wheel(const CliModelCtx *args)
     TerminalTab *const tab = s_terminal.tab[at];
     // the view's top moved by the wheel's rows, down where positive, between the text's first line and the xterm's
     // rows; a top and a wheel's rows are far inside what a long long counts
-    const long long moved = (long long)cli_view_top(tab->key) + (long long)input->rows_moved;
+    const long long moved = (long long)cli_view_top(tab->key) + (long long)rows;
     // a top between none and the history's lines is what an unsigned long long counts
     const unsigned long long top =
         (moved < 0LL) ? 0ULL : (((unsigned long long)moved > tab->history) ? tab->history : (unsigned long long)moved);
@@ -1183,26 +1170,24 @@ void cli_model_terminal_wheel(const CliModelCtx *args)
     terminal_dirty();
 }
 
-void cli_model_terminal_size(const CliModelCtx *args)
+void cli_terminal_tabs_size(unsigned int view, unsigned int columns, unsigned int rows)
 {
-    const CliInput *const input = (const CliInput *)args->input;
-    if (input->kind == CLI_INPUT_TERMINAL_HEIGHT)
-    {
-        s_terminal.height = input->rows;
-        terminal_dirty();
-        return;
-    }
-    const unsigned int view = (input->index != 0u) ? 1u : 0u;
-    s_terminal.columns[view] = input->columns;
-    s_terminal.rows[view] = input->rows;
-    EMBED_CALL(terminal_fit, TerminalCtx, .view = view);
+    const unsigned int at = (view != 0u) ? 1u : 0u;
+    s_terminal.columns[at] = columns;
+    s_terminal.rows[at] = rows;
+    EMBED_CALL(terminal_fit, TerminalCtx, .view = at);
+}
+
+void cli_terminal_tabs_height(unsigned int height)
+{
+    s_terminal.height = height;
+    terminal_dirty();
 }
 
 // the place stored as a value of orior's folder: whether the panel is open, the tab shown and the one beside it, each
-// one past its place and 0 for none, and the height on the first line, then each tab's number and folder a line;
-// written at once where `on` is 1, as the window ends, and else on the files' lane. Nothing is stored before the place
-// was read back, which it would write over
-EMBED_INLINE void terminal_place_save(const TerminalCtx *args)
+// one past its place and 0 for none, and the height on the first line, then each tab's number and folder a line.
+// Nothing is stored before the place was read back, which it would write over
+EMBED_INLINE void terminal_place_save(void)
 {
     s_terminal.place_ms = 0ULL;
     if (!s_terminal.restored)
@@ -1232,9 +1217,14 @@ EMBED_INLINE void terminal_place_save(const TerminalCtx *args)
         mmgr_line_put(&out, s_terminal.tab[at]->folder);
         mmgr_line_ch(&out, '\n');
     }
-    if (mmgr_line_ok(&out) && (mmgr_line_finish(&out) != 0ULL))
+    char folder[CLI_PATH_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    if (mmgr_line_ok(&out) && (mmgr_line_finish(&out) != 0ULL) &&
+        EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
-        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = TERMINAL_PLACE_KEY, .value = text);
+        (void)cli_state_value_save(
+            &(CliStateValueCfg){.folder = folder, .key = TERMINAL_PLACE_KEY, .value = text, .err_msg = &err_msg});
     }
     g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
 }
@@ -1274,13 +1264,12 @@ EMBED_INLINE void terminal_rows_file(const TerminalCtx *args)
     g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
 }
 
-int cli_model_terminal_step(const CliModelCtx *args)
+int cli_terminal_tabs_step(void)
 {
-    (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
     if ((s_terminal.place_ms != 0ULL) && (now_ms >= s_terminal.place_ms))
     {
-        EMBED_CALL(terminal_place_save, TerminalCtx, .on = 0);
+        terminal_place_save();
     }
     int changed = 0;
     for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
@@ -1333,9 +1322,8 @@ int cli_model_terminal_step(const CliModelCtx *args)
     return changed;
 }
 
-unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args)
+unsigned long long cli_terminal_tabs_next_ms(void)
 {
-    (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
     unsigned long long earliest = s_terminal.place_ms;
     for (unsigned int at = 0u; at < (s_terminal.tabs + s_terminal.closings); at += 1u)
@@ -1348,90 +1336,53 @@ unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args)
     return earliest;
 }
 
-void *cli_model_terminal_alloc(const CliModelCtx *args)
+CliTerminalPanel cli_terminal_tabs_panel(void)
 {
-    (void)args;
-    const unsigned int views = (s_terminal.beside >= 0) ? 2u : ((s_terminal.shown >= 0) ? 1u : 0u);
-    unsigned long long cells = 0ULL;
-    for (unsigned int view = 0u; view < views; view += 1u)
-    {
-        const TerminalTab *const tab = s_terminal.tab[EMBED_CALL(terminal_viewed, TerminalCtx, .view = view)];
-        cells += tab->sized ? ((unsigned long long)tab->xterm.columns * tab->xterm.rows) : 0ULL;
-    }
-    unsigned long long label_bytes = 0ULL;
-    for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
-    {
-        const TerminalTab *const tab = s_terminal.tab[at];
-        label_bytes +=
-            24ULL + (tab->sized ? cellul.len(&(CatenaFinitaCfg){.src = tab->xterm.place, .cap = CLI_TERMINAL_PLACE_MAX})
-                                : 0ULL);
-    }
-    CliTerminalPanel *const panel = g_cli_cells->persistent_buf_alloc(
-        sizeof(*panel) + (s_terminal.tabs * sizeof(CliTerminalTab)) + (cells * sizeof(CliTerminalCell)) + label_bytes,
-        &g_cli_controller_cells);
-    if (panel == NULL)
-    {
-        return NULL;
-    }
-    *panel = (CliTerminalPanel){.open = s_terminal.open,
-                                .keys = s_terminal.keys,
-                                .height = s_terminal.height,
-                                .tabs = s_terminal.tabs,
-                                .tab = (CliTerminalTab *)(void *)(panel + 1),
-                                .shown = s_terminal.shown,
-                                .beside = s_terminal.beside,
-                                .views = views};
-    CliTerminalCell *cell = (CliTerminalCell *)(void *)(panel->tab + s_terminal.tabs);
-    for (unsigned int view = 0u; view < views; view += 1u)
-    {
-        const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = view);
-        const TerminalTab *const tab = s_terminal.tab[at];
-        const CliTerminalXterm *const xterm = &tab->xterm;
-        const unsigned long long count = tab->sized ? ((unsigned long long)xterm->columns * xterm->rows) : 0ULL;
-        panel->view[view] = (CliTerminalView){.frame = tab->stored ? cli_view_frame_alloc(tab->key) : NULL,
-                                              .xterm_line = tab->history,
-                                              .columns = (count != 0ULL) ? xterm->columns : 0u,
-                                              .rows = (count != 0ULL) ? xterm->rows : 0u,
-                                              .cell = cell,
-                                              .cursor_x = xterm->cursor.x,
-                                              .cursor_y = xterm->cursor.y,
-                                              .cursor_shown = xterm->cursor_shown,
-                                              .focused = at == s_terminal.focused};
-        if (count != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = cell, .src = xterm->shown, .bytes = count * sizeof(*cell)});
-        }
-        cell += count;
-    }
-    char *text = (char *)(void *)cell;
-    for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
-    {
-        const TerminalTab *const tab = s_terminal.tab[at];
-        const unsigned long long left = label_bytes - (unsigned long long)(text - (char *)(void *)cell);
-        VerbaLinea label = {text, left, 0ULL};
-        mmgr_line_decimal(&label, at + 1ULL, 1u);
-        mmgr_line_ch(&label, ' ');
-        if (!tab->sized || !EMBED_CALL(terminal_folder, TerminalCtx, .place = tab->xterm.place, .out = &label))
-        {
-            mmgr_line_put(&label, "shell");
-        }
-        (void)mmgr_line_finish(&label);
-        panel->tab[at] = (CliTerminalTab){.label = text, .exited = tab->shell.state == CLI_TERMINAL_SHELL_EXITED};
-        text += label.at + 1ULL;
-    }
+    const CliTerminalPanel panel = {s_terminal.open,
+                                    s_terminal.keys,
+                                    s_terminal.height,
+                                    s_terminal.tabs,
+                                    s_terminal.shown,
+                                    s_terminal.beside,
+                                    (s_terminal.beside >= 0) ? 2u : ((s_terminal.shown >= 0) ? 1u : 0u)};
     return panel;
 }
 
-void cli_model_terminal_release(CliTerminalPanel *panel)
+int cli_terminal_tabs_view(unsigned int view, CliTerminalView *out)
 {
-    for (unsigned int view = 0u; view < panel->views; view += 1u)
+    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (view != 0u) ? 1u : 0u);
+    if (at < 0)
     {
-        if (panel->view[view].frame != NULL)
-        {
-            cli_view_frame_release((CliViewFrame *)panel->view[view].frame);
-        }
+        return 0;
     }
-    g_cli_cells->persistent_buf_release(panel, &g_cli_controller_cells);
+    const TerminalTab *const tab = s_terminal.tab[at];
+    const CliTerminalXterm *const xterm = &tab->xterm;
+    *out = (CliTerminalView){.key = tab->stored ? tab->key : NULL,
+                             .xterm_line = tab->history,
+                             .columns = tab->sized ? xterm->columns : 0u,
+                             .rows = tab->sized ? xterm->rows : 0u,
+                             .cell = tab->sized ? xterm->shown : NULL,
+                             .cursor_x = xterm->cursor.x,
+                             .cursor_y = xterm->cursor.y,
+                             .cursor_shown = xterm->cursor_shown,
+                             .focused = at == s_terminal.focused};
+    return 1;
+}
+
+int cli_terminal_tabs_label(unsigned int at, VerbaLinea *out)
+{
+    if (at >= s_terminal.tabs)
+    {
+        return 0;
+    }
+    const TerminalTab *const tab = s_terminal.tab[at];
+    mmgr_line_decimal(out, at + 1ULL, 1u);
+    mmgr_line_ch(out, ' ');
+    if (!tab->sized || !EMBED_CALL(terminal_folder, TerminalCtx, .place = tab->xterm.place, .out = out))
+    {
+        mmgr_line_put(out, "shell");
+    }
+    return tab->shell.state == CLI_TERMINAL_SHELL_EXITED;
 }
 
 // a decimal number read from `size` bytes of `bytes` at `*read_at`, `*read_at` moved past it and one space after it:
@@ -1450,10 +1401,11 @@ EMBED_INLINE unsigned long long terminal_number_read(const TerminalCtx *args)
     return number;
 }
 
-void cli_model_terminal_restore(const CliModelCtx *args)
+void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
 {
-    const char *const place = cli_state_entry_value((const CliStateEntries *)args->input, TERMINAL_PLACE_KEY);
+    const char *const place = (entries != NULL) ? cli_state_entry_value(entries, TERMINAL_PLACE_KEY) : NULL;
     s_terminal.restored = 1;
+    s_terminal.root = root;
     if (place == NULL)
     {
         return;
@@ -1515,11 +1467,10 @@ void cli_model_terminal_restore(const CliModelCtx *args)
     terminal_dirty();
 }
 
-void cli_model_terminal_end(const CliModelCtx *args)
+void cli_terminal_tabs_end(void)
 {
-    (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
-    EMBED_CALL(terminal_place_save, TerminalCtx, .on = 1);
+    terminal_place_save();
     for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
     {
         EMBED_CALL(terminal_rows_file, TerminalCtx, .tab = s_terminal.tab[at]);
@@ -1543,7 +1494,7 @@ void cli_model_terminal_end(const CliModelCtx *args)
     CliWake pause = CLI_WAKE_INIT;
     while ((s_terminal.closings != 0u) && (cli_clock_milliseconds() < (now_ms + TERMINAL_END_MS)))
     {
-        (void)cli_model_terminal_step(args);
+        (void)cli_terminal_tabs_step();
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause,
                          .milliseconds_u64 = CLI_TERMINAL_LOOK_MS);
     }

@@ -9,9 +9,7 @@
 
 #define MENUBAR_TEST_ROWS 60u
 
-static CliMenuRow s_rows[MENUBAR_TEST_ROWS];
-static CliMenuLevel s_level;
-static CliMenus s_menus;
+static CliItem s_rows[MENUBAR_TEST_ROWS];
 
 // the row of the open menu the pixel at x, y stands on, the rows' count where it stands on none
 static unsigned int row_at(const GuiMenubar *menubar, int x, int y)
@@ -38,18 +36,11 @@ int main(void)
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     for (unsigned int at = 0u; at < MENUBAR_TEST_ROWS; at += 1u)
     {
-        s_rows[at] = (CliMenuRow){CLI_MENU_ROW_ITEM, "Row", "", 0, -1};
+        s_rows[at] = (CliItem){"Row", "row", "", "", "", "", 0, 0, 0, 0, 0u};
     }
-    s_level = (CliMenuLevel){s_rows, MENUBAR_TEST_ROWS, -1, -1, 1u};
-    s_menus.levels = 1u;
-    s_menus.level = &s_level;
-    s_menus.open = -1;
-    s_menus.place = CLI_MENU_PLACE_POINT;
-    s_menus.x = 300;
-    s_menus.y = 100;
+    cli_menus_own_open(s_rows, MENUBAR_TEST_ROWS, CLI_MENU_PLACE_POINT, 300, 100);
     static GuiMenubar menubar;
     EMBED_CALL(gui_menubar.init, GuiMenubarCfg, .menubar = &menubar);
-    menubar.menus = &s_menus;
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     const GuiRect menu = menubar.menu_rect[0];
     cli_check(menu.height == (920 - 56), "a menu too long for the window stands no taller than the window less 3.5rem");
@@ -66,15 +57,14 @@ int main(void)
     const int last_y = menu.y + menu.height - GUI_MENU_PAD - (GUI_ITEM_HEIGHT / 2);
     cli_check(row_at(&menubar, 310, last_y) == (MENUBAR_TEST_ROWS - 1u), "scrolled to its end, its last row stands at its foot and no further");
 
-    s_level.pointed = 2;
+    g_cli_menus_open.level[0].pointed = 2;
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, menu.y + 1 + (GUI_ITEM_HEIGHT / 2)) == 2u, "a row marked anew above the rows shown is scrolled to the top");
     (void)EMBED_CALL(gui_menubar_glyphs_frame_x.wheel, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame, .x = 310, .y = first_y, .rows = 3);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, first_y) != 0u, "the same row still marked leaves the rows where the wheel moved them");
 
-    s_level.serial = 2u;
-    s_level.pointed = -1;
+    cli_menus_own_open(s_rows, MENUBAR_TEST_ROWS, CLI_MENU_PLACE_POINT, 300, 100);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, first_y) == 0u, "a menu opened anew stands at its first row");
 

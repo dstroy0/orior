@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // menubar.h: the menu bar's titles across the bar and the menus open under them, or at the place a part's menu was
-// asked for, as the controller publishes them: those titles the window's width has capacity for, the rest folded into a
-// last title, which the window tells the controller. Where each stands and which pixel stands on what is worked out
-// here; every press and key means what the controller says it means (menubar.c)
+// asked for, as the command line's menus stand open (commands.h): those titles the window's width has capacity for, the
+// rest folded into a last title, which the window hands to the menus. Where each stands and which pixel stands on what
+// is worked out here; every press and key means what the menus take it to mean (menubar.c)
 #ifndef GUI_PARTS_MENUBAR_H
 #define GUI_PARTS_MENUBAR_H
-#include "../../controller/controller.h"
+#include "../../command_line/commands.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
+#include "../view.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct GuiMenubarBarCfg GuiMenubarBarCfg;
@@ -65,14 +66,12 @@ typedef struct
     GuiRect rect;
 } GuiTitle;
 
-// The menu bar: the menus as last published, NULL for none, the controller's and read alone; the titles laid, how many,
-// and the place among the titles from which they are folded into the last; the title the pointer stands on, -1 for
-// none; where each menu open stands; and each menu's rows as they scroll: the pixels scrolled off its top, the height
-// all its rows take, the serial of the menu they are scrolled in and the row last marked in it, which was scrolled into
-// view
+// The menu bar: the titles laid, how many, and the place among the titles from which they are folded into the last; the
+// title the pointer stands on, -1 for none; where each menu open stands; and each menu's rows as they scroll: the
+// pixels scrolled off its top, the height all its rows take, the serial of the menu they are scrolled in and the row
+// last marked in it, which was scrolled into view
 typedef struct
 {
-    const CliMenus *menus;
     GuiTitle title[GUI_MENUBAR_TITLES];
     unsigned int titles;
     unsigned int folded_from;

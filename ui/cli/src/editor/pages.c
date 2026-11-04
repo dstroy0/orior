@@ -237,31 +237,38 @@ void cli_page_shape_write(const CliPagesOneCtx *args)
     mmgr_line_ch(args->out, '}');
 }
 
-// a paged text `key` for the file at `path` in a cell of its own and not stored, its index to read the file at
-// `index_path`, or at `path` where that is NULL: the text, or NULL with why written into `err_msg` where the file
-// cannot be read or the cells cannot meet it
-EMBED_INLINE CliPaged *pages_alloc(const CliPagesErrMsgCtx *args)
+int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
 {
-    const char *const index_path = (args->index_path != NULL) ? args->index_path : args->path;
     unsigned long long size = 0ULL;
-    if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = index_path, .size_pointer = &size))
+    if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size))
     {
-        mmgr_line_put(args->err_msg, index_path);
+        mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": it could not be read");
-        return NULL;
+        return 0;
     }
-    CliPaged *const one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
+    // a text stored under the key already is let go first, its index stopped and its shadow removed
+    CliPaged *one = g_cli_paged;
+    while ((one != NULL) &&
+           (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL})))
+    {
+        one = one->next;
+    }
+    if (one != NULL)
+    {
+        EMBED_CALL(pages_let_go, PagesCtx, .one = one);
+    }
+    one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
     if (one == NULL)
     {
         mmgr_line_put(args->err_msg, "the paged text's cells could not be taken");
-        return NULL;
+        return 0;
     }
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     if (!EMBED_CALL(pages_cells_alloc, PagesCtx, .one = one, .size = size))
     {
         g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
         mmgr_line_put(args->err_msg, "the paged text's cells could not be taken");
-        return NULL;
+        return 0;
     }
     one->index.start[0] = 0ULL;
     one->index.line[0] = 0ULL;
@@ -269,8 +276,8 @@ EMBED_INLINE CliPaged *pages_alloc(const CliPagesErrMsgCtx *args)
     one->index.lines = 1ULL;
     one->index.read_state = 1;
     memor.cpy(&(MemoriaCfg){.dst = one->index.path,
-                            .src = index_path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = index_path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = one->key,
                             .src = args->key,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
@@ -280,54 +287,11 @@ EMBED_INLINE CliPaged *pages_alloc(const CliPagesErrMsgCtx *args)
     EMBED_CALL(cli_pages_path_internal.page_adjacent, CliPagesPathCtx, .path = args->path, .ending = CLI_PAGE_SHADOW,
                .adjacent = one->shadow);
     one->size = size;
-    one->eol = EMBED_CALL(cli_eol_get, PagesCtx, .path = index_path);
+    one->eol = EMBED_CALL(cli_eol_get, PagesCtx, .path = args->path);
     one->piece[0] = (CliPagePiece){0, 0ULL, 0ULL, 1, 0ULL};
     one->pieces = 1u;
-    return one;
-}
-
-void cli_page_store(const CliPagesOneCtx *args)
-{
-    // a text stored under the key already is let go, its index stopped and its shadow removed
-    CliPaged *there = g_cli_paged;
-    while ((there != NULL) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = there->key, .other = args->one->key, .cap = CLI_CELLS_POOL})))
-    {
-        there = there->next;
-    }
-    if (there != NULL)
-    {
-        EMBED_CALL(pages_let_go, PagesCtx, .one = there);
-    }
-    args->one->next = g_cli_paged;
-    g_cli_paged = args->one;
-}
-
-void cli_page_free(const CliPagesOneCtx *args)
-{
-    // a text never stored is on no list, its index read whole and no shadow written, so its cells are all it has
-    EMBED_CALL(pages_cells_free, PagesCtx, .one = args->one);
-    g_cli_cells->persistent_buf_release(args->one, &g_cli_editor_cells);
-}
-
-CliPaged *cli_page_read_alloc(const CliPagesErrMsgCtx *args)
-{
-    CliPaged *const one = pages_alloc(args);
-    if (one != NULL)
-    {
-        cli_index_read(&one->index);
-    }
-    return one;
-}
-
-int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
-{
-    CliPaged *const one = pages_alloc(args);
-    if (one == NULL)
-    {
-        return 0;
-    }
-    EMBED_CALL(cli_pages_one_internal.page_store, CliPagesOneCtx, .one = one);
+    one->next = g_cli_paged;
+    g_cli_paged = one;
     one->index.reader = (CliThread){cli_index_read, &one->index};
     if (!args->behind || !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &one->index.reader))
     {

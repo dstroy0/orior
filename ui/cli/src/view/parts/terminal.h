@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// terminal.h: the terminal's panel at the work's foot under both views, as the controller publishes it: its top line;
+// terminal.h: the terminal's panel at the work's foot under both views, as the terminal's tabs stand: its top line;
 // its strip of tabs, each its number and folder and a × that ends it, the tab shown on the ground with the signal
 // under it and an ended shell's quieter, then New Terminal and Split, Split in the signal while the panel is split; and
 // under the strip the panes shown, one or two side by side with a line between, the one the keys go to marked at its
@@ -9,10 +9,12 @@
 // takes the keys and an outline where it does not (terminal.c)
 #ifndef GUI_PARTS_TERMINAL_H
 #define GUI_PARTS_TERMINAL_H
-#include "../../controller/controller_parts.h"
+#include "../../editor/view.h"
+#include "../../terminal/terminal_tabs.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
+#include "../view.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct GuiTerminalCfg GuiTerminalCfg;
@@ -43,10 +45,13 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 #define GUI_TERMINAL_TAB_SIZE 12u
 #define GUI_TERMINAL_CHOSEN_LINE 2
 
-// The terminal as last published, NULL before any, the controller's and read alone
+// The terminal as the window last read it of the terminal's tabs: the panel, its two panes, the one shown then the one
+// beside it, and each pane's frame of its tab's text, NULL for none
 typedef struct
 {
-    const CliTerminalPanel *panel;
+    CliTerminalPanel panel;
+    CliTerminalView view[2];
+    const CliViewFrame *frame[2];
 } GuiTerminal;
 
 // the columns and rows the pane `view` shows, 0 the one shown and 1 the one beside it, into `columns` and `rows`, two

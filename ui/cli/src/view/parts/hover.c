@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// hover.c: the hover panel, its box laid under its word as the controller publishes it
+// hover.c: the hover panel, its box laid under its word as the panels over the editor carry it
 #include "hover.h"
 
 #include "../../command_line/cli_internal.h"

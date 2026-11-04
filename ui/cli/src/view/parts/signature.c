@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// signature.c: the parameter info panel, as the controller publishes it. The label is drawn piece by piece, each
-// parameter's span its own run, which lets the active and differing parameters take their colors and lines without a
-// second layout
+// signature.c: the parameter info panel, as the panels over the editor carry it. The label is drawn piece by piece,
+// each parameter's span its own run, which lets the active and differing parameters take their colors and lines without
+// a second layout
 #include "signature.h"
 
 #include "../../command_line/cli_internal.h"

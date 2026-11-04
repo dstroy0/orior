@@ -40,24 +40,33 @@ int main(void)
     GuiFrame frame;
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     cli_check(frame.tabs.width > 0, "the frame lays a tabs row");
-    // the same file's tab as it opened, changed, and changed with its close waiting
-    const CliTabRow tabs[3] = {{"src/view.c", "view.c", 0, 0}, {"src/view.c", "view.c", 1, 0}, {"src/view.c", "view.c", 1, 1}};
-    const GuiRect plain = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .tab = tabs, .count = 3u, .at = 0u);
-    const GuiRect changed = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .tab = tabs, .count = 3u, .at = 1u);
-    const GuiRect waiting = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .tab = tabs, .count = 3u, .at = 2u);
+    // the same file's view as it opened, changed, and changed with its close waiting
+    static const char *const s_keys[3] = {"check:plain", "check:changed", "check:waiting"};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        CliShape shape;
+        cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_keys[at], .text = "int a;\n", .size = 7ull, .shape = &shape) && EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_keys[at], .path = "src/view.c"),
+                  "a view is opened on the file");
+    }
+    EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[1]);
+    EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[2]);
+    cli_view_closing_set(2u, 1);
+    const GuiRect plain = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    const GuiRect changed = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    const GuiRect waiting = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
     const float mark = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = GUI_TAB_SIZE, .text = "\xe2\x97\x8f", .length = 3u);
     cli_check(mark > 0.0f, "the code face, or the face it falls back on, draws the mark");
     cli_check(changed.width - plain.width == (int)roundf(mark) + GUI_TAB_GAP, "a changed tab is wider by the mark and the gap after it");
     cli_check(changed.x == plain.x + plain.width, "the tabs stand in a row");
-    const GuiRect plain_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .tab = tabs, .count = 3u, .at = 1u);
-    const GuiRect waiting_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .tab = tabs, .count = 3u, .at = 2u);
+    const GuiRect plain_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    const GuiRect waiting_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
     cli_check(waiting_close.width > plain_close.width, "the close mark waiting on a second, ×?, is wider than ×");
     cli_check((waiting.width - changed.width) == (waiting_close.width - plain_close.width), "the tab grows by what its close mark grows");
     cli_check(waiting_close.x + waiting_close.width + GUI_TAB_PAD_RIGHT == waiting.x + waiting.width, "the close mark stands at the tab's right, its padding after it");
 
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u), "the raster is taken");
-    EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .tab = tabs, .glyphs = &glyphs, .frame = &frame, .count = 3u, .raster = &raster, .palette = palette, .active = -1);
+    EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame, .raster = &raster, .palette = palette);
     const int left = GUI_TAB_PAD_LEFT;
     const GuiRect plain_mark = {plain.x + left, plain.y, (int)roundf(mark), plain.height};
     const GuiRect changed_mark = {changed.x + left, changed.y, (int)roundf(mark), changed.height};

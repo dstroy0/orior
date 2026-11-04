@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tabs.h: the tabs row above the editor: a tab for each file open, its name in the code face with a close mark after
-// it, ● before the name in the hover's color while its text has changes not saved and ×? for the mark while its close
-// waits on a second, the one shown on its own ground with a line along its top and down its left; a press on a tab's
-// name shows its file and one on its close mark closes it (tabs.c)
+// tabs.h: the tabs row above the editor: a tab for each view open, read where the views stand (editor/view.h), its
+// file's name in the code face with a close mark after it, ● before the name in the hover's color while its text has
+// changes not saved and ×? for the mark while its close waits on a second, the one shown on its own ground with a line
+// along its top and down its left; a press on a tab's name shows its file and one on its close mark closes it (tabs.c)
 #ifndef GUI_PARTS_TABS_H
 #define GUI_PARTS_TABS_H
-#include "../../controller/controller_parts.h"
+#include "../../editor/view.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
@@ -28,22 +28,20 @@ typedef struct GuiTabsCfg GuiTabsCfg;
 #define GUI_TAB_LINE 2
 #define GUI_TAB_CLOSE_PAD 5
 
-// the name a tab shows, the last part of its path, into `name`, its length
+// the name the tab `at` shows, the last part of its file's path, its length into `length`
 const char *gui_tab_name(const GuiTabsCfg *args);
-// the rectangle of the tab `at` of the `count` tabs in the frame's tabs row, and its close mark's
+// the rectangle of the tab `at` in the frame's tabs row, and its close mark's
 GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args);
 GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args);
 // the tab at x, y: 1 with its place into `at` and whether the pixel stands on its close mark into `closing`, else 0
 int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
-// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one `active`
-// on its own ground with its lines, -1 for none
+// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one shown on its
+// own ground with its lines
 void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args);
 struct GuiTabsGlyphsFrameCountCfg
 {
-    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
-    unsigned int count;
     int x;
     int y;
     unsigned int *at_pointer;
@@ -52,27 +50,22 @@ struct GuiTabsGlyphsFrameCountCfg
 
 struct GuiTabsGlyphsFrameCfg
 {
-    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
-    unsigned int count;
     GuiRaster *raster;
     const GuiPalette *palette;
-    int active;
 };
 
 struct GuiTabsGlyphsCfg
 {
-    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
-    unsigned int count;
     unsigned int at;
 };
 
 struct GuiTabsCfg
 {
-    const CliTabRow *tab;
+    unsigned int at;
     unsigned long long *length;
 };
 

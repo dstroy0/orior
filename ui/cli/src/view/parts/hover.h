@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// hover.h: the hover panel, as the controller publishes it: its Markdown in a box under the word's row, a rule between
-// its parts. When it is asked for and when it goes are the controller's (hover.c)
+// hover.h: the hover panel, as the panels over the editor carry it (servers/servers.h): its Markdown in a box under the
+// word's row, a rule between its parts. When it is asked for and when it goes are the panels' (hover.c)
 #ifndef GUI_PARTS_HOVER_H
 #define GUI_PARTS_HOVER_H
-#include "../../controller/controller_parts.h"
+#include "../../servers/servers.h"
 #include "embed_dispatch_layout.h"
 #include "panel.h"
 
@@ -18,8 +18,8 @@ typedef struct GuiHoverCfg GuiHoverCfg;
 #define GUI_HOVER_PAD_Y 7
 #define GUI_HOVER_PAD_X 11
 
-// The hover: the panel as last published, NULL for none, the controller's and read alone; and the box's rectangle where
-// it was drawn last
+// The hover: the panel shown, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
+// last
 typedef struct
 {
     const CliHoverPanel *panel;

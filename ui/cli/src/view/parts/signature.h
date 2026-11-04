@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// signature.h: the parameter info panel, as the controller publishes it: the label in a box over the cursor's row in
-// the code face, the parameter the cursor's argument answers in the type's color and underlined, the parameters the
-// tree's check finds the arguments differ from underlined in the fail color, and the documentation under it. When it is
-// asked for and when it goes are the controller's (signature.c)
+// signature.h: the parameter info panel, as the panels over the editor carry it (servers/servers.h): the label in a box
+// over the cursor's row in the code face, the parameter the cursor's argument answers in the type's color and
+// underlined, the parameters the tree's check finds the arguments differ from underlined in the fail color, and the
+// documentation under it. When it is asked for and when it goes are the panels' (signature.c)
 #ifndef GUI_PARTS_SIGNATURE_H
 #define GUI_PARTS_SIGNATURE_H
 #include "../../text/edits.h"
@@ -22,8 +22,8 @@ typedef struct GuiSignatureCfg GuiSignatureCfg;
 #define GUI_SIGNATURE_PAD_X 10
 #define GUI_SIGNATURE_GAP 4
 
-// The signature: the panel as last published, NULL for none, the controller's and read alone; and the box's rectangle
-// where it was drawn last
+// The signature: the panel shown, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
+// last
 typedef struct
 {
     const CliSignaturePanel *panel;

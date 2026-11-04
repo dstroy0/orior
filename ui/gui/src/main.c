@@ -6,6 +6,7 @@
 // the view's ring, each order the view writes back is done, and a raster an order hands over is shown; the loop runs
 // until the window closes, its place saved as it does
 #include "../../cli/src/command_line/callback_cfg.h"
+#include "../../cli/src/command_line/command_line.h"
 #include "system.h"
 
 // the window's size where none is saved, in the system's pixels; and the monitors read at the most
@@ -69,7 +70,7 @@ static void main_closing(void *context)
     main_preferences_close();
     CliWindowPosition place;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = s_system, .position_out = &place);
-    cli_controller_place_store(&place);
+    cli_view_place_store(cli_command_line_root(), &place);
     EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = s_system);
     s_system = NULL;
 }
@@ -208,7 +209,7 @@ static void main_err(const VerbaLinea *err_msg)
 int main(void)
 {
     int window = 0;
-    const int code = cli_controller_command_line(&window);
+    const int code = cli_command_line_window(&window);
     if (!window)
     {
         return code;
@@ -228,7 +229,7 @@ int main(void)
     const unsigned int count =
         EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .most = GUI_MONITORS);
     CliWindowPosition place;
-    if (!cli_controller_place_saved(areas, count, &place))
+    if (!cli_view_place_saved(cli_command_line_root(), areas, count, &place))
     {
         // the first size, in the middle of the main monitor where there is one
         place = (CliWindowPosition){0, 0, GUI_FIRST_WIDTH, GUI_FIRST_HEIGHT, 0};

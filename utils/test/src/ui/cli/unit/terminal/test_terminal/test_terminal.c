@@ -4,18 +4,18 @@
 // erased and scrolled off the top to the history, the second screen, the answers to where the cursor is, the folder a
 // shell reports, wrapping at the last column and letters past ASCII cut between two reads; a shell started in a
 // pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent once it settles, and its end
-// printed; and the terminal's model, its panel opened on a tab whose shell starts as its pane is sized, the keys it
-// takes and those it lets go to the window, what it publishes, and the lines that leave the xterm's top in the tab's
-// text and its history's file; the panel's place stored as the window ends and read back as it starts, a tab's
-// shell started in its folder and the rows standing at the end written to its history; and the Terminal menu's Split
-// Terminal shown on while a shell stands beside the one shown
+// printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its pane is sized, the keys it
+// takes and those it lets go to the window, the panel and its panes as they stand, and the lines that leave the
+// xterm's top in the tab's text and its history's file; the panel's place stored as the window ends and read back as
+// it starts, a tab's shell started in its folder and the rows standing at the end written to its history; and the
+// panel's menu, Split Terminal shown on while a shell stands beside the one shown, opened where it was asked for
 #include "ui/cli/src/command_line/cells.h"
-#include "ui/cli/src/controller/controller_internal.h"
-#include "ui/cli/src/controller/controller_work.h"
+#include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/terminal/keys.h"
 
 #include "ui/cli/src/terminal/shells.h"
+#include "ui/cli/src/terminal/terminal_tabs.h"
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 #include <stdlib.h>
@@ -90,26 +90,15 @@ static int key_sent(const char *name, unsigned int mods, int application_cursor)
     return sends;
 }
 
-// whether the controller's lanes run, which the terminal's saves are posted to
-static int s_lanes;
-
 void setUp(void)
 {
     cli_unity_begun();
-    if (!s_lanes)
-    {
-        TEST_ASSERT_TRUE(cli_controller_work_begin());
-        s_lanes = 1;
-    }
 }
 
-// the terminal ended as the window ends it, then the lanes once every piece it posted finished, as the window's end
-// waits on them, and the lanes begun again for the tests after
+// the terminal ended as the window ends it
 static void terminal_ended(void)
 {
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
-    cli_controller_work_end();
-    TEST_ASSERT_TRUE(cli_controller_work_begin());
+    cli_terminal_tabs_end();
 }
 
 void test_the_cursor_keys_send_plain_application_and_modified_sequences(void)
@@ -118,44 +107,44 @@ void test_the_cursor_keys_send_plain_application_and_modified_sequences(void)
     TEST_ASSERT_EQUAL_STRING("\x1b[A", s_text);
     TEST_ASSERT_TRUE(key_sent("Up", 0u, 1));
     TEST_ASSERT_EQUAL_STRING("\x1bOA", s_text);
-    TEST_ASSERT_TRUE(key_sent("Left", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_TRUE(key_sent("Left", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b[1;5D", s_text);
-    TEST_ASSERT_TRUE(key_sent("End", CLI_INPUT_MOD_SHIFT | CLI_INPUT_MOD_ALT, 1));
+    TEST_ASSERT_TRUE(key_sent("End", CLI_TERMINAL_MOD_SHIFT | CLI_TERMINAL_MOD_ALT, 1));
     TEST_ASSERT_EQUAL_STRING("\x1b[1;4F", s_text);
 }
 
 void test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first(void)
 {
-    TEST_ASSERT_TRUE(key_sent("Tab", CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_TRUE(key_sent("Tab", CLI_TERMINAL_MOD_SHIFT, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b[Z", s_text);
-    TEST_ASSERT_TRUE(key_sent("Enter", CLI_INPUT_MOD_ALT, 0));
+    TEST_ASSERT_TRUE(key_sent("Enter", CLI_TERMINAL_MOD_ALT, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b\r", s_text);
     TEST_ASSERT_TRUE(key_sent("F5", 0u, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b[15~", s_text);
-    TEST_ASSERT_TRUE(key_sent("Backspace", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_TRUE(key_sent("Backspace", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_STRING("\x08", s_text);
 }
 
 void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
 {
-    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_TRUE(key_sent("A", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_STRING("\x01", s_text);
-    TEST_ASSERT_TRUE(key_sent("[", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_TRUE(key_sent("[", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b", s_text);
-    TEST_ASSERT_TRUE(key_sent("Space", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_TRUE(key_sent("Space", CLI_TERMINAL_MOD_CONTROL, 0));
     TEST_ASSERT_EQUAL_UINT(0u, (unsigned int)s_text[0]);
-    TEST_ASSERT_TRUE(key_sent("/", CLI_INPUT_MOD_CONTROL | CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_TRUE(key_sent("/", CLI_TERMINAL_MOD_CONTROL | CLI_TERMINAL_MOD_SHIFT, 0));
     TEST_ASSERT_EQUAL_STRING("\x7f", s_text);
-    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_ALT, 0));
+    TEST_ASSERT_TRUE(key_sent("A", CLI_TERMINAL_MOD_ALT, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b"
                              "a",
                              s_text);
-    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_ALT | CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_TRUE(key_sent("A", CLI_TERMINAL_MOD_ALT | CLI_TERMINAL_MOD_SHIFT, 0));
     TEST_ASSERT_EQUAL_STRING("\x1b"
                              "A",
                              s_text);
     TEST_ASSERT_FALSE(key_sent("A", 0u, 0));
-    TEST_ASSERT_FALSE(key_sent("2", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_FALSE(key_sent("2", CLI_TERMINAL_MOD_CONTROL, 0));
 }
 
 void tearDown(void)
@@ -377,23 +366,21 @@ void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void
     TEST_ASSERT_TRUE(xterm_holds("[exited 0]"));
 }
 
-// the terminal's snapshot, published as the controller publishes it, NULL where none could be had
-static CliTerminalPanel *panel_read(void)
+// whether a row of the pane `view` shows `text`, a C string
+static int pane_holds(unsigned int view, const char *text)
 {
-    return (CliTerminalPanel *)EMBED_CALL(cli_model_terminal.alloc, CliModelCtx, .at = 0u);
-}
-
-// whether a row of the view `view` of `panel` holds `text`, a C string
-static int panel_holds(const CliTerminalPanel *panel, unsigned int view, const char *text)
-{
-    const CliTerminalView *const shown = &panel->view[view];
-    for (unsigned int y = 0u; y < shown->rows; y += 1u)
+    CliTerminalView shown;
+    if (!cli_terminal_tabs_view(view, &shown) || (shown.cell == NULL))
     {
-        for (unsigned int from = 0u; from < shown->columns; from += 1u)
+        return 0;
+    }
+    for (unsigned int y = 0u; y < shown.rows; y += 1u)
+    {
+        for (unsigned int from = 0u; from < shown.columns; from += 1u)
         {
             unsigned int at = 0u;
-            while ((text[at] != '\0') && ((from + at) < shown->columns) &&
-                   (shown->cell[((unsigned long long)y * shown->columns) + from + at].letter == (unsigned int)text[at]))
+            while ((text[at] != '\0') && ((from + at) < shown.columns) &&
+                   (shown.cell[((unsigned long long)y * shown.columns) + from + at].letter == (unsigned int)text[at]))
             {
                 at += 1u;
             }
@@ -406,21 +393,15 @@ static int panel_holds(const CliTerminalPanel *panel, unsigned int view, const c
     return 0;
 }
 
-// the model stepped until its view 0 holds `text` or ten seconds pass: 1 where it does
-static int model_until(const char *text)
+// the tabs stepped until the pane shown shows `text` or ten seconds pass: 1 where it does
+static int tabs_until(const char *text)
 {
     static CliWake s_pause;
     const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
     while (cli_clock_milliseconds() < last_ms)
     {
-        (void)EMBED_CALL(cli_model_terminal.step, CliModelCtx, .at = 0u);
-        CliTerminalPanel *const panel = panel_read();
-        const int holds = (panel != NULL) && (panel->views != 0u) && panel_holds(panel, 0u, text);
-        if (panel != NULL)
-        {
-            cli_model_terminal_release(panel);
-        }
-        if (holds)
+        (void)cli_terminal_tabs_step();
+        if (pane_holds(0u, text))
         {
             return 1;
         }
@@ -428,6 +409,21 @@ static int model_until(const char *text)
                          .milliseconds_u64 = CLI_TERMINAL_LOOK_MS);
     }
     return 0;
+}
+
+// the label of the tab `at` into s_text: 1 where its shell ended
+static int tab_label(unsigned int at)
+{
+    VerbaLinea out = {s_text, sizeof(s_text), 0ULL};
+    const int exited = cli_terminal_tabs_label(at, &out);
+    (void)mmgr_line_finish(&out);
+    return exited;
+}
+
+// `text`, a C string, typed where the panel takes the keys: 1 where it does
+static int typed(const char *text)
+{
+    return cli_terminal_tabs_text(text, strlen(text));
 }
 
 void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes(void)
@@ -449,52 +445,47 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path, .bytes = "",
                      .size = 0ull, .fresh = 1);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
-    const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = 0u, .columns = 80u, .rows = 24u};
-    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &sized);
-    CliTerminalPanel *const opened = panel_read();
-    TEST_ASSERT_NOT_NULL(opened);
-    TEST_ASSERT_TRUE(opened->open);
-    TEST_ASSERT_TRUE(opened->keys);
-    TEST_ASSERT_EQUAL_UINT(1u, opened->tabs);
-    TEST_ASSERT_EQUAL_STRING("1 shell", opened->tab[0].label);
-    TEST_ASSERT_EQUAL_UINT(1u, opened->views);
-    TEST_ASSERT_EQUAL_UINT(80u, opened->view[0].columns);
-    TEST_ASSERT_EQUAL_UINT(24u, opened->view[0].rows);
+    cli_terminal_tabs_restore(NULL, NULL);
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    cli_terminal_tabs_size(0u, 80u, 24u);
+    const CliTerminalPanel opened = cli_terminal_tabs_panel();
+    TEST_ASSERT_TRUE(opened.open);
+    TEST_ASSERT_TRUE(opened.keys);
+    TEST_ASSERT_EQUAL_UINT(1u, opened.tabs);
+    TEST_ASSERT_FALSE(tab_label(0u));
+    TEST_ASSERT_EQUAL_STRING("1 shell", s_text);
+    TEST_ASSERT_EQUAL_UINT(1u, opened.views);
+    CliTerminalView pane;
+    TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &pane));
+    TEST_ASSERT_EQUAL_UINT(80u, pane.columns);
+    TEST_ASSERT_EQUAL_UINT(24u, pane.rows);
     // the pane is a view of the tab's text, standing on the xterm's rows
-    TEST_ASSERT_NOT_NULL(opened->view[0].frame);
-    TEST_ASSERT_EQUAL_UINT64(opened->view[0].xterm_line, opened->view[0].frame->top);
-    cli_model_terminal_release(opened);
+    TEST_ASSERT_NOT_NULL(pane.key);
+    CliViewFrame *const frame = cli_view_frame_alloc(pane.key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
+    cli_view_frame_release(frame);
     // Control with a letter goes to the shell, a plain letter comes as text, and Ctrl+` goes on to the window
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "A"));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Ctrl+`"));
-    // what is typed and echoed reads `model^_heard` or `model''_heard`; only the shell's output reads `model_heard`
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("A"));
+    TEST_ASSERT_FALSE(cli_terminal_tabs_key("Ctrl+`"));
+    // what is typed and echoed reads `tabs^_heard` or `tabs''_heard`; only the shell's output reads `tabs_heard`
 #if defined(_WIN32)
-    const char *const typed = "echo model^_heard";
+    TEST_ASSERT_TRUE(typed("echo tabs^_heard"));
 #else
-    const char *const typed = "echo model''_heard";
+    TEST_ASSERT_TRUE(typed("echo tabs''_heard"));
 #endif
-    unsigned long long typed_size = 0ULL;
-    while (typed[typed_size] != '\0')
-    {
-        typed_size += 1ULL;
-    }
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = typed, .length = typed_size));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
-    TEST_ASSERT_TRUE(model_until("model_heard"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(tabs_until("tabs_heard"));
     // the Space key sends nothing of itself: the space it types comes as text
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "echo key", .length = 8ULL));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Space"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "_alone", .length = 6ULL));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
-    TEST_ASSERT_TRUE(model_until("key_alone"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "exit", .length = 4ULL));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
-    TEST_ASSERT_TRUE(model_until("[exited 0]"));
-    CliTerminalPanel *const ended = panel_read();
-    TEST_ASSERT_NOT_NULL(ended);
-    TEST_ASSERT_TRUE(ended->tab[0].exited);
-    cli_model_terminal_release(ended);
+    TEST_ASSERT_TRUE(typed("echo key"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Space"));
+    TEST_ASSERT_TRUE(typed("_alone"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(tabs_until("key_alone"));
+    TEST_ASSERT_TRUE(typed("exit"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(tabs_until("[exited 0]"));
+    TEST_ASSERT_TRUE(tab_label(0u));
     terminal_ended();
 }
 
@@ -503,17 +494,17 @@ static CliStateEntries *entries_read(void)
 {
     char folder[CLI_PATH_MAX_LEN];
     return EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
-               ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_cli_controller_cells})
+               ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_checks_cells})
                : NULL;
 }
 
-// the model's place read back from what orior's folder stores, as the window reads it as it starts
+// the tabs' place read back from what orior's folder stores, as the window reads it as it starts
 static void place_restored(void)
 {
     CliStateEntries *const entries = entries_read();
     TEST_ASSERT_NOT_NULL(entries);
-    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = entries);
-    g_cli_cells->persistent_buf_release(entries, &g_cli_controller_cells);
+    cli_terminal_tabs_restore(entries, NULL);
+    g_cli_cells->persistent_buf_release(entries, &g_checks_cells);
 }
 
 void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
@@ -523,33 +514,30 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
 #else
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
 #endif
-    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "new"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "split"));
-    const CliInput tall = {.kind = CLI_INPUT_TERMINAL_HEIGHT, .rows = 300u};
-    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &tall);
-    CliTerminalPanel *const before = panel_read();
-    TEST_ASSERT_NOT_NULL(before);
-    const int shown = before->shown;
-    const int beside = before->beside;
-    TEST_ASSERT_EQUAL_UINT(2u, before->tabs);
+    cli_terminal_tabs_restore(NULL, NULL);
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("new", NULL, 0u));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
+    cli_terminal_tabs_height(300u);
+    const CliTerminalPanel before = cli_terminal_tabs_panel();
+    const int shown = before.shown;
+    const int beside = before.beside;
+    TEST_ASSERT_EQUAL_UINT(2u, before.tabs);
     TEST_ASSERT_TRUE((shown >= 0) && (beside >= 0) && (shown != beside));
-    cli_model_terminal_release(before);
     terminal_ended();
     place_restored();
-    CliTerminalPanel *const after = panel_read();
-    TEST_ASSERT_NOT_NULL(after);
+    const CliTerminalPanel after = cli_terminal_tabs_panel();
     // the panel opens as it stood, without taking the keys, its tabs, the one shown, the one beside it and its height
-    TEST_ASSERT_TRUE(after->open);
-    TEST_ASSERT_FALSE(after->keys);
-    TEST_ASSERT_EQUAL_UINT(2u, after->tabs);
-    TEST_ASSERT_EQUAL_INT(shown, after->shown);
-    TEST_ASSERT_EQUAL_INT(beside, after->beside);
-    TEST_ASSERT_EQUAL_UINT(300u, after->height);
-    TEST_ASSERT_EQUAL_STRING("1 shell", after->tab[0].label);
-    TEST_ASSERT_EQUAL_STRING("2 shell", after->tab[1].label);
-    cli_model_terminal_release(after);
+    TEST_ASSERT_TRUE(after.open);
+    TEST_ASSERT_FALSE(after.keys);
+    TEST_ASSERT_EQUAL_UINT(2u, after.tabs);
+    TEST_ASSERT_EQUAL_INT(shown, after.shown);
+    TEST_ASSERT_EQUAL_INT(beside, after.beside);
+    TEST_ASSERT_EQUAL_UINT(300u, after.height);
+    (void)tab_label(0u);
+    TEST_ASSERT_EQUAL_STRING("1 shell", s_text);
+    (void)tab_label(1u);
+    TEST_ASSERT_EQUAL_STRING("2 shell", s_text);
     terminal_ended();
 }
 
@@ -591,26 +579,19 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path,
                                 .bytes = "line_before\n", .size = 12ull, .fresh = 1));
     place_restored();
-    const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = 0u, .columns = 120u, .rows = 24u};
-    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &sized);
+    cli_terminal_tabs_size(0u, 120u, 24u);
     // the history read back stands in the tab's text above the xterm's rows, its one line
-    CliTerminalPanel *const restored = panel_read();
-    TEST_ASSERT_NOT_NULL(restored);
-    TEST_ASSERT_EQUAL_UINT64(1ull, restored->view[0].xterm_line);
-    cli_model_terminal_release(restored);
+    CliTerminalView restored;
+    TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &restored));
+    TEST_ASSERT_EQUAL_UINT64(1ull, restored.xterm_line);
     // the panel opens as it stood, without the keys, which a press in its pane gives it
-    const CliInput pressed = {.hit = CLI_HIT_TERMINAL, .index = 0u};
-    EMBED_CALL(cli_model_terminal.press, CliModelCtx, .input = &pressed);
-    const CliInput let_go = {.kind = CLI_INPUT_POINTER_UP};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.pointer, CliModelCtx, .input = &let_go));
-    unsigned long long asked_size = 0ull;
-    while (asked[asked_size] != '\0')
-    {
-        asked_size += 1ull;
-    }
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = asked, .length = asked_size));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
-    TEST_ASSERT_TRUE(model_until("place_folder"));
+    TEST_ASSERT_FALSE(cli_terminal_tabs_panel().keys);
+    cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .index = 0u, .clicks = 1u});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_pointer(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .up = 1}));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_panel().keys);
+    TEST_ASSERT_TRUE(typed(asked));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(tabs_until("place_folder"));
     terminal_ended();
     unsigned long long size = 0ull;
     const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = history_path,
@@ -625,39 +606,52 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
 }
 
-// the row of the first open menu of `menus` whose label is `label`, a C string: NULL where none is
-static const CliMenuRow *menu_row(const CliMenus *menus, const char *label)
+// the answers the window gives the menus, as they read for the terminal's rows: an item that needs a state of the
+// terminal's cannot be chosen while it is off, and an item shows the terminal's state its `checks` names
+static int menu_item_disabled(const CliItem *item)
 {
-    for (unsigned int at = 0u; (menus->levels != 0u) && (at < menus->level[0].rows); at += 1u)
-    {
-        if (strcmp(menus->level[0].row[at].label, label) == 0)
-        {
-            return &menus->level[0].row[at];
-        }
-    }
-    return NULL;
+    return (item->needs[0] != '\0') && !cli_terminal_tabs_checked(item->needs);
 }
 
-// the Terminal menu opened on the bar, its menus as the controller publishes them
-static CliMenus *terminal_menu_read(void)
+static int menu_item_checked(const CliItem *item)
 {
-    CliMenus *const bar = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
-    TEST_ASSERT_NOT_NULL(bar);
+    return cli_terminal_tabs_checked(item->checks);
+}
+
+// the catalog read and the menus handed the window's answers
+static void menus_answered(void)
+{
+    char why[512];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg));
+    g_cli_menus_open.disabled = menu_item_disabled;
+    g_cli_menus_open.checked = menu_item_checked;
+}
+
+// the row of the first menu open whose label is `label`, a C string, into `item`, asserted found
+static void menu_row(const char *label, CliItem *item)
+{
+    for (unsigned int at = 0u; (g_cli_menus_open.levels != 0u) && (at < g_cli_menus_open.level[0].rows); at += 1u)
+    {
+        if (cli_menus_row(0u, at, item) && (strcmp(item->label, label) == 0))
+        {
+            return;
+        }
+    }
+    TEST_FAIL_MESSAGE(label);
+}
+
+// the Terminal menu opened on the bar, every title shown
+static void terminal_menu_opened(void)
+{
     unsigned int title = 0u;
-    while ((title < bar->titles) && (strcmp(bar->title[title], "Terminal") != 0))
+    while ((title < cli_menu_titles()) && (strcmp(cli_menu_title_text(cli_menu_title_menu(title)), "Terminal") != 0))
     {
         title += 1u;
     }
-    TEST_ASSERT_LESS_THAN_UINT(bar->titles, title);
-    g_cli_cells->persistent_buf_release(bar, &g_cli_controller_cells);
-    const CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN, .hit = CLI_HIT_MENU_TITLE, .index = title};
-    EMBED_CALL(cli_model_commands.menu_input, CliModelCtx, .input = &pressed);
-    CliMenus *const menus = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
-    TEST_ASSERT_NOT_NULL(menus);
-    // a press away from the menus closes them again
-    const CliInput away = {.kind = CLI_INPUT_POINTER_DOWN, .hit = CLI_HIT_NONE};
-    EMBED_CALL(cli_model_commands.menu_input, CliModelCtx, .input = &away);
-    return menus;
+    TEST_ASSERT_LESS_THAN_UINT(cli_menu_titles(), title);
+    cli_menus_bar(cli_menu_titles(), 0);
+    cli_menus_title_press(title);
 }
 
 void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_the_one_shown(void)
@@ -667,38 +661,41 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_
 #else
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
 #endif
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_commands.catalog_read, CliModelCtx, .at = 0u));
-    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
-    CliMenus *const alone = terminal_menu_read();
-    const CliMenuRow *const split_alone = menu_row(alone, "Split Terminal");
-    const CliMenuRow *const toggle = menu_row(alone, "Toggle Terminal");
-    TEST_ASSERT_NOT_NULL(split_alone);
-    TEST_ASSERT_NOT_NULL(toggle);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0, split_alone->checked, "Split Terminal is off with one shell shown");
-    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, toggle->checked, "Toggle Terminal is neither on nor off");
-    g_cli_cells->persistent_buf_release(alone, &g_cli_controller_cells);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "split"));
-    CliMenus *const split = terminal_menu_read();
-    const CliMenuRow *const split_beside = menu_row(split, "Split Terminal");
-    TEST_ASSERT_NOT_NULL(split_beside);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(1, split_beside->checked, "Split Terminal is on while a shell stands beside");
-    g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
+    menus_answered();
+    cli_terminal_tabs_restore(NULL, NULL);
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    terminal_menu_opened();
+    CliItem split;
+    CliItem toggle;
+    menu_row("Split Terminal", &split);
+    menu_row("Toggle Terminal", &toggle);
+    TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell shown");
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("", toggle.checks, "Toggle Terminal is neither on nor off");
+    cli_menus_close(0u);
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
+    terminal_menu_opened();
+    menu_row("Split Terminal", &split);
+    TEST_ASSERT_TRUE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is on while a shell stands beside");
+    cli_menus_close(0u);
     terminal_ended();
 }
 
-// the menus as the controller publishes them, and the menu asked for on the terminal's pane `view` at x, y
-static CliMenus *menus_read(void)
+// the panel's menu opened at x, y, as the window opens it where it is asked for on the panel
+static void terminal_menu_asked(int x, int y)
 {
-    CliMenus *const menus = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
-    TEST_ASSERT_NOT_NULL(menus);
-    return menus;
+    cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, x, y);
 }
 
-static void terminal_menu_asked(unsigned int view, int x, int y)
+// the key `name` taken by the menus, a row chosen run as the window runs the terminal's commands
+static void menus_key(const char *name)
 {
-    const CliInput asked = {.kind = CLI_INPUT_MENU, .hit = CLI_HIT_TERMINAL, .index = view, .x = x, .y = y};
-    EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = &asked);
+    CliItem chosen;
+    int chose = 0;
+    (void)cli_menus_key(name, &chosen, &chose);
+    if (chose)
+    {
+        TEST_ASSERT_TRUE(cli_terminal_tabs_command(chosen.command, NULL, 0u));
+    }
 }
 
 void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked(void)
@@ -708,93 +705,66 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
 #else
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
 #endif
-    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
-    terminal_menu_asked(0u, 300, 400);
-    CliMenus *const opened = menus_read();
-    TEST_ASSERT_EQUAL_UINT(1u, opened->levels);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, opened->open, "a menu asked for stands under no title of the bar");
-    TEST_ASSERT_EQUAL_INT(300, opened->x);
-    TEST_ASSERT_EQUAL_INT(400, opened->y);
+    menus_answered();
+    cli_terminal_tabs_restore(NULL, NULL);
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    terminal_menu_asked(300, 400);
+    TEST_ASSERT_EQUAL_UINT(1u, g_cli_menus_open.levels);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, g_cli_menus_open.open, "a menu asked for stands under no title of the bar");
+    TEST_ASSERT_EQUAL_UINT(CLI_MENU_PLACE_POINT, g_cli_menus_open.place);
+    TEST_ASSERT_EQUAL_INT(300, g_cli_menus_open.x);
+    TEST_ASSERT_EQUAL_INT(400, g_cli_menus_open.y);
     static const char *const labels[7] = {"Copy", "Paste", "", "Clear", "New Terminal", "Split Terminal", "Close"};
     static const char *const keys[7] = {"Ctrl+Shift+C", "Ctrl+Shift+V", "", "Ctrl+L", "Ctrl+Shift+`", "", "Ctrl+`"};
-    TEST_ASSERT_EQUAL_UINT(7u, opened->level[0].rows);
+    TEST_ASSERT_EQUAL_UINT(7u, g_cli_menus_open.level[0].rows);
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(labels[at], opened->level[0].row[at].label);
-        TEST_ASSERT_EQUAL_STRING(keys[at], opened->level[0].row[at].keys);
-        TEST_ASSERT_EQUAL_INT_MESSAGE((at == 5u) ? 0 : -1, opened->level[0].row[at].checked,
-                                      "Split Terminal alone shows a state, off with one shell");
+        CliItem row;
+        TEST_ASSERT_TRUE(cli_menus_row(0u, at, &row));
+        TEST_ASSERT_EQUAL_STRING(labels[at], row.label);
+        TEST_ASSERT_EQUAL_STRING(keys[at], row.keys);
+        TEST_ASSERT_EQUAL_STRING_MESSAGE((at == 5u) ? "terminal-split" : "", row.checks,
+                                         "Split Terminal alone shows a state");
+        TEST_ASSERT_EQUAL_INT_MESSAGE(at == 2u, row.line, "the third row is a line");
     }
-    TEST_ASSERT_EQUAL_UINT(CLI_MENU_ROW_LINE, opened->level[0].row[2].kind);
-    TEST_ASSERT_TRUE_MESSAGE(opened->level[0].row[0].disabled, "Copy cannot be chosen while nothing is chosen");
-    TEST_ASSERT_EQUAL_INT_MESSAGE(1, opened->level[0].pointed, "the first row that can be chosen is marked");
-    g_cli_cells->persistent_buf_release(opened, &g_cli_controller_cells);
+    CliItem split;
+    TEST_ASSERT_TRUE(cli_menus_row(0u, 5u, &split));
+    TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell");
+    TEST_ASSERT_FALSE_MESSAGE(cli_menus_selectable(0u, 0u), "Copy cannot be chosen while nothing is chosen");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, g_cli_menus_open.level[0].pointed, "the first row that can be chosen is marked");
     // Right opens no title of the bar from a menu asked for, Down marks the next row, and Enter chooses it
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Right");
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
-    CliMenus *const stepped = menus_read();
-    TEST_ASSERT_EQUAL_INT(-1, stepped->open);
-    TEST_ASSERT_EQUAL_UINT(1u, stepped->levels);
-    TEST_ASSERT_EQUAL_INT(3, stepped->level[0].pointed);
-    g_cli_cells->persistent_buf_release(stepped, &g_cli_controller_cells);
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Enter");
-    CliMenus *const chosen = menus_read();
-    TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, chosen->levels, "a row chosen closes the menu");
-    g_cli_cells->persistent_buf_release(chosen, &g_cli_controller_cells);
-    CliTerminalPanel *const panel = panel_read();
-    TEST_ASSERT_NOT_NULL(panel);
-    TEST_ASSERT_TRUE_MESSAGE(panel->beside >= 0, "Split Terminal chosen shows a shell beside the one shown");
-    cli_model_terminal_release(panel);
-    terminal_menu_asked(1u, 20, 30);
-    CliMenus *const split = menus_read();
-    TEST_ASSERT_EQUAL_INT(1, split->level[0].row[5].checked);
-    g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
-    // Tab closes it, and a right press away from it closes it again once it is asked for again
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Tab");
-    CliMenus *const tabbed = menus_read();
-    TEST_ASSERT_EQUAL_UINT(0u, tabbed->levels);
-    g_cli_cells->persistent_buf_release(tabbed, &g_cli_controller_cells);
-    terminal_menu_asked(0u, 20, 30);
-    const CliInput away = {.kind = CLI_INPUT_MENU_AWAY};
-    EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = &away);
-    CliMenus *const closed = menus_read();
-    TEST_ASSERT_EQUAL_UINT(0u, closed->levels);
-    g_cli_cells->persistent_buf_release(closed, &g_cli_controller_cells);
+    menus_key("Right");
+    menus_key("Down");
+    TEST_ASSERT_EQUAL_INT(-1, g_cli_menus_open.open);
+    TEST_ASSERT_EQUAL_UINT(1u, g_cli_menus_open.levels);
+    TEST_ASSERT_EQUAL_INT(3, g_cli_menus_open.level[0].pointed);
+    menus_key("Down");
+    menus_key("Down");
+    menus_key("Enter");
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, g_cli_menus_open.levels, "a row chosen closes the menu");
+    TEST_ASSERT_TRUE_MESSAGE(cli_terminal_tabs_panel().beside >= 0,
+                             "Split Terminal chosen shows a shell beside the one shown");
+    terminal_menu_asked(20, 30);
+    TEST_ASSERT_TRUE(g_cli_menus_open.checked(&split));
+    // Tab closes it
+    menus_key("Tab");
+    TEST_ASSERT_EQUAL_UINT(0u, g_cli_menus_open.levels);
     terminal_ended();
 }
 
-void test_the_menu_key_opens_the_terminal_menu_at_its_key_field_while_the_panel_takes_the_keys(void)
+void test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away(void)
 {
 #if defined(_WIN32)
     TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
 #else
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
 #endif
-    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "ContextMenu");
-    CliMenus *const opened = menus_read();
-    TEST_ASSERT_EQUAL_UINT(1u, opened->levels);
-    TEST_ASSERT_EQUAL_INT(-1, opened->open);
-    TEST_ASSERT_EQUAL_UINT_MESSAGE(CLI_MENU_PLACE_TERMINAL_KEYS, opened->place,
-                                   "the menu stands at the terminal's key field, as the page's stands at its box");
-    TEST_ASSERT_EQUAL_STRING("Copy", opened->level[0].row[0].label);
-    TEST_ASSERT_EQUAL_INT(1, opened->level[0].pointed);
-    g_cli_cells->persistent_buf_release(opened, &g_cli_controller_cells);
-    // the menu key on a menu open does nothing, and a menu asked for at a point stands at its point
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "ContextMenu");
-    CliMenus *const again = menus_read();
-    TEST_ASSERT_EQUAL_UINT(1u, again->levels);
-    TEST_ASSERT_EQUAL_INT(3, again->level[0].pointed);
-    g_cli_cells->persistent_buf_release(again, &g_cli_controller_cells);
-    terminal_menu_asked(0u, 20, 30);
-    CliMenus *const pointed = menus_read();
-    TEST_ASSERT_EQUAL_UINT(CLI_MENU_PLACE_POINT, pointed->place);
-    g_cli_cells->persistent_buf_release(pointed, &g_cli_controller_cells);
-    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Escape");
+    cli_terminal_tabs_restore(NULL, NULL);
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "a panel closed takes no keys");
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    TEST_ASSERT_TRUE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "the panel opened takes the keys");
+    cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = 0u});
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "a press elsewhere takes them away");
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_key("A"), "a key goes on to the window");
     terminal_ended();
 }

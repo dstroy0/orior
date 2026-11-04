@@ -72,7 +72,7 @@ typedef struct
 // last read it, the command being read, the answer for the shell and the place the shell reported lie in; which of the
 // two screens is drawn on; the cursor, the region that scrolls and the cursor saved; the modes; where the reading of
 // the output stands; what takes the lines that leave the main screen's top, and whether the output asked the history
-// cleared since the controller last looked
+// cleared since the window last read it
 typedef struct
 {
     unsigned int columns;

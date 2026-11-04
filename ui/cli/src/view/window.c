@@ -1,17 +1,55 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window.c: the view of what the controller publishes, on the view's thread. It finds what a pixel stands on and writes
-// that as an input, takes the newest snapshot of each part as it is woken, and draws them; it asks nothing and decides
-// nothing, and every command is the controller's, whoever pressed what. What is its own is what moves on
-// the screen and nothing else: the claim's slides, the name's flight, the circle's stages and the caret's breath, the
-// rows' scroll offsets and the marks the pointer leaves on them
+// window.c: the window on the view's thread. It finds what a pixel stands on and hands each input straight to the
+// module it is for: the menus and the notices of the command line, the views of the editor and their files, the
+// explorer's listing, the servers' panels and problems, and the terminal's tabs; each part draws what its module
+// stores, read where it stands. What is the window's own is what moves on the screen, the strip's tool shown, whether
+// the editor takes the keys, the settings it draws with and the rows' scroll offsets and the marks the pointer leaves
+// on them
 #include "window.h"
 #include "../command_line/callback_cfg.h"
 
+#include "../command_line/cells.h"
+#include "../command_line/command_line.h"
+#include "../machine/reach.h"
+#include "../machine/report.h"
+#include "../machine/state.h"
 #include "../text/text.h"
 #include "parts/chrome.h"
 
 #include <math.h>
+
+// orior's repository, a press on the name opening it; the keys of orior's folder the settings, the session's wordmark
+// and the strip's group stand under; and two starts of a session, the seconds their boot times may read apart, and the
+// most bytes of a log in
+#define GUI_WINDOW_REPOSITORY "https://github.com/dstroy0/orior"
+#define GUI_WINDOW_REDUCE_KEY "reduce-motion"
+#define GUI_WINDOW_ZOOM_KEY "zoom"
+#define GUI_WINDOW_BAR_KEY "opacity.bar"
+#define GUI_WINDOW_EDITOR_KEY "opacity.editor"
+#define GUI_WINDOW_COLOR_KEY "color."
+#define GUI_WINDOW_WORDMARK_KEY "wordmark.session"
+#define GUI_WINDOW_GROUP_KEY "panes.group"
+#define GUI_WINDOW_SESSION_SECONDS 60ULL
+#define GUI_WINDOW_LOGON_MAX_LEN 128u
+// the scheme's opacities of the bar and the editor, in percent, where none is saved
+#define GUI_WINDOW_BAR_PERCENT 30u
+#define GUI_WINDOW_EDITOR_PERCENT 80u
+
+// the commands the window has no keys for that the view runs by name, and the commands that run here whatever else
+// their keys might mean, the terminal's among them
+static const char *const s_view_commands[] = {"sort-ascending", "sort-descending", "unique-lines",
+                                              "upper-case",     "lower-case",      "title-case"};
+static const char *const s_own_commands[] = {
+    "exit",           "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",   "terminal-view",
+    "toggle",         "new",          "split",     "clear",       "kill",          "terminal-copy", "terminal-paste",
+    "terminal-close", "save",         "save-all"};
+
+// the window, which the menus' answers and the walk's threads reach; and whether the walk colored a line since the
+// window last took the frame, set on the walk's threads, and what wakes the view's thread
+static GuiWindow *s_window;
+static embed_atomic_u32 s_colored;
+static void (*s_woken)(void);
 
 int gui_window_begin(const GuiWindowWokenCfg *args)
 {
@@ -64,26 +102,44 @@ typedef struct
     unsigned long long through;
     unsigned int from;
     unsigned int to;
-    CliInput *input;
-    const char *bytes;
-    unsigned long long length;
+    GuiWindowHit *hit;
+    const char *name;
+    const char *const *words;
+    unsigned int count;
+    unsigned int at;
+    const CliPosition *place;
+    const CliStateEntries *entries;
+    unsigned int *percent_out;
+    int edited;
+    const CliViewInput *view_input;
+    unsigned long long *number;
+    unsigned long long *colon;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
 {
-    // every snapshot goes with the controller: nothing of them is read from here on
-    args->window->editor.frame = NULL;
-    args->window->editor.names = NULL;
-    args->window->minimap.lines = NULL;
-    args->window->hover.panel = NULL;
-    args->window->suggest.panel = NULL;
-    args->window->signature.panel = NULL;
-    args->window->menubar.menus = NULL;
-    args->window->explorer.rows = NULL;
-    args->window->problems.problems = NULL;
-    args->window->tabs = NULL;
-    args->window->status = NULL;
-    cli_controller_end();
+    GuiWindow *const window = args->window;
+    cli_view_session_save(cli_command_line_root());
+    cli_terminal_tabs_end();
+    cli_servers_problems_end();
+    cli_servers_panels_end();
+    cli_files_explorer_end();
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
+    // what the window took of the views goes back to them: nothing of it is read from here on
+    cli_view_frame_release((CliViewFrame *)window->editor.frame);
+    g_cli_cells->persistent_buf_release((void *)window->editor.names, &g_cli_view_cells);
+    cli_view_map_release((CliDocumentMap *)window->minimap.lines);
+    cli_view_frame_release((CliViewFrame *)window->terminal.frame[0]);
+    cli_view_frame_release((CliViewFrame *)window->terminal.frame[1]);
+    window->editor.frame = NULL;
+    window->editor.names = NULL;
+    window->minimap.lines = NULL;
+    window->terminal.frame[0] = NULL;
+    window->terminal.frame[1] = NULL;
+    window->hover.panel = NULL;
+    window->suggest.panel = NULL;
+    window->signature.panel = NULL;
+    s_window = NULL;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &args->window->glyphs);
     EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &args->window->icons);
     EMBED_CALL(cli_wordmark_still.free, GuiWordmarkStillCfg, .wordmark = &args->window->wordmark);
@@ -138,11 +194,37 @@ EMBED_INLINE float window_on_screen(const GuiWindowCtx *args)
     return (line_height > 0) ? (float)args->window_read->frame.editor.height / (float)line_height : 0.0f;
 }
 
-// the controller told the columns and rows of each of the terminal's screens shown, where they moved; a screen no
-// longer shown said again as it shows
+// the key of the view shown, NULL for none
+EMBED_INLINE const char *window_shown_key(const GuiWindowCtx *args)
+{
+    (void)args;
+    const int shown = cli_view_shown();
+    // the view shown is among the views
+    return (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL;
+}
+
+// the terminal read again of its tabs: the panel, its panes, and each pane's frame of its tab's text taken anew, the
+// frame it had released
+EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
+{
+    GuiTerminal *const terminal = &args->window->terminal;
+    terminal->panel = cli_terminal_tabs_panel();
+    for (unsigned int view = 0u; view < 2u; view += 1u)
+    {
+        const int shown = cli_terminal_tabs_view(view, &terminal->view[view]);
+        cli_view_frame_release((CliViewFrame *)terminal->frame[view]);
+        terminal->frame[view] =
+            (shown && (terminal->view[view].key != NULL)) ? cli_view_frame_alloc(terminal->view[view].key) : NULL;
+    }
+    args->window->pending = 1;
+}
+
+// the columns and rows of each of the terminal's screens shown handed to its tabs, where they moved; a screen no longer
+// shown handed them again as it shows
 EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
+    int sized = 0;
     for (unsigned int view = 0u; view < 2u; view += 1u)
     {
         unsigned int columns = 0u;
@@ -150,41 +232,96 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
         const int shown =
             EMBED_CALL(gui_terminal.size, GuiTerminalCfg, .terminal_read = &window->terminal, .frame = &window->frame,
                        .glyphs = &window->glyphs, .view = view, .columns = &columns, .rows = &rows);
-        if (shown && ((columns != window->terminal_columns_sent[view]) || (rows != window->terminal_rows_sent[view])))
+        if (shown && ((columns != window->terminal_columns[view]) || (rows != window->terminal_rows[view])))
         {
-            const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = view, .rows = rows, .columns = columns};
-            cli_controller_input(&sized, NULL);
+            cli_terminal_tabs_size(view, columns, rows);
+            sized = 1;
         }
-        window->terminal_columns_sent[view] = columns;
-        window->terminal_rows_sent[view] = rows;
+        window->terminal_columns[view] = columns;
+        window->terminal_rows[view] = rows;
+    }
+    if (sized)
+    {
+        EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
     }
 }
 
-// the controller told the editor's size and how many titles the bar shows, where either moved, and the terminal's
-// screens' sizes
+// the shown view's frame, names and map taken anew of it, those it had released, the panels handed the frame; `edited`
+// where the text changed, which the map's lines no longer show
+EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    const int shown = cli_view_shown();
+    if (shown != window->view_shown)
+    {
+        // another file shown: the map stands anew beside it, at the editor's size
+        window->view_shown = shown;
+        window->map_known = 0;
+        EMBED_CALL(gui_minimap.clear, GuiMinimapCfg, .map = &window->minimap);
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = window->rows, .columns = window->columns};
+        if (key != NULL)
+        {
+            (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &sized,
+                             .err_msg = &err_msg);
+        }
+    }
+    cli_view_frame_release((CliViewFrame *)window->editor.frame);
+    window->editor.frame = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
+    g_cli_cells->persistent_buf_release((void *)window->editor.names, &g_cli_view_cells);
+    window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
+                                                      .owner = &g_cli_view_cells)
+                                         : NULL;
+    if (args->edited || (window->minimap.lines == NULL) || (key == NULL))
+    {
+        cli_view_map_release((CliDocumentMap *)window->minimap.lines);
+        window->minimap.lines =
+            ((key != NULL) && window->map_known) ? cli_view_map_alloc(key, window->map_first, window->map_last) : NULL;
+    }
+    const CliViewFrame *const frame = window->editor.frame;
+    if (frame != NULL)
+    {
+        const CliServersPanelsFrameCfg placed = {frame->cursor.line, frame->cursor.col, frame->top, frame->lines,
+                                                 window->rows};
+        cli_servers_panels_frame(&placed);
+    }
+    // the caret's breath begins again with every frame, which saves the caret at full ink while the keys go
+    window->caret_blink_start_ms = cli_clock_milliseconds();
+    window->pending = 1;
+}
+
+// the editor's size handed to the view shown and how many titles the bar shows handed to the menus, where either moved,
+// and the terminal's screens' sizes
 EMBED_INLINE void window_view_resize(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     EMBED_CALL(window_terminal_resize, GuiWindowCtx, .window = window);
     const unsigned int rows = EMBED_CALL(window_rows, GuiWindowCtx, .window_read = window);
     const unsigned int columns = window_columns(args);
-    const unsigned int titles = (window->menubar.menus != NULL) ? window->menubar.menus->titles : 0u;
+    const unsigned int titles = cli_menu_titles();
     const unsigned int shown = (window->menubar.folded_from < titles) ? window->menubar.folded_from : titles;
     const unsigned int folded = window->menubar.folded_from < titles;
-    if ((rows == window->sent_rows) && (columns == window->sent_columns) && (shown == window->sent_shown) &&
-        (folded == window->sent_folded))
+    cli_menus_bar(shown, (int)folded);
+    if ((rows == window->rows) && (columns == window->columns))
     {
         return;
     }
-    window->sent_rows = rows;
-    window->sent_columns = columns;
-    window->sent_shown = shown;
-    window->sent_folded = folded;
-    const CliInput sized = {.kind = CLI_INPUT_SIZE, .rows = rows, .columns = columns, .index = shown, .level = folded};
-    cli_controller_input(&sized, NULL);
+    window->rows = rows;
+    window->columns = columns;
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
+    if ((key != NULL) &&
+        EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &sized, .err_msg = &err_msg))
+    {
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 0);
+    }
 }
 
-// the lines the map placed beside the view stands for told to the controller, where they moved
+// the lines the map placed beside the view stands for taken of the view, where they moved
 EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -200,15 +337,17 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     unsigned long long last = 0ULL;
     if (!EMBED_CALL(gui_minimap_first.span, GuiMinimapFirstCfg, .map_read = &window->minimap, .first = &first,
                     .last = &last) ||
-        (window->map_sent && (window->map_sent_first == first) && (window->map_sent_last == last)))
+        (window->map_known && (window->map_first == first) && (window->map_last == last)))
     {
         return;
     }
-    window->map_sent = 1;
-    window->map_sent_first = first;
-    window->map_sent_last = last;
-    const CliInput span = {.kind = CLI_INPUT_MAP_SPAN, .row = first, .column = last};
-    cli_controller_input(&span, NULL);
+    window->map_known = 1;
+    window->map_first = first;
+    window->map_last = last;
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    cli_view_map_release((CliDocumentMap *)window->minimap.lines);
+    window->minimap.lines = (key != NULL) ? cli_view_map_alloc(key, first, last) : NULL;
+    window->pending = 1;
 }
 
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
@@ -324,13 +463,14 @@ EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
     return (args->window_read->strip.displayed >= 0) && g_cli_tools[args->window_read->strip.displayed].side;
 }
 
-// the work's inside laid again with the terminal's panel at its foot as the panel stands, the controller told the
-// editor's and the screens' sizes
+// the terminal read again of its tabs and the work's inside laid again with its panel at its foot as the panel stands,
+// the editor's and the screens' sizes handed on where they moved
 EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
 {
-    const CliTerminalPanel *const panel = args->window->terminal.panel;
+    EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = args->window);
+    const CliTerminalPanel *const panel = &args->window->terminal.panel;
     // a panel's height in the page's pixels is far inside what an int represents
-    const int height = ((panel != NULL) && panel->open) ? (int)panel->height : 0;
+    const int height = panel->open ? (int)panel->height : 0;
     args->window->strip.terminal_open = height != 0;
     for (unsigned int at = 0u; at < g_cli_tools_count; at += 1u)
     {
@@ -352,7 +492,7 @@ EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
     window_view_resize(args);
 }
 
-// the work's inside laid again as the strip's tool shown has a side or not, the controller told the editor's size
+// the work's inside laid again as the strip's tool shown has a side or not, the editor's size handed on where it moved
 EMBED_INLINE void window_side(const GuiWindowCtx *args)
 {
     const int side = EMBED_CALL(window_side_show, GuiWindowCtx, .window_read = args->window);
@@ -371,11 +511,10 @@ EMBED_INLINE void window_side(const GuiWindowCtx *args)
 // gone to another window
 EMBED_INLINE void window_menus_close(const GuiWindowCtx *args)
 {
-    const CliMenus *const menus = args->window_read->menubar.menus;
-    if ((menus != NULL) && (menus->levels != 0u))
+    if (g_cli_menus_open.levels != 0u)
     {
-        const CliInput closing = {.kind = CLI_INPUT_MENU_AWAY};
-        cli_controller_input(&closing, NULL);
+        cli_menus_close(0u);
+        args->window->pending = 1;
     }
 }
 
@@ -385,7 +524,7 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     unsigned int height = args->height;
     if ((width != args->window->frame.width) || (height != args->window->frame.height))
     {
-        EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window);
+        EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
     }
     int system_scale = args->system_scale;
     // the frame is laid at the zoom's share of the scale the system gives
@@ -478,9 +617,6 @@ void gui_window_motion_wish(const GuiWindowReducedCfg *args)
 {
     args->window->motion_system = args->reduced;
     EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = args->window);
-    // the controller marks Reduce Motion by the system's wish as well as the saved setting
-    const CliInput wished = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = args->reduced ? 1u : 0u};
-    cli_controller_input(&wished, NULL);
 }
 
 void gui_window_show(const GuiWindowDisplayedCfg *args)
@@ -592,7 +728,7 @@ void gui_window_tick(const GuiWindowCfg *args)
     }
     if (args->window->autohide_moving && !moving)
     {
-        // the slides at rest, the controller is told the editor's size and the map its span
+        // the slides at rest, the editor's size and the map's span handed on where they moved
         EMBED_CALL(window_view_resize, GuiWindowCtx, .window = args->window);
         EMBED_CALL(window_map_span, GuiWindowCtx, .window = args->window);
     }
@@ -654,8 +790,7 @@ EMBED_INLINE int window_caret_cover(const GuiWindowCtx *args)
     {
         return 1;
     }
-    const unsigned int levels =
-        (args->window_read->menubar.menus != NULL) ? args->window_read->menubar.menus->levels : 0u;
+    const unsigned int levels = g_cli_menus_open.levels;
     for (unsigned int level = 0u; (level < levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
         if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
@@ -701,8 +836,13 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
                    .background_fill = &window->background_fill),
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark),
         EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
-        // the circle's clock stops while the window is off screen, a publication waking it as any does
+        // the circle's clock stops while the window is off screen, a wake from a module's thread waking it as any does
         window->off_screen ? 0ULL : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &window->busy),
+        cli_servers_panels_due_ms(),
+        cli_terminal_tabs_next_ms(),
+        cli_notices_due_ms(),
+        g_cli_menus_open.rest_due_ms,
+        window->memory_due_ms,
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -720,39 +860,27 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
     return (earliest > now_ms) ? earliest - now_ms : 1ULL;
 }
 
-// a setting written to the controller, `key` then a 0 then `value`
-EMBED_INLINE void window_setting_send(const GuiWindowCtx *args)
+// the setting `key` saved as `value` in orior's folder
+EMBED_INLINE void window_setting_save(const GuiWindowCtx *args)
 {
-    char text[GUI_PREFERENCES_TEXT * 3u];
-    VerbaLinea line = {text, sizeof(text), 0ULL};
-    mmgr_line_put(&line, args->key);
-    mmgr_line_ch(&line, '\0');
-    mmgr_line_put(&line, args->value);
-    mmgr_line_ch(&line, '\0');
-    if (mmgr_line_ok(&line))
+    char folder[CLI_PATH_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
-        // a key and a value are far inside what an unsigned int counts
-        const CliInput setting = {.kind = CLI_INPUT_SETTING, .length = (unsigned int)line.at};
-        cli_controller_input(&setting, text);
+        (void)cli_state_value_save(
+            &(CliStateValueCfg){.folder = folder, .key = args->key, .value = args->value, .err_msg = &err_msg});
     }
 }
 
-// a percent written to the controller as a setting
-EMBED_INLINE void window_percent_send(const GuiWindowCtx *args)
+// a percent saved in orior's folder as the setting `key`
+EMBED_INLINE void window_percent_save(const GuiWindowCtx *args)
 {
     char text[8];
     VerbaLinea value = {text, sizeof(text), 0ULL};
     mmgr_line_decimal(&value, args->percent, 1u);
     (void)mmgr_line_finish(&value);
-    EMBED_CALL(window_setting_send, GuiWindowCtx, .key = args->key, .value = text);
-}
-
-// a text written to the controller as an input of `kind` with its bytes
-EMBED_INLINE void window_text_send(const GuiWindowCtx *args)
-{
-    // a name or a typing is far inside what an unsigned int counts
-    const CliInput sent = {.kind = args->input->kind, .hit = args->input->hit, .length = (unsigned int)args->length};
-    cli_controller_input(&sent, args->bytes);
+    EMBED_CALL(window_setting_save, GuiWindowCtx, .key = args->key, .value = text);
 }
 
 // the frame laid again at the zoom and the palette, the system's scale and the window's size standing: a color or a
@@ -771,45 +899,75 @@ EMBED_INLINE void window_preferences_layout(const GuiWindowCtx *args)
     }
 }
 
-// a row of Settings moved: what it now stands at written to the controller, which publishes it back
+// the settings as they now stand drawn with: the opacities, less motion, Preferences owing a frame, and the frame laid
+// again where `on` is 1, a zoom or a color having changed, laying it moving what a menu stands on
+EMBED_INLINE void window_settings_layout(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiPreferenceValues *const values = &window->preference_values;
+    EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &window->palette_own,
+               .bar_percent = values->bar_percent, .editor_percent = values->editor_percent);
+    EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = window);
+    window->preferences_pending = 1;
+    if ((window->frame.width != 0u) && args->on)
+    {
+        window_preferences_layout(args);
+    }
+    window->pending = 1;
+}
+
+// Preferences' window opened where it is closed and closed where it is open
+EMBED_INLINE void window_preferences_toggle(const GuiWindowCtx *args)
+{
+    args->window->preferences.displayed = !args->window->preferences.displayed;
+    args->window->preferences.entering = 0;
+    args->window->preferences_pending = 1;
+}
+
+// a row of Settings moved: what it now stands at taken and saved in orior's folder
 EMBED_INLINE void window_preference_step(const GuiWindowCtx *args)
 {
-    const GuiWindow *window = args->window;
-    const GuiPreferenceValues *const values = &window->preference_values;
+    GuiWindow *const window = args->window;
+    GuiPreferenceValues *const values = &window->preference_values;
     if (args->change->at == GUI_PREFERENCE_ZOOM)
     {
         const unsigned int step =
             EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg, .step = values->zoom_step,
                        .by = args->change->by, .round = args->change->round);
-        EMBED_CALL(window_percent_send, GuiWindowCtx, .key = "zoom",
+        const int zoomed = step != values->zoom_step;
+        values->zoom_step = step;
+        EMBED_CALL(window_percent_save, GuiWindowCtx, .key = GUI_WINDOW_ZOOM_KEY,
                    .percent =
                        EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg, .step = step));
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = zoomed);
     }
     else if (args->change->at == GUI_PREFERENCE_REDUCE)
     {
         // chosen, it asks for the opposite of what the window now does
-        EMBED_CALL(window_setting_send, GuiWindowCtx, .key = "reduce-motion",
-                   .value = window->motion_still ? "false" : "true");
+        window->motion_saved = !window->motion_still;
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_REDUCE_KEY,
+                   .value = window->motion_saved ? "true" : "false");
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 0);
     }
     else
     {
         const int bar = args->change->at == GUI_PREFERENCE_BAR;
-        EMBED_CALL(window_percent_send, GuiWindowCtx, .key = bar ? "opacity.bar" : "opacity.editor",
-                   .percent = EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg,
-                                         .percent = bar ? values->bar_percent : values->editor_percent,
-                                         .by = args->change->by, .round = args->change->round));
+        unsigned int *const percent = bar ? &values->bar_percent : &values->editor_percent;
+        *percent = EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg,
+                              .percent = *percent, .by = args->change->by, .round = args->change->round);
+        EMBED_CALL(window_percent_save, GuiWindowCtx, .key = bar ? GUI_WINDOW_BAR_KEY : GUI_WINDOW_EDITOR_KEY,
+                   .percent = *percent);
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 0);
     }
 }
 
-// what a key or a press changed in Preferences written to the controller
+// what a key or a press changed in Preferences taken and saved in orior's folder
 EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
 {
     args->window->preferences_pending = 1;
     if (args->change->kind == GUI_PREFERENCE_CLOSED)
     {
-        const CliInput shut = {.kind = CLI_INPUT_COMMAND};
-        EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&shut, .bytes = "preferences",
-                   .length = sizeof("preferences"));
+        EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = args->window);
     }
     else if (args->change->kind == GUI_PREFERENCE_STEPPED)
     {
@@ -823,47 +981,77 @@ EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
         EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = args->window->palette, .at = args->change->at,
                    .name = name, .size = sizeof(name));
         VerbaLinea line = {key, sizeof(key), 0ULL};
-        mmgr_line_put(&line, "color.");
+        mmgr_line_put(&line, GUI_WINDOW_COLOR_KEY);
         mmgr_line_put(&line, name);
         (void)mmgr_line_finish(&line);
         EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = args->change->color,
                    .text = value, .size = sizeof(value));
-        EMBED_CALL(window_setting_send, GuiWindowCtx, .key = key, .value = value);
+        EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &args->window->palette_own,
+                   .at = args->change->at, .color = args->change->color);
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = key, .value = value);
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = args->window, .on = 1);
     }
 }
 
-// the settings as published taken: the zoom, the opacities, less motion and the colors that differ from those standing,
-// the frame laid again only for a zoom or a color that differs, laying it moving what a menu stands on
-EMBED_INLINE void window_settings_take(const GuiWindowCtx *args)
+// the percent the text `value` writes into `percent_out`, digits alone and no more than three, where it does
+EMBED_INLINE void window_percent_read(const GuiWindowCtx *args)
 {
-    GuiWindow *const window = args->window;
-    const CliSettings *const settings = window->settings;
-    if (settings == NULL)
+    if (args->value == NULL)
     {
         return;
     }
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = 8ULL});
+    unsigned long long end = 0ULL;
+    const unsigned long long number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->value,
+                                                 .at = 0ULL, .size = size, .end = &end);
+    if ((size != 0ULL) && (size <= 3ULL) && (end == size))
+    {
+        // no more than three digits, far inside what an unsigned int represents
+        *args->percent_out = (unsigned int)number;
+    }
+}
+
+// the settings orior's folder saved read from `entries`: the zoom, the opacities, less motion and each color a
+// setting of `color.` and the palette's name sets
+EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
     GuiPreferenceValues *const values = &window->preference_values;
-    const unsigned int zoom_before = values->zoom_step;
-    (void)EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = settings->zoom_percent,
+    unsigned int zoom_percent = EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg,
+                                           .step = GUI_PREFERENCE_ZOOM_DEFAULT_STEP);
+    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_ZOOM_KEY),
+               .percent_out = &zoom_percent);
+    (void)EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = zoom_percent,
                      .step_pointer = &values->zoom_step);
-    values->bar_percent = settings->bar_percent;
-    values->editor_percent = settings->editor_percent;
-    window->motion_saved = settings->motion_saved;
-    int colored = 0;
+    values->bar_percent = GUI_WINDOW_BAR_PERCENT;
+    values->editor_percent = GUI_WINDOW_EDITOR_PERCENT;
+    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_BAR_KEY),
+               .percent_out = &values->bar_percent);
+    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_EDITOR_KEY),
+               .percent_out = &values->editor_percent);
+    const char *const reduce = cli_state_entry_value(args->entries, GUI_WINDOW_REDUCE_KEY);
+    window->motion_saved =
+        (reduce != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = reduce, .other = "true", .cap = 8ULL});
     const unsigned int colors =
         EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette);
-    for (unsigned int each = 0u; each < settings->colors; each += 1u)
+    for (unsigned int each = 0u; (args->entries != NULL) && (each < args->entries->count); each += 1u)
     {
+        const char *const entry = args->entries->entry[each].key;
+        if (!cellul.starts(&(CatenaFinitaCfg){.src = entry, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}))
+        {
+            continue;
+        }
         for (unsigned int at = 0u; at < colors; at += 1u)
         {
             char name[GUI_PREFERENCES_TEXT];
             EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = window->palette, .at = at, .name = name,
                        .size = sizeof(name));
-            if (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = settings->color[each].name, .cap = sizeof(name)}))
+            if (!cellul.eq(&(CatenaFinitaCfg){
+                    .src = name, .other = entry + sizeof(GUI_WINDOW_COLOR_KEY) - 1u, .cap = sizeof(name)}))
             {
                 continue;
             }
-            const char *const text = settings->color[each].value;
+            const char *const text = args->entries->entry[each].value;
             const GuiColor current =
                 EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = window->palette, .at = at);
             GuiColor color = 0u;
@@ -874,20 +1062,11 @@ EMBED_INLINE void window_settings_take(const GuiWindowCtx *args)
             {
                 EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = at,
                            .color = color);
-                colored = 1;
             }
             break;
         }
     }
-    EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &window->palette_own,
-               .bar_percent = values->bar_percent, .editor_percent = values->editor_percent);
-    EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = window);
-    window->preferences_pending = 1;
-    if ((window->frame.width != 0u) && (colored || (values->zoom_step != zoom_before)))
-    {
-        window_preferences_layout(args);
-    }
-    window->pending = 1;
+    EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
 }
 
 void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
@@ -965,9 +1144,13 @@ static void window_preferences_key(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
     // the command's own keys close it from its own window as they open it from the main one
-    const CliInput keyed = {.kind = CLI_INPUT_PREFERENCES_KEY};
-    EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&keyed, .bytes = args->input->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
+    CliItem item;
+    if (cli_menus_keyed(args->input->name, &item) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = item.command, .other = "preferences", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = window);
+        return;
+    }
     GuiPreferenceChange change;
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &window->preferences,
                .palette = window->palette, .name = args->input->name, .change = &change);
@@ -1025,132 +1208,697 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
 
 void gui_window_preferences_close(const GuiWindowCfg *args)
 {
-    (void)args;
-    const CliInput shut = {.kind = CLI_INPUT_COMMAND};
-    EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&shut, .bytes = "preferences",
-               .length = sizeof("preferences"));
+    if (args->window->preferences.displayed)
+    {
+        EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = args->window);
+    }
+}
+
+// the panels read again of the servers' panels: the hover and the completion where they stand, and the signature
+EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    window->hover.panel = cli_servers_panels_hover(&window->hover_panel) ? &window->hover_panel : NULL;
+    window->suggest.panel = cli_servers_panels_completion(&window->completion_panel) ? &window->completion_panel : NULL;
+    window->signature.panel = cli_servers_panels_signature();
+    window->pending = 1;
+}
+
+// every panel over the editor hidden
+EMBED_INLINE void window_panels_hide(const GuiWindowCtx *args)
+{
+    cli_servers_panels_hide();
+    EMBED_CALL(window_panels_take, GuiWindowCtx, .window = args->window);
+}
+
+// whether the editor takes the keys set as `on` asks, never while no view is shown, the claim taken or let go with it
+EMBED_INLINE void window_editing(const GuiWindowCtx *args)
+{
+    args->window->editing = args->on && (cli_view_shown() >= 0);
+    EMBED_CALL(window_autohide, GuiWindowCtx, .window = args->window, .on = args->window->editing);
+    args->window->pending = 1;
+}
+
+// the menus open laid again where they now stand, a frame owed
+EMBED_INLINE void window_menus_laid(const GuiWindowCtx *args)
+{
+    EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &args->window->menubar,
+               .glyphs = &args->window->glyphs, .frame = &args->window->frame);
+    args->window->pending = 1;
+}
+
+// the session of the views saved in orior's folder, and the strip's group where the tool shown has the side
+EMBED_INLINE void window_session_save(const GuiWindowCtx *args)
+{
+    cli_view_session_save(cli_command_line_root());
+    const int tool = args->window->strip.displayed;
+    // the tool shown is among the tools
+    if ((tool >= 0) && g_cli_tools[tool].side)
+    {
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_GROUP_KEY, .value = g_cli_tools[tool].name);
+    }
+}
+
+// another view shown, or none: the panels hidden, its frame taken, the editor let go of the keys where none is, the
+// session saved
+EMBED_INLINE void window_shown(const GuiWindowCtx *args)
+{
+    EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = args->window);
+    EMBED_CALL(window_view_take, GuiWindowCtx, .window = args->window, .edited = 1);
+    if (cli_view_shown() < 0)
+    {
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = args->window, .on = 0);
+    }
+    EMBED_CALL(window_session_save, GuiWindowCtx, .window = args->window);
+}
+
+// `view_input` handed to the view shown, its frame taken anew; `edited` where it may have edited the text
+EMBED_INLINE void window_view_input(const GuiWindowCtx *args)
+{
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    if (key == NULL)
+    {
+        return;
+    }
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = args->view_input,
+                     .err_msg = &err_msg);
+    EMBED_CALL(window_view_take, GuiWindowCtx, .window = args->window, .edited = args->edited);
+}
+
+// the view at `at` shown, the one shown before it saved
+EMBED_INLINE void window_tab_show(const GuiWindowCtx *args)
+{
+    if (args->at < cli_view_count())
+    {
+        cli_view_show(args->at);
+        EMBED_CALL(window_shown, GuiWindowCtx, .window = args->window);
+    }
+}
+
+// the view at `at` closed and its text let go, a view with changes not saved closing on a second close, as tabs.js
+// closes one; the view after it shown where it was the one shown
+EMBED_INLINE void window_tab_close(const GuiWindowCtx *args)
+{
+    const char *const key = cli_view_key(args->at);
+    if (key == NULL)
+    {
+        return;
+    }
+    if (EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key) && !cli_view_closing(args->at))
+    {
+        cli_view_closing_set(args->at, 1);
+        args->window->pending = 1;
+        return;
+    }
+    cli_servers_panels_close(key);
+    cli_view_file_close(args->at);
+    EMBED_CALL(window_shown, GuiWindowCtx, .window = args->window);
+}
+
+// every view closed once, the last first, so those before it stand where they stood: a changed one stands, its close
+// waiting on a second
+EMBED_INLINE void window_tabs_close(const GuiWindowCtx *args)
+{
+    for (unsigned int at = cli_view_count(); at > 0u; at -= 1u)
+    {
+        EMBED_CALL(window_tab_close, GuiWindowCtx, .window = args->window, .at = at - 1u);
+    }
+}
+
+// the view at `at` saved to its file as the tree writes every file, its close no longer waiting: the save a break for
+// the notices waiting, or a write that failed posted as a failure's notice
+EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
+{
+    const char *const key = cli_view_key(args->at);
+    const char *const root = cli_command_line_root();
+    if ((key == NULL) || (root == NULL))
+    {
+        return;
+    }
+    char full[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = cli_view_path_at(args->at),
+               .joined = full);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    cli_view_closing_set(args->at, 0);
+    if (EMBED_CALL(cli_view_save_table.save, CliViewSaveCfg, .key = key, .full = full, .err_msg = &err_msg))
+    {
+        cli_notices_break();
+    }
+    else
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be written.", 1);
+    }
+    args->window->pending = 1;
+}
+
+// every view with changes not saved saved
+EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args)
+{
+    const unsigned int count = cli_view_count();
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        if (EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = cli_view_key(at)))
+        {
+            EMBED_CALL(window_tab_save, GuiWindowCtx, .window = args->window, .at = at);
+        }
+    }
+}
+
+// the file at `name` opened as a view and shown, its cursor at `place` where it is not NULL, and handed to its
+// language's server; a file refused posted as a failure's notice
+EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int at =
+        cli_view_file_open(cli_command_line_root(), args->name, window->rows, window->columns, args->place, &err_msg);
+    if (at < 0)
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be opened.", 1);
+        return;
+    }
+    // the view is among the views
+    cli_servers_panels_serve(cli_view_key((unsigned int)at), cli_view_path_at((unsigned int)at));
+    EMBED_CALL(window_shown, GuiWindowCtx, .window = window);
+}
+
+// the tool `at` of the strip shown, or hidden where it shows; the terminal's panel opened or closed beside whatever
+// tool shows; the explorer listed as it shows
+EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if ((args->at >= g_cli_tools_count) || g_cli_tools[args->at].menu)
+    {
+        return;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[args->at].name, .other = "terminal", .cap = 16ULL}))
+    {
+        (void)cli_terminal_tabs_command("toggle", NULL, 0u);
+        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+        return;
+    }
+    // the tools are fewer than an int counts
+    window->strip.displayed = (window->strip.displayed == (int)args->at) ? -1 : (int)args->at;
+    EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+    EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
+    if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = window, .key = "explorer"))
+    {
+        cli_files_explorer_show(cli_command_line_root());
+    }
+    EMBED_CALL(window_session_save, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_side, GuiWindowCtx, .window = window);
+}
+
+// whether `name` is among `count` names
+EMBED_INLINE int window_name_among(const GuiWindowCtx *args)
+{
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->words[at], .cap = CLI_LABEL_MAX_LEN}))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// whether `name` is `key`
+EMBED_INLINE int window_is(const GuiWindowCtx *args)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->key, .cap = CLI_LABEL_MAX_LEN});
+}
+
+// the menus' answer to whether an item cannot be chosen: it needs a file open while none is, text chosen in the
+// terminal while none is, the view shown changed while it is not or any view changed while none is, or it is never
+// chosen
+static int window_item_disabled(const CliItem *item)
+{
+    const char *const needs = item->needs;
+    const int needs_editor = EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "editor") ||
+                             EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "tab");
+    const int needs_chosen = EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "terminal-chosen");
+    const int needs_shown_changed = EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "changed-active");
+    const int needs_changed = EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "changed");
+    const int never = EMBED_CALL(window_is, GuiWindowCtx, .name = needs, .key = "never");
+    int changed = 0;
+    const unsigned int count = cli_view_count();
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        changed = changed || EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = cli_view_key(at));
+    }
+    const char *const shown = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    const int shown_changed = (shown != NULL) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = shown);
+    return never || (needs_editor && (count == 0u)) || (needs_chosen && !cli_terminal_tabs_checked(needs)) ||
+           (needs_shown_changed && !shown_changed) || (needs_changed && !changed);
+}
+
+// the menus' answer to the state an item shows: Reduce Motion by the saved setting or the system's wish, Focus while
+// it stops the notices, and the terminal's own
+static int window_item_checked(const CliItem *item)
+{
+    const char *const checks = item->checks;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = GUI_WINDOW_REDUCE_KEY))
+    {
+        return (s_window != NULL) && (s_window->motion_saved || s_window->motion_system);
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = "focus"))
+    {
+        return cli_notices_focused();
+    }
+    return cli_terminal_tabs_checked(checks);
+}
+
+static void window_key_take(const GuiWindowCtx *args);
+
+// the command `name` run with its `count` `words`, its keys `value`, whoever asked for it
+EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "exit"))
+    {
+        window->closing = 1;
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preferences"))
+    {
+        EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = window);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "close-editor"))
+    {
+        // the view shown is among the views
+        const int shown = cli_view_shown();
+        if (shown >= 0)
+        {
+            EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = (unsigned int)shown);
+        }
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "close-all"))
+    {
+        EMBED_CALL(window_tabs_close, GuiWindowCtx, .window = window);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "last-editor"))
+    {
+        // the view shown before is among the views
+        const int last = cli_view_last();
+        if (last >= 0)
+        {
+            EMBED_CALL(window_tab_show, GuiWindowCtx, .window = window, .at = (unsigned int)last);
+        }
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "save"))
+    {
+        // the view shown is among the views
+        const int shown = cli_view_shown();
+        if (shown >= 0)
+        {
+            EMBED_CALL(window_tab_save, GuiWindowCtx, .window = window, .at = (unsigned int)shown);
+        }
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "save-all"))
+    {
+        EMBED_CALL(window_tabs_save, GuiWindowCtx, .window = window);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "focus"))
+    {
+        cli_notices_focus(!cli_notices_focused());
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "notice-show-again"))
+    {
+        if (args->count != 0u)
+        {
+            cli_notices_show_again(args->words[0]);
+        }
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_REDUCE_KEY))
+    {
+        // on or off by its word, else turned from what shows, the saved setting or the system's wish
+        const char *const word = (args->count != 0u) ? args->words[0] : "";
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "off");
+        window->motion_saved = on || (!off && !(window->motion_saved || window->motion_system));
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_REDUCE_KEY,
+                   .value = window->motion_saved ? "true" : "false");
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 0);
+    }
+    else if (cli_terminal_tabs_command(name, args->words, args->count))
+    {
+        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+    }
+    else if ((args->value != NULL) && (args->value[0] != '\0'))
+    {
+        EMBED_CALL(window_key_take, GuiWindowCtx, .window = window, .name = args->value, .on = 0);
+    }
+    else if (EMBED_CALL(window_name_among, GuiWindowCtx, .name = name, .words = s_view_commands,
+                        .count = sizeof(s_view_commands) / sizeof(s_view_commands[0])))
+    {
+        EMBED_CALL(window_key_take, GuiWindowCtx, .window = window, .name = name, .on = 0);
+    }
+}
+
+// the number after the last colon of the first `count` bytes of `name` into `number`, the colon's place into `colon`:
+// 1, or 0 where they do not end in a colon and digits
+EMBED_INLINE int window_colon_number(const GuiWindowCtx *args)
+{
+    unsigned long long *const number = args->number;
+    unsigned long long *const colon = args->colon;
+    const unsigned long long length = args->count;
+    const unsigned long long after = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                .text = args->name, .at = length, .set = ":");
+    const int digits = (after > 1ULL) && (after < length) &&
+                       (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name,
+                                   .at = after, .size = length, .classes = CLI_TEXT_DIGITS, .set = "") == length);
+    if (digits)
+    {
+        *number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = after, .size = length,
+                             .end = NULL);
+        *colon = after - 1ULL;
+    }
+    return digits;
+}
+
+// the file a path `name` names opened, the line and the column after it, each a colon and digits and counted from 1,
+// its cursor's
+EMBED_INLINE void window_file_place_open(const GuiWindowCtx *args)
+{
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ULL};
+    mmgr_line_put(&line, args->name);
+    if (mmgr_line_finish(&line) == 0ULL)
+    {
+        return;
+    }
+    // a path is far inside what an unsigned int counts
+    unsigned int length = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)});
+    unsigned long long first = 0ULL;
+    unsigned long long second = 0ULL;
+    unsigned long long colon = 0ULL;
+    int numbers = 0;
+    if (EMBED_CALL(window_colon_number, GuiWindowCtx, .name = path, .count = length, .number = &second,
+                   .colon = &colon))
+    {
+        length = (unsigned int)colon;
+        numbers = 1;
+        if (EMBED_CALL(window_colon_number, GuiWindowCtx, .name = path, .count = length, .number = &first,
+                       .colon = &colon))
+        {
+            length = (unsigned int)colon;
+            numbers = 2;
+        }
+    }
+    path[length] = '\0';
+    const unsigned long long place_line = (numbers == 2) ? first : second;
+    const unsigned long long place_col = (numbers == 2) ? second : 1ULL;
+    const CliPosition place = {(place_line != 0ULL) ? (place_line - 1ULL) : 0ULL,
+                               (place_col != 0ULL) ? (place_col - 1ULL) : 0ULL};
+    EMBED_CALL(window_file_open, GuiWindowCtx, .window = args->window, .name = path,
+               .place = (numbers != 0) ? &place : NULL);
+}
+
+// a command the command line asks for, through the door or as the window started: the file a path names opened, or a
+// command of the menus, the window's or the view's run: 1, or 0 where it is none of them
+static int window_command_named(const char *command, const char *const *words, unsigned int count)
+{
+    GuiWindow *const window = s_window;
+    if (window == NULL)
+    {
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "file"))
+    {
+        if (count != 0u)
+        {
+            EMBED_CALL(window_file_place_open, GuiWindowCtx, .window = window, .name = words[0]);
+        }
+        return count != 0u;
+    }
+    CliItem item;
+    const int keyed = cli_menus_named(command, &item);
+    const int known = keyed ||
+                      EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_own_commands,
+                                 .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])) ||
+                      EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_view_commands,
+                                 .count = sizeof(s_view_commands) / sizeof(s_view_commands[0]));
+    if (known)
+    {
+        EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = command,
+                   .value = keyed ? item.keys : NULL, .words = words, .count = count);
+    }
+    return known;
+}
+
+// the tool whose keys are the key `name`, -1 for none
+EMBED_INLINE int window_tool_key(const GuiWindowCtx *args)
+{
+    for (unsigned int at = 0u; at < g_cli_tools_count; at += 1u)
+    {
+        const char *const keys = g_cli_tools[at].keys;
+        if ((keys[0] != '\0') && cli_menus_keys_name(keys, args->name))
+        {
+            // the tools are fewer than an int counts
+            return (int)at;
+        }
+    }
+    return -1;
+}
+
+// the key `name` taken, `on` where the name's pane stands and no view takes it: the menu key opens the terminal's menu
+// at its key field while the panel takes the keys; the panel takes them ahead of the window while no menu is open; the
+// menus', a command's own, a tool's, the panels' and else the view's
+static void window_key_take(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    if ((g_cli_menus_open.levels == 0u) && !args->on &&
+        EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") &&
+        cli_terminal_tabs_checked("terminal-keys"))
+    {
+        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_TERMINAL_KEYS, 0, 0);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        return;
+    }
+    if ((g_cli_menus_open.levels == 0u) && !args->on && cli_terminal_tabs_key(name))
+    {
+        EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+        return;
+    }
+    CliItem chosen;
+    int chose = 0;
+    if (cli_menus_key(name, &chosen, &chose))
+    {
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        if (chose)
+        {
+            EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = chosen.command,
+                       .value = chosen.keys);
+        }
+        return;
+    }
+    if (args->on)
+    {
+        return;
+    }
+    CliItem item;
+    if (cli_menus_keyed(name, &item) &&
+        EMBED_CALL(window_name_among, GuiWindowCtx, .name = item.command, .words = s_own_commands,
+                   .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])))
+    {
+        EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = item.command, .value = item.keys);
+        return;
+    }
+    const int tool = EMBED_CALL(window_tool_key, GuiWindowCtx, .name = name);
+    if (tool >= 0)
+    {
+        // the tool is among the tools
+        EMBED_CALL(window_tool_toggle, GuiWindowCtx, .window = window, .at = (unsigned int)tool);
+        return;
+    }
+    if (cli_servers_panels_key(name))
+    {
+        EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
+        return;
+    }
+    const CliViewInput keyed = {.kind = CLI_VIEW_KEY, .name = name};
+    EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
+    EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &keyed, .edited = 1);
+}
+
+// from any of the walk's threads: the walk colored lines, the frame, the map and the names taken again as the view's
+// thread wakes
+static void window_colored(void)
+{
+    EMBED_ATOMIC_STORE(&s_colored, 1u);
+    if (s_woken != NULL)
+    {
+        s_woken();
+    }
+}
+
+// what the name does in this session: it stands on the first start in it, and goes home on any start after; the
+// session saved is `seconds logon`, the boot time reading a few seconds either way from one start to the next
+EMBED_INLINE void window_wordmark_read(const GuiWindowCtx *args)
+{
+    char logon[GUI_WINDOW_LOGON_MAX_LEN];
+    EMBED_CALL(cli_capacity_logon_internal.logon_by_name, CliCapacityLogonCtx, .logon = logon,
+               .capacity_bytes = sizeof(logon));
+    const unsigned long long booted = cli_booted_seconds();
+    const char *const saved = cli_state_entry_value(args->entries, GUI_WINDOW_WORDMARK_KEY);
+    int same = 0;
+    if (saved != NULL)
+    {
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL});
+        unsigned long long end = 0ULL;
+        const unsigned long long then =
+            EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = saved, .at = 0ULL, .size = size, .end = &end);
+        const unsigned long long apart = (then > booted) ? (then - booted) : (booted - then);
+        same = (end < size) && (saved[end] == ' ') && (apart < GUI_WINDOW_SESSION_SECONDS) &&
+               cellul.eq(&(CatenaFinitaCfg){.src = saved + end + 1ULL, .other = logon, .cap = sizeof(logon)});
+    }
+    if (same)
+    {
+        EMBED_CALL(cli_wordmark_still.land, GuiWordmarkStillCfg, .wordmark = &args->window->wordmark);
+    }
+    else
+    {
+        EMBED_CALL(gui_wordmark_frame.stand, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark);
+    }
+    char text[GUI_WINDOW_LOGON_MAX_LEN + 32u];
+    VerbaLinea now = {text, sizeof(text), 0ULL};
+    mmgr_line_decimal(&now, booted, 1u);
+    mmgr_line_ch(&now, ' ');
+    mmgr_line_put(&now, logon);
+    if (mmgr_line_finish(&now) != 0ULL)
+    {
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_WORDMARK_KEY, .value = text);
+    }
+}
+
+// the strip's group saved shown, the tool of that name where its window is the side
+EMBED_INLINE void window_group_read(const GuiWindowCtx *args)
+{
+    const char *const group = cli_state_entry_value(args->entries, GUI_WINDOW_GROUP_KEY);
+    for (unsigned int at = 0u; (group != NULL) && (at < g_cli_tools_count); at += 1u)
+    {
+        if (g_cli_tools[at].side &&
+            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = group, .cap = 32ULL}))
+        {
+            // the tools are fewer than an int counts
+            args->window->strip.displayed = (int)at;
+        }
+    }
+    if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "explorer"))
+    {
+        cli_files_explorer_show(cli_command_line_root());
+    }
 }
 
 void gui_window_start(const GuiWindowCfg *args)
 {
-    args->window->pending = 1;
+    GuiWindow *const window = args->window;
+    s_window = window;
+    s_woken = args->woken;
+    window->view_shown = -1;
+    const char *const root = cli_command_line_root();
+    // the tree's name, the last part of its folder
+    window->title = (root != NULL)
+                        ? (root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = root,
+                                             .at = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}),
+                                             .set = "/\\"))
+                        : "";
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = window_colored, .threaded = 1);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    (void)EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg);
+    g_cli_menus_open.disabled = window_item_disabled;
+    g_cli_menus_open.checked = window_item_checked;
+    cli_servers_problems_begin(args->woken);
+    cli_servers_panels_begin(root);
+    char folder[CLI_PATH_MAX_LEN];
+    CliStateEntries *const entries =
+        EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
+            ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_cli_view_cells})
+            : NULL;
+    EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
+    EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
+    cli_notices_restore(entries);
+    cli_terminal_tabs_restore(entries, root);
+    EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+    if (root != NULL)
+    {
+        EMBED_CALL(window_group_read, GuiWindowCtx, .window = window, .entries = entries);
+        cli_view_session_restore(root, entries, window->rows, window->columns);
+        const unsigned int count = cli_view_count();
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            cli_servers_panels_serve(cli_view_key(at), cli_view_path_at(at));
+        }
+    }
+    g_cli_cells->persistent_buf_release(entries, &g_cli_view_cells);
+    // the command the window was started with run as the menus run it
+    const CliOutcome *const launch = cli_command_line_launched();
+    if (launch->command[0] != '\0')
+    {
+        const char *words[CLI_LAUNCH_ARGS];
+        for (unsigned int at = 0u; at < launch->args; at += 1u)
+        {
+            words[at] = EMBED_CALL(cli_command_line_table.launch_arg, CliCommandLineCfg, .launch = launch, .at = at);
+        }
+        (void)window_command_named(launch->command, words, launch->args);
+    }
+    EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
+    EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+    if (window->wordmark.exists && !window->wordmark.tree_read)
+    {
+        EMBED_CALL(cli_wordmark_still.tree_read, GuiWordmarkStillCfg, .wordmark = &window->wordmark);
+    }
+    window->pending = 1;
 }
 
-// the newest of each part taken, each that changed owing a frame and moving what stands on it; nothing is released
-// here, the controller reading from the ring what the view has moved past
-void gui_window_drain(const GuiWindowCfg *args)
+void gui_window_step(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
-    const CliViewFrame *const frame = (const CliViewFrame *)cli_controller_latest(CLI_SNAPSHOT_FRAME);
-    const CliDocumentMap *const map = (const CliDocumentMap *)cli_controller_latest(CLI_SNAPSHOT_MAP);
-    const CliHoverPanel *const hover = (const CliHoverPanel *)cli_controller_latest(CLI_SNAPSHOT_HOVER);
-    const CliCompletionPanel *const completions =
-        (const CliCompletionPanel *)cli_controller_latest(CLI_SNAPSHOT_COMPLETIONS);
-    const CliSignaturePanel *const signature = (const CliSignaturePanel *)cli_controller_latest(CLI_SNAPSHOT_SIGNATURE);
-    const CliMenus *const menus = (const CliMenus *)cli_controller_latest(CLI_SNAPSHOT_MENUS);
-    const CliTabs *const tabs = (const CliTabs *)cli_controller_latest(CLI_SNAPSHOT_TABS);
-    const CliExplorerRows *const rows = (const CliExplorerRows *)cli_controller_latest(CLI_SNAPSHOT_EXPLORER);
-    const CliProblems *const problems = (const CliProblems *)cli_controller_latest(CLI_SNAPSHOT_PROBLEMS);
-    const CliStatus *const status = (const CliStatus *)cli_controller_latest(CLI_SNAPSHOT_STATUS);
-    const CliSettings *const settings = (const CliSettings *)cli_controller_latest(CLI_SNAPSHOT_SETTINGS);
-    const CliDocumentNames *const names = (const CliDocumentNames *)cli_controller_latest(CLI_SNAPSHOT_NAMES);
-    const CliTerminalPanel *const terminal = (const CliTerminalPanel *)cli_controller_latest(CLI_SNAPSHOT_TERMINAL);
-    if (terminal != window->terminal.panel)
+    window->pending = cli_reach_take(window_command_named) || window->pending;
+    if (cli_servers_problems_step())
     {
-        window->terminal.panel = terminal;
-        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
-    }
-    const int status_changed = status != window->status;
-    if (status_changed)
-    {
-        window->status = status;
+        window->strip.problems_marked = cli_servers_problems_counts().errors != 0u;
         window->pending = 1;
     }
-    if ((status != NULL) && status_changed && (status->shown != window->shown))
+    if (cli_servers_panels_step())
     {
-        // another file shown: the map stands anew beside it
-        window->shown = status->shown;
-        window->map_sent = 0;
-        EMBED_CALL(gui_minimap.clear, GuiMinimapCfg, .map = &window->minimap);
+        EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
     }
-    if (frame != window->editor.frame)
+    if (cli_terminal_tabs_step())
     {
-        window->editor.frame = frame;
-        // the caret's breath begins again with every frame, which saves the caret at full ink while the keys go
-        window->caret_blink_start_ms = cli_clock_milliseconds();
+        EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+    }
+    window->pending = cli_notices_step() || window->pending;
+    if (cli_menus_rest())
+    {
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+    }
+    if (EMBED_ATOMIC_LOAD(&s_colored) != 0u)
+    {
+        EMBED_ATOMIC_STORE(&s_colored, 0u);
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
+    }
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    if (now_ms >= window->memory_due_ms)
+    {
+        CliProcessMemory measured;
+        window->memory_bytes =
+            EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
+                ? measured.working
+                : 0ULL;
+        window->memory_due_ms = now_ms + GUI_MEMORY_MS;
         window->pending = 1;
-        EMBED_CALL(window_view_resize, GuiWindowCtx, .window = window);
-        EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
     }
-    window->pending = window->pending || (names != window->editor.names) || (map != window->minimap.lines) ||
-                      (hover != window->hover.panel) || (completions != window->suggest.panel) ||
-                      (signature != window->signature.panel) || (tabs != window->tabs) ||
-                      (rows != window->explorer.rows) || (problems != window->problems.problems);
-    window->editor.names = names;
-    window->minimap.lines = map;
-    window->hover.panel = hover;
-    window->suggest.panel = completions;
-    window->signature.panel = signature;
-    window->tabs = tabs;
-    window->explorer.rows = rows;
-    window->problems.problems = problems;
-    if (menus != window->menubar.menus)
-    {
-        const int first = window->menubar.menus == NULL;
-        window->menubar.menus = menus;
-        window->pending = 1;
-        if (first)
-        {
-            EMBED_CALL(gui_menubar_bar.titles_layout, GuiMenubarBarCfg, .menubar = &window->menubar,
-                       .glyphs = &window->glyphs, .frame = &window->frame);
-            window->stages_stale = window->stage != NULL;
-            EMBED_CALL(window_view_resize, GuiWindowCtx, .window = window);
-        }
-        else
-        {
-            EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &window->menubar,
-                       .glyphs = &window->glyphs, .frame = &window->frame);
-        }
-    }
-    if (settings != window->settings)
-    {
-        window->settings = settings;
-        EMBED_CALL(window_settings_take, GuiWindowCtx, .window = window);
-    }
-    if ((status != NULL) && status_changed)
-    {
-        if (status->tool != window->strip.displayed)
-        {
-            window->strip.displayed = status->tool;
-            EMBED_CALL(window_side, GuiWindowCtx, .window = window);
-        }
-        window->strip.problems_marked = status->problems_marked;
-        EMBED_CALL(window_autohide, GuiWindowCtx, .window = window, .on = status->editing && status->viewed);
-        EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy, .running = status->busy);
-        if (status->preferences_displayed != window->preferences_status)
-        {
-            window->preferences_status = status->preferences_displayed;
-            window->preferences.displayed = status->preferences_displayed;
-            window->preferences.entering = 0;
-            window->preferences_pending = 1;
-        }
-        if (status->wordmark != window->wordmark_status)
-        {
-            window->wordmark_status = status->wordmark;
-            if (status->wordmark == CLI_WORDMARK_STAND)
-            {
-                EMBED_CALL(gui_wordmark_frame.stand, GuiWordmarkFrameCfg, .wordmark = &window->wordmark);
-            }
-            else if (status->wordmark == CLI_WORDMARK_HOME)
-            {
-                EMBED_CALL(cli_wordmark_still.land, GuiWordmarkStillCfg, .wordmark = &window->wordmark);
-            }
-        }
-        if (status->tree_read && window->wordmark.exists && !window->wordmark.tree_read)
-        {
-            EMBED_CALL(cli_wordmark_still.tree_read, GuiWordmarkStillCfg, .wordmark = &window->wordmark);
-        }
-    }
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy,
+               .running = cli_servers_problems_checking());
 }
 
 // the panels over the editor drawn inside the work's inside: the hover under its word, nothing where the word's line
@@ -1198,28 +1946,32 @@ EMBED_INLINE void window_panels_draw(const GuiWindowCtx *args)
     }
 }
 
-// what the status bar shows, from the window's standing and the editor's frame as last published
+// what the status bar shows, from the view shown, the editor's frame as last taken, the notices and the window's own
 EMBED_INLINE GuiStatus window_status_read(const GuiWindowCtx *args)
 {
     const CliViewFrame *const shown = args->window_read->editor.frame;
-    const CliStatus *const standing = args->window_read->status;
+    const int at = cli_view_shown();
+    // the view shown is among the views
+    const char *const path = (at >= 0) ? cli_view_path_at((unsigned int)at) : NULL;
+    const char *const key = (at >= 0) ? cli_view_key((unsigned int)at) : NULL;
+    const char *const notice = cli_notice_shown();
     const CliPosition none = {0ULL, 0ULL};
     const CliPosition cursor = (shown != NULL) ? shown->cursor : none;
     const CliPosition anchor = (shown != NULL) ? shown->anchor : none;
-    return (GuiStatus){(standing != NULL) ? standing->path : "",
+    return (GuiStatus){(path != NULL) ? path : "",
                        shown != NULL,
                        cursor.line,
                        cursor.col,
                        anchor.line,
                        anchor.col,
-                       (standing != NULL) && standing->crlf,
+                       (key != NULL) && EMBED_CALL(cli_document.crlf, CliDocumentCfg, .key = key),
                        (shown != NULL) ? shown->indent_tabs : -1,
                        (shown != NULL) ? shown->indent_size : 4u,
-                       (standing != NULL) ? standing->memory_bytes : 0ULL,
-                       (standing != NULL) ? standing->notice : "",
-                       (standing != NULL) && standing->notice_failed,
-                       (standing != NULL) && standing->focus,
-                       (standing != NULL) ? standing->focus_waiting : 0u};
+                       args->window_read->memory_bytes,
+                       (notice != NULL) ? notice : "",
+                       cli_notice_failed(),
+                       cli_notices_focused(),
+                       cli_notices_waiting()};
 }
 
 // the view drawn: the tabs row, the editor with the map beside it, and the side where one is shown, each on the ground
@@ -1229,10 +1981,8 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     const GuiFrame *const frame = &args->window->frame;
     const GuiPalette *const palette = args->window->palette;
     GuiRaster *const raster = args->window->raster;
-    const CliTabs *const tabs = args->window->tabs;
     EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .raster = raster, .glyphs = &args->window->glyphs,
-               .palette = palette, .frame = frame, .tab = (tabs != NULL) ? tabs->row : NULL,
-               .count = (tabs != NULL) ? tabs->count : 0u, .active = (tabs != NULL) ? tabs->active : -1);
+               .palette = palette, .frame = frame);
     EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &args->window->editor,
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .place = frame->editor,
                .scale = frame->scale);
@@ -1252,12 +2002,11 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     {
         // the tool shown is among the tools
         const CliTool *const tool = &g_cli_tools[args->window->strip.displayed];
-        const CliStatus *const standing = args->window->status;
         EMBED_CALL(gui_explorer_frame_xy.draw, GuiExplorerFrameXYCfg, .explorer_read = &args->window->explorer,
                    .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
                    .frame = frame, .title = tool->label,
                    .folders = cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ULL}),
-                   .tree = ((standing != NULL) && (standing->title != NULL)) ? standing->title : "");
+                   .tree = (args->window->title != NULL) ? args->window->title : "");
         if (EMBED_CALL(window_tool_by_name, GuiWindowCtx, .window_read = args->window, .key = "problems"))
         {
             EMBED_CALL(gui_problems_row_frame.draw, GuiProblemsRowFrameCfg, .problems = &args->window->problems,
@@ -1371,10 +2120,7 @@ void gui_window_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_strip_frame_raster.draw, GuiStripFrameRasterCfg, .raster = raster, .icons = &args->window->icons,
                .palette = palette, .frame = frame, .strip_read = &args->window->strip);
     EMBED_CALL(gui_chrome_raster.bar_draw, GuiChromeRasterCfg, .raster = raster, .glyphs = &args->window->glyphs,
-               .palette = palette, .frame = frame,
-               .title = ((args->window->status != NULL) && (args->window->status->title != NULL))
-                            ? args->window->status->title
-                            : "",
+               .palette = palette, .frame = frame, .title = (args->window->title != NULL) ? args->window->title : "",
                .table = table, .shadow = &args->window->controls_shadow);
     EMBED_CALL(gui_menubar_glyphs_frame.titles_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &args->window->menubar,
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
@@ -1429,7 +2175,7 @@ void gui_window_hits(const GuiWindowHitsCfg *args)
         hits->client[clients] = window->menubar.title[at].rect;
         clients += 1u;
     }
-    const unsigned int levels = (window->menubar.menus != NULL) ? window->menubar.menus->levels : 0u;
+    const unsigned int levels = g_cli_menus_open.levels;
     for (unsigned int level = 0u; (level < levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
         hits->client[clients] = window->menubar.menu_rect[level];
@@ -1452,12 +2198,12 @@ unsigned int gui_window_hit(const GuiWindowInputCfg *args)
     return cli_view_hit_of(&hits, args->input->x, args->input->y);
 }
 
-// what the pixel at x, y stands on written into `input`: its hit, and its place among the rows, or its row and cell in
+// what the pixel at x, y stands on written into `hit`: its hit, and its place among the rows, or its row and cell in
 // the editor
 EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
 {
     const GuiWindow *const window = args->window_read;
-    CliInput *const input = args->input;
+    GuiWindowHit *const input = args->hit;
     const int x = args->x;
     const int y = args->y;
     input->hit = CLI_HIT_NONE;
@@ -1547,11 +2293,8 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
         return;
     }
     int closing = 0;
-    const CliTabs *const tabs = window->tabs;
-    if ((tabs != NULL) &&
-        EMBED_CALL(gui_tabs_glyphs_frame_count.hit, GuiTabsGlyphsFrameCountCfg, .glyphs = (GuiGlyphs *)&window->glyphs,
-                   .frame = &window->frame, .tab = tabs->row, .count = tabs->count, .x = x, .y = y,
-                   .at_pointer = &input->index, .closing = &closing))
+    if (EMBED_CALL(gui_tabs_glyphs_frame_count.hit, GuiTabsGlyphsFrameCountCfg, .glyphs = (GuiGlyphs *)&window->glyphs,
+                   .frame = &window->frame, .x = x, .y = y, .at_pointer = &input->index, .closing = &closing))
     {
         input->hit = closing ? CLI_HIT_TAB_CLOSE : CLI_HIT_TAB;
         return;
@@ -1578,27 +2321,170 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     }
 }
 
-// the mods the system names, as the controller's bits
-EMBED_INLINE unsigned int window_mods(const GuiInput *input)
+// whether Shift is down on the input
+EMBED_INLINE int window_shift(const GuiInput *input)
 {
-    return ((input->mods & GUI_MOD_SHIFT) != 0u) ? CLI_INPUT_MOD_SHIFT : 0u;
+    return (input->mods & GUI_MOD_SHIFT) != 0u;
 }
 
 // the right button pressed or the wheel turned at x, y: away from the menus open it closes them, as menu.js closes them
 // on any press or wheel outside them, and on a menu or on the bar's titles while the bar's menu is open it does nothing
 EMBED_INLINE void window_menus_away(const GuiWindowCtx *args)
 {
-    const CliMenus *const menus = args->window_read->menubar.menus;
-    if ((menus == NULL) || (menus->levels == 0u))
+    if (g_cli_menus_open.levels == 0u)
     {
         return;
     }
-    CliInput pressed = {.kind = CLI_INPUT_MENU_AWAY};
-    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window_read, .x = args->x, .y = args->y,
-               .input = &pressed);
-    if ((pressed.hit != CLI_HIT_MENU_ROW) && ((pressed.hit != CLI_HIT_MENU_TITLE) || (menus->open < 0)))
+    GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->x, .y = args->y, .hit = &pressed);
+    if ((pressed.hit != CLI_HIT_MENU_ROW) && ((pressed.hit != CLI_HIT_MENU_TITLE) || (g_cli_menus_open.open < 0)))
     {
-        EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window_read);
+        EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
+    }
+}
+
+// the press a terminal's part names, its place among the terminal's hits, which stand in the order the window's do;
+// 0 for a press on none of the terminal's parts
+EMBED_INLINE unsigned int window_terminal_hit(const GuiWindowCtx *args)
+{
+    const unsigned int hit = args->hit->hit;
+    return ((hit >= CLI_HIT_TERMINAL) && (hit <= CLI_HIT_TERMINAL_PANEL))
+               ? (CLI_TERMINAL_HIT_PANE + (hit - CLI_HIT_TERMINAL))
+               : 0u;
+}
+
+// the view shown scrolled to put the line `row` of `hit` at its top
+EMBED_INLINE void window_view_scroll(const GuiWindowCtx *args)
+{
+    const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = args->hit->row};
+    EMBED_CALL(window_view_input, GuiWindowCtx, .window = args->window, .view_input = &scrolled, .edited = 0);
+}
+
+// a press, on what the window's layout found under it at `hit`, `on` where Shift is down: the menus', the panels', the
+// status bar's, the terminal's, and else the part's it stands on
+EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiWindowHit *const hit = args->hit;
+    cli_notices_pointer();
+    if (hit->hit == CLI_HIT_MENU_TITLE)
+    {
+        cli_menus_title_press(hit->index);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        return;
+    }
+    if (hit->hit == CLI_HIT_MENU_ROW)
+    {
+        CliItem chosen;
+        const int chose =
+            (hit->level < g_cli_menus_open.levels) && cli_menus_row_press(hit->level, hit->index, &chosen);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        if (chose)
+        {
+            EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = chosen.command,
+                       .value = chosen.keys);
+        }
+        return;
+    }
+    // a press on neither closes every menu open
+    EMBED_CALL(window_menus_close, GuiWindowCtx, .window = window);
+    switch (hit->hit)
+    {
+    case CLI_HIT_SUGGEST_LIST:
+    case CLI_HIT_HOVER_BOX:
+    case CLI_HIT_SIGNATURE_BOX:
+        return;
+    case CLI_HIT_SUGGEST_ROW:
+        cli_servers_panels_accept(hit->index);
+        EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
+        return;
+    case CLI_HIT_STATUS_NOTICE:
+    case CLI_HIT_STATUS_SILENCE:
+    case CLI_HIT_STATUS_FOCUS:
+        cli_notices_press(CLI_NOTICES_PRESS_NOTICE + (hit->hit - CLI_HIT_STATUS_NOTICE));
+        window->pending = 1;
+        return;
+    default:
+        break;
+    }
+    EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
+    // a press on the terminal is the terminal's; one elsewhere takes the keys from it
+    const unsigned int terminal_hit = EMBED_CALL(window_terminal_hit, GuiWindowCtx, .hit = (GuiWindowHit *)hit);
+    if ((terminal_hit != 0u) || window->terminal.panel.keys)
+    {
+        const CliTerminalTabsPressCfg pressed = {terminal_hit,   hit->index, hit->row, hit->column,
+                                                 window->clicks, args->on,   0};
+        cli_terminal_tabs_press(&pressed);
+        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+    }
+    if (terminal_hit != 0u)
+    {
+        return;
+    }
+    switch (hit->hit)
+    {
+    case CLI_HIT_WORDMARK: {
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        (void)EMBED_CALL(cli_report_err_msg.open_page, CliReportErrMsgCfg, .url = GUI_WINDOW_REPOSITORY,
+                         .err_msg = &err_msg);
+        break;
+    }
+    case CLI_HIT_TOOL:
+        EMBED_CALL(window_tool_toggle, GuiWindowCtx, .window = window, .at = hit->index);
+        break;
+    case CLI_HIT_PROBLEMS_CHECK:
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+        cli_servers_problems_check(cli_command_line_root());
+        window->pending = 1;
+        break;
+    case CLI_HIT_PROBLEM_ROW: {
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+        CliProblemRow row;
+        if (cli_servers_problems_press(hit->index, &row))
+        {
+            const CliPosition place = {row.line, row.col};
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = row.path, .place = &place);
+        }
+        window->pending = 1;
+        break;
+    }
+    case CLI_HIT_EXPLORER_ROW: {
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
+        CliExplorerRow row;
+        const int listed = cli_files_explorer_row(hit->index, &row);
+        if (!cli_files_explorer_press(hit->index) && listed && !row.dir)
+        {
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = row.path, .place = NULL);
+        }
+        window->pending = 1;
+        break;
+    }
+    case CLI_HIT_TAB:
+        EMBED_CALL(window_tab_show, GuiWindowCtx, .window = window, .at = hit->index);
+        break;
+    case CLI_HIT_TAB_CLOSE:
+        EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = hit->index);
+        break;
+    case CLI_HIT_MAP:
+        EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = (GuiWindowHit *)hit);
+        break;
+    case CLI_HIT_EDITOR:
+    case CLI_HIT_GUTTER: {
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
+        const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
+                                      .pointer = CLI_VIEW_POINTER_DOWN,
+                                      .row = hit->row,
+                                      .column = hit->column,
+                                      .clicks = window->clicks,
+                                      .shift = args->on,
+                                      .gutter = hit->hit == CLI_HIT_GUTTER};
+        EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &pointed, .edited = 0);
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -1610,7 +2496,7 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     {
         return;
     }
-    EMBED_CALL(window_menus_away, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y);
+    EMBED_CALL(window_menus_away, GuiWindowCtx, .window = window, .x = args->input->x, .y = args->input->y);
     // over an open menu the wheel scrolls its rows and nothing under it
     if (EMBED_CALL(gui_menubar_glyphs_frame_x.wheel, GuiMenubarGlyphsFrameXCfg, .menubar = &window->menubar,
                    .glyphs = &window->glyphs, .frame = &window->frame, .x = args->input->x, .y = args->input->y,
@@ -1636,8 +2522,8 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     if (EMBED_CALL(gui_suggest_x.holds, GuiSuggestXCfg, .suggest_read = &window->suggest, .x = args->input->x,
                    .y = args->input->y))
     {
-        const CliInput wheel = {.kind = CLI_INPUT_WHEEL, .hit = CLI_HIT_SUGGEST_LIST, .rows_moved = args->input->rows};
-        cli_controller_input(&wheel, NULL);
+        cli_servers_panels_wheel(args->input->rows);
+        EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
         return;
     }
     // over a terminal's pane, its view
@@ -1646,18 +2532,34 @@ static void window_wheel(const GuiInputHandlerCfg *args)
                    .glyphs = (GuiGlyphs *)&window->glyphs, .x = args->input->x, .y = args->input->y,
                    .index = &pane) == CLI_HIT_TERMINAL)
     {
-        const CliInput wheel = {
-            .kind = CLI_INPUT_WHEEL, .hit = CLI_HIT_TERMINAL, .index = pane, .rows_moved = args->input->rows};
-        cli_controller_input(&wheel, NULL);
+        cli_terminal_tabs_wheel(pane, args->input->rows);
+        EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
         return;
     }
-    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.editor, .x = args->input->x,
-                   .y = args->input->y) ||
-        EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.map, .x = args->input->x,
-                   .y = args->input->y))
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    if ((key != NULL) && (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.editor,
+                                     .x = args->input->x, .y = args->input->y) ||
+                          EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.map,
+                                     .x = args->input->x, .y = args->input->y)))
     {
-        const CliInput wheel = {.kind = CLI_INPUT_WHEEL, .hit = CLI_HIT_EDITOR, .rows_moved = args->input->rows};
-        cli_controller_input(&wheel, NULL);
+        EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
+        const unsigned long long top = cli_view_top(key);
+        // a wheel's rows are far inside what a long long represents, and a top above the first line stops at it
+        unsigned long long moved;
+        if (args->input->rows >= 0)
+        {
+            moved = top + (unsigned long long)args->input->rows;
+        }
+        else if (top > (unsigned long long)(-(long long)args->input->rows))
+        {
+            moved = top - (unsigned long long)(-(long long)args->input->rows);
+        }
+        else
+        {
+            moved = 0ULL;
+        }
+        GuiWindowHit scrolled = {CLI_HIT_EDITOR, 0u, 0u, moved, 0ULL};
+        EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = &scrolled);
     }
 }
 
@@ -1665,18 +2567,17 @@ static void window_wheel(const GuiInputHandlerCfg *args)
 // and closes the tab, each as its × does; elsewhere it does nothing
 EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
 {
-    CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN};
-    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window_read, .x = args->x, .y = args->y,
-               .input = &pressed);
+    GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->x, .y = args->y, .hit = &pressed);
     if ((pressed.hit == CLI_HIT_TAB) || (pressed.hit == CLI_HIT_TAB_CLOSE))
     {
         pressed.hit = CLI_HIT_TAB_CLOSE;
-        cli_controller_input(&pressed, NULL);
+        EMBED_CALL(window_pressed, GuiWindowCtx, .window = args->window, .hit = &pressed, .on = 0);
     }
     else if (pressed.hit == CLI_HIT_TERMINAL_TAB)
     {
         pressed.hit = CLI_HIT_TERMINAL_TAB_CLOSE;
-        cli_controller_input(&pressed, NULL);
+        EMBED_CALL(window_pressed, GuiWindowCtx, .window = args->window, .hit = &pressed, .on = 0);
     }
 }
 
@@ -1694,7 +2595,7 @@ EMBED_INLINE int window_terminal_grip(const GuiWindowCtx *args)
 }
 
 // the terminal's height for its top edge dragged to y, in the page's pixels, between its least and its most as the
-// frame lays it, told the controller where it moved
+// frame lays it, handed to the terminal where it moved
 EMBED_INLINE void window_terminal_drag(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -1712,11 +2613,11 @@ EMBED_INLINE void window_terminal_drag(const GuiWindowCtx *args)
     const int bounded = (asked < most) ? asked : most;
     const int height = (bounded > GUI_TERMINAL_LEAST) ? bounded : GUI_TERMINAL_LEAST;
     // the height is not negative
-    if ((unsigned int)height != window->terminal_height_sent)
+    if ((unsigned int)height != window->terminal_height)
     {
-        window->terminal_height_sent = (unsigned int)height;
-        const CliInput sized = {.kind = CLI_INPUT_TERMINAL_HEIGHT, .rows = (unsigned int)height};
-        cli_controller_input(&sized, NULL);
+        window->terminal_height = (unsigned int)height;
+        cli_terminal_tabs_height((unsigned int)height);
+        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
     }
 }
 
@@ -1726,18 +2627,18 @@ static void window_press(const GuiInputHandlerCfg *args)
     const GuiInput *input = args->input;
     if (input->button == GUI_BUTTON_MIDDLE)
     {
-        EMBED_CALL(window_middle_press, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y);
+        EMBED_CALL(window_middle_press, GuiWindowCtx, .window = window, .x = input->x, .y = input->y);
         return;
     }
     if (input->button == GUI_BUTTON_RIGHT)
     {
-        EMBED_CALL(window_menus_away, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y);
+        EMBED_CALL(window_menus_away, GuiWindowCtx, .window = window, .x = input->x, .y = input->y);
         return;
     }
     if (EMBED_CALL(window_terminal_grip, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y))
     {
         window->terminal_gripped = 1;
-        window->terminal_height_sent = 0u;
+        window->terminal_height = 0u;
         return;
     }
     const unsigned int hit = EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = input);
@@ -1747,8 +2648,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     {
         return;
     }
-    CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN, .mods = window_mods(input)};
-    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y, .input = &pressed);
+    GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y, .hit = &pressed);
     // a press on the map goes to that part of the text and may begin the slider's drag, the top worked out from what
     // the map shows
     unsigned long long top = 0ULL;
@@ -1771,11 +2672,10 @@ static void window_press(const GuiInputHandlerCfg *args)
     window->double_click_deadline_ms = now_ms + GUI_DOUBLE_CLICK_MS;
     window->clicked_x = input->x;
     window->clicked_y = input->y;
-    pressed.clicks = window->clicks;
     window->dragging = (pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER);
     window->terminal_dragged = (pressed.hit == CLI_HIT_TERMINAL) ? (pressed.index + 1u) : 0u;
-    window->moved_sent = pressed;
-    cli_controller_input(&pressed, NULL);
+    window->moved = pressed;
+    EMBED_CALL(window_pressed, GuiWindowCtx, .window = window, .hit = &pressed, .on = window_shift(input));
 }
 
 static void window_move(const GuiInputHandlerCfg *args)
@@ -1789,17 +2689,19 @@ static void window_move(const GuiInputHandlerCfg *args)
     // a drag that began in a terminal's pane goes on choosing in it, the pointer clamped to its rows and columns
     if (window->terminal_dragged != 0u)
     {
-        CliInput moved = {.kind = CLI_INPUT_POINTER_MOVED,
-                          .hit = CLI_HIT_TERMINAL,
-                          .index = window->terminal_dragged - 1u,
-                          .clicks = window->clicks};
+        GuiWindowHit moved = {CLI_HIT_TERMINAL, 0u, window->terminal_dragged - 1u, 0ULL, 0ULL};
         if (EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &window->terminal,
                        .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .view = moved.index,
                        .x = args->input->x, .y = args->input->y, .row = &moved.row, .column = &moved.column) &&
-            ((moved.row != window->moved_sent.row) || (moved.column != window->moved_sent.column)))
+            ((moved.row != window->moved.row) || (moved.column != window->moved.column)))
         {
-            window->moved_sent = moved;
-            cli_controller_input(&moved, NULL);
+            window->moved = moved;
+            const CliTerminalTabsPressCfg pointed = {CLI_TERMINAL_HIT_PANE, moved.index, moved.row, moved.column,
+                                                     window->clicks,        0,           0};
+            if (cli_terminal_tabs_pointer(&pointed))
+            {
+                EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+            }
         }
         return;
     }
@@ -1844,23 +2746,49 @@ static void window_move(const GuiInputHandlerCfg *args)
     {
         if ((window->editor.frame != NULL) && (top != window->editor.frame->top))
         {
-            const CliInput dragged = {.kind = CLI_INPUT_POINTER_DOWN, .hit = CLI_HIT_MAP, .row = top};
-            cli_controller_input(&dragged, NULL);
+            GuiWindowHit dragged = {CLI_HIT_MAP, 0u, 0u, top, 0ULL};
+            EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = &dragged);
         }
         return;
     }
-    CliInput moved = {.kind = CLI_INPUT_POINTER_MOVED, .clicks = window->clicks};
+    GuiWindowHit moved = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y,
-               .input = &moved);
-    // a pointer that moved on no cell and no row says nothing new
-    if ((moved.hit == window->moved_sent.hit) && (moved.level == window->moved_sent.level) &&
-        (moved.index == window->moved_sent.index) && (moved.row == window->moved_sent.row) &&
-        (moved.column == window->moved_sent.column))
+               .hit = &moved);
+    // a pointer that moved on no cell and no row brings nothing new
+    if ((moved.hit == window->moved.hit) && (moved.level == window->moved.level) &&
+        (moved.index == window->moved.index) && (moved.row == window->moved.row) &&
+        (moved.column == window->moved.column))
     {
         return;
     }
-    window->moved_sent = moved;
-    cli_controller_input(&moved, NULL);
+    window->moved = moved;
+    // the menus mark the title or the row the pointer moved onto
+    if (moved.hit == CLI_HIT_MENU_TITLE)
+    {
+        cli_menus_title_move(moved.index);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+    }
+    else if (moved.hit == CLI_HIT_MENU_ROW)
+    {
+        cli_menus_row_move(moved.level, moved.index);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+    }
+    // a drag in the editor chooses in it; else the panels follow the pointer
+    if (window->dragging)
+    {
+        const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
+                                      .pointer = CLI_VIEW_POINTER_MOVED,
+                                      .row = moved.row,
+                                      .column = moved.column,
+                                      .clicks = window->clicks,
+                                      .gutter = moved.hit == CLI_HIT_GUTTER};
+        EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &pointed, .edited = 0);
+        return;
+    }
+    const CliServersPanelsPointerCfg pointer = {moved.hit == CLI_HIT_EDITOR, moved.row, moved.column,
+                                                moved.hit == CLI_HIT_HOVER_BOX};
+    cli_servers_panels_pointer(&pointer);
+    EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
 }
 
 static void window_leave(const GuiInputHandlerCfg *args)
@@ -1881,15 +2809,17 @@ static void window_release(const GuiInputHandlerCfg *args)
     window->terminal_gripped = 0;
     if (window->terminal_dragged != 0u)
     {
-        CliInput released = {.kind = CLI_INPUT_POINTER_UP,
-                             .hit = CLI_HIT_TERMINAL,
-                             .index = window->terminal_dragged - 1u,
-                             .clicks = window->clicks};
+        GuiWindowHit released = {CLI_HIT_TERMINAL, 0u, window->terminal_dragged - 1u, 0ULL, 0ULL};
         (void)EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &window->terminal,
                          .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .view = released.index,
                          .x = args->input->x, .y = args->input->y, .row = &released.row, .column = &released.column);
         window->terminal_dragged = 0u;
-        cli_controller_input(&released, NULL);
+        const CliTerminalTabsPressCfg pointed = {
+            CLI_TERMINAL_HIT_PANE, released.index, released.row, released.column, window->clicks, 0, 1};
+        if (cli_terminal_tabs_pointer(&pointed))
+        {
+            EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+        }
     }
     if (window->minimap.dragging)
     {
@@ -1899,47 +2829,73 @@ static void window_release(const GuiInputHandlerCfg *args)
     if (window->dragging)
     {
         window->dragging = 0;
-        CliInput released = {.kind = CLI_INPUT_POINTER_UP, .clicks = window->clicks};
+        GuiWindowHit released = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
         EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y,
-                   .input = &released);
-        cli_controller_input(&released, NULL);
+                   .hit = &released);
+        const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
+                                      .pointer = CLI_VIEW_POINTER_UP,
+                                      .row = released.row,
+                                      .column = released.column,
+                                      .clicks = window->clicks,
+                                      .gutter = released.hit == CLI_HIT_GUTTER};
+        EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &pointed, .edited = 0);
     }
 }
 
 static void window_key(const GuiInputHandlerCfg *args)
 {
-    const GuiWindow *window = args->window;
-    const CliInput keyed = {.kind = CLI_INPUT_KEY, .hit = window->wordmark.exists ? CLI_HIT_WORDMARK : CLI_HIT_NONE};
-    EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&keyed, .bytes = args->input->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
+    GuiWindow *const window = args->window;
+    cli_notices_key(args->input->name, window->editing);
+    EMBED_CALL(window_key_take, GuiWindowCtx, .window = window, .name = args->input->name,
+               .on = window->wordmark.exists);
 }
 
 // the keys gone to another window: the menus open closed
 static void window_blur(const GuiInputHandlerCfg *args)
 {
-    EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window);
+    EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
 }
 
-// the system's gesture for a menu: the menu of what stands at the pointer asked for there
+// the system's gesture for a menu: the menu of what stands at the pointer asked for there, none on a menu open, the
+// menus open closed first; the terminal's panel answers for every place on it
 static void window_menu(const GuiInputHandlerCfg *args)
 {
-    CliInput asked = {
-        .kind = CLI_INPUT_MENU, .mods = window_mods(args->input), .x = args->input->x, .y = args->input->y};
-    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->input->x, .y = args->input->y,
-               .input = &asked);
-    cli_controller_input(&asked, NULL);
+    GuiWindow *const window = args->window;
+    GuiWindowHit asked = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y,
+               .hit = &asked);
+    if (asked.hit == CLI_HIT_MENU_ROW)
+    {
+        return;
+    }
+    EMBED_CALL(window_menus_close, GuiWindowCtx, .window = window);
+    if ((asked.hit >= CLI_HIT_TERMINAL) && (asked.hit <= CLI_HIT_TERMINAL_PANEL))
+    {
+        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, args->input->x,
+                           args->input->y);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+    }
 }
 
 static void window_text(const GuiInputHandlerCfg *args)
 {
+    GuiWindow *const window = args->window;
+    cli_notices_input();
     // while the name's pane stands no view takes the text
-    if (args->window->wordmark.exists)
+    if (window->wordmark.exists)
     {
         return;
     }
-    const CliInput typed = {.kind = CLI_INPUT_TEXT};
-    EMBED_CALL(window_text_send, GuiWindowCtx, .input = (CliInput *)&typed, .bytes = args->input->text,
-               .length = args->input->size);
+    if (cli_terminal_tabs_text(args->input->text, args->input->size))
+    {
+        EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+        return;
+    }
+    const CliViewInput typed = {.kind = CLI_VIEW_TEXT, .text = args->input->text, .length = args->input->size};
+    EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
+    cli_servers_panels_text(args->input->text, args->input->size);
+    EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &typed, .edited = 1);
+    EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
 }
 
 // what answers each kind of input, in the main window and in Preferences' window

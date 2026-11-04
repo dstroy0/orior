@@ -35,6 +35,17 @@ int cli_reach_store_in(const CliReachCfg *args);
 int cli_reach_store(const CliReachCfg *args);
 void cli_reach_forget(void);
 
+// this window's door: opened for every process the container starts and for the command line, which it stores for the
+// tree `root`, each command that comes copied into a cell of its own on the door's thread, pushed on a list any thread
+// pushes to and only the window's thread takes whole, and `woken` called: 1, or 0 with the reason written; on the
+// window's thread, every command waiting run by `run` in the order it came, its name, words and their count handed on,
+// and answered on the command's own channel as `run` returns, 1 where it ran, 1 where any came; and the door's key and
+// every command
+// waiting let go
+int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg);
+int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count));
+void cli_reach_close(void);
+
 // `command` of `menu`, with `args`, `count` of them, sent to a window open on `root` among those stored in `home`, or,
 // with no tree named, to the one window open where there is only one, its answer into `answer`: 1, 0 with why given,
 // or -1 where no window is open there; and the same in orior's home

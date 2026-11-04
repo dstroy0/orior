@@ -5,8 +5,8 @@
 // text and the marks between them in the path's, the notice a gap after them with Silence beside it. One pass lays the
 // bar out and draws it, or with no raster lays it out alone, so a press finds what the drawing showed
 #include "statusbar.h"
-#include "../../controller/controller.h"
 #include "../../text/text.h"
+#include "../view.h"
 
 // the crumbs' mark between a folder and what it holds, the ellipsis a notice cut short ends in, Silence and Focus
 static const char s_crumb_mark[] = "\xe2\x80\xba";

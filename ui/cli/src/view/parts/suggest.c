@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// suggest.c: the completion panel, its rows as the controller ranks and publishes them
+// suggest.c: the completion panel, its rows as the panels over the editor rank them, read where they stand
 #include "suggest.h"
 
 #include "../../command_line/cli_internal.h"
@@ -104,7 +104,9 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     float widest = 0.0f;
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
-        const CliCompletionRow *const item = &panel->row[row];
+        CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
+        (void)cli_servers_panels_completion_row(row, &read);
+        const CliCompletionRow *const item = &read;
         float pixel_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .text = item->label, .length = item->label_length);
@@ -130,7 +132,9 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     // the rows are few: their height is far inside what an int represents
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
     // the row chosen is always among the rows shown
-    const CliCompletionRow *const chosen = &panel->row[panel->chosen - panel->first];
+    CliCompletionRow chosen_row = {"", 0ULL, "", "", 0ULL, 0u};
+    (void)cli_servers_panels_completion_row(panel->chosen - panel->first, &chosen_row);
+    const CliCompletionRow *const chosen = &chosen_row;
     const int detailed = chosen->detail_length > 0ULL;
     const int detail_width =
         detailed ? EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_DETAIL, .scale = scale)
@@ -159,7 +163,9 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
         const unsigned int at = panel->first + row;
-        const CliCompletionRow *const item = &panel->row[row];
+        CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
+        (void)cli_servers_panels_completion_row(row, &read);
+        const CliCompletionRow *const item = &read;
         const GuiRect row_rect = {args->suggest->list.x, args->suggest->list.y + ((int)row * row_height), list_width,
                                   row_height};
         if (at == panel->chosen)

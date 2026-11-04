@@ -10,8 +10,62 @@
 #define CLI_VIEW_H
 #include "../../../gui/src/input_event.h"
 #include "../command_line/callback_cfg.h"
-#include "../controller/controller.h"
+#include "embed_atomic.h"
+#include "memoria_anularis/memoria_anularis.h"
 #include "raster.h"
+
+// what a pixel of the main window stands on, as the window lays it; a key sent while the name's pane stands names the
+// wordmark, no view taking it. In the terminal: its pane, a tab, a tab's ×, New Terminal, Split, and the panel on none
+// of these. On the status bar: the notice it shows, the Silence beside it, and Focus
+#define CLI_HIT_NONE 0u
+#define CLI_HIT_MENU_TITLE 1u
+#define CLI_HIT_MENU_ROW 2u
+#define CLI_HIT_TAB 3u
+#define CLI_HIT_TAB_CLOSE 4u
+#define CLI_HIT_TOOL 5u
+#define CLI_HIT_EXPLORER_ROW 6u
+#define CLI_HIT_PROBLEM_ROW 7u
+#define CLI_HIT_PROBLEMS_CHECK 8u
+#define CLI_HIT_SUGGEST_ROW 9u
+#define CLI_HIT_MAP 10u
+#define CLI_HIT_EDITOR 11u
+#define CLI_HIT_GUTTER 12u
+#define CLI_HIT_WORDMARK 13u
+#define CLI_HIT_HOVER_BOX 14u
+#define CLI_HIT_SIGNATURE_BOX 15u
+#define CLI_HIT_SUGGEST_LIST 16u
+#define CLI_HIT_TERMINAL 17u
+#define CLI_HIT_TERMINAL_TAB 18u
+#define CLI_HIT_TERMINAL_TAB_CLOSE 19u
+#define CLI_HIT_TERMINAL_NEW 20u
+#define CLI_HIT_TERMINAL_SPLIT 21u
+#define CLI_HIT_TERMINAL_PANEL 22u
+#define CLI_HIT_STATUS_NOTICE 23u
+#define CLI_HIT_STATUS_SILENCE 24u
+#define CLI_HIT_STATUS_FOCUS 25u
+
+// A place on the screen in the system's own pixels, and whether the window filled its monitor there
+typedef struct
+{
+    int x;
+    int y;
+    unsigned int width;
+    unsigned int height;
+    int maximized;
+} CliWindowPosition;
+
+// A monitor's area, in the system's own pixels
+typedef struct
+{
+    int x;
+    int y;
+    unsigned int width;
+    unsigned int height;
+} CliWindowArea;
+
+// the least size the window is dragged to, and a place saved is read back at, in pixels at a scale of one
+#define CLI_POSITION_MIN_WIDTH 960u
+#define CLI_POSITION_MIN_HEIGHT 600u
 
 // the window's two surfaces
 #define CLI_VIEW_MAIN 0u
@@ -118,9 +172,9 @@ typedef struct
     VerbaLinea *err_msg;
 } CliViewBeginCfg;
 
-// the view's window, the controller and the tree begun and the view's thread started: 1, or 0 with why given and
-// nothing left standing; and ended, the thread let end and every cell of the view given back, after the system's window
-// has closed
+// the view's window and the tree begun, the window started on the tree and the view's thread started: 1, or 0 with the
+// reason written and nothing left standing; and ended, the thread let end, the tree's servers and processes ended and
+// every cell of the view released, after the system's window has closed
 int cli_view_begin(const CliViewBeginCfg *args);
 void cli_view_end(void);
 // from the system's thread alone: one event written, its input's name or text with it, dropped where the ring cannot
@@ -131,5 +185,11 @@ int cli_view_order(CliViewOrder *order);
 unsigned int cli_view_hit(unsigned int surface, int x, int y);
 // where a pixel stands on `hits`, on any thread
 unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y);
+// the window's place for each tree, saved in the file `places` in orior's home as the window closes, one record for
+// each tree (place.c): the place saved for the tree `root`, fitted to the monitors `areas`, `count` of them, the
+// system's main one first, into `place`: 1, or 0 where none is saved, it is below the least size or there is no
+// monitor; and `place` saved for `root`, beside the places of the other trees, nothing saved where `root` is NULL
+int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned int count, CliWindowPosition *place);
+void cli_view_place_store(const char *root, const CliWindowPosition *place);
 
 #endif

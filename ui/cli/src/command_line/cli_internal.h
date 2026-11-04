@@ -31,6 +31,7 @@ typedef struct CliCountCtx CliCountCtx;
 typedef struct CliEachCtx CliEachCtx;
 typedef struct CliPathCapacityCtx CliPathCapacityCtx;
 typedef struct CliPathCountCtx CliPathCountCtx;
+typedef struct CliPathPutCtx CliPathPutCtx;
 typedef struct CliPathSizeCtx CliPathSizeCtx;
 typedef struct CliPathErrMsgNameCtx CliPathErrMsgNameCtx;
 typedef struct CliCapacityNamesCtx CliCapacityNamesCtx;
@@ -303,8 +304,10 @@ typedef struct
 } CliFilePiece;
 
 // the file at `path` written as `count` pieces in turn, any file there replaced whole or not at all: 1, or 0 where it
-// could not be (file_writing.c)
+// could not be; and the file at `path` written with what `put` puts into the file writer's line, handed `context`, the
+// same way: 1, or 0 where `put` returned 0 or the file could not be written (file_writing.c)
 int cli_file_pieces_write(const CliPathCountCtx *args);
+int cli_file_put_write(const CliPathPutCtx *args);
 
 // the bytes a file is written in: one view of the Windows cache manager, VACB_MAPPING_GRANULARITY in ntifs.h, written
 // at an offset that is a whole number of them, each a whole number of 4 KiB pages
@@ -747,6 +750,13 @@ struct CliPathCountCtx
     const char *path;
     unsigned int count;
     const CliFilePiece *pieces;
+};
+
+struct CliPathPutCtx
+{
+    const char *path;
+    int (*put)(VerbaLinea *line, void *context);
+    void *context;
 };
 
 struct CliPathSizeCtx
@@ -1363,6 +1373,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliPathCountNs, file_pieces_write);
 EMBED_TABLE_STORAGE CliPathCountNs cli_path_count_internal EMBED_UNUSED = {
     .file_pieces_write = cli_file_pieces_write,
+};
+
+typedef struct
+{
+    int (*file_put_write)(const CliPathPutCtx *args);
+} CliPathPutNs;
+EMBED_TABLE_LAYOUT(CliPathPutNs, file_put_write);
+EMBED_TABLE_STORAGE CliPathPutNs cli_path_put_internal EMBED_UNUSED = {
+    .file_put_write = cli_file_put_write,
 };
 
 typedef struct

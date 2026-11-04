@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window.h: the view of what the controller publishes, drawn on the view's thread (view.c): its frame laid out
-// for its size, its raster drawn with the parts, the glyphs and the palette they draw with; the pointer's place read as
-// the caption, a border, a control or the client, and what stands under a pixel written to the controller as an input
-// (window.c)
+// window.h: the window on the view's thread (view.c): its frame laid out for its size, its raster drawn with the parts,
+// the glyphs and the palette they draw with, each part reading the command line's modules where their state stands;
+// the pointer's place read as the caption, a border, a control or the client, and each input handed straight to the
+// module it is for (window.c)
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
 #include "base.h"
@@ -41,25 +41,40 @@ typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
 typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 
 // the resize border's width in the page's pixels; the rectangles a map of what a pixel stands on holds, each title,
-// each menu open and the eye; and the milliseconds of one refresh of a monitor before the system has said
+// each menu open and the eye; the milliseconds of one refresh of a monitor before the system has sent its own; and the
+// milliseconds between readings of what orior takes in RAM
 #define GUI_BORDER 5
 #define GUI_WINDOW_HIT_CLIENTS (GUI_MENUBAR_TITLES + GUI_MENU_LEVELS + 1u)
 #define GUI_VIEW_FRAME_MS 17u
+#define GUI_MEMORY_MS 2000ULL
+
+// What a pixel of the main window stands on, a CLI_HIT_*, with the level and the place among its rows of what it
+// stands on, and the row and the cell it stands on in the editor or a terminal's pane
+typedef struct
+{
+    unsigned int hit;
+    unsigned int level;
+    unsigned int index;
+    unsigned long long row;
+    unsigned long long column;
+} GuiWindowHit;
+
 // The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame
 // is presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
-// palette; the parts, each holding what it last took of the controller's; the tabs, the status and the settings as last
-// published; when the caret's breath last began, each frame of the view beginning it again, the caret's ink in the last
-// frame drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame
-// whole; the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of
-// the window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim
-// and whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and
-// the settings ask it; the count the controller gives each file shown, and what it last told of Preferences and the
-// name; what was last said of the editor's size, the bar's titles, the map's lines, the terminal's two panes' columns
-// and rows and the pointer, none said again until it moves; whether the pointer drags the terminal's top edge and the
-// height it last said; whether the pointer drags in the editor, and the terminal's pane it drags in, one past it, 0
-// for none; the presses counted, when
-// and where the last was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT
-// where none
+// palette; the parts, the editor's frame, names and map, the terminal's panes and their frames, each taken of the
+// module whose state it is and released by the window; the hover and the completion as the panels last had them;
+// when the caret's breath last began, each frame of the view beginning it again, the caret's ink in the last frame
+// drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame whole;
+// the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of the
+// window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim and
+// whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
+// settings ask it; the tree's name, the last part of its folder; whether the editor takes the keys and whether the
+// window is to close; what orior takes in RAM and when it is next read; the view shown when the frame was last taken,
+// -1 for none; the editor's rows and columns, the bar's titles shown and whether the rest fold, and the lines the map
+// stands for, each as last handed on; the terminal's two panes' columns and rows and its height as last handed on; what
+// the pointer last moved onto; whether the pointer drags the terminal's top edge, whether it drags in the editor, and
+// the terminal's pane it drags in, one past it, 0 for none; the presses counted, when and where the last was; whether a
+// frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT where none
 typedef struct GuiWindow
 {
     GuiFrame frame;
@@ -81,9 +96,8 @@ typedef struct GuiWindow
     GuiSignature signature;
     GuiProblems problems;
     GuiTerminal terminal;
-    const CliTabs *tabs;
-    const CliStatus *status;
-    const CliSettings *settings;
+    CliHoverPanel hover_panel;
+    CliCompletionPanel completion_panel;
     unsigned long long caret_blink_start_ms;
     unsigned int caret_color;
     int caret_alone;
@@ -110,21 +124,24 @@ typedef struct GuiWindow
     int motion_saved;
     int motion_still;
     int off_screen;
-    unsigned long long shown;
-    int preferences_status;
-    unsigned int wordmark_status;
-    unsigned int sent_rows;
-    unsigned int sent_columns;
-    unsigned int sent_shown;
-    unsigned int sent_folded;
-    int map_sent;
-    unsigned long long map_sent_first;
-    unsigned long long map_sent_last;
-    unsigned int terminal_columns_sent[2];
-    unsigned int terminal_rows_sent[2];
+    const char *title;
+    int editing;
+    int closing;
+    unsigned long long memory_bytes;
+    unsigned long long memory_due_ms;
+    int view_shown;
+    unsigned int rows;
+    unsigned int columns;
+    unsigned int bar_shown;
+    unsigned int bar_folded;
+    int map_known;
+    unsigned long long map_first;
+    unsigned long long map_last;
+    unsigned int terminal_columns[2];
+    unsigned int terminal_rows[2];
     int terminal_gripped;
-    unsigned int terminal_height_sent;
-    CliInput moved_sent;
+    unsigned int terminal_height;
+    GuiWindowHit moved;
     int dragging;
     unsigned int terminal_dragged;
     unsigned int clicks;
@@ -144,8 +161,8 @@ typedef struct GuiWindow
 #define GUI_CARET_FADE_MS 300ull
 #define GUI_CARET_DIM 64u
 
-// the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with why given;
-// and ended, the controller with it, every cell given back
+// the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with the reason
+// written; and ended, the session saved, the modules it began ended and every cell released
 int gui_window_begin(const GuiWindowWokenCfg *args);
 void gui_window_end(const GuiWindowCfg *args);
 // the window sized `width` by `height` at `scale`: its frame laid out and its raster made anew: 1, or 0 where the
@@ -159,7 +176,10 @@ void gui_window_preferences_resize(const GuiWindowWidthCfg *args);
 void gui_window_preferences_input(const GuiWindowInputKindCfg *args);
 unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args);
 void gui_window_preferences_draw(const GuiWindowCfg *args);
-// the first frame owed as the window opens; and Preferences' window asked closed by the system
+// the window started on the tree the command line found, `woken` waking the view's thread from any thread: the settings
+// orior's folder saved read, the modules begun, the session, the notices put away and the terminal restored, the
+// command the window was started with run, and the first frame owed; and Preferences' window asked closed by the
+// system
 void gui_window_start(const GuiWindowCfg *args);
 void gui_window_preferences_close(const GuiWindowCfg *args);
 // the frame drawn into the raster not shown, the frame owed no more; and the two flipped once that frame is presented,
@@ -178,8 +198,10 @@ void gui_window_preferences_hits(const GuiWindowHitsCfg *args);
 // where the pointer on the input stands; and an input in the main window, as its kind says
 unsigned int gui_window_hit(const GuiWindowInputCfg *args);
 void gui_window_input(const GuiWindowInputKindCfg *args);
-// the newest of each part taken, on the window's thread, each that changed owing a frame
-void gui_window_drain(const GuiWindowCfg *args);
+// on the window's thread, the modules stepped: the commands come through the door run, the servers' reports and the
+// panels' timers taken, the terminal's shells drained, the notices' and the menus' timers taken, lines the walk colored
+// taken into the frame, what orior takes in RAM read when its time comes; each that changed owing a frame
+void gui_window_step(const GuiWindowCfg *args);
 // the tick the window asked for come: the claim's timers run and its parts laid where its slides stand, and the
 // ground drawn again where its loop shows a change; and when the window next wants a tick, in milliseconds, 0 for
 // never
@@ -228,6 +250,7 @@ struct GuiWindowIconCfg
 struct GuiWindowCfg
 {
     GuiWindow *window;
+    void (*woken)(void);
 };
 
 struct GuiWindowAutohideCfg
@@ -279,13 +302,13 @@ typedef struct
     GuiRect (*caret_draw)(const GuiWindowCfg *args);
     GuiRect (*busy_draw)(const GuiWindowCfg *args);
     void (*preferences_close)(const GuiWindowCfg *args);
-    void (*drain)(const GuiWindowCfg *args);
+    void (*step)(const GuiWindowCfg *args);
     void (*tick)(const GuiWindowCfg *args);
     void (*hits)(const GuiWindowHitsCfg *args);
     void (*preferences_hits)(const GuiWindowHitsCfg *args);
 } GuiWindowNs;
 EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, preferences_close,
-                   drain, tick, hits, preferences_hits);
+                   step, tick, hits, preferences_hits);
 EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .end = gui_window_end,
     .preferences_draw = gui_window_preferences_draw,
@@ -295,7 +318,7 @@ EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .caret_draw = gui_window_caret_draw,
     .busy_draw = gui_window_busy_draw,
     .preferences_close = gui_window_preferences_close,
-    .drain = gui_window_drain,
+    .step = gui_window_step,
     .tick = gui_window_tick,
     .hits = gui_window_hits,
     .preferences_hits = gui_window_preferences_hits,

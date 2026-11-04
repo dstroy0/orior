@@ -73,10 +73,11 @@ typedef struct
 // case and whole words, whether the matches are to be found anew, the matches, each a line, a from and a to column, in
 // a cell of their own, how many and the work state, and the current one, -1 for none; and the line read last, its units
 // in a cell of the view's own, the work state it has, which line it is and whether it is known: a line's units are read
-// once for the moves along it
+// once for the moves along it; and whether its close waits on a second press, its text changed
 typedef struct
 {
     int used;
+    int closing;
     char key[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     char served[CLI_PATH_MAX_LEN];
@@ -177,6 +178,9 @@ typedef struct
 #define CLI_VIEW_KIND_DELETE_FORWARD 4u
 
 static CliView *s_views;
+// the place of the view shown and of the one shown before it, each -1 for none
+static int s_shown = -1;
+static int s_last = -1;
 
 typedef struct
 {
@@ -587,7 +591,78 @@ void cli_view_close(const CliViewCfg *args)
         g_cli_cells->persistent_buf_release(view->find_query, &g_cli_views_cells);
         g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
         g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
-        memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
+        // the views after it move up a place, so the table stands in the order the views were opened; a view's place
+        // is far inside what an int counts
+        const int closed = (int)(view - s_views);
+        const unsigned int count = cli_view_count();
+        for (unsigned int at = (unsigned int)closed + 1u; at < count; at += 1u)
+        {
+            s_views[at - 1u] = s_views[at];
+        }
+        memor.set(&(MemoriaCfg){.dst = &s_views[count - 1u], .val = 0, .bytes = sizeof(*view)});
+        s_last = (s_last == closed) ? -1 : (s_last - ((s_last > closed) ? 1 : 0));
+        if (s_shown == closed)
+        {
+            // the view beside it shown, the one after it where there is one
+            s_shown = (closed < (int)count - 1) ? closed : (closed - 1);
+        }
+        else
+        {
+            s_shown -= (s_shown > closed) ? 1 : 0;
+        }
+    }
+}
+
+unsigned int cli_view_count(void)
+{
+    unsigned int count = 0u;
+    while ((s_views != NULL) && (count < CLI_VIEWS) && s_views[count].used)
+    {
+        count += 1u;
+    }
+    return count;
+}
+
+const char *cli_view_key(unsigned int at)
+{
+    return (at < cli_view_count()) ? s_views[at].key : NULL;
+}
+
+const char *cli_view_path_at(unsigned int at)
+{
+    return (at < cli_view_count()) ? s_views[at].path : NULL;
+}
+
+int cli_view_shown(void)
+{
+    return s_shown;
+}
+
+int cli_view_last(void)
+{
+    return s_last;
+}
+
+void cli_view_show(unsigned int at)
+{
+    if (at < cli_view_count())
+    {
+        // a view's place is far inside what an int counts
+        s_last = ((s_shown >= 0) && (s_shown != (int)at)) ? s_shown : s_last;
+        s_shown = (int)at;
+    }
+}
+
+int cli_view_closing(unsigned int at)
+{
+    return (at < cli_view_count()) && s_views[at].closing;
+}
+
+void cli_view_closing_set(unsigned int at, int closing)
+{
+    if (at < cli_view_count())
+    {
+        s_views[at].closing = closing;
     }
 }
 
@@ -4731,6 +4806,43 @@ int cli_view_modified(const CliViewCfg *args)
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     return (view != NULL) &&
            (view->save_point_lost || (EMBED_CALL(view_place, ViewCtx, .view_read = view) != view->save_point));
+}
+
+// what the file writer's line is handed as a text read whole is written: the text's lines put into it
+static int view_text_put(VerbaLinea *line, void *context)
+{
+    const CliViewSaveCfg *const saving = (const CliViewSaveCfg *)context;
+    return EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = saving->key, .out = line,
+                      .err_msg = saving->err_msg);
+}
+
+int cli_view_save(const CliViewSaveCfg *args)
+{
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no view is open under ");
+        mmgr_line_put(args->err_msg, args->key);
+        return 0;
+    }
+    const int written =
+        view->paged ? EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = args->key, .err_msg = args->err_msg)
+                    : EMBED_CALL(cli_path_put_internal.file_put_write, CliPathPutCtx, .path = args->full,
+                                 .put = view_text_put, .context = (void *)args);
+    if (written)
+    {
+        EMBED_CALL(cli_view_table.saved, CliViewCfg, .key = args->key);
+    }
+    else
+    {
+        EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = args->key);
+        if (!view->paged)
+        {
+            mmgr_line_put(args->err_msg, args->full);
+            mmgr_line_put(args->err_msg, ": it could not be written");
+        }
+    }
+    return written;
 }
 
 int cli_view_changed_alloc(const CliViewCfg *args)

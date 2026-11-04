@@ -5,9 +5,9 @@
 // crumbs at its left and the editor's line at its right, the lock at the end, bare where no file is open; and the
 // notice after the crumbs with Silence beside it, a failure's in the fail color, one too long cut short within half the
 // window, Focus in the signal on the right, and a press on each of them found where it is drawn
-#include "../../../../../ui/cli/src/controller/controller.h"
 #include "../../../../../ui/cli/src/view/base.h"
 #include "../../../../../ui/cli/src/view/parts/statusbar.h"
+#include "../../../../../ui/cli/src/view/view.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` is not `background_fill`

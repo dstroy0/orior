@@ -12,8 +12,13 @@
 
 typedef struct CliTerminalKeyCfg CliTerminalKeyCfg;
 
+// the modifier keys down on a key, as bits
+#define CLI_TERMINAL_MOD_SHIFT 1u
+#define CLI_TERMINAL_MOD_CONTROL 2u
+#define CLI_TERMINAL_MOD_ALT 4u
+
 // the bytes the key `name`, `name_size` bytes as the window names it, with the modifier bits `mods` down
-// (CLI_INPUT_MOD_*), sends a shell put after `out`, the cursor keys as the application mode sends them where
+// (CLI_TERMINAL_MOD_*), sends a shell put after `out`, the cursor keys as the application mode sends them where
 // `application_cursor` is 1: 1, or 0 for a key the terminal leaves alone
 int cli_terminal_key_bytes(const CliTerminalKeyCfg *args);
 struct CliTerminalKeyCfg

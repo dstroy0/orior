@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// explorer.c: the explorer's rows as the controller publishes them, the side's scroll and the row the pointer marks
-// being the window's own. A file's mark is its type's as the page's icons give them, else the first two letters of its
-// type quieter
+// explorer.c: the explorer's rows as the listing stands, the side's scroll and the row the pointer marks being the
+// window's own. A file's mark is its type's as the page's icons give them, else the first two letters of its type
+// quieter
 #include "explorer.h"
 
 #include "../../command_line/cli_internal.h"
+#include "../../editor/view.h"
 #include "../../text/text.h"
 
 // A mark: the type or name it stands for, its text, and which of the palette's mark colors it takes, 0 for the
@@ -202,7 +203,8 @@ typedef struct
 
 unsigned int gui_explorer_rows(const GuiExplorerFrameXYCfg *args)
 {
-    return (args->explorer_read->rows != NULL) ? args->explorer_read->rows->rows : 0u;
+    (void)args;
+    return cli_files_explorer_rows();
 }
 
 // where the rows begin in the side, below the explorer's head and the pane's
@@ -395,16 +397,20 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
     unsigned int row = args->row;
     GuiRect clip = args->clip;
     const int scale = frame->scale;
-    const CliExplorerRow *const node = &explorer->rows->row[row];
+    CliExplorerRow listed;
     const GuiRect rect = EMBED_CALL(gui_explorer_row_frame.row_rect, GuiExplorerRowFrameCfg, .frame = frame,
                                     .explorer_read = explorer, .row = row);
     const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = clip);
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met) || !cli_files_explorer_row(row, &listed))
     {
         return;
     }
-    // the rows are far fewer than an int counts
-    const int current = explorer->rows->displayed == (int)row;
+    const CliExplorerRow *const node = &listed;
+    // the row of the file the editor shows, its path the shown view's; a view's place is far inside an int
+    const int shown = cli_view_shown();
+    const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL;
+    const int current = (shown_path != NULL) &&
+                        cellul.eq(&(CatenaFinitaCfg){.src = node->path, .other = shown_path, .cap = CLI_PATH_MAX_LEN});
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = node->name, .cap = CLI_PATH_MAX_LEN});
     // the rows are far fewer than an int counts
     if (explorer->pointed == (int)row)

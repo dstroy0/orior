@@ -3,7 +3,6 @@
 // keys.c: what a key sends a shell (keys.h)
 #include "keys.h"
 #include "../command_line/cli_internal.h"
-#include "../controller/controller.h"
 
 // A key the terminal sends a sequence for: its name as the window names it, and what it sends
 typedef struct
@@ -40,9 +39,9 @@ EMBED_INLINE int keys_cursor(const KeysCtx *args)
     static const KeysSequence s_cursor[6] = {{"Up", "A"},   {"Down", "B"}, {"Right", "C"},
                                              {"Left", "D"}, {"Home", "H"}, {"End", "F"}};
     // the modifiers as an xterm counts them: Shift 1, Alt 2, Control 4
-    const unsigned int counted = (((args->mods & CLI_INPUT_MOD_SHIFT) != 0u) ? 1u : 0u) +
-                                 (((args->mods & CLI_INPUT_MOD_ALT) != 0u) ? 2u : 0u) +
-                                 (((args->mods & CLI_INPUT_MOD_CONTROL) != 0u) ? 4u : 0u);
+    const unsigned int counted = (((args->mods & CLI_TERMINAL_MOD_SHIFT) != 0u) ? 1u : 0u) +
+                                 (((args->mods & CLI_TERMINAL_MOD_ALT) != 0u) ? 2u : 0u) +
+                                 (((args->mods & CLI_TERMINAL_MOD_CONTROL) != 0u) ? 4u : 0u);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         if (!EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size,
@@ -75,7 +74,7 @@ EMBED_INLINE int keys_special(const KeysCtx *args)
         if (EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size,
                        .other = s_special[at].name))
         {
-            mmgr_line_put(args->out, ((args->mods & CLI_INPUT_MOD_ALT) != 0u) ? "\x1b" : "");
+            mmgr_line_put(args->out, ((args->mods & CLI_TERMINAL_MOD_ALT) != 0u) ? "\x1b" : "");
             mmgr_line_put(args->out, s_special[at].sends);
             return 1;
         }
@@ -94,9 +93,9 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
         return 0;
     }
     const char key = space ? ' ' : args->name[0];
-    const int control = (args->mods & CLI_INPUT_MOD_CONTROL) != 0u;
-    const int alt = (args->mods & CLI_INPUT_MOD_ALT) != 0u;
-    const int shift = (args->mods & CLI_INPUT_MOD_SHIFT) != 0u;
+    const int control = (args->mods & CLI_TERMINAL_MOD_CONTROL) != 0u;
+    const int alt = (args->mods & CLI_TERMINAL_MOD_ALT) != 0u;
+    const int shift = (args->mods & CLI_TERMINAL_MOD_SHIFT) != 0u;
     const int letter = (key >= 'A') && (key <= 'Z');
     if (control && !alt)
     {
@@ -125,8 +124,8 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
 
 int cli_terminal_key_bytes(const CliTerminalKeyCfg *args)
 {
-    const int shift = (args->mods & CLI_INPUT_MOD_SHIFT) != 0u;
-    const int control = (args->mods & CLI_INPUT_MOD_CONTROL) != 0u;
+    const int shift = (args->mods & CLI_TERMINAL_MOD_SHIFT) != 0u;
+    const int control = (args->mods & CLI_TERMINAL_MOD_CONTROL) != 0u;
     if (EMBED_CALL(keys_cursor, KeysCtx, .name = args->name, .name_size = args->name_size, .mods = args->mods,
                    .application_cursor = args->application_cursor, .out = args->out))
     {

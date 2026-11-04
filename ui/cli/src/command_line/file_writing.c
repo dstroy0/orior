@@ -49,11 +49,28 @@ int cli_file_line_end(const CliLineCtx *args)
                       .whole = whole && mmgr_line_ok(args->line));
 }
 
+// the stage and the file of the writes this writes whole, one at a time
+static char s_stage[CLI_STAGE_BYTES + 1u];
+static CliFileWriting s_file;
+
+int cli_file_put_write(const CliPathPutCtx *args)
+{
+    if (!EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &s_file, .path = args->path))
+    {
+        return 0;
+    }
+    VerbaLinea line = EMBED_CALL(cli_file_stage_internal.file_line, CliFileStageCtx, .file = &s_file, .stage = s_stage);
+    if (!args->put(&line, args->context))
+    {
+        (void)EMBED_CALL(cli_file_internal.file_end, CliFileCtx, .file = &s_file, .whole = 0);
+        return 0;
+    }
+    return EMBED_CALL(cli_line_internal.file_line_end, CliLineCtx, .file = &s_file, .line = &line);
+}
+
 int cli_file_pieces_write(const CliPathCountCtx *args)
 {
     static const char s_zeros[4096] = {0};
-    static char s_stage[CLI_STAGE_BYTES + 1u];
-    static CliFileWriting s_file;
     if (!EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &s_file, .path = args->path))
     {
         return 0;

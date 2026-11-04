@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// editor.c: the editor part. It draws the view's frame as the controller published it, reading its rows, runs, folds
+// editor.c: the editor part. It draws the view's frame as the window took it of the view, reading its rows, runs, folds
 // and matches where they stand in the frame's cell; a run's column counts the units the view counts, so a letter past
 // the basic plane counts two
 #include "editor.h"

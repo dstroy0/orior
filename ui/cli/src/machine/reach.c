@@ -6,9 +6,11 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 
+#include "../comms/comms.h"
 #include "../comms/door.h"
 
 #include "../text/text.h"
+#include "embed_atomic.h"
 
 // the most windows stored that are read, and how long a command line waits for the window's answer in milliseconds
 #define CLI_REACH_WINDOWS 64u
@@ -329,4 +331,168 @@ int cli_reach_request(const CliReachMenuCfg *args)
     return EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = home, .root = args->root, .menu = args->menu,
                       .command = args->command, .request = args->request, .count = args->count, .answer = args->answer,
                       .err_msg = args->err_msg);
+}
+
+// A command come through the door: the next on the list, its id and name, and its words; all of it in one cell
+typedef struct CliReachCommand
+{
+    struct CliReachCommand *next;
+    const char *id;
+    const char *command;
+    const char **word_text;
+    unsigned int words;
+} CliReachCommand;
+
+// The door: the commands pushed and not yet taken, a pointer in the word; what wakes the window's thread; and this
+// window's key, in a cell of its own
+typedef struct
+{
+    _Alignas(64) embed_atomic_u64 pushed;
+    void (*woken)(void);
+    char *key;
+} CliReachDoor;
+
+static CliReachDoor s_door;
+
+// from the door's thread: a command's bytes copied into a cell and pushed, those not ended by a 0 or short of a
+// command let go
+static int reach_received(const CliCommsRecvCfg *args)
+{
+    unsigned int fields = 0u;
+    for (unsigned long long at = 0ULL; at < args->size; fields += 1u)
+    {
+        at += cellul.len(&(CatenaFinitaCfg){.src = args->body + at, .cap = args->size - at}) + 1ULL;
+    }
+    if ((fields < CLI_REACH_HEAD_FIELDS) || (args->body[args->size - 1ULL] != '\0'))
+    {
+        return 1;
+    }
+    const unsigned int words = fields - CLI_REACH_HEAD_FIELDS;
+    CliReachCommand *const command = g_cli_cells->persistent_buf_alloc(
+        sizeof(*command) + ((unsigned long long)words * sizeof(*command->word_text)) + args->size,
+        &g_cli_machine_cells);
+    if (command == NULL)
+    {
+        return 1;
+    }
+    command->word_text = (const char **)(void *)(command + 1);
+    char *const text = (char *)(void *)(command->word_text + words);
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = args->body, .bytes = args->size});
+    command->id = text;
+    unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = args->size}) + 1ULL;
+    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
+    command->command = text + at;
+    at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
+    for (unsigned int word = 0u; word < words; word += 1u)
+    {
+        command->word_text[word] = text + at;
+        at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
+    }
+    command->words = words;
+    // a pointer fits the 64-bit word the list's head stands in
+    embed_u64 head = EMBED_ATOMIC_LOAD(&s_door.pushed);
+    do
+    {
+        command->next = (CliReachCommand *)(uintptr_t)head;
+    } while (!EMBED_ATOMIC_CAS_64(&s_door.pushed, &head, (embed_u64)(uintptr_t)command));
+    if (s_door.woken != NULL)
+    {
+        s_door.woken();
+    }
+    return 1;
+}
+
+int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg)
+{
+    char address[CLI_PATH_MAX_LEN];
+    char line_key[CLI_COMMS_KEY];
+    s_door.woken = woken;
+    s_door.key = g_cli_cells->persistent_buf_alloc(CLI_COMMS_KEY, &g_cli_machine_cells);
+    if (s_door.key == NULL)
+    {
+        mmgr_line_put(err_msg, "the cells cannot meet the door's key");
+        return 0;
+    }
+    static const char *const s_listen[1] = {"command"};
+    static const char *const s_send[1] = {"answer/*"};
+    unsigned int listener = 0u;
+    // the door is open from the start, for every process the container starts to join; the part that takes the commands
+    // is one of this process alone, whose key the door never takes, and the key the command line has grants it the
+    // command's channel
+    return EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = address, .err_msg = err_msg) &&
+           EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "orior", .has_process = 0, .process = 0u,
+                      .listen = s_listen, .listens = 1u, .send_grant = s_send, .send_grants = 1u, .key_out = s_door.key,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = s_door.key, .channel = "command",
+                      .queued = 0, .recv = reach_received, .context = NULL, .listener = &listener,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_comms_name.register_persistent, CliCommsNameCfg, .name = "command line", .listen = s_send,
+                      .listens = 1u, .send_grant = s_listen, .send_grants = 1u, .key_out = line_key,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_reach.store, CliReachCfg, .root = root, .address = address, .key = line_key,
+                      .err_msg = err_msg);
+}
+
+// what a command came to, sent on its own channel: `1` where it ran, else `0` and why
+static void reach_answer(const CliReachCommand *command, int ran)
+{
+    char channel[CLI_NAME_MAX_LEN];
+    VerbaLinea channel_line = {channel, sizeof(channel), 0ULL};
+    mmgr_line_put(&channel_line, "answer/");
+    mmgr_line_put(&channel_line, command->id);
+    (void)mmgr_line_finish(&channel_line);
+    char text[CLI_NAME_MAX_LEN + 64u];
+    VerbaLinea body = {text, sizeof(text), 0ULL};
+    mmgr_line_ch(&body, ran ? CLI_REACH_DONE : CLI_REACH_REFUSED);
+    if (!ran)
+    {
+        mmgr_line_put(&body, command->command);
+        mmgr_line_put(&body, " is not a command of the window's");
+    }
+    char quiet[256];
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
+    unsigned long long delivered = 0ULL;
+    (void)EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = s_door.key, .channel = channel,
+                     .body = text, .size = mmgr_line_ok(&body) ? body.at : 1ULL, .delivered = &delivered,
+                     .err_msg = &err_msg);
+}
+
+int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count))
+{
+    CliReachCommand *pushed = (CliReachCommand *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_door.pushed, (embed_u64)0u);
+    if (pushed == NULL)
+    {
+        return 0;
+    }
+    // the list stands newest first: turned over, each runs in the order it came
+    CliReachCommand *first = NULL;
+    while (pushed != NULL)
+    {
+        CliReachCommand *const next = pushed->next;
+        pushed->next = first;
+        first = pushed;
+        pushed = next;
+    }
+    while (first != NULL)
+    {
+        CliReachCommand *const next = first->next;
+        reach_answer(first, run(first->command, first->word_text, first->words));
+        g_cli_cells->persistent_buf_release(first, &g_cli_machine_cells);
+        first = next;
+    }
+    return 1;
+}
+
+void cli_reach_close(void)
+{
+    CliReachCommand *pushed = (CliReachCommand *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_door.pushed, (embed_u64)0u);
+    while (pushed != NULL)
+    {
+        CliReachCommand *const next = pushed->next;
+        g_cli_cells->persistent_buf_release(pushed, &g_cli_machine_cells);
+        pushed = next;
+    }
+    g_cli_cells->persistent_buf_release(s_door.key, &g_cli_machine_cells);
+    s_door.key = NULL;
+    s_door.woken = NULL;
 }

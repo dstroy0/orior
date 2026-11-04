@@ -44,6 +44,94 @@ typedef struct
     unsigned int list;
 } CliItem;
 
+// the menus open at once at the most; a pointer's rest on a row before its items open or a sibling's close; and where
+// a menu asked for and not opened under a title stands: at its point, or at the terminal's key field
+#define CLI_MENU_LEVELS 4u
+#define CLI_MENU_REST_MS 180ULL
+#define CLI_MENU_PLACE_POINT 0u
+#define CLI_MENU_PLACE_TERMINAL_KEYS 1u
+
+// One menu open: the list its rows are read from, 0 where they are the titles folded from the bar or a part's own rows;
+// those own rows, NULL for none; how many rows it has; the row marked and the row whose items are open under it, each
+// -1 for none; and the number it took as it opened, a new one each time
+typedef struct
+{
+    unsigned int list;
+    const CliItem *own;
+    unsigned int rows;
+    int pointed;
+    int opened;
+    unsigned int serial;
+} CliMenuOpen;
+
+// The menus open: the title on the bar whose menu is open, -1 for none; how many titles the bar shows and whether the
+// rest fold into a last; the menus open, one under another; where the first stands where it was asked for and not under
+// a title, at the place `place` names, its top left at x, y in the window's pixels where that is its point; the numbers
+// the menus took; the rest the pointer is in: when it ends, 0 for none, the level of the row it rests on, and the row
+// whose items open as it ends, -1 where it closes the items open beside a sibling; the window's answer to whether an
+// item cannot be chosen, NULL where every item with a command can be; and its answer to the state an item shows by the
+// name in its `checks`, 1 on and 0 off, NULL where every state is off
+typedef struct
+{
+    int open;
+    unsigned int shown;
+    int folded;
+    CliMenuOpen level[CLI_MENU_LEVELS];
+    unsigned int levels;
+    unsigned int place;
+    int x;
+    int y;
+    unsigned int serials;
+    unsigned long long rest_due_ms;
+    unsigned int rest_level;
+    int rest_index;
+    int (*disabled)(const CliItem *item);
+    int (*checked)(const CliItem *item);
+} CliMenusOpen;
+
+extern CliMenusOpen g_cli_menus_open;
+
+// the titles on the bar: how many menus take one, and the menu of the title `at`; and the title of the menu `menu`,
+// standing as long as the program runs
+unsigned int cli_menu_titles(void);
+unsigned int cli_menu_title_menu(unsigned int at);
+const char *cli_menu_title_text(unsigned int menu);
+// the row `at` of the menu open at `level` read into `item`: 1, or 0 past its rows; and whether it can be marked: a
+// row of items, or an item that can be chosen
+int cli_menus_row(unsigned int level, unsigned int at, CliItem *item);
+int cli_menus_selectable(unsigned int level, unsigned int at);
+// the menus from `level` on closed; the titles the bar shows, `shown`, the rest folded into a last where `folded` is 1;
+// the menu of the title `at` opened, the last where the titles fold standing for those folded, every other closed, its
+// first row that can be chosen marked where `marked` is 1; the items of the row `at` of the menu at `level` opened
+// beside it the same way; and `count` rows of a part's own, standing while they are open, opened as its menu at the
+// place `place` names, at x, y where that is its point
+void cli_menus_close(unsigned int level);
+void cli_menus_bar(unsigned int shown, int folded);
+void cli_menus_title_open(unsigned int at, int marked);
+void cli_menus_row_open(unsigned int level, unsigned int at, int marked);
+void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int place, int x, int y);
+// a press on the title `at`, its menu closed where it is open and else opened; a press on the row `at` of the menu at
+// `level`, its items opened or it chosen, every menu closed: 1 with the row chosen into `chosen`, else 0; and a press
+// on neither, every menu closed
+void cli_menus_title_press(unsigned int at);
+int cli_menus_row_press(unsigned int level, unsigned int at, CliItem *chosen);
+// the pointer moved onto the title `at`, its menu opened where another title's is; and onto the row `at` of the menu
+// at `level`, it marked and a rest begun that opens its items or closes a sibling's
+void cli_menus_title_move(unsigned int at);
+void cli_menus_row_move(unsigned int level, unsigned int at);
+// the key `name` taken by the menus: Alt with a title's letter opens its menu; while one is open Up, Down, Home and End
+// step the mark, Left and Right step between the menus, Enter and Space choose, Escape closes the last, Tab closes them
+// all and a letter marks the next row it begins: 1 where the key was theirs, a row chosen into `chosen` with
+// `*chose` 1
+int cli_menus_key(const char *name, CliItem *chosen, int *chose);
+// the rest's end taken where it has come: 1 where a menu opened or closed
+int cli_menus_rest(void);
+// whether `keys` names the key `name`, `Ctrl+` read as `Mod+` and the modifiers in any order; and the item of any menu
+// whose keys are `name` and that can be chosen, or whose command is `name`, into `item`: 1, or 0 where none is
+int cli_menus_keys_name(const char *keys, const char *name);
+int cli_menus_keyed(const char *name, CliItem *item);
+int cli_menus_named(const char *name, CliItem *item);
+
 // the bytes of commands.json as built into the program (plugins_bundled.c, written as the program is built)
 extern const unsigned char g_cli_commands_json[];
 extern const unsigned long long g_cli_commands_json_size;

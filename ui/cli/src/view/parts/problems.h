@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// problems.h: the problems pane in the side beside the editor, as the controller publishes it: a row a file with its
-// count and under it a row a diagnostic, the worst first; the pane's head offers the tree's check and shows how far it
-// has gone; and the shown file's spans underlined in the editor (problems.c)
+// problems.h: the problems pane in the side beside the editor, read where the servers' reports stand
+// (servers/servers.h): a row a file with its count and under it a row a diagnostic, the worst first; the pane's head
+// offers the tree's check and shows how far it has gone; and the shown file's spans underlined in the editor
+// (problems.c)
 #ifndef GUI_PARTS_PROBLEMS_H
 #define GUI_PARTS_PROBLEMS_H
-#include "../../controller/controller_parts.h"
+#include "../../servers/servers.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
@@ -39,11 +40,10 @@ typedef struct GuiProblemsCfg GuiProblemsCfg;
 #define GUI_PROBLEMS_ERROR 1u
 #define GUI_PROBLEMS_WARNING 2u
 
-// The problems: the rows as last published, NULL for none, the controller's and read alone; the row the pointer stands
-// on, GUI_PROBLEMS_NONE for none; and how many rows are scrolled off the pane's top
+// The problems: the row the pointer stands on, GUI_PROBLEMS_NONE for none; and how many rows are scrolled off the
+// pane's top
 typedef struct
 {
-    const CliProblems *problems;
     int pointed;
     unsigned int scroll;
 } GuiProblems;

@@ -371,3 +371,138 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
     list_release();
     return entries;
 }
+
+// One folder the explorer listed: its path from the tree's top, the entry of its parent's listing that names it, empty
+// for the top folder; its entries as cli_files_entries_alloc read them; and whether it is open
+typedef struct
+{
+    const char *dir;
+    CliFileEntries *entries;
+    int open;
+} FilesExplorerFolder;
+
+// The explorer: the tree it lists; the folders listed, the top folder first, and how many
+static const char *s_explorer_root;
+static FilesExplorerFolder s_explorer[CLI_FILES_EXPLORER_FOLDERS];
+static unsigned int s_explorer_folders;
+
+// the listing of the folder `dir`, or NULL where it was never listed
+static FilesExplorerFolder *explorer_folder(const char *dir)
+{
+    for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_explorer[at].dir, .other = dir, .cap = CLI_PATH_MAX_LEN}))
+        {
+            return &s_explorer[at];
+        }
+    }
+    return NULL;
+}
+
+// the folder `dir` listed for the explorer, its path standing as long as its parent's listing does: the listing, or
+// NULL where it could not be read or the explorer lists no more folders
+static FilesExplorerFolder *explorer_list(const char *dir)
+{
+    if ((s_explorer_root == NULL) || (s_explorer_folders == CLI_FILES_EXPLORER_FOLDERS))
+    {
+        return NULL;
+    }
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    CliFileEntries *const entries =
+        EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = s_explorer_root, .dir = dir,
+                   .owner = &g_cli_editor_cells, .err_msg = &err_msg);
+    if (entries == NULL)
+    {
+        return NULL;
+    }
+    s_explorer[s_explorer_folders] = (FilesExplorerFolder){dir, entries, 0};
+    s_explorer_folders += 1u;
+    return &s_explorer[s_explorer_folders - 1u];
+}
+
+void cli_files_explorer_show(const char *root)
+{
+    if ((s_explorer_root == NULL) && (root != NULL))
+    {
+        s_explorer_root = root;
+        FilesExplorerFolder *const top = explorer_list("");
+        if (top != NULL)
+        {
+            top->open = 1;
+        }
+    }
+}
+
+void cli_files_explorer_end(void)
+{
+    for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_explorer[at].entries, &g_cli_editor_cells);
+    }
+    s_explorer_folders = 0u;
+    s_explorer_root = NULL;
+}
+
+// the row `*left` rows on in the folder `folder` and the open folders under it, `depth` deep, read into `row`: 1 where
+// it stood among them, else 0 with `*left` less the rows they show
+static int explorer_walk(const FilesExplorerFolder *folder, unsigned int depth, unsigned int *left, CliExplorerRow *row)
+{
+    for (unsigned int at = 0u; at < folder->entries->count; at += 1u)
+    {
+        const CliFileEntry *const entry = &folder->entries->entry[at];
+        const FilesExplorerFolder *const under = entry->dir ? explorer_folder(entry->path) : NULL;
+        const int open = (under != NULL) && under->open;
+        if (*left == 0u)
+        {
+            if (row != NULL)
+            {
+                *row = (CliExplorerRow){entry->path, entry->name, depth, entry->dir, entry->ignored, open};
+            }
+            return 1;
+        }
+        *left -= 1u;
+        if (open && explorer_walk(under, depth + 1u, left, row))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int cli_files_explorer_row(unsigned int at, CliExplorerRow *row)
+{
+    unsigned int left = at;
+    return (s_explorer_folders != 0u) && explorer_walk(&s_explorer[0], 0u, &left, row);
+}
+
+unsigned int cli_files_explorer_rows(void)
+{
+    unsigned int count = 0u;
+    while (cli_files_explorer_row(count, NULL))
+    {
+        count += 1u;
+    }
+    return count;
+}
+
+int cli_files_explorer_press(unsigned int at)
+{
+    CliExplorerRow row;
+    if (!cli_files_explorer_row(at, &row) || !row.dir)
+    {
+        return 0;
+    }
+    FilesExplorerFolder *const folder = explorer_folder(row.path);
+    if (folder != NULL)
+    {
+        folder->open = !folder->open;
+        return 1;
+    }
+    FilesExplorerFolder *const listed = explorer_list(row.path);
+    if (listed != NULL)
+    {
+        listed->open = 1;
+    }
+    return 1;
+}

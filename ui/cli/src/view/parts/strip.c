@@ -4,6 +4,29 @@
 // down from the strip's head and the foot group's up from its foot, each as the page's strip lays them out
 #include "strip.h"
 
+#include "../../command_line/cli_internal.h"
+
+// the tools, the top group then the foot group
+const CliTool g_cli_tools[] = {
+    {"explorer", "folder", "Explorer", "Ctrl+Shift+E", CLI_TOOL_TOP, 0, 1},
+    {"search", "search", "Search", "Ctrl+Shift+F", CLI_TOOL_TOP, 0, 1},
+    {"structure", "structure", "Structure", "", CLI_TOOL_TOP, 0, 1},
+    {"commit", "commit", "Commit", "", CLI_TOOL_TOP, 0, 1},
+    {"more", "more", "More Tool Windows", "", CLI_TOOL_TOP, 1, 0},
+    {"run", "run", "Run", "Ctrl+Shift+D", CLI_TOOL_FOOTER, 0, 0},
+    {"debug", "debug", "Debug", "Alt+5", CLI_TOOL_FOOTER, 0, 0},
+    {"terminal", "terminal", "Terminal", "Ctrl+`", CLI_TOOL_FOOTER, 0, 0},
+    {"profile", "profile", "Profile", "", CLI_TOOL_FOOTER, 0, 0},
+    {"containers", "containers", "Containers", "", CLI_TOOL_FOOTER, 0, 0},
+    {"database", "database", "Database", "", CLI_TOOL_FOOTER, 0, 0},
+    {"comms", "comms", "Comms", "", CLI_TOOL_FOOTER, 0, 0},
+    {"problems", "problems", "Problems", "", CLI_TOOL_FOOTER, 0, 1},
+    {"tests", "tests", "Tests", "", CLI_TOOL_FOOTER, 0, 1},
+    {"git", "git", "Git", "", CLI_TOOL_FOOTER, 0, 1},
+    {"runs", "runs", "Runs", "", CLI_TOOL_FOOTER, 0, 1},
+};
+const unsigned int g_cli_tools_count = sizeof(g_cli_tools) / sizeof(g_cli_tools[0]);
+
 void gui_strip_init(const GuiStripInitCfg *args)
 {
     args->strip->pointed = GUI_STRIP_NONE;

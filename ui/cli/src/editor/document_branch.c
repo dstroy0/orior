@@ -2376,34 +2376,13 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
     return reserved;
 }
 
-int cli_document_reading_begin(const CliDocumentReadingCfg *args)
+int cli_document_file_put(const CliDocumentOutCfg *args)
 {
-    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    if (one == NULL)
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if ((one == NULL) || one->paged)
     {
-        return 0;
-    }
-    EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
-    *args->reading = (CliDocumentReading){one, one->serial};
-    return 1;
-}
-
-int cli_document_reading_end(const CliDocumentReadingCfg *args)
-{
-    CliStoredText *const one = args->reading->text;
-    const int moved = one->serial != args->reading->serial;
-    EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    args->reading->text = NULL;
-    (void)cli_document_released_free();
-    return moved;
-}
-
-int cli_document_reading_put(const CliDocumentReadingCfg *args)
-{
-    const CliStoredText *const one = args->reading->text;
-    if (one->paged)
-    {
-        mmgr_line_put(args->err_msg, "a paged text is read through its pages");
+        mmgr_line_put(args->err_msg, "no text read whole is stored under ");
+        mmgr_line_put(args->err_msg, args->key);
         return 0;
     }
     const CliLines *const lines = &one->lines;

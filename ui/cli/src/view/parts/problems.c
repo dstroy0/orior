@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// problems.c: the problems pane. Each file and diagnostic is a row as the controller publishes them; the pane's scroll
-// and the row the pointer marks are the window's own
+// problems.c: the problems pane. Each file and diagnostic is a row as the servers' reports stand; the pane's scroll and
+// the row the pointer marks are the window's own
 #include "problems.h"
 
 #include "../../command_line/cli_internal.h"
+#include "../../editor/view.h"
 #include "../../text/text.h"
 #include "explorer.h"
 
@@ -37,7 +38,8 @@ typedef struct
 
 unsigned int gui_problems_rows(const GuiProblemsRowFrameCfg *args)
 {
-    return (args->problems->problems != NULL) ? args->problems->problems->rows : 0u;
+    (void)args;
+    return cli_servers_problems_counts().rows;
 }
 
 int gui_problems_rows_top(const GuiProblemsRowFrameCfg *args)
@@ -50,10 +52,10 @@ int gui_problems_rows_top(const GuiProblemsRowFrameCfg *args)
 // the height of the row `row`: a file's or a diagnostic's
 EMBED_INLINE int problems_row_height(const ProblemsCtx *args)
 {
+    CliProblemRow row;
+    const int file = cli_servers_problems_row(args->row, &row) && row.is_file;
     return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                      .pixels = args->problems_read->problems->row[args->row].is_file ? GUI_PROBLEMS_FILE_ROW
-                                                                                      : GUI_PROBLEMS_ROW,
-                      .scale = args->frame->scale);
+                      .pixels = file ? GUI_PROBLEMS_FILE_ROW : GUI_PROBLEMS_ROW, .scale = args->frame->scale);
 }
 
 GuiRect gui_problems_row_rect(const GuiProblemsRowFrameCfg *args)
@@ -211,7 +213,8 @@ EMBED_INLINE GuiColor problems_color(const ProblemsCtx *args)
 // check offered
 EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
 {
-    const CliProblems *const problems = args->problems_read->problems;
+    const CliProblemsCounts counted = cli_servers_problems_counts();
+    const CliProblemsCounts *const problems = &counted;
     GuiRaster *raster = args->raster;
     GuiGlyphs *glyphs = args->glyphs;
     const int scale = args->frame->scale;
@@ -224,7 +227,7 @@ EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_PAD_LEFT, .scale = scale);
     char text[160];
     VerbaLinea line = {text, sizeof(text), 0ULL};
-    const int running = (problems != NULL) && (problems->total != 0ULL) && (problems->done < problems->total);
+    const int running = (problems->total != 0ULL) && (problems->done < problems->total);
     if (running)
     {
         mmgr_line_put(&line, "Checking the tree: ");
@@ -233,7 +236,7 @@ EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
         mmgr_line_decimal(&line, problems->total, 1u);
         mmgr_line_put(&line, " files");
     }
-    else if ((problems != NULL) && (problems->items > 0u))
+    else if (problems->items > 0u)
     {
         mmgr_line_decimal(&line, problems->items, 1u);
         mmgr_line_put(&line, (problems->items == 1u) ? " problem in " : " problems in ");
@@ -305,7 +308,6 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
     const int arrow =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ARROW, .scale = scale);
     const unsigned int rows = gui_problems_row_frame.rows(args);
-    const CliProblems *const problems = args->problems->problems;
     for (unsigned int row = args->problems->scroll; row < rows; row += 1u)
     {
         const GuiRect rect = EMBED_CALL(gui_problems_row_frame.row_rect, GuiProblemsRowFrameCfg,
@@ -321,7 +323,12 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = on,
                        .color = args->palette->bar_title_hover);
         }
-        const CliProblemRow *const file = &problems->row[row];
+        CliProblemRow read;
+        if (!cli_servers_problems_row(row, &read))
+        {
+            break;
+        }
+        const CliProblemRow *const file = &read;
         if (file->is_file)
         {
             // a file's row: the arrow, the name, the folder after it quieter, and the count at the right
@@ -362,14 +369,13 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                            .face = GUI_FACE_HEAD, .size = name_size, .x_f32 = x, .y = baseline, .text = file->name,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = file->name, .cap = CLI_PATH_MAX_LEN}),
                            .color = args->palette->text, .clip = text_clip);
-            const unsigned long long folder =
-                cellul.len(&(CatenaFinitaCfg){.src = file->folder, .cap = CLI_PATH_MAX_LEN});
-            if (folder != 0ULL)
+            // the folder is the front of the file's path, before its name
+            if (file->folder_length != 0ULL)
             {
                 (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
                                  .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = x + (float)gap,
-                                 .y = baseline, .text = file->folder, .length = folder, .color = args->palette->text_3,
-                                 .clip = text_clip);
+                                 .y = baseline, .text = file->path, .length = file->folder_length,
+                                 .color = args->palette->text_3, .clip = text_clip);
             }
             continue;
         }
@@ -422,16 +428,15 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
     GuiRect place = args->place;
     float cell = args->cell;
     int scale = args->scale;
-    const CliProblems *const problems = args->problems->problems;
-    if (problems == NULL)
-    {
-        return;
-    }
+    // the spans of the file the editor shows, its path the shown view's; a view's place is far inside an int
+    const int shown = cli_view_shown();
+    const char *const path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL;
     const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     const int up = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
-    for (unsigned int at = 0u; at < problems->spans; at += 1u)
+    CliProblemSpan span;
+    for (unsigned int at = 0u; cli_servers_problems_span(path, at, &span); at += 1u)
     {
-        const CliProblemSpan *const one = &problems->span[at];
+        const CliProblemSpan *const one = &span;
         const GuiColor color =
             EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity);
         for (unsigned long long line = one->from_line; line <= one->to_line; line += 1ULL)

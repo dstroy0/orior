@@ -41,9 +41,9 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 #define GUI_FIND_TOGGLE 26
 #define GUI_FIND_COUNT 88
 
-// The editor: the frame and the token names as last published, NULL for none, each the controller's and read alone; the
-// caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath stands, the caret's
-// rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row
+// The editor: the shown view's frame and token names as the window last took them of the view (editor/view.h), NULL
+// for none, read alone; the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath
+// stands, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row
 typedef struct
 {
     const CliViewFrame *frame;

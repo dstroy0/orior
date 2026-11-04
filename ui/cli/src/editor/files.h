@@ -118,6 +118,32 @@ EMBED_TABLE_STORAGE CliFilesListingNs cli_files_listing EMBED_UNUSED = {
     .entries_alloc = cli_files_entries_alloc,
 };
 
+// the folders the explorer lists at the most
+#define CLI_FILES_EXPLORER_FOLDERS 4096u
+
+// One row of the explorer: the path from the tree's top and the name, standing as long as its folder's listing does;
+// how deep it stands; whether it is a folder; whether git ignores it; and whether it is open
+typedef struct
+{
+    const char *path;
+    const char *name;
+    unsigned int depth;
+    int dir;
+    int ignored;
+    int open;
+} CliExplorerRow;
+
+// the explorer's top folder of the tree `root`, which stands until the explorer ends, listed and opened the first time;
+// and every listing let go (files_list.c). The rows are each listed folder's entries in their order, an open folder's
+// own after it a level deeper: the row `at` into `row` where `row` is not NULL: 1, or 0 past them; how many there are;
+// and a press on the row `at`, a folder opened, listed the first time, or closed: 1, or 0 where the row is a file,
+// which the caller opens, or past the rows
+void cli_files_explorer_show(const char *root);
+void cli_files_explorer_end(void);
+int cli_files_explorer_row(unsigned int at, CliExplorerRow *row);
+unsigned int cli_files_explorer_rows(void);
+int cli_files_explorer_press(unsigned int at);
+
 // the most letters a text a match reads contains
 #define CLI_FUZZY_LETTERS 4096u
 
