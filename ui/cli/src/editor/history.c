@@ -44,8 +44,7 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
                    .owner = &g_cli_editor_cells);
     const int same = (snapshot_bytes != NULL) && (read == size) &&
                      (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (size_t)size}) == 0);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = snapshot_bytes,
-               .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)snapshot_bytes, (&g_cli_editor_cells));
     return same;
 }
 

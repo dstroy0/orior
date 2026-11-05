@@ -151,14 +151,6 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
     mmgr_line_put(args->out, rest);
 }
 
-// the search's work state and its ends given back, and the lock with it
-static void search_release(void)
-{
-    EMBED_CALL(cli_shape_matcher_internal.ends_free, CliShapeMatcherCtx, .matcher = &s_work_state->matcher);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
-    s_work_state = NULL;
-}
-
 // the search's work state taken for `code_capacity` tokens of the code and `part_capacity` of the pattern, the lock
 // taken with it: 1, or 0 with the lock given back where the cellblock could not meet it
 EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
@@ -224,7 +216,12 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
                     .language = args->language, .src = src, .size = args->size, .tokens = &s_work_state->code,
                     .holes = NULL))
     {
-        search_release();
+        g_cli_cells->persistent_buf_release(s_work_state->matcher.ends, &g_cli_shape_cells);
+        s_work_state->matcher.ends = NULL;
+        s_work_state->matcher.ends_top = 0u;
+        s_work_state->matcher.ends_capacity = 0u;
+        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
+        s_work_state = NULL;
         return;
     }
     s_work_state->matcher.src = src;
@@ -283,5 +280,10 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         g_cli_cells->persistent_buf_release(with.out, &g_cli_shape_cells);
         at = end;
     }
-    search_release();
+    g_cli_cells->persistent_buf_release(s_work_state->matcher.ends, &g_cli_shape_cells);
+    s_work_state->matcher.ends = NULL;
+    s_work_state->matcher.ends_top = 0u;
+    s_work_state->matcher.ends_capacity = 0u;
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
+    s_work_state = NULL;
 }

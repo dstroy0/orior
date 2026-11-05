@@ -399,8 +399,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
                                                   .size_pointer = &size, .owner = &g_cli_settings_cells);
     if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_settings_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_settings_cells));
         const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
         if (!*args->first || is_file)
         {
@@ -416,7 +415,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     // the file's bytes are its text
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_settings_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_settings_cells));
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     CliJson own;
@@ -438,7 +437,10 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
         mmgr_line_finish(&msg);
         EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
                    .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
+        g_cli_cells->persistent_buf_release(own.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = own.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
         return 0;
     }
@@ -466,7 +468,10 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     {
         EMBED_CALL(cli_takes_followed, SettingsCtx, .text = reserved, .length = length, .path = next, .out = next);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
+    g_cli_cells->persistent_buf_release(own.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = own.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return reserved != NULL;
 }
 

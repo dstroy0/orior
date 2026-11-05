@@ -43,12 +43,6 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
                       .name = name);
 }
 
-// the capabilities' tree given back with their lock
-static void hints_capability_free(void)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_capable);
-}
-
 int cli_servers_capable(const CliServersServerCtx *args)
 {
     const unsigned int member =
@@ -58,7 +52,10 @@ int cli_servers_capable(const CliServersServerCtx *args)
                                     .node = member, .kind = CFG_JSON_NULL) &&
                         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
                                     .node = member, .kind = CFG_JSON_FALSE);
-    hints_capability_free();
+    g_cli_cells->persistent_buf_release(s_capable.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
 }
 
@@ -70,7 +67,10 @@ int cli_servers_capable_true(const CliServersServerCtx *args)
                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                       .json_read = &s_capable, .object = member, .name = args->inner),
                                    .kind = CFG_JSON_TRUE);
-    hints_capability_free();
+    g_cli_cells->persistent_buf_release(s_capable.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
 }
 
@@ -92,7 +92,10 @@ int cli_servers_capable_command(const CliServersServerCommandCtx *args)
         list_entries =
             (name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = args->command, .cap = CLI_CELLS_POOL});
     }
-    hints_capability_free();
+    g_cli_cells->persistent_buf_release(s_capable.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return list_entries;
 }
 

@@ -69,7 +69,6 @@ extern int g_cli_tree_walking;
 // every branch let go with the table's cells. Called under the lock (symbols_table.c)
 char *cli_branch_copy_alloc(void);
 void cli_branch_copy(const CliSymbolsTreeBranchCfg *args);
-void cli_branch_copy_free(const CliSymbolsTreeBranchCfg *args);
 const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args);
 const CliDeclaration *cli_branch_copy_declarations(const CliSymbolsTreeBranchScratchCfg *args);
 void cli_branch_path_read(const CliSymbolsTreeBranchPathCfg *args);
@@ -123,12 +122,10 @@ struct CliSymbolsTreeFileCfg
 typedef struct
 {
     void (*branch_copy)(const CliSymbolsTreeBranchCfg *args);
-    void (*branch_copy_free)(const CliSymbolsTreeBranchCfg *args);
 } CliSymbolsTreeBranchNs;
-EMBED_TABLE_LAYOUT(CliSymbolsTreeBranchNs, branch_copy, branch_copy_free);
+EMBED_TABLE_LAYOUT(CliSymbolsTreeBranchNs, branch_copy);
 EMBED_TABLE_STORAGE CliSymbolsTreeBranchNs cli_symbols_tree_branch EMBED_UNUSED = {
     .branch_copy = cli_branch_copy,
-    .branch_copy_free = cli_branch_copy_free,
 };
 
 typedef struct

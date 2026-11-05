@@ -33,19 +33,6 @@ static unsigned int s_capacities[CLI_RECORDING_THREADS];
 static unsigned int s_depths[CLI_RECORDING_THREADS];
 static int s_has_stack[CLI_RECORDING_THREADS];
 
-// every thread's stack given back
-static void read_stacks_free(void)
-{
-    for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
-    {
-        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
-        s_stacks[thread] = NULL;
-        s_capacities[thread] = 0u;
-        s_depths[thread] = 0u;
-        s_has_stack[thread] = 0;
-    }
-}
-
 // the names of a recording with no capacity: one empty name
 static char s_no_names[1] = "";
 
@@ -187,7 +174,10 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
     const CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long end =
         EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = recording->text, .at = at, .size = recording->size).stop;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
@@ -421,12 +411,15 @@ void cli_recording_let_go(void)
     {
         return;
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliRecording *const recording = &g_cli_replay->recording;
     if (recording->text != NULL)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-                   .bytes_bytes_other = (const unsigned char *)recording->text, .owner = &g_cli_debug_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)recording->text),
+                                            (&g_cli_debug_cells));
         recording->text = NULL;
     }
     if (recording->path[0] != '\0')
@@ -538,7 +531,14 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     }
     CliRecording *const recording = &g_cli_replay->recording;
     cli_recording_let_go();
-    read_stacks_free();
+    for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
+        s_stacks[thread] = NULL;
+        s_capacities[thread] = 0u;
+        s_depths[thread] = 0u;
+        s_has_stack[thread] = 0;
+    }
     memor.cpy(&(MemoriaCfg){.dst = recording->path,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
@@ -580,8 +580,18 @@ void cli_recording_read(const CliRecordingPathCtx *args)
         }
         at = next;
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    read_stacks_free();
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
+        s_stacks[thread] = NULL;
+        s_capacities[thread] = 0u;
+        s_depths[thread] = 0u;
+        s_has_stack[thread] = 0;
+    }
     // each frame's steps in turn, in the order they ran
     unsigned int first = 0u;
     for (unsigned int serial = 0u; serial < recording->frame_max; serial += 1u)

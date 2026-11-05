@@ -38,14 +38,6 @@ static char s_value[CLI_LAYER_VALUE];
 
 // the bytes the layers' texts are first taken with
 
-void cli_settings_layers_free(const CliSettingsRootCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->layers->text, &g_cli_settings_cells);
-    args->layers->text = NULL;
-    args->layers->used = 0ULL;
-    args->layers->capacity = 0ULL;
-}
-
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
 {
     const char *text = args->text;

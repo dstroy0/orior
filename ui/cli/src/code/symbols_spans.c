@@ -414,8 +414,16 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
                    .to = args->size);
     }
     const int refused = (languages != NULL) && read.refused;
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     if (refused)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the text's leaves");
@@ -500,7 +508,15 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
         args->pair[1] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = peer,
                                    .byte = read.leaf[peer].from);
     }
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     return paired;
 }

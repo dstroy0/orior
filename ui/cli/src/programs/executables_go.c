@@ -121,7 +121,8 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
             args->mains->count += 1u;
         }
     }
-    EMBED_CALL(cli_executables_walk_internal.walk_free, CliExecutablesWalkCtx, .walk = walk);
+    g_cli_cells->persistent_buf_release(walk->pending, &g_cli_executables_cells);
+    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
     // the mains in the order of their names, then their folders
     for (unsigned int at = 1u; at < args->mains->count; at += 1u)
     {

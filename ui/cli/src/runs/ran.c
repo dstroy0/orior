@@ -69,28 +69,22 @@ EMBED_INLINE CliRunResultWorkState *cli_capacity_get(const RanCtx *args)
     return (CliRunResultWorkState *)(void *)((char *)args->run_result - offsetof(CliRunResultWorkState, run_result));
 }
 
-// what a run gave given back, its texts the empty one again
-EMBED_INLINE void cli_run_result_texts_free(const RanCtx *args)
-{
-    if (args->run_result->out != s_nothing)
-    {
-        g_cli_cells->persistent_buf_release(args->run_result->out, &g_cli_runs_cells);
-    }
-    if (args->run_result->err != s_nothing)
-    {
-        g_cli_cells->persistent_buf_release(args->run_result->err, &g_cli_runs_cells);
-    }
-    args->run_result->out = s_nothing;
-    args->run_result->err = s_nothing;
-    args->run_result->out_size = 0ULL;
-    args->run_result->err_size = 0ULL;
-}
-
 void cli_run_result_free(const CliWordsCtx *args)
 {
     if (args->run_result != &s_refused)
     {
-        EMBED_CALL(cli_run_result_texts_free, RanCtx, .run_result = args->run_result);
+        if (args->run_result->out != s_nothing)
+        {
+            g_cli_cells->persistent_buf_release(args->run_result->out, &g_cli_runs_cells);
+        }
+        if (args->run_result->err != s_nothing)
+        {
+            g_cli_cells->persistent_buf_release(args->run_result->err, &g_cli_runs_cells);
+        }
+        args->run_result->out = s_nothing;
+        args->run_result->err = s_nothing;
+        args->run_result->out_size = 0ULL;
+        args->run_result->err_size = 0ULL;
         g_cli_cells->persistent_buf_release(EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result),
                                             &g_cli_runs_cells);
     }
@@ -255,7 +249,18 @@ int cli_run_result_within(const CliWordsCtx *args)
         return 0;
     }
     CliRunResultWorkState *const work_state = EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result);
-    EMBED_CALL(cli_run_result_texts_free, RanCtx, .run_result = args->run_result);
+    if (args->run_result->out != s_nothing)
+    {
+        g_cli_cells->persistent_buf_release(args->run_result->out, &g_cli_runs_cells);
+    }
+    if (args->run_result->err != s_nothing)
+    {
+        g_cli_cells->persistent_buf_release(args->run_result->err, &g_cli_runs_cells);
+    }
+    args->run_result->out = s_nothing;
+    args->run_result->err = s_nothing;
+    args->run_result->out_size = 0ULL;
+    args->run_result->err_size = 0ULL;
     args->run_result->whole = 1;
     args->run_result->code = -1LL;
     args->run_result->stopped = 0;

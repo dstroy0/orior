@@ -277,7 +277,7 @@ void cli_catalog_about(const CliCatalogCfg *args)
     const char *const text = (const char *)bytes;
     EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text,
                .end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size), .out = args->out);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_catalog_cells));
 }
 
 // what a file declares of itself is the text of the lines it is read from, a space put for each line's end it passes,
@@ -302,7 +302,7 @@ char *cli_catalog_about_alloc(const CliCatalogPathCtx *args)
         EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text, .end = end, .out = &line);
         mmgr_line_finish(&line);
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_catalog_cells));
     return about;
 }
 
@@ -455,8 +455,7 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
     char *const opening = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_catalog_cells);
     if (opening == NULL)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_catalog_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_catalog_cells));
         return NULL;
     }
     VerbaLinea opened = {opening, size + 1ULL, 0ULL};
@@ -481,6 +480,6 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
                    .length = line.length);
     }
     mmgr_line_finish(&opened);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_catalog_cells));
     return opening;
 }

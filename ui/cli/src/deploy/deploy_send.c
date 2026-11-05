@@ -17,16 +17,6 @@ static const char **s_releases;
 static unsigned int s_release_count;
 static char *s_releases_listing;
 
-// a machine's releases and its listing given back
-static void send_releases_free(void)
-{
-    g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
-    s_releases = NULL;
-    s_release_count = 0u;
-    g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
-    s_releases_listing = NULL;
-}
-
 typedef struct
 {
     const CliDeployPosition *place;
@@ -243,7 +233,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
     }
     else
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
     }
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = tar);
     return sent &&
@@ -266,7 +256,11 @@ static int send_releases(const DeploySendCtx *args)
     const char **current = args->current;
     VerbaLinea *err_msg = args->err_msg;
     const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
-    send_releases_free();
+    g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+    s_releases = NULL;
+    s_release_count = 0u;
+    g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+    s_releases_listing = NULL;
     *current = NULL;
     char line[CLI_PATH_MAX_LEN + 160u];
     VerbaLinea command = {line, sizeof(line), 0ULL};
@@ -285,12 +279,20 @@ static int send_releases(const DeploySendCtx *args)
     const unsigned long long size = listing.at;
     if (!run_result)
     {
-        send_releases_free();
+        g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+        s_releases = NULL;
+        s_release_count = 0u;
+        g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+        s_releases_listing = NULL;
         return 0;
     }
     if (!mmgr_line_ok(&listing))
     {
-        send_releases_free();
+        g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+        s_releases = NULL;
+        s_release_count = 0u;
+        g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+        s_releases_listing = NULL;
         mmgr_line_put(err_msg, "it has more files than orior_cli supports");
         return 0;
     }
@@ -311,7 +313,11 @@ static int send_releases(const DeploySendCtx *args)
         g_cli_cells->temporary_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), &g_cli_deploy_cells);
     if (s_releases == NULL)
     {
-        send_releases_free();
+        g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+        s_releases = NULL;
+        s_release_count = 0u;
+        g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+        s_releases_listing = NULL;
         mmgr_line_put(err_msg, "it has more files than orior_cli supports");
         return 0;
     }
@@ -382,7 +388,11 @@ void cli_deploy_prune(const CliDeployIndexCtx *args)
             old += 1u;
         }
     }
-    send_releases_free();
+    g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+    s_releases = NULL;
+    s_release_count = 0u;
+    g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+    s_releases_listing = NULL;
     const int run_result = (old != 0u) && EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line,
                                                      .longer = "", .err_msg = &none);
     g_cli_cells->persistent_buf_release(line_text, &g_cli_deploy_cells);
@@ -439,7 +449,11 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
         }
         if ((current == NULL) || (at == s_release_count) || (at == 0u))
         {
-            send_releases_free();
+            g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+            s_releases = NULL;
+            s_release_count = 0u;
+            g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+            s_releases_listing = NULL;
             EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = args->err_msg);
             mmgr_line_put(args->err_msg, " has no release before the one it runs: no place was rolled back");
             return 0;
@@ -447,7 +461,11 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
         back[index] = EMBED_CALL(
             cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool, .text = s_releases[at - 1u],
             .size = cellul.len(&(CatenaFinitaCfg){.src = s_releases[at - 1u], .cap = CLI_CELLS_POOL}));
-        send_releases_free();
+        g_cli_cells->persistent_buf_release((void *)s_releases, &g_cli_deploy_cells);
+        s_releases = NULL;
+        s_release_count = 0u;
+        g_cli_cells->persistent_buf_release(s_releases_listing, &g_cli_deploy_cells);
+        s_releases_listing = NULL;
     }
     for (unsigned int index = 0u; index < run->positions; index += 1u)
     {

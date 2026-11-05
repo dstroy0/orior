@@ -91,7 +91,10 @@ int main(void)
     cli_check(clamped.x == 200, "a box is kept inside its bounds at the right");
     const GuiRect left = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){10, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 30, .bounds = bounds, .above = 0, .scale = 100);
     cli_check(left.x == 0, "a box is kept inside its bounds at the left");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     return cli_on_check();
 }

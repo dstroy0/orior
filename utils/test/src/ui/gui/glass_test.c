@@ -57,7 +57,13 @@ int main(void)
         alike += (raster.pixels[(30u * 200u) + x] == plain.pixels[(30u * 200u) + x]) ? 1u : 0u;
     }
     cli_check(alike < 80u, "the grain over the tint and the tint over the grain differ, the grain lying where it lies");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &plain);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(plain.pixels, &g_gui_raster_cells);
+    plain.pixels = NULL;
+    plain.width = 0u;
+    plain.height = 0u;
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     return cli_on_check();
 }

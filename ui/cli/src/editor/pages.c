@@ -50,17 +50,6 @@ typedef struct
     unsigned long long last;
     int follows;
 } PagesCtx;
-// a paged text's cells given back, those it has; and taken for a file of `size` bytes: 1, or 0 with none retained where
-// the cells cannot meet them
-EMBED_INLINE void pages_cells_free(const PagesCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->one->piece, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->index.start, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->index.line, &g_cli_editor_cells);
-    args->one->piece = NULL;
-    args->one->index.start = NULL;
-    args->one->index.line = NULL;
-}
 
 EMBED_INLINE int pages_cells_alloc(const PagesCtx *args)
 {
@@ -78,7 +67,12 @@ EMBED_INLINE int pages_cells_alloc(const PagesCtx *args)
         (args->one->index.start != NULL) && (args->one->index.line != NULL) && (args->one->piece != NULL);
     if (!reserved)
     {
-        pages_cells_free(args);
+        g_cli_cells->persistent_buf_release(args->one->piece, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(args->one->index.start, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(args->one->index.line, &g_cli_editor_cells);
+        args->one->piece = NULL;
+        args->one->index.start = NULL;
+        args->one->index.line = NULL;
     }
     return reserved;
 }
@@ -101,7 +95,12 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_index_wake);
     }
-    pages_cells_free(args);
+    g_cli_cells->persistent_buf_release(args->one->piece, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(args->one->index.start, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(args->one->index.line, &g_cli_editor_cells);
+    args->one->piece = NULL;
+    args->one->index.start = NULL;
+    args->one->index.line = NULL;
     if (args->one->shadow_used > 0ULL)
     {
         (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = args->one->shadow);
@@ -183,7 +182,7 @@ static void cli_index_read(void *context)
         }
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ULL);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = chunk, .owner = &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)chunk, (&g_cli_editor_cells));
         offset += CLI_PAGE_CHUNK;
     }
     index->lines = lines;
@@ -203,7 +202,7 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
     const unsigned char *const newline =
         (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
     const int crlf = (newline != NULL) && (newline > bytes) && (newline[-1] == '\r');
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
     return crlf ? "\r\n" : "\n";
 }
 
@@ -448,7 +447,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
             break;
         }
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
     while (((lines->count - first) < (args->to - from)) && !lines->full)
     {
         EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
@@ -470,7 +469,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = &g_cli_editor_cells);
     if ((bytes == NULL) || (size < (args->piece->to - args->piece->from)))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
         mmgr_line_put(args->err_msg, args->one_read->shadow);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
@@ -489,7 +488,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         }
         at = (end < size) ? (end + 1ULL) : size;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
     return 1;
 }
 

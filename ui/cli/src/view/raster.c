@@ -143,14 +143,6 @@ int gui_raster_init(const GuiRasterWidthXCfg *args)
     return 1;
 }
 
-void gui_raster_free(const GuiRasterRectColorCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->raster->pixels, &g_gui_raster_cells);
-    args->raster->pixels = NULL;
-    args->raster->width = 0u;
-    args->raster->height = 0u;
-}
-
 // `color` over `background_fill` by `share` of 255, the pixel left opaque: red and blue blended in one word, each in
 // its own sixteen bits, and green in another, two multiplies a pixel; each lane's sum is the color's share plus the
 // ground's rest plus half of 255, below 65536, and the lane divided by 255 exactly by adding its own high byte

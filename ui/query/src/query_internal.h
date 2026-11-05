@@ -75,7 +75,7 @@ extern CellOwner g_query_cells;
 #define QUERY_RETAIN_MAX 64u
 
 // A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `capacity` taken at its most with
-// query_paths_alloc and given back with query_paths_free
+// query_paths_alloc and released through persistent_buf_release
 typedef struct
 {
     char (*path)[QUERY_PATH_MAX_LEN];
@@ -86,7 +86,6 @@ typedef struct
 // the cell of `count` paths taken in place of what the list contained: 1, or 0 where it is refused and the list has no
 // capacity; and the paths' cell given back, the list left empty (tools/tools.c)
 int query_paths_alloc(const QueryPathsCtx *args);
-void query_paths_free(const QueryPathsCtx *args);
 
 // The writer of one run: its program, its .qry, the top of the tree every current file is named under, the PATH every
 // program of the run runs with, and 1 in `member` while this process is a member of the run
@@ -236,7 +235,6 @@ typedef struct
 unsigned int query_runs_each(const QueryFolderNumberCtx *args);
 unsigned int query_runs_count(const QueryFolderMaxCtx *args);
 int query_runs_alloc(const QueryFolderRunsCtx *args);
-void query_runs_free(const QueryFolderRunsCtx *args);
 void query_next_name(const QueryFolderCapacityCtx *args);
 void query_by_name(const QueryCapacityPathNameCtx *args);
 int query_open(const QueryCapacityQryPathCtx *args);
@@ -561,12 +559,10 @@ struct QueryProcessCtx
 typedef struct
 {
     int (*paths_alloc)(const QueryPathsCtx *args);
-    void (*paths_free)(const QueryPathsCtx *args);
 } QueryPathsNs;
-EMBED_TABLE_LAYOUT(QueryPathsNs, paths_alloc, paths_free);
+EMBED_TABLE_LAYOUT(QueryPathsNs, paths_alloc);
 EMBED_TABLE_STORAGE QueryPathsNs query_paths_internal EMBED_UNUSED = {
     .paths_alloc = query_paths_alloc,
-    .paths_free = query_paths_free,
 };
 
 typedef struct
@@ -841,12 +837,10 @@ EMBED_TABLE_STORAGE QueryFolderMaxNs query_folder_max_internal EMBED_UNUSED = {
 typedef struct
 {
     int (*runs_alloc)(const QueryFolderRunsCtx *args);
-    void (*runs_free)(const QueryFolderRunsCtx *args);
 } QueryFolderRunsNs;
-EMBED_TABLE_LAYOUT(QueryFolderRunsNs, runs_alloc, runs_free);
+EMBED_TABLE_LAYOUT(QueryFolderRunsNs, runs_alloc);
 EMBED_TABLE_STORAGE QueryFolderRunsNs query_folder_runs_internal EMBED_UNUSED = {
     .runs_alloc = query_runs_alloc,
-    .runs_free = query_runs_free,
 };
 
 typedef struct

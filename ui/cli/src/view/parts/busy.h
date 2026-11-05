@@ -56,7 +56,6 @@ typedef struct
 
 // a circle with nothing asked; and its cell given back
 void gui_busy_init(const GuiBusyStillCfg *args);
-void gui_busy_free(const GuiBusyStillCfg *args);
 // whether an ask stands; and when it began to, in `*since`: 1, or 0 where none stands
 void gui_busy_work(const GuiBusyRunningCfg *args);
 int gui_busy_waiting(const GuiBusySinceCfg *args);
@@ -109,13 +108,11 @@ struct GuiBusySinceCfg
 typedef struct
 {
     void (*init)(const GuiBusyStillCfg *args);
-    void (*free)(const GuiBusyStillCfg *args);
     void (*still)(const GuiBusyStillCfg *args);
 } CliBusyStillNs;
-EMBED_TABLE_LAYOUT(CliBusyStillNs, init, free, still);
+EMBED_TABLE_LAYOUT(CliBusyStillNs, init, still);
 EMBED_TABLE_STORAGE CliBusyStillNs cli_busy_still EMBED_UNUSED = {
     .init = gui_busy_init,
-    .free = gui_busy_free,
     .still = gui_busy_still,
 };
 

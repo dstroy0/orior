@@ -21,7 +21,10 @@ static void assert_round_trip(const char *text)
     TEST_ASSERT_TRUE(mmgr_line_ok(&line));
     CLI_TEST_ASSERT_TEXT(text, written, line.at);
     g_cli_cells->persistent_buf_release(written, &g_cli_text_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // `text` refused as JSON, the reason containing `reason`
@@ -33,7 +36,10 @@ static void assert_refused(const char *text, const char *reason)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_text_cells);
     (void)mmgr_line_finish(&err_msg);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, root);
     TEST_ASSERT_NOT_NULL_MESSAGE(cellul.find(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL, .other = reason, .other_cap = CLI_CELLS_POOL}), why);
 }

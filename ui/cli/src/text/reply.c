@@ -18,8 +18,8 @@ int cli_reply_read(const CliReplyPathCfg *args)
 
 void cli_reply_let_go(const CliReplyPathCfg *args)
 {
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-               .bytes_bytes_other = (const unsigned char *)args->reply_out->text, .owner = &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->reply_out->text),
+                                        (&g_cli_text_cells));
     args->reply_out->text = NULL;
     args->reply_out->size = 0ULL;
 }

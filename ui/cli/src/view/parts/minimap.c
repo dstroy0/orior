@@ -333,8 +333,3 @@ int gui_minimap_drag(const GuiMinimapPositionScaleCfg *args)
     *top = EMBED_CALL(map_line_get, MinimapCtx, .value = (float)args->map->drag_top + moved, .lines = at->lines);
     return 1;
 }
-
-void gui_minimap_release(const GuiMinimapCfg *args)
-{
-    args->map->dragging = 0;
-}

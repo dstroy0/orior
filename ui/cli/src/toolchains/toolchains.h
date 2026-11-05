@@ -97,7 +97,7 @@ typedef struct
 const char *cli_toolchains_system(void);
 // orior's own toolchains, then the reader's, those for another system left out, read into `json` in a cell of its own
 // sized to both texts, with `nodes_more` nodes and `text_more` bytes over for what the caller makes after, which
-// cli_json_free gives back: the array of them, CLI_JSON_NONE where the tree is full; and the one of `id`,
+// persistent_buf_release releases: the array of them, CLI_JSON_NONE where the tree is full; and the one of `id`,
 // CLI_JSON_NONE with why given where orior_cli knows none
 unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args);
 unsigned int cli_toolchains_tool(const CliToolchainsJsonManifestCfg *args);

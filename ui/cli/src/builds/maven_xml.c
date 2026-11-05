@@ -17,13 +17,6 @@ int cli_xml_name_letter(const CliMavenCtx *args)
            (args->letter == ':') || (args->letter == '.') || (args->letter == '-');
 }
 
-void cli_xml_free(const CliMavenXmlTextCtx *args)
-{
-    CliXml *xml = args->xml_out;
-    g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
-    *xml = (CliXml){xml->text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
-}
-
 typedef struct
 {
     unsigned long long tags;

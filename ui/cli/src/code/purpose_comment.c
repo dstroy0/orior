@@ -94,15 +94,6 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
     return 1;
 }
 
-// the work state's cell given back
-static void cli_byte_buffer_free(void)
-{
-    g_cli_cells->persistent_buf_release(s_work_state.line, &g_cli_purpose_cells);
-    s_work_state.line = NULL;
-    s_work_state.body = NULL;
-    s_work_state.lines = 0u;
-}
-
 static void cli_plugin_each(const CliEachPluginCfg *args)
 {
     if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = s_work_state.id, .cap = CLI_CELLS_POOL}))
@@ -142,7 +133,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.open, .text = open, .otherwise = "");
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.close, .text = close,
                .otherwise = "");
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     // the first plugin of the id names the marks
     s_work_state.id[0] = '\0';
 }
@@ -486,5 +480,8 @@ void cli_purpose_first_comment(const CliPurposePathTextCfg *args)
     {
         EMBED_CALL(cli_comment_read, PurposeCommentCtx, .path = args->path, .text = args->text, .out = args->out);
     }
-    cli_byte_buffer_free();
+    g_cli_cells->persistent_buf_release(s_work_state.line, &g_cli_purpose_cells);
+    s_work_state.line = NULL;
+    s_work_state.body = NULL;
+    s_work_state.lines = 0u;
 }

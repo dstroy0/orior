@@ -564,15 +564,11 @@ int cli_files_explorer_menu(unsigned int at)
             &(CliItem){"Collapse Folders in Explorer", "explorer-collapse", "", "", "", "", 0, 0, 0, 0, 0u});
         return 1;
     }
-    char words[CLI_PATH_MAX_LEN + 2u];
-    VerbaLinea line = {words, sizeof(words), 0ULL};
-    mmgr_line_put(&line, row.path);
-    mmgr_line_ch(&line, '\n');
-    (void)mmgr_line_finish(&line);
+    // the rows run with the row's path, which stands in the listing while the menu is open
     cli_menus_own_row(
-        &(CliItem){(row.dir && row.open) ? "Close" : "Open", "file-open", "", words, "", "", 0, 0, 0, 0, 0u});
+        &(CliItem){(row.dir && row.open) ? "Close" : "Open", "file-open", "", row.path, "", "", 0, 0, 0, 0, 0u});
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u});
     return 1;
 }
 

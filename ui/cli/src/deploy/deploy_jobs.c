@@ -108,5 +108,15 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
                    .a = "gone there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    EMBED_CALL(cli_deploy_root_internal.tree_free, CliDeployRootCtx, .tree = &s_tree);
+    g_cli_cells->persistent_buf_release(s_tree.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_tree.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_tree.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    while (s_tree.pool.page != NULL)
+    {
+        CliDeployPage *const before = s_tree.pool.page->before;
+        g_cli_cells->persistent_buf_release(s_tree.pool.page, &g_cli_deploy_cells);
+        s_tree.pool.page = before;
+    }
+    s_tree.pool.refused = 0;
 }

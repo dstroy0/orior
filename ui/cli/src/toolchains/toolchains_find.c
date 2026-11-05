@@ -26,7 +26,10 @@ void cli_toolchains_find_release(const CliToolchainsJsonCtx *args)
 {
     if (args->json != NULL)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->json);
+        g_cli_cells->persistent_buf_release(
+            args->json->node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->json->node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
     g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
     g_cli_toolchains_path = NULL;

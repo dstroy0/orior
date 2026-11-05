@@ -43,7 +43,6 @@ typedef struct
 
 // the icons holding none drawn; and every cell of theirs given back
 void gui_icons_init(const GuiIconsCfg *args);
-void gui_icons_free(const GuiIconsCfg *args);
 // whether an icon is named `name`
 int gui_icon_exists(const GuiIconsCfg *args);
 // the icon named `name` drawn on a square of `size` pixels a side, its line `stroke` pixels wide, and saved: its mask,
@@ -73,14 +72,12 @@ struct GuiIconsCfg
 typedef struct
 {
     void (*init)(const GuiIconsCfg *args);
-    void (*free)(const GuiIconsCfg *args);
     int (*icon_by_name)(const GuiIconsCfg *args);
     const GuiMask *(*icon)(const GuiIconsCfg *args);
 } CliIconsNs;
-EMBED_TABLE_LAYOUT(CliIconsNs, init, free, icon_by_name, icon);
+EMBED_TABLE_LAYOUT(CliIconsNs, init, icon_by_name, icon);
 EMBED_TABLE_STORAGE CliIconsNs cli_icons EMBED_UNUSED = {
     .init = gui_icons_init,
-    .free = gui_icons_free,
     .icon_by_name = gui_icon_exists,
     .icon = gui_icon_get,
 };

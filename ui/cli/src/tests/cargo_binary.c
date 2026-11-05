@@ -125,7 +125,10 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
                           .src = executable,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return named;
 }
 
@@ -255,6 +258,14 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_binary_tests);
+    CliCargoPiece *piece = s_binary_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_binary_tests.found, &g_cli_cargo_cells);
+    *(&s_binary_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return built;
 }

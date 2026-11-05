@@ -519,8 +519,11 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
                                           .length = args->length, .head = args->head);
     if (counted == args->head->line)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        read.leaf = NULL;
+        read.count = 0u;
+        read.capacity = 0u;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
     return found;
 }

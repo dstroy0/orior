@@ -268,8 +268,11 @@ void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
     mmgr_line_ch(args->out, ']');
     EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
                CliMachineTransferTransferredPositionCtx, .transferred_out = &s_alloc.here);
-    EMBED_CALL(cli_machine_transfer_capacity_object_internal.capacity_free, CliMachineTransferWorkStateObjectCtx,
-               .work_state = &s_alloc.work_state);
+    g_cli_cells->persistent_buf_release(
+        s_alloc.work_state.json.node,
+        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_alloc.work_state.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(settings.out, &g_cli_machine_cells);
 }
 
@@ -401,7 +404,7 @@ EMBED_INLINE int cli_position_alloc(const CarryTakeCtx *args)
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
     // copy already
     const unsigned int existed = (before != NULL) ? 1u : 0u;
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = before, .owner = &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)before, (&g_cli_machine_cells));
     if (reserved && (text != NULL))
     {
         reserved =
@@ -475,8 +478,11 @@ int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args)
         EMBED_CALL(cli_machine_transfer_out_internal.allocating_write, CliMachineTransferOutCtx,
                    .allocating = allocating, .pretty = 0, .out = args->out);
     }
-    EMBED_CALL(cli_machine_transfer_capacity_object_internal.capacity_free, CliMachineTransferWorkStateObjectCtx,
-               .work_state = &s_alloc.work_state);
+    g_cli_cells->persistent_buf_release(
+        s_alloc.work_state.json.node,
+        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_alloc.work_state.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(allocating->place, &g_cli_machine_cells);
     allocating->place = NULL;
     g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);

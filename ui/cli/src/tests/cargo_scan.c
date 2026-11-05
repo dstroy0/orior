@@ -333,13 +333,6 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
     g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
 }
 
-void cli_cargo_scan_free(void)
-{
-    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
-    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
-}
-
 // whether the token at `at` is the sign `letter`, or the word `word`
 EMBED_INLINE int scan_is_mark(const CargoScanCtx *args)
 {

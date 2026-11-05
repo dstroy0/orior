@@ -56,12 +56,6 @@ unsigned char *cli_file_alloc_utf8(const CliPathCtx *args)
     return bytes;
 }
 
-void cli_file_free(const CliOwnerCtx *args)
-{
-    // the cell is given back as it was taken; const is the reader's view of it
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)args->bytes_bytes_other, args->owner);
-}
-
 // A walk summing the bytes of every file under a folder: the path walked, sized for CLI_PATH_MAX_LEN, and the sum
 typedef struct
 {

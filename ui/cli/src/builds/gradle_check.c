@@ -333,8 +333,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                           EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases,
                                      CliVersionCatalogTextSizeAliasesCtx, .text = (const char *)catalog, .size = read,
                                      .aliases = &aliases);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = catalog,
-                   .owner = &g_cli_gradle_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)catalog, (&g_cli_gradle_cells));
         if (!whole)
         {
             continue;
@@ -344,8 +343,21 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                    .out_capacity = displayed);
         EMBED_CALL(cli_version_catalog_lines_internal.gradle_references, CliVersionCatalogLinesCtx, .lines = lines,
                    .found = found, .name = s_catalogs.name[at], .displayed = displayed, .aliases_read = &aliases);
-        EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
-                   CliVersionCatalogTextSizeAliasesCtx, .aliases = &aliases);
+        g_cli_cells->persistent_buf_release(aliases.text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(aliases.alias, &g_cli_versions_cells);
+        aliases.alias = NULL;
+        aliases.text = NULL;
+        aliases.count = 0u;
+        aliases.used = 0u;
+        aliases.capacity = 0u;
     }
-    cli_gradle_release();
+    CliGradleScript *const script = &g_cli_gradle;
+    g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
+    script->class_of = NULL;
+    script->block = NULL;
+    script->stray = NULL;
+    script->blocks = 0u;
+    script->strays = 0u;
 }

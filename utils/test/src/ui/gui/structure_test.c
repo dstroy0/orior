@@ -138,7 +138,10 @@ int main(void)
     EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = "check:none", .path = "none.c");
     cli_check(EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u) == 0u, "no text under a key leaves no rows");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     return cli_on_check();
 }

@@ -157,7 +157,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         }
         at = end + 1ULL;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_cli_programs_cells));
     return found;
 }
 
@@ -467,7 +467,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     }
     g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = ghidra, .owner = &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)ghidra, (&g_cli_programs_cells));
     if (disassembled != NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);

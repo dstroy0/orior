@@ -177,7 +177,10 @@ int cli_debug_bytecode(const CliDebugRootOutCfg *args)
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (value == CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
     }
     const unsigned int instructions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -203,6 +206,9 @@ int cli_debug_bytecode(const CliDebugRootOutCfg *args)
                    .out = args->out);
     }
     mmgr_line_put(args->out, "]]");
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
 }

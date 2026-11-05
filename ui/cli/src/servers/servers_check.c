@@ -218,7 +218,14 @@ void cli_servers_check_let_go(void)
     s_queue.files_used = 0ULL;
     s_queue.total = 0ULL;
     s_queue.done = 0ULL;
-    EMBED_CALL(cli_servers_queue_files_internal.check_work_state_free, CliServersQueueFilesCtx, .queue = &s_queue);
+    g_cli_cells->persistent_buf_release(s_queue.files, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(s_queue.file_at, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(s_queue.waiting, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(s_queue.capacity, &g_cli_servers_check_work_state_cells);
+    s_queue.files = NULL;
+    s_queue.file_at = NULL;
+    s_queue.waiting = NULL;
+    s_queue.capacity = NULL;
     cli_servers_check_open_clear();
 }
 

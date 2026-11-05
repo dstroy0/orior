@@ -88,7 +88,7 @@ typedef struct
 
 // A file of requests read: its requests in order, the variables it sets, the pool of their texts, and 1 in `full`
 // where a line, a request, a header, a variable or a text did not fit. The requests are a cell of the count of the
-// file's parts and the pool a cell sized to the file, each given back with cli_requests_parsed_free
+// file's parts and the pool a cell sized to the file, each released through persistent_buf_release
 typedef struct
 {
     CliRequest *requests;
@@ -104,7 +104,7 @@ typedef struct
 } CliRequestsParsed;
 
 // The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell at their
-// most, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_free
+// most, to CLI_REQUESTS_TEXT at the most, released through persistent_buf_release
 typedef struct
 {
     CliRequestsText name[CLI_REQUESTS_VALUES];
@@ -216,7 +216,6 @@ extern CliRequestsParsed g_cli_requests_parsed;
 // passed over, as Rust's str::trim trims it; and the bytes of the white letter at `at` of a text ending at `end`, 0
 // where the letter there is not white (requests_parse.c, requests_white.c)
 int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args);
-void cli_requests_parsed_free(const CliRequestsTextSizeParsedCtx *args);
 const CliRequest *cli_requests_at(const CliRequestsCtx *args);
 const char *cli_requests_text(const CliRequestsPoolCtx *args);
 void cli_requests_trim(const CliRequestsTextStartCtx *args);
@@ -234,7 +233,6 @@ void cli_requests_key(const CliRequestsParsedCtx *args);
 // (requests_values.c)
 int cli_requests_nearest(const CliRequestsRootCtx *args);
 int cli_requests_values(const CliRequestsErrMsgRootCtx *args);
-void cli_requests_values_free(const CliRequestsErrMsgRootCtx *args);
 int cli_requests_value_append(const CliRequestsNameCtx *args);
 const CliRequestsText *cli_requests_value(const CliRequestsSizeNameCtx *args);
 int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args);
@@ -525,12 +523,10 @@ struct CliRequestsPoolCtx
 typedef struct
 {
     int (*parse)(const CliRequestsTextSizeParsedCtx *args);
-    void (*parsed_free)(const CliRequestsTextSizeParsedCtx *args);
 } CliRequestsTextSizeParsedNs;
-EMBED_TABLE_LAYOUT(CliRequestsTextSizeParsedNs, parse, parsed_free);
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeParsedNs, parse);
 EMBED_TABLE_STORAGE CliRequestsTextSizeParsedNs cli_requests_text_size_parsed_internal EMBED_UNUSED = {
     .parse = cli_requests_parse,
-    .parsed_free = cli_requests_parsed_free,
 };
 
 typedef struct
@@ -601,13 +597,11 @@ EMBED_TABLE_STORAGE CliRequestsRootNs cli_requests_root_internal EMBED_UNUSED = 
 typedef struct
 {
     int (*values)(const CliRequestsErrMsgRootCtx *args);
-    void (*values_free)(const CliRequestsErrMsgRootCtx *args);
     int (*verifies)(const CliRequestsErrMsgRootCtx *args);
 } CliRequestsErrMsgRootNs;
-EMBED_TABLE_LAYOUT(CliRequestsErrMsgRootNs, values, values_free, verifies);
+EMBED_TABLE_LAYOUT(CliRequestsErrMsgRootNs, values, verifies);
 EMBED_TABLE_STORAGE CliRequestsErrMsgRootNs cli_requests_err_msg_root_internal EMBED_UNUSED = {
     .values = cli_requests_values,
-    .values_free = cli_requests_values_free,
     .verifies = cli_requests_verifies,
 };
 

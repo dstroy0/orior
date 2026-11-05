@@ -146,16 +146,8 @@ static void slice_line_append(const CliSliceLineCfg *args)
     slicing->lines += 1u;
 }
 
-// the slicing's lines given back
-EMBED_INLINE void slice_lines_free(const ServersSliceCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->slicing->text.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(args->slicing->map.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(args->slicing->paths.out, &g_cli_servers_cells);
-}
-
 // the slicing's lines made, none written: 1, or 0 where the cells cannot meet them, those made given back with the rest
-// by slice_lines_free
+// through persistent_buf_release
 EMBED_INLINE int slice_lines_init(const ServersSliceCtx *args)
 {
     CliServersSlicing *slicing = args->slicing;
@@ -263,7 +255,9 @@ static char *slice_cut(const ServersSliceCtx *args)
         {
             mmgr_line_put(err_msg, "the slice could not be cut: the cells cannot meet it");
         }
-        EMBED_CALL(slice_lines_free, ServersSliceCtx, .slicing = &slicing);
+        g_cli_cells->persistent_buf_release(slicing.text.out, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(slicing.map.out, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(slicing.paths.out, &g_cli_servers_cells);
         return NULL;
     }
     *slice_size = slicing.text.at;
@@ -467,7 +461,9 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     {
         mmgr_line_put(args->err_msg, "the slices could not be cut: the cells cannot meet them");
     }
-    EMBED_CALL(slice_lines_free, ServersSliceCtx, .slicing = &cut->slicing);
+    g_cli_cells->persistent_buf_release(cut->slicing.text.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(cut->slicing.map.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(cut->slicing.paths.out, &g_cli_servers_cells);
     g_cli_cells->persistent_buf_release(cut, &g_cli_servers_cells);
     return integer;
 }
@@ -862,7 +858,10 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
         }
         mmgr_line_ch(&mapped, ']');
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!made || !mmgr_line_ok(&mapped))
     {
         g_cli_cells->persistent_buf_release(mapped.out, args->owner);

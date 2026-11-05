@@ -548,7 +548,7 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
     {
         *program = s_search.best;
     }
-    EMBED_CALL(cli_compile_db_found_top_internal.compile_found_free, CliCompileDbFoundTopCtx,
-               .found = &s_search.folders);
+    g_cli_cells->persistent_buf_release(s_search.folders.path, &g_cli_compile_cells);
+    *(&s_search.folders) = (CliFoundFolders){NULL, 0u, 0u};
     return found;
 }

@@ -113,7 +113,6 @@ typedef struct
 // the base made for a window `width` by `height`, its tile tables in a cell of their own, laid for nothing yet: 1,
 // or 0 where the cell could not be taken; and its cell given back
 int gui_base_init(const GuiBaseWidthCfg *args);
-void gui_base_free(const GuiBaseWidthCfg *args);
 // the base's map sized to a window `width` by `height`, its tile tables saved, laid for nothing until it is laid again
 void gui_base_resize(const GuiBaseWidthCfg *args);
 // the map laid for `frame` in `palette`'s colors, the controls' pane laid as a pane where `controls_steady` is set,
@@ -162,13 +161,11 @@ struct GuiBaseWidthCfg
 typedef struct
 {
     int (*init)(const GuiBaseWidthCfg *args);
-    void (*free)(const GuiBaseWidthCfg *args);
     void (*resize)(const GuiBaseWidthCfg *args);
 } GuiBaseWidthNs;
-EMBED_TABLE_LAYOUT(GuiBaseWidthNs, init, free, resize);
+EMBED_TABLE_LAYOUT(GuiBaseWidthNs, init, resize);
 EMBED_TABLE_STORAGE GuiBaseWidthNs gui_base_width EMBED_UNUSED = {
     .init = gui_base_init,
-    .free = gui_base_free,
     .resize = gui_base_resize,
 };
 

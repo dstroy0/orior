@@ -7,7 +7,8 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
 {
     unsigned int code = args->code;
     unsigned int request_id = args->request_id;
-    cli_ipp_message_code.free(args);
+    g_cli_cells->persistent_buf_release(args->message->group, &g_cli_ipp_cells);
+    *args->message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     args->message->code = code;
     args->message->request_id = request_id;
     const unsigned long long group_bytes = (unsigned long long)CLI_IPP_GROUPS * sizeof(CliIppGroup);
@@ -28,13 +29,6 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
     args->message->value_capacity = CLI_IPP_VALUES;
     args->message->bytes = (unsigned char *)(cell + group_bytes + attribute_bytes + value_bytes);
     args->message->byte_capacity = CLI_IPP_BYTES;
-}
-
-void cli_ipp_free(const CliIppMessageCodeCfg *args)
-{
-    CliIppMessage *message = args->message;
-    g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
-    *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
 typedef struct

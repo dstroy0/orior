@@ -101,7 +101,7 @@ typedef struct
 
 // The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
 // a pattern, and the extension itself; each key with its language id, a later plugin's standing in for an earlier's,
-// in a cell of `capacity`, given back with cli_plugins_languages_free
+// in a cell of `capacity`, released through persistent_buf_release
 typedef struct
 {
     CliLanguagePair *pair;
@@ -122,7 +122,6 @@ void cli_plugins_each(const CliPluginsEachCfg *args);
 // the temporary tier; and the languages' cell given back, either way
 void cli_plugins_languages(const CliPluginsCfg *args);
 void cli_plugins_languages_for_call(const CliPluginsCfg *args);
-void cli_plugins_languages_free(const CliPluginsCfg *args);
 // the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that stands, and read again only where
 // that text changed since it was stored. 1, or 0 with why given (plugins_grammar.c)
@@ -159,8 +158,8 @@ int cli_plugins_code_in(const CliPluginsIdCfg *args);
 void cli_plugins_slug(const CliPluginsIdNameCfg *args);
 // The plugin the answers at `spec` in `json` request, `{name, id, extensions, from, lineComment, blockComment,
 // keywords, types, constants, quotes}` each of which may be left out, made in `json`: its node, or CLI_JSON_NONE with
-// why given; and a tree allocated into `draft`, given back with cli_json_free, sized to the answers at `spec` in
-// `json`, to the plugin they start from and to what a draft of them makes, the answers copied into it: their node
+// why given; and a tree allocated into `draft`, released through persistent_buf_release, sized to the answers at `spec`
+// in `json`, to the plugin they start from and to what a draft of them makes, the answers copied into it: their node
 // there, or CLI_JSON_NONE with why given (plugins_draft.c)
 unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecKindCfg *args);
 unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args);
@@ -289,13 +288,11 @@ typedef struct
 {
     void (*languages)(const CliPluginsCfg *args);
     void (*languages_for_call)(const CliPluginsCfg *args);
-    void (*languages_free)(const CliPluginsCfg *args);
 } CliPluginsNs;
-EMBED_TABLE_LAYOUT(CliPluginsNs, languages, languages_for_call, languages_free);
+EMBED_TABLE_LAYOUT(CliPluginsNs, languages, languages_for_call);
 EMBED_TABLE_STORAGE CliPluginsNs cli_plugins_table EMBED_UNUSED = {
     .languages = cli_plugins_languages,
     .languages_for_call = cli_plugins_languages_for_call,
-    .languages_free = cli_plugins_languages_free,
 };
 
 typedef struct

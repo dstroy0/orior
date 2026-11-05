@@ -207,7 +207,10 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
                                          .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_notebook_cells);
     const int read = EMBED_CALL(jupyter_reply_read, JupyterDebugCtx, .kernel = kernel, .reply_json = &json,
                                 .root = root, .port = args->port, .err_msg = err_msg);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return read;
 }
 

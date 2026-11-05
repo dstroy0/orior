@@ -131,7 +131,10 @@ static void commit_added(const char *id, const char *first, const char *second)
 // a graph of a merged branch of two commits laid out
 static void graph_laid_out(void)
 {
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_graph.text);
+    g_cli_cells->persistent_buf_release(s_graph.text.bytes, &g_cli_git_cells);
+    s_graph.text.bytes = NULL;
+    s_graph.text.used = 0ULL;
+    s_graph.text.capacity = 0ULL;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &s_graph.text);
     s_graph.count = 0u;
     s_graph.strokes = 0u;
@@ -259,7 +262,10 @@ void test_what_was_staged_apart_stays_staged(void)
 void test_the_tree_is_on_a_new_branch_with_its_last_commits_subject(void)
 {
     topic_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_branches.text);
+    g_cli_cells->persistent_buf_release(s_branches.text.bytes, &g_cli_git_cells);
+    s_branches.text.bytes = NULL;
+    s_branches.text.used = 0ULL;
+    s_branches.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_found_branches.branches, CliGitRootFoundBranchesCfg, .root = s_root, .found_branches_pointer = &s_branches);
     int current = 0;
     int subject = 0;
@@ -270,7 +276,10 @@ void test_the_tree_is_on_a_new_branch_with_its_last_commits_subject(void)
         current = current || (branch->current && topic);
         subject = subject || (topic && cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_branches.text, .at = branch->subject), .other = "second", .cap = CLI_CELLS_POOL}));
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_branches.text);
+    g_cli_cells->persistent_buf_release(s_branches.text.bytes, &g_cli_git_cells);
+    s_branches.text.bytes = NULL;
+    s_branches.text.used = 0ULL;
+    s_branches.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(current);
     TEST_ASSERT_TRUE(subject);
 }
@@ -303,11 +312,17 @@ void test_a_merged_branch_is_deleted_and_main_alone_is_left(void)
     TEST_ASSERT_TRUE(branch_acted("switch", "main", ""));
     TEST_ASSERT_TRUE(branch_acted("merge", "topic", ""));
     TEST_ASSERT_TRUE(branch_acted("delete", "topic", ""));
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_branches.text);
+    g_cli_cells->persistent_buf_release(s_branches.text.bytes, &g_cli_git_cells);
+    s_branches.text.bytes = NULL;
+    s_branches.text.used = 0ULL;
+    s_branches.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_found_branches.branches, CliGitRootFoundBranchesCfg, .root = s_root, .found_branches_pointer = &s_branches);
     TEST_ASSERT_EQUAL_UINT(1u, s_branches.count);
     TEST_ASSERT_EQUAL_STRING("main", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_branches.text, .at = s_branches.item[0].name));
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_branches.text);
+    g_cli_cells->persistent_buf_release(s_branches.text.bytes, &g_cli_git_cells);
+    s_branches.text.bytes = NULL;
+    s_branches.text.used = 0ULL;
+    s_branches.text.capacity = 0ULL;
 }
 
 void test_a_name_git_refuses_is_refused(void)
@@ -403,7 +418,10 @@ void test_each_status_has_one_letter(void)
 void test_each_lists_texts_are_released(void)
 {
     graph_laid_out();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_graph.text);
+    g_cli_cells->persistent_buf_release(s_graph.text.bytes, &g_cli_git_cells);
+    s_graph.text.bytes = NULL;
+    s_graph.text.used = 0ULL;
+    s_graph.text.capacity = 0ULL;
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_git_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_git_cells.hw));
 }

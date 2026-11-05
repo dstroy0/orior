@@ -121,7 +121,6 @@ typedef struct
 
 // a reading's lock taken; and its tree given back with the lock (servers_shapes.c)
 void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args);
-void cli_servers_read_state_release(const CliServersReadStateAnswerCtx *args);
 
 // A toolchain's server: its toolchain and its name, its program, the words it starts with, the languages it serves, the
 // protocol's name for each extension's language, the line that installs it, the file that marks a project, the
@@ -239,7 +238,6 @@ typedef struct
 // where the cells cannot meet it; the place of the `at`th file waiting; a file put in the queue, at its front where
 // `front`: 1, or 0 where it has no capacity; and the tree's files recorded, those of `files` and those recorded before.
 // Each with the queue's lock acquired (servers_check_capacity.c)
-void cli_servers_check_work_state_free(const CliServersQueueFilesCtx *args);
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
 CliServersQueued *cli_servers_check_queued_at(const CliServersQueueAtCtx *args);
 int cli_servers_check_queue_append(const CliServersQueueCtx *args);
@@ -998,25 +996,21 @@ struct CliServersRootKindCtx
 typedef struct
 {
     void (*read_state_lock)(const CliServersReadStateAnswerCtx *args);
-    void (*read_state_release)(const CliServersReadStateAnswerCtx *args);
     unsigned int (*answer_read)(const CliServersReadStateAnswerCtx *args);
 } CliServersReadStateAnswerNs;
-EMBED_TABLE_LAYOUT(CliServersReadStateAnswerNs, read_state_lock, read_state_release, answer_read);
+EMBED_TABLE_LAYOUT(CliServersReadStateAnswerNs, read_state_lock, answer_read);
 EMBED_TABLE_STORAGE CliServersReadStateAnswerNs cli_servers_read_state_answer_internal EMBED_UNUSED = {
     .read_state_lock = cli_servers_read_state_lock,
-    .read_state_release = cli_servers_read_state_release,
     .answer_read = cli_servers_answer_read,
 };
 
 typedef struct
 {
-    void (*check_work_state_free)(const CliServersQueueFilesCtx *args);
     int (*check_work_state_init)(const CliServersQueueFilesCtx *args);
     void (*check_files_append)(const CliServersQueueFilesCtx *args);
 } CliServersQueueFilesNs;
-EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_work_state_free, check_work_state_init, check_files_append);
+EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_work_state_init, check_files_append);
 EMBED_TABLE_STORAGE CliServersQueueFilesNs cli_servers_queue_files_internal EMBED_UNUSED = {
-    .check_work_state_free = cli_servers_check_work_state_free,
     .check_work_state_init = cli_servers_check_work_state_init,
     .check_files_append = cli_servers_check_files_append,
 };

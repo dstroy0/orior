@@ -287,7 +287,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
         }
         file += 1u;
     }
-    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->signature->root, .relative = args->signature->needle,
                .joined = full);
@@ -328,8 +328,11 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
 }
 
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
@@ -415,7 +418,7 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
     const CliSymbolCall *const call = &args->signature->call;
     unsigned int supplied = 0u;
     for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
@@ -513,7 +516,12 @@ CliSignaturePanel *cli_symbols_signature_alloc(const CliSymbolsPathTextSizeOutCf
         (languages != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliSymbolSignature), &g_cli_code_cells) : NULL;
     if (signature == NULL)
     {
-        EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+        if (languages != NULL)
+        {
+            g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        }
+        g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
         return NULL;
     }
@@ -549,9 +557,17 @@ CliSignaturePanel *cli_symbols_signature_alloc(const CliSymbolsPathTextSizeOutCf
                            .owner = args->owner);
     }
     const int refused = read.refused;
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
     g_cli_cells->persistent_buf_release(signature, &g_cli_code_cells);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     if (refused)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the leaves of the lines handed");

@@ -39,12 +39,11 @@ typedef struct
 // where the entry `key` is stored; the object the file at `path` contains, read as JSON with comments and trailing
 // commas, into `json`, a tree of its own sized to the file's tokens and bytes and `nodes_more` nodes and `text_more`
 // bytes over to begin with, an empty one where it is not there or does not read: its root, CLI_JSON_NONE where the
-// tree's cell is refused, the tree given back with cli_json_free either way; and the JSON files of `folder` into
-// `files`, by name, in order, and the cell they are stored in given back (state.c)
+// tree's cell is refused, the tree released through persistent_buf_release either way; and the JSON files of `folder`
+// into `files`, by name, in order, and the cell they are stored in given back (state.c)
 unsigned int cli_state_position(const CliStateCtx *args);
 unsigned int cli_state_map_read(const CliStateJsonCtx *args);
 void cli_state_json_files(const CliStateFolderCtx *args);
-void cli_state_json_files_free(const CliStateFolderCtx *args);
 
 struct CliStateJsonCtx
 {
@@ -86,12 +85,10 @@ EMBED_TABLE_STORAGE CliStateJsonNsTable cli_state_json_internal EMBED_UNUSED = {
 typedef struct
 {
     void (*json_files)(const CliStateFolderCtx *args);
-    void (*json_files_free)(const CliStateFolderCtx *args);
 } CliStateFolderNsTable;
-EMBED_TABLE_LAYOUT(CliStateFolderNsTable, json_files, json_files_free);
+EMBED_TABLE_LAYOUT(CliStateFolderNsTable, json_files);
 EMBED_TABLE_STORAGE CliStateFolderNsTable cli_state_folder_internal EMBED_UNUSED = {
     .json_files = cli_state_json_files,
-    .json_files_free = cli_state_json_files_free,
 };
 
 #endif

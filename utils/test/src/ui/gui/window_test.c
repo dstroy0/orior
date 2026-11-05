@@ -125,7 +125,7 @@ static int file_reads(const char *name, const char *required)
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_checks_cells);
     const int same = (bytes != NULL) && (size == strlen(required)) && (memcmp(bytes, required, size) == 0);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_checks_cells, .bytes_bytes_other = bytes);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_checks_cells));
     return same;
 }
 

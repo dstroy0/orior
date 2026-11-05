@@ -87,18 +87,6 @@ void cli_catalog_alloc(const CliCatalogCellsCfg *args)
     args->catalog->used = 1u;
 }
 
-void cli_catalog_free(const CliCatalogChoiceCfg *args)
-{
-    CellOwner *const cells = args->catalog->cells;
-    if (cells != NULL)
-    {
-        g_cli_cells->persistent_buf_release(args->catalog->job, cells);
-    }
-    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = args->catalog, .jobs = NULL, .jobs_max = 0u,
-               .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,
-               .lists = NULL, .lists_max = 0u, .text_out = NULL, .text_max = 0u);
-}
-
 unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args)
 {
     if (args->text == NULL)

@@ -51,11 +51,6 @@ EMBED_INLINE char *keyed_cell_alloc(const KeyedCtx *args)
     return g_cli_cells->persistent_buf_alloc(args->size, &g_cli_text_cells);
 }
 
-EMBED_INLINE void keyed_cell_free(const KeyedCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->cell, &g_cli_text_cells);
-}
-
 // that `key` could not be stored by `keyed`, and why, reported on the standard error
 EMBED_INLINE void keyed_reject(const KeyedCtx *args)
 {
@@ -86,17 +81,6 @@ CliKeyedEntry *cli_keyed_entry(const CliKeyedCfg *args)
     return &args->keyed->page[args->at / CLI_KEYED_PAGE][args->at % CLI_KEYED_PAGE];
 }
 
-// the pages past those the entries ever taken reach given back
-EMBED_INLINE void keyed_pages_free(const KeyedCtx *args)
-{
-    const unsigned int reached = (args->keyed_out->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
-    for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
-    {
-        EMBED_CALL(keyed_cell_free, KeyedCtx, .cell = (char *)args->keyed_out->page[page]);
-        args->keyed_out->page[page] = NULL;
-    }
-}
-
 // the entries that contain one moved down together, in the order they stand, the pages they leave given back
 EMBED_INLINE void keyed_compact(const KeyedCtx *args)
 {
@@ -112,7 +96,12 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
         }
     }
     keyed->entries = count;
-    EMBED_CALL(keyed_pages_free, KeyedCtx, .keyed_out = keyed);
+    const unsigned int reached = (keyed->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
+    for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
+    {
+        g_cli_cells->persistent_buf_release(((char *)keyed->page[page]), &g_cli_text_cells);
+        keyed->page[page] = NULL;
+    }
 }
 
 int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
@@ -187,8 +176,9 @@ void cli_keyed_remove(const CliKeyedKeyAdjacentCfg *args)
                                        .hash = cli_keyed_key_adjacent.hash(args));
     if (at < args->keyed_out->entries)
     {
-        EMBED_CALL(keyed_cell_free, KeyedCtx,
-                   .cell = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell);
+        g_cli_cells->persistent_buf_release(
+            (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell),
+            &g_cli_text_cells);
         EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used = 0;
         EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell = NULL;
     }
@@ -200,13 +190,18 @@ void cli_keyed_clear(const CliKeyedNameCfg *args)
     {
         if (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used)
         {
-            EMBED_CALL(keyed_cell_free, KeyedCtx,
-                       .cell =
-                           EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell);
+            g_cli_cells->persistent_buf_release(
+                (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell),
+                &g_cli_text_cells);
         }
     }
     args->keyed_out->entries = 0u;
-    EMBED_CALL(keyed_pages_free, KeyedCtx, .keyed_out = args->keyed_out);
+    const unsigned int reached = (args->keyed_out->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
+    for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
+    {
+        g_cli_cells->persistent_buf_release(((char *)args->keyed_out->page[page]), &g_cli_text_cells);
+        args->keyed_out->page[page] = NULL;
+    }
 }
 
 void cli_keyed_each(const CliKeyedEachCfg *args)

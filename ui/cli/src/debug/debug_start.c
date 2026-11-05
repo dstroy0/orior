@@ -528,7 +528,10 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     CliJson *const to = &args->place->start;
     // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = to);
+    g_cli_cells->persistent_buf_release(to->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = to->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = to, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = to,
                     .nodes_max = CLI_DEBUG_START_NODES, .text_max = CLI_DEBUG_START_TEXT,
                     .what = "the tree a debug session starts with", .owner = &g_cli_debug_cells))

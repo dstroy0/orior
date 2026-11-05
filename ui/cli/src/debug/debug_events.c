@@ -29,7 +29,18 @@ static void step_across_clear(void *context)
     session->users -= 1u;
     if (!session->list_entries && session->adapter_ended && (session->users == 0u))
     {
-        EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = session);
+        g_cli_cells->persistent_buf_release(session->positioned, &g_cli_debug_cells);
+        session->data = NULL;
+        session->data_count = 0u;
+        session->data_capacity = 0u;
+        session->positioned = NULL;
+        session->positioned_count = 0u;
+        session->positioned_capacity = 0u;
+        g_cli_cells->persistent_buf_release(
+            session->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = session->start.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        session->reserved = 0;
     }
 }
 
@@ -113,7 +124,10 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
                    .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
     const int written = EMBED_CALL(stop_rewritten, DebugEventsCtx, .session = args->session, .json = &json,
                                    .root = root, .out = args->out);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;
 }
 
@@ -142,7 +156,10 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         {
             session->pid = pid;
         }
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL}))
     {
@@ -179,7 +196,18 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         session->adapter_ended = 1;
         if (!session->list_entries && (session->users == 0u))
         {
-            EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = session);
+            g_cli_cells->persistent_buf_release(session->positioned, &g_cli_debug_cells);
+            session->data = NULL;
+            session->data_count = 0u;
+            session->data_capacity = 0u;
+            session->positioned = NULL;
+            session->positioned_count = 0u;
+            session->positioned_capacity = 0u;
+            g_cli_cells->persistent_buf_release(
+                session->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = session->start.node));
+            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
+                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+            session->reserved = 0;
         }
     }
 }

@@ -14,14 +14,12 @@ void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
-void cli_servers_read_state_release(const CliServersReadStateAnswerCtx *args)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read_state->json);
-}
-
 unsigned int cli_servers_read(const CliServersReadStateCtx *args)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read_state->json);
+    g_cli_cells->persistent_buf_release(args->read_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                                .cell = args->read_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->read_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,

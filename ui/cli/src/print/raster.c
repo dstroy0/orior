@@ -68,8 +68,8 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = s_typefaces->face_data[face],
-                       .owner = &g_cli_print_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(s_typefaces->face_data[face]),
+                                                (&g_cli_print_cells));
         }
         g_cli_cells->persistent_buf_release(s_typefaces->cover, &g_cli_print_cells);
     }

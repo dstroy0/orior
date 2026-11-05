@@ -71,15 +71,6 @@ EMBED_INLINE void tests_lines_begin(const AtTerminalTestsCtx *args)
     lines->lines = 0ULL;
 }
 
-// the cell of the lines buffered given back
-EMBED_INLINE void tests_lines_free(const AtTerminalTestsCtx *args)
-{
-    CliTestLines *lines = args->lines;
-    g_cli_cells->persistent_buf_release(lines->line.out, &g_cli_command_line_cells);
-    lines->line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-    lines->lines = 0ULL;
-}
-
 // the lines buffered written into `into` and a line's end after them, where any are buffered, and their cell given back
 EMBED_INLINE void tests_lines_write(const AtTerminalTestsCtx *args)
 {
@@ -88,7 +79,9 @@ EMBED_INLINE void tests_lines_write(const AtTerminalTestsCtx *args)
         (void)mmgr_line_put_n(args->into, args->lines->line.out, args->lines->line.at);
         mmgr_line_ch(args->into, '\n');
     }
-    tests_lines_free(args);
+    g_cli_cells->persistent_buf_release(args->lines->line.out, &g_cli_command_line_cells);
+    args->lines->line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    args->lines->lines = 0ULL;
 }
 
 // a whole number member of `node` in `json`, 0 where it has none
@@ -269,7 +262,10 @@ static void tests_event(const CliEachJsonSizeCfg *args)
         s_done = 1;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
@@ -289,8 +285,12 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     if (!EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = root, .supplied = supplied, .count = count,
                     .parallel = 1, .cover = cover, .sink = sink, .number = &run, .err_msg = err_msg))
     {
-        EMBED_CALL(tests_lines_free, AtTerminalTestsCtx, .lines = &s_failed);
-        EMBED_CALL(tests_lines_free, AtTerminalTestsCtx, .lines = &s_covered);
+        g_cli_cells->persistent_buf_release(s_failed.line.out, &g_cli_command_line_cells);
+        s_failed.line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        s_failed.lines = 0ULL;
+        g_cli_cells->persistent_buf_release(s_covered.line.out, &g_cli_command_line_cells);
+        s_covered.line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        s_covered.lines = 0ULL;
         return 0;
     }
     while (!s_done)
@@ -358,7 +358,10 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
         g_cli_cells->temporary_buf_alloc(2ULL * capacity * sizeof(const char *), &g_cli_command_line_cells);
     if (chosen_positions == NULL)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+        g_cli_cells->persistent_buf_release(json->node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "the cell the places and settings taken are listed in could not be taken");
         return 0;
     }
@@ -469,10 +472,16 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
             mmgr_line_put_n(out, (id != NULL) ? id : "", id_size);
             mmgr_line_put(out, " writes them back.");
         }
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &consumed_tree);
+        g_cli_cells->persistent_buf_release(
+            consumed_tree.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = consumed_tree.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&consumed_tree),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
     g_cli_cells->persistent_buf_release(chosen_positions, &g_cli_command_line_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
 }
 
@@ -501,6 +510,9 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
         mmgr_line_put_n(out, (from != NULL) ? from : "", size);
         mmgr_line_put(out, " is undone.");
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &tree);
+    g_cli_cells->persistent_buf_release(tree.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = tree.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&tree),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
 }

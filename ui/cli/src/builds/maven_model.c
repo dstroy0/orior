@@ -54,8 +54,7 @@ EMBED_INLINE CliMavenMapped model_map(const MavenModelCtx *args)
                               .owner = &g_cli_maven_model_cells);
     if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped.bytes,
-                   .owner = &g_cli_maven_model_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped.bytes, (&g_cli_maven_model_cells));
         mapped.bytes = NULL;
     }
     return mapped;
@@ -63,8 +62,7 @@ EMBED_INLINE CliMavenMapped model_map(const MavenModelCtx *args)
 
 EMBED_INLINE void model_unmapped(const MavenModelCtx *args)
 {
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = args->mapped.bytes,
-               .owner = &g_cli_maven_model_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)args->mapped.bytes, (&g_cli_maven_model_cells));
 }
 
 const char *cli_maven_property(const CliMavenSizeCtx *args)
@@ -229,7 +227,8 @@ int cli_maven_local_repository(const CliMavenOutCtx *args)
                         EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = &settings,
                                    .of = root, .name = "localRepository", .out = &named) &&
                         (named.at > 0u) && (mmgr_line_finish(&named) > 0u);
-            EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &settings);
+            g_cli_cells->persistent_buf_release(settings.element, &g_cli_xml_cells);
+            *(&settings) = (CliXml){settings.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
         }
         EMBED_CALL(model_unmapped, MavenModelCtx, .mapped = mapped);
         if (named_one)
@@ -426,7 +425,8 @@ static void model_read(const MavenModelCtx *args)
     const unsigned int root = EMBED_CALL(cli_maven_xml_project_internal.xml_root, CliMavenXmlProjectCtx, .xml = xml);
     if (root == CLI_XML_NONE)
     {
-        EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = xml);
+        g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
+        *xml = (CliXml){xml->text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
         return;
     }
     const unsigned int parent =
@@ -484,12 +484,14 @@ static void model_read(const MavenModelCtx *args)
             EMBED_CALL(model_holder, MavenModelCtx, .xml = xml, .holder = one, .model = args->model);
         }
     }
-    EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = xml);
+    g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
+    *xml = (CliXml){xml->text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }
 
 void cli_maven_model_get(const CliMavenTextSizeModelCtx *args)
 {
-    cli_maven_text_size_model_internal.model_free(args);
+    g_cli_cells->persistent_buf_release(args->model->name_at, &g_cli_maven_model_cells);
+    *args->model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
     cli_maven_text_size_model_internal.model_alloc(args);
     args->model->whole = args->model->text != NULL;
     EMBED_CALL(model_read, MavenModelCtx, .path = args->path, .text = args->text, .size = args->size, .depth = 0u,

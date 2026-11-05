@@ -354,11 +354,3 @@ int cli_leaf_has(const CliSymbolsReadCtx *args)
     const CliLeaf *const one = &args->read_read->leaf[args->leaf];
     return ((one->is & roles) == roles) && ((one->is & (CLI_LEAF_STRING | CLI_LEAF_COMMENT)) == 0u);
 }
-
-void cli_symbols_leaves_free(const CliSymbolsTextCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->read->leaf, &g_cli_leaves_cells);
-    args->read->leaf = NULL;
-    args->read->count = 0u;
-    args->read->capacity = 0u;
-}

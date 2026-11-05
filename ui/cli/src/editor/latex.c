@@ -16,12 +16,6 @@ int cli_latex_lock(void)
     return g_cli_latex != NULL;
 }
 
-void cli_latex_release(void)
-{
-    g_cli_cells->persistent_buf_release(g_cli_latex, &g_cli_editor_cells);
-    g_cli_latex = NULL;
-}
-
 typedef struct
 {
     const char *path;

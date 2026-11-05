@@ -447,5 +447,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                        .catalog = catalog);
         }
     }
-    EMBED_CALL(cli_executables_found_internal.free, CliExecutablesFoundCtx, .found = &found);
+    g_cli_cells->persistent_buf_release(found.item, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(found.order, &g_cli_executables_cells);
+    *(&found) = (CliExecutables){NULL, 0u, 0u, NULL};
 }

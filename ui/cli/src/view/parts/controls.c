@@ -128,7 +128,10 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
     {
         return;
     }
-    EMBED_CALL(gui_chrome_raster.controls_shadow_free, GuiChromeRasterCfg, .shadow = shadow);
+    g_cli_cells->persistent_buf_release(shadow->cover, &g_gui_cells);
+    shadow->cover = NULL;
+    shadow->width = 0u;
+    shadow->height = 0u;
     const unsigned long long pixels = (unsigned long long)width * height;
     const unsigned int longer = (width > height) ? width : height;
     unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &g_gui_cells);
@@ -182,14 +185,6 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
     }
     g_cli_cells->persistent_buf_release(other, &g_gui_cells);
     *shadow = (GuiMask){width, height, 0, 0, cover};
-}
-
-void gui_controls_shadow_free(const GuiChromeRasterCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->shadow->cover, &g_gui_cells);
-    args->shadow->cover = NULL;
-    args->shadow->width = 0u;
-    args->shadow->height = 0u;
 }
 
 void gui_controls_draw(const GuiChromeRasterCfg *args)

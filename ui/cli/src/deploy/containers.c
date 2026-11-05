@@ -127,12 +127,6 @@ int cli_containers_tool(const CliContainersVariableCtx *args)
 
 CliContainers g_cli_containers;
 
-void cli_containers_release(void)
-{
-    g_cli_cells->persistent_buf_release(g_cli_containers.item, &g_cli_deploy_cells);
-    g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ULL, 0ULL};
-}
-
 int cli_containers_act(const CliContainersCfg *args)
 {
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "start", .cap = CLI_CELLS_POOL})) &&

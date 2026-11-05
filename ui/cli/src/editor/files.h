@@ -79,6 +79,8 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args);
 void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args);
 const char *cli_files_at(const CliFilesCfg *args);
 int cli_files_contains(const CliFilesPathKindCfg *args);
+// the place of `path` among the sorted files, their count where it is not among them
+unsigned int cli_files_index(const CliFilesPathKindCfg *args);
 // the tree listed behind the window, as a tree opens; and whether git tracks the path or would: a file it lists, a
 // file in a folder containing one it lists or at the tree's top, or a file in a folder the tree does not contain, as
 // one just made, that git does not ignore. Every path is, in a tree git cannot read (files_seen.c, files_tracked.c)
@@ -351,6 +353,7 @@ struct CliFilesRootOutErrMsgCfg
     const CliPatterns *set;
     void (*each)(const CliEachHitCfg *args);
     void *context;
+    int standing;
 };
 
 struct CliFilesRootEachCfg
@@ -526,10 +529,12 @@ EMBED_TABLE_STORAGE CliFilesRootOutDirNs cli_files_root_out_dir EMBED_UNUSED = {
 typedef struct
 {
     int (*contains)(const CliFilesPathKindCfg *args);
+    unsigned int (*index)(const CliFilesPathKindCfg *args);
 } CliFilesPathKindNs;
-EMBED_TABLE_LAYOUT(CliFilesPathKindNs, contains);
+EMBED_TABLE_LAYOUT(CliFilesPathKindNs, contains, index);
 EMBED_TABLE_STORAGE CliFilesPathKindNs cli_files_path_kind EMBED_UNUSED = {
     .contains = cli_files_contains,
+    .index = cli_files_index,
 };
 
 typedef struct

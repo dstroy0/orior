@@ -97,7 +97,7 @@ void test_a_file_read_complete_is_in_its_cell(void)
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(whole);
     CLI_TEST_ASSERT_TEXT(s_text, whole, s_size);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = whole, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)whole, (&g_checks_cells));
 }
 
 void test_a_file_read_complete_is_followed_by_zero_slack(void)
@@ -105,7 +105,7 @@ void test_a_file_read_complete_is_followed_by_zero_slack(void)
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(whole);
     assert_zero(whole + s_size, CLI_FILE_SLACK);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = whole, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)whole, (&g_checks_cells));
 }
 
 void test_a_file_read_complete_counts_to_the_named_owner_until_released(void)
@@ -113,7 +113,7 @@ void test_a_file_read_complete_counts_to_the_named_owner_until_released(void)
     const size_t before = embed_atomic_usize_load(&g_checks_cells.in_use);
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_GREATER_THAN_UINT64(before, embed_atomic_usize_load(&g_checks_cells.in_use));
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = whole, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)whole, (&g_checks_cells));
     TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_checks_cells.in_use));
 }
 
@@ -122,19 +122,19 @@ void test_a_piece_contains_the_bytes_requested_for(void)
     unsigned char *const piece = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = 4ull, .count_u64 = 5ull, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(piece);
     CLI_TEST_ASSERT_TEXT("bytes", piece, s_size);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = piece, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)piece, (&g_checks_cells));
 }
 
 void test_a_piece_end_the_end_is_shorter_with_zero_slack(void)
 {
     // a larger cell lands over the word before the one just released, which an allocation does not zero: the read zeroes the slack
     unsigned char *const piece = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = 4ull, .count_u64 = 5ull, .size_pointer = &s_size, .owner = &g_checks_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = piece, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)piece, (&g_checks_cells));
     unsigned char *const end = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = sizeof(s_text) - 3u, .count_u64 = 64ull, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(end);
     TEST_ASSERT_EQUAL_UINT64(2ull, s_size);
     assert_zero(end + s_size, CLI_FILE_SLACK);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = end, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)end, (&g_checks_cells));
 }
 
 void test_an_empty_file_read_complete_has_no_bytes(void)
@@ -143,7 +143,7 @@ void test_an_empty_file_read_complete_has_no_bytes(void)
     TEST_ASSERT_NOT_NULL(nothing);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_size);
     assert_zero(nothing, CLI_FILE_SLACK);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = nothing, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)nothing, (&g_checks_cells));
 }
 
 void test_a_missing_file_read_complete_is_null_with_size_zero(void)
@@ -155,7 +155,7 @@ void test_a_missing_file_read_complete_is_null_with_size_zero(void)
 void test_releasing_null_changes_nothing(void)
 {
     const size_t before = embed_atomic_usize_load(&g_checks_cells.in_use);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = NULL, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)NULL, (&g_checks_cells));
     TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_checks_cells.in_use));
 }
 
@@ -168,5 +168,5 @@ void test_bytes_that_are_utf8_are_read(void)
 {
     unsigned char *const letters = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(letters);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = letters, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)letters, (&g_checks_cells));
 }

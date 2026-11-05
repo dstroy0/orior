@@ -153,7 +153,6 @@ typedef struct
 // CLI_BUILD_NONE where it does not fit; a fix of the finding at `finding` that writes `size` bytes of `text` over the
 // bytes `from` to `to`; and one that runs `line` in the terminal in `folder` of the tree (builds_help.c)
 void cli_build_findings_begin(const CliBuildsLinesCfg *args);
-void cli_build_findings_free(const CliBuildsLinesCfg *args);
 VerbaLinea cli_build_msg_line(const CliBuildsLinesCfg *args);
 unsigned int cli_build_finding(const CliBuildsLinesCfg *args);
 void cli_build_edit_fix(const CliBuildsTextCfg *args);
@@ -421,14 +420,12 @@ EMBED_TABLE_STORAGE CliBuildsLineNs cli_builds_line EMBED_UNUSED = {
 typedef struct
 {
     void (*build_findings_begin)(const CliBuildsLinesCfg *args);
-    void (*build_findings_free)(const CliBuildsLinesCfg *args);
     VerbaLinea (*build_msg_line)(const CliBuildsLinesCfg *args);
     unsigned int (*build_finding)(const CliBuildsLinesCfg *args);
 } CliBuildsLinesNs;
-EMBED_TABLE_LAYOUT(CliBuildsLinesNs, build_findings_begin, build_findings_free, build_msg_line, build_finding);
+EMBED_TABLE_LAYOUT(CliBuildsLinesNs, build_findings_begin, build_msg_line, build_finding);
 EMBED_TABLE_STORAGE CliBuildsLinesNs cli_builds_lines EMBED_UNUSED = {
     .build_findings_begin = cli_build_findings_begin,
-    .build_findings_free = cli_build_findings_free,
     .build_msg_line = cli_build_msg_line,
     .build_finding = cli_build_finding,
 };

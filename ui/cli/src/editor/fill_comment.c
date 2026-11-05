@@ -51,11 +51,6 @@ int cli_fill_comment_lock(const CliFillCtx *args)
     return 1;
 }
 
-void cli_fill_comment_release(void)
-{
-    s_fill = NULL;
-}
-
 typedef struct
 {
     unsigned char **at;

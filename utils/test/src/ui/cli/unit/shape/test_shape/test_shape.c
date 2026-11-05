@@ -58,7 +58,12 @@ void setUp(void)
 
 void tearDown(void)
 {
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = s_languages);
+    if (s_languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(s_languages->languages.pair, &g_cli_plugins_cells);
+        *(&s_languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(s_languages, &g_cli_code_cells);
 }
 
 void test_an_expression_placeholder_matches_each_complete_call(void)

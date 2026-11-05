@@ -77,7 +77,7 @@ typedef struct
 
 // An XML file as read: its text, its elements, its comments' spans, what prevented it from reading, and the elements
 // its text leaves open, the outermost first; each list's capacity in one cell sized to the tags the text can contain,
-// no more than its most, given back with cli_xml_free
+// no more than its most, released through persistent_buf_release
 typedef struct
 {
     const char *text;
@@ -96,12 +96,11 @@ typedef struct
     unsigned int opens;
 } CliXml;
 
-// the cells the XML files read are allocated in, counted, each given back with cli_xml_free (maven_xml.c)
+// the cells the XML files read are allocated in, counted, each released through persistent_buf_release (maven_xml.c)
 extern CellOwner g_cli_xml_cells;
 
 // the cell of an XML file read given back, the file left read as empty; each read is given back before `xml` is read
 // again or let go
-void cli_xml_free(const CliMavenXmlTextCtx *args);
 // `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` contained
 // before not looked at; the message of what prevented it from reading
 // written; the root element, CLI_XML_NONE where there is none; the first child of `of` named `name`, CLI_XML_NONE
@@ -146,7 +145,7 @@ extern const char *const g_cli_maven_project_properties[11];
 // What a POM gives its children: its properties, each a name and a value, the dependencies its management gives a
 // version, by `group:artifact`, and whether it and each parent above it were read and one of its managed dependencies
 // imports a POM, each a text of the model's. Its lists and its texts stand in one cell taken at their most as it is
-// read, given back with cli_maven_model_free
+// read, released through persistent_buf_release
 typedef struct
 {
     unsigned int *name_at;
@@ -171,7 +170,6 @@ typedef struct
 // bytes of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
 // (maven_model_text.c)
 extern CellOwner g_cli_maven_model_cells;
-void cli_maven_model_free(const CliMavenTextSizeModelCtx *args);
 void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args);
 unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args);
 
@@ -357,12 +355,10 @@ struct CliMavenCtx
 
 typedef struct
 {
-    void (*xml_free)(const CliMavenXmlTextCtx *args);
     void (*xml_parse)(const CliMavenXmlTextCtx *args);
 } CliMavenXmlTextNs;
-EMBED_TABLE_LAYOUT(CliMavenXmlTextNs, xml_free, xml_parse);
+EMBED_TABLE_LAYOUT(CliMavenXmlTextNs, xml_parse);
 EMBED_TABLE_STORAGE CliMavenXmlTextNs cli_maven_xml_text_internal EMBED_UNUSED = {
-    .xml_free = cli_xml_free,
     .xml_parse = cli_xml_parse,
 };
 
@@ -448,13 +444,11 @@ EMBED_TABLE_STORAGE CliMavenNsTable cli_maven_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*model_free)(const CliMavenTextSizeModelCtx *args);
     void (*model_alloc)(const CliMavenTextSizeModelCtx *args);
     void (*model_get)(const CliMavenTextSizeModelCtx *args);
 } CliMavenTextSizeModelNs;
-EMBED_TABLE_LAYOUT(CliMavenTextSizeModelNs, model_free, model_alloc, model_get);
+EMBED_TABLE_LAYOUT(CliMavenTextSizeModelNs, model_alloc, model_get);
 EMBED_TABLE_STORAGE CliMavenTextSizeModelNs cli_maven_text_size_model_internal EMBED_UNUSED = {
-    .model_free = cli_maven_model_free,
     .model_alloc = cli_maven_model_alloc,
     .model_get = cli_maven_model_get,
 };

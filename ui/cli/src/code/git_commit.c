@@ -94,13 +94,6 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
     return 1;
 }
 
-// the commit's capacity given back
-static void cli_committing_free(void)
-{
-    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
-    s_committing = (CliCommitting){0};
-}
-
 // `message` trimmed into the message stored: 1, or 0 with why given where nothing is left
 EMBED_INLINE int cli_message(const GitCommitCtx *args)
 {
@@ -439,8 +432,12 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
             ok = 0;
         }
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
-    cli_committing_free();
+    g_cli_cells->persistent_buf_release(s_repositories.text.bytes, &g_cli_git_cells);
+    s_repositories.text.bytes = NULL;
+    s_repositories.text.used = 0ULL;
+    s_repositories.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
+    s_committing = (CliCommitting){0};
     return ok;
 }
 
@@ -521,8 +518,12 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         }
         first += 1u;
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
-    cli_committing_free();
+    g_cli_cells->persistent_buf_release(s_repositories.text.bytes, &g_cli_git_cells);
+    s_repositories.text.bytes = NULL;
+    s_repositories.text.used = 0ULL;
+    s_repositories.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
+    s_committing = (CliCommitting){0};
     return ok;
 }
 

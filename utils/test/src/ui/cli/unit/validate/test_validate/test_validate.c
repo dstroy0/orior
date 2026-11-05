@@ -71,7 +71,17 @@ void setUp(void)
 
 void tearDown(void)
 {
-    cli_validate_release();
+    g_cli_cells->persistent_buf_release(g_cli_validate->json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_validate->manifest.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->manifest.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
+    g_cli_validate = NULL;
 }
 
 void test_the_lean_tool_reads_its_toolchain(void)

@@ -409,8 +409,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
         }
         at = end + 1ULL;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)text,
-               .owner = &g_cli_qry_listing_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_qry_listing_cells));
     return count;
 }
 

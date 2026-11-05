@@ -75,7 +75,7 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args);
 // The match of a pattern against the code: the code and its tokens; the pattern and its tokens, each part a word to
 // match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders bound
 // so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
-// `ends_capacity`, given back with cli_shape_ends_free
+// `ends_capacity`, released through persistent_buf_release
 typedef struct
 {
     const char *src;
@@ -100,7 +100,6 @@ typedef struct
 extern CellOwner g_cli_shape_cells;
 
 // the matcher's stack of ends given back (shape_match.c)
-void cli_shape_ends_free(const CliShapeMatcherCtx *args);
 
 // the end of a match of the parts from `part` on at the token `at`, the placeholders bound so far still bound: 1 with
 // it into `end`, or 0 where none matches (shape_match.c)
@@ -146,12 +145,10 @@ EMBED_TABLE_STORAGE CliShapeLanguagesNsTable cli_shape_languages_internal EMBED_
 
 typedef struct
 {
-    void (*ends_free)(const CliShapeMatcherCtx *args);
     int (*from)(const CliShapeMatcherCtx *args);
 } CliShapeMatcherNs;
-EMBED_TABLE_LAYOUT(CliShapeMatcherNs, ends_free, from);
+EMBED_TABLE_LAYOUT(CliShapeMatcherNs, from);
 EMBED_TABLE_STORAGE CliShapeMatcherNs cli_shape_matcher_internal EMBED_UNUSED = {
-    .ends_free = cli_shape_ends_free,
     .from = cli_shape_from,
 };
 

@@ -180,8 +180,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     int done = EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = 0u, .bytes = descent.bytes, .bytes_size = descent.size,
                           .kind = descent.kind, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
                           .data_size = args->size, .size = &written, .err_msg = args->err_msg);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = descent.bytes,
-               .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)descent.bytes, (&g_cli_editor_cells));
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char adjacent[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];

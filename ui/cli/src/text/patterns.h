@@ -21,6 +21,7 @@ typedef struct CliPatternsLinesCfg CliPatternsLinesCfg;
 typedef struct CliPatternsLinesCountCfg CliPatternsLinesCountCfg;
 typedef struct CliPatternsCfg CliPatternsCfg;
 typedef struct CliPatternsPartCfg CliPatternsPartCfg;
+typedef struct CliPatternsTextCfg CliPatternsTextCfg;
 
 // the most patterns of each kind a set contains, and the most letters all of them take
 #define CLI_PATTERNS_MAX 256u
@@ -59,9 +60,10 @@ enum
 
 // the patterns of `count` lines into `patterns`
 void cli_patterns_read(const CliPatternsLinesCfg *args);
-// the patterns of a set of files, one to a line: each names files in the set, and one starting with `!` takes the
-// files it names out
+// the patterns of a set of files, one to a line: each matches files in the set, and one starting with `!` takes the
+// files it matches out; and the same read from `size` bytes of `text`, its lines split at line breaks where they stand
 void cli_patterns_read_set(const CliPatternsLinesCfg *args);
+void cli_patterns_read_set_text(const CliPatternsTextCfg *args);
 // whether there are none; whether any pattern includes only what it names
 int cli_patterns_empty(const CliPatternsCfg *args);
 int cli_patterns_include_only(const CliPatternsCfg *args);
@@ -113,6 +115,13 @@ struct CliPatternsPartCfg
     unsigned int part;
 };
 
+struct CliPatternsTextCfg
+{
+    const char *text;
+    unsigned long long size;
+    CliPatterns *patterns_out;
+};
+
 typedef struct
 {
     void (*read)(const CliPatternsLinesCfg *args);
@@ -122,6 +131,15 @@ EMBED_TABLE_LAYOUT(CliPatternsLinesNs, read, read_set);
 EMBED_TABLE_STORAGE CliPatternsLinesNs cli_patterns_lines EMBED_UNUSED = {
     .read = cli_patterns_read,
     .read_set = cli_patterns_read_set,
+};
+
+typedef struct
+{
+    void (*read_set_text)(const CliPatternsTextCfg *args);
+} CliPatternsTextNs;
+EMBED_TABLE_LAYOUT(CliPatternsTextNs, read_set_text);
+EMBED_TABLE_STORAGE CliPatternsTextNs cli_patterns_text EMBED_UNUSED = {
+    .read_set_text = cli_patterns_read_set_text,
 };
 
 typedef struct

@@ -132,8 +132,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
         // a plugin's bytes are its JSON's text
         const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         EMBED_CALL(args->each, CliEachPluginCfg, .context = args->context, .plugin = &plugin);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_plugins_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_plugins_cells));
     }
     g_cli_cells->persistent_buf_release(user.name, &g_cli_plugins_cells);
 }
@@ -271,7 +270,10 @@ static void cli_language_each(const CliEachPluginCfg *args)
     if ((root == CLI_JSON_NONE) ||
         ((kind != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL}))))
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
     const char *const named =
@@ -347,7 +349,10 @@ static void cli_language_each(const CliEachPluginCfg *args)
                              .each = cli_folder_map, .context_bytess = &mapped);
         }
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 void cli_plugins_languages(const CliPluginsCfg *args)
@@ -366,13 +371,6 @@ void cli_plugins_languages_for_call(const CliPluginsCfg *args)
         g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), &g_cli_plugins_cells);
     *languages = (CliLanguages){pair, 0u, (pair != NULL) ? CLI_LANGUAGE_PAIRS : 0u};
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_language_each, .context = languages);
-}
-
-void cli_plugins_languages_free(const CliPluginsCfg *args)
-{
-    CliLanguages *languages = args->languages;
-    g_cli_cells->persistent_buf_release(languages->pair, &g_cli_plugins_cells);
-    *languages = (CliLanguages){NULL, 0u, 0u};
 }
 
 int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)

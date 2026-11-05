@@ -224,7 +224,10 @@ int cli_recording_serve(const CliDapServeCfg *args)
     char why[CLI_RECORDING_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     // the request before this one given back with its tree, and this one read into a tree of its size
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                             .json = &s_json, .text = args->request, .size = size, .nodes_more = 0u,
                                             .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_debug_cells);

@@ -53,7 +53,8 @@ static void assert_reaches(const char *pattern)
     const char *const patterns[2] = {pattern, NULL};
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MAX);
     const unsigned int found = EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = s_root, .patterns = patterns, .found = &s_found);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &s_found);
+    g_cli_cells->persistent_buf_release(s_found.path, &g_query_cells);
+    *(&s_found) = (QueryPaths){NULL, 0u, 0u};
     TEST_ASSERT_GREATER_THAN_UINT_MESSAGE(0u, found, pattern);
 }
 
@@ -184,7 +185,14 @@ void test_no_two_sources_of_a_tool_share_an_object(void)
                 apart = !cellul.eq(&(CatenaFinitaCfg){.src = s_named[one], .other = s_named[other], .cap = CLI_CELLS_POOL});
             }
         }
-        query_every_source_free();
+        g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+        *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+        g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+        *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+        g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+        *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+        g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+        *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
         TEST_ASSERT_TRUE_MESSAGE(apart, tool->name);
     }
 }
@@ -203,7 +211,8 @@ void test_the_file_definitions_are_what_every_program_links(void)
         kdm = kdm || ((length >= 6ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL}));
     }
     const unsigned int capacity = s_found.capacity;
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &s_found);
+    g_cli_cells->persistent_buf_release(s_found.path, &g_query_cells);
+    *(&s_found) = (QueryPaths){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(kfile_lines);
     TEST_ASSERT_TRUE(kdm);
     TEST_ASSERT_GREATER_THAN_UINT(10u, count);

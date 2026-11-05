@@ -79,6 +79,9 @@ int main(void)
     const GuiRect risen = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
     cli_check((risen.y == frame.tabs_row.y) && (risen.height == frame.tabs_row.height - 1) && (risen.y < frame.tabs.y),
               "halfway through the claim a tab stands whole in the row risen out of the work's head");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     return cli_on_check();
 }

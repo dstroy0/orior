@@ -35,7 +35,8 @@ static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 
 void cli_git_text_begin(const CliGitTextCfg *args)
 {
-    args->text->bytes = g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
+    args->text->bytes = args->text->standing ? g_cli_cells->persistent_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells)
+                                             : g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
     args->text->capacity = 0ULL;
     args->text->used = 0ULL;
     args->text->full = 0;
@@ -66,14 +67,6 @@ unsigned int cli_git_text_append(const CliGitTextCfg *args)
 const char *cli_git_text_get(const CliGitTextAtCfg *args)
 {
     return (args->text_read->bytes != NULL) ? (args->text_read->bytes + args->at) : "";
-}
-
-void cli_git_text_free(const CliGitTextCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->text->bytes, &g_cli_git_cells);
-    args->text->bytes = NULL;
-    args->text->used = 0ULL;
-    args->text->capacity = 0ULL;
 }
 
 CliGitResult *cli_git_alloc(void)

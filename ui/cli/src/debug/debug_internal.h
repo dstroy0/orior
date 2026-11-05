@@ -132,7 +132,6 @@ typedef struct
 } CliDebugSession;
 
 // a place freed, its lists and its tree given back, under the sessions' lock (debug_position.c)
-void cli_debug_position_free(const CliDebugCtx *args);
 
 // The sessions, the number the next takes, their lock and the wake of a session's adapter reporting it is initialized
 typedef struct
@@ -355,15 +354,6 @@ struct CliDebugFileCtx
 struct CliDebugCtx
 {
     CliDebugSession *place;
-};
-
-typedef struct
-{
-    void (*position_free)(const CliDebugCtx *args);
-} CliDebugNsTable;
-EMBED_TABLE_LAYOUT(CliDebugNsTable, position_free);
-EMBED_TABLE_STORAGE CliDebugNsTable cli_debug_internal EMBED_UNUSED = {
-    .position_free = cli_debug_position_free,
 };
 
 typedef struct

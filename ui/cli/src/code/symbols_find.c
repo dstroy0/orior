@@ -73,7 +73,7 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
     const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MAX) ? (end - start) : CLI_SYMBOL_LINE_MAX;
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out, .text_bytes = bytes + start,
                .length = length);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
 }
 
 // one declaration of a stored file, read out of its cell
@@ -258,6 +258,6 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             mmgr_line_ch(&text, '\0');
         }
     }
-    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
     return declarations;
 }

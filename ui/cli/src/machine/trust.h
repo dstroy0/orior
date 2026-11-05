@@ -29,7 +29,7 @@ typedef struct CliTrustFolderInnerCfg CliTrustFolderInnerCfg;
 typedef struct CliTrustCfg CliTrustCfg;
 
 // The files of a tree found to run as code, as the tree's paths: one after another, each with its zero after it, in a
-// cell of their bytes given back with cli_trust_code_free, and their count
+// cell of their bytes released through persistent_buf_release, and their count
 typedef struct
 {
     char *paths;
@@ -47,7 +47,6 @@ int cli_trust_answer(const CliTrustTreeCfg *args);
 // looked through again: 1, or 0 with none into `code` where the cellblock could not meet them; and their cell given
 // back, `code` left containing none
 int cli_trust_own_code(const CliTrustTreeCodeCfg *args);
-void cli_trust_code_free(const CliTrustTreeCodeCfg *args);
 // whether `tree` contains code of its own the reader has not trusted, disabled until they do; and whether Prettier is
 // disabled there, its configuration there being JavaScript
 int cli_trust_block(const CliTrustTreeWordsCfg *args);
@@ -122,13 +121,11 @@ EMBED_TABLE_STORAGE CliTrustTreeNs cli_trust_tree EMBED_UNUSED = {
 typedef struct
 {
     int (*own_code)(const CliTrustTreeCodeCfg *args);
-    void (*code_free)(const CliTrustTreeCodeCfg *args);
     int (*looked_for)(const CliTrustTreeCodeCfg *args);
 } CliTrustTreeCodeNs;
-EMBED_TABLE_LAYOUT(CliTrustTreeCodeNs, own_code, code_free, looked_for);
+EMBED_TABLE_LAYOUT(CliTrustTreeCodeNs, own_code, looked_for);
 EMBED_TABLE_STORAGE CliTrustTreeCodeNs cli_trust_tree_code EMBED_UNUSED = {
     .own_code = cli_trust_own_code,
-    .code_free = cli_trust_code_free,
     .looked_for = cli_trust_looked_for,
 };
 

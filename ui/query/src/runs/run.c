@@ -49,14 +49,6 @@ EMBED_INLINE void query_parent_get(const RunCtx *args)
     mmgr_line_finish(&line);
 }
 
-// the cells of the files a run read and may leave given back, as the run ends and before a run begins again in its
-// capacity
-EMBED_INLINE void query_run_paths_free(const RunCtx *args)
-{
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &args->run->read);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &args->run->left);
-}
-
 // the cells of the files a run reads and may leave taken at their most
 EMBED_INLINE void query_run_paths_alloc(const RunCtx *args)
 {
@@ -91,7 +83,10 @@ EMBED_INLINE int query_run_writer(const RunCtx *args)
 
 int query_run_joining(const QueryErrMsgRootCtx *args)
 {
-    EMBED_CALL(query_run_paths_free, RunCtx, .run = args->run);
+    g_cli_cells->persistent_buf_release(args->run->read.path, &g_query_cells);
+    *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(args->run->left.path, &g_query_cells);
+    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_run_writer, RunCtx, .run = args->run, .root = args->root, .qry = args->qry,
                     .programs = args->programs, .err_msg = args->err_msg))
     {
@@ -113,7 +108,10 @@ int query_run_joining(const QueryErrMsgRootCtx *args)
 int query_run_start(const QueryFolderContextCtx *args)
 {
     QueryRun *run = args->run;
-    EMBED_CALL(query_run_paths_free, RunCtx, .run = run);
+    g_cli_cells->persistent_buf_release(run->read.path, &g_query_cells);
+    *(&run->read) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(run->left.path, &g_query_cells);
+    *(&run->left) = (QueryPaths){NULL, 0u, 0u};
     char qry_path[QUERY_PATH_MAX_LEN];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "QRY", .value_out = qry_path,
                    .capacity = sizeof(qry_path)))
@@ -295,8 +293,12 @@ int query_run_machine_transfer(const QueryCountFolderCtx *args)
                    .from = named, .names = s_missing, .count = missing, .err_msg = &transferred_line);
     }
     g_cli_cells->persistent_buf_release(transferred_from, &g_query_cells);
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &course_runs);
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &folder_runs);
+    g_cli_cells->persistent_buf_release(course_runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(course_runs.path, &g_query_cells);
+    *(&course_runs) = (QueryRuns){NULL, NULL, 0u};
+    g_cli_cells->persistent_buf_release(folder_runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(folder_runs.path, &g_query_cells);
+    *(&folder_runs) = (QueryRuns){NULL, NULL, 0u};
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
         const unsigned char *bytes = NULL;
@@ -390,7 +392,10 @@ void query_run_leave(const QueryCountErrMsgCtx *args)
 
 int query_run_stop(const QueryContextErrMsgRunCtx *args)
 {
-    EMBED_CALL(query_run_paths_free, RunCtx, .run = args->run);
+    g_cli_cells->persistent_buf_release(args->run->read.path, &g_query_cells);
+    *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(args->run->left.path, &g_query_cells);
+    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
     // this process is a member of the run no more before the writer is requested to stop
     const unsigned long long process = args->run->process;
     args->run->process = 0ULL;
@@ -423,12 +428,16 @@ int query_run_end(const QueryContextErrMsgRunCtx *args)
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left);
         }
     }
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &args->run->left);
+    g_cli_cells->persistent_buf_release(args->run->left.path, &g_query_cells);
+    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_context_err_msg_internal.leaves_settle, QueryContextErrMsgCtx, .run_read = args->run,
                     .leave = args->leave, .prompter = args->prompter, .context = args->context,
                     .err_msg = args->err_msg))
     {
-        EMBED_CALL(query_run_paths_free, RunCtx, .run = args->run);
+        g_cli_cells->persistent_buf_release(args->run->read.path, &g_query_cells);
+        *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+        g_cli_cells->persistent_buf_release(args->run->left.path, &g_query_cells);
+        *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
         return 0;
     }
     return query_context_err_msg_run_internal.run_stop(args);

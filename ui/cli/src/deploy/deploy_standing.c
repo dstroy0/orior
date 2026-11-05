@@ -171,7 +171,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
                        .length = mapped);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
     }
     else
     {
@@ -242,8 +242,7 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
                        .new_text = (const char *)ours_index, .new_size = size);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = ours_index,
-                   .owner = &g_cli_deploy_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)ours_index, (&g_cli_deploy_cells));
         break;
     }
     g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);

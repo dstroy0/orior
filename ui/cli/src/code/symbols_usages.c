@@ -375,20 +375,6 @@ EMBED_INLINE char *usages_text(const SymbolsUsagesCtx *args)
                               .owner = &g_cli_code_cells);
 }
 
-// a text `usages_text` gave let go
-EMBED_INLINE void usages_text_free(const SymbolsUsagesCtx *args)
-{
-    if (args->mapped_value && (args->text_out != NULL))
-    {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-                   .bytes_bytes_other = (const unsigned char *)args->text_out, .owner = &g_cli_code_cells);
-    }
-    else
-    {
-        g_cli_cells->persistent_buf_release(args->text_out, &g_cli_code_cells);
-    }
-}
-
 // the name the leaf at `line`, `col` of `size` bytes of `text` names, read in the language of the file at `path`, into
 // `name`, sized for CLI_NAME_MAX_LEN: its length, 0 where the place names no name
 EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
@@ -445,9 +431,17 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
     args->name[length] = '\0';
     if (leaved)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        read.leaf = NULL;
+        read.count = 0u;
+        read.capacity = 0u;
     }
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     return length;
 }
 
@@ -506,7 +500,14 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
                        .region = CLI_JSON_NONE, .defined = args->defined, .line = args->line, .each = args->each,
                        .context = args->context);
         }
-        EMBED_CALL(usages_text_free, SymbolsUsagesCtx, .text_out = text, .size = size, .mapped_value = mapped);
+        if (mapped && (text != NULL))
+        {
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+        }
+        else
+        {
+            g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+        }
     }
     g_cli_cells->persistent_buf_release(paths.out, &g_cli_code_cells);
     return walked;
@@ -530,7 +531,14 @@ EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
         }
         const int walked = EMBED_CALL(usages_walk, SymbolsUsagesCtx, .usages_out = args->usages_out,
                                       .path = args->defined, .text = text, .size = size, .err_msg = args->err_msg);
-        EMBED_CALL(usages_text_free, SymbolsUsagesCtx, .text_out = text, .size = size, .mapped_value = mapped);
+        if (mapped && (text != NULL))
+        {
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+        }
+        else
+        {
+            g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+        }
         if (!walked)
         {
             return -1;
@@ -655,7 +663,14 @@ static int usages_request(const SymbolsUsagesCtx *args)
     g_cli_cells->persistent_buf_release(usages.texts.out, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(usages.paths.out, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(usages.regions.out, &g_cli_code_cells);
-    EMBED_CALL(usages_text_free, SymbolsUsagesCtx, .text_out = text, .size = size, .mapped_value = mapped);
+    if (mapped && (text != NULL))
+    {
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+    }
+    else
+    {
+        g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+    }
     return read;
 }
 

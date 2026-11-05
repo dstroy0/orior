@@ -9,17 +9,6 @@
 
 CliGathering g_cli_gather;
 
-// the gathering's cells given back, those it has; and taken: 1, or 0 with none retained where the cells cannot meet
-// them
-static void gather_cells_free(void)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_gather.json);
-    g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
-    g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
-    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-}
-
 static int gather_cells_alloc(void)
 {
     const int entries =
@@ -33,7 +22,14 @@ static int gather_cells_alloc(void)
     const int reserved = entries && (flags_cell != NULL) && (fragment_cell != NULL);
     if (!reserved)
     {
-        gather_cells_free();
+        g_cli_cells->persistent_buf_release(g_cli_gather.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_gather.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
+        g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
+        g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
     }
     return reserved;
 }
@@ -180,7 +176,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                                                       .size_pointer = &size, .owner = &g_cli_build_cells);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = there, .owner = &g_cli_build_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)there, (&g_cli_build_cells));
         char folder[CLI_PATH_MAX_LEN];
         if (!same && EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
         {
@@ -201,7 +197,14 @@ void cli_compile_gather(const CliCompileDbRootCtx *args)
     {
         EMBED_CALL(gather_reserve, CompileDbGatherCtx, .root = args->root, .inputs = args->inputs_read,
                    .database = args->database);
-        gather_cells_free();
+        g_cli_cells->persistent_buf_release(g_cli_gather.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_gather.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
+        g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
+        g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
     }
     else
     {

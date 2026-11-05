@@ -13,14 +13,6 @@
 #define CLI_SHAPE_STEPS 20000u
 #define CLI_SHAPE_ENDS (1u << 20u)
 
-void cli_shape_ends_free(const CliShapeMatcherCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->matcher->ends, &g_cli_shape_cells);
-    args->matcher->ends = NULL;
-    args->matcher->ends_top = 0u;
-    args->matcher->ends_capacity = 0u;
-}
-
 typedef struct
 {
     const CliShapeMatcher *matcher;

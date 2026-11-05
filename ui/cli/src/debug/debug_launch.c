@@ -25,12 +25,6 @@ typedef struct
     const CliDebugInfo *info_read;
     unsigned long long milliseconds;
 } DebugLaunchCtx;
-// a place given back whose session never had an adapter
-EMBED_INLINE void launch_position_free(const DebugLaunchCtx *args)
-{
-    CliDebugSession *place = args->place;
-    EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = place);
-}
 
 // the adapter started as the plan specifies: run in orior_cli for a recorded run, connected to where a debugger already
 // listens, else its program started with the spec's words and PATH: the adapter, or NULL with why given
@@ -319,7 +313,18 @@ int cli_debug_start(const CliDebugRootCfg *args)
                     .json = args->json, .start = args->start, .options = args->options, .plan = &plan,
                     .err_msg = err_msg))
     {
-        EMBED_CALL(launch_position_free, DebugLaunchCtx, .place = place);
+        g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+        place->data = NULL;
+        place->data_count = 0u;
+        place->data_capacity = 0u;
+        place->positioned = NULL;
+        place->positioned_count = 0u;
+        place->positioned_capacity = 0u;
+        g_cli_cells->persistent_buf_release(
+            place->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        place->reserved = 0;
         return 0;
     }
     g_cli_debug.next += 1ULL;
@@ -330,7 +335,18 @@ int cli_debug_start(const CliDebugRootCfg *args)
                             .err_msg = err_msg);
     if (place->dap == NULL)
     {
-        EMBED_CALL(launch_position_free, DebugLaunchCtx, .place = place);
+        g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+        place->data = NULL;
+        place->data_count = 0u;
+        place->data_capacity = 0u;
+        place->positioned = NULL;
+        place->positioned_count = 0u;
+        place->positioned_capacity = 0u;
+        g_cli_cells->persistent_buf_release(
+            place->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        place->reserved = 0;
         return 0;
     }
     CliDebugAnswer *const answer = cli_debug_answer_alloc();

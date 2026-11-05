@@ -12,8 +12,10 @@ static unsigned int s_next = 1u;
 // the request and the answer given back once the answer is read, and the lock given with them
 static void cli_jobs_let_go(void)
 {
-    EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_request);
-    EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_answer);
+    g_cli_cells->persistent_buf_release(s_request.group, &g_cli_ipp_cells);
+    *(&s_request) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
+    g_cli_cells->persistent_buf_release(s_answer.group, &g_cli_ipp_cells);
+    *(&s_answer) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
 int cli_ipp_status(const CliIppCodeCfg *args)

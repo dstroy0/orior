@@ -133,7 +133,13 @@ void test_json_reads_with_its_faults(void)
     TEST_ASSERT_TRUE(error_contains("No item follows"));
     TEST_ASSERT_TRUE(error_contains("`tru` is no value"));
     TEST_ASSERT_TRUE(error_contains("\"a\" is a key of this object above it"));
-    EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = &s_read);
+    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    s_read.node = NULL;
+    s_read.member = NULL;
+    s_read.pool = NULL;
+    s_read.nodes_max = 0u;
+    s_read.members_max = 0u;
+    s_read.pool_max = 0u;
 }
 
 void test_json_reads_with_its_positions(void)
@@ -144,7 +150,13 @@ void test_json_reads_with_its_positions(void)
     TEST_ASSERT_EQUAL_INT(CLI_SCHEMA_OBJECT, root->kind);
     TEST_ASSERT_EQUAL_UINT(3u, root->count);
     TEST_ASSERT_EQUAL_UINT64(4ull, s_read.member[root->first].from);
-    EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = &s_read);
+    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    s_read.node = NULL;
+    s_read.member = NULL;
+    s_read.pool = NULL;
+    s_read.nodes_max = 0u;
+    s_read.members_max = 0u;
+    s_read.pool_max = 0u;
 }
 
 void test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell(void)
@@ -163,7 +175,13 @@ void test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell(void)
     TEST_ASSERT_EQUAL_UINT(6001u, s_read.nodes);
     TEST_ASSERT_EQUAL_UINT(3000u, s_read.members);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_read.nodes, s_read.nodes_max);
-    EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = &s_read);
+    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    s_read.node = NULL;
+    s_read.member = NULL;
+    s_read.pool = NULL;
+    s_read.nodes_max = 0u;
+    s_read.members_max = 0u;
+    s_read.pool_max = 0u;
 }
 
 void test_a_file_is_checked_against_the_schema_it_names(void)

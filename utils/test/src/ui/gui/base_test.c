@@ -91,7 +91,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &small, .width = 8u, .height = 4u), "a raster of another size is made");
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &small, .background_fill = NULL, .color = palette->background_fill);
     cli_check(small.pixels[0] == 0u, "a raster not the base's size is left alone");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &small);
+    g_cli_cells->persistent_buf_release(small.pixels, &g_gui_raster_cells);
+    small.pixels = NULL;
+    small.width = 0u;
+    small.height = 0u;
 
     // the claim holds with the bar in: its slat makes a hole in the work, the sheet, with the slat's pane in it
     GuiAutohideNumbers numbers = frame.claim;
@@ -174,9 +177,21 @@ int main(void)
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal.x + 2, .y = frame.terminal.y + 2) == GUI_BASE_CLEAR),
               "the panel halfway through its arrival lies at its halfway part where it stands, its views at the editor's, and the band above it is the lattice");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &background_fill);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
-    EMBED_CALL(gui_base_width.free, GuiBaseWidthCfg, .base = &base);
+    g_cli_cells->persistent_buf_release(background_fill.pixels, &g_gui_raster_cells);
+    background_fill.pixels = NULL;
+    background_fill.width = 0u;
+    background_fill.height = 0u;
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
+    g_cli_cells->persistent_buf_release(base.tile_red_blue, &g_gui_base_cells);
+    base.tile_red_blue = NULL;
+    base.tile_green = NULL;
+    base.tile_remainder = NULL;
+    base.width = 0u;
+    base.height = 0u;
+    base.laid = 0;
     cli_check((base.tile_red_blue == NULL) && !base.laid, "a base given back holds no tables");
     return cli_on_check();
 }

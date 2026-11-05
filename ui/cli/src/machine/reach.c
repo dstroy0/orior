@@ -183,7 +183,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
             read->count += ((mmgr_line_finish(&address) != 0ULL) && (mmgr_line_finish(&key) != 0ULL)) ? 1u : 0u;
         }
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
 }
 
 // whether two paths name one place, as their parts compare, a separator at the end aside

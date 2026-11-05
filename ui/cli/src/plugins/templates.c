@@ -132,8 +132,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         g_cli_cells->temporary_buf_alloc(((2ULL * named) + 1ULL) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_templates_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_templates_cells));
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     unsigned int pieces = 0u;
@@ -158,7 +157,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
     const int written = EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = args->to,
                                    .pieces = piece, .count = pieces);
     g_cli_cells->persistent_buf_release(piece, &g_cli_templates_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_templates_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_templates_cells));
     return written || EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->to, .err_msg = args->err_msg);
 }
 

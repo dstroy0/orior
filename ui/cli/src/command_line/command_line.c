@@ -145,7 +145,14 @@ void cli_quoted_word(const CliCommandLineOutCtx *args)
 CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_catalog_choice_table.free, CliCatalogChoiceCfg, .catalog = &s_catalog);
+    CellOwner *const cells = s_catalog.cells;
+    if (cells != NULL)
+    {
+        g_cli_cells->persistent_buf_release(s_catalog.job, cells);
+    }
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = (&s_catalog), .jobs = NULL, .jobs_max = 0u,
+               .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,
+               .lists = NULL, .lists_max = 0u, .text_out = NULL, .text_max = 0u);
     EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &s_catalog, .cells = &g_cli_line_catalog_cells,
                .jobs_max = CLI_LINE_JOBS);
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = root, .catalog = &s_catalog);

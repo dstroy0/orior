@@ -34,10 +34,19 @@ void cli_deploy_there_free(void)
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
     s_pairs = NULL;
-    EMBED_CALL(cli_deploy_pool_internal.pool_free, CliDeployPoolCtx, .pool = &s_pool);
+    while (s_pool.page != NULL)
+    {
+        CliDeployPage *const before = s_pool.page->before;
+        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        s_pool.page = before;
+    }
+    s_pool.refused = 0;
     g_cli_cells->persistent_buf_release(s_listing, &g_cli_deploy_cells);
     s_listing = NULL;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_record);
+    g_cli_cells->persistent_buf_release(s_record.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_record.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 typedef struct
@@ -149,7 +158,10 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
 {
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_record);
+    g_cli_cells->persistent_buf_release(s_record.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_record.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char path[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ULL};
@@ -234,7 +246,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
     EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),

@@ -133,20 +133,14 @@ int query_runs_alloc(const QueryFolderRunsCtx *args)
             : NULL;
     if (runs->path == NULL)
     {
-        EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = runs);
+        g_cli_cells->persistent_buf_release(runs->number, &g_query_cells);
+        g_cli_cells->persistent_buf_release(runs->path, &g_query_cells);
+        *runs = (QueryRuns){NULL, NULL, 0u};
         return 0;
     }
     runs->count = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = args->folder,
                              .number = runs->number, .path_callback = runs->path, .capacity_u32 = counting.count);
     return 1;
-}
-
-void query_runs_free(const QueryFolderRunsCtx *args)
-{
-    QueryRuns *runs = args->runs;
-    g_cli_cells->persistent_buf_release(runs->number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(runs->path, &g_query_cells);
-    *runs = (QueryRuns){NULL, NULL, 0u};
 }
 
 // the civil date of a count of days from 1970-01-01
@@ -314,7 +308,9 @@ void query_runs_prune(const QueryFolderMaxCtx *args)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = runs.path[at]);
     }
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
+    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    *(&runs) = (QueryRuns){NULL, NULL, 0u};
 }
 
 int query_latest_run(const QueryLoopsFolderCfg *args)
@@ -362,6 +358,8 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
             latest = (args->found[0] != '\0') ? 1 : -1;
         }
     }
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
+    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    *(&runs) = (QueryRuns){NULL, NULL, 0u};
     return latest == 1;
 }

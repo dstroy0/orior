@@ -396,7 +396,10 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
     if ((package == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                                   .json_read = &json, .node = package, .kind = CFG_JSON_OBJECT))
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
     const char *const kind =
@@ -446,5 +449,8 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

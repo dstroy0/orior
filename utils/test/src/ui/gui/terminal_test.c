@@ -97,6 +97,9 @@ int main(void)
 
     cli_view_frame_release((CliViewFrame *)terminal.frame[0]);
     g_cli_cells->persistent_buf_release((void *)terminal.names[0], &g_checks_cells);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     return cli_on_check();
 }

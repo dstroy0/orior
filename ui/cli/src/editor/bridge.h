@@ -22,7 +22,7 @@ typedef struct CliBridgeCfg CliBridgeCfg;
 #define CLI_BRIDGE_DIR "src/cu/transpiler/lstar/protocol/table"
 
 // the bridge of the tree at `root` read into `json`, in a cell of its own sized to the bridge's files, which
-// cli_json_free gives back, as the window and the command line read it: its node,
+// persistent_buf_release releases, as the window and the command line read it: its node,
 // `{"dir", "klq": {"path", "keys": {name: {"line", "pairs": [{"first", "second", "line", "verdict": note or null,
 // "notes": [note...]}]}}, "identities": [note...]} or null, "maps": [{"path", "language", "names": {name: {"key",
 // "line", "kind": note or null, "breaks": [note...]}}}], "rulesets": [{"path", "entries": {name: [{"kind",

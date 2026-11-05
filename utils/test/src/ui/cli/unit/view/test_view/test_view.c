@@ -168,7 +168,8 @@ static void main_view(void)
     fresh_named(s_text, "check/view.c");
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &languages, .path = "check/view.c", .id_out = id));
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
+    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    *(&languages) = (CliLanguages){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar, .err_msg = &why));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = s_key, .grammar = grammar, .named = 1));
     cli_document_walk();

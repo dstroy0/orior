@@ -303,13 +303,6 @@ void cli_required_in(const CliEnvsCtx *args)
         {
             EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_envs_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_envs_cells));
     }
-}
-
-void cli_required_free(const CliEnvsCtx *args)
-{
-    CliRequired *required = args->required;
-    g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
-    *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }

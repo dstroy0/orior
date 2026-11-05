@@ -37,6 +37,7 @@
 #define GUI_WINDOW_GROUP_KEY "panes.group"
 #define GUI_WINDOW_SESSION_SECONDS 60ULL
 #define GUI_WINDOW_LOGON_MAX_LEN 128u
+#define GUI_WINDOW_MESSAGE_MAX 8192u
 // the scheme's opacities of the bar and the editor, in percent, where none is saved
 #define GUI_WINDOW_BAR_PERCENT 30u
 #define GUI_WINDOW_EDITOR_PERCENT 80u
@@ -180,15 +181,56 @@ void gui_window_end(const GuiWindowCfg *args)
     window->signature.panel = NULL;
     s_window = NULL;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &args->window->glyphs);
-    EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &args->window->icons);
-    EMBED_CALL(cli_wordmark_still.free, GuiWordmarkStillCfg, .wordmark = &args->window->wordmark);
-    EMBED_CALL(cli_busy_still.free, GuiBusyStillCfg, .busy = &args->window->busy);
-    EMBED_CALL(gui_chrome_raster.controls_shadow_free, GuiChromeRasterCfg, .shadow = &args->window->controls_shadow);
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
+    {
+        if (args->window->icons.entry[at].used)
+        {
+            g_cli_cells->persistent_buf_release(args->window->icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            args->window->icons.entry[at].mask_bits.cover = NULL;
+            args->window->icons.entry[at].used = 0;
+        }
+    }
+    args->window->icons.count = 0u;
+    g_cli_cells->persistent_buf_release(args->window->wordmark.flight_first, &g_gui_cells);
+    args->window->wordmark.flight_first = NULL;
+    args->window->wordmark.flight_span = NULL;
+    args->window->wordmark.flight_cover = NULL;
+    g_cli_cells->persistent_buf_release(args->window->wordmark.row_sum, &g_gui_cells);
+    args->window->wordmark.row_sum = NULL;
+    args->window->wordmark.text_color = NULL;
+    args->window->wordmark.row = NULL;
+    args->window->wordmark.name.cover = NULL;
+    g_cli_cells->persistent_buf_release((&args->window->wordmark.under)->pixels, &g_gui_raster_cells);
+    (&args->window->wordmark.under)->pixels = NULL;
+    (&args->window->wordmark.under)->width = 0u;
+    (&args->window->wordmark.under)->height = 0u;
+    args->window->wordmark.created_em = 0u;
+    args->window->wordmark.laid_width = 0u;
+    g_cli_cells->persistent_buf_release(args->window->busy.cell, &g_gui_cells);
+    args->window->busy.cell = NULL;
+    args->window->busy.cell_bytes = 0ULL;
+    args->window->busy.under_saved = 0;
+    args->window->busy.displayed = 0;
+    g_cli_cells->persistent_buf_release(args->window->controls_shadow.cover, &g_gui_cells);
+    args->window->controls_shadow.cover = NULL;
+    args->window->controls_shadow.width = 0u;
+    args->window->controls_shadow.height = 0u;
     EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &args->window->background_fill);
-    EMBED_CALL(gui_stages_autohide.free, GuiStagesAutohideCfg, .stages = &args->window->stages);
+    g_cli_cells->persistent_buf_release(args->window->stages.stage, &g_gui_cells);
+    args->window->stages.stage = NULL;
+    args->window->stages.count = 0u;
     args->window->stage = NULL;
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &args->window->preferences_raster);
-    EMBED_CALL(gui_base_width.free, GuiBaseWidthCfg, .base = &args->window->base);
+    g_cli_cells->persistent_buf_release(args->window->preferences_raster.pixels, &g_gui_raster_cells);
+    args->window->preferences_raster.pixels = NULL;
+    args->window->preferences_raster.width = 0u;
+    args->window->preferences_raster.height = 0u;
+    g_cli_cells->persistent_buf_release(args->window->base.tile_red_blue, &g_gui_base_cells);
+    args->window->base.tile_red_blue = NULL;
+    args->window->base.tile_green = NULL;
+    args->window->base.tile_remainder = NULL;
+    args->window->base.width = 0u;
+    args->window->base.height = 0u;
+    args->window->base.laid = 0;
     EMBED_CALL(gui_framebuffer_max_width.free, GuiFramebufferMaxWidthCfg, .framebuffer = &args->window->framebuffer);
 }
 
@@ -488,7 +530,9 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
     // and no stage left standing
     args->window->stage = NULL;
     args->window->stages_stale = 0;
-    EMBED_CALL(gui_stages_autohide.free, GuiStagesAutohideCfg, .stages = &args->window->stages);
+    g_cli_cells->persistent_buf_release(args->window->stages.stage, &g_gui_cells);
+    args->window->stages.stage = NULL;
+    args->window->stages.count = 0u;
     args->window->frame.side_displayed = EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &args->window->sides,
                                                     .strip_read = &args->window->strip, .time_ms = args->time_ms);
     args->window->frame.side_away =
@@ -1609,7 +1653,7 @@ EMBED_INLINE unsigned int window_tab_at(const GuiWindowCtx *args)
 EMBED_INLINE void window_clipboard_put(const GuiWindowCtx *args)
 {
     (void)cli_clipboard_text_write(&(CliSizeTextCtx){
-        .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_MENU_OWN_TEXT}), .text = args->name});
+        .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .text = args->name});
 }
 
 // the commands the parts' menus run with their rows' `words`, `count` of them: a path opened, a folder of the tree
@@ -1640,7 +1684,7 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "commit-copy-message"))
     {
-        char text[CLI_MENU_OWN_TEXT];
+        char text[GUI_WINDOW_MESSAGE_MAX];
         VerbaLinea out = {text, sizeof(text), 0ULL};
         if ((args->count != 0u) && EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = first, .out = &out) &&
             mmgr_line_finish(&out))
@@ -1843,12 +1887,11 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
     EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = args->window);
     if (args->on)
     {
-        // a part's own row runs with the words its args carry
-        char text[CLI_MENU_OWN_TEXT];
-        const char *words[CLI_MENU_OWN_WORDS];
-        const unsigned int count = cli_menus_own_words(args->item->args, text, words);
+        // a part's own row runs with the word its args carry
+        const char *const word = cli_menus_own_word(args->item->args);
+        const char *const words[1] = {word};
         EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
-                   .value = args->item->keys, .words = words, .count = count);
+                   .value = args->item->keys, .words = words, .count = (word != NULL) ? 1u : 0u);
     }
 }
 
@@ -3022,7 +3065,7 @@ static void window_release(const GuiInputHandlerCfg *args)
     }
     if (window->minimap.dragging)
     {
-        EMBED_CALL(gui_minimap.release, GuiMinimapCfg, .map = &window->minimap);
+        window->minimap.dragging = 0;
         window->pending = 1;
     }
     if (window->dragging)
@@ -3064,18 +3107,14 @@ EMBED_INLINE int window_tab_menu(const GuiWindowCtx *args)
     {
         return 0;
     }
-    char words[CLI_PATH_MAX_LEN + 2u];
-    VerbaLinea line = {words, sizeof(words), 0ULL};
-    mmgr_line_put(&line, key);
-    mmgr_line_ch(&line, '\n');
-    (void)mmgr_line_finish(&line);
+    // the rows run with the view's key, which stands while the view is open
     cli_menus_own_begin();
-    cli_menus_own_row(&(CliItem){"Close", "tab-close", "", words, "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Close others", "tab-close-others", "", words, (cli_view_count() < 2u) ? "never" : "",
+    cli_menus_own_row(&(CliItem){"Close", "tab-close", "", key, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Close others", "tab-close-others", "", key, (cli_view_count() < 2u) ? "never" : "",
                                  "", 0, 0, 0, 0, 0u});
     (void)cli_menus_own_named("close-all", "");
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", key, "", "", 0, 0, 0, 0, 0u});
     return 1;
 }
 

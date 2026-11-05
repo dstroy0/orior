@@ -53,7 +53,6 @@ typedef struct
 int gui_stages_init(const GuiStagesAutohideCfg *args);
 // the stage standing at `time_ms`, the last from when the slides end, NULL where none is made; and the cell given back
 const GuiStage *gui_stages_at(const GuiStagesReadCfg *args);
-void gui_stages_free(const GuiStagesAutohideCfg *args);
 // the claim's slats' shares put back to where `stage` stands, as a slide is sent again from there
 void gui_stage_autohide_alloc(const GuiStagesCfg *args);
 struct GuiStagesAutohideCfg
@@ -86,12 +85,10 @@ struct GuiStagesReadCfg
 typedef struct
 {
     int (*init)(const GuiStagesAutohideCfg *args);
-    void (*free)(const GuiStagesAutohideCfg *args);
 } GuiStagesAutohideNs;
-EMBED_TABLE_LAYOUT(GuiStagesAutohideNs, init, free);
+EMBED_TABLE_LAYOUT(GuiStagesAutohideNs, init);
 EMBED_TABLE_STORAGE GuiStagesAutohideNs gui_stages_autohide EMBED_UNUSED = {
     .init = gui_stages_init,
-    .free = gui_stages_free,
 };
 
 typedef struct

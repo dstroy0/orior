@@ -21,7 +21,19 @@ EMBED_INLINE void session_freed_where_finish(const DebugSessionCtx *args)
     if (args->session->reserved && !args->session->list_entries && args->session->adapter_ended &&
         (args->session->users == 0u))
     {
-        EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = args->session);
+        g_cli_cells->persistent_buf_release(args->session->positioned, &g_cli_debug_cells);
+        args->session->data = NULL;
+        args->session->data_count = 0u;
+        args->session->data_capacity = 0u;
+        args->session->positioned = NULL;
+        args->session->positioned_count = 0u;
+        args->session->positioned_capacity = 0u;
+        g_cli_cells->persistent_buf_release(
+            args->session->start.node,
+            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->session->start.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->session->start),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        args->session->reserved = 0;
     }
 }
 
@@ -135,7 +147,10 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
 void cli_debug_answer_free(const CliDebugSessionCommandCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->answer->args.out, &g_cli_debug_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->answer->json);
+    g_cli_cells->persistent_buf_release(
+        args->answer->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->answer->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->answer->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->answer->reserved = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_answers_wake);
 }
@@ -153,7 +168,10 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
     }
     // the arguments as written, an empty object where none are; and the work state emptied for a request after this one
     const unsigned long long written = answer->args.at;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &answer->json);
+    g_cli_cells->persistent_buf_release(answer->json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = answer->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&answer->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliLspAnswer reply;
     const int answered =
         EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap, .command = command,

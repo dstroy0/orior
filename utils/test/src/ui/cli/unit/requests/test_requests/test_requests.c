@@ -203,7 +203,16 @@ void tearDown(void)
     if (s_parsed_live)
     {
         s_parsed_live = 0;
-        EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx, .parsed = &s_parsed);
+        g_cli_cells->persistent_buf_release(s_parsed.requests, &g_cli_requests_cells);
+        g_cli_cells->persistent_buf_release(s_parsed.text, &g_cli_requests_cells);
+        s_parsed.requests = NULL;
+        s_parsed.requests_capacity = 0u;
+        s_parsed.text = NULL;
+        s_parsed.text_capacity = 0ULL;
+        s_parsed.count = 0u;
+        s_parsed.variables = 0u;
+        s_parsed.used = 0ULL;
+        s_parsed.full = 0;
     }
 }
 
@@ -306,7 +315,11 @@ void test_the_private_values_are_over_the_shared_and_shared_reaches_every_enviro
     TEST_ASSERT_EQUAL_STRING("localhost:1", value_of("host"));
     TEST_ASSERT_EQUAL_STRING("secret", value_of("token"));
     TEST_ASSERT_EQUAL_STRING("all", value_of("who"));
-    EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_values);
+    g_cli_cells->persistent_buf_release(s_values.text, &g_cli_requests_cells);
+    s_values.text = NULL;
+    s_values.capacity = 0ULL;
+    s_values.used = 0ULL;
+    s_values.count = 0u;
 }
 
 void test_the_environments_and_their_values_are_read_in_cells_each_released(void)
@@ -314,7 +327,11 @@ void test_the_environments_and_their_values_are_read_in_cells_each_released(void
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_err_msg_root_internal.values, CliRequestsErrMsgRootCtx, .root = s_root, .path = "api/v1/calls.http", .env = "dev", .values = &s_values, .err_msg = &err_msg));
-    EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_values);
+    g_cli_cells->persistent_buf_release(s_values.text, &g_cli_requests_cells);
+    s_values.text = NULL;
+    s_values.capacity = 0ULL;
+    s_values.used = 0ULL;
+    s_values.count = 0u;
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_requests_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_requests_cells.hw));
 }

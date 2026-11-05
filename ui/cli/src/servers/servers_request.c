@@ -116,8 +116,10 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
         }
         g_cli_cells->persistent_buf_release(displayed, &g_cli_servers_cells);
     }
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_quick);
+    g_cli_cells->persistent_buf_release(s_quick.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return requested;
 }
 
@@ -281,8 +283,10 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
     }
     CliServerItems *const answered =
         requested ? EMBED_CALL(request_items_alloc, ServersRequestCtx, .owner = args->owner) : NULL;
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_quick);
+    g_cli_cells->persistent_buf_release(s_quick.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return answered;
 }
 
@@ -305,7 +309,9 @@ CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args)
         requested ? EMBED_CALL(cli_servers_json_out_help_internal.signature_get, CliServersJsonOutHelpCtx,
                                .json = &s_quick.json, .help = root, .owner = args->owner)
                   : NULL;
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_quick);
+    g_cli_cells->persistent_buf_release(s_quick.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return panel;
 }

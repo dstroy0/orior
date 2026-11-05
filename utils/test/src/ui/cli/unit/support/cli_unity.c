@@ -76,7 +76,10 @@ static CliJson s_json;
 
 const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
@@ -85,7 +88,10 @@ const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsig
 
 void cli_unity_parsed_released(void)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 const char *cli_unity_member_text(unsigned int node, const char *name)

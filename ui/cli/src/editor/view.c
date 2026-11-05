@@ -316,23 +316,17 @@ EMBED_INLINE int view_by_name(const ViewCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 64ULL});
 }
 
-// the steps from `from` on let go, their cells given back, the view's save point lost where it stood on one of them
-EMBED_INLINE void view_step_free(const ViewCtx *args)
-{
-    for (CliViewEdit *edit = args->step->first; edit != NULL;)
-    {
-        CliViewEdit *const after = edit->after;
-        args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
-        g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
-        edit = after;
-    }
-}
-
 EMBED_INLINE void view_steps_cut(const ViewCtx *args)
 {
     for (unsigned int at = args->from_u32; at < args->view->steps; at += 1u)
     {
-        EMBED_CALL(view_step_free, ViewCtx, .view = args->view, .step = &args->view->step[at]);
+        for (CliViewEdit *edit = (&args->view->step[at])->first; edit != NULL;)
+        {
+            CliViewEdit *const after = edit->after;
+            args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
+            g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
+            edit = after;
+        }
     }
     args->view->steps = (args->from_u32 < args->view->steps) ? args->from_u32 : args->view->steps;
     args->view->done = (args->view->done < args->view->steps) ? args->view->done : args->view->steps;
@@ -506,7 +500,10 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     {
         view->indent_after[0] = '\0';
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // the view's language read off the plugin the file at its path opens as; none where no plugin does
@@ -517,7 +514,8 @@ EMBED_INLINE void view_language_read(const ViewCtx *args)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int named = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = args->view->path, .id_out = id);
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
+    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    *(&languages) = (CliLanguages){NULL, 0u, 0u};
     if (named)
     {
         CliViewPluginNeedle needle = {id, args->view};
@@ -1833,7 +1831,13 @@ static int view_edit_cell_write(const ViewCtx *args)
         if (args->view->steps == args->view->steps_capacity)
         {
             args->view->save_point_lost = args->view->save_point_lost || (args->view->save_point == NULL);
-            EMBED_CALL(view_step_free, ViewCtx, .view = args->view, .step = &args->view->step[0]);
+            for (CliViewEdit *edit = (&args->view->step[0])->first; edit != NULL;)
+            {
+                CliViewEdit *const after = edit->after;
+                args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
+                g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
+                edit = after;
+            }
             memor.move_down(&(MemoriaCfg){.dst = &args->view->step[0],
                                           .src = &args->view->step[1],
                                           .bytes = (size_t)(args->view->steps - 1u) * sizeof(*args->view->step)});

@@ -112,15 +112,6 @@ EMBED_INLINE const char *cli_change_path(const WatchCtx *args)
     return args->changes_read->text + args->changes_read->change[args->index].at;
 }
 
-// a list's cells given back, the list containing none
-EMBED_INLINE void cli_changes_free(const WatchCtx *args)
-{
-    CliChanges *changes = args->changes;
-    g_cli_cells->persistent_buf_release(changes->change, &g_cli_watch_cells);
-    g_cli_cells->persistent_buf_release(changes->text, &g_cli_watch_cells);
-    *changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
-}
-
 // a list emptied, its cells standing for the next round
 EMBED_INLINE void cli_changes_clear(const WatchCtx *args)
 {
@@ -340,12 +331,16 @@ static void cli_batch(void *context)
             continue;
         }
     }
-    EMBED_CALL(cli_changes_free, WatchCtx, .changes = &s_watching.waiting);
+    g_cli_cells->persistent_buf_release(s_watching.waiting.change, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(s_watching.waiting.text, &g_cli_watch_cells);
+    *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     s_watching.ended += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     if (batch != NULL)
     {
-        EMBED_CALL(cli_changes_free, WatchCtx, .changes = &batch->changes);
+        g_cli_cells->persistent_buf_release(batch->changes.change, &g_cli_watch_cells);
+        g_cli_cells->persistent_buf_release(batch->changes.text, &g_cli_watch_cells);
+        *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     }
     g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
 }
@@ -377,7 +372,9 @@ void cli_watch_start(const CliWatchCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     s_watching.take = take;
     s_watching.context = context;
-    EMBED_CALL(cli_changes_free, WatchCtx, .changes = &s_watching.waiting);
+    g_cli_cells->persistent_buf_release(s_watching.waiting.change, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(s_watching.waiting.text, &g_cli_watch_cells);
+    *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     s_watching.overflowed = 0;
     s_watching.stop = 0;
     s_watching.ended = 0u;
@@ -430,7 +427,9 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     }
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
-    EMBED_CALL(cli_changes_free, WatchCtx, .changes = &batch->changes);
+    g_cli_cells->persistent_buf_release(batch->changes.change, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(batch->changes.text, &g_cli_watch_cells);
+    *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
     return any;
 }

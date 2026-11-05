@@ -66,7 +66,7 @@ typedef struct CliCargoPieceStruct
 
 // The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell at
 // their most, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
-// bytes at the most, each given back with cli_cargo_tests_free
+// bytes at the most, each released through persistent_buf_release
 typedef struct
 {
     CliCargoFound *found;
@@ -82,7 +82,6 @@ int cli_cargo_is_rust(const CliCargoTestsIdCfg *args);
 // the Rust tests of the tree at `root` into `tests`, package by package in the order of their manifests' paths, those
 // it contained before given back; and the tests' cells given back, the tests left empty
 void cli_cargo_find(const CliCargoTestsCfg *args);
-void cli_cargo_tests_free(const CliCargoTestsCfg *args);
 // how many cargo tests a run of `supplied`, `count` tests by their names or files by their paths, starts (cargo_run.c)
 unsigned int cli_cargo_targets_free(const CliCargoTestsInputCfg *args);
 // the program that runs the test `id` and the name the harness gives it, built as cargo test builds it, with the
@@ -127,12 +126,10 @@ EMBED_TABLE_STORAGE CliCargoTestsIdNs cli_cargo_tests_id EMBED_UNUSED = {
 typedef struct
 {
     void (*cargo_find)(const CliCargoTestsCfg *args);
-    void (*free)(const CliCargoTestsCfg *args);
 } CliCargoTestsNs;
-EMBED_TABLE_LAYOUT(CliCargoTestsNs, cargo_find, free);
+EMBED_TABLE_LAYOUT(CliCargoTestsNs, cargo_find);
 EMBED_TABLE_STORAGE CliCargoTestsNs cli_cargo_tests_table EMBED_UNUSED = {
     .cargo_find = cli_cargo_find,
-    .free = cli_cargo_tests_free,
 };
 
 typedef struct

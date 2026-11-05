@@ -86,21 +86,6 @@ void gui_busy_init(const GuiBusyStillCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->busy, .val = 0, .bytes = sizeof(*args->busy)});
 }
 
-// the pictures' cell given back, nothing left saved
-EMBED_INLINE void busy_cell_free(const BusyCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
-    args->busy->cell = NULL;
-    args->busy->cell_bytes = 0ULL;
-    args->busy->under_saved = 0;
-}
-
-void gui_busy_free(const GuiBusyStillCfg *args)
-{
-    EMBED_CALL(busy_cell_free, BusyCtx, .busy = args->busy);
-    args->busy->displayed = 0;
-}
-
 void gui_busy_work(const GuiBusyRunningCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -153,7 +138,10 @@ int gui_busy_tick(const GuiBusyRunningCfg *args)
         return 0;
     }
     args->busy->displayed = 0;
-    EMBED_CALL(busy_cell_free, BusyCtx, .busy = args->busy);
+    g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+    args->busy->cell = NULL;
+    args->busy->cell_bytes = 0ULL;
+    args->busy->under_saved = 0;
     return 1;
 }
 
@@ -203,7 +191,10 @@ void gui_busy_still(const GuiBusyStillCfg *args)
     int still = args->still;
     if (args->busy->still != still)
     {
-        EMBED_CALL(busy_cell_free, BusyCtx, .busy = args->busy);
+        g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+        args->busy->cell = NULL;
+        args->busy->cell_bytes = 0ULL;
+        args->busy->under_saved = 0;
     }
     args->busy->still = still;
 }
@@ -388,7 +379,10 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
 EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
 {
     int scale = args->scale;
-    busy_cell_free(args);
+    g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+    args->busy->cell = NULL;
+    args->busy->cell_bytes = 0ULL;
+    args->busy->under_saved = 0;
     const unsigned int side = EMBED_CALL(busy_side, BusyCtx, .scale = scale);
     const unsigned int pixels = side * side;
     const unsigned int stages = args->busy->still ? 1u : GUI_BUSY_STAGES;

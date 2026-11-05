@@ -106,8 +106,16 @@ unsigned int cli_cores_on_reserve(void)
     {
         reserved = CLI_CORES_RESERVED_MIN;
     }
-    EMBED_CALL(cli_settings_root.layers_free, CliSettingsRootCfg, .layers = &read->layers);
-    EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &read->reader);
+    g_cli_cells->persistent_buf_release(read->layers.text, &g_cli_settings_cells);
+    read->layers.text = NULL;
+    read->layers.used = 0ULL;
+    read->layers.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(
+        read->reader.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = read->reader.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&read->reader.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    read->reader.files = 0u;
+    read->reader.problems = 0u;
     g_cli_cells->persistent_buf_release(read, &g_cli_settings_cells);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;

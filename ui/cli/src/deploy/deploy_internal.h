@@ -143,7 +143,6 @@ void cli_deploy_difference(const CliDeployOldCtx *args);
 // every page of a pool given back, the pool left empty (deploy_read.c)
 void *cli_deploy_on_position(const CliDeployPoolCtx *args);
 const char *cli_deploy_text_store(const CliDeployPoolCtx *args);
-void cli_deploy_pool_free(const CliDeployPoolCtx *args);
 // two texts in the order of their bytes: below 0 where `left` comes first, 0 where they are the same, above 0 where
 // `right` does (deploy_read.c)
 int cli_deploy_order(const CliDeployLeftCtx *args);
@@ -153,7 +152,6 @@ int cli_deploy_order(const CliDeployLeftCtx *args);
 // and a shell line run at a place, `size` bytes of `input` given it, what it wrote into `out`, a machine that prompts
 // for a password informed how a key reaches it (deploy_read.c)
 int cli_deploy_read(const CliDeployRootCtx *args);
-void cli_deploy_tree_free(const CliDeployRootCtx *args);
 int cli_deploy_position(const CliDeployTextCtx *args);
 void cli_deploy_position_name(const CliDeploySizeCtx *args);
 const char *cli_deploy_position_folder(const CliDeploySizeCtx *args);
@@ -380,14 +378,12 @@ typedef struct
 {
     void *(*place)(const CliDeployPoolCtx *args);
     const char *(*text_store)(const CliDeployPoolCtx *args);
-    void (*pool_free)(const CliDeployPoolCtx *args);
     void (*modes_read)(const CliDeployPoolCtx *args);
 } CliDeployPoolNs;
-EMBED_TABLE_LAYOUT(CliDeployPoolNs, place, text_store, pool_free, modes_read);
+EMBED_TABLE_LAYOUT(CliDeployPoolNs, place, text_store, modes_read);
 EMBED_TABLE_STORAGE CliDeployPoolNs cli_deploy_pool_internal EMBED_UNUSED = {
     .place = cli_deploy_on_position,
     .text_store = cli_deploy_text_store,
-    .pool_free = cli_deploy_pool_free,
     .modes_read = cli_deploy_modes_read,
 };
 
@@ -403,12 +399,10 @@ EMBED_TABLE_STORAGE CliDeployLeftNs cli_deploy_left_internal EMBED_UNUSED = {
 typedef struct
 {
     int (*read)(const CliDeployRootCtx *args);
-    void (*tree_free)(const CliDeployRootCtx *args);
 } CliDeployRootNsTable;
-EMBED_TABLE_LAYOUT(CliDeployRootNsTable, read, tree_free);
+EMBED_TABLE_LAYOUT(CliDeployRootNsTable, read);
 EMBED_TABLE_STORAGE CliDeployRootNsTable cli_deploy_root_internal EMBED_UNUSED = {
     .read = cli_deploy_read,
-    .tree_free = cli_deploy_tree_free,
 };
 
 typedef struct

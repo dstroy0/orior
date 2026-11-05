@@ -104,7 +104,6 @@ typedef struct
 // text refused. And its cell released
 int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args);
 int cli_terminal_xterm_resize(const CliTerminalXtermSizeCfg *args);
-void cli_terminal_xterm_free(const CliTerminalXtermCfg *args);
 // `size` bytes of a shell's output read into the text, a letter or a sequence cut by the end read on with the next
 void cli_terminal_xterm_write(const CliTerminalXtermBytesCfg *args);
 // the place among a row's `count` units at `units` where the letter of column `column` starts, the sequences before it
@@ -157,15 +156,6 @@ EMBED_TABLE_LAYOUT(CliTerminalXtermSizeNs, init, resize);
 EMBED_TABLE_STORAGE CliTerminalXtermSizeNs cli_terminal_xterm_size EMBED_UNUSED = {
     .init = cli_terminal_xterm_init,
     .resize = cli_terminal_xterm_resize,
-};
-
-typedef struct
-{
-    void (*free)(const CliTerminalXtermCfg *args);
-} CliTerminalXtermNs;
-EMBED_TABLE_LAYOUT(CliTerminalXtermNs, free);
-EMBED_TABLE_STORAGE CliTerminalXtermNs cli_terminal_xterm EMBED_UNUSED = {
-    .free = cli_terminal_xterm_free,
 };
 
 typedef struct

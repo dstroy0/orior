@@ -109,8 +109,16 @@ int cli_requests_on_parse(const CliRequestsTextCfg *args)
                    .values = parsed->variable_value, .count = parsed->variables, .out = args->out);
         mmgr_line_ch(args->out, '}');
     }
-    EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
-               .parsed = &g_cli_requests_parsed);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_requests_parsed.requests = NULL;
+    g_cli_requests_parsed.requests_capacity = 0u;
+    g_cli_requests_parsed.text = NULL;
+    g_cli_requests_parsed.text_capacity = 0ULL;
+    g_cli_requests_parsed.count = 0u;
+    g_cli_requests_parsed.variables = 0u;
+    g_cli_requests_parsed.used = 0ULL;
+    g_cli_requests_parsed.full = 0;
     if (!whole)
     {
         EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);
@@ -142,8 +150,16 @@ int cli_requests_key_at(const CliRequestsTextCfg *args)
         EMBED_CALL(cli_requests_parsed_internal.key, CliRequestsParsedCtx, .parsed_read = &g_cli_requests_parsed,
                    .request = request, .out = args->out);
     }
-    EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
-               .parsed = &g_cli_requests_parsed);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_requests_parsed.requests = NULL;
+    g_cli_requests_parsed.requests_capacity = 0u;
+    g_cli_requests_parsed.text = NULL;
+    g_cli_requests_parsed.text_capacity = 0ULL;
+    g_cli_requests_parsed.count = 0u;
+    g_cli_requests_parsed.variables = 0u;
+    g_cli_requests_parsed.used = 0ULL;
+    g_cli_requests_parsed.full = 0;
     if (!whole)
     {
         EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);

@@ -108,9 +108,9 @@ EMBED_INLINE void walked_from(const FilesSeenCtx *args)
         walk.folder = folder;
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = walk_each,
                    .context_bytess = &walk);
-        EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = folder);
+        g_cli_cells->persistent_buf_release(folder, &g_cli_files_views_cells);
     }
-    EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = walk.pending);
+    g_cli_cells->persistent_buf_release(walk.pending, &g_cli_files_views_cells);
 }
 
 void cli_files_walk(const CliFilesRootEachContextCfg *args)
@@ -285,7 +285,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
         }
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-    EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = input);
+    g_cli_cells->persistent_buf_release(input, &g_cli_files_views_cells);
 }
 
 const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
@@ -319,7 +319,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 void cli_files_let(const CliFilesCfg *args)
 {
     // the cell is given back as it was taken; const is the reader's view of it
-    EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = (void *)(uintptr_t)args->files);
+    g_cli_cells->persistent_buf_release(((void *)(uintptr_t)args->files), &g_cli_files_views_cells);
 }
 
 // where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot

@@ -424,20 +424,6 @@ EMBED_INLINE int parse_request(const RequestsParseCtx *args)
     return 1;
 }
 
-void cli_requests_parsed_free(const CliRequestsTextSizeParsedCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->parsed->requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(args->parsed->text, &g_cli_requests_cells);
-    args->parsed->requests = NULL;
-    args->parsed->requests_capacity = 0u;
-    args->parsed->text = NULL;
-    args->parsed->text_capacity = 0ULL;
-    args->parsed->count = 0u;
-    args->parsed->variables = 0u;
-    args->parsed->used = 0ULL;
-    args->parsed->full = 0;
-}
-
 // the lines of `size` bytes of `text`, a newline ending each but the last, CLI_REQUESTS_LINES at the most
 EMBED_INLINE unsigned long long parse_lines_count(const RequestsParseCtx *args)
 {
@@ -526,7 +512,16 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
 int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args)
 {
     const char *text = args->text;
-    cli_requests_text_size_parsed_internal.parsed_free(args);
+    g_cli_cells->persistent_buf_release(args->parsed->requests, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(args->parsed->text, &g_cli_requests_cells);
+    args->parsed->requests = NULL;
+    args->parsed->requests_capacity = 0u;
+    args->parsed->text = NULL;
+    args->parsed->text_capacity = 0ULL;
+    args->parsed->count = 0u;
+    args->parsed->variables = 0u;
+    args->parsed->used = 0ULL;
+    args->parsed->full = 0;
     const unsigned long long lines = EMBED_CALL(parse_lines_count, RequestsParseCtx, .text = text, .size = args->size);
     const unsigned long long pool = (2ULL * args->size) + CLI_REQUESTS_POOL_MORE;
     args->parsed->text_capacity = (pool < CLI_REQUESTS_TEXT) ? pool : CLI_REQUESTS_TEXT;

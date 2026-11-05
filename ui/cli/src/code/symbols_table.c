@@ -57,11 +57,6 @@ void cli_branch_copy(const CliSymbolsTreeBranchCfg *args)
         &(CarcerMovableCfg){.cell = args->branch->cell, .dst = args->scratch, .bytes = args->branch->bytes});
 }
 
-void cli_branch_copy_free(const CliSymbolsTreeBranchCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->scratch, &g_cli_code_cells);
-}
-
 const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args)
 {
     return args->scratch_read + args->branch->path;

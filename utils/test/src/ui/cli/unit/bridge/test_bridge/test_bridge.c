@@ -53,7 +53,10 @@ static unsigned int tree_bridge(void)
     {
         TEST_IGNORE_MESSAGE("no tree is found");
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_bridge.read, CliBridgeCfg, .json = &s_json, .root = root);
 }
 
@@ -65,7 +68,10 @@ void setUp(void)
 
 void tearDown(void)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    g_cli_cells->persistent_buf_release(s_json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 void test_a_pair_reads_its_two_names(void)

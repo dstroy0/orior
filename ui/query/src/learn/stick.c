@@ -355,7 +355,8 @@ int query_listings_read(const QueryLoopsContextFolderCfg *args)
                      EMBED_CALL(query_codes_list, StickCtx, .context = args->context, .run = args->run,
                                 .pattern = args->pattern, .prefix = args->prefix, .architecture = args->architecture,
                                 .codes = &codes, .err_msg = args->err_msg);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &codes);
+    g_cli_cells->persistent_buf_release(codes.path, &g_query_cells);
+    *(&codes) = (QueryPaths){NULL, 0u, 0u};
     return read;
 }
 

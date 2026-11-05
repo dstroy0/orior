@@ -196,10 +196,31 @@ int main(void)
     cli_check(colored(&raster, places.focus, palette->signal), "Focus is in the signal");
     cli_check(EMBED_CALL(gui_statusbar_x.hit, GuiStatusbarXCfg, .status = &status, .glyphs = &glyphs, .icons = &icons, .frame = &frame, .x = places.focus.x + 4, .y = middle_y) == CLI_HIT_STATUS_FOCUS, "a press on Focus is Focus's");
     cli_check(places.notice.width == 0, "with no notice none stands");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &bare_base);
-    EMBED_CALL(gui_base_width.free, GuiBaseWidthCfg, .base = &base);
-    EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &icons);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
+    g_cli_cells->persistent_buf_release(bare_base.pixels, &g_gui_raster_cells);
+    bare_base.pixels = NULL;
+    bare_base.width = 0u;
+    bare_base.height = 0u;
+    g_cli_cells->persistent_buf_release(base.tile_red_blue, &g_gui_base_cells);
+    base.tile_red_blue = NULL;
+    base.tile_green = NULL;
+    base.tile_remainder = NULL;
+    base.width = 0u;
+    base.height = 0u;
+    base.laid = 0;
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
+    {
+        if (icons.entry[at].used)
+        {
+            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            icons.entry[at].mask_bits.cover = NULL;
+            icons.entry[at].used = 0;
+        }
+    }
+    icons.count = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     return cli_on_check();
 }

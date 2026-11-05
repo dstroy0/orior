@@ -41,6 +41,6 @@ unsigned long long cli_page_write_at(const CliPagesPieceCtx *args)
     {
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)bytes, .at = at, .size = end).next;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
     return at;
 }

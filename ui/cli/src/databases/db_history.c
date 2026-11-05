@@ -104,7 +104,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
                                  .size = 1ULL, .fresh = 0);
         }
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = history, .owner = &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)history, (&g_cli_db_cells));
     written = written && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
                                     .bytes = entry.out, .size = entry.at, .fresh = 0);
     if (written)
@@ -139,7 +139,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
         }
         end = (start > 0u) ? start - 1u : 0u;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_db_cells));
     mmgr_line_ch(args->out, ']');
 }
 

@@ -50,17 +50,6 @@ void gui_base_resize(const GuiBaseWidthCfg *args)
     args->base->laid = 0;
 }
 
-void gui_base_free(const GuiBaseWidthCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->base->tile_red_blue, &g_gui_base_cells);
-    args->base->tile_red_blue = NULL;
-    args->base->tile_green = NULL;
-    args->base->tile_remainder = NULL;
-    args->base->width = 0u;
-    args->base->height = 0u;
-    args->base->laid = 0;
-}
-
 typedef struct
 {
     GuiBaseEntry *entry;

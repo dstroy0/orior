@@ -195,7 +195,7 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
                                                   .size_pointer = size, .owner = &g_cli_schema_cells);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_schema_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_schema_cells));
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -260,8 +260,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
             : CLI_JSON_NONE;
     if (mapped)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)text,
-                   .owner = &g_cli_schema_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_schema_cells));
     }
     if (root == CLI_JSON_NONE)
     {

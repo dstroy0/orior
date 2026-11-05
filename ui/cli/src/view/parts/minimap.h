@@ -72,7 +72,6 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args);
 // while the drag runs, the top set by the slider's run: 1, or 0 where no drag runs; and the drag ended
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args);
 int gui_minimap_drag(const GuiMinimapPositionScaleCfg *args);
-void gui_minimap_release(const GuiMinimapCfg *args);
 struct GuiMinimapPositionScaleCfg
 {
     GuiMinimap *map;
@@ -113,12 +112,10 @@ struct GuiMinimapFirstCfg
 typedef struct
 {
     void (*clear)(const GuiMinimapCfg *args);
-    void (*release)(const GuiMinimapCfg *args);
 } GuiMinimapNs;
-EMBED_TABLE_LAYOUT(GuiMinimapNs, clear, release);
+EMBED_TABLE_LAYOUT(GuiMinimapNs, clear);
 EMBED_TABLE_STORAGE GuiMinimapNs gui_minimap EMBED_UNUSED = {
     .clear = gui_minimap_clear,
-    .release = gui_minimap_release,
 };
 
 typedef struct

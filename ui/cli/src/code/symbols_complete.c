@@ -93,7 +93,7 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
             args->kind_out[(mmgr_line_finish(&written) != 0ULL) ? written.at : 0ULL] = '\0';
         }
     }
-    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
 }
 
 // the defines in effect where the walk ended, the database's first, each of the kind its declaration's grammar names,
@@ -259,9 +259,17 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     }
     if (leaved)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        read.leaf = NULL;
+        read.count = 0u;
+        read.capacity = 0u;
     }
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(complete.transferred.out, &g_cli_code_cells);
     return done;
 }

@@ -28,7 +28,10 @@ static unsigned int step_tree_read(const char *text)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_step_tree);
+    g_cli_cells->persistent_buf_release(s_step_tree.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_step_tree.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_step_tree),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 64u, .text_more = 4096ull, .err_msg = &err_msg, .owner = &g_checks_cells);
 }
 
@@ -140,7 +143,18 @@ static CliDebugSession *position_planned(void)
 // `place` freed under the debugger's lock
 static void position_freed(CliDebugSession *place)
 {
-    EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = place);
+    g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+    place->data = NULL;
+    place->data_count = 0u;
+    place->data_capacity = 0u;
+    place->positioned = NULL;
+    place->positioned_count = 0u;
+    place->positioned_capacity = 0u;
+    g_cli_cells->persistent_buf_release(place->start.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    place->reserved = 0;
 }
 
 // whether a tool of the manifest debugs `language`, or builds `kind`
@@ -377,7 +391,10 @@ void test_c_rust_and_python_each_have_a_debugger(void)
     const int c_debugger = tool_has(&json, manifest, "c", NULL);
     const int rust_debugger = tool_has(&json, manifest, "rust", NULL);
     const int python_debugger = tool_has(&json, manifest, "python", NULL);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_debugger);
     TEST_ASSERT_TRUE(rust_debugger);
     TEST_ASSERT_TRUE(python_debugger);
@@ -390,7 +407,10 @@ void test_c_and_rust_have_a_build_and_python_does_not(void)
     const int c_build = tool_has(&json, manifest, NULL, "c.c");
     const int rust_build = tool_has(&json, manifest, NULL, "rust");
     const int python_build = tool_has(&json, manifest, NULL, "python");
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_build);
     TEST_ASSERT_TRUE(rust_build);
     TEST_ASSERT_FALSE(python_build);

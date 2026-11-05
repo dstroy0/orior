@@ -25,7 +25,12 @@ void setUp(void)
 
 void tearDown(void)
 {
-    EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &s_chain);
+    g_cli_cells->persistent_buf_release(s_chain.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_chain.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_chain.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    s_chain.files = 0u;
+    s_chain.problems = 0u;
 }
 
 void test_a_chain_follows_each_file_taken_the_one_taken_first(void)
@@ -68,7 +73,12 @@ void test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems(void
     TEST_ASSERT_EQUAL_UINT(1u, s_chain.files);
     TEST_ASSERT_EQUAL_UINT(1u, s_chain.problems);
     CLI_TEST_ASSERT_CONTAINS("is not an object of settings", s_chain.problem[0]);
-    EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &s_chain);
+    g_cli_cells->persistent_buf_release(s_chain.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_chain.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_chain.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    s_chain.files = 0u;
+    s_chain.problems = 0u;
     cli_unity_file(s_root, ".orior/settings.json", "{\"takes\": 3}");
     chain_read();
     TEST_ASSERT_EQUAL_UINT(1u, s_chain.files);

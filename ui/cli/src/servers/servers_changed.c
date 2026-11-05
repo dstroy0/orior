@@ -226,7 +226,7 @@ EMBED_INLINE int changed_names(const ServersChangedCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size) &&
         EMBED_CALL(changed_text_names, ServersChangedCtx, .text = (const char *)mapped, .size = size,
                    .tool = args->tool, .files = args->files, .count = args->count);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_servers_cells));
     return names;
 }
 
@@ -360,23 +360,6 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     g_cli_cells->persistent_buf_release(uris, &g_cli_servers_cells);
 }
 
-// the round's parts given back
-static void changed_free(void)
-{
-    g_cli_cells->persistent_buf_release(s_batch.tree_paths, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_batch.tree, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_batch.again, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_batch.file_tool, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_batch.tool, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_batch.tool_language, &g_cli_servers_cells);
-    if (s_batch.languages != NULL)
-    {
-        EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = s_batch.languages);
-    }
-    g_cli_cells->persistent_buf_release(s_batch.languages, &g_cli_servers_cells);
-    memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
-}
-
 // the tree's files under `root` listed and the round's parts taken for `count` files changed: 1, or 0 where the cells
 // cannot meet them
 EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
@@ -445,8 +428,7 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
         EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
                    .path = path, .text = integer ? (const char *)mapped : NULL, .size = integer ? size : 0ULL,
                    .sink = &s_emit);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
-                   .owner = &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_servers_cells));
         if (integer)
         {
             EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx,
@@ -455,7 +437,19 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     }
     if (!EMBED_CALL(changed_alloc, ServersChangedCtx, .root = args->root, .count = args->count))
     {
-        changed_free();
+        g_cli_cells->persistent_buf_release(s_batch.tree_paths, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(s_batch.tree, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(s_batch.again, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(s_batch.file_tool, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(s_batch.tool, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(s_batch.tool_language, &g_cli_servers_cells);
+        if (s_batch.languages != NULL)
+        {
+            g_cli_cells->persistent_buf_release(s_batch.languages->pair, &g_cli_plugins_cells);
+            *s_batch.languages = (CliLanguages){NULL, 0u, 0u};
+        }
+        g_cli_cells->persistent_buf_release(s_batch.languages, &g_cli_servers_cells);
+        memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
         return;
     }
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -500,5 +494,17 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     }
     (void)EMBED_CALL(cli_servers_files_internal.check_files, CliServersFilesCtx, .root = args->root,
                      .files = s_batch.again, .count = s_batch.agains, .sink = &s_emit);
-    changed_free();
+    g_cli_cells->persistent_buf_release(s_batch.tree_paths, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tree, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.again, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.file_tool, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tool, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tool_language, &g_cli_servers_cells);
+    if (s_batch.languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(s_batch.languages->pair, &g_cli_plugins_cells);
+        *s_batch.languages = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(s_batch.languages, &g_cli_servers_cells);
+    memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }

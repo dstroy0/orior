@@ -237,6 +237,37 @@ void cli_patterns_read(const CliPatternsLinesCfg *args)
     }
 }
 
+// one line of a set read, `size` bytes of `line`: trimmed, nothing where it is empty or starts with `#`, and turned
+// about: one that takes out is a pattern that hides, and one that matches includes
+EMBED_INLINE void cli_set_line_read(const PatternsCtx *args)
+{
+    const char *from = args->line;
+    const char *to = args->line + args->size;
+    while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = from[0]))
+    {
+        from += 1;
+    }
+    while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = to[-1]))
+    {
+        to -= 1;
+    }
+    if ((from == to) || (from[0] == '#'))
+    {
+        return;
+    }
+    char flipped[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {flipped, sizeof(flipped), 0ULL};
+    if (from[0] != '!')
+    {
+        mmgr_line_ch(&line, '!');
+    }
+    mmgr_line_put_n(&line, from + ((from[0] == '!') ? 1 : 0),
+                    (unsigned long long)(to - from) - ((from[0] == '!') ? 1ULL : 0ULL));
+    const unsigned long long length = mmgr_line_ok(&line) ? line.at : 0ULL;
+    mmgr_line_finish(&line);
+    EMBED_CALL(cli_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = flipped, .size = length);
+}
+
 void cli_patterns_read_set(const CliPatternsLinesCfg *args)
 {
     args->patterns_out->hides = 0u;
@@ -244,32 +275,25 @@ void cli_patterns_read_set(const CliPatternsLinesCfg *args)
     args->patterns_out->used = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const char *from = args->lines[at];
-        const char *to = from + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-        while ((from < to) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = from[0]))
+        EMBED_CALL(cli_set_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->lines[at],
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_CELLS_POOL}));
+    }
+}
+
+void cli_patterns_read_set_text(const CliPatternsTextCfg *args)
+{
+    args->patterns_out->hides = 0u;
+    args->patterns_out->includes = 0u;
+    args->patterns_out->used = 0u;
+    unsigned long long from = 0ULL;
+    for (unsigned long long at = 0ULL; at <= args->size; at += 1ULL)
+    {
+        if ((at == args->size) || (args->text[at] == '\n'))
         {
-            from += 1;
+            EMBED_CALL(cli_set_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->text + from,
+                       .size = at - from);
+            from = at + 1ULL;
         }
-        while ((to > from) && EMBED_CALL(cli_is_space, PatternsCtx, .letter_letter = to[-1]))
-        {
-            to -= 1;
-        }
-        if ((from == to) || (from[0] == '#'))
-        {
-            continue;
-        }
-        // each line turned about: one that takes out is a pattern that hides, and one that names includes
-        char flipped[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {flipped, sizeof(flipped), 0ULL};
-        if (from[0] != '!')
-        {
-            mmgr_line_ch(&line, '!');
-        }
-        mmgr_line_put_n(&line, from + ((from[0] == '!') ? 1 : 0),
-                        (unsigned long long)(to - from) - ((from[0] == '!') ? 1ULL : 0ULL));
-        const unsigned long long length = mmgr_line_ok(&line) ? line.at : 0ULL;
-        mmgr_line_finish(&line);
-        EMBED_CALL(cli_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = flipped, .size = length);
     }
 }
 

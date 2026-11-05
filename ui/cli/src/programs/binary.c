@@ -445,8 +445,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                 queued += 1u;
                 at += 1;
             }
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = more,
-                       .owner = &g_cli_programs_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)more, (&g_cli_programs_cells));
         }
         next += 1u;
     }
@@ -498,6 +497,6 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is no program orior_cli reads");
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_programs_cells));
     return read;
 }

@@ -212,26 +212,6 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     return mmgr_line_ok(&file->functions) ? 1 : -1;
 }
 
-// a file read given back
-EMBED_INLINE void calls_file_free(const SymbolsCallsCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->file_out->functions.out, &g_cli_code_cells);
-    if (args->file_out->leaved)
-    {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &args->file_out->read);
-    }
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = args->file_out->languages);
-    if (args->file_out->mapped && (args->file_out->text != NULL))
-    {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-                   .bytes_bytes_other = (const unsigned char *)args->file_out->text, .owner = &g_cli_code_cells);
-    }
-    else
-    {
-        g_cli_cells->persistent_buf_release(args->file_out->text, &g_cli_code_cells);
-    }
-}
-
 // the place among the file's functions of the one whose name stands on `line`, else where `body` is 1 whose head or
 // body does: CLI_JSON_NONE where none does
 EMBED_INLINE unsigned int calls_function_on(const SymbolsCallsCtx *args)
@@ -290,7 +270,28 @@ int cli_symbols_function_at(const CliSymbolsPathContextLineCfg *args)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the file's functions");
     }
-    EMBED_CALL(calls_file_free, SymbolsCallsCtx, .file_out = &file);
+    g_cli_cells->persistent_buf_release(file.functions.out, &g_cli_code_cells);
+    if (file.leaved)
+    {
+        g_cli_cells->persistent_buf_release(file.read.leaf, &g_cli_leaves_cells);
+        file.read.leaf = NULL;
+        file.read.count = 0u;
+        file.read.capacity = 0u;
+    }
+    if (file.languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(file.languages->languages.pair, &g_cli_plugins_cells);
+        *(&file.languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(file.languages, &g_cli_code_cells);
+    if (file.mapped && (file.text != NULL))
+    {
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)file.text), (&g_cli_code_cells));
+    }
+    else
+    {
+        g_cli_cells->persistent_buf_release(file.text, &g_cli_code_cells);
+    }
     return found;
 }
 
@@ -333,12 +334,6 @@ EMBED_INLINE int calls_found_begin(const SymbolsCallsCtx *args)
     *calls = (CliCallsFound){mmgr_line_over(found_cell, CLI_CALLS_CAPACITY),
                              mmgr_line_over(paths_cell, CLI_CALLS_CAPACITY), 0u};
     return (found_cell != NULL) && (paths_cell != NULL);
-}
-
-EMBED_INLINE void calls_found_free(const SymbolsCallsCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->calls->found.out, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(args->calls->paths.out, &g_cli_code_cells);
 }
 
 // the leaf of `file` at `line`, `col` in UTF-16 units, `file->read.count` where none starts there
@@ -400,7 +395,28 @@ EMBED_INLINE int calls_callers_get(const SymbolsCallsCtx *args)
             count += 1u;
         }
     }
-    EMBED_CALL(calls_file_free, SymbolsCallsCtx, .file_out = &file);
+    g_cli_cells->persistent_buf_release(file.functions.out, &g_cli_code_cells);
+    if (file.leaved)
+    {
+        g_cli_cells->persistent_buf_release(file.read.leaf, &g_cli_leaves_cells);
+        file.read.leaf = NULL;
+        file.read.count = 0u;
+        file.read.capacity = 0u;
+    }
+    if (file.languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(file.languages->languages.pair, &g_cli_plugins_cells);
+        *(&file.languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(file.languages, &g_cli_code_cells);
+    if (file.mapped && (file.text != NULL))
+    {
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)file.text), (&g_cli_code_cells));
+    }
+    else
+    {
+        g_cli_cells->persistent_buf_release(file.text, &g_cli_code_cells);
+    }
     return read >= 0;
 }
 
@@ -451,13 +467,35 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
                 first = next;
             }
         }
-        EMBED_CALL(calls_found_free, SymbolsCallsCtx, .calls = &usages);
+        g_cli_cells->persistent_buf_release(usages.found.out, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(usages.paths.out, &g_cli_code_cells);
     }
     if (found < 0)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the function's callers");
     }
-    EMBED_CALL(calls_file_free, SymbolsCallsCtx, .file_out = &file);
+    g_cli_cells->persistent_buf_release(file.functions.out, &g_cli_code_cells);
+    if (file.leaved)
+    {
+        g_cli_cells->persistent_buf_release(file.read.leaf, &g_cli_leaves_cells);
+        file.read.leaf = NULL;
+        file.read.count = 0u;
+        file.read.capacity = 0u;
+    }
+    if (file.languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(file.languages->languages.pair, &g_cli_plugins_cells);
+        *(&file.languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(file.languages, &g_cli_code_cells);
+    if (file.mapped && (file.text != NULL))
+    {
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)file.text), (&g_cli_code_cells));
+    }
+    else
+    {
+        g_cli_cells->persistent_buf_release(file.text, &g_cli_code_cells);
+    }
     return found;
 }
 
@@ -560,12 +598,34 @@ int cli_symbols_callees(const CliSymbolsPathContextLineCfg *args)
             EMBED_CALL(calls_callees_dispatch, SymbolsCallsCtx, .calls_read = &calls, .file = &file, .each = args->each,
                        .context = args->context);
         }
-        EMBED_CALL(calls_found_free, SymbolsCallsCtx, .calls = &calls);
+        g_cli_cells->persistent_buf_release(calls.found.out, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(calls.paths.out, &g_cli_code_cells);
     }
     if (found < 0)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the function's callees");
     }
-    EMBED_CALL(calls_file_free, SymbolsCallsCtx, .file_out = &file);
+    g_cli_cells->persistent_buf_release(file.functions.out, &g_cli_code_cells);
+    if (file.leaved)
+    {
+        g_cli_cells->persistent_buf_release(file.read.leaf, &g_cli_leaves_cells);
+        file.read.leaf = NULL;
+        file.read.count = 0u;
+        file.read.capacity = 0u;
+    }
+    if (file.languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(file.languages->languages.pair, &g_cli_plugins_cells);
+        *(&file.languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(file.languages, &g_cli_code_cells);
+    if (file.mapped && (file.text != NULL))
+    {
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)file.text), (&g_cli_code_cells));
+    }
+    else
+    {
+        g_cli_cells->persistent_buf_release(file.text, &g_cli_code_cells);
+    }
     return found;
 }

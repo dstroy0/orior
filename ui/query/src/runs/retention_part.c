@@ -281,7 +281,9 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
     }
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &list_entries);
+    g_cli_cells->persistent_buf_release(list_entries.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(list_entries.path, &g_query_cells);
+    *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
 }
 
 int query_crystal_build(const QueryRetentionContextCtx *args)

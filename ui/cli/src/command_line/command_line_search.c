@@ -132,6 +132,9 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     {
         EMBED_CALL(search_hit_write, CommandLineSearchCtx, .hits = &hits, .hit = hit);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &hits);
+    g_cli_cells->persistent_buf_release(hits.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = hits.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&hits),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return any ? 0 : 1;
 }

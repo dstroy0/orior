@@ -45,7 +45,6 @@ typedef struct
 // the run's job copied from `catalog` into a cell sized to it, and a cell taken for its lines: 1, or 0 with why given
 // and neither taken; and both given back (runner_start.c)
 int cli_run_cells_alloc(const CliRunnerRunCtx *args);
-void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args);
 
 // the lock every run's state is read and changed under
 // the milliseconds since a run began, to the microsecond (runner_run.c)
@@ -111,12 +110,10 @@ EMBED_TABLE_STORAGE CliRunnerRunNs cli_runner_run_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*run_cells_free)(const CliRunnerRunSpawnedCtx *args);
     void (*run_machine_transfer)(const CliRunnerRunSpawnedCtx *args);
 } CliRunnerRunSpawnedNs;
-EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_cells_free, run_machine_transfer);
+EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_machine_transfer);
 EMBED_TABLE_STORAGE CliRunnerRunSpawnedNs cli_runner_run_spawned_internal EMBED_UNUSED = {
-    .run_cells_free = cli_run_cells_free,
     .run_machine_transfer = cli_run_machine_transfer,
 };
 

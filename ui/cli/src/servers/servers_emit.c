@@ -315,7 +315,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     VerbaLinea supplied = mmgr_line_over(joined, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = path, .text = (const char *)build,
                .size = build_size, .each = emit_name_append, .context = &supplied);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = build, .owner = &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)build, (&g_cli_servers_cells));
     const int integer = mmgr_line_ok(&supplied);
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input, .key = key,
                      .adjacent_value = "", .text = integer ? supplied.out : "",
@@ -444,7 +444,10 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     {
         if (json.node != NULL)
         {
-            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+            g_cli_cells->persistent_buf_release(json.node,
+                                                EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         }
         return;
     }
@@ -467,7 +470,10 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     {
         if (json.node != NULL)
         {
-            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+            g_cli_cells->persistent_buf_release(json.node,
+                                                EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         }
         return;
     }
@@ -505,7 +511,10 @@ void cli_servers_report_release(CliServerReport *report)
     }
     if (report->json.node != NULL)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &report->json);
+        g_cli_cells->persistent_buf_release(
+            report->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = report->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&report->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
     g_cli_cells->persistent_buf_release(report, &g_cli_servers_cells);
 }

@@ -190,7 +190,8 @@ static void folders_read(void)
     (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &s_languages, .path = "x/one.beta", .id_out = s_folders_beta);
     (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &s_languages, .path = "x/one.gamma", .id_out = s_folders_gamma);
     (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &s_languages, .path = "x/one.delta", .id_out = s_folders_delta);
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &s_languages);
+    g_cli_cells->persistent_buf_release(s_languages.pair, &g_cli_plugins_cells);
+    *(&s_languages) = (CliLanguages){NULL, 0u, 0u};
 }
 
 void setUp(void)
@@ -203,7 +204,8 @@ void tearDown(void)
     if (s_languages_live)
     {
         s_languages_live = 0;
-        EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &s_languages);
+        g_cli_cells->persistent_buf_release(s_languages.pair, &g_cli_plugins_cells);
+        *(&s_languages) = (CliLanguages){NULL, 0u, 0u};
     }
 }
 
@@ -314,7 +316,8 @@ void test_the_languages_keys_are_in_a_capacity_at_their_max(void)
 void test_the_plugins_are_read_in_cells_each_released(void)
 {
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &s_languages);
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &s_languages);
+    g_cli_cells->persistent_buf_release(s_languages.pair, &g_cli_plugins_cells);
+    *(&s_languages) = (CliLanguages){NULL, 0u, 0u};
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_plugins_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_plugins_cells.hw));
 }
@@ -451,7 +454,10 @@ void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void)
     const unsigned int answers = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &tight, .text = s_from, .size = sizeof(s_from) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     err_msg.at = 0ull;
     const int created = EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &tight, .spec = answers, .replace = 0, .folder = s_folder, .err_msg = &err_msg);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &tight);
+    g_cli_cells->persistent_buf_release(tight.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = tight.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&tight),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(created);
 }
 

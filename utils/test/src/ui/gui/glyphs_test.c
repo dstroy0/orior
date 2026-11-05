@@ -135,7 +135,10 @@ int main(void)
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "\xc3\xa9", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(painted(&raster, (GuiRect){2, 2, (int)advance, 16}, black), "a letter of two bytes draws one glyph");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     cli_check(glyphs.entry == NULL, "the glyphs given back keep no slots");
     return cli_on_check();

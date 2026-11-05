@@ -140,7 +140,7 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args);
 void cli_py_parent(const CliPythonPathsOutCtx *args);
 
 // what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found,
-// the reading taken for it and given back with cli_py_read_state_free once the found are read; none found where its
+// the reading taken for it and released through persistent_buf_release once the found are read; none found where its
 // cell is refused (python_paths.c)
 void cli_py_paths_in(const CliPythonPathsSizeCtx *args);
 

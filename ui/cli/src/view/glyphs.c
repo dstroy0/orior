@@ -79,7 +79,7 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
     if (!EMBED_CALL(cli_font_data.read, CliFontDataCfg, .font_out = font, .data = data, .size = size,
                     .ranges = args->ranges))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = data, .owner = &g_gui_glyphs_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)data, (&g_gui_glyphs_cells));
         return 0;
     }
     const unsigned long long bytes = (unsigned long long)font->ranges * sizeof(args->ranges[0]);
@@ -87,7 +87,7 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
         g_cli_cells->persistent_buf_alloc((bytes != 0ULL) ? bytes : sizeof(args->ranges[0]), &g_gui_glyphs_cells);
     if (saved == NULL)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = data, .owner = &g_gui_glyphs_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)data, (&g_gui_glyphs_cells));
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = saved, .src = args->ranges, .bytes = bytes});
@@ -111,19 +111,6 @@ EMBED_INLINE void glyphs_clear(const GlyphsCtx *args)
         }
     }
     args->glyphs->cached = 0u;
-}
-
-// the face's font and file given back where it was read
-EMBED_INLINE void glyphs_face_free(const GlyphsCtx *args)
-{
-    if (args->glyphs->has[args->face])
-    {
-        g_cli_cells->persistent_buf_release(args->glyphs->face[args->face].range, &g_gui_glyphs_cells);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = args->glyphs->data[args->face],
-                   .owner = &g_gui_glyphs_cells);
-    }
-    args->glyphs->has[args->face] = 0;
-    args->glyphs->data[args->face] = NULL;
 }
 
 // the cells emptied: every cell's lanes given back and every cell marked unused
@@ -213,7 +200,13 @@ void gui_glyphs_free(const GuiGlyphsCfg *args)
     args->glyphs->contours = NULL;
     for (unsigned int face = 0u; face < GUI_FACES; face += 1u)
     {
-        EMBED_CALL(glyphs_face_free, GlyphsCtx, .glyphs = args->glyphs, .face = face);
+        if (args->glyphs->has[face])
+        {
+            g_cli_cells->persistent_buf_release(args->glyphs->face[face].range, &g_gui_glyphs_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[face]), (&g_gui_glyphs_cells));
+        }
+        args->glyphs->has[face] = 0;
+        args->glyphs->data[face] = NULL;
     }
 }
 
@@ -252,7 +245,14 @@ void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args)
 {
     // its letters' masks go with it: every mask let go, the others drawn again as they are asked for
     EMBED_CALL(glyphs_clear, GlyphsCtx, .glyphs = args->glyphs);
-    EMBED_CALL(glyphs_face_free, GlyphsCtx, .glyphs = args->glyphs, .face = GUI_FACE_HEAD_BOLD);
+    if (args->glyphs->has[GUI_FACE_HEAD_BOLD])
+    {
+        g_cli_cells->persistent_buf_release(args->glyphs->face[GUI_FACE_HEAD_BOLD].range, &g_gui_glyphs_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[GUI_FACE_HEAD_BOLD]),
+                                            (&g_gui_glyphs_cells));
+    }
+    args->glyphs->has[GUI_FACE_HEAD_BOLD] = 0;
+    args->glyphs->data[GUI_FACE_HEAD_BOLD] = NULL;
 }
 
 // the symbol face read from the first of its families the system's font folders hold, looked for once: 1 where it is

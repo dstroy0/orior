@@ -193,8 +193,16 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
     }
     if (leaved)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        read.leaf = NULL;
+        read.count = 0u;
+        read.capacity = 0u;
     }
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+    if (languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
     return done;
 }

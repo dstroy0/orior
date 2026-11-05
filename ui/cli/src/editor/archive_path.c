@@ -508,7 +508,7 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
         EMBED_CALL(cli_children, ArchivePathCtx, .descent = &descent, .parts = &s_parts, .prefix = prefix,
                    .found = args->found);
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_editor_cells));
     cli_archive_release();
     return done;
 }
@@ -576,7 +576,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     {
         mmgr_line_put(args->err_msg, "the file read out of the archive could not be stored");
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_editor_cells));
     cli_archive_release();
     return cell;
 }

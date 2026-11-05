@@ -66,7 +66,7 @@ EMBED_INLINE int cli_settings_path(const ReportCtx *args)
 
 // settings.json read, the lock acquired, into a tree of its own sized to it, with capacity over for a copy of it and
 // the answer where `copied` is 1: its object, or CLI_JSON_NONE where it is not there or does not read, the tree then
-// reserving capacity for the answer alone where `copied` is 1; the tree given back with cli_json_free
+// reserving capacity for the answer alone where `copied` is 1; the tree released through persistent_buf_release
 EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
 {
     CliJson *json = args->json;
@@ -99,14 +99,17 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     {
         read = CLI_JSON_NONE;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
     const unsigned int root = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                          .node = read, .kind = CFG_JSON_OBJECT)
                                   ? read
                                   : CLI_JSON_NONE;
     if (args->copied && (root == CLI_JSON_NONE))
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+        g_cli_cells->persistent_buf_release(json->node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         (void)EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = json,
                          .nodes_max = CLI_REPORT_ANSWER_NODES, .text_max = CLI_REPORT_ANSWER_TEXT,
                          .what = "the settings", .owner = &g_cli_machine_cells);
@@ -128,7 +131,10 @@ EMBED_INLINE int cli_answer(const ReportCtx *args)
                                     .node = answer, .kind = CFG_JSON_FALSE);
     *on = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = answer,
                      .kind = CFG_JSON_TRUE);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return answered;
 }
 
@@ -229,7 +235,10 @@ int cli_report_set_auto(const CliReportOnCfg *args)
                         EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                                    .bytes = out.out, .size = out.at);
     g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!written)
     {
         mmgr_line_put(args->err_msg, path);

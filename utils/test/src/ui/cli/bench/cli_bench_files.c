@@ -50,7 +50,7 @@ static void readers_run(void *context)
             continue;
         }
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_checks_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_checks_cells));
     }
     s_readers.running -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_readers.wake);

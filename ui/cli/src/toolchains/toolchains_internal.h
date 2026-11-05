@@ -40,10 +40,10 @@ void cli_toolchains_found_let(void);
 
 // the file `name` in orior's own folder into `path`: 1, or 0, `path` empty, where orior_cli has no folder of its own;
 // the file at `path` read into the tree in a cell sized to it, with `nodes_more` nodes and `text_more` bytes over for
-// what the caller puts in it, which cli_json_free gives back, an empty object where it is not there or does not read:
-// its node; the node written to `path` as serde_json's pretty writer lays it out, its keys in order where `sorted`, its
-// folder made: 1, or 0 with why given; and a text trimmed of ASCII's spaces at each end into `out`, sized for
-// `capacity`
+// what the caller puts in it, which persistent_buf_release releases, an empty object where it is not there or does not
+// read: its node; the node written to `path` as serde_json's pretty writer lays it out, its keys in order where
+// `sorted`, its folder made: 1, or 0 with why given; and a text trimmed of ASCII's spaces at each end into `out`, sized
+// for `capacity`
 int cli_toolchains_file(const CliToolchainsCtx *args);
 unsigned int cli_toolchains_file_read(const CliToolchainsJsonCtx *args);
 int cli_toolchains_file_save(const CliToolchainsPathCtx *args);

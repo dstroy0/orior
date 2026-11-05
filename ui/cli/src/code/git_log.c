@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_log.c: the Git pane's rows. The query, the authors setting and the repository chosen stand here; a change marks
 // the rest's start, and the step that finds the rest passed, or the watch's mark that the graph is stale, lists the
-// tree's repositories and reads the chosen one's graph through git_graph.c, each commit's texts copied into the pane's
-// own cell beside the graph's layout and its day read on the machine's calendar. A commit opened has the files it
-// changed read once through git_lists.c and stored under its id until another tree is listed
+// tree's repositories and reads the chosen one's graph through git_graph.c, the lists read from git standing in the
+// persistent tier until the next read with every row pointing into them, and each commit's day read on the machine's
+// calendar as its row is read. A commit opened has the files it changed read once through git_lists.c, their paths
+// under the tree appended to one list of git's own that stands until another tree is listed
 #include "git.h"
 
 #include "../command_line/cells.h"
@@ -12,12 +13,9 @@
 #include "../text/text.h"
 #include "embed_atomic.h"
 
-// the bytes the graph's texts take, the bytes the files' paths take, the most commits whose files are read and the
-// most files read, the bytes of the commits' count and of the repository's label, the key the authors setting is saved
-// under in orior's folder, the branch row's text where the repository is on no branch, and the notice under a commit
-// that changed no file under the tree
-#define GIT_LOG_TEXT (1u << 20u)
-#define GIT_LOG_FILE_TEXT (512u * 1024u)
+// the most commits whose files are read and the most files read, the bytes of the commits' count and of the
+// repository's label, the key the authors setting is saved under in orior's folder, the branch row's text where the
+// repository is on no branch, and the notice under a commit that changed no file under the tree
 #define GIT_LOG_OPENED 64u
 #define GIT_LOG_FILES 8192u
 #define GIT_LOG_COUNT 32u
@@ -36,27 +34,18 @@ typedef struct
     int shown;
 } GitLogOpened;
 
-// A file a commit changed: its path's place in the files' text and its state letter
+// A file a commit changed: its path's place in the files' list and its state letter
 typedef struct
 {
     unsigned int path;
     char state;
 } GitLogFile;
 
-// A repository of the tree: the places of its path, its name and its branch in the text, and whether it is on a branch
-typedef struct
-{
-    unsigned int path;
-    unsigned int name;
-    unsigned int branch;
-    int has_branch;
-} GitLogRepo;
-
 // The pane's data: the query and its bytes, whether a change waits and since when, the authors setting, the tree
-// listed and whether the rows stand for it, its repositories, the one chosen and its path, the label of the chosen one,
-// its folder as the graph's root, its branch, the commits counted, the graph with each commit's texts pointing into
-// the text, each commit's day, the first row of each commit and the rows counted, the texts, the commits whose files
-// were read, their files and the files' texts
+// listed and whether the rows stand for it, its repositories as git lists them, the one chosen and its path, the label
+// of the chosen one, its folder as the graph's root, the commits counted, the graph as git_graph.c lays it with each
+// commit's texts in its own list, the first row of each commit and the rows counted, the commits whose files were read,
+// their files, and the list the files' paths stand in
 typedef struct
 {
     char query[CLI_GIT_LOG_QUERY_MAX];
@@ -66,45 +55,32 @@ typedef struct
     int authors;
     char tree[CLI_PATH_MAX_LEN];
     int listed;
-    GitLogRepo repo[CLI_GIT_REPOSITORIES];
-    unsigned int repos;
+    CliRepositories repositories;
     unsigned int chosen;
     char chosen_path[CLI_PATH_MAX_LEN];
     char label[GIT_LOG_LABEL];
     unsigned long long label_length;
     char root[CLI_PATH_MAX_LEN];
-    unsigned int branch;
-    int has_branch;
     char count[GIT_LOG_COUNT];
     unsigned long long count_length;
     CliGraph graph;
-    char day[CLI_GIT_GRAPH][CLI_GIT_LOG_DAY];
     unsigned int first[CLI_GIT_GRAPH];
     unsigned int rows;
-    char text[GIT_LOG_TEXT];
-    unsigned int used;
     GitLogOpened opened[GIT_LOG_OPENED];
     unsigned int opens;
     GitLogFile file[GIT_LOG_FILES];
     unsigned int files;
-    char file_text[GIT_LOG_FILE_TEXT];
-    unsigned int file_used;
+    CliGitText file_text;
 } GitLog;
 
 static GitLog *s_log;
 static void (*s_woken)(void);
 static embed_atomic_u32 s_stale;
-static CliRepositories s_repositories;
 static CliTouchedList s_touched;
 
 typedef struct
 {
     const char *text;
-    unsigned long long length;
-    char *pool;
-    unsigned int capacity;
-    unsigned int *used;
-    const CliGitText *text_read;
     unsigned int at;
     unsigned int which;
     unsigned int *under_out;
@@ -113,6 +89,7 @@ typedef struct
     const char *root;
     unsigned long long now_ms;
     unsigned long long id;
+    CliGitText *list;
 } GitLogCtx;
 
 // the cell taken where none is: it, or NULL where none can be taken
@@ -130,29 +107,10 @@ EMBED_INLINE GitLog *log_of(const GitLogCtx *args)
     return s_log;
 }
 
-// `length` bytes of `text` copied into `pool` of `capacity` after its `used` bytes with a NUL after them: their place,
-// or 0, the empty text's place, where they do not fit
-EMBED_INLINE unsigned int pool_append(const GitLogCtx *args)
+// the text at `at` of `list`
+EMBED_INLINE const char *list_text(const GitLogCtx *args)
 {
-    if (args->length + 1ULL > (unsigned long long)(args->capacity - *args->used))
-    {
-        return 0u;
-    }
-    const unsigned int at = *args->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->pool + at, .src = args->text, .bytes = args->length});
-    args->pool[at + args->length] = '\0';
-    // a text that fits the pool is counted by an unsigned int
-    *args->used = at + (unsigned int)args->length + 1u;
-    return at;
-}
-
-// the text at `at` of a list git wrote copied into the graph's texts: its place
-EMBED_INLINE unsigned int git_text_copy(const GitLogCtx *args)
-{
-    const char *const text =
-        EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = args->text_read, .at = args->at);
-    return EMBED_CALL(pool_append, GitLogCtx, .pool = s_log->text, .capacity = GIT_LOG_TEXT, .used = &s_log->used,
-                      .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_GIT_TEXT}));
+    return EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = args->list, .at = args->at);
 }
 
 // the first sixteen hexadecimal digits of the id `text` as a number
@@ -198,6 +156,12 @@ EMBED_INLINE void day_write(const GitLogCtx *args)
     (void)mmgr_line_finish(&line);
 }
 
+// the id of the commit `at` of the graph
+EMBED_INLINE const char *commit_id(const GitLogCtx *args)
+{
+    return EMBED_CALL(list_text, GitLogCtx, .list = &s_log->graph.text, .at = s_log->graph.item[args->at].id);
+}
+
 // the first row of each commit and the rows counted: the branch's row, then a row a commit and under one whose files
 // show a row each file, or the notice's row where it has none
 EMBED_INLINE void rows_index(const GitLogCtx *args)
@@ -208,8 +172,9 @@ EMBED_INLINE void rows_index(const GitLogCtx *args)
     for (unsigned int at = 0u; at < log->graph.count; at += 1u)
     {
         log->first[at] = rows;
-        const unsigned int opened = EMBED_CALL(
-            opened_at, GitLogCtx, .id = EMBED_CALL(id_number, GitLogCtx, .text = log->text + log->graph.item[at].id));
+        const unsigned int opened =
+            EMBED_CALL(opened_at, GitLogCtx,
+                       .id = EMBED_CALL(id_number, GitLogCtx, .text = EMBED_CALL(commit_id, GitLogCtx, .at = at)));
         rows += 1u;
         if ((opened != GIT_LOG_OPENED) && log->opened[opened].shown)
         {
@@ -247,18 +212,23 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     return low;
 }
 
-// the commits whose files were read forgotten, with their files
+// the commits whose files were read forgotten, with their files and the list their paths stand in
 EMBED_INLINE void opened_reset(const GitLogCtx *args)
 {
     (void)args;
     s_log->opens = 0u;
     s_log->files = 0u;
-    s_log->file_text[0] = '\0';
-    s_log->file_used = 1u;
+    if (s_log->file_text.bytes != NULL)
+    {
+        g_cli_cells->persistent_buf_release(s_log->file_text.bytes, &g_cli_git_cells);
+        s_log->file_text.bytes = NULL;
+        s_log->file_text.used = 0ULL;
+        s_log->file_text.capacity = 0ULL;
+    }
 }
 
-// the files the commit `text` is the id of changed, read from the chosen repository and stored under the commit's
-// number: its place among the commits whose files were read
+// the files the commit `text` is the id of changed, read from the chosen repository, each path under the tree appended
+// to the files' list, and the commit stored under its number: its place among the commits whose files were read
 EMBED_INLINE unsigned int files_read(const GitLogCtx *args)
 {
     GitLog *const log = s_log;
@@ -273,7 +243,15 @@ EMBED_INLINE unsigned int files_read(const GitLogCtx *args)
     {
         EMBED_CALL(opened_reset, GitLogCtx, .at = 0u);
     }
-    const char *const folder = (log->repos != 0u) ? log->text + log->repo[log->chosen].path : log->text;
+    if (log->file_text.bytes == NULL)
+    {
+        log->file_text.standing = 1;
+        EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &log->file_text);
+    }
+    const char *const folder = (log->repositories.count != 0u)
+                                   ? EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text,
+                                                .at = log->repositories.item[log->chosen].path)
+                                   : "";
     const unsigned long long folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN});
     GitLogOpened *const opened = &log->opened[log->opens];
     *opened = (GitLogOpened){args->id, log->files, 0u, 1};
@@ -287,15 +265,13 @@ EMBED_INLINE unsigned int files_read(const GitLogCtx *args)
             mmgr_line_put(&line, folder);
             mmgr_line_ch(&line, '/');
         }
-        mmgr_line_put(&line, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_touched.text,
-                                        .at = s_touched.item[at].path));
+        mmgr_line_put(&line, EMBED_CALL(list_text, GitLogCtx, .list = &s_touched.text, .at = s_touched.item[at].path));
         if (mmgr_line_finish(&line) == 0ULL)
         {
             continue;
         }
-        const unsigned int place =
-            EMBED_CALL(pool_append, GitLogCtx, .pool = log->file_text, .capacity = GIT_LOG_FILE_TEXT,
-                       .used = &log->file_used, .text = path, .length = line.at);
+        const unsigned int place = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &log->file_text,
+                                              .from = path, .length = line.at);
         if (place == 0u)
         {
             break;
@@ -304,27 +280,44 @@ EMBED_INLINE unsigned int files_read(const GitLogCtx *args)
         log->files += 1u;
         opened->count += 1u;
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_touched.text);
+    if (s_touched.text.bytes != NULL)
+    {
+        g_cli_cells->persistent_buf_release(s_touched.text.bytes, &g_cli_git_cells);
+        s_touched.text.bytes = NULL;
+        s_touched.text.used = 0ULL;
+        s_touched.text.capacity = 0ULL;
+    }
     log->opens += 1u;
     return log->opens - 1u;
 }
 
-// the tree at `root` listed: its repositories, the one chosen found again by its path or the tree's own, its label, its
-// folder and its branch, its graph for the query with each commit's texts copied and its day written, and the commits
-// counted; a tree other than the last listed forgets the commits whose files were read
+// the tree at `root` listed: its repositories, the one chosen found again by its path or the tree's own, its label and
+// its folder, its graph for the query, and the commits counted, the lists read from git standing until the next
+// listing; a
+// tree other than the last listed forgets the commits whose files were read
 EMBED_INLINE void list(const GitLogCtx *args)
 {
     GitLog *const log = s_log;
     EMBED_ATOMIC_STORE(&s_stale, 0u);
     log->waits = 0;
     log->listed = 0;
-    log->text[0] = '\0';
-    log->used = 1u;
-    log->repos = 0u;
+    if (log->repositories.text.bytes != NULL)
+    {
+        g_cli_cells->persistent_buf_release(log->repositories.text.bytes, &g_cli_git_cells);
+        log->repositories.text.bytes = NULL;
+        log->repositories.text.used = 0ULL;
+        log->repositories.text.capacity = 0ULL;
+    }
+    if (log->graph.text.bytes != NULL)
+    {
+        g_cli_cells->persistent_buf_release(log->graph.text.bytes, &g_cli_git_cells);
+        log->graph.text.bytes = NULL;
+        log->graph.text.used = 0ULL;
+        log->graph.text.capacity = 0ULL;
+    }
+    log->repositories.count = 0u;
     log->graph.count = 0u;
     log->graph.strokes = 0u;
-    log->has_branch = 0;
-    log->branch = 0u;
     log->label_length = 0ULL;
     log->label[0] = '\0';
     if (args->root == NULL)
@@ -342,33 +335,29 @@ EMBED_INLINE void list(const GitLogCtx *args)
         log->chosen_path[0] = '\0';
         EMBED_CALL(opened_reset, GitLogCtx, .at = 0u);
     }
+    log->repositories.text.standing = 1;
     EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = args->root,
-               .found_repositories_pointer = &s_repositories);
+               .found_repositories_pointer = &log->repositories);
     log->chosen = 0u;
-    for (unsigned int at = 0u; at < s_repositories.count; at += 1u)
+    for (unsigned int at = 0u; at < log->repositories.count; at += 1u)
     {
-        const CliRepository *const repository = &s_repositories.item[at];
-        log->repo[at] = (GitLogRepo){
-            EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &s_repositories.text, .at = repository->path),
-            EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &s_repositories.text, .at = repository->name),
-            EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &s_repositories.text, .at = repository->branch),
-            repository->has_branch};
-        if (cellul.eq(&(CatenaFinitaCfg){
-                .src = log->text + log->repo[at].path, .other = log->chosen_path, .cap = CLI_PATH_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text,
+                                                           .at = log->repositories.item[at].path),
+                                         .other = log->chosen_path,
+                                         .cap = CLI_PATH_MAX_LEN}))
         {
             log->chosen = at;
         }
     }
-    log->repos = s_repositories.count;
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
     VerbaLinea root = {log->root, sizeof(log->root), 0ULL};
     mmgr_line_put(&root, args->root);
     (void)mmgr_line_finish(&root);
-    if (log->repos != 0u)
+    if (log->repositories.count != 0u)
     {
-        const GitLogRepo *const chosen = &log->repo[log->chosen];
+        const CliRepository *const chosen = &log->repositories.item[log->chosen];
         VerbaLinea chosen_path = {log->chosen_path, sizeof(log->chosen_path), 0ULL};
-        mmgr_line_put(&chosen_path, log->text + chosen->path);
+        mmgr_line_put(&chosen_path,
+                      EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text, .at = chosen->path));
         (void)mmgr_line_finish(&chosen_path);
         if (log->chosen_path[0] != '\0')
         {
@@ -376,32 +365,18 @@ EMBED_INLINE void list(const GitLogCtx *args)
                        .joined = log->root);
         }
         VerbaLinea label = {log->label, sizeof(log->label), 0ULL};
-        mmgr_line_put(&label, log->text + chosen->name);
+        mmgr_line_put(&label, EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text, .at = chosen->name));
         if (chosen->has_branch)
         {
             mmgr_line_put(&label, ": ");
-            mmgr_line_put(&label, log->text + chosen->branch);
+            mmgr_line_put(&label,
+                          EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text, .at = chosen->branch));
         }
         log->label_length = mmgr_line_finish(&label) ? label.at : 0ULL;
-        log->branch = chosen->branch;
-        log->has_branch = chosen->has_branch;
     }
+    log->graph.text.standing = 1;
     EMBED_CALL(cli_git_root_query.graph, CliGitRootQueryCfg, .root = log->root, .query = log->query,
                .authors = log->authors, .found_graph_pointer = &log->graph);
-    for (unsigned int at = 0u; at < log->graph.count; at += 1u)
-    {
-        CliDrawn *const drawn = &log->graph.item[at];
-        drawn->id = EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &log->graph.text, .at = drawn->id);
-        drawn->author = EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &log->graph.text, .at = drawn->author);
-        drawn->subject = EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &log->graph.text, .at = drawn->subject);
-        for (unsigned int ref = 0u; ref < drawn->refs; ref += 1u)
-        {
-            drawn->ref[ref] =
-                EMBED_CALL(git_text_copy, GitLogCtx, .text_read = &log->graph.text, .at = drawn->ref[ref]);
-        }
-        EMBED_CALL(day_write, GitLogCtx, .seconds = drawn->when, .out = log->day[at]);
-    }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &log->graph.text);
     VerbaLinea count = {log->count, sizeof(log->count), 0ULL};
     mmgr_line_decimal(&count, log->graph.count, 1u);
     mmgr_line_put(&count, (log->graph.count == 1u) ? " commit " : " commits ");
@@ -487,13 +462,14 @@ int cli_git_log_key(const CliGitLogCfg *args)
 void cli_git_log_option(const CliGitLogCfg *args)
 {
     GitLog *const log = EMBED_CALL(log_of, GitLogCtx, .at = 0u);
-    if ((log == NULL) || (args->which != CLI_GIT_LOG_REPO) || (log->repos < 2u))
+    if ((log == NULL) || (args->which != CLI_GIT_LOG_REPO) || (log->repositories.count < 2u))
     {
         return;
     }
-    const unsigned int next = (log->chosen + 1u < log->repos) ? log->chosen + 1u : 0u;
+    const unsigned int next = (log->chosen + 1u < log->repositories.count) ? log->chosen + 1u : 0u;
     VerbaLinea chosen_path = {log->chosen_path, sizeof(log->chosen_path), 0ULL};
-    mmgr_line_put(&chosen_path, log->text + log->repo[next].path);
+    mmgr_line_put(&chosen_path, EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text,
+                                           .at = log->repositories.item[next].path));
     (void)mmgr_line_finish(&chosen_path);
     EMBED_CALL(list, GitLogCtx, .root = args->root);
 }
@@ -533,7 +509,7 @@ const char *cli_git_log_query(const CliGitLogCfg *args)
 const char *cli_git_log_repo(const CliGitLogCfg *args)
 {
     const GitLog *const log = s_log;
-    *args->count_out = ((log != NULL) && log->listed) ? log->repos : 0u;
+    *args->count_out = ((log != NULL) && log->listed) ? log->repositories.count : 0u;
     return ((log != NULL) && log->listed) ? log->label : "";
 }
 
@@ -587,7 +563,7 @@ unsigned int cli_git_log_rows(const CliGitLogCfg *args)
 
 int cli_git_log_row(const CliGitLogCfg *args)
 {
-    const GitLog *const log = s_log;
+    GitLog *const log = s_log;
     CliGitLogRow *const row = args->row;
     memor.set(&(MemoriaCfg){.dst = row, .val = 0, .bytes = sizeof(*row)});
     if ((log == NULL) || !log->listed || (args->at >= log->rows))
@@ -596,8 +572,12 @@ int cli_git_log_row(const CliGitLogCfg *args)
     }
     if (args->at == 0u)
     {
+        const CliRepository *const chosen =
+            (log->repositories.count != 0u) ? &log->repositories.item[log->chosen] : NULL;
         row->kind = CLI_GIT_LOG_ROW_BRANCH;
-        row->text = log->has_branch ? log->text + log->branch : GIT_LOG_NO_BRANCH;
+        row->text = ((chosen != NULL) && chosen->has_branch)
+                        ? EMBED_CALL(list_text, GitLogCtx, .list = &log->repositories.text, .at = chosen->branch)
+                        : GIT_LOG_NO_BRANCH;
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = CLI_NAME_MAX_LEN});
         row->second = log->count;
         row->second_length = log->count_length;
@@ -606,20 +586,20 @@ int cli_git_log_row(const CliGitLogCfg *args)
     unsigned int under = 0u;
     const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under);
     const CliDrawn *const drawn = &log->graph.item[commit];
-    const char *const id = log->text + drawn->id;
+    const char *const id = EMBED_CALL(commit_id, GitLogCtx, .at = commit);
     const unsigned int opened = EMBED_CALL(opened_at, GitLogCtx, .id = EMBED_CALL(id_number, GitLogCtx, .text = id));
     row->id = id;
     if (under == 0u)
     {
         row->kind = CLI_GIT_LOG_ROW_COMMIT;
-        row->text = log->text + drawn->subject;
+        row->text = EMBED_CALL(list_text, GitLogCtx, .list = &log->graph.text, .at = drawn->subject);
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = CLI_GIT_TEXT});
         if (log->authors)
         {
-            row->second = log->text + drawn->author;
+            row->second = EMBED_CALL(list_text, GitLogCtx, .list = &log->graph.text, .at = drawn->author);
             row->second_length = cellul.len(&(CatenaFinitaCfg){.src = row->second, .cap = CLI_NAME_MAX_LEN});
         }
-        row->day = log->day[commit];
+        EMBED_CALL(day_write, GitLogCtx, .seconds = drawn->when, .out = row->day);
         row->open = (opened != GIT_LOG_OPENED) && log->opened[opened].shown;
         row->merge = drawn->parents > 1u;
         row->lane_at = drawn->lane_at;
@@ -648,7 +628,7 @@ int cli_git_log_row(const CliGitLogCfg *args)
     }
     const GitLogFile *const file = &log->file[shown->first + under - 1u];
     row->kind = CLI_GIT_LOG_ROW_FILE;
-    row->path = log->file_text + file->path;
+    row->path = EMBED_CALL(list_text, GitLogCtx, .list = &log->file_text, .at = file->path);
     row->state = file->state;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = row->path, .cap = CLI_PATH_MAX_LEN});
     const unsigned long long cut = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
@@ -677,7 +657,8 @@ int cli_git_log_ref(const CliGitLogCfg *args)
     }
     // a name as git writes it: `HEAD -> ` before the branch HEAD stands on, `HEAD` alone where it stands on none,
     // and `tag: ` before a tag
-    const char *name = log->text + log->graph.item[commit].ref[args->which];
+    const char *name =
+        EMBED_CALL(list_text, GitLogCtx, .list = &log->graph.text, .at = log->graph.item[commit].ref[args->which]);
     if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "HEAD -> ", .cap = CLI_NAME_MAX_LEN}))
     {
         ref->head = 1;
@@ -701,7 +682,7 @@ int cli_git_log_ref(const CliGitLogCfg *args)
 EMBED_INLINE void commit_toggle(const GitLogCtx *args)
 {
     GitLog *const log = s_log;
-    const char *const id = log->text + log->graph.item[args->which].id;
+    const char *const id = EMBED_CALL(commit_id, GitLogCtx, .at = args->which);
     const unsigned long long number = EMBED_CALL(id_number, GitLogCtx, .text = id);
     const unsigned int opened = EMBED_CALL(opened_at, GitLogCtx, .id = number);
     if (opened == GIT_LOG_OPENED)
@@ -747,7 +728,7 @@ int cli_git_log_toggle_id(const CliGitLogCfg *args)
     for (unsigned int at = 0u; at < log->graph.count; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = log->text + log->graph.item[at].id, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
+                .src = EMBED_CALL(commit_id, GitLogCtx, .at = at), .other = args->name, .cap = CLI_NAME_MAX_LEN}))
         {
             EMBED_CALL(commit_toggle, GitLogCtx, .which = at);
             return 1;
@@ -778,21 +759,17 @@ int cli_git_log_menu(const CliGitLogCfg *args)
     {
         return 0;
     }
-    char words[CLI_PATH_MAX_LEN + 2u];
-    VerbaLinea line = {words, sizeof(words), 0ULL};
-    mmgr_line_put(&line, (row.kind == CLI_GIT_LOG_ROW_COMMIT) ? row.id : row.path);
-    mmgr_line_ch(&line, '\n');
-    (void)mmgr_line_finish(&line);
+    // the rows run with the commit's id or the file's path, which stand in the lists while the menu is open
     cli_menus_own_begin();
     if (row.kind == CLI_GIT_LOG_ROW_FILE)
     {
-        cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u});
         return 1;
     }
     cli_menus_own_row(
-        &(CliItem){row.open ? "Close Files" : "Open Files", "commit-files", "", words, "", "", 0, 0, 0, 0, 0u});
+        &(CliItem){row.open ? "Close Files" : "Open Files", "commit-files", "", row.id, "", "", 0, 0, 0, 0, 0u});
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy Commit ID", "commit-copy-id", "", words, "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Copy Commit Message", "commit-copy-message", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Copy Commit ID", "commit-copy-id", "", row.id, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Copy Commit Message", "commit-copy-message", "", row.id, "", "", 0, 0, 0, 0, 0u});
     return 1;
 }

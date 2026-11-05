@@ -552,7 +552,13 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    cli_schema_read_text_internal.read_free(args);
+    g_cli_cells->persistent_buf_release(args->read_out->node, &g_cli_schema_cells);
+    args->read_out->node = NULL;
+    args->read_out->member = NULL;
+    args->read_out->pool = NULL;
+    args->read_out->nodes_max = 0u;
+    args->read_out->members_max = 0u;
+    args->read_out->pool_max = 0u;
     // a value takes two bytes of the text at the least with its comma, a member five, a text no more than its own bytes
     // and its end; the values a check makes stand past those the read makes, one for each value and member
     const unsigned long long values = (size / 2ULL) + 2ULL;

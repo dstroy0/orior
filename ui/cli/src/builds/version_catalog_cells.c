@@ -82,52 +82,49 @@ int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
     if ((parsed->section == NULL) || (parsed->field == NULL) || (parsed->item == NULL) || (parsed->error == NULL) ||
         (parsed->pool == NULL) || (parsed->line == NULL))
     {
-        cli_versions_release();
+        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+        g_cli_versions_libraries.at = NULL;
+        g_cli_versions_libraries.size = NULL;
+        g_cli_versions_libraries.text = NULL;
+        g_cli_versions_libraries.count = 0u;
+        g_cli_versions_libraries.most = 0u;
+        g_cli_versions_libraries.used = 0u;
+        g_cli_versions_libraries.capacity = 0u;
+        g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+        g_cli_versions_known.at = NULL;
+        g_cli_versions_known.size = NULL;
+        g_cli_versions_known.text = NULL;
+        g_cli_versions_known.count = 0u;
+        g_cli_versions_known.most = 0u;
+        g_cli_versions_known.used = 0u;
+        g_cli_versions_known.capacity = 0u;
+        CliVersionsParsed *const parsed = &g_cli_versions;
+        g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+        parsed->line = NULL;
+        parsed->pool = NULL;
+        parsed->error = NULL;
+        parsed->item = NULL;
+        parsed->field = NULL;
+        parsed->section = NULL;
+        parsed->sections = 0u;
+        parsed->sections_capacity = 0u;
+        parsed->fields = 0u;
+        parsed->fields_capacity = 0u;
+        parsed->items = 0u;
+        parsed->items_capacity = 0u;
+        parsed->errors = 0u;
+        parsed->errors_capacity = 0u;
+        parsed->used = 0u;
+        parsed->pool_capacity = 0u;
+        parsed->longest = 0ULL;
         return 0;
     }
     return 1;
-}
-
-// a section's accessors given back
-EMBED_INLINE void cells_names_free(const VersionCatalogCellsCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->names->text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(args->names->at, &g_cli_versions_cells);
-    args->names->at = NULL;
-    args->names->size = NULL;
-    args->names->text = NULL;
-    args->names->count = 0u;
-    args->names->most = 0u;
-    args->names->used = 0u;
-    args->names->capacity = 0u;
-}
-
-void cli_versions_release(void)
-{
-    EMBED_CALL(cells_names_free, VersionCatalogCellsCtx, .names = &g_cli_versions_libraries);
-    EMBED_CALL(cells_names_free, VersionCatalogCellsCtx, .names = &g_cli_versions_known);
-    CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
-    parsed->line = NULL;
-    parsed->pool = NULL;
-    parsed->error = NULL;
-    parsed->item = NULL;
-    parsed->field = NULL;
-    parsed->section = NULL;
-    parsed->sections = 0u;
-    parsed->sections_capacity = 0u;
-    parsed->fields = 0u;
-    parsed->fields_capacity = 0u;
-    parsed->items = 0u;
-    parsed->items_capacity = 0u;
-    parsed->errors = 0u;
-    parsed->errors_capacity = 0u;
-    parsed->used = 0u;
-    parsed->pool_capacity = 0u;
-    parsed->longest = 0ULL;
 }

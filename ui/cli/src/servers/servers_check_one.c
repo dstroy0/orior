@@ -400,7 +400,10 @@ EMBED_INLINE void check_one_window_save(const ServersCheckOneCtx *args)
                    .out = &args->sliced->all, .indent = 0u, .sorted = 0);
         args->sliced->written = 1;
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // a window of the file given its server as its slice `cut`, the server queried or waited on for its diagnostics, and
@@ -581,5 +584,5 @@ void cli_servers_check_one(const CliServersPathSinkCtx *args)
     EMBED_CALL(check_one_run, ServersCheckOneCtx, .checker = args->checker, .path = args->path,
                .text = (const char *)mapped, .size = size, .one = args->one_servers_waiting_pointer,
                .sink = args->sink);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_servers_cells));
 }

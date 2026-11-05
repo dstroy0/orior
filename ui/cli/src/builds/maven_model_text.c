@@ -4,13 +4,6 @@
 // managed dependencies' lists and its texts, and the cell given back
 #include "maven_internal.h"
 
-void cli_maven_model_free(const CliMavenTextSizeModelCtx *args)
-{
-    CliMavenModel *model = args->model;
-    g_cli_cells->persistent_buf_release(model->name_at, &g_cli_maven_model_cells);
-    *model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
-}
-
 void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args)
 {
     const unsigned long long lists_bytes =

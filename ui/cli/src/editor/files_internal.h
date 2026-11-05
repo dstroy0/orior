@@ -46,7 +46,6 @@ typedef struct
 // given back the same way
 void *cli_files_cell_alloc(const CliFilesBytesCtx *args);
 void *cli_files_work_alloc(const CliFilesBytesCtx *args);
-void cli_files_cell_free(const CliFilesCtx *args);
 int cli_files_init(const CliFilesBytesCtx *args);
 int cli_files_work_init(const CliFilesBytesCtx *args);
 int cli_files_append(const CliFilesPathLengthCtx *args);
@@ -203,6 +202,7 @@ struct CliFilesPickedCtx
     const char *root;
     int (*filter)(const CliEachPathCfg *args);
     void *context;
+    int standing;
 };
 
 struct CliFilesOutCtx
@@ -293,15 +293,6 @@ EMBED_TABLE_STORAGE CliFilesBytesNs cli_files_bytes_internal EMBED_UNUSED = {
     .work_init = cli_files_work_init,
     .sort = cli_files_sort,
     .clear = cli_files_clear,
-};
-
-typedef struct
-{
-    void (*cell_free)(const CliFilesCtx *args);
-} CliFilesNsTable;
-EMBED_TABLE_LAYOUT(CliFilesNsTable, cell_free);
-EMBED_TABLE_STORAGE CliFilesNsTable cli_files_internal EMBED_UNUSED = {
-    .cell_free = cli_files_cell_free,
 };
 
 typedef struct

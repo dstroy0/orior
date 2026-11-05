@@ -515,8 +515,14 @@ static void view_run(void *context)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &s_view.wake, .seen = seen,
                          .milliseconds_u64 = wait_ms);
     }
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &s_view.icon_small);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &s_view.icon_large);
+    g_cli_cells->persistent_buf_release(s_view.icon_small.pixels, &g_gui_raster_cells);
+    s_view.icon_small.pixels = NULL;
+    s_view.icon_small.width = 0u;
+    s_view.icon_small.height = 0u;
+    g_cli_cells->persistent_buf_release(s_view.icon_large.pixels, &g_gui_raster_cells);
+    s_view.icon_large.pixels = NULL;
+    s_view.icon_large.width = 0u;
+    s_view.icon_large.height = 0u;
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = window);
     (void)EMBED_ATOMIC_ADD_32(&s_view.running, (embed_u32)-1);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.ended);

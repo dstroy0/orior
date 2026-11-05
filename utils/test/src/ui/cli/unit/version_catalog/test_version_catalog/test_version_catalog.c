@@ -70,7 +70,48 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
         named = (g_cli_versions.section[at].name_size == CLI_UNITY_LENGTH(s_names[at])) &&
                 (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = g_cli_versions.section[at].name_at), .other = s_names[at], .bytes = g_cli_versions.section[at].name_size}) == 0);
     }
-    cli_versions_release();
+    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+    g_cli_versions_libraries.at = NULL;
+    g_cli_versions_libraries.size = NULL;
+    g_cli_versions_libraries.text = NULL;
+    g_cli_versions_libraries.count = 0u;
+    g_cli_versions_libraries.most = 0u;
+    g_cli_versions_libraries.used = 0u;
+    g_cli_versions_libraries.capacity = 0u;
+    g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+    g_cli_versions_known.at = NULL;
+    g_cli_versions_known.size = NULL;
+    g_cli_versions_known.text = NULL;
+    g_cli_versions_known.count = 0u;
+    g_cli_versions_known.most = 0u;
+    g_cli_versions_known.used = 0u;
+    g_cli_versions_known.capacity = 0u;
+    CliVersionsParsed *const parsed = &g_cli_versions;
+    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+    parsed->line = NULL;
+    parsed->pool = NULL;
+    parsed->error = NULL;
+    parsed->item = NULL;
+    parsed->field = NULL;
+    parsed->section = NULL;
+    parsed->sections = 0u;
+    parsed->sections_capacity = 0u;
+    parsed->fields = 0u;
+    parsed->fields_capacity = 0u;
+    parsed->items = 0u;
+    parsed->items_capacity = 0u;
+    parsed->errors = 0u;
+    parsed->errors_capacity = 0u;
+    parsed->used = 0u;
+    parsed->pool_capacity = 0u;
+    parsed->longest = 0ULL;
     TEST_ASSERT_TRUE(parsed);
     TEST_ASSERT_EQUAL_UINT(0u, errors);
     TEST_ASSERT_EQUAL_UINT(5u, sections);
@@ -83,7 +124,13 @@ void test_a_librarys_alias_reads_its_module_and_version(void)
     const CliVersionsAlias *const library = first_alias(CLI_VERSIONS_LIBRARIES);
     CLI_TEST_ASSERT_TEXT("groovy-core", s_aliases.text + library->alias_at, library->alias_size);
     CLI_TEST_ASSERT_TEXT("org.codehaus.groovy:groovy, version groovy", s_aliases.text + library->about_at, library->about_size);
-    EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free, CliVersionCatalogTextSizeAliasesCtx, .aliases = &s_aliases);
+    g_cli_cells->persistent_buf_release(s_aliases.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(s_aliases.alias, &g_cli_versions_cells);
+    s_aliases.alias = NULL;
+    s_aliases.text = NULL;
+    s_aliases.count = 0u;
+    s_aliases.used = 0u;
+    s_aliases.capacity = 0u;
 }
 
 void test_a_bundles_alias_reads_its_libraries(void)
@@ -91,7 +138,13 @@ void test_a_bundles_alias_reads_its_libraries(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx, .text = s_catalog, .size = sizeof(s_catalog) - 1u, .aliases = &s_aliases));
     const CliVersionsAlias *const bundle = first_alias(CLI_VERSIONS_BUNDLES);
     CLI_TEST_ASSERT_TEXT("groovy-core, groovy-jsn", s_aliases.text + bundle->about_at, bundle->about_size);
-    EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free, CliVersionCatalogTextSizeAliasesCtx, .aliases = &s_aliases);
+    g_cli_cells->persistent_buf_release(s_aliases.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(s_aliases.alias, &g_cli_versions_cells);
+    s_aliases.alias = NULL;
+    s_aliases.text = NULL;
+    s_aliases.count = 0u;
+    s_aliases.used = 0u;
+    s_aliases.capacity = 0u;
 }
 
 void test_a_version_reference_no_version_names_is_found(void)

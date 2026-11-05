@@ -163,7 +163,7 @@ int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned 
             *place = record.place;
         }
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_view_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_view_cells));
     return found && (place->width >= CLI_POSITION_MIN_WIDTH) && (place->height >= CLI_POSITION_MIN_HEIGHT) &&
            EMBED_CALL(place_fit, CliPlaceCtx, .position_out = place, .areas = areas, .count = count);
 }
@@ -213,5 +213,5 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
                          .bytes = written, .size = used);
         g_cli_cells->persistent_buf_release(written, &g_cli_view_cells);
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_view_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_view_cells));
 }

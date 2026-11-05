@@ -14,7 +14,7 @@ typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
 // the bytes of each cell a store takes, which fits many lines of the most bytes one takes
 #define CLI_HIT_CELL_BYTES (64ULL * 1024ULL)
 
-// the cells the lines a search finds are stored in, counted, each given back as the search ends
+// the cells the lines a search finds are stored in, counted, each released as the search ends
 extern CellOwner g_cli_search_cells;
 
 // A line found, stored until the search ends: the line its worker stored after it, the bytes of its text, which stand
@@ -38,8 +38,9 @@ struct CliHitCell
     unsigned long long used;
 };
 
-// One worker's lines: the first still to be read back, the last stored, how many were stored, and the cells they stand
-// in, first and last. All zero is an empty store
+// One worker's lines: the first still to be read back, the last stored, how many were stored, the cells they stand in,
+// first and last, and whether the cells stand after the search, in the persistent tier, for the window's rows to point
+// into. All zero is an empty store
 typedef struct
 {
     CliSearchHit *first;
@@ -47,6 +48,7 @@ typedef struct
     unsigned int lives;
     CliHitCell *cell_first;
     CliHitCell *cell_last;
+    int standing;
 } CliSearchHits;
 
 // a line stored last in the store `hits`, its text cut to CLI_HIT_BYTES. A store with CLI_HITS_MAX lines lets the line
@@ -54,8 +56,7 @@ typedef struct
 void cli_hits_put(const CliFilesSearchHitsCfg *args);
 // the first line left among the `stores` stores from `hits`, taken off its store: NULL where none is left
 const CliSearchHit *cli_hits_next(const CliFilesSearchHitsCfg *args);
-// the cells of the `stores` stores from `hits` given back, each store empty again
-void cli_hits_free(const CliFilesSearchHitsCfg *args);
+// the cells of the `stores` stores from `hits` released, each store empty again
 
 struct CliFilesSearchHitsCfg
 {
@@ -68,17 +69,26 @@ struct CliFilesSearchHitsCfg
     unsigned long long size;
 };
 
+// the lines the last search left standing, where it was asked to (files_search.c): how many; the line `at`, in the
+// order of the files and of the lines in each; how many files they were found in, and the first line of the file
+// `file` among them, the count where `file` is past the last; a standing line's file's path from the tree's top; and
+// the lines let go with the files they were found in, their cells released
+unsigned int cli_search_standing_count(void);
+const CliSearchHit *cli_search_standing_hit(unsigned int at);
+unsigned int cli_search_standing_files(void);
+unsigned int cli_search_standing_file_first(unsigned int file);
+const char *cli_search_standing_path(const CliSearchHit *hit);
+void cli_search_standing_free(void);
+
 typedef struct
 {
     void (*hits_put)(const CliFilesSearchHitsCfg *args);
     const CliSearchHit *(*hits_next)(const CliFilesSearchHitsCfg *args);
-    void (*hits_free)(const CliFilesSearchHitsCfg *args);
 } CliFilesSearchHitsNs;
-EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_put, hits_next, hits_free);
+EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_put, hits_next);
 EMBED_TABLE_STORAGE CliFilesSearchHitsNs cli_files_search_hits EMBED_UNUSED = {
     .hits_put = cli_hits_put,
     .hits_next = cli_hits_next,
-    .hits_free = cli_hits_free,
 };
 
 #endif

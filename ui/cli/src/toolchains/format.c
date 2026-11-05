@@ -7,14 +7,6 @@
 
 CliFormatWorkState g_cli_format;
 
-void cli_format_release(void)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_format.json);
-    g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
-    g_cli_format.settings = NULL;
-    g_cli_format.settings_size = 0ULL;
-}
-
 // A choice of a file's language: the extension in lower case, and the plugin chosen and where it came from
 typedef struct
 {
@@ -91,7 +83,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->id, .cap = CLI_CELLS_POOL}) + 1u});
         s_choice.chosen = 1;
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 int cli_format_language_get(const CliFormatCfg *args)
@@ -126,7 +121,10 @@ int cli_format_language_get(const CliFormatCfg *args)
 unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
 {
     CliJson *const json = &g_cli_format.json;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = json, .nodes_more = 0u, .text_more = 0ULL);
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -206,7 +204,13 @@ int cli_format_program_get(const CliFormatLanguageCfg *args)
                                 .src = named,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_format_release();
+    g_cli_cells->persistent_buf_release(
+        g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_format.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+    g_cli_format.settings = NULL;
+    g_cli_format.settings_size = 0ULL;
     return named != NULL;
 }
 
@@ -308,7 +312,13 @@ int cli_format(const CliFormatPathCfg *args)
                                          .language = args->language, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
     {
-        cli_format_release();
+        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_format.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_format.settings = NULL;
+        g_cli_format.settings_size = 0ULL;
         return 0;
     }
     const unsigned int format = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -338,7 +348,13 @@ int cli_format(const CliFormatPathCfg *args)
     {
         mmgr_line_put(args->err_msg, (tool_name != NULL) ? tool_name : program_name);
         mmgr_line_put(args->err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
-        cli_format_release();
+        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_format.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_format.settings = NULL;
+        g_cli_format.settings_size = 0ULL;
         return 0;
     }
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -399,7 +415,13 @@ int cli_format(const CliFormatPathCfg *args)
                                    .folder = in_folder ? folder : NULL, .settings = settings, .count = 1u,
                                    .input = args->text, .length = args->length, .milliseconds_u64 = CLI_FORMAT_PATIENCE,
                                    .run_result = run_result, .err_msg = &unstarted);
-    cli_format_release();
+    g_cli_cells->persistent_buf_release(
+        g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_format.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+    g_cli_format.settings = NULL;
+    g_cli_format.settings_size = 0ULL;
     const int formatted = started && !run_result->stopped && (run_result->code == 0LL);
     if (!started)
     {

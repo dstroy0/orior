@@ -92,12 +92,12 @@ int main(void)
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = 0u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
-                  (strcmp(rows[0].label, "Close") == 0) && (strcmp(rows[0].args, "src\n") == 0) &&
+                  (strcmp(rows[0].label, "Close") == 0) && (strcmp(rows[0].args, "src") == 0) &&
                   (strcmp(rows[2].command, "file-copy-path") == 0),
               "the open folder's menu closes it and copies its path");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Open") == 0) &&
-                  (strcmp(rows[0].args, "src/main.c\n") == 0),
+                  (strcmp(rows[0].args, "src/main.c") == 0),
               "the file's menu opens it");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = GUI_PANE_OFF_ROWS, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 2u) &&
@@ -136,8 +136,20 @@ int main(void)
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
               "no problem stands, so no row is pressed");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
-    EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &icons);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
+    {
+        if (icons.entry[at].used)
+        {
+            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            icons.entry[at].mask_bits.cover = NULL;
+            icons.entry[at].used = 0;
+        }
+    }
+    icons.count = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     return cli_on_check();
 }

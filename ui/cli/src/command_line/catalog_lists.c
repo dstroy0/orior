@@ -67,7 +67,10 @@ static void cli_entry_each(const CliEachNameIsFolderCfg *args)
 void cli_catalog_entries(const CliCatalogFolderCtx *args)
 {
     CliEntries *entries = args->entries;
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = entries);
+    g_cli_cells->persistent_buf_release(entries->name, &g_cli_catalog_cells);
+    entries->name = NULL;
+    entries->count = 0u;
+    entries->capacity = 0u;
     CliEntryWalk walk = {entries, args->folders, args->filter, 0u};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_entry_count, .context_bytess = &walk);
@@ -100,24 +103,4 @@ int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args)
         args->paths->capacity = (args->paths->path != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
     return args->most <= args->paths->capacity;
-}
-
-void cli_catalog_entries_free(const CliCatalogFolderCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->entries->name, &g_cli_catalog_cells);
-    args->entries->name = NULL;
-    args->entries->count = 0u;
-    args->entries->capacity = 0u;
-}
-
-void cli_catalog_paths_free(const CliCatalogMaxCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->paths->path, &g_cli_catalog_cells);
-    args->paths->path = NULL;
-    args->paths->capacity = 0u;
-}
-
-void cli_catalog_text_free(const CliCatalogCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->text, &g_cli_catalog_cells);
 }

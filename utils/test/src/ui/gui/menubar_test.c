@@ -85,7 +85,7 @@ int main(void)
     VerbaLinea read_err_msg = {read_text, sizeof(read_text), 0ULL};
     cli_check(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &read_err_msg), "the catalog is read");
     cli_menus_own_begin();
-    cli_menus_own_row(&(CliItem){"Open", "file-open", "", "a b.txt\nsecond\n", "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Open", "file-open", "", "a b.txt", "", "", 0, 0, 0, 0, 0u});
     cli_menus_own_line();
     cli_check(cli_menus_own_named("close-all", ""), "the catalog's item is added by its command");
     unsigned int built = 0u;
@@ -93,12 +93,11 @@ int main(void)
     cli_check((built == 3u) && (strcmp(rows[0].label, "Open") == 0) && rows[1].line &&
                   (strcmp(rows[2].command, "close-all") == 0) && (rows[2].label[0] != '\0'),
               "the rows stand as built, the catalog's with its label");
-    char text[CLI_MENU_OWN_TEXT];
-    const char *words[CLI_MENU_OWN_WORDS];
-    cli_check((cli_menus_own_words(rows[0].args, text, words) == 2u) && (strcmp(words[0], "a b.txt") == 0) &&
-                  (strcmp(words[1], "second") == 0),
-              "a row's words are read from its args, a path with a space one word");
-    cli_check(cli_menus_own_words(rows[2].args, text, words) == 0u, "a catalog item's pattern reads as no words");
+    cli_check((cli_menus_own_word(rows[0].args) != NULL) && (strcmp(cli_menus_own_word(rows[0].args), "a b.txt") == 0),
+              "a row's word is its args as the part passed them, a path with a space one word");
+    cli_check(cli_menus_own_word(rows[2].args) == NULL, "a catalog item's pattern reads as no word");
+    cli_check(strcmp(cli_menus_own_word("[on|off]"), "[on|off]") == 0,
+              "a word standing outside the catalog is the row's, whatever it reads as");
     cli_menus_own_open(rows, built, CLI_MENU_PLACE_POINT, 300, 100);
     CliItem read;
     cli_check(cli_menus_row(0u, 0u, &read) && (strcmp(read.command, "file-open") == 0) && !cli_menus_selectable(0u, 1u),

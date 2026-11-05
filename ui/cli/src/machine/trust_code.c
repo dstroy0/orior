@@ -33,19 +33,13 @@ typedef struct
 
 static CliTrustFound s_found[CLI_TRUST_TREES];
 
-void cli_trust_code_free(const CliTrustTreeCodeCfg *args)
-{
-    CliTrustCode *code = args->code;
-    g_cli_cells->persistent_buf_release(code->paths, &g_cli_trust_cells);
-    *code = (CliTrustCode){NULL, 0ULL, 0u};
-}
-
 void cli_trust_forget(void)
 {
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         s_found[at].has = 0;
-        EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &s_found[at].code);
+        g_cli_cells->persistent_buf_release((&s_found[at].code)->paths, &g_cli_trust_cells);
+        *(&s_found[at].code) = (CliTrustCode){NULL, 0ULL, 0u};
     }
 }
 
@@ -205,7 +199,7 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
         text[size] = '\0';
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_trust_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_trust_cells));
     return text;
 }
 
@@ -379,7 +373,8 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_CELLS_POOL}) + 1u});
     one->when = cli_clock_milliseconds();
     one->has = 1;
-    EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &one->code);
+    g_cli_cells->persistent_buf_release(one->code.paths, &g_cli_trust_cells);
+    *(&one->code) = (CliTrustCode){NULL, 0ULL, 0u};
     one->code = looked;
     const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = looked.paths, .size = looked.size,
                                   .count = looked.count, .code = code);
@@ -398,7 +393,8 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
     const int blocked =
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||
         (code.count != 0u);
-    EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &code);
+    g_cli_cells->persistent_buf_release(code.paths, &g_cli_trust_cells);
+    *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
 
@@ -420,7 +416,8 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args)
                              .names = s_prettier, .count = 6u);
         path += length + 1u;
     }
-    EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &code);
+    g_cli_cells->persistent_buf_release(code.paths, &g_cli_trust_cells);
+    *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
 

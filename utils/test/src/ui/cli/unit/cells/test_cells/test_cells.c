@@ -55,7 +55,7 @@ static void assert_full_text_pages(const char *name, unsigned int pages)
     TEST_ASSERT_EQUAL_UINT64(pages * PAGE, size);
     TEST_ASSERT_EQUAL_UINT64(pages * PAGE, cellul.len(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_CELLS_POOL}));
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_CELLS_POOL, .byte = '!'}));
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_checks_cells));
 }
 
 void setUp(void)
@@ -179,7 +179,8 @@ void test_the_languages_for_a_call_stay_out_of_the_persistent_tier(void)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int reserved = languages.pair != NULL;
     peaks_read();
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
+    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    *(&languages) = (CliLanguages){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(reserved);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
@@ -191,7 +192,8 @@ void test_the_languages_that_outlive_a_call_are_in_the_persistent_tier(void)
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
     const int reserved = languages.pair != NULL;
     peaks_read();
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
+    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    *(&languages) = (CliLanguages){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(reserved);
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, s_persistent);
 }
@@ -202,7 +204,12 @@ void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
     CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
     peaks_read();
     TEST_ASSERT_NOT_NULL(read);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = read);
+    if (read != NULL)
+    {
+        g_cli_cells->persistent_buf_release(read->languages.pair, &g_cli_plugins_cells);
+        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(read, &g_cli_code_cells);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
 

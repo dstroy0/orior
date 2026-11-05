@@ -140,7 +140,10 @@ static void graph_created(void)
 static void graph_read(const char *words, int authors)
 {
     graph_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_graph.text);
+    g_cli_cells->persistent_buf_release(s_graph.text.bytes, &g_cli_git_cells);
+    s_graph.text.bytes = NULL;
+    s_graph.text.used = 0ULL;
+    s_graph.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_query.graph, CliGitRootQueryCfg, .root = s_graph_root, .query = words, .authors = authors, .found_graph_pointer = &s_graph);
 }
 
@@ -172,7 +175,10 @@ static void line_history_read(void)
     static const char s_text[] = "one\nsecond\nnew\n";
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     lines_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_lines.text);
+    g_cli_cells->persistent_buf_release(s_lines.text.bytes, &g_cli_git_cells);
+    s_lines.text.bytes = NULL;
+    s_lines.text.used = 0ULL;
+    s_lines.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_length.line_history, CliGitLengthCfg, .root = s_lines_sub, .file = "a.txt", .text_text = s_text, .length = sizeof(s_text) - 1u, .found_line_history_pointer = &s_lines, .err_msg = &err_msg));
 }
 
@@ -215,11 +221,17 @@ static void repositories_created(void)
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = libs);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_repos_root, .relative = "libs/inner", .joined = s_repos_inner);
     repository_started(s_repos_inner, "trunk", "t", "b.txt", "two\n");
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repos.text);
+    g_cli_cells->persistent_buf_release(s_repos.text.bytes, &g_cli_git_cells);
+    s_repos.text.bytes = NULL;
+    s_repos.text.used = 0ULL;
+    s_repos.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = s_repos_root, .found_repositories_pointer = &s_repos);
     cli_unity_file(s_repos_root, "a.txt", "one more\n");
     cli_unity_file(s_repos_inner, "b.txt", "two more\n");
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_changed.text);
+    g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
+    s_changed.text.bytes = NULL;
+    s_changed.text.used = 0ULL;
+    s_changed.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = s_repos_root, .repos = NULL, .count = 0u, .named = 0, .found_changed_list_pointer = &s_changed);
     s_repos_changed_before = s_changed.count;
     s_repos_a_changed = changed_contains("a.txt", 'M');
@@ -229,7 +241,10 @@ static void repositories_created(void)
     text_stored(s_repos_outer_subject, sizeof(s_repos_outer_subject), s_out);
     (void)git_run_result(s_repos_inner, "log", "-1", "--format=%s", NULL);
     text_stored(s_repos_inner_subject, sizeof(s_repos_inner_subject), s_out);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_changed.text);
+    g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
+    s_changed.text.bytes = NULL;
+    s_changed.text.used = 0ULL;
+    s_changed.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = s_repos_root, .repos = NULL, .count = 0u, .named = 0, .found_changed_list_pointer = &s_changed);
     s_repos_changed_after = s_changed.count;
 }
@@ -257,7 +272,10 @@ static void changes_stashed(void)
 // the stashes listed
 static void stashes_read(void)
 {
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_stashes.text);
+    g_cli_cells->persistent_buf_release(s_stashes.text.bytes, &g_cli_git_cells);
+    s_stashes.text.bytes = NULL;
+    s_stashes.text.used = 0ULL;
+    s_stashes.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_found_stashes.stashes, CliGitRootFoundStashesCfg, .root = s_root, .found_stashes_pointer = &s_stashes);
 }
 
@@ -288,7 +306,10 @@ void test_a_commit_lists_the_files_it_changed_a_rename_with_the_name_it_had(void
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_touched.text);
+    g_cli_cells->persistent_buf_release(s_touched.text.bytes, &g_cli_git_cells);
+    s_touched.text.bytes = NULL;
+    s_touched.text.used = 0ULL;
+    s_touched.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_err_msg.touch, CliGitRootErrMsgCfg, .root = s_graph_root, .id = s_second_id, .found_touched_list_pointer = &s_touched, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(3u, s_touched.count);
     TEST_ASSERT_TRUE(touched_contains("b.txt D"));
@@ -300,7 +321,10 @@ void test_the_first_commit_lists_the_files_it_added(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_touched.text);
+    g_cli_cells->persistent_buf_release(s_touched.text.bytes, &g_cli_git_cells);
+    s_touched.text.bytes = NULL;
+    s_touched.text.used = 0ULL;
+    s_touched.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_err_msg.touch, CliGitRootErrMsgCfg, .root = s_graph_root, .id = s_first_id, .found_touched_list_pointer = &s_touched, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(2u, s_touched.count);
 }
@@ -309,7 +333,10 @@ void test_an_id_that_is_not_hex_is_refused(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_touched.text);
+    g_cli_cells->persistent_buf_release(s_touched.text.bytes, &g_cli_git_cells);
+    s_touched.text.bytes = NULL;
+    s_touched.text.used = 0ULL;
+    s_touched.text.capacity = 0ULL;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_git_root_err_msg.touch, CliGitRootErrMsgCfg, .root = s_graph_root, .id = "not-hex", .found_touched_list_pointer = &s_touched, .err_msg = &err_msg));
 }
 
@@ -379,7 +406,10 @@ void test_a_file_git_does_not_have_is_refused(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     lines_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_lines.text);
+    g_cli_cells->persistent_buf_release(s_lines.text.bytes, &g_cli_git_cells);
+    s_lines.text.bytes = NULL;
+    s_lines.text.used = 0ULL;
+    s_lines.text.capacity = 0ULL;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_git_length.line_history, CliGitLengthCfg, .root = s_lines_sub, .file = "missing.txt", .text_text = "", .length = 0ull, .found_line_history_pointer = &s_lines, .err_msg = &err_msg));
 }
 
@@ -430,7 +460,10 @@ void test_the_commits_that_touched_a_file_and_its_text_at_the_first_are_read(voi
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea line = {out, sizeof(out), 0ull};
     repositories_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_commits.text);
+    g_cli_cells->persistent_buf_release(s_commits.text.bytes, &g_cli_git_cells);
+    s_commits.text.bytes = NULL;
+    s_commits.text.used = 0ULL;
+    s_commits.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_file_err_msg.commits, CliGitRootFileErrMsgCfg, .root = s_repos_root, .file = "libs/inner/b.txt", .found = &s_commits, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(2u, s_commits.count);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_file.text_at, CliGitRootFileCfg, .root = s_repos_root, .file = "libs/inner/b.txt", .id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_commits.text, .at = s_commits.item[1].id), .out = &line, .err_msg = &err_msg));
@@ -441,7 +474,10 @@ void test_a_files_lines_commits_have_its_path_in_the_tree(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     repositories_created();
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_lines.text);
+    g_cli_cells->persistent_buf_release(s_lines.text.bytes, &g_cli_git_cells);
+    s_lines.text.bytes = NULL;
+    s_lines.text.used = 0ULL;
+    s_lines.text.capacity = 0ULL;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_length.line_history, CliGitLengthCfg, .root = s_repos_root, .file = "libs/inner/b.txt", .text_text = "two more\n", .length = 9ull, .found_line_history_pointer = &s_lines, .err_msg = &err_msg));
     TEST_ASSERT_GREATER_THAN_UINT(0u, s_lines.commits);
     TEST_ASSERT_TRUE(s_lines.commit[0].has_path);
@@ -525,7 +561,10 @@ void test_a_commit_of_another_branch_is_listing(void)
 {
     char picked[CLI_NAME_MAX_LEN];
     topic_committed(picked);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_commits.text);
+    g_cli_cells->persistent_buf_release(s_commits.text.bytes, &g_cli_git_cells);
+    s_commits.text.bytes = NULL;
+    s_commits.text.used = 0ULL;
+    s_commits.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_file_err_msg.elsewhere, CliGitRootFileErrMsgCfg, .root = s_root, .found = &s_commits);
     TEST_ASSERT_EQUAL_UINT(1u, s_commits.count);
     TEST_ASSERT_EQUAL_STRING(picked, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_commits.text, .at = s_commits.item[0].id));
@@ -542,7 +581,10 @@ void test_a_commit_is_cherry_picked_onto_this_branch_and_is_no_longer_elsewhere(
     TEST_ASSERT_TRUE(file_there(s_root, "c.txt"));
     TEST_ASSERT_TRUE(git_run_result(s_root, "log", "-1", "--format=%s", NULL));
     TEST_ASSERT_EQUAL_STRING("on topic", s_out);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_commits.text);
+    g_cli_cells->persistent_buf_release(s_commits.text.bytes, &g_cli_git_cells);
+    s_commits.text.bytes = NULL;
+    s_commits.text.used = 0ULL;
+    s_commits.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_file_err_msg.elsewhere, CliGitRootFileErrMsgCfg, .root = s_root, .found = &s_commits);
     TEST_ASSERT_EQUAL_UINT(0u, s_commits.count);
 }
@@ -560,13 +602,34 @@ void test_a_word_that_is_no_commit_is_refused(void)
 void test_each_lists_texts_are_in_a_cell_grown_as_they_are_added_and_released(void)
 {
     graph_read("", 0);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_touched.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_graph.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_lines.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repos.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_changed.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_commits.text);
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_stashes.text);
+    g_cli_cells->persistent_buf_release(s_touched.text.bytes, &g_cli_git_cells);
+    s_touched.text.bytes = NULL;
+    s_touched.text.used = 0ULL;
+    s_touched.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_graph.text.bytes, &g_cli_git_cells);
+    s_graph.text.bytes = NULL;
+    s_graph.text.used = 0ULL;
+    s_graph.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_lines.text.bytes, &g_cli_git_cells);
+    s_lines.text.bytes = NULL;
+    s_lines.text.used = 0ULL;
+    s_lines.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_repos.text.bytes, &g_cli_git_cells);
+    s_repos.text.bytes = NULL;
+    s_repos.text.used = 0ULL;
+    s_repos.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
+    s_changed.text.bytes = NULL;
+    s_changed.text.used = 0ULL;
+    s_changed.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_commits.text.bytes, &g_cli_git_cells);
+    s_commits.text.bytes = NULL;
+    s_commits.text.used = 0ULL;
+    s_commits.text.capacity = 0ULL;
+    g_cli_cells->persistent_buf_release(s_stashes.text.bytes, &g_cli_git_cells);
+    s_stashes.text.bytes = NULL;
+    s_stashes.text.used = 0ULL;
+    s_stashes.text.capacity = 0ULL;
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_git_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_git_cells.hw));
 }

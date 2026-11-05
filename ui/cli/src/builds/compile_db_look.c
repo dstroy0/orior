@@ -63,7 +63,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
             named = 1;
         }
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_compile_cells));
     return named;
 }
 
@@ -84,7 +84,8 @@ EMBED_INLINE int cli_input_append(const CompileDbLookCtx *args)
 void cli_compile_inputs(const CliCompileDbInputsCtx *args)
 {
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
-    cli_compile_db_inputs_internal.compile_inputs_free(args);
+    g_cli_cells->persistent_buf_release(args->inputs->file, &g_cli_compile_cells);
+    *args->inputs = (CliInputs){0, NULL, 0u, 0u};
     args->inputs->file = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
                                                           &g_cli_compile_cells);
     args->inputs->capacity = (args->inputs->file != NULL) ? CLI_COMPILE_INPUTS : 0u;
@@ -134,7 +135,8 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
     {
         (void)EMBED_CALL(cli_input_append, CompileDbLookCtx, .inputs = args->inputs, .path = found.path[at]);
     }
-    EMBED_CALL(cli_compile_db_found_top_internal.compile_found_free, CliCompileDbFoundTopCtx, .found = &found);
+    g_cli_cells->persistent_buf_release(found.path, &g_cli_compile_cells);
+    *(&found) = (CliFoundFolders){NULL, 0u, 0u};
     // sorted by path, then time
     for (unsigned int at = 1u; (args->inputs->file != NULL) && (at < args->inputs->count); at += 1u)
     {
@@ -171,7 +173,8 @@ static CliLookCache s_cache;
 EMBED_INLINE void cli_inputs_save(const CompileDbLookCtx *args)
 {
     CliInputs *saved = args->saved;
-    EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = saved);
+    g_cli_cells->persistent_buf_release(saved->file, &g_cli_compile_cells);
+    *saved = (CliInputs){0, NULL, 0u, 0u};
     const unsigned long long bytes = (unsigned long long)args->read_state->count * sizeof(CliStamped);
     CliStamped *const file = (bytes != 0ULL) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_compile_cells) : NULL;
     if (file != NULL)
@@ -180,7 +183,8 @@ EMBED_INLINE void cli_inputs_save(const CompileDbLookCtx *args)
     }
     const unsigned int count = (file != NULL) ? args->read_state->count : 0u;
     *saved = (CliInputs){args->read_state->own, file, count, count};
-    EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = args->read_state);
+    g_cli_cells->persistent_buf_release(args->read_state->file, &g_cli_compile_cells);
+    *args->read_state = (CliInputs){0, NULL, 0u, 0u};
 }
 
 // whether two looks read the same files at the same times
@@ -218,7 +222,8 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
                .inputs = &read_state);
     if (same && EMBED_CALL(cli_same_inputs, CompileDbLookCtx, .one = &s_cache.read, .other = &read_state))
     {
-        EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = &read_state);
+        g_cli_cells->persistent_buf_release(read_state.file, &g_cli_compile_cells);
+        *(&read_state) = (CliInputs){0, NULL, 0u, 0u};
         s_cache.at = cli_clock_milliseconds();
         *database = s_cache.database;
         return 0;

@@ -1,75 +1,54 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_search_pane.c: the Search pane's rows. The query, its choices and the set chosen stand here; a change marks the
-// rest's start, and the step that finds the rest passed searches the tree through files_search.c, each line found
-// handed in the order of the files and copied into the pane's own cell with its match's place and bytes, the lines of
-// one file a run of hits under one file entry. The set's patterns are read from Preferences' `search.sets` at each
-// search. The watch marks the search stale from its thread through an atomic word
+// rest's start, and the step that finds the rest passed searches the tree through files_search.c, which leaves the
+// lines it found standing in its own cells with the files they were found in and each file's first line. Every row
+// points into them, the lines of one file under one file row, each file's first row written as the search ends and as
+// a file closes or opens, and a regular expression's match in each line read once as the search ends. The sets
+// Preferences lists are read as the pane begins, as the set moves on and as a search runs. The watch marks the search
+// stale from its thread through an atomic word
 #include "files.h"
 
 #include "../command_line/cells.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "embed_atomic.h"
-#include "files_internal.h"
+#include "files_search_hits.h"
 
-// the bytes the paths and lines found take, the most files closed, the most lines a set's patterns take and the bytes
-// they take, the most letters a found line's text decodes to for a regular expression's match, and the key the set
-// chosen is saved under in orior's folder
-#define SEARCH_TEXT (4u << 20u)
-#define SEARCH_CLOSED 64u
-#define SEARCH_SET_LINES 256u
-#define SEARCH_SET_TEXT 16384u
+// the most letters a found line's text decodes to for a regular expression's match, the keys the set chosen and the
+// sets stand under in orior's folder, and the set's name where the whole tree is searched
 #define SEARCH_LETTERS (CLI_HIT_TEXT + 1u)
 #define SEARCH_SET_KEY "search.set"
 #define SEARCH_SETS_KEY "search.sets"
 #define SEARCH_WHOLE "Whole tree"
 
-// A line found: its file's path's and its text's places in the text, its line and column counted from 1, the text's
-// bytes, the match's place and bytes in the text, and its file entry
+// A file with lines found: its first row, the bytes of its path, the place of its name in its path, and whether its
+// lines are closed
 typedef struct
 {
-    unsigned int path;
-    unsigned int text;
-    unsigned long long line;
-    unsigned long long col;
-    unsigned long long size;
-    unsigned long long match_at;
-    unsigned long long match_length;
-    unsigned int file;
-} SearchHit;
-
-// A file with lines found: its path's place in the text, its first line found and how many
-typedef struct
-{
-    unsigned int path;
-    unsigned int first;
-    unsigned int count;
+    unsigned int row;
+    unsigned int length;
+    unsigned int name;
+    int closed;
 } SearchFile;
 
 // The pane's data: the query and its bytes, how it is read, the set chosen counted from 1 and 0 for the whole tree,
-// the set's name, its patterns and the lines they are read from, the lines found and their files, the text their
-// paths and texts stand in, the hashes of the paths of the files closed, the report, whether rows stand for the query,
-// whether a search waits and since when, and the regular expression the query reads as with its work state, the letters
-// of a line and the match's spans
+// how many sets Preferences lists, the set's name and its patterns, the files with lines found in the search's order
+// and the rows counted, the bytes a regular expression matched in each line, the report, whether rows stand for the
+// query, whether a search waits and since when, and the regular expression the query reads as with its work state, the
+// letters of a line and the match's spans
 typedef struct
 {
     char query[CLI_SEARCH_QUERY_MAX];
     unsigned long long query_length;
     CliSearching how;
     unsigned int set;
+    unsigned int sets;
     char set_name[CLI_SEARCH_NAME_MAX];
     CliPatterns patterns;
-    char set_text[SEARCH_SET_TEXT];
-    const char *set_line[SEARCH_SET_LINES];
-    SearchHit hit[CLI_HITS_MAX];
-    unsigned int hits;
     SearchFile file[CLI_HITS_MAX];
-    unsigned int files;
-    char text[SEARCH_TEXT];
-    unsigned int used;
-    unsigned long long closed[SEARCH_CLOSED];
-    unsigned int closed_count;
+    unsigned int rows;
+    unsigned int match[CLI_HITS_MAX];
     char report[CLI_SEARCH_REPORT];
     unsigned long long report_length;
     int searched;
@@ -89,12 +68,10 @@ static embed_atomic_u32 s_stale;
 
 typedef struct
 {
-    const char *text;
-    unsigned long long length;
     const char *name;
     unsigned int which;
     unsigned int at;
-    SearchHit *hit;
+    const CliSearchHit *hit;
     const char *root;
     unsigned long long now_ms;
     unsigned int set;
@@ -119,65 +96,25 @@ EMBED_INLINE Search *search_of(const FilesSearchPaneCtx *args)
     return s_search;
 }
 
-// `length` bytes of `text` copied into the pane's text with a NUL after them: their place, or SEARCH_TEXT where they do
-// not fit
-EMBED_INLINE unsigned int search_text_append(const FilesSearchPaneCtx *args)
-{
-    Search *const search = s_search;
-    if (args->length + 1ULL > (unsigned long long)(SEARCH_TEXT - search->used))
-    {
-        return SEARCH_TEXT;
-    }
-    const unsigned int at = search->used;
-    memor.cpy(&(MemoriaCfg){.dst = search->text + at, .src = args->text, .bytes = args->length});
-    search->text[at + args->length] = '\0';
-    // a text that fits the bytes is counted by an unsigned int
-    search->used = at + (unsigned int)args->length + 1u;
-    return at;
-}
-
-// the hash of `length` bytes of `text`, FNV-1a over 64 bits
-EMBED_INLINE unsigned long long search_hash(const FilesSearchPaneCtx *args)
-{
-    unsigned long long hash = 14695981039346656037ULL;
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        hash ^= (unsigned char)args->text[at];
-        hash *= 1099511628211ULL;
-    }
-    return hash;
-}
-
-// the place of the hash of the path `text` among the closed, SEARCH_CLOSED where it is not closed
-EMBED_INLINE unsigned int search_closed_at(const FilesSearchPaneCtx *args)
-{
-    const Search *const search = s_search;
-    const unsigned long long hash =
-        EMBED_CALL(search_hash, FilesSearchPaneCtx, .text = args->text,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_PATH_MAX_LEN}));
-    for (unsigned int at = 0u; at < search->closed_count; at += 1u)
-    {
-        if (search->closed[at] == hash)
-        {
-            return at;
-        }
-    }
-    return SEARCH_CLOSED;
-}
-
-// the sets Preferences lists, `<name>:` on a line and its patterns on the lines after: how many; and where `set` is
-// not 0, that set's name into `name_out`, sized CLI_SEARCH_NAME_MAX, and its pattern lines into the set's lines and
-// its patterns
+// the sets Preferences lists, `<name>:` on a line and its patterns on the lines after: how many; where `set` is not 0,
+// that set's name into `name_out`, sized CLI_SEARCH_NAME_MAX, and its patterns read in place from its lines; and where
+// `name` is not NULL, the number of the set with that name into `count_out`, 0 where none has it
 EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
 {
     Search *const search = s_search;
     const char *const sets = (s_entries != NULL) ? cli_state_entry_value(s_entries, SEARCH_SETS_KEY) : NULL;
+    const unsigned long long name_length =
+        (args->name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_SEARCH_NAME_MAX}) : 0ULL;
     unsigned int count = 0u;
-    unsigned int lines = 0u;
-    unsigned int used = 0u;
+    unsigned long long lines_from = 0ULL;
+    unsigned long long lines_to = 0ULL;
     if (args->name_out != NULL)
     {
         args->name_out[0] = '\0';
+    }
+    if (args->name != NULL)
+    {
+        *args->count_out = 0u;
     }
     const unsigned long long size =
         (sets != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = sets, .cap = CLI_CELLS_POOL}) : 0ULL;
@@ -185,50 +122,50 @@ EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = sets, .at = at, .size = size, .set = "\n");
-        unsigned long long from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = sets,
-                                             .at = at, .size = end, .set = " \t\r");
+        const unsigned long long from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
+                                                   .text = sets, .at = at, .size = end, .set = " \t\r");
         unsigned long long to = end;
         while ((to > from) && ((sets[to - 1ULL] == ' ') || (sets[to - 1ULL] == '\t') || (sets[to - 1ULL] == '\r')))
         {
             to -= 1ULL;
         }
+        const unsigned long long line_start = at;
         at = end + 1ULL;
-        if (to == from)
+        if ((to == from) || (sets[to - 1ULL] != ':') || (to - from < 2ULL))
         {
             continue;
         }
-        if ((sets[to - 1ULL] == ':') && (to - from > 1ULL))
+        // the set before this one ends where its name's line starts
+        if ((count == args->set) && (args->set != 0u))
         {
-            count += 1u;
-            if ((count == args->set) && (args->name_out != NULL))
-            {
-                unsigned long long name_end = to - 1ULL;
-                while ((name_end > from) && (sets[name_end - 1ULL] == ' '))
-                {
-                    name_end -= 1ULL;
-                }
-                const unsigned long long length =
-                    (name_end - from < CLI_SEARCH_NAME_MAX - 1ULL) ? name_end - from : CLI_SEARCH_NAME_MAX - 1ULL;
-                memor.cpy(&(MemoriaCfg){.dst = args->name_out, .src = sets + from, .bytes = length});
-                args->name_out[length] = '\0';
-            }
+            lines_to = line_start;
         }
-        else if ((count == args->set) && (args->set != 0u) && (lines < SEARCH_SET_LINES) &&
-                 (to - from + 1ULL <= (unsigned long long)(SEARCH_SET_TEXT - used)))
+        count += 1u;
+        unsigned long long name_end = to - 1ULL;
+        while ((name_end > from) && (sets[name_end - 1ULL] == ' '))
         {
-            memor.cpy(&(MemoriaCfg){.dst = search->set_text + used, .src = sets + from, .bytes = to - from});
-            search->set_text[used + (to - from)] = '\0';
-            search->set_line[lines] = search->set_text + used;
-            lines += 1u;
-            // the set's text is far inside what an unsigned int counts
-            used += (unsigned int)(to - from) + 1u;
+            name_end -= 1ULL;
+        }
+        const unsigned long long length =
+            (name_end - from < CLI_SEARCH_NAME_MAX - 1ULL) ? name_end - from : CLI_SEARCH_NAME_MAX - 1ULL;
+        if ((count == args->set) && (args->name_out != NULL))
+        {
+            memor.cpy(&(MemoriaCfg){.dst = args->name_out, .src = sets + from, .bytes = length});
+            args->name_out[length] = '\0';
+            lines_from = at;
+            lines_to = size;
+        }
+        if ((args->name != NULL) && (length == name_length) &&
+            cellul.starts(&(CatenaFinitaCfg){.src = sets + from, .other = args->name, .cap = CLI_SEARCH_NAME_MAX}))
+        {
+            *args->count_out = count;
         }
     }
     if (args->set != 0u)
     {
-        memor.set(&(MemoriaCfg){.dst = &search->patterns, .val = 0, .bytes = sizeof(search->patterns)});
-        EMBED_CALL(cli_patterns_lines.read_set, CliPatternsLinesCfg, .lines = search->set_line, .count = lines,
-                   .patterns_out = &search->patterns);
+        // the set's lines, as they stand in the entry, read as its patterns
+        EMBED_CALL(cli_patterns_text.read_set_text, CliPatternsTextCfg, .text = (sets != NULL) ? sets + lines_from : "",
+                   .size = (lines_to > lines_from) ? lines_to - lines_from : 0ULL, .patterns_out = &search->patterns);
     }
     return count;
 }
@@ -248,91 +185,88 @@ EMBED_INLINE unsigned long long search_letter_bytes(const FilesSearchPaneCtx *ar
     return (letter < 0x10000u) ? 3ULL : 4ULL;
 }
 
-// a line found's match marked: the query's bytes at its column, or for a regular expression what it matches there,
-// read in the line's letters: one byte where it matches nothing there
-EMBED_INLINE void search_match_mark(const FilesSearchPaneCtx *args)
+// the bytes the regular expression matches at the column of the line `hit`, read in the line's letters: 1 where it
+// matches nothing there
+EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
 {
     Search *const search = s_search;
-    SearchHit *const hit = args->hit;
-    hit->match_at = ((hit->col > 0ULL) && (hit->col - 1ULL < hit->size)) ? hit->col - 1ULL : 0ULL;
-    hit->match_length = 1ULL;
-    if (!search->how.regex)
-    {
-        const unsigned long long left = hit->size - hit->match_at;
-        hit->match_length = (search->query_length < left) ? search->query_length : left;
-        hit->match_length = (hit->match_length != 0ULL) ? hit->match_length : 1ULL;
-        return;
-    }
-    if (!search->regexp_read)
-    {
-        return;
-    }
-    const char *const text = search->text + hit->text;
+    const CliSearchHit *const hit = args->hit;
+    const unsigned long long size = hit->size;
+    const unsigned long long match_at = ((hit->col > 0ULL) && (hit->col - 1ULL < size)) ? hit->col - 1ULL : 0ULL;
+    const char *const text = (const char *)hit->text;
     const unsigned long long before =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = hit->match_at,
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = match_at,
                    .letters = search->letters, .capacity_u64 = SEARCH_LETTERS);
-    const unsigned long long letters =
-        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = hit->size,
-                   .letters = search->letters, .capacity_u64 = SEARCH_LETTERS);
+    const unsigned long long letters = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = size,
+                                                  .letters = search->letters, .capacity_u64 = SEARCH_LETTERS);
     if ((before >= letters) ||
         !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &search->regexp,
                     .text_u32s = search->letters, .length = letters, .at = before, .groups = search->groups))
     {
-        return;
+        return 1u;
     }
     unsigned long long bytes = 0ULL;
     for (unsigned long long at = search->groups[0].from; (at < search->groups[0].to) && (at < letters); at += 1ULL)
     {
         bytes += EMBED_CALL(search_letter_bytes, FilesSearchPaneCtx, .which = search->letters[at]);
     }
-    hit->match_length = (bytes != 0ULL) ? bytes : 1ULL;
+    // a line's bytes are below CLI_HIT_BYTES, which an unsigned int counts
+    return (bytes != 0ULL) ? (unsigned int)bytes : 1u;
 }
 
-// a line found handed on by the search: copied after the lines so far, under its file's entry, a new one where its
-// path is not the last file's
-static void search_hit(const CliEachHitCfg *args)
+// how many lines the file `at` has among the lines standing
+EMBED_INLINE unsigned int search_file_lines(const FilesSearchPaneCtx *args)
+{
+    const unsigned int end = (args->at + 1u < cli_search_standing_files())
+                                 ? cli_search_standing_file_first(args->at + 1u)
+                                 : cli_search_standing_count();
+    return end - cli_search_standing_file_first(args->at);
+}
+
+// the files' first rows from the file `at` on, whose own first row stands, and the rows counted: a row a file, and
+// under one whose lines are not closed a row each line
+EMBED_INLINE void search_layout(const FilesSearchPaneCtx *args)
 {
     Search *const search = s_search;
-    if (search->hits >= CLI_HITS_MAX)
+    const unsigned int files = cli_search_standing_files();
+    unsigned int row = (args->at < files) ? search->file[args->at].row : 0u;
+    for (unsigned int at = args->at; at < files; at += 1u)
     {
-        return;
+        search->file[at].row = row;
+        row += 1u + (search->file[at].closed ? 0u : EMBED_CALL(search_file_lines, FilesSearchPaneCtx, .at = at));
     }
-    const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
-    if ((search->files == 0u) ||
-        !cellul.eq(&(CatenaFinitaCfg){
-            .src = search->text + search->file[search->files - 1u].path, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
-    {
-        const unsigned int path =
-            EMBED_CALL(search_text_append, FilesSearchPaneCtx, .text = args->path, .length = path_length);
-        if (path == SEARCH_TEXT)
-        {
-            return;
-        }
-        search->file[search->files] = (SearchFile){path, search->hits, 0u};
-        search->files += 1u;
-    }
-    const unsigned int text =
-        EMBED_CALL(search_text_append, FilesSearchPaneCtx, .text = (const char *)args->text, .length = args->size);
-    if (text == SEARCH_TEXT)
-    {
-        return;
-    }
-    SearchFile *const file = &search->file[search->files - 1u];
-    SearchHit *const hit = &search->hit[search->hits];
-    *hit = (SearchHit){file->path, text, args->line, args->col, args->size, 0ULL, 0ULL, search->files - 1u};
-    EMBED_CALL(search_match_mark, FilesSearchPaneCtx, .hit = hit);
-    search->hits += 1u;
-    file->count += 1u;
+    search->rows = row;
 }
 
-// the tree at `root` searched for the query: the lines found, the report written, the rows standing for the query
+// the file whose rows the row `at` stands in: the last whose first row is at or before it
+EMBED_INLINE unsigned int search_file_of(const FilesSearchPaneCtx *args)
+{
+    const Search *const search = s_search;
+    unsigned int low = 0u;
+    unsigned int high = cli_search_standing_files();
+    while (high - low > 1u)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (search->file[middle].row <= args->at)
+        {
+            low = middle;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+// the tree at `root` searched for the query: the lines found standing in the search's cells, each file's path measured
+// and its name found, each line's regular expression match read, the rows laid out, the report written, and the rows
+// standing for the query
 EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
 {
     Search *const search = s_search;
     search->waits = 0;
-    search->hits = 0u;
-    search->files = 0u;
-    search->used = 0u;
+    search->rows = 0u;
     search->report_length = 0ULL;
     search->report[0] = '\0';
     search->searched = 0;
@@ -343,10 +277,11 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     }
     if ((trimmed == 0ULL) || (args->root == NULL))
     {
+        cli_search_standing_free();
         return;
     }
     search->searched = 1;
-    (void)EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .name_out = search->set_name);
+    search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .name_out = search->set_name);
     char quiet[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {quiet, sizeof(quiet), 0ULL};
     search->regexp_read =
@@ -357,25 +292,42 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     static CliPatterns s_none;
     VerbaLinea report = {search->report, sizeof(search->report), 0ULL};
-    if (!EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = args->root,
-                    .query = search->query, .how = search->how,
-                    .set = (search->set != 0u) ? &search->patterns : &s_none, .out = NULL, .err_msg = &err_msg,
-                    .each = search_hit, .context = NULL))
+    const int found =
+        EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = args->root,
+                   .query = search->query, .how = search->how, .set = (search->set != 0u) ? &search->patterns : &s_none,
+                   .out = NULL, .err_msg = &err_msg, .each = NULL, .context = NULL, .standing = 1);
+    const unsigned int files = cli_search_standing_files();
+    const unsigned int hits = cli_search_standing_count();
+    for (unsigned int at = 0u; at < files; at += 1u)
+    {
+        const char *const path = cli_search_standing_path(cli_search_standing_hit(cli_search_standing_file_first(at)));
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
+        // a path's bytes are below CLI_PATH_MAX_LEN, which an unsigned int counts
+        search->file[at].length = (unsigned int)length;
+        search->file[at].name = (unsigned int)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                         .text = path, .at = length, .set = "/");
+        search->file[at].closed = 0;
+    }
+    for (unsigned int at = 0u; search->regexp_read && (at < hits); at += 1u)
+    {
+        search->match[at] = EMBED_CALL(search_regexp_match, FilesSearchPaneCtx, .hit = cli_search_standing_hit(at));
+    }
+    EMBED_CALL(search_layout, FilesSearchPaneCtx, .at = 0u);
+    if (!found)
     {
         mmgr_line_put_n(&report, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
     }
-    else if (search->hits == 0u)
+    else if (hits == 0u)
     {
         mmgr_line_put(&report, "No results found.");
     }
     else
     {
-        mmgr_line_decimal(&report, search->hits, 1u);
-        mmgr_line_put(&report, (search->hits >= CLI_HITS_MAX)
-                                   ? "+ results in "
-                                   : ((search->hits == 1u) ? " result in " : " results in "));
-        mmgr_line_decimal(&report, search->files, 1u);
-        mmgr_line_put(&report, (search->files == 1u) ? " file" : " files");
+        mmgr_line_decimal(&report, hits, 1u);
+        mmgr_line_put(&report,
+                      (hits >= CLI_HITS_MAX) ? "+ results in " : ((hits == 1u) ? " result in " : " results in "));
+        mmgr_line_decimal(&report, files, 1u);
+        mmgr_line_put(&report, (files == 1u) ? " file" : " files");
     }
     search->report_length = mmgr_line_finish(&report) ? report.at : 0ULL;
 }
@@ -392,21 +344,19 @@ void cli_search_pane_begin(const CliSearchPaneCfg *args)
     s_woken = args->woken;
     s_entries = args->entries;
     Search *const search = EMBED_CALL(search_of, FilesSearchPaneCtx, .at = 0u);
-    const char *const saved = (args->entries != NULL) ? cli_state_entry_value(args->entries, SEARCH_SET_KEY) : NULL;
-    if ((search == NULL) || (saved == NULL) || (saved[0] == '\0'))
+    if (search == NULL)
     {
         return;
     }
     // the set saved found by its name among the sets listed
-    const unsigned int count = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = 0u, .name_out = NULL);
-    for (unsigned int at = 1u; at <= count; at += 1u)
+    const char *const saved = (args->entries != NULL) ? cli_state_entry_value(args->entries, SEARCH_SET_KEY) : NULL;
+    unsigned int found = 0u;
+    search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = 0u,
+                              .name = ((saved != NULL) && (saved[0] != '\0')) ? saved : NULL, .count_out = &found);
+    search->set = found;
+    if (found != 0u)
     {
-        char name[CLI_SEARCH_NAME_MAX];
-        (void)EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = at, .name_out = name);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = saved, .cap = CLI_SEARCH_NAME_MAX}))
-        {
-            search->set = at;
-        }
+        (void)EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = found, .name_out = search->set_name);
     }
 }
 
@@ -483,9 +433,9 @@ void cli_search_pane_option(const CliSearchPaneCfg *args)
         search->how.regex = !search->how.regex;
         break;
     case CLI_SEARCH_SET: {
-        const unsigned int count = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = 0u, .name_out = NULL);
-        search->set = (search->set < count) ? search->set + 1u : 0u;
-        (void)EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .name_out = search->set_name);
+        search->set = (search->set < search->sets) ? search->set + 1u : 0u;
+        search->sets =
+            EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .name_out = search->set_name);
         char folder[CLI_PATH_MAX_LEN];
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -533,15 +483,9 @@ const char *cli_search_pane_query(const CliSearchPaneCfg *args)
 
 const char *cli_search_pane_set(const CliSearchPaneCfg *args)
 {
-    Search *const search = EMBED_CALL(search_of, FilesSearchPaneCtx, .at = 0u);
-    if (search == NULL)
-    {
-        *args->count_out = 0u;
-        return SEARCH_WHOLE;
-    }
-    *args->count_out =
-        EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .name_out = search->set_name);
-    return ((search->set != 0u) && (search->set_name[0] != '\0')) ? search->set_name : SEARCH_WHOLE;
+    const Search *const search = s_search;
+    *args->count_out = (search != NULL) ? search->sets : 0u;
+    return ((search != NULL) && (search->set != 0u) && (search->set_name[0] != '\0')) ? search->set_name : SEARCH_WHOLE;
 }
 
 int cli_search_pane_step(const CliSearchPaneCfg *args)
@@ -577,50 +521,11 @@ void cli_search_pane_stale(const CliSearchPaneCfg *args)
     }
 }
 
-// how many rows the file `at` takes: its own, and its lines where it is not closed
-EMBED_INLINE unsigned int search_file_rows(const FilesSearchPaneCtx *args)
-{
-    const Search *const search = s_search;
-    const SearchFile *const file = &search->file[args->at];
-    const int closed =
-        EMBED_CALL(search_closed_at, FilesSearchPaneCtx, .text = search->text + file->path) != SEARCH_CLOSED;
-    return 1u + (closed ? 0u : file->count);
-}
-
 unsigned int cli_search_pane_rows(const CliSearchPaneCfg *args)
 {
     (void)args;
     const Search *const search = s_search;
-    if ((search == NULL) || !search->searched)
-    {
-        return 0u;
-    }
-    unsigned int count = 0u;
-    for (unsigned int at = 0u; at < search->files; at += 1u)
-    {
-        count += EMBED_CALL(search_file_rows, FilesSearchPaneCtx, .at = at);
-    }
-    return count;
-}
-
-// the file whose rows the row `at` stands in, into `count_out`, and the row's place under the file's own row into
-// `which`: 1, or 0 where the row stands past the files
-EMBED_INLINE int search_file_of(const FilesSearchPaneCtx *args)
-{
-    const Search *const search = s_search;
-    unsigned int at = args->at;
-    for (unsigned int file = 0u; file < search->files; file += 1u)
-    {
-        const unsigned int rows = EMBED_CALL(search_file_rows, FilesSearchPaneCtx, .at = file);
-        if (at < rows)
-        {
-            *args->count_out = file;
-            *(unsigned int *)args->name_out = at;
-            return 1;
-        }
-        at -= rows;
-    }
-    return 0;
+    return ((search != NULL) && search->searched) ? search->rows : 0u;
 }
 
 int cli_search_pane_row(const CliSearchPaneCfg *args)
@@ -628,61 +533,55 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     const Search *const search = s_search;
     CliSearchRow *const row = args->row;
     memor.set(&(MemoriaCfg){.dst = row, .val = 0, .bytes = sizeof(*row)});
-    unsigned int file_index = 0u;
-    unsigned int under = 0u;
-    if ((search == NULL) || !search->searched ||
-        !EMBED_CALL(search_file_of, FilesSearchPaneCtx, .at = args->at, .count_out = &file_index,
-                    .name_out = (char *)&under))
+    if ((search == NULL) || !search->searched || (args->at >= search->rows))
     {
         return 0;
     }
-    const SearchFile *const file = &search->file[file_index];
-    row->path = search->text + file->path;
+    const unsigned int file = EMBED_CALL(search_file_of, FilesSearchPaneCtx, .at = args->at);
+    const SearchFile *const found = &search->file[file];
+    const unsigned int first = cli_search_standing_file_first(file);
+    const unsigned int under = args->at - found->row;
+    row->path = cli_search_standing_path(cli_search_standing_hit(first));
     if (under == 0u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = row->path, .cap = CLI_PATH_MAX_LEN});
-        const unsigned long long cut = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                                                  .text = row->path, .at = length, .set = "/");
         row->kind = CLI_SEARCH_ROW_FILE;
-        row->name = row->path + cut;
-        row->name_length = length - cut;
-        row->folder_length = (cut > 0ULL) ? cut - 1ULL : 0ULL;
-        row->count = file->count;
-        row->open = EMBED_CALL(search_closed_at, FilesSearchPaneCtx, .text = row->path) == SEARCH_CLOSED;
+        row->name = row->path + found->name;
+        row->name_length = found->length - found->name;
+        row->folder_length = (found->name > 0u) ? found->name - 1u : 0u;
+        row->count = EMBED_CALL(search_file_lines, FilesSearchPaneCtx, .at = file);
+        row->open = !found->closed;
         return 1;
     }
-    const SearchHit *const hit = &search->hit[file->first + under - 1u];
+    const unsigned int at = first + under - 1u;
+    const CliSearchHit *const hit = cli_search_standing_hit(at);
     row->kind = CLI_SEARCH_ROW_HIT;
     row->line = hit->line;
     row->col = hit->col;
-    row->text = search->text + hit->text;
+    row->text = (const char *)hit->text;
     row->text_length = hit->size;
-    row->match_at = hit->match_at;
-    row->match_length = hit->match_length;
+    // the match: the query's bytes at its column, or what the regular expression matched there, one byte at the least
+    row->match_at = ((hit->col > 0ULL) && (hit->col - 1ULL < hit->size)) ? hit->col - 1ULL : 0ULL;
+    const unsigned long long left = hit->size - row->match_at;
+    const unsigned long long length =
+        search->regexp_read ? search->match[at] : ((search->query_length < left) ? search->query_length : left);
+    row->match_length = (length != 0ULL) ? length : 1ULL;
     return 1;
 }
 
 void cli_search_pane_toggle(const CliSearchPaneCfg *args)
 {
     Search *const search = s_search;
-    CliSearchRow row;
-    if ((search == NULL) || !EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = args->at, .row = &row) ||
-        (row.kind != CLI_SEARCH_ROW_FILE))
+    if ((search == NULL) || !search->searched || (args->at >= search->rows))
     {
         return;
     }
-    const unsigned int closed = EMBED_CALL(search_closed_at, FilesSearchPaneCtx, .text = row.path);
-    if (closed != SEARCH_CLOSED)
+    const unsigned int file = EMBED_CALL(search_file_of, FilesSearchPaneCtx, .at = args->at);
+    if (search->file[file].row != args->at)
     {
-        search->closed[closed] = search->closed[search->closed_count - 1u];
-        search->closed_count -= 1u;
         return;
     }
-    // the table full, its first entry is replaced by the file
-    const unsigned int at = (search->closed_count < SEARCH_CLOSED) ? search->closed_count : 0u;
-    search->closed_count += (search->closed_count < SEARCH_CLOSED) ? 1u : 0u;
-    search->closed[at] = EMBED_CALL(search_hash, FilesSearchPaneCtx, .text = row.path,
-                                    .length = cellul.len(&(CatenaFinitaCfg){.src = row.path, .cap = CLI_PATH_MAX_LEN}));
+    search->file[file].closed = !search->file[file].closed;
+    EMBED_CALL(search_layout, FilesSearchPaneCtx, .at = file);
 }
 
 unsigned long long cli_search_pane_report(const CliSearchPaneCfg *args)

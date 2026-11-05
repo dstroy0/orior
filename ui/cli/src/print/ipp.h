@@ -114,7 +114,6 @@ typedef struct
 // the cells the messages' groups, attributes, values and bytes are stored in, counted; and a message's cells given
 // back, the message left empty, a message given back once it is done with (ipp.c)
 extern CellOwner g_cli_ipp_cells;
-void cli_ipp_free(const CliIppMessageCodeCfg *args);
 // a message begun with no groups, the cells it occupied retained for its puts; a group begun; an attribute of `name`
 // written in the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text
 // by its tag
@@ -306,12 +305,10 @@ struct CliIppCodeCfg
 
 typedef struct
 {
-    void (*free)(const CliIppMessageCodeCfg *args);
     void (*begin)(const CliIppMessageCodeCfg *args);
 } CliIppMessageCodeNs;
-EMBED_TABLE_LAYOUT(CliIppMessageCodeNs, free, begin);
+EMBED_TABLE_LAYOUT(CliIppMessageCodeNs, begin);
 EMBED_TABLE_STORAGE CliIppMessageCodeNs cli_ipp_message_code EMBED_UNUSED = {
-    .free = cli_ipp_free,
     .begin = cli_ipp_begin,
 };
 

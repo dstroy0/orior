@@ -92,7 +92,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         *size = length;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_requests_cells));
     if (!whole)
     {
         mmgr_line_put(err_msg, args->name);
@@ -226,7 +226,11 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         ready = EMBED_CALL(ready_init, RequestsReadyCtx, .root = args->root, .path = args->path, .parsed = parsed,
                            .request = request, .env = args->env, .sent = args->sent_out, .body = args->body,
                            .err_msg = args->err_msg);
-        EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_values);
+        g_cli_cells->persistent_buf_release(s_values.text, &g_cli_requests_cells);
+        s_values.text = NULL;
+        s_values.capacity = 0ULL;
+        s_values.used = 0ULL;
+        s_values.count = 0u;
         if (ready && (args->key != NULL))
         {
             EMBED_CALL(cli_requests_parsed_internal.key, CliRequestsParsedCtx, .parsed_read = parsed,
@@ -234,7 +238,15 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         }
     }
     // what is sent was copied out of the file read, so the file read is given back here
-    EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
-               .parsed = &g_cli_requests_parsed);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_requests_parsed.requests = NULL;
+    g_cli_requests_parsed.requests_capacity = 0u;
+    g_cli_requests_parsed.text = NULL;
+    g_cli_requests_parsed.text_capacity = 0ULL;
+    g_cli_requests_parsed.count = 0u;
+    g_cli_requests_parsed.variables = 0u;
+    g_cli_requests_parsed.used = 0ULL;
+    g_cli_requests_parsed.full = 0;
     return ready;
 }

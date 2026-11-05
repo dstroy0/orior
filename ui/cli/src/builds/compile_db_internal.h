@@ -40,7 +40,7 @@ typedef struct
 } CliStamped;
 
 // What a look reads: the tree's own database, where it has one, or each build orior_cli configured, in a cell at their
-// most, given back with cli_compile_inputs_free
+// most, released through persistent_buf_release
 typedef struct
 {
     int own;
@@ -49,7 +49,7 @@ typedef struct
     unsigned int capacity;
 } CliInputs;
 
-// Folders a search below a build finds, in a cell at their most, given back with cli_compile_found_free
+// Folders a search below a build finds, in a cell at their most, released through persistent_buf_release
 typedef struct
 {
     char (*path)[CLI_PATH_MAX_LEN];
@@ -59,8 +59,6 @@ typedef struct
 
 // the cells of what a look read, and of the folders a search found, given back, each left empty; and the folders' cell
 // taken at their most, the list with no capacity where it is refused (compile_db.c)
-void cli_compile_inputs_free(const CliCompileDbInputsCtx *args);
-void cli_compile_found_free(const CliCompileDbFoundTopCtx *args);
 void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args);
 
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
@@ -210,24 +208,20 @@ struct CliCompileDbCtx
 
 typedef struct
 {
-    void (*compile_inputs_free)(const CliCompileDbInputsCtx *args);
     void (*compile_inputs)(const CliCompileDbInputsCtx *args);
 } CliCompileDbInputsNs;
-EMBED_TABLE_LAYOUT(CliCompileDbInputsNs, compile_inputs_free, compile_inputs);
+EMBED_TABLE_LAYOUT(CliCompileDbInputsNs, compile_inputs);
 EMBED_TABLE_STORAGE CliCompileDbInputsNs cli_compile_db_inputs_internal EMBED_UNUSED = {
-    .compile_inputs_free = cli_compile_inputs_free,
     .compile_inputs = cli_compile_inputs,
 };
 
 typedef struct
 {
-    void (*compile_found_free)(const CliCompileDbFoundTopCtx *args);
     void (*compile_found_alloc)(const CliCompileDbFoundTopCtx *args);
     void (*compile_files_by_name)(const CliCompileDbFoundTopCtx *args);
 } CliCompileDbFoundTopNs;
-EMBED_TABLE_LAYOUT(CliCompileDbFoundTopNs, compile_found_free, compile_found_alloc, compile_files_by_name);
+EMBED_TABLE_LAYOUT(CliCompileDbFoundTopNs, compile_found_alloc, compile_files_by_name);
 EMBED_TABLE_STORAGE CliCompileDbFoundTopNs cli_compile_db_found_top_internal EMBED_UNUSED = {
-    .compile_found_free = cli_compile_found_free,
     .compile_found_alloc = cli_compile_found_alloc,
     .compile_files_by_name = cli_compile_files_by_name,
 };

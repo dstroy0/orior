@@ -299,7 +299,10 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
             : NULL;
     if (positions == NULL)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
     const unsigned int position_count = EMBED_CALL(cli_dotnet_positions, ExecutablesDotnetCtx, .positions = positions);
@@ -322,7 +325,10 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
                    .positions = positions, .position_count = position_count, .file = args->file, .sink = args->sink);
     }
     g_cli_cells->persistent_buf_release(positions, &g_cli_executables_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // The tree's own code beside a spec, and what is reported of the modules it imports that PyInstaller did not find

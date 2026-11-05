@@ -106,8 +106,7 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                          .tokens_max = tokens_max, .err_msg = &err_msg)
             : CLI_JSON_NONE;
     g_cli_cells->persistent_buf_release(tokens, &g_cli_toolchains_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = added_text,
-               .owner = &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)added_text, (&g_cli_toolchains_cells));
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out, .node = tools,
                     .kind = CFG_JSON_ARRAY))
     {

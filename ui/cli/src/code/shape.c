@@ -277,7 +277,10 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
         EMBED_CALL(shape_leaves_append, ShapeCtx, .tokens = args->tokens, .src = src, .size = args->size, .read = &read,
                    .holes = args->holes, .positions_read = positions);
     }
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
     g_cli_cells->persistent_buf_release(blank, &g_cli_shape_cells);
     return leaved;
 }

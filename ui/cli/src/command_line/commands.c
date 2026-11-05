@@ -556,31 +556,13 @@ void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int pl
     g_cli_menus_open.level[0].pointed = commands_row_step(0u, -1, 1);
 }
 
-// a part's own rows as built, their texts, how many rows stand and how much of the text is used
+// a part's own rows as built, each pointing into the texts of the part that built it, and how many stand
 static CliItem s_own[CLI_MENU_OWN_ROWS];
-static char s_own_text[CLI_MENU_OWN_TEXT];
 static unsigned int s_own_count;
-static unsigned int s_own_used;
-
-// `text` copied into the own rows' text with a NUL after it: the copy, or the empty text where it does not fit
-static const char *commands_own_text(const char *text)
-{
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_MENU_OWN_TEXT});
-    if (length + 1ULL > (unsigned long long)(CLI_MENU_OWN_TEXT - s_own_used))
-    {
-        return "";
-    }
-    const char *const copy = s_own_text + s_own_used;
-    memor.cpy(&(MemoriaCfg){.dst = s_own_text + s_own_used, .src = text, .bytes = length + 1ULL});
-    // a text that fits the bytes is counted by an unsigned int
-    s_own_used += (unsigned int)length + 1u;
-    return copy;
-}
 
 void cli_menus_own_begin(void)
 {
     s_own_count = 0u;
-    s_own_used = 0u;
 }
 
 void cli_menus_own_row(const CliItem *item)
@@ -589,14 +571,7 @@ void cli_menus_own_row(const CliItem *item)
     {
         return;
     }
-    CliItem *const row = &s_own[s_own_count];
-    *row = *item;
-    row->label = commands_own_text(item->label);
-    row->command = commands_own_text(item->command);
-    row->keys = commands_own_text(item->keys);
-    row->args = commands_own_text(item->args);
-    row->needs = commands_own_text(item->needs);
-    row->checks = commands_own_text(item->checks);
+    s_own[s_own_count] = *item;
     s_own_count += 1u;
 }
 
@@ -623,27 +598,14 @@ const CliItem *cli_menus_own_rows(unsigned int *count_out)
     return s_own;
 }
 
-unsigned int cli_menus_own_words(const char *args, char *text, const char **words)
+const char *cli_menus_own_word(const char *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args, .cap = CLI_MENU_OWN_TEXT});
-    if ((length == 0ULL) || (length >= CLI_MENU_OWN_TEXT) || (args[length - 1ULL] != '\n'))
-    {
-        return 0u;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = args, .bytes = length + 1ULL});
-    unsigned int count = 0u;
-    unsigned long long from = 0ULL;
-    for (unsigned long long at = 0ULL; (at < length) && (count < CLI_MENU_OWN_WORDS); at += 1ULL)
-    {
-        if (text[at] == '\n')
-        {
-            text[at] = '\0';
-            words[count] = text + from;
-            count += 1u;
-            from = at + 1ULL;
-        }
-    }
-    return count;
+    // the catalog's items carry the pattern of their args in the catalog's strings; a part's row carries the word it
+    // runs with, which stands in the part's own texts
+    const char *const strings = (s_string != NULL) ? (const char *)(const void *)(s_string + s_count) : NULL;
+    const int catalog = (strings != NULL) && ((uintptr_t)args >= (uintptr_t)strings) &&
+                        ((uintptr_t)args < (uintptr_t)(strings + s_size + s_count));
+    return ((args == NULL) || (args[0] == '\0') || catalog) ? NULL : args;
 }
 
 void cli_menus_title_press(unsigned int at)

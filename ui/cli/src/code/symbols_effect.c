@@ -286,7 +286,10 @@ static void cli_effect_free(const CliDefineEachCfg *args)
         met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = args->define->param[at], .cap = CLI_CELLS_POOL});
     }
     EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = effect, .met = &met);
-    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    read.leaf = NULL;
+    read.count = 0u;
+    read.capacity = 0u;
 }
 
 // the whole path `whole`, its slashes `/`, as the tree holds it into `out`, sized for CLI_PATH_MAX_LEN: from the
@@ -530,7 +533,7 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
             branch->needles += 1u;
         }
     }
-    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
@@ -1071,11 +1074,13 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     // a branch a slice's walk read whole stays in the walk's cell until the walk is given back
     if (branch->read_at == CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &branch->read);
+        g_cli_cells->persistent_buf_release(branch->read.leaf, &g_cli_leaves_cells);
+        branch->read.leaf = NULL;
+        branch->read.count = 0u;
+        branch->read.capacity = 0u;
         if (from_disk)
         {
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                       .owner = &g_cli_code_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
         }
     }
     g_cli_cells->persistent_buf_release(branch->declared, &g_cli_code_cells);
@@ -1102,7 +1107,12 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
                            : NULL;
     if (cell == NULL)
     {
-        EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
+        if (languages != NULL)
+        {
+            g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        }
+        g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
         g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
@@ -1173,15 +1183,22 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
 {
     for (unsigned int at = 0u; at < args->effect->branches_read; at += 1u)
     {
-        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx,
-                   .read = &args->effect->branch_read[at].read);
+        g_cli_cells->persistent_buf_release((&args->effect->branch_read[at].read)->leaf, &g_cli_leaves_cells);
+        (&args->effect->branch_read[at].read)->leaf = NULL;
+        (&args->effect->branch_read[at].read)->count = 0u;
+        (&args->effect->branch_read[at].read)->capacity = 0u;
         if (args->effect->branch_read[at].from_disk)
         {
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-                       .bytes_bytes_other = args->effect->branch_read[at].bytes, .owner = &g_cli_code_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->effect->branch_read[at].bytes),
+                                                (&g_cli_code_cells));
         }
     }
     g_cli_cells->persistent_buf_release(args->effect->branch_read, &g_cli_code_cells);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = args->effect->languages);
+    if (args->effect->languages != NULL)
+    {
+        g_cli_cells->persistent_buf_release(args->effect->languages->languages.pair, &g_cli_plugins_cells);
+        *(&args->effect->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(args->effect->languages, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(args->effect, &g_cli_code_cells);
 }

@@ -82,7 +82,10 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
                    .id = id, .err_msg = &unknown);
     if (tool == CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, id);
         mmgr_line_put(err_msg, " is not in the manifest");
         return 0;
@@ -100,7 +103,10 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = folders,
                .found = &s_work_state->found);
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!s_work_state->found.has_program)
     {
         mmgr_line_put(err_msg, name);
@@ -184,7 +190,10 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
                    .err_msg = &unread, .owner = &g_cli_toolchains_cells);
     if (root == CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "Nix: ");
         mmgr_line_put_n(err_msg, why, unread.at);
         return 0;
@@ -246,7 +255,10 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
             args->environment->has_python = 1;
         }
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
 }
 

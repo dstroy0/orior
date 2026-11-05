@@ -85,7 +85,7 @@ typedef struct
 } CliExecutable;
 
 // The programs found, `count` of them in a cell of `capacity` at their most, and their places in the order of their
-// scripts and then their names, a cell of their count; both given back with cli_executables_free
+// scripts and then their names, a cell of their count; both released through persistent_buf_release
 typedef struct
 {
     CliExecutable *item;
@@ -98,7 +98,6 @@ typedef struct
 // where the cellblock cannot meet them; and the programs' cells given back, the list containing none
 // (executables_found.c)
 void cli_executables_order(const CliExecutablesFoundCtx *args);
-void cli_executables_free(const CliExecutablesFoundCtx *args);
 
 // Names a script gives, each with a second text where its kind has one: a Go main's package, a bin's script
 typedef struct
@@ -159,7 +158,7 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args);
 #define CLI_EXECUTABLES_PENDING 4096u
 
 // A walk of the tree's folders: those still to look in and their depths, the folder looked in, and what is found, all
-// in one cell taken with cli_executables_walk_alloc and given back with cli_executables_walk_free
+// in one cell taken with cli_executables_walk_alloc and released through persistent_buf_release
 typedef struct
 {
     char (*pending)[CLI_PATH_MAX_LEN];
@@ -186,7 +185,6 @@ void cli_executables_walk(const CliExecutablesWalkTopCtx *args);
 int cli_executables_pending_append(const CliExecutablesWalkCtx *args);
 int cli_executables_found_append(const CliExecutablesWalkCtx *args);
 void cli_executables_walk_alloc(const CliExecutablesWalkCtx *args);
-void cli_executables_walk_free(const CliExecutablesWalkCtx *args);
 void cli_executables_read(const CliExecutablesFoundCtx *args);
 
 // the main packages of the Go module whose go.mod is `module` and whose text is `text`, each named with its folder as
@@ -462,13 +460,11 @@ struct CliExecutablesCtx
 typedef struct
 {
     void (*order)(const CliExecutablesFoundCtx *args);
-    void (*free)(const CliExecutablesFoundCtx *args);
     void (*read)(const CliExecutablesFoundCtx *args);
 } CliExecutablesFoundNs;
-EMBED_TABLE_LAYOUT(CliExecutablesFoundNs, order, free, read);
+EMBED_TABLE_LAYOUT(CliExecutablesFoundNs, order, read);
 EMBED_TABLE_STORAGE CliExecutablesFoundNs cli_executables_found_internal EMBED_UNUSED = {
     .order = cli_executables_order,
-    .free = cli_executables_free,
     .read = cli_executables_read,
 };
 
@@ -639,15 +635,13 @@ typedef struct
     int (*pending_append)(const CliExecutablesWalkCtx *args);
     int (*found_append)(const CliExecutablesWalkCtx *args);
     void (*walk_alloc)(const CliExecutablesWalkCtx *args);
-    void (*walk_free)(const CliExecutablesWalkCtx *args);
     char *(*text_alloc)(const CliExecutablesWalkCtx *args);
 } CliExecutablesWalkNs;
-EMBED_TABLE_LAYOUT(CliExecutablesWalkNs, pending_append, found_append, walk_alloc, walk_free, text_alloc);
+EMBED_TABLE_LAYOUT(CliExecutablesWalkNs, pending_append, found_append, walk_alloc, text_alloc);
 EMBED_TABLE_STORAGE CliExecutablesWalkNs cli_executables_walk_internal EMBED_UNUSED = {
     .pending_append = cli_executables_pending_append,
     .found_append = cli_executables_found_append,
     .walk_alloc = cli_executables_walk_alloc,
-    .walk_free = cli_executables_walk_free,
     .text_alloc = cli_text_alloc,
 };
 

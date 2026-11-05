@@ -17,18 +17,12 @@ QueryPaths g_query_objects;
 
 int query_paths_alloc(const QueryPathsCtx *args)
 {
-    query_paths_internal.paths_free(args);
+    g_cli_cells->persistent_buf_release(args->paths->path, &g_query_cells);
+    *args->paths = (QueryPaths){NULL, 0u, 0u};
     args->paths->path =
         g_cli_cells->persistent_buf_alloc((unsigned long long)args->count * QUERY_PATH_MAX_LEN, &g_query_cells);
     args->paths->capacity = (args->paths->path != NULL) ? args->count : 0u;
     return args->paths->path != NULL;
-}
-
-void query_paths_free(const QueryPathsCtx *args)
-{
-    QueryPaths *paths = args->paths;
-    g_cli_cells->persistent_buf_release(paths->path, &g_query_cells);
-    *paths = (QueryPaths){NULL, 0u, 0u};
 }
 
 // What a folder's walk for one pattern records: the folder, the extension wanted, the list it adds to, and where this
@@ -196,7 +190,14 @@ void query_every_source(const QueryToolsRootToolCCtx *args)
     unsigned int *c = args->c;
     unsigned int *cxx = args->cxx;
     unsigned int *tools = args->tools;
-    query_every_source_free();
+    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_c_sources,
                      .count = QUERY_SOURCES_MAX);
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_cxx_sources,
@@ -234,14 +235,6 @@ void query_every_source(const QueryToolsRootToolCCtx *args)
     g_query_cxx_sources.count = *cxx;
     *tools = EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = args->root,
                         .patterns = args->tool->cxx_tool, .found = &g_query_tool_sources);
-}
-
-void query_every_source_free(void)
-{
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &g_query_c_sources);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &g_query_cxx_sources);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &g_query_tool_sources);
-    EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &g_query_objects);
 }
 
 // What a folder's walk for its newest header records
@@ -368,7 +361,14 @@ int query_stale(const QueryToolsRootToolCtx *args)
         newest = (seconds > newest) ? seconds : newest;
         list += 1u;
     }
-    query_every_source_free();
+    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     return stale || (newest > built);
 }
 

@@ -352,7 +352,10 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
                              args->created_text,
                              EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
-    EMBED_CALL(cli_runner_run_spawned_internal.run_cells_free, CliRunnerRunSpawnedCtx, .run = run);
+    g_cli_cells->persistent_buf_release(run->job_cell, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(run->lines, &g_cli_runs_cells);
+    run->job_cell = NULL;
+    run->lines = NULL;
     run->ended = 1;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_runs_wake);
 }

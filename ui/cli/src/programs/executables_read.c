@@ -130,13 +130,6 @@ int cli_executables_found_append(const CliExecutablesWalkCtx *args)
     return 1;
 }
 
-void cli_executables_walk_free(const CliExecutablesWalkCtx *args)
-{
-    CliWalk *walk = args->walk;
-    g_cli_cells->persistent_buf_release(walk->pending, &g_cli_executables_cells);
-    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
-}
-
 int cli_executables_join(const CliExecutablesNameOutFolderCtx *args)
 {
     VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
@@ -478,7 +471,9 @@ EMBED_INLINE void cli_script_read(const ExecutablesReadCtx *args)
 
 void cli_executables_read(const CliExecutablesFoundCtx *args)
 {
-    cli_executables_found_internal.free(args);
+    g_cli_cells->persistent_buf_release(args->found->item, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(args->found->order, &g_cli_executables_cells);
+    *args->found = (CliExecutables){NULL, 0u, 0u, NULL};
     args->found->item = g_cli_cells->persistent_buf_alloc(
         (unsigned long long)CLI_EXECUTABLES_MAX * sizeof(*args->found->item), &g_cli_executables_cells);
     args->found->capacity = (args->found->item != NULL) ? CLI_EXECUTABLES_MAX : 0u;
@@ -507,7 +502,8 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
                        .found = args->found);
         }
     }
-    EMBED_CALL(cli_executables_walk_internal.walk_free, CliExecutablesWalkCtx, .walk = walk);
+    g_cli_cells->persistent_buf_release(walk->pending, &g_cli_executables_cells);
+    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
     g_cli_cells->persistent_buf_release(s_scripts, &g_cli_executables_cells);
     s_scripts = NULL;
     cli_executables_found_internal.order(args);

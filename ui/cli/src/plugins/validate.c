@@ -25,15 +25,6 @@ int cli_validate_lock(void)
     return 1;
 }
 
-void cli_validate_release(void)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_validate->json);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_validate->manifest);
-    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
-    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
-    g_cli_validate = NULL;
-}
-
 unsigned int cli_validate_key_get(const CliValidateAtCtx *args)
 {
     const CliTool *const tool = &g_cli_validate->tool;
@@ -342,7 +333,10 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     VerbaLinea *report = args->report;
     const CliTool *const tool = &g_cli_validate->tool;
     CliJson *const json = &g_cli_validate->manifest;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = json, .nodes_more = 0u, .text_more = 0ULL);
     unsigned int chain = CLI_JSON_NONE;
@@ -506,9 +500,19 @@ int cli_on_validate(const CliValidatePathCfg *args)
             validated = EMBED_CALL(validate_text, ValidateCtx, .path = args->path, .text = (const char *)bytes,
                                    .size = size, .report = args->report, .err_msg = args->err_msg);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_plugins_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_plugins_cells));
     }
-    cli_validate_release();
+    g_cli_cells->persistent_buf_release(g_cli_validate->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                              .cell = g_cli_validate->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(
+        g_cli_validate->manifest.node,
+        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->manifest.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
+    g_cli_validate = NULL;
     return validated;
 }

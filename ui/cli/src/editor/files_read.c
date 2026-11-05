@@ -205,8 +205,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
             const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
             const int paged_text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = first, .size = got) &&
                                    EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = first, .size = probe, .cut = 1);
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = first,
-                       .owner = &g_cli_editor_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)first, (&g_cli_editor_cells));
             if (!paged_text)
             {
                 return CLI_FILES_OPEN_NOT_TEXT;
@@ -240,7 +239,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
     }
     else
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
     }
     if (text && !stored)
     {

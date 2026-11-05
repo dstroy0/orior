@@ -54,11 +54,6 @@ const char *cli_transferred_value(const CliMachineTransferTransferredAtCtx *args
     return args->carried->value[args->at];
 }
 
-void cli_machine_transfer_work_state_free(const CliMachineTransferWorkStateObjectCtx *args)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->work_state->json);
-}
-
 void cli_machine_transfer_work_state_begin(const CliMachineTransferWorkStateObjectCtx *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->work_state->json,
@@ -84,8 +79,10 @@ EMBED_INLINE void machine_transfer_release(const CarryCtx *args)
     CliMachineTransferWorkState *work_state = args->work_state;
     EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
                CliMachineTransferTransferredPositionCtx, .transferred_out = args->paths);
-    EMBED_CALL(cli_machine_transfer_capacity_object_internal.capacity_free, CliMachineTransferWorkStateObjectCtx,
-               .work_state = work_state);
+    g_cli_cells->persistent_buf_release(
+        work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
@@ -198,7 +195,11 @@ static unsigned int machine_transfer_plain_read(const CarryCtx *args)
     unsigned int root = CLI_JSON_NONE;
     if (args->fresh)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->work_state->json);
+        g_cli_cells->persistent_buf_release(
+            args->work_state->json.node,
+            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->work_state->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->work_state->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         root = (plain_text != NULL)
                    ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                 .json = &args->work_state->json, .text = plain_text, .size = plain.at,
@@ -454,8 +455,7 @@ int cli_machine_transfer_pack(const CliMachineTransferCfg *args)
                        CliMachineTransferTransferredPositionCtx, .transferred_out = args->packed, .place = place,
                        .value = (const char *)bytes, .size = size);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
     }
     EMBED_CALL(machine_transfer_release, CarryCtx, .paths = &s_paths, .work_state = &s_work_state);
     return 1;
@@ -514,8 +514,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
                            .place = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
                                                CliMachineTransferTransferredAtCtx, .carried = &s_paths, .at = at),
                            .value = (const char *)bytes, .size = size);
-                EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                           .owner = &g_cli_machine_cells);
+                g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
             }
         }
         EMBED_CALL(machine_transfer_release, CarryCtx, .paths = &s_paths, .work_state = &s_work_state);
@@ -537,7 +536,7 @@ int cli_machine_transfer_read(const CliMachineTransferFromCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_work_state.json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
                    .owner = &g_cli_machine_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
     const char *const mark =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state.json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,

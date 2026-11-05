@@ -209,7 +209,9 @@ void test_a_folders_runs_are_counted_to_the_query_while_in_use(void)
     QueryRuns runs;
     const int list_entries = EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     const unsigned long long in_use_during = embed_atomic_usize_load(&g_query_cells.in_use);
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
+    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    *(&runs) = (QueryRuns){NULL, NULL, 0u};
     TEST_ASSERT_TRUE(list_entries);
     TEST_ASSERT_EQUAL_UINT(0u, runs.count);
     TEST_ASSERT_GREATER_THAN_UINT64(before, in_use_during);

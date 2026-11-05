@@ -382,15 +382,6 @@ static void inotify_read(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watch.wake);
 }
 
-// the watch's cells given back
-static void inotify_free(void)
-{
-    g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
-    g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
-    s_watch.folder = NULL;
-    s_watch.names = NULL;
-}
-
 int cli_watch_system_start(const CliRootContextCtx *args)
 {
     const char *root = args->root;
@@ -416,7 +407,10 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         {
             (void)close(s_watch.stopped);
         }
-        inotify_free();
+        g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
+        g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+        s_watch.folder = NULL;
+        s_watch.names = NULL;
         return 0;
     }
     s_watch.ended = 0;
@@ -425,7 +419,10 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     {
         (void)close(s_watch.inotify);
         (void)close(s_watch.stopped);
-        inotify_free();
+        g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
+        g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+        s_watch.folder = NULL;
+        s_watch.names = NULL;
         return 0;
     }
     s_watch.running = 1;
@@ -444,7 +441,10 @@ void cli_watch_system_stop(void)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
     }
-    inotify_free();
+    g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
+    g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+    s_watch.folder = NULL;
+    s_watch.names = NULL;
     s_watch.running = 0;
 }
 #elif !defined(_WIN32)

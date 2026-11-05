@@ -67,10 +67,3 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
     }
     return 1;
 }
-
-void cli_settings_chain_free(const CliSettingsPathCfg *args)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->chain->json);
-    args->chain->files = 0u;
-    args->chain->problems = 0u;
-}

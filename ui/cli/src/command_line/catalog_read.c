@@ -97,7 +97,7 @@ void cli_catalog_script_job(const CliCatalogPathCtx *args)
     EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = group,
                .title = (title != NULL) ? title : file, .file = file, .about = (about != NULL) ? about : "",
                .opens = opens);
-    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = about);
+    g_cli_cells->persistent_buf_release(about, &g_cli_catalog_cells);
 }
 
 // A bash script that takes free words as its job; a build traced: bash takes SHELLOPTS from its environment as its own
@@ -159,7 +159,10 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
                    .name = examples.name[at], .path_out = list_entries.path[positions]);
         positions += 1u;
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &examples);
+    g_cli_cells->persistent_buf_release(examples.name, &g_cli_catalog_cells);
+    examples.name = NULL;
+    examples.count = 0u;
+    examples.capacity = 0u;
     for (unsigned int at = 0u; at < positions; at += 1u)
     {
         EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = list_entries.path[at],
@@ -172,8 +175,13 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
                        .root = args->root, .group = "build", .path = path);
         }
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &builds);
-    EMBED_CALL(cli_catalog_max_internal.paths_free, CliCatalogMaxCtx, .paths = &list_entries);
+    g_cli_cells->persistent_buf_release(builds.name, &g_cli_catalog_cells);
+    builds.name = NULL;
+    builds.count = 0u;
+    builds.capacity = 0u;
+    g_cli_cells->persistent_buf_release(list_entries.path, &g_cli_catalog_cells);
+    list_entries.path = NULL;
+    list_entries.capacity = 0u;
 }
 
 typedef struct
@@ -213,7 +221,10 @@ static int cli_find_dir(const CatalogReadCtx *args)
                                    .found = args->found);
         }
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &dirs);
+    g_cli_cells->persistent_buf_release(dirs.name, &g_cli_catalog_cells);
+    dirs.name = NULL;
+    dirs.count = 0u;
+    dirs.capacity = 0u;
     return found_one;
 }
 
@@ -243,7 +254,10 @@ static int cli_find_file(const CatalogReadCtx *args)
         found_one = EMBED_CALL(cli_find_file, CatalogReadCtx, .under = dir, .name = name, .depth = args->depth + 1u,
                                .found = args->found);
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &dirs);
+    g_cli_cells->persistent_buf_release(dirs.name, &g_cli_catalog_cells);
+    dirs.name = NULL;
+    dirs.count = 0u;
+    dirs.capacity = 0u;
     return found_one;
 }
 
@@ -262,7 +276,7 @@ char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
         text[size] = '\0';
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_catalog_cells));
     return text;
 }
 
@@ -291,7 +305,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
             ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx, .text_read = text,
                          .variable = "SIM", .names_callback = names.name, .capacity = names.capacity)
             : 0u;
-    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
+    g_cli_cells->persistent_buf_release(text, &g_cli_catalog_cells);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const sim = names.name[at];
@@ -341,7 +355,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         }
         EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = "sim",
                    .title = sim, .file = file, .about = (about != NULL) ? about : "", .opens = "");
-        EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = about);
+        g_cli_cells->persistent_buf_release(about, &g_cli_catalog_cells);
         EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                    .program = CLI_PROGRAM_BASH, .text = "src/sims/run.sh", .tool_program = NULL, .system = 0);
@@ -350,8 +364,14 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
                    .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 1);
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &sources);
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &names);
+    g_cli_cells->persistent_buf_release(sources.name, &g_cli_catalog_cells);
+    sources.name = NULL;
+    sources.count = 0u;
+    sources.capacity = 0u;
+    g_cli_cells->persistent_buf_release(names.name, &g_cli_catalog_cells);
+    names.name = NULL;
+    names.count = 0u;
+    names.capacity = 0u;
 }
 
 unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args)
@@ -372,6 +392,9 @@ unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args)
                    .relative_out = args->list->path[at]);
         at += 1u;
     }
-    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &files);
+    g_cli_cells->persistent_buf_release(files.name, &g_cli_catalog_cells);
+    files.name = NULL;
+    files.count = 0u;
+    files.capacity = 0u;
     return at;
 }

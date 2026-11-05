@@ -95,7 +95,6 @@ typedef struct
 
 // the wordmark made with no eye in the bar and nothing standing; and every cell of its given back
 void gui_wordmark_init(const GuiWordmarkStillCfg *args);
-void gui_wordmark_free(const GuiWordmarkStillCfg *args);
 // less motion asked for or no longer: asked for, TABVLA stands whole with the name, the pane leaves with no flight, and
 // a flight under way ends with the eye home and nothing of the name saved
 void gui_wordmark_still(const GuiWordmarkStillCfg *args);
@@ -157,15 +156,13 @@ struct GuiWordmarkStillCfg
 typedef struct
 {
     void (*init)(const GuiWordmarkStillCfg *args);
-    void (*free)(const GuiWordmarkStillCfg *args);
     void (*still)(const GuiWordmarkStillCfg *args);
     void (*land)(const GuiWordmarkStillCfg *args);
     void (*tree_read)(const GuiWordmarkStillCfg *args);
 } CliWordmarkStillNs;
-EMBED_TABLE_LAYOUT(CliWordmarkStillNs, init, free, still, land, tree_read);
+EMBED_TABLE_LAYOUT(CliWordmarkStillNs, init, still, land, tree_read);
 EMBED_TABLE_STORAGE CliWordmarkStillNs cli_wordmark_still EMBED_UNUSED = {
     .init = gui_wordmark_init,
-    .free = gui_wordmark_free,
     .still = gui_wordmark_still,
     .land = gui_wordmark_land,
     .tree_read = gui_wordmark_tree_read,

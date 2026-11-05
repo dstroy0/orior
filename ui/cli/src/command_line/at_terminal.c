@@ -103,7 +103,10 @@ EMBED_INLINE void at_terminal_branches(const AtTerminalCtx *args)
             mmgr_line_put(args->out, subject);
         }
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
+    g_cli_cells->persistent_buf_release(found->text.bytes, &g_cli_git_cells);
+    found->text.bytes = NULL;
+    found->text.used = 0ULL;
+    found->text.capacity = 0ULL;
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 
@@ -127,7 +130,10 @@ EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
         mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
                                             .at = found->item[at].subject));
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
+    g_cli_cells->persistent_buf_release(found->text.bytes, &g_cli_git_cells);
+    found->text.bytes = NULL;
+    found->text.used = 0ULL;
+    found->text.capacity = 0ULL;
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 
@@ -153,7 +159,10 @@ EMBED_INLINE void at_terminal_elsewhere(const AtTerminalCtx *args)
         mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
                                             .at = found->item[at].subject));
     }
-    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
+    g_cli_cells->persistent_buf_release(found->text.bytes, &g_cli_git_cells);
+    found->text.bytes = NULL;
+    found->text.used = 0ULL;
+    found->text.capacity = 0ULL;
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 

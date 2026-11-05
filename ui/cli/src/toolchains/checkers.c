@@ -34,18 +34,13 @@ static int checkers_lock(void)
     return 1;
 }
 
-// the work state and its manifest given back, and the lock with it
-static void checkers_release(void)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_work_state->json);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
-    s_work_state = NULL;
-}
-
 // the manifest read into the work state, the one read before given back: its array of toolchains
 static unsigned int cli_manifest(void)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_work_state->json);
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                       .json_out = &s_work_state->json, .nodes_more = 0u, .text_more = 0ULL);
 }
@@ -155,7 +150,12 @@ int cli_checkers_by_name(const CliCheckersNameCfg *args)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = tool_id, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return found;
 }
 
@@ -173,7 +173,12 @@ int cli_checkers_reads_tree(const CliCheckersCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "tree"),
                    .kind = CFG_JSON_ARRAY);
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return tree;
 }
 
@@ -191,7 +196,12 @@ int cli_checkers_reads_input(const CliCheckersCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "stdin"),
                    .kind = CFG_JSON_TRUE);
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return input;
 }
 
@@ -221,7 +231,12 @@ int cli_checkers_checks(const CliCheckersCfg *args)
         checks = (one != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->language, .cap = CLI_CELLS_POOL}));
     }
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return checks;
 }
 
@@ -401,7 +416,12 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     {
         mmgr_line_put(args->err_msg, args->id);
         mmgr_line_put(args->err_msg, " is not in the manifest");
-        checkers_release();
+        g_cli_cells->persistent_buf_release(s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                                .cell = s_work_state->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+        s_work_state = NULL;
         return 0;
     }
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -440,15 +460,19 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     const int checked =
         EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "args", .file = args->path, .root = args->root,
                    .input = input, .length = input_length, .err_msg = args->err_msg);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
-               .owner = &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_toolchains_cells));
     if (checked)
     {
         EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = &s_work_state->findings,
                    .path = args->path, .first = 1);
         EMBED_CALL(cli_findings_write, CheckersCtx, .out = args->out);
     }
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return checked;
 }
 
@@ -468,7 +492,12 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
                     .kind = CFG_JSON_ARRAY))
     {
         mmgr_line_put(args->out, "[]");
-        checkers_release();
+        g_cli_cells->persistent_buf_release(s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                                .cell = s_work_state->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+        s_work_state = NULL;
         return 1;
     }
     const int checked = EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "tree", .file = NULL,
@@ -477,6 +506,11 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
     {
         EMBED_CALL(cli_findings_write, CheckersCtx, .out = args->out);
     }
-    checkers_release();
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    s_work_state = NULL;
     return checked;
 }

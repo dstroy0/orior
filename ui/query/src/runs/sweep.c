@@ -240,7 +240,9 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
             sweeps += 1u;
         }
     }
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
+    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    *(&runs) = (QueryRuns){NULL, NULL, 0u};
     unsigned long long median[QUERY_SWEEP_ENTRIES] = {0ULL};
     for (unsigned int entry = 0u; (sweeps >= QUERY_SWEEP_MIN) && (entry < QUERY_SWEEP_ENTRIES); entry += 1u)
     {
@@ -372,7 +374,9 @@ void query_swept_again(const QueryRetentionContextCtx *args)
                             .seconds = &seconds) &&
                  ((seconds + (hours * 3600ULL)) > query_now());
     }
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
+    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    *(&runs) = (QueryRuns){NULL, NULL, 0u};
     char why[QUERY_LINE_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (within)

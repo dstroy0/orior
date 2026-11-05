@@ -303,7 +303,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
         row += 1ULL;
         at = line_end + 1ULL;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_db_cells));
 }
 
 // a buffered row's line written into the page after those before it

@@ -168,7 +168,6 @@ int cli_file_read_at(const CliPathFromCtx *args);
 unsigned char *cli_file_alloc(const CliPathCtx *args);
 unsigned char *cli_file_alloc_utf8(const CliPathCtx *args);
 unsigned char *cli_file_piece_alloc(const CliPathCtx *args);
-void cli_file_free(const CliOwnerCtx *args);
 // the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
 // tree's pool is made for (machine/file_cell.c)
 unsigned long long cli_tree_bytes(const CliPathRootCtx *args);
@@ -1182,15 +1181,6 @@ EMBED_TABLE_STORAGE CliPathNs cli_path_internal EMBED_UNUSED = {
     .file_alloc = cli_file_alloc,
     .file_alloc_utf8 = cli_file_alloc_utf8,
     .file_piece_alloc = cli_file_piece_alloc,
-};
-
-typedef struct
-{
-    void (*file_free)(const CliOwnerCtx *args);
-} CliOwnerNs;
-EMBED_TABLE_LAYOUT(CliOwnerNs, file_free);
-EMBED_TABLE_STORAGE CliOwnerNs cli_owner_internal EMBED_UNUSED = {
-    .file_free = cli_file_free,
 };
 
 typedef struct

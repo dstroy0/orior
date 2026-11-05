@@ -116,13 +116,6 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     return 1;
 }
 
-static void diff_release(void)
-{
-    g_cli_cells->persistent_buf_release(s_diff->trace, &g_cli_text_cells);
-    g_cli_cells->persistent_buf_release(s_diff->cell, &g_cli_text_cells);
-    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-}
-
 // whether line `one` of `a` is line `other` of `b`
 EMBED_INLINE int cli_same_line(const DiffCtx *args)
 {
@@ -169,6 +162,8 @@ long long cli_diff_run_get(const CliDocumentThenCfg *args)
         s_diff->hash_now[at] = args->hash_now[at];
     }
     const long long run = EMBED_CALL(cli_run, DiffCtx, .runs = &runs, .x = args->x, .y = args->y);
-    diff_release();
+    g_cli_cells->persistent_buf_release(s_diff->trace, &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release(s_diff->cell, &g_cli_text_cells);
+    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     return run;
 }

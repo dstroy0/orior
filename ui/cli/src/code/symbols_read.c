@@ -160,7 +160,10 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
                                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &json, .object = root, .name = "grammar"),
                                .kind = CFG_JSON_OBJECT);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     unsigned long long found = 0ULL;
     const int declares = grammared && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->plugin->text,
                                                  .length_value = args->plugin->size, .required = "declaration.",
@@ -211,15 +214,6 @@ CliSymbolsLanguages *cli_symbols_languages_for_call(void)
         EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_symbols_grammar_note, .context = read);
     }
     return read;
-}
-
-void cli_symbols_languages_free(const CliSymbolsCfg *args)
-{
-    if (args->read != NULL)
-    {
-        EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &args->read->languages);
-    }
-    g_cli_cells->persistent_buf_release(args->read, &g_cli_code_cells);
 }
 
 typedef struct
@@ -273,7 +267,12 @@ int cli_symbols_reads(const CliSymbolsPathNameCfg *args)
     const int reads =
         (read != NULL) && EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx,
                                      .read_symbols_languages_pointer = read, .path = args->path);
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = read);
+    if (read != NULL)
+    {
+        g_cli_cells->persistent_buf_release(read->languages.pair, &g_cli_plugins_cells);
+        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(read, &g_cli_code_cells);
     return reads;
 }
 
@@ -286,7 +285,12 @@ void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args)
                    .read_symbols_languages_pointer_other = read, .path = args->path, .text = args->text,
                    .size = args->size, .each = args->each_declared, .context = args->context);
     }
-    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = read);
+    if (read != NULL)
+    {
+        g_cli_cells->persistent_buf_release(read->languages.pair, &g_cli_plugins_cells);
+        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_cells->persistent_buf_release(read, &g_cli_code_cells);
 }
 
 void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args)

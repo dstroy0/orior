@@ -48,7 +48,10 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found);
         g_cli_cells->persistent_buf_release(folders, &g_cli_servers_cells);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
+    g_cli_cells->persistent_buf_release(
+        manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const char *const names[1] = {name};
     if ((tool == CLI_JSON_NONE) || (found.folder[0] == '\0') ||
         !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = found.folder, .names = names,

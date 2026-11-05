@@ -17,18 +17,6 @@
 static unsigned int s_order[CLI_SERVERS_WAITING];
 static const CliServersQueue *s_ordering;
 
-void cli_servers_check_work_state_free(const CliServersQueueFilesCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->queue->files, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->file_at, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->waiting, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->capacity, &g_cli_servers_check_work_state_cells);
-    args->queue->files = NULL;
-    args->queue->file_at = NULL;
-    args->queue->waiting = NULL;
-    args->queue->capacity = NULL;
-}
-
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
 {
     const char *const *files = args->files;
@@ -45,7 +33,14 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     {
         return 1;
     }
-    cli_servers_queue_files_internal.check_work_state_free(args);
+    g_cli_cells->persistent_buf_release(args->queue->files, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(args->queue->file_at, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(args->queue->waiting, &g_cli_servers_check_work_state_cells);
+    g_cli_cells->persistent_buf_release(args->queue->capacity, &g_cli_servers_check_work_state_cells);
+    args->queue->files = NULL;
+    args->queue->file_at = NULL;
+    args->queue->waiting = NULL;
+    args->queue->capacity = NULL;
     args->queue->files = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_servers_check_work_state_cells);
     args->queue->file_at = g_cli_cells->persistent_buf_alloc(positions * sizeof(*args->queue->file_at),
                                                              &g_cli_servers_check_work_state_cells);
@@ -59,7 +54,14 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     if ((args->queue->files == NULL) || (args->queue->file_at == NULL) || (args->queue->waiting == NULL) ||
         (args->queue->capacity == NULL))
     {
-        cli_servers_queue_files_internal.check_work_state_free(args);
+        g_cli_cells->persistent_buf_release(args->queue->files, &g_cli_servers_check_work_state_cells);
+        g_cli_cells->persistent_buf_release(args->queue->file_at, &g_cli_servers_check_work_state_cells);
+        g_cli_cells->persistent_buf_release(args->queue->waiting, &g_cli_servers_check_work_state_cells);
+        g_cli_cells->persistent_buf_release(args->queue->capacity, &g_cli_servers_check_work_state_cells);
+        args->queue->files = NULL;
+        args->queue->file_at = NULL;
+        args->queue->waiting = NULL;
+        args->queue->capacity = NULL;
         return 0;
     }
     return 1;

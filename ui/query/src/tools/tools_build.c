@@ -216,7 +216,14 @@ int query_tool_built_into(const QueryNameCapacityCtx *args)
     const int built = EMBED_CALL(query_tool_compile, ToolsBuildCtx, .root = args->root, .programs = args->programs,
                                  .name = args->name, .tool = tool, .out = args->out_text, .binary = args->binary,
                                  .c_compiler = s_c, .cxx_compiler = s_cxx, .err_msg = args->err_msg);
-    query_every_source_free();
+    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     return built;
 }
 

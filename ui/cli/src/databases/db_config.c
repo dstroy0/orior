@@ -24,13 +24,6 @@ typedef struct
 // config_release
 static CliDbConnection *s_connections;
 
-// the connections read given back, and the lock with them
-static void config_release(void)
-{
-    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
-    s_connections = NULL;
-}
-
 unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args)
 {
     if (args->connection->port != 0u)
@@ -178,7 +171,7 @@ static int config_read(const DbConfigCtx *args)
                                      .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                      .text_more = 0ULL, .err_msg = &read_err_msg, .owner = &g_cli_db_cells)
                         : CLI_JSON_NONE;
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_db_cells));
     const unsigned int connections = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &json, .object = root_node, .name = "connections");
     unsigned int named = 0u;
@@ -191,7 +184,10 @@ static int config_read(const DbConfigCtx *args)
     s_connections = g_cli_cells->persistent_buf_alloc((named + 1ULL) * sizeof(*s_connections), &g_cli_db_cells);
     if (s_connections == NULL)
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "databases.json: the cells cannot meet its connections");
         return -1;
     }
@@ -221,7 +217,10 @@ static int config_read(const DbConfigCtx *args)
                    .kind = CFG_JSON_OBJECT) &&
         ((connections == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                                       .json_read = &json, .node = connections, .kind = CFG_JSON_ARRAY));
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!object || (read_err_msg.at > 0ULL))
     {
         mmgr_line_put(err_msg, "databases.json: ");
@@ -335,11 +334,13 @@ int cli_db_by_name(const CliDbRootNameCfg *args)
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
         {
             *connection = s_connections[at];
-            config_release();
+            g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+            s_connections = NULL;
             return 1;
         }
     }
-    config_release();
+    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+    s_connections = NULL;
     if (count >= 0)
     {
         mmgr_line_put(args->err_msg, "databases.json names no connection ");
@@ -374,7 +375,8 @@ int cli_db_save(const CliDbConnectionCfg *args)
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        config_release();
+        g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+        s_connections = NULL;
         return 0;
     }
     const char *const old = (args->was != NULL) ? args->was : args->connection->name;
@@ -385,7 +387,8 @@ int cli_db_save(const CliDbConnectionCfg *args)
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = s_connections[at].name, .other = args->connection->name, .cap = CLI_CELLS_POOL})))
         {
-            config_release();
+            g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+            s_connections = NULL;
             mmgr_line_put(args->err_msg, "the tree names a connection ");
             mmgr_line_put(args->err_msg, args->connection->name);
             mmgr_line_put(args->err_msg, " already");
@@ -398,7 +401,8 @@ int cli_db_save(const CliDbConnectionCfg *args)
     }
     if ((found < 0) && (count == (int)CLI_DB_CONNECTIONS))
     {
-        config_release();
+        g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+        s_connections = NULL;
         mmgr_line_put(args->err_msg, "databases.json names as many connections as orior_cli reads");
         return 0;
     }
@@ -406,7 +410,8 @@ int cli_db_save(const CliDbConnectionCfg *args)
     const int written =
         EMBED_CALL(config_write, DbConfigCtx, .root = args->root,
                    .count = (found >= 0) ? (unsigned int)count : (unsigned int)count + 1u, .err_msg = args->err_msg);
-    config_release();
+    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+    s_connections = NULL;
     return written;
 }
 
@@ -415,7 +420,8 @@ int cli_db_remove(const CliDbRootNameCfg *args)
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        config_release();
+        g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+        s_connections = NULL;
         return 0;
     }
     unsigned int remaining = 0u;
@@ -439,7 +445,8 @@ int cli_db_remove(const CliDbRootNameCfg *args)
     }
     const int written =
         EMBED_CALL(config_write, DbConfigCtx, .root = args->root, .count = remaining, .err_msg = args->err_msg);
-    config_release();
+    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+    s_connections = NULL;
     return written;
 }
 
@@ -448,7 +455,8 @@ int cli_db_list(const CliDbOutRootCfg *args)
     const int read = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (read < 0)
     {
-        config_release();
+        g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+        s_connections = NULL;
         return 0;
     }
     mmgr_line_ch(args->out, '[');
@@ -504,6 +512,7 @@ int cli_db_list(const CliDbOutRootCfg *args)
         mmgr_line_put(args->out, list_entries ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
     }
     mmgr_line_ch(args->out, ']');
-    config_release();
+    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+    s_connections = NULL;
     return 1;
 }

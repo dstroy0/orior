@@ -321,8 +321,7 @@ EMBED_INLINE int inspect_tree_read(const ServersInspectCtx *args)
             (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = one,
                              .language = language, .text = (const char *)mapped, .size = size);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
-                   .owner = &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_servers_cells));
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     if (inspect_generation() != args->born)

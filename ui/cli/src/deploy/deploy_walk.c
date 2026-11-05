@@ -198,7 +198,13 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         return 0;
     }
     EMBED_CALL(walk_from, DeployWalkCtx, .from = run->deployment.from);
-    EMBED_CALL(cli_deploy_pool_internal.pool_free, CliDeployPoolCtx, .pool = &s_pool);
+    while (s_pool.page != NULL)
+    {
+        CliDeployPage *const before = s_pool.page->before;
+        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        s_pool.page = before;
+    }
+    s_pool.refused = 0;
     s_folder_patterns = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &s_pool,
                                    .size = (unsigned long long)run->patterns * sizeof(s_folder_patterns[0]));
     s_folder_pattern_count = 0u;
@@ -257,7 +263,13 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         run->out[at] = s_outs->pair;
     }
     const int overflowed = s_overflowed || s_pool.refused || run->pool.refused;
-    EMBED_CALL(cli_deploy_pool_internal.pool_free, CliDeployPoolCtx, .pool = &s_pool);
+    while (s_pool.page != NULL)
+    {
+        CliDeployPage *const before = s_pool.page->before;
+        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        s_pool.page = before;
+    }
+    s_pool.refused = 0;
     s_folder_patterns = NULL;
     s_sents = NULL;
     s_outs = NULL;
@@ -286,8 +298,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
             VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ULL};
             EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &hash);
             mmgr_line_finish(&hash);
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                       .owner = &g_cli_deploy_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
         }
     }
     return 1;

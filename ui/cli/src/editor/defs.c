@@ -61,8 +61,8 @@ EMBED_INLINE void cli_unmapped(const DefsCtx *args)
     if (args->file.text != NULL)
     {
         // the text is the bytes the file was mapped as
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
-                   .bytes_bytes_other = (const unsigned char *)args->file.text, .owner = &g_cli_defs_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->file.text),
+                                            (&g_cli_defs_cells));
     }
 }
 

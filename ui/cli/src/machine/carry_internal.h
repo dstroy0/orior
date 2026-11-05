@@ -33,7 +33,6 @@ typedef struct
 
 // a work state begun empty, and its tree given back (carry.c)
 void cli_machine_transfer_work_state_begin(const CliMachineTransferWorkStateObjectCtx *args);
-void cli_machine_transfer_work_state_free(const CliMachineTransferWorkStateObjectCtx *args);
 
 // the files carried made empty; `size` bytes of `value` put at `place`, in the order of the places, one there already
 // written over: 1, or 0 where they do not fit; the place of `place` among them, or their count where it is not one;
@@ -137,13 +136,11 @@ struct CliMachineTransferCtx
 typedef struct
 {
     void (*capacity_begin)(const CliMachineTransferWorkStateObjectCtx *args);
-    void (*capacity_free)(const CliMachineTransferWorkStateObjectCtx *args);
     void (*settings_write)(const CliMachineTransferWorkStateObjectCtx *args);
 } CliMachineTransferWorkStateObjectNs;
-EMBED_TABLE_LAYOUT(CliMachineTransferWorkStateObjectNs, capacity_begin, capacity_free, settings_write);
+EMBED_TABLE_LAYOUT(CliMachineTransferWorkStateObjectNs, capacity_begin, settings_write);
 EMBED_TABLE_STORAGE CliMachineTransferWorkStateObjectNs cli_machine_transfer_capacity_object_internal EMBED_UNUSED = {
     .capacity_begin = cli_machine_transfer_work_state_begin,
-    .capacity_free = cli_machine_transfer_work_state_free,
     .settings_write = cli_machine_transfer_settings_write,
 };
 

@@ -1191,18 +1191,6 @@ EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
     s_owner.sending = piece > 0ULL;
 }
 
-// every content the clipboard served let go; under the lock
-static void owner_contents_free(void)
-{
-    for (unsigned int place = 0u; place < 3u; place += 1u)
-    {
-        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
-        s_owner.content[place] = NULL;
-        s_owner.size[place] = 0ULL;
-    }
-    s_owner.sending = 0;
-}
-
 // the clipboard owned and served until another program takes it or it is emptied
 static void owner_run(void *context)
 {
@@ -1236,7 +1224,13 @@ static void owner_run(void *context)
         }
     }
     s_owner.owning = 0;
-    owner_contents_free();
+    for (unsigned int place = 0u; place < 3u; place += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        s_owner.content[place] = NULL;
+        s_owner.size[place] = 0ULL;
+    }
+    s_owner.sending = 0;
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = x11);
 }
 
@@ -1304,7 +1298,13 @@ int cli_clipboard_text_read(const CliCtx *args)
 
 int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    owner_contents_free();
+    for (unsigned int place = 0u; place < 3u; place += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        s_owner.content[place] = NULL;
+        s_owner.size[place] = 0ULL;
+    }
+    s_owner.sending = 0;
     const int owner = EMBED_CALL(owner_content_append, PosixClipboardCtx, .place = CLI_X11_OWNER_TEXT,
                                  .bytes_text = args->text, .size = args->size) &&
                       owner_own();
@@ -1332,7 +1332,13 @@ int cli_clipboard_files_append(const CliCountCtx *args)
         mmgr_line_put(&text, (at > 0u) ? "\n" : "");
         mmgr_line_put(&text, args->paths[at]);
     }
-    owner_contents_free();
+    for (unsigned int place = 0u; place < 3u; place += 1u)
+    {
+        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        s_owner.content[place] = NULL;
+        s_owner.size[place] = 0ULL;
+    }
+    s_owner.sending = 0;
     const int owner = mmgr_line_ok(&uris) && mmgr_line_ok(&copied) && mmgr_line_ok(&text) &&
                       EMBED_CALL(owner_content_append, PosixClipboardCtx, .place = CLI_X11_OWNER_URIS,
                                  .bytes_text = uris.out, .size = uris.at) &&

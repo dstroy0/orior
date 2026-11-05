@@ -24,7 +24,9 @@ static void sample_scanned(void)
                                  "#[tokio::test]\n    async fn two() {}\n\n    #[test]\n    #[should_panic(expected = \"no {\")]\n    pub fn "
                                  "three() { let _ = '}'; }\n\n    fn not_a_test() {}\n\n    mod deeper {\n        mod inner_file;\n        "
                                  "#[test]\n        fn four() {}\n    }\n}\n\n#[test]\nfn five() {}\n";
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = s_text, .size = sizeof(s_text) - 1u);
     const unsigned int count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = s_text);
     VerbaLinea test_line = {s_scanned_tests, sizeof(s_scanned_tests), 0ull};
@@ -110,7 +112,15 @@ static unsigned long long found_written(void)
         mmgr_line_ch(&line, ' ');
         mmgr_line_put(&line, (one->test.class_name != NULL) ? one->test.class_name : "-");
     }
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    CliCargoPiece *piece = s_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return line.at;
 }
 
@@ -161,14 +171,18 @@ void tearDown(void)
 void test_tests_are_found_end_strings_comments_and_lifetimes(void)
 {
     sample_scanned();
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     CLI_TEST_ASSERT_TEXT("tests::one 12|tests::two 15|tests::three 19|tests::deeper::four 26|five 31", s_scanned_tests, s_scanned_tests_size);
 }
 
 void test_the_modules_a_file_names_are_found(void)
 {
     sample_scanned();
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     CLI_TEST_ASSERT_TEXT("outer|tests::deeper::inner_file", s_scanned_mods, s_scanned_mods_size);
 }
 
@@ -177,7 +191,9 @@ void test_the_tokens_cell_is_the_size_of_their_count(void)
     sample_scanned();
     const unsigned int capacity = g_cli_cargo_scan.token_capacity;
     const unsigned int count = g_cli_cargo_scan.token_count;
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     TEST_ASSERT_EQUAL_UINT(count, capacity);
     TEST_ASSERT_NOT_EQUAL(0u, count);
 }
@@ -185,7 +201,9 @@ void test_the_tokens_cell_is_the_size_of_their_count(void)
 void test_every_cell_of_the_scan_is_released(void)
 {
     sample_scanned();
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_cargo_cells.in_use));
 }
 
@@ -219,7 +237,15 @@ void test_a_found_test_reports_its_line(void)
     package_found();
     TEST_ASSERT_GREATER_THAN_UINT(1u, s_tests.count);
     const unsigned int line = s_tests.found[1].test.line;
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    CliCargoPiece *piece = s_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     TEST_ASSERT_EQUAL_UINT(3u, line);
 }
 
@@ -229,13 +255,29 @@ void test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece(v
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_tests.count, s_tests.capacity);
     TEST_ASSERT_NOT_NULL(s_tests.pieces);
     TEST_ASSERT_NULL(s_tests.pieces->next);
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    CliCargoPiece *piece = s_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
 void test_the_searchs_cells_are_released_as_it_ends(void)
 {
     package_found();
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    CliCargoPiece *piece = s_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_cargo_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_cargo_cells.hw));
 }

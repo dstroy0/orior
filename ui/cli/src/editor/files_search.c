@@ -17,9 +17,11 @@
 #define CLI_WORKERS_MAX 256u
 #define CLI_BINARY_LOOK 8192ULL
 
-// One search: the files searched, picked off the tree for the search's length, and the most bytes of one
-// read, what is looked for and its letters in lower case; the next file to read and the workers searching, both atomic
-// since every worker moves them; the lines each worker found, and how many stores are in use; and each worker's thread
+// One search: the files searched, picked off the tree for the search's length, or standing after it with the lines,
+// and the most bytes of one read, what is looked for and its letters in lower case; the next file to read and the
+// workers searching, both atomic since every worker moves them; the lines each worker found, and how many stores are in
+// use; each worker's thread; whether the lines stand after the search, for the window's rows to point into, and those
+// lines in the order of the files, how many
 typedef struct
 {
     const char *root;
@@ -35,6 +37,11 @@ typedef struct
     CliThread worker_thread[CLI_WORKERS_MAX];
     void (*each)(const CliEachHitCfg *args);
     void *context;
+    int standing;
+    const CliSearchHit *ordered[CLI_HITS_MAX];
+    unsigned int found;
+    unsigned int file_first[CLI_HITS_MAX];
+    unsigned int files;
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
@@ -52,6 +59,23 @@ static void cli_hit_append(const CliHitAppendCfg *args)
     const CliFileHits *const file = (const CliFileHits *)args->context;
     EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = file->hits, .file = file->file,
                .line = args->line, .col = args->col, .text = args->text, .size = args->size);
+}
+
+// a line git found put last in the first store, for the lines to stand after the search, its file found among the
+// files picked by its path; a path the pick left out is passed over
+static void cli_git_hit_store(const CliEachHitCfg *args)
+{
+    if (s_search.paths.files == NULL)
+    {
+        return;
+    }
+    const unsigned int file =
+        EMBED_CALL(cli_files_path_kind.index, CliFilesPathKindCfg, .files = s_search.paths.files, .path = args->path);
+    if (file < s_search.paths.count)
+    {
+        EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = &s_search.hits[0], .file = file,
+                   .line = args->line, .col = args->col, .text = args->text, .size = args->size);
+    }
 }
 
 typedef struct
@@ -109,8 +133,7 @@ static void cli_worker(void *context)
             if (bytes != NULL)
             {
                 EMBED_CALL(cli_search, FilesSearchCtx, .bytes = bytes, .size = got, .index = index, .hits = hits);
-                EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                           .owner = &g_cli_editor_cells);
+                g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, &g_cli_editor_cells);
             }
         }
     }
@@ -142,7 +165,7 @@ EMBED_INLINE void cli_search_paths(const FilesSearchCtx *args)
 {
     CliSearchHides hides = {args->patterns, args->set};
     (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &s_search.paths, .root = args->root,
-                     .filter = cli_search_includes, .context = &hides);
+                     .filter = cli_search_includes, .context = &hides, .standing = s_search.standing);
     if (s_search.paths.files != NULL)
     {
         (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = s_search.paths.files);
@@ -150,6 +173,8 @@ EMBED_INLINE void cli_search_paths(const FilesSearchCtx *args)
     }
     s_search.most = cli_tree_git() ? ~0ULL : CLI_SEARCHED_BYTES;
 }
+
+EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args);
 
 // the files read and searched, a worker on each core the work may take, and the lines found written
 EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
@@ -164,6 +189,7 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     for (unsigned int at = 0u; at < workers; at += 1u)
     {
         (void)EMBED_ATOMIC_ADD_32(&s_search.workers, 1u);
+        s_search.hits[started].standing = s_search.standing;
         s_search.worker_thread[started] = (CliThread){cli_worker, &s_search.hits[started], CLI_PRIORITY_WORK};
         if (EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_search.worker_thread[started]))
         {
@@ -178,6 +204,7 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     {
         // with no worker started, the files are read and searched here, one at a time
         (void)EMBED_ATOMIC_ADD_32(&s_search.workers, 1u);
+        s_search.hits[0].standing = s_search.standing;
         cli_worker(&s_search.hits[0]);
         started = 1u;
     }
@@ -186,28 +213,93 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_search.wake);
     }
-    if (out != NULL)
+    EMBED_CALL(cli_search_ordered, FilesSearchCtx, .out = out);
+}
+
+// the stores' lines read back in the order of the files: each written, or handed on, where the lines do not stand
+// after the search, and each stored in that order where they do, with each file's first line
+EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
+{
+    VerbaLinea *out = args->out;
+    s_search.found = 0u;
+    s_search.files = 0u;
+    if ((out != NULL) && !s_search.standing)
     {
         mmgr_line_ch(out, '[');
     }
     for (unsigned int at = 0u; at < CLI_HITS_MAX; at += 1u)
     {
         const CliSearchHit *const hit = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg,
-                                                   .hits = s_search.hits, .stores = started);
+                                                   .hits = s_search.hits, .stores = s_search.stores);
         if (hit == NULL)
         {
             break;
         }
-        EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = at == 0u,
-                   .path = EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx,
-                                      .picked_read = &s_search.paths, .index = hit->file),
-                   .line = hit->line, .col = hit->col, .text = hit->text, .size = hit->size, .each = s_search.each,
-                   .context = s_search.context);
+        if ((s_search.found == 0u) || (hit->file != s_search.ordered[s_search.found - 1u]->file))
+        {
+            s_search.file_first[s_search.files] = s_search.found;
+            s_search.files += 1u;
+        }
+        s_search.ordered[s_search.found] = hit;
+        s_search.found += 1u;
+        if (!s_search.standing)
+        {
+            EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = at == 0u,
+                       .path = EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx,
+                                          .picked_read = &s_search.paths, .index = hit->file),
+                       .line = hit->line, .col = hit->col, .text = hit->text, .size = hit->size, .each = s_search.each,
+                       .context = s_search.context);
+        }
     }
-    if (out != NULL)
+    if ((out != NULL) && !s_search.standing)
     {
         mmgr_line_ch(out, ']');
     }
+}
+
+unsigned int cli_search_standing_count(void)
+{
+    return s_search.standing ? s_search.found : 0u;
+}
+
+const CliSearchHit *cli_search_standing_hit(unsigned int at)
+{
+    return (s_search.standing && (at < s_search.found)) ? s_search.ordered[at] : NULL;
+}
+
+unsigned int cli_search_standing_files(void)
+{
+    return s_search.standing ? s_search.files : 0u;
+}
+
+unsigned int cli_search_standing_file_first(unsigned int file)
+{
+    return (s_search.standing && (file < s_search.files)) ? s_search.file_first[file] : s_search.found;
+}
+
+const char *cli_search_standing_path(const CliSearchHit *hit)
+{
+    return EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx, .picked_read = &s_search.paths,
+                      .index = hit->file);
+}
+
+void cli_search_standing_free(void)
+{
+    for (unsigned int store = 0u; store < s_search.stores; store += 1u)
+    {
+        CliHitCell *cell = s_search.hits[store].cell_first;
+        while (cell != NULL)
+        {
+            CliHitCell *const next = cell->next;
+            g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
+            cell = next;
+        }
+        s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0};
+    }
+    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
+    s_search.found = 0u;
+    s_search.files = 0u;
+    s_search.standing = 0;
 }
 
 int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
@@ -215,8 +307,11 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     const char *root = args->root;
     static CliPatterns s_patterns;
     static CliWords s_specs;
+    // the lines left standing by the last search go before the next
+    cli_search_standing_free();
     s_search.each = args->each;
     s_search.context = args->context;
+    s_search.standing = args->standing;
     if (args->query[0] == '\0')
     {
         if (args->out != NULL)
@@ -241,18 +336,36 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     }
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = &s_patterns, .words = &s_specs);
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = args->set, .words = &s_specs);
+    s_search.root = root;
     if (args->how.regex)
     {
+        // the lines git finds stand after the search where asked: the files picked first, so each line finds its file
+        // among them, and git's lines put in the first store and read back in the files' order
+        if (s_search.standing)
+        {
+            EMBED_CALL(cli_search_paths, FilesSearchCtx, .root = root, .patterns = &s_patterns, .set = args->set);
+            s_search.hits[0].standing = 1;
+            s_search.stores = 1u;
+        }
         const int received =
             EMBED_CALL(cli_files_root_internal.search_by_git, CliFilesRootCtx, .root = root, .query = args->query,
-                       .how = args->how, .specs = &s_specs, .patterns = &s_patterns, .set = args->set, .out = args->out,
-                       .err_msg = args->err_msg, .each = args->each, .context = args->context);
+                       .how = args->how, .specs = &s_specs, .patterns = &s_patterns, .set = args->set,
+                       .out = s_search.standing ? NULL : args->out, .err_msg = args->err_msg,
+                       .each = s_search.standing ? cli_git_hit_store : args->each, .context = args->context);
         if (received != CLI_GIT_SEARCH_NONE)
         {
+            if (s_search.standing)
+            {
+                EMBED_CALL(cli_search_ordered, FilesSearchCtx, .out = NULL);
+            }
             return received == CLI_GIT_SEARCH_FOUND;
         }
+        if (s_search.standing)
+        {
+            cli_search_standing_free();
+            s_search.standing = args->standing;
+        }
     }
-    s_search.root = root;
     EMBED_CALL(cli_search_paths, FilesSearchCtx, .root = root, .patterns = &s_patterns, .set = args->set);
     // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int stores
     const unsigned int letters =
@@ -273,8 +386,20 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     EMBED_ATOMIC_STORE(&s_search.next, 0u);
     EMBED_ATOMIC_STORE(&s_search.workers, 0u);
     EMBED_CALL(cli_search_run, FilesSearchCtx, .out = args->out);
-    EMBED_CALL(cli_files_search_hits.hits_free, CliFilesSearchHitsCfg, .hits = s_search.hits,
-               .stores = s_search.stores);
-    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
+    if (!s_search.standing)
+    {
+        for (unsigned int store = 0u; store < s_search.stores; store += 1u)
+        {
+            CliHitCell *cell = s_search.hits[store].cell_first;
+            while (cell != NULL)
+            {
+                CliHitCell *const next = cell->next;
+                g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
+                cell = next;
+            }
+            s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0};
+        }
+        EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
+    }
     return 1;
 }

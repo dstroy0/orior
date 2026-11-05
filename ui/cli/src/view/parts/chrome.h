@@ -32,7 +32,6 @@ void gui_bar_draw(const GuiChromeRasterCfg *args);
 // rectangle, minimize, maximize and close; the shadow's cell given back; and the control the pointer at x, y stands
 // on, GUI_CONTROL_NONE off them all
 void gui_controls_draw(const GuiChromeRasterCfg *args);
-void gui_controls_shadow_free(const GuiChromeRasterCfg *args);
 unsigned int gui_controls_hit(const GuiChromeCfg *args);
 // the rectangle of the control `which`
 GuiRect gui_control_rect(const GuiChromeCfg *args);
@@ -59,13 +58,11 @@ typedef struct
 {
     void (*bar_draw)(const GuiChromeRasterCfg *args);
     void (*controls_draw)(const GuiChromeRasterCfg *args);
-    void (*controls_shadow_free)(const GuiChromeRasterCfg *args);
 } GuiChromeRasterNs;
-EMBED_TABLE_LAYOUT(GuiChromeRasterNs, bar_draw, controls_draw, controls_shadow_free);
+EMBED_TABLE_LAYOUT(GuiChromeRasterNs, bar_draw, controls_draw);
 EMBED_TABLE_STORAGE GuiChromeRasterNs gui_chrome_raster EMBED_UNUSED = {
     .bar_draw = gui_bar_draw,
     .controls_draw = gui_controls_draw,
-    .controls_shadow_free = gui_controls_shadow_free,
 };
 
 typedef struct

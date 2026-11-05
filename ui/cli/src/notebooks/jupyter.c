@@ -37,12 +37,6 @@ typedef struct
     const unsigned int *ports;
     unsigned int *ports_out;
 } JupyterCtx;
-// the kernel's cell given back, where no reader of its reads on
-EMBED_INLINE void jupyter_position_free(const JupyterCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->kernel->shell_queue.out, &g_cli_notebook_cells);
-    g_cli_cells->persistent_buf_release(args->kernel, &g_cli_notebook_cells);
-}
 
 // a kernel let go with its last reference: its process ended where it runs, its sockets ended, its readers waited for,
 // and its place given back once they have ended. A reader that does not end, as one reading a pipe a child of the
@@ -70,7 +64,8 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->control);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->iopub);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &kernel->spawned);
-    EMBED_CALL(jupyter_position_free, JupyterCtx, .kernel = kernel);
+    g_cli_cells->persistent_buf_release(kernel->shell_queue.out, &g_cli_notebook_cells);
+    g_cli_cells->persistent_buf_release(kernel, &g_cli_notebook_cells);
 }
 
 void cli_jupyter_ref(const CliJupyterErrMsgKernelFileCfg *args)
@@ -420,7 +415,8 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
                     .err_msg = args->err_msg))
     {
         EMBED_CALL(cli_jupyter_at_internal.kernel_forgotten, CliJupyterAtCtx, .kernel = kernel);
-        EMBED_CALL(jupyter_position_free, JupyterCtx, .kernel = kernel);
+        g_cli_cells->persistent_buf_release(kernel->shell_queue.out, &g_cli_notebook_cells);
+        g_cli_cells->persistent_buf_release(kernel, &g_cli_notebook_cells);
         return NULL;
     }
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_START;

@@ -78,20 +78,6 @@ EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
     return at;
 }
 
-void cli_cargo_tests_free(const CliCargoTestsCfg *args)
-{
-    CliCargoTests *tests = args->tests;
-    CliCargoPiece *piece = tests->pieces;
-    while (piece != NULL)
-    {
-        CliCargoPiece *const next = piece->next;
-        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
-        piece = next;
-    }
-    g_cli_cells->persistent_buf_release(tests->found, &g_cli_cargo_cells);
-    *tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
-}
-
 // whether a file of the package was followed already: 1, else it is recorded as followed and 0
 EMBED_INLINE int found_visit(const CargoFoundCtx *args)
 {
@@ -185,7 +171,7 @@ static void found_walk(const CargoFoundCtx *args)
         EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = (const char *)bytes, .size = size);
         count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = (const char *)bytes);
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_cargo_cells));
     for (unsigned int at = first; at < first + count; at += 1u)
     {
         if (g_cli_cargo_scan.items[at].test)
@@ -281,8 +267,18 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
 {
     static const char *const s_not_searched[4] = {"target", "node_modules", ".git", "build"};
     CliCargoWalk walk = {args->root, args->tests, NULL, NULL, {0u, NULL}, NULL, 0ULL, 0ULL, NULL, 0ULL, 0ULL};
-    cli_cargo_tests_table.free(args);
-    cli_cargo_scan_free();
+    CliCargoPiece *piece = args->tests->pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(args->tests->found, &g_cli_cargo_cells);
+    *args->tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     args->tests->found = g_cli_cells->persistent_buf_alloc(
         (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), &g_cli_cargo_cells);
     args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
@@ -355,7 +351,7 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
                               .folder = package_folder, .text = (const char *)bytes, .size = size, .package = package,
                               .count = &target_count)
                  : NULL;
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_cargo_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_cargo_cells));
         if (!read)
         {
             continue;
@@ -384,5 +380,7 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     cli_cargo_firsts_free();
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     g_cli_cells->persistent_buf_release(seen_cell, &g_cli_cargo_cells);
-    cli_cargo_scan_free();
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
 }

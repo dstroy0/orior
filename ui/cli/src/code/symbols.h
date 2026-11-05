@@ -42,7 +42,6 @@ typedef struct CliSymbolsLanguages CliSymbolsLanguages;
 // the languages read in a cell taken from the cells, NULL where it is refused, and given back with the cell
 CliSymbolsLanguages *cli_symbols_languages_read(void);
 CliSymbolsLanguages *cli_symbols_languages_for_call(void);
-void cli_symbols_languages_free(const CliSymbolsCfg *args);
 
 // whether the declarations of the file at `path` are read: whether its language is one read here
 int cli_symbols_reads(const CliSymbolsPathNameCfg *args);
@@ -418,15 +417,6 @@ struct CliSymbolsDoneCfg
 struct CliSymbolsCfg
 {
     CliSymbolsLanguages *read;
-};
-
-typedef struct
-{
-    void (*languages_free)(const CliSymbolsCfg *args);
-} CliSymbolsNs;
-EMBED_TABLE_LAYOUT(CliSymbolsNs, languages_free);
-EMBED_TABLE_STORAGE CliSymbolsNs cli_symbols EMBED_UNUSED = {
-    .languages_free = cli_symbols_languages_free,
 };
 
 typedef struct

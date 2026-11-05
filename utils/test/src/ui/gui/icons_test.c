@@ -68,7 +68,16 @@ int main(void)
     const GuiMask *const large = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = &icons, .name = "folder", .size = 29u, .stroke = 2.0f);
     cli_check((large != NULL) && (large->width == 29u) && (at(large, 14u, 23u) > 200u) && (at(large, 14u, 2u) == 0u),
               "an icon at the strip's size covers its folder's foot and not the space above it");
-    EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &icons);
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
+    {
+        if (icons.entry[at].used)
+        {
+            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            icons.entry[at].mask_bits.cover = NULL;
+            icons.entry[at].used = 0;
+        }
+    }
+    icons.count = 0u;
 
     // a shape of straight sides filled on a cover of its own width and height: covered by each pixel's share inside it,
     // an overlap of the shape's outline with itself inside it as SVG's nonzero fill has it

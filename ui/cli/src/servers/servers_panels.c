@@ -1287,7 +1287,8 @@ static void panels_serve_run(PanelsServeAsk *ask)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = ask->path, .id_out = id);
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
+    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    *(&languages) = (CliLanguages){NULL, 0u, 0u};
     unsigned long long size = 0ULL;
     char *const text = known ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = ask->key,
                                           .size_pointer = &size, .owner = &g_cli_servers_cells)

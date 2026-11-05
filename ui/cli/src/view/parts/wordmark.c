@@ -197,39 +197,6 @@ typedef struct
     unsigned int *from_pointer;
     unsigned int *end_pointer;
 } WordmarkCtx;
-// the flight's stages given back
-EMBED_INLINE void wordmark_flight_free(const WordmarkCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->wordmark->flight_first, &g_gui_cells);
-    args->wordmark->flight_first = NULL;
-    args->wordmark->flight_span = NULL;
-    args->wordmark->flight_cover = NULL;
-}
-
-// the name's mask and its funnel's row given back
-EMBED_INLINE void wordmark_name_free(const WordmarkCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
-    args->wordmark->row_sum = NULL;
-    args->wordmark->text_color = NULL;
-    args->wordmark->row = NULL;
-    args->wordmark->name.cover = NULL;
-}
-
-// the name's and TABVLA's cells given back
-EMBED_INLINE void wordmark_pictures_free(const WordmarkCtx *args)
-{
-    wordmark_name_free(args);
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &args->wordmark->under);
-    args->wordmark->created_em = 0u;
-    args->wordmark->laid_width = 0u;
-}
-
-void gui_wordmark_free(const GuiWordmarkStillCfg *args)
-{
-    EMBED_CALL(wordmark_flight_free, WordmarkCtx, .wordmark = args->wordmark);
-    EMBED_CALL(wordmark_pictures_free, WordmarkCtx, .wordmark = args->wordmark);
-}
 
 void gui_wordmark_still(const GuiWordmarkStillCfg *args)
 {
@@ -245,8 +212,21 @@ void gui_wordmark_still(const GuiWordmarkStillCfg *args)
         args->wordmark->exit_start_ms = 0ULL;
         args->wordmark->pours = 0;
         args->wordmark->home = 1;
-        EMBED_CALL(wordmark_flight_free, WordmarkCtx, .wordmark = args->wordmark);
-        EMBED_CALL(wordmark_pictures_free, WordmarkCtx, .wordmark = args->wordmark);
+        g_cli_cells->persistent_buf_release(args->wordmark->flight_first, &g_gui_cells);
+        args->wordmark->flight_first = NULL;
+        args->wordmark->flight_span = NULL;
+        args->wordmark->flight_cover = NULL;
+        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        args->wordmark->row_sum = NULL;
+        args->wordmark->text_color = NULL;
+        args->wordmark->row = NULL;
+        args->wordmark->name.cover = NULL;
+        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        args->wordmark->under.pixels = NULL;
+        args->wordmark->under.width = 0u;
+        args->wordmark->under.height = 0u;
+        args->wordmark->created_em = 0u;
+        args->wordmark->laid_width = 0u;
     }
 }
 
@@ -654,7 +634,17 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
     GuiWordmarkPosition place;
     if (args->wordmark->created_em != em)
     {
-        wordmark_pictures_free(args);
+        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        args->wordmark->row_sum = NULL;
+        args->wordmark->text_color = NULL;
+        args->wordmark->row = NULL;
+        args->wordmark->name.cover = NULL;
+        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        args->wordmark->under.pixels = NULL;
+        args->wordmark->under.width = 0u;
+        args->wordmark->under.height = 0u;
+        args->wordmark->created_em = 0u;
+        args->wordmark->laid_width = 0u;
         const int read = EMBED_CALL(cli_glyphs.head_bold_read, GuiGlyphsCfg, .glyphs = glyphs);
         const float word_width = EMBED_CALL(wordmark_word_width, WordmarkCtx, .glyphs = glyphs, .em = em);
         EMBED_CALL(wordmark_position_get, WordmarkCtx, .frame = args->frame, .em = em, .word_width = word_width,
@@ -668,7 +658,17 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
         if (!named || !EMBED_CALL(wordmark_under_init, WordmarkCtx, .wordmark = args->wordmark,
                                   .palette = args->palette, .frame = args->frame, .place = &place))
         {
-            wordmark_pictures_free(args);
+            g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+            args->wordmark->row_sum = NULL;
+            args->wordmark->text_color = NULL;
+            args->wordmark->row = NULL;
+            args->wordmark->name.cover = NULL;
+            g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+            args->wordmark->under.pixels = NULL;
+            args->wordmark->under.width = 0u;
+            args->wordmark->under.height = 0u;
+            args->wordmark->created_em = 0u;
+            args->wordmark->laid_width = 0u;
             return 0;
         }
         args->wordmark->created_em = em;
@@ -813,7 +813,17 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
                             .icons = args->icons, .palette = args->palette, .frame = args->frame))
             {
                 args->wordmark->home = 1;
-                EMBED_CALL(wordmark_pictures_free, WordmarkCtx, .wordmark = args->wordmark);
+                g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+                args->wordmark->row_sum = NULL;
+                args->wordmark->text_color = NULL;
+                args->wordmark->row = NULL;
+                args->wordmark->name.cover = NULL;
+                g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+                args->wordmark->under.pixels = NULL;
+                args->wordmark->under.width = 0u;
+                args->wordmark->under.height = 0u;
+                args->wordmark->created_em = 0u;
+                args->wordmark->laid_width = 0u;
                 return 1;
             }
             const GuiRect logo = gui_wordmark_frame.logo_square(args);
@@ -835,7 +845,11 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
             args->wordmark->home = !args->wordmark->pours;
             if (!args->wordmark->pours)
             {
-                EMBED_CALL(wordmark_name_free, WordmarkCtx, .wordmark = args->wordmark);
+                g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+                args->wordmark->row_sum = NULL;
+                args->wordmark->text_color = NULL;
+                args->wordmark->row = NULL;
+                args->wordmark->name.cover = NULL;
             }
             return 1;
         }
@@ -852,12 +866,25 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
     {
         args->wordmark->pours = 0;
         args->wordmark->home = 1;
-        EMBED_CALL(wordmark_flight_free, WordmarkCtx, .wordmark = args->wordmark);
+        g_cli_cells->persistent_buf_release(args->wordmark->flight_first, &g_gui_cells);
+        args->wordmark->flight_first = NULL;
+        args->wordmark->flight_span = NULL;
+        args->wordmark->flight_cover = NULL;
     }
     if (through >= GUI_WORDMARK_SLIDE_MS + GUI_WORDMARK_FADE_OUT_DELAY_MS + GUI_WORDMARK_FADE_OUT_MS)
     {
         args->wordmark->exit_start_ms = 0ULL;
-        EMBED_CALL(wordmark_pictures_free, WordmarkCtx, .wordmark = args->wordmark);
+        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        args->wordmark->row_sum = NULL;
+        args->wordmark->text_color = NULL;
+        args->wordmark->row = NULL;
+        args->wordmark->name.cover = NULL;
+        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        args->wordmark->under.pixels = NULL;
+        args->wordmark->under.width = 0u;
+        args->wordmark->under.height = 0u;
+        args->wordmark->created_em = 0u;
+        args->wordmark->laid_width = 0u;
     }
     return 1;
 }
@@ -1100,7 +1127,11 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
     }
     args->wordmark->flight_first[WORDMARK_FLIGHT_STAGES] = spans;
     g_cli_cells->persistent_buf_release(tables, &g_gui_cells);
-    wordmark_name_free(args);
+    g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+    args->wordmark->row_sum = NULL;
+    args->wordmark->text_color = NULL;
+    args->wordmark->row = NULL;
+    args->wordmark->name.cover = NULL;
     return 1;
 }
 

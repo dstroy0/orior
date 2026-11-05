@@ -87,7 +87,6 @@ GuiRect gui_rect_intersect(const GuiRasterOneCfg *args);
 // a raster of `width` by `height` made clear in a cell of its own: 1, or 0 where the cell could not be taken; and its
 // cell given back, the raster left holding no pixels
 int gui_raster_init(const GuiRasterWidthXCfg *args);
-void gui_raster_free(const GuiRasterRectColorCfg *args);
 // `rect` filled with `color`, blended by its alpha over what is there, no further than the raster; the same with its
 // corners rounded by `radius` pixels, each corner's pixels covered by their share inside the arc; and a line from
 // x0, y0 to x1, y1 in `color`, one pixel wide
@@ -397,13 +396,11 @@ EMBED_TABLE_STORAGE GuiRasterWidthXNs gui_raster_width_x EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*free)(const GuiRasterRectColorCfg *args);
     void (*fill)(const GuiRasterRectColorCfg *args);
     void (*round)(const GuiRasterRectColorCfg *args);
 } GuiRasterRectColorNs;
-EMBED_TABLE_LAYOUT(GuiRasterRectColorNs, free, fill, round);
+EMBED_TABLE_LAYOUT(GuiRasterRectColorNs, fill, round);
 EMBED_TABLE_STORAGE GuiRasterRectColorNs gui_raster_rect_color EMBED_UNUSED = {
-    .free = gui_raster_free,
     .fill = gui_raster_fill,
     .round = gui_raster_round,
 };

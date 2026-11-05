@@ -57,14 +57,6 @@ typedef struct
     VerbaLinea *out;
     const char *text;
 } ProfileCtx;
-// a profile's cells given back, under the profiles' lock
-EMBED_INLINE void profile_cells_free(const ProfileCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->profile->words, &g_cli_profile_cells);
-    g_cli_cells->persistent_buf_release(args->profile->path, &g_cli_profile_cells);
-    args->profile->words = NULL;
-    args->profile->path = NULL;
-}
 
 void cli_profile_stop(void)
 {
@@ -226,7 +218,10 @@ EMBED_INLINE void profile_reader_end(const ProfileCtx *args)
     if (args->profile->going == 0u)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->profile->spawned);
-        profile_cells_free(args);
+        g_cli_cells->persistent_buf_release(args->profile->words, &g_cli_profile_cells);
+        g_cli_cells->persistent_buf_release(args->profile->path, &g_cli_profile_cells);
+        args->profile->words = NULL;
+        args->profile->path = NULL;
         args->profile->reserved = 0;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
@@ -332,7 +327,10 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
 // a profile's place given back where its process did not start
 EMBED_INLINE void profile_let_go(const ProfileCtx *args)
 {
-    profile_cells_free(args);
+    g_cli_cells->persistent_buf_release(args->profile->words, &g_cli_profile_cells);
+    g_cli_cells->persistent_buf_release(args->profile->path, &g_cli_profile_cells);
+    args->profile->words = NULL;
+    args->profile->path = NULL;
     args->profile->reserved = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }

@@ -181,22 +181,16 @@ EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
     aliases->text = g_cli_cells->persistent_buf_alloc(aliases->capacity + 1ULL, &g_cli_versions_cells);
     if ((aliases->alias == NULL) || (aliases->text == NULL))
     {
-        EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
-                   CliVersionCatalogTextSizeAliasesCtx, .aliases = aliases);
+        g_cli_cells->persistent_buf_release(aliases->text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(aliases->alias, &g_cli_versions_cells);
+        aliases->alias = NULL;
+        aliases->text = NULL;
+        aliases->count = 0u;
+        aliases->used = 0u;
+        aliases->capacity = 0u;
         return 0;
     }
     return 1;
-}
-
-void cli_versions_aliases_free(const CliVersionCatalogTextSizeAliasesCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->aliases->text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(args->aliases->alias, &g_cli_versions_cells);
-    args->aliases->alias = NULL;
-    args->aliases->text = NULL;
-    args->aliases->count = 0u;
-    args->aliases->used = 0u;
-    args->aliases->capacity = 0u;
 }
 
 int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
@@ -211,7 +205,48 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
                     .size = args->size) ||
         !EMBED_CALL(aliases_alloc, VersionCatalogAliasesCtx, .aliases = args->aliases))
     {
-        cli_versions_release();
+        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+        g_cli_versions_libraries.at = NULL;
+        g_cli_versions_libraries.size = NULL;
+        g_cli_versions_libraries.text = NULL;
+        g_cli_versions_libraries.count = 0u;
+        g_cli_versions_libraries.most = 0u;
+        g_cli_versions_libraries.used = 0u;
+        g_cli_versions_libraries.capacity = 0u;
+        g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+        g_cli_versions_known.at = NULL;
+        g_cli_versions_known.size = NULL;
+        g_cli_versions_known.text = NULL;
+        g_cli_versions_known.count = 0u;
+        g_cli_versions_known.most = 0u;
+        g_cli_versions_known.used = 0u;
+        g_cli_versions_known.capacity = 0u;
+        CliVersionsParsed *const parsed = &g_cli_versions;
+        g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+        parsed->line = NULL;
+        parsed->pool = NULL;
+        parsed->error = NULL;
+        parsed->item = NULL;
+        parsed->field = NULL;
+        parsed->section = NULL;
+        parsed->sections = 0u;
+        parsed->sections_capacity = 0u;
+        parsed->fields = 0u;
+        parsed->fields_capacity = 0u;
+        parsed->items = 0u;
+        parsed->items_capacity = 0u;
+        parsed->errors = 0u;
+        parsed->errors_capacity = 0u;
+        parsed->used = 0u;
+        parsed->pool_capacity = 0u;
+        parsed->longest = 0ULL;
         return 0;
     }
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
@@ -244,6 +279,47 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
             }
         }
     }
-    cli_versions_release();
+    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+    g_cli_versions_libraries.at = NULL;
+    g_cli_versions_libraries.size = NULL;
+    g_cli_versions_libraries.text = NULL;
+    g_cli_versions_libraries.count = 0u;
+    g_cli_versions_libraries.most = 0u;
+    g_cli_versions_libraries.used = 0u;
+    g_cli_versions_libraries.capacity = 0u;
+    g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+    g_cli_versions_known.at = NULL;
+    g_cli_versions_known.size = NULL;
+    g_cli_versions_known.text = NULL;
+    g_cli_versions_known.count = 0u;
+    g_cli_versions_known.most = 0u;
+    g_cli_versions_known.used = 0u;
+    g_cli_versions_known.capacity = 0u;
+    CliVersionsParsed *const parsed = &g_cli_versions;
+    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+    parsed->line = NULL;
+    parsed->pool = NULL;
+    parsed->error = NULL;
+    parsed->item = NULL;
+    parsed->field = NULL;
+    parsed->section = NULL;
+    parsed->sections = 0u;
+    parsed->sections_capacity = 0u;
+    parsed->fields = 0u;
+    parsed->fields_capacity = 0u;
+    parsed->items = 0u;
+    parsed->items_capacity = 0u;
+    parsed->errors = 0u;
+    parsed->errors_capacity = 0u;
+    parsed->used = 0u;
+    parsed->pool_capacity = 0u;
+    parsed->longest = 0ULL;
     return 1;
 }

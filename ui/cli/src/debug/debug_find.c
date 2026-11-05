@@ -44,7 +44,10 @@ typedef struct
 // a search's toolchains and the PATH's folders given back, and the lock
 EMBED_INLINE void find_release(const DebugFindCtx *args)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->manifest);
+    g_cli_cells->persistent_buf_release(
+        args->manifest->node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->manifest->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->manifest,
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(s_folders, &g_cli_debug_cells);
     s_folders = NULL;
 }

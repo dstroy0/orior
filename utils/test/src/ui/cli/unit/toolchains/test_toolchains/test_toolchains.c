@@ -83,7 +83,10 @@ static void reader_groups_read(char *out, unsigned long long capacity)
         mmgr_line_put(&line, (group != NULL) ? group : "");
     }
     (void)mmgr_line_finish(&line);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // a group written after the others, joined by `|`
@@ -210,7 +213,10 @@ void test_the_jobs_need_git_bash_and_python(void)
             mmgr_line_put(&line, (id != NULL) ? id : "");
         }
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CLI_TEST_ASSERT_TEXT("git|bash|python", needed, line.at);
 }
 
@@ -311,7 +317,10 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
             paged = paged && (address != NULL) && cellul.starts(&(CatenaFinitaCfg){.src = address, .other = "https://", .cap = CLI_CELLS_POOL});
         }
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_GREATER_THAN_UINT(0u, count);
     TEST_ASSERT_TRUE(once);
     TEST_ASSERT_TRUE(named);
@@ -443,7 +452,10 @@ void test_a_tool_in_a_chosen_folder_is_found_there_first(void)
     const unsigned int tool = EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json, .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json, .nodes_more = 0u, .text_more = 0ull), .id = "ghdl", .err_msg = &err_msg);
     CliFound found;
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool, .path_callback = NULL, .count = 0u, .found = &found);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, tool);
     TEST_ASSERT_EQUAL_STRING("chosen", found.state);
     EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = file, .key = required);

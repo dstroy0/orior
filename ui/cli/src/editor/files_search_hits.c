@@ -26,7 +26,9 @@ EMBED_INLINE CliHitCell *hits_cell(const FilesSearchHitsCtx *args)
     {
         return last;
     }
-    CliHitCell *const cell = g_cli_cells->temporary_buf_alloc(CLI_HIT_CELL_BYTES, &g_cli_search_cells);
+    // a store that stands after the search takes its cells in the persistent tier
+    CliHitCell *const cell = hits->standing ? g_cli_cells->persistent_buf_alloc(CLI_HIT_CELL_BYTES, &g_cli_search_cells)
+                                            : g_cli_cells->temporary_buf_alloc(CLI_HIT_CELL_BYTES, &g_cli_search_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -97,19 +99,4 @@ const CliSearchHit *cli_hits_next(const CliFilesSearchHitsCfg *args)
     const CliSearchHit *const hit = least->first;
     least->first = hit->next;
     return hit;
-}
-
-void cli_hits_free(const CliFilesSearchHitsCfg *args)
-{
-    for (unsigned int store = 0u; store < args->stores; store += 1u)
-    {
-        CliHitCell *cell = args->hits[store].cell_first;
-        while (cell != NULL)
-        {
-            CliHitCell *const next = cell->next;
-            g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
-            cell = next;
-        }
-        args->hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL};
-    }
 }

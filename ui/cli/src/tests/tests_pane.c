@@ -779,7 +779,10 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
     {
         EMBED_CALL(tests_done, TestsPaneCtx, .json = json, .node = root);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     EMBED_ATOMIC_STORE(&s_changed, 1u);
     if (s_woken != NULL)
     {

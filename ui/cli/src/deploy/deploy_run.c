@@ -361,8 +361,24 @@ EMBED_INLINE int run_turn(const DeployRunCtx *args)
 static void run_free(void)
 {
     CliDeployRun *const run = &g_cli_deploy;
-    EMBED_CALL(cli_deploy_pool_internal.pool_free, CliDeployPoolCtx, .pool = &run->pool);
-    EMBED_CALL(cli_deploy_root_internal.tree_free, CliDeployRootCtx, .tree = &s_tree);
+    while (run->pool.page != NULL)
+    {
+        CliDeployPage *const before = run->pool.page->before;
+        g_cli_cells->persistent_buf_release(run->pool.page, &g_cli_deploy_cells);
+        run->pool.page = before;
+    }
+    run->pool.refused = 0;
+    g_cli_cells->persistent_buf_release(s_tree.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_tree.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_tree.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    while (s_tree.pool.page != NULL)
+    {
+        CliDeployPage *const before = s_tree.pool.page->before;
+        g_cli_cells->persistent_buf_release(s_tree.pool.page, &g_cli_deploy_cells);
+        s_tree.pool.page = before;
+    }
+    s_tree.pool.refused = 0;
     cli_deploy_there_free();
     run->place = NULL;
     run->positions = 0u;

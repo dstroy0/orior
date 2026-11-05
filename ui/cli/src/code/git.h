@@ -51,32 +51,33 @@ typedef struct CliGitRootFoundStashesCfg CliGitRootFoundStashesCfg;
 typedef struct CliGitOutFoundStashesCfg CliGitOutFoundStashesCfg;
 typedef struct CliGitTextAtCfg CliGitTextAtCfg;
 
-// the cells the lists git gives store their texts in (git_run.c)
+// the cells the lists read from git store their texts in (git_run.c)
 extern CellOwner g_cli_git_cells;
 
 // the repository File, Clone Repository offers first
 #define CLI_GIT_ORIOR "https://github.com/dstroy0/orior.git"
 
-// the most bytes of the texts of one list git gives
+// the most bytes of the texts of one list read from git
 #define CLI_GIT_TEXT (1u << 22u)
 
 // The texts of a list, in a cell of `capacity` at their most: each one ended by a 0 at its place, the place 0
-// containing the empty text, and 1 in `full` where one did not fit and was left empty
+// containing the empty text, 1 in `full` where one did not fit and was left empty, and 1 in `standing` where the cell
+// stands between the window's frames, taken in the persistent tier, rather than for one call
 typedef struct
 {
     char *bytes;
     unsigned long long used;
     unsigned long long capacity;
     int full;
+    int standing;
 } CliGitText;
 
-// the texts made empty, a list containing none before, or one given back; `length` bytes of `from` stored: their place;
-// the text at a place, the empty text where the list has no cell; and the texts' cell given back, the list containing
-// none
+// the texts begun empty, for a list containing none before, or one released; `length` bytes of `from` stored: their
+// place; the text at a place, the empty text where the list has no cell; and the texts' cell released, the list
+// containing none
 void cli_git_text_begin(const CliGitTextCfg *args);
 unsigned int cli_git_text_append(const CliGitTextCfg *args);
 const char *cli_git_text_get(const CliGitTextAtCfg *args);
-void cli_git_text_free(const CliGitTextCfg *args);
 
 // the most repositories, changed files, branches, stashes and commits a list contains
 #define CLI_GIT_REPOSITORIES 256u
@@ -180,10 +181,9 @@ typedef struct
 } CliGitPart;
 
 // The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
-// the repository containing it, as rows in the order git lists them, at most CLI_CHANGES_ROWS. A row is the file's path
-// from the tree's top, its name, the last part of that path, the bytes of the folder before it, and its state letter as
-// cli_git_change reads it
-#define CLI_CHANGES_ROWS 4096u
+// the repository containing it, as rows in the order git lists them, the list standing until the next read. A row is
+// the file's path from the tree's top, its name, the last part of that path, the bytes of the folder before it, and its
+// state letter as cli_git_change reads it
 typedef struct
 {
     const char *path;
@@ -227,7 +227,8 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
 // commits counted, a row a commit, and under one opened a row each file it changed, or the notice that none under the
 // tree did. The query rests CLI_GIT_LOG_REST_MS after a change before the graph is read again, the watch marks the
 // graph stale from its thread, and the authors setting, saved under `git.authors`, has each commit's author shown and
-// searched. The texts of the rows are copied into the pane's own cell, taken as the first read comes
+// searched. The rows point into the lists read from git, the repositories, the graph and each opened commit's files,
+// which stand until the next read
 #define CLI_GIT_LOG_QUERY_MAX 256u
 #define CLI_GIT_LOG_REST_MS 250ULL
 #define CLI_GIT_LOG_DAY 11u
@@ -254,7 +255,7 @@ typedef struct
     const char *path;
     char state;
     const char *id;
-    const char *day;
+    char day[CLI_GIT_LOG_DAY];
     int open;
     int merge;
     unsigned int lane_at;
@@ -816,13 +817,11 @@ typedef struct
 {
     void (*text_begin)(const CliGitTextCfg *args);
     unsigned int (*text_append)(const CliGitTextCfg *args);
-    void (*text_free)(const CliGitTextCfg *args);
 } CliGitTextNs;
-EMBED_TABLE_LAYOUT(CliGitTextNs, text_begin, text_append, text_free);
+EMBED_TABLE_LAYOUT(CliGitTextNs, text_begin, text_append);
 EMBED_TABLE_STORAGE CliGitTextNs cli_git_text EMBED_UNUSED = {
     .text_begin = cli_git_text_begin,
     .text_append = cli_git_text_append,
-    .text_free = cli_git_text_free,
 };
 
 typedef struct

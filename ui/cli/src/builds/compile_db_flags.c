@@ -694,7 +694,8 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = CLI_COMPILE_WRITTEN, .joined = path);
     }
-    EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = &inputs);
+    g_cli_cells->persistent_buf_release(inputs.file, &g_cli_compile_cells);
+    *(&inputs) = (CliInputs){0, NULL, 0u, 0u};
     CliStamped stamped = {"", 0ULL};
     const int there = EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx,
                                  .path = path, .stamped = &stamped);
@@ -768,7 +769,10 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
         EMBED_CALL(cli_flags_entries, CompileDbFlagsCtx, .read_state = &read_state, .json = &json, .entries = entries);
         EMBED_CALL(cli_flags_lift, CompileDbFlagsCtx, .read_state = &read_state);
     }
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(work, &g_cli_compile_cells);
 }
 

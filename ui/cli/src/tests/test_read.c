@@ -147,7 +147,7 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
     if ((bytes != NULL) &&
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_tests_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_tests_cells));
         *size = 0ULL;
         return NULL;
     }
@@ -156,6 +156,5 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 
 void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args)
 {
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)args->text,
-               .owner = &g_cli_tests_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->text), (&g_cli_tests_cells));
 }

@@ -129,8 +129,10 @@ EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
                    .json = edits_line.out, .size = edits_line.at);
     }
     g_cli_cells->persistent_buf_release(edits, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_read_state);
+    g_cli_cells->persistent_buf_release(
+        s_read_state.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_read_state.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read_state.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // One folder of the analysis written: where it is written and whether one is
@@ -236,8 +238,10 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
         }
     }
     mmgr_line_ch(args->answer, ']');
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_read_state);
+    g_cli_cells->persistent_buf_release(
+        s_read_state.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_read_state.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read_state.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 void cli_servers_recv(const CliLspRecvCfg *args)

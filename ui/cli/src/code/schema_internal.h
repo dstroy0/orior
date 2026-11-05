@@ -115,7 +115,6 @@ typedef struct
 #define CLI_SCHEMA_CHECK_NODES 1024u
 
 // a read's cell given back (schema.c)
-void cli_schema_read_free(const CliSchemaReadTextCtx *args);
 
 // `size` bytes of a JSON file read into `read`, comments passed over (schema_read.c); a text of the pool; and the type
 // a value is of as a schema names it, `integer` for a number with no fraction (schema_values.c)
@@ -429,13 +428,11 @@ struct CliSchemaCtx
 
 typedef struct
 {
-    void (*read_free)(const CliSchemaReadTextCtx *args);
     void (*read)(const CliSchemaReadTextCtx *args);
     int (*spot)(const CliSchemaReadTextCtx *args);
 } CliSchemaReadTextNs;
-EMBED_TABLE_LAYOUT(CliSchemaReadTextNs, read_free, read, spot);
+EMBED_TABLE_LAYOUT(CliSchemaReadTextNs, read, spot);
 EMBED_TABLE_STORAGE CliSchemaReadTextNs cli_schema_read_text_internal EMBED_UNUSED = {
-    .read_free = cli_schema_read_free,
     .read = cli_schema_read,
     .spot = cli_schema_spot,
 };

@@ -1653,9 +1653,3 @@ unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args
     }
     return plain_count;
 }
-
-void cli_terminal_xterm_free(const CliTerminalXtermCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->xterm->cell, &g_cli_terminal_cells);
-    args->xterm->cell = NULL;
-}

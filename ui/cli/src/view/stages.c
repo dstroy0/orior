@@ -86,7 +86,9 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
 {
     GuiAutohide *claim = args->claim;
     const GuiFrame *frame = args->frame;
-    gui_stages_autohide.free(args);
+    g_cli_cells->persistent_buf_release(args->stages->stage, &g_gui_cells);
+    args->stages->stage = NULL;
+    args->stages->count = 0u;
     const unsigned long long claim_end_ms =
         EMBED_CALL(gui_autohide.animation_end_ms, GuiAutohideCfg, .autohide_read = claim, .time_ms = args->time_ms);
     const unsigned long long side_end_ms =
@@ -184,13 +186,6 @@ const GuiStage *gui_stages_at(const GuiStagesReadCfg *args)
     return &args->stages_read->stage[(args->time_ms > args->stages_read->start_ms)
                                          ? (unsigned int)((args->time_ms - args->stages_read->start_ms) / GUI_STAGE_MS)
                                          : 0u];
-}
-
-void gui_stages_free(const GuiStagesAutohideCfg *args)
-{
-    g_cli_cells->persistent_buf_release(args->stages->stage, &g_gui_cells);
-    args->stages->stage = NULL;
-    args->stages->count = 0u;
 }
 
 void gui_stage_autohide_alloc(const GuiStagesCfg *args)

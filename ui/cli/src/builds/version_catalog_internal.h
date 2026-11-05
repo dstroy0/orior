@@ -173,7 +173,6 @@ typedef struct
 // the aliases of `size` bytes of a catalog's text into `aliases`, by section: 1, or 0 where the cellblock could not
 // meet the catalog or its aliases and none is allocated; and their cells given back (version_catalog_aliases.c)
 int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args);
-void cli_versions_aliases_free(const CliVersionCatalogTextSizeAliasesCtx *args);
 
 // each name the catalog `name`, at `displayed` in the tree, leads in the Gradle script read checked against its
 // aliases, each it does not name a finding into `found` over `lines` (gradle_references.c)
@@ -415,12 +414,10 @@ EMBED_TABLE_STORAGE CliVersionCatalogSizeOutAliasNs cli_version_catalog_size_out
 typedef struct
 {
     int (*versions_aliases)(const CliVersionCatalogTextSizeAliasesCtx *args);
-    void (*versions_aliases_free)(const CliVersionCatalogTextSizeAliasesCtx *args);
 } CliVersionCatalogTextSizeAliasesNs;
-EMBED_TABLE_LAYOUT(CliVersionCatalogTextSizeAliasesNs, versions_aliases, versions_aliases_free);
+EMBED_TABLE_LAYOUT(CliVersionCatalogTextSizeAliasesNs, versions_aliases);
 EMBED_TABLE_STORAGE CliVersionCatalogTextSizeAliasesNs cli_version_catalog_text_size_aliases_internal EMBED_UNUSED = {
     .versions_aliases = cli_versions_aliases,
-    .versions_aliases_free = cli_versions_aliases_free,
 };
 
 typedef struct

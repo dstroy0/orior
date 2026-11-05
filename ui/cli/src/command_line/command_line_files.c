@@ -43,13 +43,6 @@ static int files_work_state_init(void)
     return s_work_state != NULL;
 }
 
-// the command's work state given back
-static void files_release(void)
-{
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
-    s_work_state = NULL;
-}
-
 typedef struct
 {
     const char *text;
@@ -566,7 +559,8 @@ int cli_run_file_words(const CliCommandLineWordsCountCtx *args)
     }
     const int code = EMBED_CALL(files_run_words, CommandLineFilesCtx, .named = args->named, .words = args->words,
                                 .count = args->count);
-    files_release();
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    s_work_state = NULL;
     return code;
 }
 
@@ -577,7 +571,8 @@ int cli_validate_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_validate, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    files_release();
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    s_work_state = NULL;
     return code;
 }
 
@@ -588,6 +583,7 @@ int cli_format_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_format, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    files_release();
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    s_work_state = NULL;
     return code;
 }

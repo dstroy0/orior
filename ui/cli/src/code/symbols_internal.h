@@ -200,7 +200,6 @@ int cli_symbols_leaves_temporary(const CliSymbolsPathCtx *args);
 const char *cli_symbols_declares(const CliSymbolsNameCtx *args);
 const char *cli_leaf_text(const CliSymbolsReadLeafCtx *args);
 int cli_leaf_has(const CliSymbolsReadCtx *args);
-void cli_symbols_leaves_free(const CliSymbolsTextCtx *args);
 
 // the most bytes of a type's text, of a head's label, the most parameters a head is read with, the most declarations
 // of a name read, and the most lines a head is read across
@@ -658,12 +657,10 @@ EMBED_TABLE_STORAGE CliSymbolsPathNsTable cli_symbols_path_internal EMBED_UNUSED
 typedef struct
 {
     int (*language_leaves_save)(const CliSymbolsTextCtx *args);
-    void (*leaves_free)(const CliSymbolsTextCtx *args);
 } CliSymbolsTextNs;
-EMBED_TABLE_LAYOUT(CliSymbolsTextNs, language_leaves_save, leaves_free);
+EMBED_TABLE_LAYOUT(CliSymbolsTextNs, language_leaves_save);
 EMBED_TABLE_STORAGE CliSymbolsTextNs cli_symbols_text_internal EMBED_UNUSED = {
     .language_leaves_save = cli_symbols_language_leaves_save,
-    .leaves_free = cli_symbols_leaves_free,
 };
 
 typedef struct

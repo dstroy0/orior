@@ -34,37 +34,31 @@ int cli_schema_lock(void)
                                  .owner = &g_cli_code_cells);
     if ((g_cli_schema_read == NULL) || !grown)
     {
-        cli_schema_release();
+        if (g_cli_schema_read != NULL)
+        {
+            g_cli_cells->persistent_buf_release(g_cli_schema_read->node, &g_cli_schema_cells);
+            g_cli_schema_read->node = NULL;
+            g_cli_schema_read->member = NULL;
+            g_cli_schema_read->pool = NULL;
+            g_cli_schema_read->nodes_max = 0u;
+            g_cli_schema_read->members_max = 0u;
+            g_cli_schema_read->pool_max = 0u;
+        }
+        if (g_cli_schema_store != NULL)
+        {
+            g_cli_cells->persistent_buf_release(
+                g_cli_schema_store->json.node,
+                EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_schema_store->json.node));
+            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
+                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        }
+        g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
+        g_cli_schema_store = NULL;
+        g_cli_schema_read = NULL;
         return 0;
     }
     return 1;
-}
-
-void cli_schema_read_free(const CliSchemaReadTextCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->read_out->node, &g_cli_schema_cells);
-    args->read_out->node = NULL;
-    args->read_out->member = NULL;
-    args->read_out->pool = NULL;
-    args->read_out->nodes_max = 0u;
-    args->read_out->members_max = 0u;
-    args->read_out->pool_max = 0u;
-}
-
-void cli_schema_release(void)
-{
-    if (g_cli_schema_read != NULL)
-    {
-        EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = g_cli_schema_read);
-    }
-    if (g_cli_schema_store != NULL)
-    {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &g_cli_schema_store->json);
-    }
-    g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
-    g_cli_schema_store = NULL;
-    g_cli_schema_read = NULL;
 }
 
 static CliBuildFindings s_found;
@@ -202,7 +196,29 @@ void cli_schema_check(const CliSchemaCfg *args)
         }
     }
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = out);
-    EMBED_CALL(cli_builds_lines.build_findings_free, CliBuildsLinesCfg, .found = &s_found);
+    g_cli_cells->persistent_buf_release(s_found.finding, &g_cli_build_cells);
+    *(&s_found) = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
-    cli_schema_release();
+    if (g_cli_schema_read != NULL)
+    {
+        g_cli_cells->persistent_buf_release(g_cli_schema_read->node, &g_cli_schema_cells);
+        g_cli_schema_read->node = NULL;
+        g_cli_schema_read->member = NULL;
+        g_cli_schema_read->pool = NULL;
+        g_cli_schema_read->nodes_max = 0u;
+        g_cli_schema_read->members_max = 0u;
+        g_cli_schema_read->pool_max = 0u;
+    }
+    if (g_cli_schema_store != NULL)
+    {
+        g_cli_cells->persistent_buf_release(
+            g_cli_schema_store->json.node,
+            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_schema_store->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    }
+    g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
+    g_cli_schema_store = NULL;
+    g_cli_schema_read = NULL;
 }

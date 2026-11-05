@@ -371,7 +371,10 @@ static void tool_look(const CliEachPluginCfg *args)
     // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the capacity
     // is
     CliJson *const json = &g_cli_validate->json;
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    g_cli_cells->persistent_buf_release(json->node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root =
@@ -452,7 +455,18 @@ int cli_validate_tool_for(const CliValidateCfg *args)
                                 .src = min,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = min, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_validate_release();
+    g_cli_cells->persistent_buf_release(g_cli_validate->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                              .cell = g_cli_validate->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(
+        g_cli_validate->manifest.node,
+        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->manifest.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
+    g_cli_validate = NULL;
     return min != NULL;
 }
 

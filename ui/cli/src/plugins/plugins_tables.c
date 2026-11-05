@@ -601,7 +601,10 @@ int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args)
     whole = (filled_grammar != CLI_JSON_NONE) &&
             EMBED_CALL(cli_tables_rules_write, PluginsTablesCtx, .json = &filled, .grammar = filled_grammar,
                        .out = args->out, .err_msg = args->err_msg);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &filled);
+    g_cli_cells->persistent_buf_release(filled.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = filled.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&filled),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(lists.out, &g_cli_plugins_cells);
     return whole;
 }

@@ -470,6 +470,14 @@ int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
         group += 1u;
     }
     // each worker took its tests' names into the run, so the tests found are given back once every one is started
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    CliCargoPiece *piece = s_tests.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return started;
 }

@@ -20,7 +20,7 @@ typedef struct
     unsigned int length;
 } CliRequiredName;
 
-// The names a folder requires and their texts, each in a cell at their most, given back with cli_required_free
+// The names a folder requires and their texts, each in a cell at their most, released through persistent_buf_release
 typedef struct
 {
     CliRequiredName *name;
@@ -35,7 +35,6 @@ typedef struct
 // JSON array; and their cells given back, the names left empty
 void cli_required_alloc(const CliEnvsCtx *args);
 void cli_required_in(const CliEnvsCtx *args);
-void cli_required_free(const CliEnvsCtx *args);
 
 struct CliEnvsCtx
 {
@@ -53,13 +52,11 @@ typedef struct
 {
     void (*required_alloc)(const CliEnvsCtx *args);
     void (*required_in)(const CliEnvsCtx *args);
-    void (*required_free)(const CliEnvsCtx *args);
 } CliEnvsNsTable;
-EMBED_TABLE_LAYOUT(CliEnvsNsTable, required_alloc, required_in, required_free);
+EMBED_TABLE_LAYOUT(CliEnvsNsTable, required_alloc, required_in);
 EMBED_TABLE_STORAGE CliEnvsNsTable cli_envs_internal EMBED_UNUSED = {
     .required_alloc = cli_required_alloc,
     .required_in = cli_required_in,
-    .required_free = cli_required_free,
 };
 
 #endif

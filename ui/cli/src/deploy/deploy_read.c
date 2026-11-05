@@ -104,17 +104,6 @@ int cli_deploy_order(const CliDeployLeftCtx *args)
     return (order > 0) - (order < 0);
 }
 
-void cli_deploy_pool_free(const CliDeployPoolCtx *args)
-{
-    while (args->pool->page != NULL)
-    {
-        CliDeployPage *const before = args->pool->page->before;
-        g_cli_cells->persistent_buf_release(args->pool->page, &g_cli_deploy_cells);
-        args->pool->page = before;
-    }
-    args->pool->refused = 0;
-}
-
 // the name serde gives a value's kind
 EMBED_INLINE const char *read_kind(const DeployReadCtx *args)
 {
@@ -297,19 +286,23 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
                       .texts = &args->deployment->to, .count = &args->deployment->tos, .err_msg = args->err_msg);
 }
 
-void cli_deploy_tree_free(const CliDeployRootCtx *args)
-{
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->tree->json);
-    EMBED_CALL(cli_deploy_pool_internal.pool_free, CliDeployPoolCtx, .pool = &args->tree->pool);
-}
-
 int cli_deploy_read(const CliDeployRootCtx *args)
 {
     const CliDeployment **deployments = args->deployments;
     unsigned int *count = args->count_pointer;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = "deploy.json", .joined = path);
-    cli_deploy_root_internal.tree_free(args);
+    g_cli_cells->persistent_buf_release(
+        args->tree->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->tree->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->tree->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    while (args->tree->pool.page != NULL)
+    {
+        CliDeployPage *const before = args->tree->pool.page->before;
+        g_cli_cells->persistent_buf_release(args->tree->pool.page, &g_cli_deploy_cells);
+        args->tree->pool.page = before;
+    }
+    args->tree->pool.refused = 0;
     *deployments = NULL;
     *count = 0u;
     unsigned long long size = 0ULL;
@@ -318,7 +311,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -327,7 +320,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &read_err_msg, .owner = &g_cli_deploy_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
     const CliJson *const json = &args->tree->json;
     if (top == CLI_JSON_NONE)
     {

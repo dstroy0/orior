@@ -202,7 +202,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
         cli_py_read_state_free();
         cli_seen_count();
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_python_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_python_cells));
 }
 
 unsigned int cli_python_paths(const CliPythonPathsCfg *args)

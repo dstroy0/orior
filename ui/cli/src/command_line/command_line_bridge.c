@@ -402,7 +402,10 @@ int cli_bridge_words(const CliCommandLineWordCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(bridge_words, CommandLineBridgeCtx, .root = args->root, .word_text = args->word_text);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_work_state->json);
+    g_cli_cells->persistent_buf_release(
+        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
     s_work_state = NULL;
     return code;

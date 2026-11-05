@@ -79,8 +79,8 @@ int cli_trust_under(const CliTrustFolderInnerCfg *args)
            ((args->inner[length] == '\0') || (args->inner[length] == '/'));
 }
 
-// the file of answers at `path` read into a tree in a cell of its own, given back with cli_json_free, the lock
-// acquired: its `trusted` and `refused` lists, each none where the file has no such list
+// the file of answers at `path` read into a tree in a cell of its own, released through persistent_buf_release, the
+// lock acquired: its `trusted` and `refused` lists, each none where the file has no such list
 EMBED_INLINE void cli_state_read(const TrustCtx *args)
 {
     CliJson *json = args->json;
@@ -143,7 +143,10 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = yes, .tree = key);
     const unsigned long long by_refused =
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = no, .tree = key);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     *trusted = by_trusted > by_refused;
     return (by_trusted != 0ULL) || (by_refused != 0ULL);
 }

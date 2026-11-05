@@ -152,8 +152,10 @@ void tearDown(void)
 {
     if (s_message_allocated)
     {
-        EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_message);
-        EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_back);
+        g_cli_cells->persistent_buf_release(s_message.group, &g_cli_ipp_cells);
+        *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
+        g_cli_cells->persistent_buf_release(s_back.group, &g_cli_ipp_cells);
+        *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     }
 }
 
@@ -227,8 +229,10 @@ void test_a_messages_memory_is_released_once_it_is_done(void)
 {
     message_decoded();
     const unsigned long long in_use = embed_atomic_usize_load(&g_cli_ipp_cells.in_use);
-    EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_message);
-    EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_back);
+    g_cli_cells->persistent_buf_release(s_message.group, &g_cli_ipp_cells);
+    *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
+    g_cli_cells->persistent_buf_release(s_back.group, &g_cli_ipp_cells);
+    *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     s_message_allocated = 0;
     TEST_ASSERT_NOT_EQUAL(0ull, in_use);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_ipp_cells.in_use));

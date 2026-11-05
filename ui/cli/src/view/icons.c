@@ -851,20 +851,6 @@ void gui_icons_init(const GuiIconsCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->icons, .val = 0, .bytes = sizeof(*args->icons)});
 }
 
-void gui_icons_free(const GuiIconsCfg *args)
-{
-    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
-    {
-        if (args->icons->entry[at].used)
-        {
-            g_cli_cells->persistent_buf_release(args->icons->entry[at].mask_bits.cover, &g_gui_icons_cells);
-            args->icons->entry[at].mask_bits.cover = NULL;
-            args->icons->entry[at].used = 0;
-        }
-    }
-    args->icons->count = 0u;
-}
-
 // the shape `index` drawn at `size` with its line `stroke` wide into `mask`, the cover a cell of its own: 1, or 0
 // where a cell could not be taken
 EMBED_INLINE int icons_draw(const IconsCtx *args)
@@ -960,7 +946,16 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
     }
     if (args->icons->count >= GUI_ICON_CACHE_ENTRIES)
     {
-        cli_icons.free(args);
+        for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
+        {
+            if (args->icons->entry[at].used)
+            {
+                g_cli_cells->persistent_buf_release(args->icons->entry[at].mask_bits.cover, &g_gui_icons_cells);
+                args->icons->entry[at].mask_bits.cover = NULL;
+                args->icons->entry[at].used = 0;
+            }
+        }
+        args->icons->count = 0u;
     }
     GuiIconCacheEntry *const entry = &args->icons->entry[args->icons->count];
     if (!EMBED_CALL(icons_draw, IconsCtx, .shape = shape, .size = size, .stroke = stroke,

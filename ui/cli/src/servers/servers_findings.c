@@ -85,7 +85,10 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     if ((had != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = &json,
                                              .one = had, .other_json = &s_found.json, .other = args->items))
     {
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        g_cli_cells->persistent_buf_release(json.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
     }
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = entry,
@@ -105,7 +108,10 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
                          .key = key, .adjacent_value = args->uri_read, .text = written.out, .size_value = written.at);
     }
     g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
 }
 
@@ -156,6 +162,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
         }
     }
     g_cli_cells->persistent_buf_release(changed_files, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
-               .read_state = &s_found);
+    g_cli_cells->persistent_buf_release(s_found.json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_found.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_found.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

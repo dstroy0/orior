@@ -78,7 +78,7 @@ static void each_read(const BenchEachCfg *args)
     (void)size;
     unsigned long long read = 0ull;
     const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = again, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)again, (&g_checks_cells));
 }
 
 static void each_utf8(const BenchEachCfg *args)
@@ -90,7 +90,7 @@ static void each_utf8(const BenchEachCfg *args)
     (void)size;
     unsigned long long read = 0ull;
     const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = again, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)again, (&g_checks_cells));
 }
 
 static void each_units(const BenchEachCfg *args)
@@ -309,7 +309,7 @@ static int bench_corpus(const char *list)
         }
         start = at + 1ull;
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
     return s_count > 0u;
 }
 
@@ -330,8 +330,11 @@ static int bench_grammar_cached(void)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     const int cached = (root != CLI_JSON_NONE) &&
                        EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-c", .json = &json, .def = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = root, .name = "grammar"), .err_msg = &err_msg);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
     return cached;
 }
 
@@ -366,7 +369,7 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
             }
             consumed += cli_clock_microseconds() - began;
             bytes += 200ull * size;
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
         }
         measure.bytes = bytes;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
@@ -409,11 +412,14 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &out, .indent = 0u, .sorted = 0);
                 consumed_write += cli_clock_microseconds() - read;
                 consumed += read - began;
-                EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+                g_cli_cells->persistent_buf_release(json.node,
+                                                    EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+                EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                           .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
                 bytes += size;
             }
             g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
         }
         measure.bytes = bytes;
         measure.min = (consumed < measure.min) ? consumed : measure.min;

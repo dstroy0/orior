@@ -107,7 +107,10 @@ int main(void)
         {
             put(file, 0u, 1u);
         }
-        EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &icon);
+        g_cli_cells->persistent_buf_release(icon.pixels, &g_gui_raster_cells);
+        icon.pixels = NULL;
+        icon.width = 0u;
+        icon.height = 0u;
     }
     fclose(file);
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &window);

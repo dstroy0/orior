@@ -197,7 +197,8 @@ void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
 
 void tearDown(void)
 {
-    EMBED_CALL(cli_terminal_xterm.free, CliTerminalXtermCfg, .xterm = &s_xterm);
+    g_cli_cells->persistent_buf_release(s_xterm.cell, &g_cli_terminal_cells);
+    s_xterm.cell = NULL;
     if (s_stored)
     {
         EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
@@ -688,7 +689,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     {
         found = found || (memcmp(history + at, "place_folder", 12u) == 0);
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_cli_terminal_cells, .bytes_bytes_other = history);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)history, (&g_cli_terminal_cells));
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
 }
 

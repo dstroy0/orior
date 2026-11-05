@@ -79,7 +79,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx,
                    .text = (const char *)catalog, .size = read, .aliases = &aliases);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = catalog, .owner = &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)catalog, (&g_cli_gradle_cells));
     if (!whole)
     {
         return;
@@ -110,8 +110,13 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
-               CliVersionCatalogTextSizeAliasesCtx, .aliases = &aliases);
+    g_cli_cells->persistent_buf_release(aliases.text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(aliases.alias, &g_cli_versions_cells);
+    aliases.alias = NULL;
+    aliases.text = NULL;
+    aliases.count = 0u;
+    aliases.used = 0u;
+    aliases.capacity = 0u;
 }
 
 // whether the file at `path` is a settings script, by its name in lower case
@@ -256,5 +261,13 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items, .words = words,
                    .count = count, .kind = "keyword", .detail = s_name);
     }
-    cli_gradle_release();
+    CliGradleScript *const script = &g_cli_gradle;
+    g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
+    script->class_of = NULL;
+    script->block = NULL;
+    script->stray = NULL;
+    script->blocks = 0u;
+    script->strays = 0u;
 }

@@ -484,19 +484,13 @@ static int found_capacity_reserve(void)
     return 1;
 }
 
-// the work state let go and the tests' lock with it
-static void found_release(void)
-{
-    s_work_state = NULL;
-}
-
 void cli_tests_in(const CliTestingRulesTextCfg *args)
 {
     if (found_capacity_reserve())
     {
         EMBED_CALL(found_in, TestingFoundCtx, .file = args->file, .text = args->text, .size = args->size,
                    .rules = args->rules_read, .each = args->each, .context = args->context);
-        found_release();
+        s_work_state = NULL;
     }
 }
 
@@ -505,7 +499,7 @@ void cli_tests_python_find(const CliTestingRootCfg *args)
     if (found_capacity_reserve())
     {
         EMBED_CALL(found_python, TestingFoundCtx, .root = args->root, .each = args->each, .context = args->context);
-        found_release();
+        s_work_state = NULL;
     }
 }
 
@@ -522,6 +516,14 @@ void cli_tests_find(const CliTestingRootCfg *args)
     {
         EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &s_work_state->cargo.found[at].test);
     }
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_work_state->cargo);
-    found_release();
+    CliCargoPiece *piece = s_work_state->cargo.pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        piece = next;
+    }
+    g_cli_cells->persistent_buf_release(s_work_state->cargo.found, &g_cli_cargo_cells);
+    *(&s_work_state->cargo) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
+    s_work_state = NULL;
 }

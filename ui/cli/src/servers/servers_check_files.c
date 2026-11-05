@@ -164,7 +164,8 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_batch->language[at].server);
         }
     }
-    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &s_batch->known);
+    g_cli_cells->persistent_buf_release(s_batch->known.pair, &g_cli_plugins_cells);
+    *(&s_batch->known) = (CliLanguages){NULL, 0u, 0u};
     const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
                                            .waiting = waiting_on, .count = waiting, .sink = args->sink);
     g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);

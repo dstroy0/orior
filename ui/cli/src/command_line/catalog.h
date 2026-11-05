@@ -210,7 +210,6 @@ typedef struct
 // a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_max` jobs
 // at the most; and its cell given back, the catalog left empty and containing nothing
 void cli_catalog_alloc(const CliCatalogCellsCfg *args);
-void cli_catalog_free(const CliCatalogChoiceCfg *args);
 // a catalog made empty over the storage handed it
 void cli_catalog_begin(const CliCatalogJobsMaxCfg *args);
 // a text stored in the catalog: where it starts; and the text at a place, the empty text for none
@@ -413,14 +412,12 @@ EMBED_TABLE_STORAGE CliCatalogCellsNs cli_catalog_cells EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*free)(const CliCatalogChoiceCfg *args);
     void (*choice)(const CliCatalogChoiceCfg *args);
     void (*words)(const CliCatalogChoiceCfg *args);
     void (*trace)(const CliCatalogChoiceCfg *args);
 } CliCatalogChoiceNs;
-EMBED_TABLE_LAYOUT(CliCatalogChoiceNs, free, choice, words, trace);
+EMBED_TABLE_LAYOUT(CliCatalogChoiceNs, choice, words, trace);
 EMBED_TABLE_STORAGE CliCatalogChoiceNs cli_catalog_choice_table EMBED_UNUSED = {
-    .free = cli_catalog_free,
     .choice = cli_catalog_choice,
     .words = cli_catalog_words,
     .trace = cli_catalog_trace,

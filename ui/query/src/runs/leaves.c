@@ -170,21 +170,6 @@ EMBED_INLINE void *query_diff_part(const LeavesCtx *args)
     return (args->count > 0ULL) ? g_cli_cells->persistent_buf_alloc(args->count * size, &g_query_cells) : NULL;
 }
 
-// the diff's parts given back
-EMBED_INLINE void query_diff_free(const LeavesCtx *args)
-{
-    g_cli_cells->persistent_buf_release((void *)args->diff->before, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->before_length, &g_query_cells);
-    g_cli_cells->persistent_buf_release((void *)args->diff->after, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->after_length, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->reach, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->band, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->change, &g_query_cells);
-    g_cli_cells->persistent_buf_release((void *)args->diff->change_line, &g_query_cells);
-    g_cli_cells->persistent_buf_release(args->diff->change_length, &g_query_cells);
-    memor.set(&(MemoriaCfg){.dst = args->diff, .val = 0, .bytes = sizeof(*args->diff)});
-}
-
 // the lines of `before` and `after` counted, then cut into cells of their counts, with the reach over every diagonal
 // they span: 1, or 0 where the cells cannot meet them
 EMBED_INLINE int query_diff_alloc(const LeavesCtx *args)
@@ -409,10 +394,28 @@ void query_leaf_show(const QueryPathTreeCtx *args)
             mmgr_line_put(args->displayed, name);
             mmgr_line_ch(args->displayed, ':');
             EMBED_CALL(query_render, LeavesCtx, .diff_read = &diff, .changes = changes, .displayed = args->displayed);
-            EMBED_CALL(query_diff_free, LeavesCtx, .diff = &diff);
+            g_cli_cells->persistent_buf_release((void *)diff.before, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.before_length, &g_query_cells);
+            g_cli_cells->persistent_buf_release((void *)diff.after, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.after_length, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.reach, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.band, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.change, &g_query_cells);
+            g_cli_cells->persistent_buf_release((void *)diff.change_line, &g_query_cells);
+            g_cli_cells->persistent_buf_release(diff.change_length, &g_query_cells);
+            memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
             return;
         }
-        EMBED_CALL(query_diff_free, LeavesCtx, .diff = &diff);
+        g_cli_cells->persistent_buf_release((void *)diff.before, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.before_length, &g_query_cells);
+        g_cli_cells->persistent_buf_release((void *)diff.after, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.after_length, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.reach, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.band, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.change, &g_query_cells);
+        g_cli_cells->persistent_buf_release((void *)diff.change_line, &g_query_cells);
+        g_cli_cells->persistent_buf_release(diff.change_length, &g_query_cells);
+        memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
     }
     mmgr_line_put(args->displayed, name);
     if (args->stored_size > args->tree_size)

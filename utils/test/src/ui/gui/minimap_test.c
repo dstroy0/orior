@@ -62,7 +62,7 @@ int main(void)
                          .clip = frame.map, .scale = 100, .editor = &painter, .on_screen = 40.0f, .x = frame.map.x + 4,
                          .y = frame.map.y + 100, .top = &top),
               "a press within the column lands on the map");
-    EMBED_CALL(gui_minimap.release, GuiMinimapCfg, .map = &map);
+    map.dragging = 0;
     // the column whole shows the map whole, the overview strip at its right with the caret's line
     numbers.claim = 0;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
@@ -74,6 +74,9 @@ int main(void)
     const int strip = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_STRIP, .scale = 100);
     const GuiRect strip_rect = {frame.map.x + frame.map.width - strip, frame.map.y, strip, frame.map.height};
     cli_check(!all_colored(&raster, strip_rect, MINIMAP_TEST_UNDER), "the overview strip stands at the map's right");
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     return cli_on_check();
 }

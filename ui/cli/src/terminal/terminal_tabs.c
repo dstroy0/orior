@@ -237,8 +237,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     char *const text = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_terminal_cells);
     if (text == NULL)
     {
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_cli_terminal_cells,
-                   .bytes_bytes_other = file_bytes);
+        g_cli_cells->persistent_buf_release((void *)(uintptr_t)file_bytes, (&g_cli_terminal_cells));
         return;
     }
     VerbaLinea out = {text, bytes, 0ULL};
@@ -262,8 +261,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     {
         mmgr_line_ch(&out, '\n');
     }
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_cli_terminal_cells,
-               .bytes_bytes_other = file_bytes);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)file_bytes, (&g_cli_terminal_cells));
     VerbaLinea key = {tab->key, sizeof(tab->key), 0ULL};
     mmgr_line_put(&key, TERMINAL_KEY_HEAD);
     mmgr_line_decimal(&key, tab->number, 1u);
@@ -504,13 +502,6 @@ EMBED_INLINE int terminal_add(const TerminalCtx *args)
     return (int)s_terminal.tabs - 1;
 }
 
-// a tab whose shell ended let go: its xterm's cells and its own
-EMBED_INLINE void terminal_free(const TerminalCtx *args)
-{
-    EMBED_CALL(cli_terminal_xterm.free, CliTerminalXtermCfg, .xterm = &args->tab->xterm);
-    g_cli_cells->persistent_buf_release(args->tab, &g_cli_terminal_cells);
-}
-
 // the keys sent to the shell of the tab `at`
 EMBED_INLINE void terminal_focus(const TerminalCtx *args)
 {
@@ -585,7 +576,9 @@ EMBED_INLINE void terminal_wait_free(const TerminalCtx *args)
     }
     if (args->tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        EMBED_CALL(terminal_free, TerminalCtx, .tab = args->tab);
+        g_cli_cells->persistent_buf_release(args->tab->xterm.cell, &g_cli_terminal_cells);
+        args->tab->xterm.cell = NULL;
+        g_cli_cells->persistent_buf_release(args->tab, &g_cli_terminal_cells);
     }
 }
 
@@ -600,7 +593,9 @@ EMBED_INLINE void terminal_close(const TerminalCtx *args)
     EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &tab->shell, .now_ms = cli_clock_milliseconds());
     if (tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        EMBED_CALL(terminal_free, TerminalCtx, .tab = tab);
+        g_cli_cells->persistent_buf_release(tab->xterm.cell, &g_cli_terminal_cells);
+        tab->xterm.cell = NULL;
+        g_cli_cells->persistent_buf_release(tab, &g_cli_terminal_cells);
     }
     else if (s_terminal.closings < TERMINAL_CLOSING)
     {
@@ -1142,7 +1137,9 @@ int cli_terminal_tabs_step(void)
         }
         else
         {
-            EMBED_CALL(terminal_free, TerminalCtx, .tab = tab);
+            g_cli_cells->persistent_buf_release(tab->xterm.cell, &g_cli_terminal_cells);
+            tab->xterm.cell = NULL;
+            g_cli_cells->persistent_buf_release(tab, &g_cli_terminal_cells);
         }
     }
     s_terminal.closings = left;
@@ -1318,7 +1315,9 @@ void cli_terminal_tabs_end(void)
         if ((s_terminal.tabs == 1u) && (s_terminal.tab[0]->shell.state == CLI_TERMINAL_SHELL_IDLE))
         {
             EMBED_CALL(terminal_unstore, TerminalCtx, .tab = s_terminal.tab[0], .on = 0);
-            EMBED_CALL(terminal_free, TerminalCtx, .tab = s_terminal.tab[0]);
+            g_cli_cells->persistent_buf_release((s_terminal.tab[0])->xterm.cell, &g_cli_terminal_cells);
+            (s_terminal.tab[0])->xterm.cell = NULL;
+            g_cli_cells->persistent_buf_release((s_terminal.tab[0]), &g_cli_terminal_cells);
             s_terminal.tabs = 0u;
         }
     }

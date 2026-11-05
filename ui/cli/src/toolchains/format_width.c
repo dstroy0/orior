@@ -130,8 +130,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ULL;
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                       .owner = &g_cli_toolchains_cells);
+            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_toolchains_cells));
             if (text)
             {
                 return 1;
@@ -321,7 +320,13 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     }
     if (names == NULL)
     {
-        cli_format_release();
+        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_format.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_format.settings = NULL;
+        g_cli_format.settings_size = 0ULL;
         return 0;
     }
     const int settings = EMBED_CALL(cli_format_path_internal.nearest, CliFormatPathCtx, .path = args->path,
@@ -329,7 +334,13 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "markdown", .cap = CLI_CELLS_POOL})) &&
         !(settings && EMBED_CALL(cli_wraps_prose, FormatWidthCtx, .text = g_cli_format.settings)))
     {
-        cli_format_release();
+        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
+                                                                               .cell = g_cli_format.json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_format.settings = NULL;
+        g_cli_format.settings_size = 0ULL;
         return 0;
     }
     unsigned int found = own;
@@ -345,7 +356,13 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
                    .length_pointer = NULL);
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->by, .text = name, .otherwise = "");
     *width = found;
-    cli_format_release();
+    g_cli_cells->persistent_buf_release(
+        g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_format.json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+    g_cli_format.settings = NULL;
+    g_cli_format.settings_size = 0ULL;
     return found > 0u;
 }
 

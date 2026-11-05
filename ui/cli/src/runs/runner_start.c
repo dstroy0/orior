@@ -72,14 +72,6 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
     return 1;
 }
 
-void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args)
-{
-    g_cli_cells->persistent_buf_release(args->run->job_cell, &g_cli_runs_cells);
-    g_cli_cells->persistent_buf_release(args->run->lines, &g_cli_runs_cells);
-    args->run->job_cell = NULL;
-    args->run->lines = NULL;
-}
-
 int cli_runs_start(const CliRunnerErrMsgCfg *args)
 {
     CliRunSink sink = args->sink;

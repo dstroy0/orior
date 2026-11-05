@@ -91,7 +91,6 @@ void cli_json_clear(const CliJsonTreeCfg *args);
 // with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
 // and the tree's cell given back, the tree left containing nothing, where it contains one or none
 unsigned int cli_json_alloc(const CliJsonTreeTextSizeErrMsgCfg *args);
-void cli_json_free(const CliJsonTreeCfg *args);
 // the same read with the tree's cell from the temporary tier, for a tree the call that reads it gives back
 unsigned int cli_json_alloc_temporary(const CliJsonTreeTextSizeErrMsgCfg *args);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the
@@ -429,13 +428,11 @@ EMBED_TABLE_STORAGE CliJsonTreeNodesNs cli_json_tree_nodes EMBED_UNUSED = {
 typedef struct
 {
     void (*json_clear)(const CliJsonTreeCfg *args);
-    void (*json_free)(const CliJsonTreeCfg *args);
     unsigned int (*json_copy)(const CliJsonTreeCfg *args);
 } CliJsonTreeNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNs, json_clear, json_free, json_copy);
+EMBED_TABLE_LAYOUT(CliJsonTreeNs, json_clear, json_copy);
 EMBED_TABLE_STORAGE CliJsonTreeNs cli_json_tree EMBED_UNUSED = {
     .json_clear = cli_json_clear,
-    .json_free = cli_json_free,
     .json_copy = cli_json_copy,
 };
 

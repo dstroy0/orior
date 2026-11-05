@@ -56,7 +56,7 @@ extern const char *const g_query_mmgr_settings[];
 // every tool, the last one's name NULL
 extern const QueryTool g_query_tools[];
 
-// a tool's sources and objects as the last walk of them listed them, given back with query_every_source_free once
+// a tool's sources and objects as the last walk of them listed them, released through persistent_buf_release once
 // the work on them is done (tools.c)
 extern QueryPaths g_query_c_sources;
 extern QueryPaths g_query_cxx_sources;

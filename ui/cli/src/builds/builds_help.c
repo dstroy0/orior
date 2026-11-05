@@ -110,7 +110,8 @@ unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
 
 void cli_build_findings_begin(const CliBuildsLinesCfg *args)
 {
-    cli_builds_lines.build_findings_free(args);
+    g_cli_cells->persistent_buf_release(args->found->finding, &g_cli_build_cells);
+    *args->found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     const unsigned long long finding_bytes = (unsigned long long)CLI_BUILD_FINDINGS * sizeof(CliBuildFinding);
     const unsigned long long fix_bytes = (unsigned long long)CLI_BUILD_FIXES * sizeof(CliBuildFix);
     char *const cell =
@@ -126,13 +127,6 @@ void cli_build_findings_begin(const CliBuildsLinesCfg *args)
     args->found->fix_capacity = CLI_BUILD_FIXES;
     args->found->text = cell + finding_bytes + fix_bytes;
     args->found->text_capacity = CLI_BUILD_TEXT;
-}
-
-void cli_build_findings_free(const CliBuildsLinesCfg *args)
-{
-    CliBuildFindings *found = args->found;
-    g_cli_cells->persistent_buf_release(found->finding, &g_cli_build_cells);
-    *found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
 }
 
 VerbaLinea cli_build_msg_line(const CliBuildsLinesCfg *args)

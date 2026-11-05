@@ -25,20 +25,6 @@ int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
     return 1;
 }
 
-void cli_compile_inputs_free(const CliCompileDbInputsCtx *args)
-{
-    CliInputs *inputs = args->inputs;
-    g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
-    *inputs = (CliInputs){0, NULL, 0u, 0u};
-}
-
-void cli_compile_found_free(const CliCompileDbFoundTopCtx *args)
-{
-    CliFoundFolders *found = args->found;
-    g_cli_cells->persistent_buf_release(found->path, &g_cli_compile_cells);
-    *found = (CliFoundFolders){NULL, 0u, 0u};
-}
-
 void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args)
 {
     CliFoundFolders *found = args->found;
@@ -322,6 +308,6 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                           .err_msg = &unread);
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_compile_cells));
     return root;
 }

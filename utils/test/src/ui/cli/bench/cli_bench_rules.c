@@ -109,7 +109,10 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
         {
             printf("%s\tnot cached: %.*s\n", s_cut_down[at].name, (int)err_msg.at, why);
         }
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &cut);
+        g_cli_cells->persistent_buf_release(cut.node,
+                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = cut.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&cut),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         g_cli_cells->persistent_buf_release(made.out, &g_checks_cells);
     }
 }
@@ -171,6 +174,9 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     }
     g_cli_cells->persistent_buf_release(letters, &g_checks_cells);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
+    g_cli_cells->persistent_buf_release(json.node,
+                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
 }

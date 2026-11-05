@@ -117,15 +117,10 @@ int main(void)
               "two rows do not scroll");
     unsigned int built = 0u;
     const CliItem *rows = NULL;
-    char words[CLI_PATH_MAX_LEN + 2u];
-    VerbaLinea line = {words, sizeof(words), 0ULL};
-    mmgr_line_put(&line, pressed.path);
-    mmgr_line_ch(&line, '\n');
-    (void)mmgr_line_finish(&line);
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
                   (strcmp(rows[0].label, "Open File") == 0) && (rows[0].needs[0] == '\0') &&
-                  (strcmp(rows[0].args, words) == 0) && rows[1].line &&
+                  (strcmp(rows[0].args, pressed.path) == 0) && rows[1].line &&
                   (strcmp(rows[2].command, "file-copy-path") == 0),
               "a changed file's menu opens it and copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 2u, .root = s_root),
@@ -134,7 +129,10 @@ int main(void)
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    raster.pixels = NULL;
+    raster.width = 0u;
+    raster.height = 0u;
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     return cli_on_check();
 }
