@@ -19,7 +19,6 @@
 #include "embed_dispatch_layout.h"
 
 typedef struct CliDocumentKeyCfg CliDocumentKeyCfg;
-typedef struct CliDocumentThenCfg CliDocumentThenCfg;
 typedef struct CliDocumentErrMsgCfg CliDocumentErrMsgCfg;
 typedef struct CliDocumentLinesCfg CliDocumentLinesCfg;
 typedef struct CliDocumentOutCfg CliDocumentOutCfg;
@@ -48,6 +47,19 @@ typedef struct
     unsigned long long line;
     unsigned long long col;
 } CliPosition;
+
+// One change between an older text and a newer, handed to a caller with its `context`: the newer text's lines from
+// `now_from` to before `now_to`, standing in place of the older's from `then_from` to before `then_to`, lines counted
+// from 0; a change that takes lines out alone has `now_to` at `now_from`, one that puts lines in alone has `then_to`
+// at `then_from`
+typedef struct
+{
+    void *context;
+    unsigned int now_from;
+    unsigned int now_to;
+    unsigned int then_from;
+    unsigned int then_to;
+} CliEachHunkCfg;
 
 // One edit of a change, as the page's document writes it: the span it removes and what it writes, `length` bytes
 typedef struct
@@ -138,11 +150,9 @@ int cli_document_find_each(const CliDocumentLinesCfg *args);
 // more texts are stored; the text under `key` let go; whether a text is stored under `key`, its shape into `shape`; the
 // changes `changes` writes, `count` of them, the edits of each, `edits[at]` of them, none overlapping, each placed
 // against the text as it stood before any, written from the last to the first as the page writes them: 1 with the
-// shape, or 0 with why given where no text is stored or an edit does not fit it, the text let go; the marks of the text
-// under `key` against its file as the last commit stores it, `head` given as that file where `head_free` is set, NULL
-// where the commit stores none, stored beside the text in place of what was stored, written as `{"head", "changes"}`:
-// 1, or 0 where no text is stored or no head was ever given; whether the text stores the last commit's file beside it,
-// or that it stores none; and the matches find gives for the text under `key` (document_store.c)
+// shape, or 0 with why written where no text is stored or an edit does not fit it, the text let go; whether the text
+// knows the last commit's file, stored beside it or none; and the matches find gives for the text under `key`
+// (document_store.c)
 int cli_document_store(const CliDocumentTextCfg *args);
 void cli_document_release(const CliDocumentCfg *args);
 // whether the text stored under `key` was read with its lines ending in a carriage return and a newline
@@ -155,6 +165,18 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args);
 // NULL where no such text or line is stored. They stand until the text is next edited, stored again or let go
 const unsigned short *cli_document_line_units(const CliDocumentLineUnitsCfg *args);
 int cli_document_has_head(const CliDocumentCfg *args);
+// the changes of the text read whole stored under `key` against its file as the last commit has it, each handed to
+// `each` with `context` in order: where `head_given`, `head`, `head_size` bytes, is stored beside the text as that
+// file first, NULL for a file the last commit does not contain; 1, or 0 where no such text is stored, the last commit's
+// file is not known or is none, or the texts are too far apart (document_store.c, diff.c); and the units of the line
+// `line` of that file, where they stand, their count into `count`: NULL where no such text, file or line is stored
+int cli_document_changes(const CliDocumentOutKeyHeadInputCfg *args);
+const unsigned short *cli_document_head_line_units(const CliDocumentLineUnitsCfg *args);
+// the changes between the lines of `then` and the lines of `now`, each handed to `each` with `context` in order, the
+// lines the two share at their start and end set aside first and Myers' shortest edit run on what is left, each line
+// read as its hash and checked against the other's where the hashes agree: 1, or 0 where the edit takes more than
+// CLI_DIFF_MAX_EDITS rounds, the texts too far apart, or the cells cannot meet the edit's capacity (diff.c)
+int cli_diff_line_changes(const CliDocumentOutThenCfg *args);
 int cli_document_find(const CliDocumentOutNeedleCfg *args);
 
 // the most lines above a run of lines not colored that are colored with it from root, where the line above it ends in
@@ -304,11 +326,6 @@ int cli_document_folds_each(const CliDocumentContextCfg *args);
 int cli_document_page(const CliDocumentKeyFromCfg *args);
 int cli_document_paged_edit(const CliDocumentOutCfg *args);
 
-// how many lines of `then` from `x` and of `now` from `y` are the same, one for one, each line read as its hash in
-// `hash_then` and `hash_now` and each line of a run checked against the other's, under the diff's lock, 0 where the
-// cells cannot meet the diff's capacity (diff.c)
-long long cli_diff_run_get(const CliDocumentThenCfg *args);
-
 struct CliDocumentKeyCfg
 {
     const char *key;
@@ -318,16 +335,6 @@ struct CliDocumentKeyCfg
     char *state;
     unsigned long long capacity;
     CellOwner *owner;
-};
-
-struct CliDocumentThenCfg
-{
-    const CliLines *then;
-    const CliLines *now;
-    const unsigned long long *hash_then;
-    const unsigned long long *hash_now;
-    long long x;
-    long long y;
 };
 
 struct CliDocumentErrMsgCfg
@@ -380,11 +387,12 @@ struct CliDocumentLinesOutCfg
 
 struct CliDocumentOutKeyHeadInputCfg
 {
-    VerbaLinea *out;
     const char *key;
-    int head_free;
+    int head_given;
     const char *head;
     unsigned long long head_size;
+    void (*each)(const CliEachHunkCfg *args);
+    void *context;
 };
 
 struct CliDocumentKeyLineCfg
@@ -420,9 +428,10 @@ struct CliDocumentUnitsCfg
 
 struct CliDocumentOutThenCfg
 {
-    VerbaLinea *out;
     const CliLines *then;
     const CliLines *now;
+    void (*each)(const CliEachHunkCfg *args);
+    void *context;
 };
 
 struct CliDocumentKeyLowCfg
@@ -554,10 +563,30 @@ EMBED_TABLE_STORAGE CliDocumentTextNs cli_document_text EMBED_UNUSED = {
 typedef struct
 {
     const unsigned short *(*line_units)(const CliDocumentLineUnitsCfg *args);
+    const unsigned short *(*head_line_units)(const CliDocumentLineUnitsCfg *args);
 } CliDocumentLineUnitsNs;
-EMBED_TABLE_LAYOUT(CliDocumentLineUnitsNs, line_units);
+EMBED_TABLE_LAYOUT(CliDocumentLineUnitsNs, line_units, head_line_units);
 EMBED_TABLE_STORAGE CliDocumentLineUnitsNs cli_document_line EMBED_UNUSED = {
     .line_units = cli_document_line_units,
+    .head_line_units = cli_document_head_line_units,
+};
+
+typedef struct
+{
+    int (*changes)(const CliDocumentOutKeyHeadInputCfg *args);
+} CliDocumentOutKeyHeadInputNs;
+EMBED_TABLE_LAYOUT(CliDocumentOutKeyHeadInputNs, changes);
+EMBED_TABLE_STORAGE CliDocumentOutKeyHeadInputNs cli_document_out_key_head_input EMBED_UNUSED = {
+    .changes = cli_document_changes,
+};
+
+typedef struct
+{
+    int (*line_changes)(const CliDocumentOutThenCfg *args);
+} CliDocumentOutThenNs;
+EMBED_TABLE_LAYOUT(CliDocumentOutThenNs, line_changes);
+EMBED_TABLE_STORAGE CliDocumentOutThenNs cli_document_out_then EMBED_UNUSED = {
+    .line_changes = cli_diff_line_changes,
 };
 
 typedef struct
@@ -669,15 +698,6 @@ EMBED_TABLE_LAYOUT(CliDocumentOutNs, paged_edit, file_put);
 EMBED_TABLE_STORAGE CliDocumentOutNs cli_document_out EMBED_UNUSED = {
     .paged_edit = cli_document_paged_edit,
     .file_put = cli_document_file_put,
-};
-
-typedef struct
-{
-    long long (*diff_run_get)(const CliDocumentThenCfg *args);
-} CliDocumentThenNs;
-EMBED_TABLE_LAYOUT(CliDocumentThenNs, diff_run_get);
-EMBED_TABLE_STORAGE CliDocumentThenNs cli_document_then EMBED_UNUSED = {
-    .diff_run_get = cli_diff_run_get,
 };
 
 typedef struct

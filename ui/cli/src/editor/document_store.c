@@ -482,6 +482,18 @@ const unsigned short *cli_document_line_units(const CliDocumentLineUnitsCfg *arg
     return one->lines.unit + one->lines.start[args->line];
 }
 
+const unsigned short *cli_document_head_line_units(const CliDocumentLineUnitsCfg *args)
+{
+    const CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
+    if ((one == NULL) || !one->head_has || (args->line >= one->head.lines))
+    {
+        *args->count = 0ULL;
+        return NULL;
+    }
+    *args->count = one->head.length[args->line];
+    return one->head.unit + one->head.start[args->line];
+}
+
 // a line's units put after the spare lines, the text of the line being made running on from `open` where it is given
 EMBED_INLINE void cli_units_append(const DocumentStoreCtx *args)
 {
@@ -883,6 +895,41 @@ int cli_document_has_head(const CliDocumentCfg *args)
     const CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
     const int has = (one != NULL) && one->head_known;
     return has;
+}
+
+int cli_document_changes(const CliDocumentOutKeyHeadInputCfg *args)
+{
+    CliStoredText *const one = EMBED_CALL(stored_full_text_get, DocumentStoreCtx, .key = args->key);
+    if (one == NULL)
+    {
+        return 0;
+    }
+    if (args->head_given)
+    {
+        // the last commit's file laid into lines beside the text, in a capacity sized to it
+        one->head_known = 1;
+        one->head_has = args->head != NULL;
+        EMBED_CALL(stored_capacity_exit, DocumentStoreCtx, .lines = &one->head);
+        if ((args->head != NULL) &&
+            EMBED_CALL(
+                stored_capacity_enter, DocumentStoreCtx, .lines = &one->head, .units_max = args->head_size + 1ULL,
+                .lines_max =
+                    EMBED_CALL(stored_lines_in, DocumentStoreCtx, .text = args->head, .size = args->head_size) + 1u))
+        {
+            EMBED_CALL(cli_document_text_size.lines_get, CliDocumentTextSizeCfg, .text = args->head,
+                       .size = args->head_size, .lines_out = &one->head);
+        }
+        else
+        {
+            one->head_known = args->head == NULL;
+        }
+    }
+    if (!one->head_known || !one->head_has)
+    {
+        return 0;
+    }
+    return EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &one->head, .now = &one->lines,
+                      .each = args->each, .context = args->context);
 }
 
 int cli_document_find(const CliDocumentOutNeedleCfg *args)

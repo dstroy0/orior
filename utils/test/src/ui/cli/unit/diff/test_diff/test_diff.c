@@ -1,15 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_diff.c: the editor's diff: added, removed and changed lines are marked, the same text has no marks, texts too far apart have
-// none at all, lines that hash alike and differ are distinguished, and a long text marks each line changed far apart
+// test_diff.c: the changes between an older text's lines and a newer's: the same text has none; a line changed is one
+// change of one line for one; a line put in and one taken out are two changes; an older text of one empty line is one
+// change putting every new line in; lines that hash alike and differ are told apart; and texts too far apart are
+// refused
 #include "ui/cli/src/editor/document.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the units and lines each side's text is read into
-#define DIFF_UNITS (1u << 21u)
-#define DIFF_LINES (1u << 17u)
+#include <string.h>
 
-// A side's storage and its lines
+// the units and lines each side's text is laid into, and the changes found, at their most
+#define DIFF_UNITS (1u << 16u)
+#define DIFF_LINES (1u << 12u)
+#define DIFF_HUNKS 64u
+#define FAR_LINES 2200u
+
+// A side: its units, its lines' starts and lengths, and the lines over them
 typedef struct
 {
     unsigned short unit[DIFF_UNITS];
@@ -20,9 +26,10 @@ typedef struct
 
 static DiffSide s_then;
 static DiffSide s_now;
-static char s_out[1u << 20u];
-static char s_then_text[1u << 21u];
-static char s_now_text[1u << 21u];
+static CliEachHunkCfg s_hunk[DIFF_HUNKS];
+static unsigned int s_hunks;
+static char s_far_then[FAR_LINES * 8u];
+static char s_far_now[FAR_LINES * 8u];
 
 void setUp(void)
 {
@@ -33,17 +40,105 @@ void tearDown(void)
 {
 }
 
-void test_a_run_ends_at_a_line_that_hashes_alike_and_differs(void)
+// the side's lines laid from `text`
+static void side_laid(DiffSide *side, const char *text, unsigned long long size)
 {
-    static const unsigned short s_line_a[3] = {1u, 2u, 3u};
-    static const unsigned short s_line_b[3] = {1u, 2u, 4u};
-    static unsigned long long s_start[2] = {0ull, 2ull};
-    static unsigned long long s_length[2] = {2ull, 1ull};
-    static unsigned long long s_start_b[2] = {0ull, 2ull};
-    static unsigned long long s_length_b[2] = {2ull, 1ull};
-    static const unsigned long long s_hashes[2] = {7ull, 7ull};
-    const CliLines lines_then = {(unsigned short *)s_line_a, 3ull, 3ull, s_start, s_length, 2u, 2u, 0};
-    const CliLines lines_now = {(unsigned short *)s_line_b, 3ull, 3ull, s_start_b, s_length_b, 2u, 2u, 0};
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_document_then.diff_run_get, CliDocumentThenCfg, .then = &lines_then, .now = &lines_now, .hash_then = s_hashes, .hash_now = s_hashes, .x = 0, .y = 0));
+    side->lines = (CliLines){side->unit, DIFF_UNITS, 0ULL, side->start, side->length, DIFF_LINES, 0u, 0};
+    EMBED_CALL(cli_document_text_size.lines_get, CliDocumentTextSizeCfg, .text = text, .size = size,
+               .lines_out = &side->lines);
 }
 
+// each change found, in order
+static void hunk_each(const CliEachHunkCfg *args)
+{
+    if (s_hunks < DIFF_HUNKS)
+    {
+        s_hunk[s_hunks] = *args;
+    }
+    s_hunks += 1u;
+}
+
+// the changes between `then` and `now`, into the hunks found: what the diff answers
+static int changes(const char *then, unsigned long long then_size, const char *now, unsigned long long now_size)
+{
+    side_laid(&s_then, then, then_size);
+    side_laid(&s_now, now, now_size);
+    s_hunks = 0u;
+    return EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &s_then.lines,
+                      .now = &s_now.lines, .each = hunk_each);
+}
+
+static void hunk_is(unsigned int at, unsigned int now_from, unsigned int now_to, unsigned int then_from,
+                    unsigned int then_to)
+{
+    TEST_ASSERT_EQUAL_UINT(now_from, s_hunk[at].now_from);
+    TEST_ASSERT_EQUAL_UINT(now_to, s_hunk[at].now_to);
+    TEST_ASSERT_EQUAL_UINT(then_from, s_hunk[at].then_from);
+    TEST_ASSERT_EQUAL_UINT(then_to, s_hunk[at].then_to);
+}
+
+void test_the_same_text_has_no_change(void)
+{
+    static const char s_text[] = "one\ntwo\nthree\n";
+    TEST_ASSERT_EQUAL_INT(1, changes(s_text, sizeof(s_text) - 1u, s_text, sizeof(s_text) - 1u));
+    TEST_ASSERT_EQUAL_UINT(0u, s_hunks);
+}
+
+void test_a_line_changed_is_one_change_of_one_line_for_one(void)
+{
+    static const char s_then_text[] = "one\ntwo\nthree\n";
+    static const char s_now_text[] = "one\n2\nthree\n";
+    TEST_ASSERT_EQUAL_INT(1, changes(s_then_text, sizeof(s_then_text) - 1u, s_now_text, sizeof(s_now_text) - 1u));
+    TEST_ASSERT_EQUAL_UINT(1u, s_hunks);
+    hunk_is(0u, 1u, 2u, 1u, 2u);
+}
+
+void test_a_line_put_in_and_one_taken_out_are_two_changes(void)
+{
+    static const char s_then_text[] = "one\ntwo\nthree\nfour\n";
+    static const char s_now_text[] = "one\ntwo\nnew\nthree\n";
+    TEST_ASSERT_EQUAL_INT(1, changes(s_then_text, sizeof(s_then_text) - 1u, s_now_text, sizeof(s_now_text) - 1u));
+    TEST_ASSERT_EQUAL_UINT(2u, s_hunks);
+    hunk_is(0u, 2u, 3u, 2u, 2u);
+    hunk_is(1u, 4u, 4u, 3u, 4u);
+}
+
+void test_an_older_text_of_one_empty_line_is_one_change_putting_every_new_line_in(void)
+{
+    static const char s_now_text[] = "one\ntwo\n";
+    TEST_ASSERT_EQUAL_INT(1, changes("", 0ULL, s_now_text, sizeof(s_now_text) - 1u));
+    TEST_ASSERT_EQUAL_UINT(1u, s_hunks);
+    hunk_is(0u, 0u, 2u, 0u, 0u);
+}
+
+void test_lines_that_hash_alike_and_differ_are_told_apart(void)
+{
+    static const char s_then_text[] = "costarring\nliquid\n";
+    static const char s_now_text[] = "liquid\nliquid\n";
+    TEST_ASSERT_EQUAL_INT(1, changes(s_then_text, sizeof(s_then_text) - 1u, s_now_text, sizeof(s_now_text) - 1u));
+    unsigned int out = 0u;
+    unsigned int in = 0u;
+    for (unsigned int at = 0u; at < s_hunks; at += 1u)
+    {
+        out += s_hunk[at].then_to - s_hunk[at].then_from;
+        in += s_hunk[at].now_to - s_hunk[at].now_from;
+    }
+    TEST_ASSERT_EQUAL_UINT(1u, out);
+    TEST_ASSERT_EQUAL_UINT(1u, in);
+}
+
+void test_texts_too_far_apart_are_refused(void)
+{
+    VerbaLinea then = {s_far_then, sizeof(s_far_then), 0ULL};
+    VerbaLinea now = {s_far_now, sizeof(s_far_now), 0ULL};
+    for (unsigned int line = 0u; line < FAR_LINES; line += 1u)
+    {
+        mmgr_line_put(&then, "a");
+        mmgr_line_decimal(&then, line, 1u);
+        mmgr_line_put(&then, "\n");
+        mmgr_line_put(&now, "b");
+        mmgr_line_decimal(&now, line, 1u);
+        mmgr_line_put(&now, "\n");
+    }
+    TEST_ASSERT_EQUAL_INT(0, changes(s_far_then, then.at, s_far_now, now.at));
+}
