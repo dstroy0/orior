@@ -3,7 +3,9 @@
 // changes.h: the Commit tool's side pane table, the Changes: a row each file that differs from the last commit, read
 // where the git module lists them (code/git.h), a box lit while the next commit takes the file, the file's mark, its
 // name in its state's color, its folder quieter after it and its state's letter at the right; a row pressed on its box
-// leaves the file out or takes it again, pressed elsewhere opens the file. Over the rows the pane's head: the bar, the
+// leaves the file out or takes it again, pressed on its arrow opens the file's changes under it, a row each change
+// with the lines it covers and a row each line of it with its sign, each with a box of its own, so that the next
+// commit takes the file in part, and pressed elsewhere opens the file. Over the rows the pane's head: the bar, the
 // tree read again, the files taken rolled back on a second press, the branch pulled and pushed with how many commits
 // it is behind and ahead; a box taking or leaving every file beside how many are taken; the box for the commit's
 // message, which takes the keys; Commit and Commit and Push; and git's refusal under them. The changed file's row is
@@ -30,6 +32,10 @@ typedef struct GuiChangesFileCfg GuiChangesFileCfg;
 #define GUI_CHANGES_TAKEN_SIZE 12u
 #define GUI_CHANGES_REPORT 20
 #define GUI_CHANGES_REPORT_SIZE 12u
+// a change's and a line's row text size, and the most units of a line the row shows with the bytes they may take
+#define GUI_CHANGES_LINE_SIZE 12u
+#define GUI_CHANGES_LINE_UNITS 256ULL
+#define GUI_CHANGES_LINE_BYTES 769u
 
 // the color of a `state` letter: a changed file in the third mark's, one added or not yet tracked in the second's, one
 // gone in the first's, and any other in the text's quieter color; and a changed file drawn in the pane's row from x:

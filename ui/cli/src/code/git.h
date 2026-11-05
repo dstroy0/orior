@@ -173,7 +173,7 @@ typedef struct
     CliGitText text;
 } CliStashes;
 
-// A file the next commit takes in part: its path and the text the commit gives it, `length` bytes
+// A file the next commit takes in part: its path and the text the commit takes for it, `length` bytes
 typedef struct
 {
     const char *path;
@@ -182,16 +182,36 @@ typedef struct
 } CliGitPart;
 
 // The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
-// the repository containing it, as rows in the order git lists them, the list standing until the next read. A row is
-// the file's path from the tree's top, its name, the last part of that path, the bytes of the folder before it, its
-// state letter as cli_git_change reads it, and whether the next commit takes it
+// the repository containing it, as rows in the order git lists them, the list standing until the next read, and under a
+// file whose changes are open, a row each change and a row each line of it. A row is of one of three kinds: a file,
+// a change or a line. Every row carries the file's path from the tree's top and the file's place among the files. A
+// file's row carries its name, the last part of that path, the bytes of the folder before it, its state letter as
+// cli_git_change reads it, whether the next commit takes it, whether it takes it in part, some lines left out,
+// whether its changes can open under it, and whether they are open. A change's row carries the change's place among
+// the file's changes, the newer text's first line of it and the line after its last, counted from 0, whether some of
+// its lines are taken and whether some and not all are. A line's row carries its change's place, its units and how
+// many, whether it is taken out of the older text, else put in by the newer, and whether the commit takes it
+#define CLI_CHANGES_ROW_FILE 0u
+#define CLI_CHANGES_ROW_HUNK 1u
+#define CLI_CHANGES_ROW_LINE 2u
 typedef struct
 {
+    unsigned int kind;
     const char *path;
+    unsigned int file;
     const char *name;
     unsigned long long folder_length;
     char state;
     int taken;
+    int part;
+    int opens;
+    int open;
+    unsigned int hunk;
+    unsigned int from;
+    unsigned int to;
+    const unsigned short *units;
+    unsigned long long count;
+    int gone;
 } CliChangedRow;
 typedef struct CliGitChangesCfg CliGitChangesCfg;
 // the most bytes of the commit's message with its end; the head's actions: the message's box, which takes the keys,
@@ -216,20 +236,28 @@ int cli_changes_step(const CliGitChangesCfg *args);
 // the changes read anew of the tree at `root`, every repository of it, each file taken by the next commit unless it was
 // left out before, with how far the branch stands from the remote it follows; none where `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
-// how many rows the changes have; the row `at` into `row`: 1, or 0 past the last; the file of the row `at` left out of
-// the next commit, or taken again; how many files the next commit takes; every file taken where `on`, else every file
-// left out; and the menu of the row `at` built as the menus' own rows, Open File, which a file gone cannot take, then
-// Copy Path: 1, or 0 past the last
+// how many rows the changes have, the files with the rows open under them; how many files differ from the last commit;
+// the row `at` into `row`: 1, or 0 past the last; the row `at` toggled: a file's left
+// out of the next commit or taken again, its lines' choices cleared; a change's lines every one taken where some is
+// left out, else every one left out; a line's left out or taken; a file left out as its last line is, and taken again
+// as a line of it is; the changes of the file of the row `at` opened under it, the document store's changes of its
+// text, the open view's where one is open on it, against the file as the last commit has it, or closed where they are
+// open: 1, or 0 where the file's changes cannot open, a file gone, not a text or too far from the last commit's; how
+// many files the next commit takes; every file taken where `on`, else every file left out; and the menu of the row
+// `at` built as the menus' own rows, Open File, which a file gone cannot take, then Copy Path: 1, or 0 past the last
 unsigned int cli_changes_rows(const CliGitChangesCfg *args);
+unsigned int cli_changes_files(const CliGitChangesCfg *args);
 int cli_changes_row(const CliGitChangesCfg *args);
 void cli_changes_toggle(const CliGitChangesCfg *args);
+int cli_changes_open(const CliGitChangesCfg *args);
 unsigned int cli_changes_taken(const CliGitChangesCfg *args);
 void cli_changes_take_all(const CliGitChangesCfg *args);
 int cli_changes_menu(const CliGitChangesCfg *args);
 // `size` bytes of `text` typed at the message's end; the key `name` pressed in the box, Backspace erasing the last
 // letter: 1 where the key was taken; the message with its bytes into `length_out`; the files taken committed to the
-// tree at `root` with the message, each repository committed to pushed where `push`, the message cleared and the
-// changes read again where git takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the
+// tree at `root` with the message, a file with lines left out committed with the text of its lines taken, each
+// repository committed to pushed where `push`, the message cleared, the open changes closed and the changes read
+// again where git takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the
 // last commit, pull, push or roll back, or why nothing was to commit, with its bytes into `length_out`, empty where the
 // last was taken
 void cli_changes_type(const CliGitChangesCfg *args);
@@ -270,8 +298,10 @@ typedef struct
     int (*step)(const CliGitChangesCfg *args);
     void (*read)(const CliGitChangesCfg *args);
     unsigned int (*rows)(const CliGitChangesCfg *args);
+    unsigned int (*files)(const CliGitChangesCfg *args);
     int (*row)(const CliGitChangesCfg *args);
     void (*toggle)(const CliGitChangesCfg *args);
+    int (*open)(const CliGitChangesCfg *args);
     unsigned int (*taken)(const CliGitChangesCfg *args);
     void (*take_all)(const CliGitChangesCfg *args);
     int (*menu)(const CliGitChangesCfg *args);
@@ -285,16 +315,18 @@ typedef struct
     int (*push)(const CliGitChangesCfg *args);
     int (*rollback)(const CliGitChangesCfg *args);
 } CliChangesNs;
-EMBED_TABLE_LAYOUT(CliChangesNs, begin, stale, step, read, rows, row, toggle, taken, take_all, menu, type, key, message,
-                   commit, refusal, sync, pull, push, rollback);
+EMBED_TABLE_LAYOUT(CliChangesNs, begin, stale, step, read, rows, files, row, toggle, open, taken, take_all, menu, type,
+                   key, message, commit, refusal, sync, pull, push, rollback);
 EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
     .begin = cli_changes_begin,
     .stale = cli_changes_stale,
     .step = cli_changes_step,
     .read = cli_changes_read,
     .rows = cli_changes_rows,
+    .files = cli_changes_files,
     .row = cli_changes_row,
     .toggle = cli_changes_toggle,
+    .open = cli_changes_open,
     .taken = cli_changes_taken,
     .take_all = cli_changes_take_all,
     .menu = cli_changes_menu,
@@ -486,8 +518,8 @@ int cli_git_stage_text(const CliGitRootFileStageCfg *args);
 void cli_git_change(const CliGitRootReposCfg *args);
 // the files at `paths` committed with `message`, each as it stands, in the repository that contains it, a commit to
 // each repository that contains some, each repository committed to pushed where `push`; and the files of `whole` as
-// each stands and the files of `parts` with the text each is to carry, the same way: git's line for each commit into
-// `out`, 1, or 0 with why in `err_msg`
+// each stands and the files of `parts` with the text each is to carry, the same way and pushed the same way: git's
+// line for each commit into `out`, 1, or 0 with why in `err_msg`
 int cli_git_commit(const CliGitRootOutCountCfg *args);
 int cli_git_commit_parts(const CliGitRootCfg *args);
 // git run at `root` with nothing to answer a prompt with, `args`, `count` of them: what it wrote into `out`, 1, or 0
@@ -663,6 +695,7 @@ struct CliGitRootCfg
     unsigned int full_files_count;
     const CliGitPart *parts;
     unsigned int part_count;
+    int push;
 };
 
 struct CliGitRootOutCfg

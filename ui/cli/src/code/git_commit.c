@@ -514,10 +514,18 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         VerbaLinea why = {error, sizeof(error), 0ULL};
         mmgr_line_put(args->out, (args->out->at != from) ? "\n" : "");
         const unsigned long long line_at = args->out->at;
-        if (!EMBED_CALL(cli_message, GitCommitCtx, .message = args->message, .err_msg = &why) ||
-            !EMBED_CALL(cli_commit_parts_in, GitCommitCtx, .folder = folder, .whole = s_committing.own_full_files,
-                        .full_files_count = own_full_files, .parts = s_committing.own_parts, .part_count = own_parts,
-                        .out = args->out, .err_msg = &why))
+        int done = EMBED_CALL(cli_message, GitCommitCtx, .message = args->message, .err_msg = &why) &&
+                   EMBED_CALL(cli_commit_parts_in, GitCommitCtx, .folder = folder, .whole = s_committing.own_full_files,
+                              .full_files_count = own_full_files, .parts = s_committing.own_parts,
+                              .part_count = own_parts, .out = args->out, .err_msg = &why);
+        // the repository committed to is pushed where asked, git's words after the commit's line
+        if (done && args->push)
+        {
+            mmgr_line_put(args->out, "\n");
+            done = EMBED_CALL(cli_git_root_out_count_err_msg.push, CliGitRootOutCountErrMsgCfg, .root = folder,
+                              .out = args->out, .err_msg = &why);
+        }
+        if (!done)
         {
             args->out->at = (line_at > from) ? (line_at - 1ULL) : line_at;
             EMBED_CALL(cli_git_length_internal.failed_after, CliGitLengthCtx, .out_read = args->out, .from_u64 = from,

@@ -8,6 +8,7 @@
 #include "../../code/git.h"
 #include "../../command_line/cli_internal.h"
 #include "../../command_line/command_line.h"
+#include "../../editor/document.h"
 #include "../icons.h"
 #include "explorer.h"
 
@@ -20,9 +21,11 @@
 typedef struct
 {
     const GuiPaneCfg *pane;
+    const CliChangedRow *row;
     unsigned int which;
     const char *text;
     int failed;
+    int x;
 } ChangesCtx;
 
 static const char *changes_title(const GuiPaneCfg *args)
@@ -176,7 +179,7 @@ EMBED_INLINE void changes_count_draw(const ChangesCtx *args)
 static void changes_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
-    const unsigned int count = EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u);
+    const unsigned int count = EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u);
     const unsigned int taken = EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u);
     unsigned int ahead = 0u;
     unsigned int behind = 0u;
@@ -281,7 +284,7 @@ static unsigned int changes_head_hit(const GuiPaneCfg *args)
             return s_tools[at];
         }
     }
-    if ((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) != 0u) &&
+    if ((EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) != 0u) &&
         EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                    .rect = EMBED_CALL(changes_taken_rect, ChangesCtx, .pane = args), .x = args->x, .y = args->y))
     {
@@ -344,7 +347,8 @@ EMBED_INLINE void changes_rolled(const ChangesCtx *args)
     for (unsigned int at = 0u; (pane->file_reread != NULL) && (at < count); at += 1u)
     {
         CliChangedRow row;
-        if (EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) && row.taken)
+        if (EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) &&
+            (row.kind == CLI_CHANGES_ROW_FILE) && row.taken)
         {
             pane->file_reread(pane->context, row.path);
         }
@@ -397,7 +401,7 @@ static void changes_action(const GuiPaneCfg *args)
     case CLI_CHANGES_ALL:
         EMBED_CALL(cli_changes.take_all, CliGitChangesCfg,
                    .on = EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) <
-                         EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u));
+                         EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u));
         return;
     default:
         return;
@@ -477,8 +481,98 @@ EMBED_INLINE int changes_file_x(const ChangesCtx *args)
            EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX_GAP);
 }
 
-// the changed file's row: its taken box, lit in signal while the next commit takes it, then its name in the state's
-// color
+// a row's taken box drawn from `x`: lit in signal while the next commit takes all of the row, its inside the line's
+// while it takes some lines of it, else clear
+EMBED_INLINE void changes_box_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiPalette *const palette = pane->palette;
+    const CliChangedRow *const read = args->row;
+    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX);
+    const int whole = read->taken && !read->part;
+    EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = pane,
+               .rect = (GuiRect){args->x, pane->rect.y + ((pane->rect.height - side) / 2), side, side},
+               .radius = GUI_CHANGES_BOX_RADIUS, .color = whole ? palette->signal : palette->line,
+               .inside = whole ? palette->signal : (read->part ? palette->line : palette->editor_background));
+}
+
+// a changed file's row: its taken box, then where its changes can open the arrow, down while they are, then its name
+// in the state's color
+EMBED_INLINE void changes_file_row_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const CliChangedRow *const read = args->row;
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
+    EMBED_CALL(changes_box_draw, ChangesCtx, .pane = pane, .row = read, .x = pane->rect.x + pad);
+    int x = pane->rect.x + EMBED_CALL(changes_file_x, ChangesCtx, .pane = pane);
+    if (read->opens)
+    {
+        const int twisty = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_EXPLORER_TWISTY);
+        const int arrow = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_ARROW);
+        EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = pane->raster, .x = x + ((twisty - arrow) / 2),
+                   .y = pane->rect.y + ((pane->rect.height - arrow) / 2), .side = arrow, .open = read->open,
+                   .color = GUI_FRAME_FADED(pane->palette->text_2, pane->frame->side_share), .clip = pane->clip);
+        x += twisty;
+    }
+    (void)EMBED_CALL(
+        gui_changes_file.file_draw, GuiChangesFileCfg, .pane = pane, .x = x, .path = read->path, .name = read->name,
+        .name_length = cellul.len(&(CatenaFinitaCfg){.src = read->name, .cap = CLI_PATH_MAX_LEN}),
+        .folder_length = read->folder_length, .state = read->state,
+        .color = EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = pane, .state = read->state),
+        .clip = pane->clip);
+}
+
+// a change's row, one guide in: its taken box, then the lines of the newer text it covers, counted from 1
+EMBED_INLINE void changes_hunk_row_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const CliChangedRow *const read = args->row;
+    const int x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = pane->raster, .palette = pane->palette,
+                             .frame = pane->frame, .rect = pane->rect, .clip = pane->clip, .depth = 1u);
+    EMBED_CALL(changes_box_draw, ChangesCtx, .pane = pane, .row = read, .x = x);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX_GAP);
+    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX);
+    char words[48];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, (read->to > read->from + 1u) ? "Lines " : "Line ");
+    mmgr_line_decimal(&line, read->from + 1u, 1u);
+    if (read->to > read->from + 1u)
+    {
+        mmgr_line_put(&line, " to ");
+        mmgr_line_decimal(&line, read->to, 1u);
+    }
+    (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_CODE,
+                     .size = GUI_CHANGES_LINE_SIZE, .x_f32 = (float)(x + side + gap), .text = words, .length = line.at,
+                     .color = pane->palette->text_2, .clip = pane->clip);
+}
+
+// a line's row, two guides in: its taken box, its sign, a minus for a line taken out in the first mark's color and a
+// plus for one put in in the second's, then the line's text in the code face
+EMBED_INLINE void changes_line_row_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiPalette *const palette = pane->palette;
+    const CliChangedRow *const read = args->row;
+    const int x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = pane->raster, .palette = palette,
+                             .frame = pane->frame, .rect = pane->rect, .clip = pane->clip, .depth = 2u);
+    EMBED_CALL(changes_box_draw, ChangesCtx, .pane = pane, .row = read, .x = x);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX_GAP);
+    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX);
+    const float after_sign =
+        EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_CODE_BOLD,
+                   .size = GUI_CHANGES_LINE_SIZE, .x_f32 = (float)(x + side + gap), .text = read->gone ? "-" : "+",
+                   .length = 1ULL, .color = read->gone ? palette->mark[0] : palette->mark[1], .clip = pane->clip);
+    // the line's units as UTF-8, as many as the row can show
+    char text[GUI_CHANGES_LINE_BYTES];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .units = read->units,
+               .count = (read->count < GUI_CHANGES_LINE_UNITS) ? read->count : GUI_CHANGES_LINE_UNITS, .out = &line);
+    (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_CODE,
+                     .size = GUI_CHANGES_LINE_SIZE, .x_f32 = after_sign + (float)gap, .text = text, .length = line.at,
+                     .color = palette->text_2, .clip = pane->clip);
+}
+
+// the row drawn as its kind: a file, a change under one, or a line of a change
 static void changes_row_draw(const GuiPaneCfg *args)
 {
     CliChangedRow read;
@@ -486,24 +580,36 @@ static void changes_row_draw(const GuiPaneCfg *args)
     {
         return;
     }
-    const GuiPalette *const palette = args->palette;
-    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
-    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_CHANGES_BOX);
-    EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = args,
-               .rect = (GuiRect){args->rect.x + pad, args->rect.y + ((args->rect.height - side) / 2), side, side},
-               .radius = GUI_CHANGES_BOX_RADIUS, .color = read.taken ? palette->signal : palette->line,
-               .inside = read.taken ? palette->signal : palette->editor_background);
-    (void)EMBED_CALL(
-        gui_changes_file.file_draw, GuiChangesFileCfg, .pane = args,
-        .x = args->rect.x + EMBED_CALL(changes_file_x, ChangesCtx, .pane = args), .path = read.path, .name = read.name,
-        .name_length = cellul.len(&(CatenaFinitaCfg){.src = read.name, .cap = CLI_PATH_MAX_LEN}),
-        .folder_length = read.folder_length, .state = read.state,
-        .color = EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = args, .state = read.state),
-        .clip = args->clip);
+    switch (read.kind)
+    {
+    case CLI_CHANGES_ROW_FILE:
+        EMBED_CALL(changes_file_row_draw, ChangesCtx, .pane = args, .row = &read);
+        return;
+    case CLI_CHANGES_ROW_HUNK:
+        EMBED_CALL(changes_hunk_row_draw, ChangesCtx, .pane = args, .row = &read);
+        return;
+    default:
+        EMBED_CALL(changes_line_row_draw, ChangesCtx, .pane = args, .row = &read);
+        return;
+    }
 }
 
-// the row pressed: on its taken box, where the frame is known, the file is left out or taken again; elsewhere its file
-// opens
+// the x where a row's box ends, past the guides a change's or a line's row stands in
+EMBED_INLINE int changes_box_end(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const unsigned int depth = (args->row->kind == CLI_CHANGES_ROW_FILE)   ? 0u
+                               : (args->row->kind == CLI_CHANGES_ROW_HUNK) ? 1u
+                                                                           : 2u;
+    // the depth is at most two guides, far inside an int
+    return EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT) +
+           ((int)depth * EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_GUIDE)) +
+           EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX) +
+           EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_BOX_GAP);
+}
+
+// the row pressed, where the frame is known: on its taken box, the row is left out or taken again; on a file's arrow,
+// its changes open or close; elsewhere its file opens, at the change's first line from a change's or a line's row
 static int changes_press(const GuiPaneCfg *args)
 {
     CliChangedRow changed;
@@ -515,13 +621,22 @@ static int changes_press(const GuiPaneCfg *args)
     {
         const GuiRect rect = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = args->table, .frame = args->frame,
                                         .pane_read = args->pane_read, .row = args->row);
-        if (args->x < rect.x + EMBED_CALL(changes_file_x, ChangesCtx, .pane = args))
+        const int box_end = rect.x + EMBED_CALL(changes_box_end, ChangesCtx, .pane = args, .row = &changed);
+        if (args->x < box_end)
         {
             EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = args->row);
             return 0;
         }
+        if ((changed.kind == CLI_CHANGES_ROW_FILE) && changed.opens &&
+            (args->x <
+             box_end + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_EXPLORER_TWISTY)))
+        {
+            (void)EMBED_CALL(cli_changes.open, CliGitChangesCfg, .root = args->root, .at = args->row);
+            return 0;
+        }
     }
-    *args->open_out = (GuiPaneOpen){changed.path, {0ULL, 0ULL}, 0};
+    const int placed = changed.kind != CLI_CHANGES_ROW_FILE;
+    *args->open_out = (GuiPaneOpen){changed.path, {placed ? changed.from : 0ULL, 0ULL}, placed};
     return 1;
 }
 

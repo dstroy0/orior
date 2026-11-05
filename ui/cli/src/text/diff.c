@@ -4,9 +4,9 @@
 // caller as it is found. The lines the two share at their start and end are set aside first, compared a block of units
 // at a time, and Myers' shortest edit runs on what is left, each line read as its hash, its runs of the same lines
 // found a block of hashes at a time and each line of a run checked against the other's, so that two lines that hash
-// alike and differ end the run. The edit's capacity, the hashes, the frontier's band and the steps, is one cell sized to
-// the two texts' lines for the one edit, and each round's band is traced in a cell of its own for the walk back; both
-// go as the edit ends. Past CLI_DIFF_MAX_EDITS rounds the texts read as too far apart
+// alike and differ end the run. The edit's capacity, the hashes, the frontier's band and the steps, is one cell sized
+// to the two texts' lines for the one edit, and each round's band is traced in a cell of its own for the walk back;
+// both go as the edit ends. Past CLI_DIFF_MAX_EDITS rounds the texts read as too far apart
 #include "../command_line/cells.h"
 #include "../editor/document.h"
 #include "vector.h"
@@ -26,9 +26,9 @@ typedef struct
 #define CLI_DIFF_MAX_EDITS 3000LL
 #define CLI_DIFF_LINES (1u << 20u)
 
-// The edit's capacity, laid out in a cell sized to the two texts' lines, taken for the one edit and released as it ends:
-// the hashes of each side's lines, the furthest reach on each diagonal, and the steps found; and each round's reaches,
-// the trace, in a cell of its own at their most
+// The edit's capacity, laid out in a cell sized to the two texts' lines, taken for the one edit and released as it
+// ends: the hashes of each side's lines, the furthest reach on each diagonal, and the steps found; and each round's
+// reaches, the trace, in a cell of its own at their most
 typedef struct
 {
     unsigned char *cell;

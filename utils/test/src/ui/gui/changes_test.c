@@ -18,12 +18,52 @@ static int row_with_name(const char *name, CliChangedRow *row)
 {
     for (unsigned int at = 0u; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = row); at += 1u)
     {
-        if (strcmp(name, row->name) == 0)
+        if ((row->kind == CLI_CHANGES_ROW_FILE) && (strcmp(name, row->name) == 0))
         {
             return 1;
         }
     }
     return 0;
+}
+
+// the row of the file `name`, past the last where none is
+static unsigned int row_of(const char *name)
+{
+    unsigned int at = 0u;
+    for (CliChangedRow each; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &each) &&
+                             ((each.kind != CLI_CHANGES_ROW_FILE) || (strcmp(each.name, name) != 0));)
+    {
+        at += 1u;
+    }
+    return at;
+}
+
+// whether the line row `at` is `gone` and reads `text`
+static int line_row_is(unsigned int at, int gone, const char *text)
+{
+    CliChangedRow row;
+    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) || (row.kind != CLI_CHANGES_ROW_LINE) ||
+        (row.gone != gone) || (row.count != strlen(text)))
+    {
+        return 0;
+    }
+    for (unsigned long long unit = 0ULL; unit < row.count; unit += 1ULL)
+    {
+        if (row.units[unit] != (unsigned short)(unsigned char)text[unit])
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// the text of `relative` as the last commit has it, into `text`
+static void head_read(const char *root, const char *relative, char *text, unsigned long long size)
+{
+    VerbaLinea out = {text, size, 0ULL};
+    (void)EMBED_CALL(cli_git_root_file_stage.head_text, CliGitRootFileStageCfg, .root = root, .file = relative,
+                     .out = &out);
+    (void)mmgr_line_finish(&out);
 }
 
 // git run at `root` with `request`, `count` words: 1, or 0 with why as the check's failure
@@ -300,6 +340,78 @@ int main(void)
     cli_check(strlen(EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &refused)) == refused &&
                   (refused != 0ULL),
               "the file the last commit does not contain is refused with why");
+
+    // a file's changes opened under its row: a line changed and a line put in are one change of three lines; the line
+    // put in left out commits the file in part, the other file whole; the change left stands alone after; the arrow
+    // pressed closes the changes; and a change's row pressed opens the file at its first line
+    file_written(s_root, "fresh.txt", "changed\nput in\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    const unsigned int fresh_row = row_of("fresh.txt");
+    cli_check(row_with_name("fresh.txt", &fresh) && fresh.opens && !fresh.open && row_with_name("deep.txt", &deep) &&
+                  deep.opens,
+              "a changed file's changes can open, and are not yet");
+    cli_check(EMBED_CALL(cli_changes.open, CliGitChangesCfg, .root = s_root, .at = fresh_row) &&
+                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 6u) &&
+                  (EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 2u) &&
+                  row_with_name("fresh.txt", &fresh) && fresh.open,
+              "the file's changes open under its row, one change and its three lines");
+    CliChangedRow hunk;
+    cli_check(EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = fresh_row + 1u, .row = &hunk) &&
+                  (hunk.kind == CLI_CHANGES_ROW_HUNK) && (hunk.from == 0u) && (hunk.to == 2u) && hunk.taken &&
+                  !hunk.part,
+              "the change covers the newer text's first two lines, taken whole");
+    cli_check(line_row_is(fresh_row + 2u, 1, "from elsewhere") && line_row_is(fresh_row + 3u, 0, "changed") &&
+                  line_row_is(fresh_row + 4u, 0, "put in"),
+              "the lines stand in order: the line taken out, then the two put in");
+    EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = fresh_row + 4u);
+    CliChangedRow line;
+    cli_check(EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = fresh_row + 4u, .row = &line) && !line.taken &&
+                  EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = fresh_row + 1u, .row = &hunk) && hunk.taken &&
+                  hunk.part && row_with_name("fresh.txt", &fresh) && fresh.taken && fresh.part,
+              "a line left out marks its change and its file as taken in part");
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
+               .glyphs = &glyphs, .palette = palette, .title = "Commit", .tree = s_root);
+    EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "part", .size = 4ULL);
+    const int part_committed = EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root);
+    cli_check(part_committed, part_committed
+                                  ? "the commit takes the file in part and the other whole"
+                                  : EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length));
+    char head_text[64];
+    head_read(s_root, "fresh.txt", head_text, sizeof(head_text));
+    cli_check(strcmp(head_text, "changed\n") == 0, "the last commit has the file with the line left out missing");
+    head_read(s_root, "sub/deep.txt", head_text, sizeof(head_text));
+    cli_check(strcmp(head_text, "two\n") == 0, "the last commit has the other file whole");
+    cli_check((EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) &&
+                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh) &&
+                  !fresh.open && (fresh.state == 'M'),
+              "the file with the line left out stands alone after, its changes closed");
+    cli_check(EMBED_CALL(cli_changes.open, CliGitChangesCfg, .root = s_root, .at = 0u) &&
+                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 3u) &&
+                  EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 1u, .row = &hunk) && (hunk.from == 1u) &&
+                  (hunk.to == 2u) && line_row_is(2u, 0, "put in"),
+              "the change left is the line put in");
+    const GuiRect hunk_rect =
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 1u);
+    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 1u,
+                         .x = hunk_rect.x + hunk_rect.width - 20, .open_out = &open) &&
+                  (strcmp(open.path, "fresh.txt") == 0) && open.placed && (open.place.line == 1ULL),
+              "a change's row pressed opens the file at the change's first line");
+    const GuiRect fresh_rect =
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u,
+                          .root = s_root,
+                          .x = fresh_rect.x + GUI_PANE_PAD_LEFT + GUI_CHANGES_BOX + GUI_CHANGES_BOX_GAP + 4,
+                          .open_out = &open) &&
+                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u),
+              "the arrow pressed closes the file's changes");
+    EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = 0u);
+    EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "left", .size = 4ULL);
+    file_written(s_root, "sub/deep.txt", "two\nthree\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
+                  (EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh),
+              "the file left out stands after the other's commit");
+    EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = 0u);
 
     const int bar_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_CHOICE / 2);
     const int left = frame.side.x + GUI_PANE_PAD_LEFT;
