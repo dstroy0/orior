@@ -1,19 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// changes.c: the Changes pane's rows as the git module lists the changed files, each with its taken box, the commit's
-// message box and Commit over them with git's refusal under, and the changed file's row every pane draws the same
+// changes.c: the Changes pane's rows as the git module lists the changed files, each with its taken box; its head, the
+// bar of tools, the all box with the taken count, the commit's message box, Commit and Commit and Push, with git's
+// refusal under; and the changed file's row every pane draws the same
 #include "changes.h"
 
 #include "../../code/git.h"
 #include "../../command_line/cli_internal.h"
+#include "../../command_line/command_line.h"
+#include "../icons.h"
 #include "explorer.h"
 
 #define CHANGES_PLACEHOLDER "Commit message"
 #define CHANGES_COMMIT "Commit"
+#define CHANGES_COMMIT_PUSH "Commit and Push"
+#define CHANGES_NONE "No file differs from the last commit."
+#define CHANGES_ARMED "A second press rolls the files taken back to the last commit."
 
 typedef struct
 {
     const GuiPaneCfg *pane;
+    unsigned int which;
+    const char *text;
+    int failed;
 } ChangesCtx;
 
 static const char *changes_title(const GuiPaneCfg *args)
@@ -28,40 +37,192 @@ static unsigned int changes_rows(const GuiPaneCfg *args)
     return EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u);
 }
 
-// the message box's row, Commit's row and the refusal's row
+// the bar's row, the taken row, the message box's row, the buttons' row and the refusal's row
 static int changes_head(const GuiPaneCfg *args)
 {
     (void)args;
-    return GUI_PANE_BOX + GUI_PANE_CHOICE + GUI_CHANGES_REPORT;
+    return GUI_PANE_CHOICE + GUI_PANE_CHOICE + GUI_PANE_BOX + GUI_PANE_CHOICE + GUI_CHANGES_REPORT;
 }
 
-// the message box's rectangle, in the head's first row
-EMBED_INLINE GuiRect changes_field_rect(const ChangesCtx *args)
-{
-    return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = args->pane->rect.y);
-}
-
-// Commit's row, under the message box
-EMBED_INLINE GuiRect changes_commit_rect(const ChangesCtx *args)
+// the bar's row at the head's top
+EMBED_INLINE GuiRect changes_bar_rect(const ChangesCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
-    const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX);
-    return (GuiRect){pane->rect.x, pane->rect.y + box, pane->rect.width,
+    return (GuiRect){pane->rect.x, pane->rect.y, pane->rect.width,
                      EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_CHOICE)};
 }
 
-// the refusal's row, under Commit
+// the taken row, under the bar
+EMBED_INLINE GuiRect changes_taken_rect(const ChangesCtx *args)
+{
+    const GuiRect bar = EMBED_CALL(changes_bar_rect, ChangesCtx, .pane = args->pane);
+    return (GuiRect){bar.x, bar.y + bar.height, bar.width, bar.height};
+}
+
+// the message box's rectangle, in the row under the taken row
+EMBED_INLINE GuiRect changes_field_rect(const ChangesCtx *args)
+{
+    const GuiRect taken = EMBED_CALL(changes_taken_rect, ChangesCtx, .pane = args->pane);
+    return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = taken.y + taken.height);
+}
+
+// the buttons' row, under the message box: Commit in its left half, Commit and Push in its right
+EMBED_INLINE GuiRect changes_buttons_rect(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiRect taken = EMBED_CALL(changes_taken_rect, ChangesCtx, .pane = pane);
+    const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX);
+    return (GuiRect){pane->rect.x, taken.y + taken.height + box, pane->rect.width,
+                     EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_CHOICE)};
+}
+
+EMBED_INLINE GuiRect changes_commit_rect(const ChangesCtx *args)
+{
+    const GuiRect buttons = EMBED_CALL(changes_buttons_rect, ChangesCtx, .pane = args->pane);
+    return (GuiRect){buttons.x, buttons.y, buttons.width / 2, buttons.height};
+}
+
+EMBED_INLINE GuiRect changes_commit_push_rect(const ChangesCtx *args)
+{
+    const GuiRect buttons = EMBED_CALL(changes_buttons_rect, ChangesCtx, .pane = args->pane);
+    return (GuiRect){buttons.x + (buttons.width / 2), buttons.y, buttons.width - (buttons.width / 2), buttons.height};
+}
+
+// the refusal's row, under the buttons
 EMBED_INLINE GuiRect changes_report_rect(const ChangesCtx *args)
 {
-    const GuiRect commit = EMBED_CALL(changes_commit_rect, ChangesCtx, .pane = args->pane);
-    return (GuiRect){args->pane->rect.x, commit.y + commit.height, args->pane->rect.width,
+    const GuiRect buttons = EMBED_CALL(changes_buttons_rect, ChangesCtx, .pane = args->pane);
+    return (GuiRect){buttons.x, buttons.y + buttons.height, buttons.width,
                      EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane, .x = GUI_CHANGES_REPORT)};
 }
 
-// the head drawn: the message box with the message typed, Commit under it, and git's refusal under that where it stands
+// the square of the bar's tool `which`: the tree read again and the roll back from the left, the pull and the push
+// from the right, each of the latter with the width of its count after it
+EMBED_INLINE GuiRect changes_tool_rect(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiRect bar = EMBED_CALL(changes_bar_rect, ChangesCtx, .pane = pane);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
+    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_TOOL);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_TOOL_GAP);
+    const int count = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_COUNT);
+    const int y = bar.y + ((bar.height - side) / 2);
+    const int right = bar.x + bar.width - pad;
+    switch (args->which)
+    {
+    case CLI_CHANGES_READ:
+        return (GuiRect){bar.x + pad, y, side, side};
+    case CLI_CHANGES_ROLLBACK:
+        return (GuiRect){bar.x + pad + side + gap, y, side, side};
+    case CLI_CHANGES_PUSH:
+        return (GuiRect){right - count - side, y, side, side};
+    default:
+        return (GuiRect){right - count - side - gap - count - side, y, side, side};
+    }
+}
+
+// the bar's tool `which` drawn: its ground where the pointer stands on it, and its icon `text`, quieter where it
+// `failed`, which is where it can do nothing
+EMBED_INLINE void changes_tool_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiPalette *const palette = pane->palette;
+    const GuiRect tool = EMBED_CALL(changes_tool_rect, ChangesCtx, .pane = pane, .which = args->which);
+    if (pane->pane_read->action == args->which)
+    {
+        EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = pane, .rect = tool, .radius = GUI_PANE_RADIUS,
+                   .color = palette->hover, .inside = palette->hover);
+    }
+    const unsigned int icon =
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_TOOL_ICON);
+    const GuiMask *const mask_bits =
+        (pane->icons != NULL) ? EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = pane->icons, .name = args->text,
+                                           .size = icon, .stroke = GUI_ICON_STROKE * (float)icon / GUI_ICON_UNITS)
+                              : NULL;
+    if (mask_bits != NULL)
+    {
+        // the icon's side is far inside what an int represents
+        EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = pane->raster, .mask_bits = mask_bits,
+                   .x = tool.x + ((tool.width - (int)icon) / 2), .y = tool.y + ((tool.height - (int)icon) / 2),
+                   .color = GUI_FRAME_FADED(args->failed ? palette->text_3 : palette->text_2, pane->frame->side_share),
+                   .clip = pane->clip);
+    }
+}
+
+// the count `pane->rows` drawn after the tool `which`, where it is not 0
+EMBED_INLINE void changes_count_draw(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    if (pane->rows <= 0)
+    {
+        return;
+    }
+    const GuiRect tool = EMBED_CALL(changes_tool_rect, ChangesCtx, .pane = pane, .which = args->which);
+    const int count = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_CHANGES_COUNT);
+    char digits[12];
+    VerbaLinea line = {digits, sizeof(digits), 0ULL};
+    // the count is not negative, as checked above
+    mmgr_line_decimal(&line, (unsigned long long)pane->rows, 1u);
+    (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_HEAD,
+                     .size = GUI_CHANGES_COUNT_SIZE, .x_f32 = (float)(tool.x + tool.width + 1), .text = digits,
+                     .length = line.at, .color = pane->palette->text_2,
+                     .clip = (GuiRect){tool.x + tool.width, tool.y, count, tool.height});
+}
+
+// the head drawn: the bar, its tools quieter where they can do nothing, the pull and the push with how far the branch
+// stands from its remote; the all box lit while every file is taken, its inside the line's while some are, beside how
+// many are taken of how many; the message box with the message typed; Commit and Commit and Push; and git's refusal
+// under them where it stands
 static void changes_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
+    const unsigned int count = EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u);
+    const unsigned int taken = EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u);
+    unsigned int ahead = 0u;
+    unsigned int behind = 0u;
+    const int followed = EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind);
+    EMBED_CALL(changes_tool_draw, ChangesCtx, .pane = args, .which = CLI_CHANGES_READ, .text = "refresh");
+    EMBED_CALL(changes_tool_draw, ChangesCtx, .pane = args, .which = CLI_CHANGES_ROLLBACK, .text = "undo",
+               .failed = taken == 0u);
+    EMBED_CALL(changes_tool_draw, ChangesCtx, .pane = args, .which = CLI_CHANGES_PULL, .text = "pull",
+               .failed = !followed);
+    EMBED_CALL(changes_tool_draw, ChangesCtx, .pane = args, .which = CLI_CHANGES_PUSH, .text = "push",
+               .failed = !followed);
+    // the counts are below an int's range, as git counts commits
+    GuiPaneCfg counted = *args;
+    counted.rows = (int)behind;
+    EMBED_CALL(changes_count_draw, ChangesCtx, .pane = &counted, .which = CLI_CHANGES_PULL);
+    counted.rows = (int)ahead;
+    EMBED_CALL(changes_count_draw, ChangesCtx, .pane = &counted, .which = CLI_CHANGES_PUSH);
+
+    const GuiRect taken_row = EMBED_CALL(changes_taken_rect, ChangesCtx, .pane = args);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
+    const int side = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_CHANGES_BOX);
+    const int all = (count != 0u) && (taken == count);
+    EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = args,
+               .rect = (GuiRect){taken_row.x + pad, taken_row.y + ((taken_row.height - side) / 2), side, side},
+               .radius = GUI_CHANGES_BOX_RADIUS, .color = all ? palette->signal : palette->line,
+               .inside = all ? palette->signal : ((taken != 0u) ? palette->line : palette->editor_background));
+    char words[64];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    if (count == 0u)
+    {
+        mmgr_line_put(&line, CHANGES_NONE);
+    }
+    else
+    {
+        mmgr_line_decimal(&line, taken, 1u);
+        mmgr_line_put(&line, " of ");
+        mmgr_line_decimal(&line, count, 1u);
+        mmgr_line_put(&line, (count == 1u) ? " file taken" : " files taken");
+    }
+    (void)EMBED_CALL(
+        gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_HEAD,
+        .size = GUI_CHANGES_TAKEN_SIZE,
+        .x_f32 = (float)(taken_row.x + pad + side +
+                         EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_CHANGES_BOX_GAP)),
+        .text = words, .length = line.at, .color = palette->text_2, .clip = taken_row);
+
     const GuiRect field = EMBED_CALL(changes_field_rect, ChangesCtx, .pane = args);
     unsigned long long length = 0ULL;
     const char *const message = EMBED_CALL(cli_changes.message, CliGitChangesCfg, .length_out = &length);
@@ -70,11 +231,14 @@ static void changes_head_draw(const GuiPaneCfg *args)
     EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = args,
                .rect = EMBED_CALL(changes_commit_rect, ChangesCtx, .pane = args), .text = CHANGES_COMMIT,
                .length = sizeof(CHANGES_COMMIT) - 1ULL, .pointed = args->pane_read->action == CLI_CHANGES_COMMIT);
+    EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = args,
+               .rect = EMBED_CALL(changes_commit_push_rect, ChangesCtx, .pane = args), .text = CHANGES_COMMIT_PUSH,
+               .length = sizeof(CHANGES_COMMIT_PUSH) - 1ULL,
+               .pointed = args->pane_read->action == CLI_CHANGES_COMMIT_PUSH);
     unsigned long long refused = 0ULL;
     const char *const refusal = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &refused);
     if (refused != 0ULL)
     {
-        const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
         (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_HEAD,
                          .size = GUI_CHANGES_REPORT_SIZE, .x_f32 = (float)(args->rect.x + pad), .text = refusal,
                          .length = refused, .color = palette->text_3,
@@ -82,7 +246,16 @@ static void changes_head_draw(const GuiPaneCfg *args)
     }
 }
 
-// the action at x, y: the message box where the pixel stands in it, else Commit where it stands in its row
+// whether the pixel at x, y stands in the bar's tool `which`
+EMBED_INLINE int changes_tool_holds(const ChangesCtx *args)
+{
+    return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                      .rect = EMBED_CALL(changes_tool_rect, ChangesCtx, .pane = args->pane, .which = args->which),
+                      .x = args->pane->x, .y = args->pane->y);
+}
+
+// the action at x, y: the message box where the pixel stands in it, Commit or Commit and Push where it stands in
+// their halves, the bar's tool it stands on, or the all box's row where files are listed
 static unsigned int changes_head_hit(const GuiPaneCfg *args)
 {
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -95,25 +268,140 @@ static unsigned int changes_head_hit(const GuiPaneCfg *args)
     {
         return CLI_CHANGES_COMMIT;
     }
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                   .rect = EMBED_CALL(changes_commit_push_rect, ChangesCtx, .pane = args), .x = args->x, .y = args->y))
+    {
+        return CLI_CHANGES_COMMIT_PUSH;
+    }
+    static const unsigned int s_tools[4] = {CLI_CHANGES_READ, CLI_CHANGES_ROLLBACK, CLI_CHANGES_PULL, CLI_CHANGES_PUSH};
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        if (EMBED_CALL(changes_tool_holds, ChangesCtx, .pane = args, .which = s_tools[at]))
+        {
+            return s_tools[at];
+        }
+    }
+    if ((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) != 0u) &&
+        EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                   .rect = EMBED_CALL(changes_taken_rect, ChangesCtx, .pane = args), .x = args->x, .y = args->y))
+    {
+        return CLI_CHANGES_ALL;
+    }
     return 0u;
 }
 
-// an action taken: the message box takes the keys; Commit saves every view and commits the files taken
+// `text` posted as a notice, a failure's where `failed`; where `text` is NULL, the refusal's first line as a failure's
+EMBED_INLINE void changes_noticed(const ChangesCtx *args)
+{
+    if (args->text != NULL)
+    {
+        cli_notice_post(args->text, args->failed);
+        return;
+    }
+    unsigned long long length = 0ULL;
+    const char *const refusal = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length);
+    unsigned long long first = 0ULL;
+    while ((first < length) && (refusal[first] != '\n'))
+    {
+        first += 1ULL;
+    }
+    char line_text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {line_text, sizeof(line_text), 0ULL};
+    mmgr_line_put_n(&line, refusal, first);
+    (void)mmgr_line_finish(&line);
+    cli_notice_post(line_text, 1);
+}
+
+// the files taken committed, pushed as well where `which` is Commit and Push, every view saved first
+EMBED_INLINE void changes_committed(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    if (pane->save_all != NULL)
+    {
+        pane->save_all(pane->context);
+    }
+    const int push = args->which == CLI_CHANGES_COMMIT_PUSH;
+    const int committed = EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = pane->root, .push = push);
+    EMBED_CALL(changes_noticed, ChangesCtx, .text = committed ? (push ? "Committed and pushed." : "Committed.") : NULL,
+               .failed = !committed);
+}
+
+// the files taken rolled back on the second press: each open view on one read again from the disk, the changes read
+// again, and the refusal posted where a file was refused
+EMBED_INLINE void changes_rolled(const ChangesCtx *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const unsigned int taken = EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u);
+    if (!EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = pane->root, .now_ms = cli_clock_milliseconds()))
+    {
+        if (taken != 0u)
+        {
+            cli_notice_post(CHANGES_ARMED, 0);
+        }
+        return;
+    }
+    const unsigned int count = EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u);
+    for (unsigned int at = 0u; (pane->file_reread != NULL) && (at < count); at += 1u)
+    {
+        CliChangedRow row;
+        if (EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) && row.taken)
+        {
+            pane->file_reread(pane->context, row.path);
+        }
+    }
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = pane->root);
+    unsigned long long refused = 0ULL;
+    (void)EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &refused);
+    char words[64];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, "Rolled ");
+    mmgr_line_decimal(&line, taken, 1u);
+    mmgr_line_put(&line, (taken == 1u) ? " file back to the last commit." : " files back to the last commit.");
+    (void)mmgr_line_finish(&line);
+    EMBED_CALL(changes_noticed, ChangesCtx, .text = (refused == 0ULL) ? words : NULL, .failed = refused != 0ULL);
+}
+
+// an action taken: the message box takes the keys; Commit and Commit and Push commit the files taken; the tree is
+// read again; the roll back arms, then rolls; the branch is pulled or pushed; and every file is taken where some is
+// left out, else every file is left out
 static void changes_action(const GuiPaneCfg *args)
 {
-    if (args->which == CLI_CHANGES_FIELD)
+    switch (args->which)
     {
+    case CLI_CHANGES_FIELD:
         if (args->pane != NULL)
         {
             args->pane->keys = 1;
         }
         return;
+    case CLI_CHANGES_COMMIT:
+    case CLI_CHANGES_COMMIT_PUSH:
+        EMBED_CALL(changes_committed, ChangesCtx, .pane = args, .which = args->which);
+        return;
+    case CLI_CHANGES_READ:
+        EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = args->root);
+        return;
+    case CLI_CHANGES_ROLLBACK:
+        EMBED_CALL(changes_rolled, ChangesCtx, .pane = args);
+        return;
+    case CLI_CHANGES_PULL: {
+        const int pulled = EMBED_CALL(cli_changes.pull, CliGitChangesCfg, .root = args->root);
+        EMBED_CALL(changes_noticed, ChangesCtx, .text = pulled ? "Pulled." : NULL, .failed = !pulled);
+        return;
     }
-    if (args->save_all != NULL)
-    {
-        args->save_all(args->context);
+    case CLI_CHANGES_PUSH: {
+        const int pushed = EMBED_CALL(cli_changes.push, CliGitChangesCfg, .root = args->root);
+        EMBED_CALL(changes_noticed, ChangesCtx, .text = pushed ? "Pushed." : NULL, .failed = !pushed);
+        return;
     }
-    (void)EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = args->root);
+    case CLI_CHANGES_ALL:
+        EMBED_CALL(cli_changes.take_all, CliGitChangesCfg,
+                   .on = EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) <
+                         EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u));
+        return;
+    default:
+        return;
+    }
 }
 
 // text typed goes into the message
@@ -123,12 +411,17 @@ static int changes_text(const GuiPaneCfg *args)
     return 1;
 }
 
-// Escape lets the keys go; Backspace goes to the message
+// Escape lets the keys go; Ctrl+Enter commits; Backspace goes to the message
 static int changes_key(const GuiPaneCfg *args)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Escape", .cap = 16ULL}))
     {
         args->pane->keys = 0;
+        return 1;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Ctrl+Enter", .cap = 16ULL}))
+    {
+        EMBED_CALL(changes_committed, ChangesCtx, .pane = args, .which = CLI_CHANGES_COMMIT);
         return 1;
     }
     return EMBED_CALL(cli_changes.key, CliGitChangesCfg, .name = args->name);

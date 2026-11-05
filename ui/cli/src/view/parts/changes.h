@@ -3,9 +3,11 @@
 // changes.h: the Commit tool's side pane table, the Changes: a row each file that differs from the last commit, read
 // where the git module lists them (code/git.h), a box lit while the next commit takes the file, the file's mark, its
 // name in its state's color, its folder quieter after it and its state's letter at the right; a row pressed on its box
-// leaves the file out or takes it again, pressed elsewhere opens the file. Over the rows the box for the commit's
-// message, which takes the keys, Commit beside it, and git's refusal under them. The changed file's row is drawn once
-// here for every pane that lists files with their states (changes.c)
+// leaves the file out or takes it again, pressed elsewhere opens the file. Over the rows the pane's head: the bar, the
+// tree read again, the files taken rolled back on a second press, the branch pulled and pushed with how many commits
+// it is behind and ahead; a box taking or leaving every file beside how many are taken; the box for the commit's
+// message, which takes the keys; Commit and Commit and Push; and git's refusal under them. The changed file's row is
+// drawn once here for every pane that lists files with their states (changes.c)
 #ifndef GUI_PARTS_CHANGES_H
 #define GUI_PARTS_CHANGES_H
 #include "pane.h"
@@ -13,13 +15,19 @@
 typedef struct GuiChangesFileCfg GuiChangesFileCfg;
 
 // the sizes in the page's pixels: the gap before the state letter, the state letter's text size, the taken box's side
-// and its corners' radius, the gap after it, the Commit button's padding, the refusal's row and its text size
+// and its corners' radius, the gap after it, the bar's tool side, its icon's side, the gap between tools, the width of
+// a count after a tool and its text size, the taken count's text size, and the refusal's row and its text size
 #define GUI_CHANGES_GAP 8
 #define GUI_CHANGES_STATE_SIZE 11u
 #define GUI_CHANGES_BOX 11
 #define GUI_CHANGES_BOX_RADIUS 2
 #define GUI_CHANGES_BOX_GAP 6
-#define GUI_CHANGES_BUTTON_PAD 10
+#define GUI_CHANGES_TOOL 20
+#define GUI_CHANGES_TOOL_ICON 14
+#define GUI_CHANGES_TOOL_GAP 4
+#define GUI_CHANGES_COUNT 16
+#define GUI_CHANGES_COUNT_SIZE 11u
+#define GUI_CHANGES_TAKEN_SIZE 12u
 #define GUI_CHANGES_REPORT 20
 #define GUI_CHANGES_REPORT_SIZE 12u
 

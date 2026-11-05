@@ -172,6 +172,7 @@ struct GuiPaneCfg
     const char *path;
     unsigned int event;
     void (*save_all)(void *context);
+    void (*file_reread)(void *context, const char *path);
     void *context;
     const char *text;
     unsigned long long length;

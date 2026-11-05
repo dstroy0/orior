@@ -19,6 +19,7 @@
 #include "../runs/qry.h"
 #include "../tests/testing.h"
 #include "../text/text.h"
+#include "parts/changes.h"
 #include "parts/chrome.h"
 #include "parts/git.h"
 #include "parts/runs.h"
@@ -384,6 +385,7 @@ EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
 
 // every view with changes not saved saved, as a pane's action asks before it runs the tree's code
 static void window_save_all(void *context);
+static void window_file_reread(void *context, const char *path);
 
 // the shown view's frame, names and map taken anew of it, those it had released, and the shown pane's data where the
 // view's change reaches it; `edited` where the text changed, which the map's lines no longer show
@@ -987,9 +989,9 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         cli_notices_due_ms(),
         g_cli_menus_open.rest_due_ms,
         window->memory_due_ms,
-        EMBED_CALL(
-            cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
-            .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window, .table_read = &gui_runs_table)),
+        EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
+                   .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                       .table_read = &gui_runs_table)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
         EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
     };
@@ -1520,6 +1522,38 @@ static void window_save_all(void *context)
     EMBED_CALL(window_tabs_save, GuiWindowCtx, .window = (GuiWindow *)context);
 }
 
+// the view open on the file at `path` closed and the file opened again, its cursor where it stood, so the view reads
+// the file as the disk now has it; the view shown before stays shown
+static void window_file_reread(void *context, const char *path)
+{
+    GuiWindow *const window = (GuiWindow *)context;
+    const unsigned int count = cli_view_count();
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        const char *const open = cli_view_path_at(at);
+        if ((open == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = open, .other = path, .cap = CLI_PATH_MAX_LEN}))
+        {
+            continue;
+        }
+        const int shown = cli_view_shown();
+        CliPosition cursor = {0ULL, 0ULL};
+        CliPosition anchor = {0ULL, 0ULL};
+        (void)cli_view_cursor(&(CliViewCursorCfg){.key = cli_view_key(at), .cursor = &cursor, .anchor = &anchor});
+        cli_view_file_close(at);
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        (void)cli_view_file_open(cli_command_line_root(), path, window->rows, window->columns, &cursor, &err_msg);
+        // the view opened again stands last; the one shown before, where it was another, stands one place nearer
+        // the front where it stood past the view closed
+        if ((shown >= 0) && ((unsigned int)shown != at))
+        {
+            cli_view_show((shown > (int)at) ? (unsigned int)(shown - 1) : (unsigned int)shown);
+        }
+        EMBED_CALL(window_shown, GuiWindowCtx, .window = window);
+        return;
+    }
+}
+
 // the file at `name` opened as a view and shown, its cursor at `place` where it is not NULL, and else where the path's
 // line and column put it; a file refused posted as a failure's notice
 EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
@@ -1932,7 +1966,7 @@ static void window_key_take(const GuiWindowCtx *args)
     if (EMBED_CALL(gui_pane.key, GuiPaneCfg,
                    .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                    .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .name = name,
-                   .root = cli_command_line_root()))
+                   .root = cli_command_line_root(), .save_all = window_save_all, .context = window))
     {
         window->pending = 1;
         return;
@@ -2056,6 +2090,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = args->woken, .entries = entries);
+    EMBED_CALL(cli_changes.begin, CliGitChangesCfg, .woken = args->woken);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -2119,22 +2154,26 @@ void gui_window_step(const GuiWindowCfg *args)
     window->pending = EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u) || window->pending;
     const unsigned long long now_ms = cli_clock_milliseconds();
     // the query runs listed and the opened live runs read on their beats, the strip's Runs mark following
-    if (EMBED_CALL(
-            cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
-            .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window, .table_read = &gui_runs_table)))
+    if (EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
+                   .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                       .table_read = &gui_runs_table)))
     {
         EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &window->strip.runs_live,
                    .panicked_out = &window->strip.runs_panicked);
         window->pending = 1;
     }
     // the Search pane's query searched as its rest passes or as the watch marks what it found stale, and the Git
-    // pane's graph read again the same way while it is in sight
+    // pane's graph and the Changes read again the same way while each is in sight
     window->pending =
         EMBED_CALL(cli_search_pane.step, CliSearchPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms) ||
         window->pending;
     window->pending = EMBED_CALL(cli_git_log.step, CliGitLogCfg, .root = cli_command_line_root(), .now_ms = now_ms,
                                  .on = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
                                                   .table_read = &gui_git_table)) ||
+                      window->pending;
+    window->pending = EMBED_CALL(cli_changes.step, CliGitChangesCfg, .root = cli_command_line_root(),
+                                 .on = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                                  .table_read = &gui_changes_table)) ||
                       window->pending;
     if (now_ms >= window->memory_due_ms)
     {
@@ -2691,7 +2730,8 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         EMBED_CALL(gui_pane.action, GuiPaneCfg,
                    .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                    .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .which = hit->index,
-                   .root = cli_command_line_root(), .save_all = window_save_all, .context = window);
+                   .root = cli_command_line_root(), .save_all = window_save_all, .file_reread = window_file_reread,
+                   .context = window);
         window->pending = 1;
         break;
     case CLI_HIT_PANE_ROW: {

@@ -3,7 +3,9 @@
 // changes_test.c: the Changes pane's check: a repository with two files git does not yet track lists them as rows,
 // each not yet tracked, the deeper one with its folder; the pane's table draws the rows under the Commit group's title
 // on the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the table reads on the
-// pane's showing and a save and not on the view's change; and no tree leaves no rows
+// pane's showing and a save and not on the view's change; the next commit takes the files whose boxes are lit; the
+// bar pushes, pulls and rolls back against a remote of the check's own, its tools and the all box found under the
+// pointer; and no tree leaves no rows
 #include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/view/parts/changes.h"
@@ -22,6 +24,36 @@ static int row_with_name(const char *name, CliChangedRow *row)
         }
     }
     return 0;
+}
+
+// git run at `root` with `request`, `count` words: 1, or 0 with why as the check's failure
+static int git_ran(const char *root, const char *const *request, unsigned int count, const char *why_not)
+{
+    char out_text[4096];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea out = {out_text, sizeof(out_text), 0ULL};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int ran = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root,
+                               .out = &out, .count = count, .err_msg = &err_msg, .request = request);
+    cli_check(ran, why_not);
+    return ran;
+}
+
+// the subject of the last commit of the repository at `root` into `subject`, sized for 256 bytes
+static void last_subject(const char *root, char *subject)
+{
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea out = {subject, 256ULL, 0ULL};
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const char *const log[3] = {"log", "-1", "--format=%s"};
+    (void)EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root, .out = &out,
+                     .count = 3u, .err_msg = &err_msg, .request = log);
+    (void)mmgr_line_finish(&out);
+    char *const end = strchr(subject, '\n');
+    if (end != NULL)
+    {
+        end[0] = '\0';
+    }
 }
 
 // the file `relative` of the tree at `root` written with `text`
@@ -168,6 +200,143 @@ int main(void)
               "the commit clears the message");
     cli_check((EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length) != NULL) && (length == 0ULL),
               "a commit taken leaves no refusal");
+
+    // the bar: the branch follows no remote until one is set and pushed to; a commit without a push stands ahead and
+    // Push sends it; Commit and Push leaves nothing ahead; a commit pushed from elsewhere stands behind and Pull brings
+    // it; the files taken roll back on a second press inside the window and arm again past it; and the all box leaves
+    // every file out or takes every file
+    unsigned int ahead = 9u;
+    unsigned int behind = 9u;
+    cli_check(!EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 0u) &&
+                  (behind == 0u),
+              "the branch follows no remote before one is set");
+    static char s_remote[CLI_PATH_MAX_LEN];
+    cli_check_folder("changes_remote", s_remote);
+    const char *const bare[2] = {"init", "--bare"};
+    const char *const origin[4] = {"remote", "add", "origin", s_remote};
+    const char *const upstream[5] = {"push", "-q", "-u", "origin", "HEAD"};
+    (void)git_ran(s_remote, bare, 2u, "the remote is a bare repository");
+    (void)git_ran(s_root, origin, 4u, "the tree adds the remote origin");
+    (void)git_ran(s_root, upstream, 5u, "the branch is pushed to the remote and follows it");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check(EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 0u) &&
+                  (behind == 0u),
+              "the branch follows the remote, level with it");
+    file_written(s_root, "fresh.txt", "one more\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "second", .size = 6ULL);
+    cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
+                  EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 1u),
+              "a commit without a push stands one ahead of the remote");
+    cli_check(EMBED_CALL(cli_changes.push, CliGitChangesCfg, .root = s_root) &&
+                  EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 0u),
+              "Push sends the commit, the branch level again");
+    char subject[256];
+    last_subject(s_remote, subject);
+    cli_check(strcmp(subject, "second") == 0, "the remote's last commit is the one pushed");
+    file_written(s_root, "fresh.txt", "one more again\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "third", .size = 5ULL);
+    cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root, .push = 1) &&
+                  EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (ahead == 0u),
+              "Commit and Push leaves nothing ahead");
+    last_subject(s_remote, subject);
+    cli_check(strcmp(subject, "third") == 0, "the remote's last commit is the one committed and pushed");
+    static char s_other[CLI_PATH_MAX_LEN];
+    cli_check_folder("changes_other", s_other);
+    const char *const cloned[4] = {"clone", "-q", s_remote, "."};
+    const char *const added[7] = {"-c", "user.name=Check", "-c", "user.email=check@orior.test", "add", "-A", "."};
+    const char *const elsewhere[10] = {"-c",     "user.name=Check",
+                                       "-c",     "user.email=check@orior.test",
+                                       "-c",     "commit.gpgsign=false",
+                                       "commit", "-q",
+                                       "-m",     "elsewhere"};
+    const char *const sent[2] = {"push", "-q"};
+    (void)git_ran(s_other, cloned, 4u, "the remote is cloned elsewhere");
+    file_written(s_other, "fresh.txt", "from elsewhere\n");
+    (void)git_ran(s_other, added, 7u, "the clone's change is added");
+    (void)git_ran(s_other, elsewhere, 10u, "the clone commits");
+    (void)git_ran(s_other, sent, 2u, "the clone pushes");
+    const char *const fetched[2] = {"fetch", "-q"};
+    (void)git_ran(s_root, fetched, 2u, "the tree fetches the remote");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check(EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (behind == 1u),
+              "the commit from elsewhere stands one behind");
+    cli_check(EMBED_CALL(cli_changes.pull, CliGitChangesCfg, .root = s_root) &&
+                  EMBED_CALL(cli_changes.sync, CliGitChangesCfg, .ahead = &ahead, .behind = &behind) && (behind == 0u),
+              "Pull brings the commit from elsewhere");
+    last_subject(s_root, subject);
+    cli_check(strcmp(subject, "elsewhere") == 0, "the tree's last commit is the one pulled");
+
+    file_written(s_root, "fresh.txt", "rolled\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 2u) &&
+                  (EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) == 1u),
+              "the changed file is taken, the file left out before standing left out");
+    cli_check(!EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 1000ULL),
+              "the first press arms the roll back");
+    cli_check(EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 2000ULL),
+              "the second press inside the window rolls back");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("deep.txt", &deep),
+              "the file rolled back stands as the last commit left it, the file left out standing");
+    file_written(s_root, "fresh.txt", "rolled again\n");
+    EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
+    cli_check(!EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 10000ULL) &&
+                  !EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 20000ULL),
+              "a second press past the window arms again");
+    EMBED_CALL(cli_changes.take_all, CliGitChangesCfg, .on = 0);
+    cli_check((EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) == 0u) && row_with_name("fresh.txt", &fresh) &&
+                  !fresh.taken,
+              "the all box off leaves every file out");
+    EMBED_CALL(cli_changes.take_all, CliGitChangesCfg, .on = 1);
+    cli_check((EMBED_CALL(cli_changes.taken, CliGitChangesCfg, .at = 0u) == 2u) && row_with_name("deep.txt", &deep) &&
+                  deep.taken,
+              "the all box on takes every file");
+    EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 30000ULL);
+    cli_check(EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 31000ULL),
+              "the roll back of a file the last commit does not contain goes through");
+    unsigned long long refused = 0ULL;
+    cli_check(strlen(EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &refused)) == refused &&
+                  (refused != 0ULL),
+              "the file the last commit does not contain is refused with why");
+
+    const int bar_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_CHOICE / 2);
+    const int left = frame.side.x + GUI_PANE_PAD_LEFT;
+    const int right = frame.side.x + frame.side.width - GUI_PANE_PAD_LEFT;
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = left + (GUI_CHANGES_TOOL / 2), .y = bar_y) == CLI_CHANGES_READ,
+              "a press on the bar's first tool reads the tree again");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = left + GUI_CHANGES_TOOL + GUI_CHANGES_TOOL_GAP + (GUI_CHANGES_TOOL / 2),
+                         .y = bar_y) == CLI_CHANGES_ROLLBACK,
+              "a press on the bar's second tool rolls back");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = right - GUI_CHANGES_COUNT - (GUI_CHANGES_TOOL / 2),
+                         .y = bar_y) == CLI_CHANGES_PUSH,
+              "a press on the bar's last tool pushes");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs,
+                         .x = right - GUI_CHANGES_COUNT - GUI_CHANGES_TOOL - GUI_CHANGES_TOOL_GAP - GUI_CHANGES_COUNT -
+                              (GUI_CHANGES_TOOL / 2),
+                         .y = bar_y) == CLI_CHANGES_PULL,
+              "a press on the tool before it pulls");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = left + 4, .y = bar_y + GUI_PANE_CHOICE) == CLI_CHANGES_ALL,
+              "a press on the taken row takes or leaves every file");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = left + 20,
+                         .y = bar_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + (GUI_PANE_BOX / 2)) == CLI_CHANGES_FIELD,
+              "a press in the message box lands on it");
+    const int buttons_y = bar_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + GUI_PANE_BOX + (GUI_PANE_CHOICE / 2);
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = left + 20, .y = buttons_y) == CLI_CHANGES_COMMIT,
+              "a press in the buttons' left half lands on Commit");
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
+                         .glyphs = &glyphs, .x = right - 20, .y = buttons_y) == CLI_CHANGES_COMMIT_PUSH,
+              "a press in the buttons' right half lands on Commit and Push");
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
+               .glyphs = &glyphs, .palette = palette, .title = "Commit", .tree = s_root);
 
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");

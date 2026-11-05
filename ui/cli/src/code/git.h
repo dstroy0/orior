@@ -194,31 +194,58 @@ typedef struct
     int taken;
 } CliChangedRow;
 typedef struct CliGitChangesCfg CliGitChangesCfg;
-// the most bytes of the commit's message with its end, and the head's actions: the message's box, which takes the
-// keys, and Commit
+// the most bytes of the commit's message with its end; the head's actions: the message's box, which takes the keys,
+// Commit, Commit and Push, the tree read again, the files taken rolled back, the branch pulled and pushed, and every
+// file taken or left out; and the milliseconds a roll back's second press has to come in
 #define CLI_CHANGES_MESSAGE_MAX 4096u
 #define CLI_CHANGES_FIELD 1u
 #define CLI_CHANGES_COMMIT 2u
+#define CLI_CHANGES_COMMIT_PUSH 3u
+#define CLI_CHANGES_READ 4u
+#define CLI_CHANGES_ROLLBACK 5u
+#define CLI_CHANGES_PULL 6u
+#define CLI_CHANGES_PUSH 7u
+#define CLI_CHANGES_ALL 8u
+#define CLI_CHANGES_ROLLBACK_MS 4000ULL
+// the changes begun: `woken` wakes the view's thread as the watch marks the changes stale; the changes marked stale
+// from any thread; and while the pane is `on`, the changes read again where the watch marked them stale since they
+// were last read: 1 where they were
+void cli_changes_begin(const CliGitChangesCfg *args);
+void cli_changes_stale(const CliGitChangesCfg *args);
+int cli_changes_step(const CliGitChangesCfg *args);
 // the changes read anew of the tree at `root`, every repository of it, each file taken by the next commit unless it was
-// left out before; none where `root` is NULL
+// left out before, with how far the branch stands from the remote it follows; none where `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
 // how many rows the changes have; the row `at` into `row`: 1, or 0 past the last; the file of the row `at` left out of
-// the next commit, or taken again; and the menu of the row `at` built as the menus' own rows, Open File, which a file
-// gone cannot take, then Copy Path: 1, or 0 past the last
+// the next commit, or taken again; how many files the next commit takes; every file taken where `on`, else every file
+// left out; and the menu of the row `at` built as the menus' own rows, Open File, which a file gone cannot take, then
+// Copy Path: 1, or 0 past the last
 unsigned int cli_changes_rows(const CliGitChangesCfg *args);
 int cli_changes_row(const CliGitChangesCfg *args);
 void cli_changes_toggle(const CliGitChangesCfg *args);
+unsigned int cli_changes_taken(const CliGitChangesCfg *args);
+void cli_changes_take_all(const CliGitChangesCfg *args);
 int cli_changes_menu(const CliGitChangesCfg *args);
 // `size` bytes of `text` typed at the message's end; the key `name` pressed in the box, Backspace erasing the last
 // letter: 1 where the key was taken; the message with its bytes into `length_out`; the files taken committed to the
-// tree at `root` with the message, the message and the files left out cleared and the changes read again where git
-// takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the last commit, or why nothing was
-// to commit, with its bytes into `length_out`, empty where the commit was taken
+// tree at `root` with the message, each repository committed to pushed where `push`, the message cleared and the
+// changes read again where git takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the
+// last commit, pull, push or roll back, or why nothing was to commit, with its bytes into `length_out`, empty where the
+// last was taken
 void cli_changes_type(const CliGitChangesCfg *args);
 int cli_changes_key(const CliGitChangesCfg *args);
 const char *cli_changes_message(const CliGitChangesCfg *args);
 int cli_changes_commit(const CliGitChangesCfg *args);
 const char *cli_changes_refusal(const CliGitChangesCfg *args);
+// how many commits the branch has that the remote it follows does not into `ahead`, and the other way into `behind`:
+// 1, or 0 where it follows no remote, as the changes were last read; the branch pulled, and pushed, at `root`, the
+// changes read again after: 1, or 0 with the refusal standing; and the files taken rolled back to the last commit at
+// `now_ms`: 0 where the press arms the roll back, a second press within CLI_CHANGES_ROLLBACK_MS rolling, 1 where it
+// rolled, a file the last commit does not contain refused, the list standing as it was until it is read again
+int cli_changes_sync(const CliGitChangesCfg *args);
+int cli_changes_pull(const CliGitChangesCfg *args);
+int cli_changes_push(const CliGitChangesCfg *args);
+int cli_changes_rollback(const CliGitChangesCfg *args);
 struct CliGitChangesCfg
 {
     const char *root;
@@ -228,33 +255,58 @@ struct CliGitChangesCfg
     unsigned long long size;
     const char *name;
     unsigned long long *length_out;
+    void (*woken)(void);
+    int on;
+    int push;
+    unsigned long long now_ms;
+    unsigned int *ahead;
+    unsigned int *behind;
 };
 
 typedef struct
 {
+    void (*begin)(const CliGitChangesCfg *args);
+    void (*stale)(const CliGitChangesCfg *args);
+    int (*step)(const CliGitChangesCfg *args);
     void (*read)(const CliGitChangesCfg *args);
     unsigned int (*rows)(const CliGitChangesCfg *args);
     int (*row)(const CliGitChangesCfg *args);
     void (*toggle)(const CliGitChangesCfg *args);
+    unsigned int (*taken)(const CliGitChangesCfg *args);
+    void (*take_all)(const CliGitChangesCfg *args);
     int (*menu)(const CliGitChangesCfg *args);
     void (*type)(const CliGitChangesCfg *args);
     int (*key)(const CliGitChangesCfg *args);
     const char *(*message)(const CliGitChangesCfg *args);
     int (*commit)(const CliGitChangesCfg *args);
     const char *(*refusal)(const CliGitChangesCfg *args);
+    int (*sync)(const CliGitChangesCfg *args);
+    int (*pull)(const CliGitChangesCfg *args);
+    int (*push)(const CliGitChangesCfg *args);
+    int (*rollback)(const CliGitChangesCfg *args);
 } CliChangesNs;
-EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row, toggle, menu, type, key, message, commit, refusal);
+EMBED_TABLE_LAYOUT(CliChangesNs, begin, stale, step, read, rows, row, toggle, taken, take_all, menu, type, key, message,
+                   commit, refusal, sync, pull, push, rollback);
 EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
+    .begin = cli_changes_begin,
+    .stale = cli_changes_stale,
+    .step = cli_changes_step,
     .read = cli_changes_read,
     .rows = cli_changes_rows,
     .row = cli_changes_row,
     .toggle = cli_changes_toggle,
+    .taken = cli_changes_taken,
+    .take_all = cli_changes_take_all,
     .menu = cli_changes_menu,
     .type = cli_changes_type,
     .key = cli_changes_key,
     .message = cli_changes_message,
     .commit = cli_changes_commit,
     .refusal = cli_changes_refusal,
+    .sync = cli_changes_sync,
+    .pull = cli_changes_pull,
+    .push = cli_changes_push,
+    .rollback = cli_changes_rollback,
 };
 
 // The Git pane as the window reads it (git_log.c): the repository chosen among the tree's, the one the tree is in
@@ -433,8 +485,9 @@ int cli_git_stage_text(const CliGitRootFileStageCfg *args);
 // tree, for the `count` repositories at `repos` where `named`, or every one of the tree where not
 void cli_git_change(const CliGitRootReposCfg *args);
 // the files at `paths` committed with `message`, each as it stands, in the repository that contains it, a commit to
-// each repository that contains some; and the files of `whole` as each stands and the files of `parts` with the text
-// each is given, the same way: git's line for each commit into `out`, 1, or 0 with why given
+// each repository that contains some, each repository committed to pushed where `push`; and the files of `whole` as
+// each stands and the files of `parts` with the text each is to carry, the same way: git's line for each commit into
+// `out`, 1, or 0 with why in `err_msg`
 int cli_git_commit(const CliGitRootOutCountCfg *args);
 int cli_git_commit_parts(const CliGitRootCfg *args);
 // git run at `root` with nothing to answer a prompt with, `args`, `count` of them: what it wrote into `out`, 1, or 0
@@ -630,6 +683,7 @@ struct CliGitRootOutCountCfg
     const char *message;
     const char *const *paths;
     VerbaLinea *err_msg;
+    int push;
 };
 
 struct CliGitLengthCfg
