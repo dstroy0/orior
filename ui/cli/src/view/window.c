@@ -71,7 +71,19 @@ static const char *const s_own_commands[] = {"exit",
                                              "tab-close-others",
                                              "commit-files",
                                              "commit-copy-id",
-                                             "commit-copy-message"};
+                                             "commit-copy-message",
+                                             "file",
+                                             "recent-files",
+                                             "palette",
+                                             "symbol",
+                                             "symbol-tree"};
+
+// the commands that open the quick open, each with the letter it starts what is typed with
+static const struct
+{
+    const char *command;
+    const char *prefix;
+} s_quick_commands[] = {{"file", ""}, {"recent-files", ""}, {"palette", ">"}, {"symbol", "@"}, {"symbol-tree", "#"}};
 
 // the window, which the menus' answers and the walk's threads reach; and whether the walk colored a line since the
 // window last took the frame, set on the walk's threads, and what wakes the view's thread
@@ -104,6 +116,7 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
     EMBED_CALL(gui_suggest.init, GuiSuggestCfg, .suggest = &args->window->suggest);
+    EMBED_CALL(gui_quick.init, GuiQuickCfg, .quick = &args->window->quick);
     if (!EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &args->window->background_fill))
     {
         mmgr_line_put(err_msg, "the lattice has no slot left for the ground");
@@ -145,6 +158,7 @@ typedef struct
     unsigned int event;
     const CliItem *item;
     const GuiPaneKind *kind_read;
+    const CliQuickGo *go;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -883,6 +897,12 @@ EMBED_INLINE int window_caret_cover(const GuiWindowCtx *args)
     {
         return 1;
     }
+    if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
+                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                       .one = args->window_read->quick.rect, .other = args->caret)))
+    {
+        return 1;
+    }
     const unsigned int levels = g_cli_menus_open.levels;
     for (unsigned int level = 0u; (level < levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
@@ -948,6 +968,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
                        EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window, .kind_read = &gui_runs_kind)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
         EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
+        EMBED_CALL(cli_quick.deadline_ms, CliQuickCfg, .at = 0u),
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -1490,6 +1511,14 @@ EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
         return;
     }
     EMBED_CALL(window_shown, GuiWindowCtx, .window = window);
+    // the file shown is counted among those opened last, which the quick open lists first
+    const int shown = cli_view_shown();
+    if (shown >= 0)
+    {
+        // the view shown is among the views
+        EMBED_CALL(cli_quick.opened, CliQuickCfg, .path = cli_view_path_at((unsigned int)shown),
+                   .root = cli_command_line_root());
+    }
 }
 
 // the tool `at` of the strip shown, or hidden where it shows; the terminal's panel opened or closed beside whatever
@@ -1543,6 +1572,43 @@ EMBED_INLINE int window_name_among(const GuiWindowCtx *args)
 EMBED_INLINE int window_is(const GuiWindowCtx *args)
 {
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->key, .cap = CLI_LABEL_MAX_LEN});
+}
+
+// the letter the command `name` opens the quick open with, NULL where it is not one of the quick open's commands
+EMBED_INLINE const char *window_quick_prefix(const GuiWindowCtx *args)
+{
+    for (unsigned int at = 0u; at < sizeof(s_quick_commands) / sizeof(s_quick_commands[0]); at += 1u)
+    {
+        if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = s_quick_commands[at].command))
+        {
+            return s_quick_commands[at].prefix;
+        }
+    }
+    return NULL;
+}
+
+// the quick open opened with `key` first and the `count` `words` after it, blanks between them: the menus and the
+// panels closed, as the field taking the keys closes them
+EMBED_INLINE void window_quick_open(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char text[CLI_QUICK_TEXT_MAX];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    mmgr_line_put(&line, args->key);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        if (at != 0u)
+        {
+            mmgr_line_ch(&line, ' ');
+        }
+        mmgr_line_put(&line, args->words[at]);
+    }
+    (void)mmgr_line_finish(&line);
+    EMBED_CALL(window_menus_close, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
+    EMBED_CALL(cli_quick.open, CliQuickCfg, .text = text, .root = cli_command_line_root(),
+               .now_ms = cli_clock_milliseconds());
+    window->pending = 1;
 }
 
 // the menus' answer to whether an item cannot be chosen: it needs a file open while none is, text chosen in the
@@ -1770,6 +1836,20 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
                    .now_ms = cli_clock_milliseconds());
         window->pending = 1;
     }
+    else if (EMBED_CALL(window_quick_prefix, GuiWindowCtx, .name = name) != NULL)
+    {
+        // a path after Go to File opens the file; else the command opens the quick open with its letter and words
+        if ((args->count != 0u) && EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "file"))
+        {
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = args->words[0], .place = NULL);
+        }
+        else
+        {
+            EMBED_CALL(window_quick_open, GuiWindowCtx, .window = window,
+                       .key = EMBED_CALL(window_quick_prefix, GuiWindowCtx, .name = name), .words = args->words,
+                       .count = args->count);
+        }
+    }
     else if (EMBED_CALL(window_words_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
                         .count = args->count))
     {
@@ -1798,14 +1878,6 @@ static int window_command_named(const char *command, const char *const *words, u
     if (window == NULL)
     {
         return 0;
-    }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "file"))
-    {
-        if (count != 0u)
-        {
-            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = words[0], .place = NULL);
-        }
-        return count != 0u;
     }
     CliItem item;
     const int keyed = cli_menus_named(command, &item);
@@ -1855,10 +1927,65 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
 // the key `name` taken, `on` where the name's pane stands and no view takes it: the menu key opens the terminal's menu
 // at its key field while the panel takes the keys; the panel takes them ahead of the window while no menu is open; the
 // menus', a command's own, a tool's, the panels' and else the view's
+// what the quick open's choice does: a file opened at its place, or a command run with its keys
+EMBED_INLINE void window_quick_go(const GuiWindowCtx *args)
+{
+    const CliQuickGo *const go = args->go;
+    if (go->kind == CLI_QUICK_GO_FILE)
+    {
+        const CliPosition place = {go->line, go->col};
+        EMBED_CALL(window_file_open, GuiWindowCtx, .window = args->window, .name = go->path,
+                   .place = go->placed ? &place : NULL);
+    }
+    else if (go->kind == CLI_QUICK_GO_COMMAND)
+    {
+        EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = go->command, .value = go->keys);
+    }
+    args->window->pending = 1;
+}
+
+// the key `name` while the quick open has the keys: its own keys move the chosen row, choose it or close it; a menu's
+// key closes it and opens the menu; the key of a command that opens the quick open opens it anew; any other key goes
+// nowhere
+EMBED_INLINE void window_quick_key(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (EMBED_CALL(cli_quick.key, CliQuickCfg, .name = args->name, .root = cli_command_line_root(),
+                   .now_ms = cli_clock_milliseconds()))
+    {
+        CliQuickGo go;
+        if (EMBED_CALL(cli_quick.go, CliQuickCfg, .go = &go))
+        {
+            EMBED_CALL(window_quick_go, GuiWindowCtx, .window = window, .go = &go);
+        }
+        window->pending = 1;
+        return;
+    }
+    CliItem chosen;
+    int chose = 0;
+    if (cli_menus_key(args->name, &chosen, &chose))
+    {
+        EMBED_CALL(cli_quick.close, CliQuickCfg, .at = 0u);
+        EMBED_CALL(window_menu_chosen, GuiWindowCtx, .window = window, .on = chose, .item = &chosen);
+        return;
+    }
+    CliItem item;
+    if (cli_menus_keyed(args->name, &item) &&
+        (EMBED_CALL(window_quick_prefix, GuiWindowCtx, .name = item.command) != NULL))
+    {
+        EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = item.command, .value = item.keys);
+    }
+}
+
 static void window_key_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const name = args->name;
+    if (EMBED_CALL(cli_quick.shown, CliQuickCfg, .at = 0u))
+    {
+        EMBED_CALL(window_quick_key, GuiWindowCtx, .window = window, .name = name);
+        return;
+    }
     if ((g_cli_menus_open.levels == 0u) && !args->on &&
         EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") &&
         cli_terminal_tabs_checked("terminal-keys"))
@@ -2010,6 +2137,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = args->woken, .entries = entries);
+    EMBED_CALL(cli_quick.begin, CliQuickCfg, .entries = entries);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -2090,6 +2218,9 @@ void gui_window_step(const GuiWindowCfg *args)
                                  .on = EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window,
                                                   .kind_read = &gui_git_kind)) ||
                       window->pending;
+    // the quick open's rows asked for again while the tree's files are read
+    window->pending =
+        EMBED_CALL(cli_quick.step, CliQuickCfg, .root = cli_command_line_root(), .now_ms = now_ms) || window->pending;
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;
@@ -2339,7 +2470,9 @@ void gui_window_draw(const GuiWindowCfg *args)
                .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette, .frame = frame);
     EMBED_CALL(gui_wordmark_frame.logo_draw, GuiWordmarkFrameCfg, .wordmark_read = &args->window->wordmark,
                .raster = raster, .icons = &args->window->icons, .palette = palette, .frame = frame);
-    // the menus open go over every part
+    // the quick open's box under the bar over every part, and the menus open over all of them
+    EMBED_CALL(gui_quick_raster.draw, GuiQuickRasterCfg, .quick = &args->window->quick, .raster = raster,
+               .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
     EMBED_CALL(gui_menubar_glyphs_frame.menus_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &args->window->menubar,
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
     // the caret last, at the ink its blink stands at, where no panel or menu lies over it: drawn over the frame
@@ -2414,6 +2547,17 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     const int x = args->x;
     const int y = args->y;
     input->hit = CLI_HIT_NONE;
+    // the quick open's box lies over every part but the menus
+    if (EMBED_CALL(gui_quick_x.row_at, GuiQuickXCfg, .quick_read = &window->quick, .x = x, .y = y, .at = &input->index))
+    {
+        input->hit = CLI_HIT_QUICK_ROW;
+        return;
+    }
+    if (EMBED_CALL(gui_quick_x.holds, GuiQuickXCfg, .quick_read = &window->quick, .x = x, .y = y))
+    {
+        input->hit = CLI_HIT_QUICK_BOX;
+        return;
+    }
     if (EMBED_CALL(gui_suggest_x.row_at, GuiSuggestXCfg, .suggest_read = &window->suggest, .x = x, .y = y,
                    .at = &input->index))
     {
@@ -2574,6 +2718,27 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     GuiWindow *const window = args->window;
     const GuiWindowHit *const hit = args->hit;
     cli_notices_pointer();
+    // a press on a quick open's row chooses it, one on the rest of its box does nothing, and one elsewhere closes it,
+    // as a blur closes the page's
+    if (hit->hit == CLI_HIT_QUICK_ROW)
+    {
+        CliQuickGo go;
+        if (EMBED_CALL(cli_quick.press, CliQuickCfg, .at = hit->index, .go = &go))
+        {
+            EMBED_CALL(window_quick_go, GuiWindowCtx, .window = window, .go = &go);
+        }
+        window->pending = 1;
+        return;
+    }
+    if (hit->hit == CLI_HIT_QUICK_BOX)
+    {
+        return;
+    }
+    if (EMBED_CALL(cli_quick.shown, CliQuickCfg, .at = 0u))
+    {
+        EMBED_CALL(cli_quick.close, CliQuickCfg, .at = 0u);
+        window->pending = 1;
+    }
     if (hit->hit == CLI_HIT_MENU_TITLE)
     {
         cli_menus_title_press(hit->index);
@@ -2701,6 +2866,15 @@ static void window_wheel(const GuiInputHandlerCfg *args)
                    .rows = args->input->rows))
     {
         window->pending = 1;
+        return;
+    }
+    // over the quick open's box the wheel scrolls its rows and nothing under it
+    if (EMBED_CALL(gui_quick_x.holds, GuiQuickXCfg, .quick_read = &window->quick, .x = args->input->x,
+                   .y = args->input->y))
+    {
+        window->pending =
+            EMBED_CALL(gui_quick.wheel, GuiQuickCfg, .quick = &window->quick, .rows = args->input->rows) ||
+            window->pending;
         return;
     }
     // the wheel over the side scrolls the rows, which is the window's own; over the completion's list its rows; over
@@ -3049,10 +3223,15 @@ static void window_key(const GuiInputHandlerCfg *args)
                .on = window->wordmark.exists);
 }
 
-// the keys gone to another window: the menus open closed
+// the keys gone to another window: the menus open closed, and the quick open with them
 static void window_blur(const GuiInputHandlerCfg *args)
 {
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
+    if (EMBED_CALL(cli_quick.shown, CliQuickCfg, .at = 0u))
+    {
+        EMBED_CALL(cli_quick.close, CliQuickCfg, .at = 0u);
+        args->window->pending = 1;
+    }
 }
 
 // the menu of the tab at `at` built as the menus' own rows, as tabs.js gives it: Close, Close others, which one tab
@@ -3157,6 +3336,14 @@ static void window_text(const GuiInputHandlerCfg *args)
 {
     GuiWindow *const window = args->window;
     cli_notices_input();
+    // the quick open's field takes the text while it is open, whatever stands under it
+    if (EMBED_CALL(cli_quick.shown, CliQuickCfg, .at = 0u))
+    {
+        EMBED_CALL(cli_quick.type, CliQuickCfg, .text = args->input->text, .size = args->input->size,
+                   .root = cli_command_line_root(), .now_ms = cli_clock_milliseconds());
+        window->pending = 1;
+        return;
+    }
     // while the name's pane stands no view takes the text
     if (window->wordmark.exists)
     {
