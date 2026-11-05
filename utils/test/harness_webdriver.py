@@ -10,7 +10,6 @@ script with a home, a tree and a log of the run's own."""
 import http.client
 import json
 import os
-import platform
 import socket
 import subprocess
 import sys
@@ -24,7 +23,6 @@ ROOT = findroot.root()
 SUITE = findroot.at("ui", "test")
 WINDOW_FILES = findroot.at("ui", "gui", "src-js")
 STAGING = findroot.at("build", "ui_test", "driven", "page")
-DRIVEN_TARGET = findroot.at("build", "ui_test", "driven", "app")
 WAIT = 30
 
 
@@ -155,27 +153,6 @@ def stage():
     for file in files_under(STAGING, ""):
         if file not in kept:
             os.remove(os.path.join(STAGING, file))
-
-
-def sanitizer_build_env(sanitizer):
-    """What cargo's environment says to build the window under `sanitizer`: the C side's build told, and clang as
-    the linker, since the C objects are clang's and their symbols name clang's sanitizer runtime."""
-    if not sanitizer:
-        return {}
-    machine = platform.machine().lower().replace("amd64", "x86_64").replace("arm64", "aarch64")
-    return {"ORIOR_SANITIZE": sanitizer, "CARGO_TARGET_%s_UNKNOWN_LINUX_GNU_LINKER" % machine.upper(): "clang"}
-
-
-def build(gui_name, profile, sanitizer=""):
-    """The page staged and the window built with it in place of its own files; the program built in cargo's `profile`,
-    under `sanitizer` where one is named, into a target folder of that sanitizer's own."""
-    stage()
-    env = dict(os.environ, TAURI_CONFIG=json.dumps({"build": {"frontendDist": STAGING}}), **sanitizer_build_env(sanitizer))
-    target = DRIVEN_TARGET + ("-" + sanitizer if sanitizer else "")
-    built = subprocess.run(["cargo", "build", "--profile", profile, "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
-    if built.returncode != 0:
-        raise RuntimeError("the window did not build")
-    return os.path.join(target, profile, gui_name + (".exe" if os.name == "nt" else ""))
 
 
 def quoted(text):

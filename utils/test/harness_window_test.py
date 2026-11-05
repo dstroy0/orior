@@ -12,7 +12,7 @@ through Appium's Mac2 driver by the tests of ui/test/appium, through its accessi
 
 --sanitize builds the window's C side and links the window under that sanitizer, with clang's runtime, and the window
 runs with its reports written to sanitizer.<pid> in the run's folder; a report fails the run. On Windows the released
-compiler's runtime is not linked by cargo: the option runs on Linux, in the image or on the machine.
+compiler's runtime does not link under a sanitizer: the option runs on Linux, in the image or on the machine.
 
 Before the suite, the system is read: each program the tests drive found on PATH with its version, the run's folder
 writable, the display set where one is needed. Before the first file the window's comms are proven, and after each
@@ -45,10 +45,6 @@ SUITE = findroot.at("ui", "test")
 RUNS = findroot.at("build", "ui_test", "runs")
 BENCH_FOLDER = findroot.at("build", "ui_test", "bench")
 QRY_FOLDER = findroot.at("build", "ui_test", "qry")
-APP_TARGET = findroot.at("build", "cargo", "app")
-# the profile the window the suites drive is built in, the release build with the developer's options on
-# (.cargo/config.toml), and the folder under a target folder it is built into
-APP_PROFILE = "developer"
 WINDOW_FILES = findroot.at("ui", "gui", "src-js")
 PROGRAMS_TABLE = findroot.at("utils", "test", "window_programs.tsv")
 BENCH_TABLE = findroot.at("utils", "test", "window_bench.tsv")
@@ -295,18 +291,27 @@ def free_port():
         return one.getsockname()[1]
 
 
+def window_program(gui_name, sanitizer=""):
+    """The program ui/cli/build.sh window writes for this machine, under `sanitizer` where one is named."""
+    import harness_window
+
+    folder = harness_window.host_target() + ("-" + sanitizer if sanitizer else "")
+    return findroot.at("build", "cli", folder, gui_name + (".exe" if os.name == "nt" else ""))
+
+
 def window_built(gui_name, sanitizer=""):
-    """The window built in APP_PROFILE into build/cargo/app, apart from the released one, under `sanitizer` where one is
-    named and into a target folder of that sanitizer's own; or the program ORIOR_TEST_GUI names."""
+    """The window built by ui/cli/build.sh window for this machine, under `sanitizer` where one is named; or the
+    program ORIOR_TEST_GUI names."""
     given = os.environ.get("ORIOR_TEST_GUI")
     if given and os.path.isfile(given):
         return given
-    target = APP_TARGET + ("-" + sanitizer if sanitizer else "")
-    env = dict(os.environ, **harness_webdriver.sanitizer_build_env(sanitizer))
-    built = subprocess.run(["cargo", "build", "--profile", APP_PROFILE, "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
+    import harness_window
+
+    env = dict(os.environ, ORIOR_SANITIZE=sanitizer) if sanitizer else dict(os.environ)
+    built = subprocess.run(["bash", findroot.at("ui", "cli", "build.sh"), "window", harness_window.host_target()], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
     if built.returncode != 0:
         raise RuntimeError("the window did not build")
-    return os.path.join(target, APP_PROFILE, gui_name + (".exe" if os.name == "nt" else ""))
+    return window_program(gui_name, sanitizer)
 
 
 def test_windows_ended(program):
@@ -368,8 +373,7 @@ class Window:
 
         command = [program]
         if debugger:
-            symbols = ";".join([os.path.dirname(program), os.path.join(ROOT, "build", "cargo", "release")])
-            command = [harness_window.CDB, "-y", symbols, "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; r; k 40; ~*kc 15; q", program]
+            command = [harness_window.CDB, "-y", os.path.dirname(program), "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; r; k 40; ~*kc 15; q", program]
         env = dict(os.environ)
         env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "commit.gpgsign", "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "tag.gpgsign", "GIT_CONFIG_VALUE_1": "false", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview"), "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": harness_window.browser_arguments(self.port)})
         env.update(dict(extra))
@@ -462,7 +466,7 @@ def docker_words(passed, env, keys):
         mounts.append((keys, "/host/ssh", True))
     for source, target, read_only in mounts:
         words += ["--mount", "type=bind,source=%s,target=%s%s" % (source, target, ",readonly" if read_only else "")]
-    words += ["-v", "%s:/top" % image_named("tree_volume")["image"], "-v", "%s:/root/.cargo/registry" % image_named("cargo_volume")["image"]]
+    words += ["-v", "%s:/top" % image_named("tree_volume")["image"]]
     return words + [image_named("linux")["image"], "sh", "-c", inside_container(passed)]
 
 
@@ -603,7 +607,7 @@ def drive(options, run, tree, env, benched, report):
                 driven.close()
             return
         if options.driver == "webdriver":
-            program = harness_webdriver.build(gui_name, APP_PROFILE, options.sanitize)
+            program = window_built(gui_name, options.sanitize)
             told.append(("ORIOR_TEST_PROGRAM", program))
             driven = harness_webdriver.start(program, run, tree, extra)
             try:
@@ -618,7 +622,7 @@ def drive(options, run, tree, env, benched, report):
         import harness_window
 
         harness_window.windows_ended()
-        test_windows_ended(os.path.join(APP_TARGET + ("-" + options.sanitize if options.sanitize else ""), APP_PROFILE, gui_name + ".exe"))
+        test_windows_ended(window_program(gui_name, options.sanitize))
         program = window_built(gui_name, options.sanitize)
         told.append(("ORIOR_TEST_PROGRAM", program))
         window = Window(program, run, tree, extra, debugger=options.debugger)

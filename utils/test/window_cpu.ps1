@@ -1,4 +1,4 @@
-param([int]$Minutes = 2, [int]$Step = 5, [int]$Spike = 150, [string]$Log = "build\harness\window_cpu.txt", [string]$Symbols = "build\cargo\release")
+param([int]$Minutes = 2, [int]$Step = 5, [int]$Spike = 150, [string]$Log = "build\harness\window_cpu.txt", [string]$Symbols = "build\cli\x86_64-pc-windows-msvc")
 # The window's processor time watched: each step the time it used and its busiest threads, and on a step past the
 # spike a stack of the busiest thread taken without stopping it, all to the log.
 $cdb = "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe"

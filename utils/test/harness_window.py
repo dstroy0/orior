@@ -38,7 +38,8 @@
                                                                  what is not smooth and what does not match, ranked, to
                                                                  build/harness/motion (harness_motion.py)
 
-The window's program is build/cargo/release/<gui>.exe, gui as bin_names.tsv names it. Every start ends the windows
+The window's program is build/cli/<target>/<gui>.exe as ui/cli/build.sh window writes it, gui as bin_names.tsv
+names it. Every start ends the windows
 running from that program first; one window therefore runs at a time, and its process id is kept in build/harness/window.pid
 for the commands that read it back."""
 
@@ -434,7 +435,7 @@ def frames_window_started():
     os.makedirs(os.path.join(run, "home"), exist_ok=True)
     env = dict(os.environ)
     env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview")})
-    program = os.path.join(suite.APP_TARGET, suite.APP_PROFILE, gui_name() + ".exe")
+    program = suite.window_program(gui_name())
     process = subprocess.Popen([program], cwd=tree, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     until = time.monotonic() + 60
     while time.monotonic() < until and not win.main_window(process.pid)[0]:
@@ -925,12 +926,9 @@ def cmd_dump(a):
     if not path:
         print("no dump under %s: turn on Windows Error Reporting's LocalDumps for %s.exe into it" % (folder, gui_name()))
         return 1
-    import harness_window_test as suite
-
-    symbols = ";".join([os.path.dirname(program()), os.path.join(ROOT, "build", "cargo", "debug")])
     log = os.path.join(HARNESS_BUILD, "window_dump.txt")
     with open(log, "wb") as out:
-        subprocess.run([CDB, "-z", path, "-y", symbols, "-c", ".lines; .ecxr; kc 40; ~*kc 12; q"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+        subprocess.run([CDB, "-z", path, "-y", os.path.dirname(program()), "-c", ".lines; .ecxr; kc 40; ~*kc 12; q"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
     with open(log, "r", encoding="utf-8", errors="replace") as read:
         text = read.read()
     print("%s read under cdb: %s" % (path, log))

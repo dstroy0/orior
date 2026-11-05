@@ -133,7 +133,7 @@ def started(run, monitor):
     os.makedirs(os.path.join(run, "home"), exist_ok=True)
     harness_window.windows_ended()
     gui_name = suite.bin_named("gui")
-    suite.test_windows_ended(os.path.join(suite.APP_TARGET, suite.APP_PROFILE, gui_name + ".exe"))
+    suite.test_windows_ended(suite.window_program(gui_name))
     program = suite.window_built(gui_name)
     window = suite.Window(program, run, tree, [])
     window.placed(monitor)

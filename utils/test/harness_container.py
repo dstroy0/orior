@@ -71,13 +71,6 @@ def system_named(wanted):
     raise SystemExit("window_images.tsv names no system %s; it names %s" % (wanted, ", ".join(row["id"] for row in systems())))
 
 
-def cargo_volume():
-    for row in table():
-        if row["id"] == "cargo_volume":
-            return row["image"]
-    raise SystemExit("window_images.tsv names no cargo_volume")
-
-
 def container_of(system):
     return "orior-ui-" + system["id"].replace("_", "-")
 
@@ -153,7 +146,7 @@ def linux_run_words(system, name):
     return [
         "run", "-d", "--name", name, "--platform", system["platform"], "--init", "--shm-size=1g", "--add-host", "host.docker.internal:host-gateway",
         "--mount", "type=bind,source=%s,target=/host,readonly" % ROOT,
-        "-v", "%s-tree:/top" % name, "-v", "%s-build:/top/build" % name, "-v", "%s:/root/.cargo/registry" % cargo_volume(),
+        "-v", "%s-tree:/top" % name, "-v", "%s-build:/top/build" % name,
         "-w", "/top", "--entrypoint", "sleep", system["image"], "infinity",
     ]
 
