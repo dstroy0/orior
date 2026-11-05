@@ -328,7 +328,7 @@ static int search_press(const GuiPaneCfg *args)
     return 1;
 }
 
-const GuiPaneKind gui_search_kind = {
+const GuiPaneTable gui_search_table = {
     .tool = "search",
     .title = search_title,
     .rows = search_rows,

@@ -247,7 +247,7 @@ static int problems_press(const GuiPaneCfg *args)
     return 1;
 }
 
-const GuiPaneKind gui_problems_kind = {
+const GuiPaneTable gui_problems_table = {
     .tool = "problems",
     .rows = problems_rows,
     .row_height = problems_row_height,

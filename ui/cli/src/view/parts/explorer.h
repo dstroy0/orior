@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// explorer.h: the explorer's kind of side pane: the pane of the tree's files headed by the tree's name, its rows the
+// explorer.h: the explorer's side pane table: the pane of the tree's files headed by the tree's name, its rows the
 // folders and files, a folder at a time as each is opened, read where the explorer's listing stands
 // (editor/files.h); a row is a line down from each folder above it, the folder's arrow, the folder's icon or the
 // file's mark, and the name; a folder's row pressed opens or closes it and a file's opens the file. The mark of a
@@ -51,8 +51,8 @@ EMBED_TABLE_STORAGE GuiExplorerFileNs gui_explorer_file EMBED_UNUSED = {
     .file_draw = gui_explorer_file_draw,
 };
 
-// the explorer's kind of pane
-extern const GuiPaneKind gui_explorer_kind;
+// the explorer's pane table
+extern const GuiPaneTable gui_explorer_table;
 
 // the mark of the file `name`, `length` bytes, as the page's icons draw a file's type: its text into `text`, sized
 // GUI_EXPLORER_MARK_MOST, and which of the palette's mark colors it takes, counted from 1, 0 for the quieter one

@@ -51,7 +51,7 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_MEMORY_MS 2000ULL
 
 // What a pixel of the main window stands on, a CLI_HIT_*, with the level and the place among its rows of what it
-// stands on, and the row and the cell it stands on in the editor or a terminal's pane
+// stands on, the row and the cell it stands on in the editor or a terminal's pane, and the pixel itself
 typedef struct
 {
     unsigned int hit;
@@ -59,6 +59,8 @@ typedef struct
     unsigned int index;
     unsigned long long row;
     unsigned long long column;
+    int x;
+    int y;
 } GuiWindowHit;
 
 // The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame
@@ -201,7 +203,7 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args);
 // what a pixel of the main window and of Preferences' window stands on, as they are laid, written into `hits`
 void gui_window_hits(const GuiWindowHitsCfg *args);
 void gui_window_preferences_hits(const GuiWindowHitsCfg *args);
-// where the pointer on the input stands; and an input in the main window, as its kind says
+// where the pointer on the input stands; and an input in the main window, as its table says
 unsigned int gui_window_hit(const GuiWindowInputCfg *args);
 void gui_window_input(const GuiWindowInputKindCfg *args);
 // on the window's thread, the modules stepped: the commands come through the door run, the servers' reports and the

@@ -4,7 +4,7 @@
 // run row with its bytes, the lessons' head and a lesson a row; a tree without a run lists one row that reads so; no
 // run live, nothing is listed again until the watch marks a run written; the run's row pressed opens it, its records
 // read as the rows of its panics' heads and lines, its conference's question and accounts with the overseer's ruling,
-// its count and its latest records, and pressed again closes it; the pane's kind draws the rows under the Runs group's
+// its count and its latest records, and pressed again closes it; the pane's table draws the rows under the Runs group's
 // title and a press on a row lands on it; and no tree leaves no rows
 #include "../../../../../src/cu/includes/file_defs/qry/qry_read.h"
 #include "../../../../../ui/cli/src/runs/qry.h"
@@ -93,8 +93,8 @@ int main(void)
     const char *const lessons = "lesson cause_a * stand_a\nnot a lesson\nlesson cause_b carrier_b stand_b\n";
     file_written(s_root, "runs/overseer.txt", lessons, strlen(lessons));
 
-    const GuiPaneKind *const kind = &gui_runs_kind;
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "runs") == kind, "the Runs tool has the kind");
+    const GuiPaneTable *const table = &gui_runs_table;
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "runs") == table, "the Runs tool has the table");
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = NULL);
     cli_check(EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 0u, "nothing is listed before a step");
     cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = s_root, .now_ms = 1000ULL, .shown = 1),
@@ -166,23 +166,23 @@ int main(void)
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame);
+    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD,
               "the rows stand under the pane's head alone");
     const GuiRect first =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 0u);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
     unsigned int hit_row = 0u;
-    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = first.x + 20,
+    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .x = first.x + 20,
                          .y = first.y + GUI_PANE_ROW + 3, .row_pointer = &hit_row) &&
                   (hit_row == 1u),
               "a press on the second row lands on the run");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Runs", .tree = "");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 1u, .open_out = &open, .root = s_root) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open, .root = s_root) &&
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 6u),
               "the run's row pressed closes it and opens no file");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 0u, .open_out = &open, .root = s_root) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open, .root = s_root) &&
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 6u),
               "a folder's row pressed changes nothing");
 
@@ -190,7 +190,7 @@ int main(void)
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 1u) &&
                   row_is(0u, CLI_RUNS_ROW_EMPTY, NULL, &row),
               "another tree with no run lists one row that reads so");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Runs", .tree = "");
     cli_check(EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = NULL, .now_ms = 5000ULL, .shown = 0) &&
                   (EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u) == 0u),

@@ -266,7 +266,7 @@ static void runs_read(const GuiPaneCfg *args)
     }
 }
 
-const GuiPaneKind gui_runs_kind = {
+const GuiPaneTable gui_runs_table = {
     .tool = "runs",
     .title = runs_title,
     .rows = runs_rows,

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tests.h: the Tests tool's kind of side pane, the tree's tests as the tests pane lists them (tests/testing.h): under
+// tests.h: the Tests tool's side pane table, the tree's tests as the tests pane lists them (tests/testing.h): under
 // the pane's head a bar of actions, Run All, Run Failed, Coverage and Stop with the Parallel choice at its right, and
 // under the bar the run's summary while one goes or after one ended; then a row a file with the worst of its tests'
 // outcomes as its mark, its icon, its name and folder and the counts of its outcomes, under a file not closed a row
@@ -33,7 +33,7 @@
 #define GUI_TESTS_COVER_HEIGHT 5
 #define GUI_TESTS_COVER_RADIUS 3
 
-// the Tests tool's kind of pane
-extern const GuiPaneKind gui_tests_kind;
+// the Tests tool's pane table
+extern const GuiPaneTable gui_tests_table;
 
 #endif

@@ -145,7 +145,7 @@ typedef struct
     int starting;
     unsigned int event;
     const CliItem *item;
-    const GuiPaneKind *kind_read;
+    const GuiPaneTable *table_read;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -243,7 +243,7 @@ EMBED_INLINE int window_tool_by_name(const GuiWindowCtx *args)
                .src = g_cli_tools[args->window_read->strip.displayed].name, .other = args->key, .cap = 32ULL});
 }
 
-// the tool whose pane the side shows, NULL where none; its kind of pane, NULL where it has none; and the pane's own
+// the tool whose pane the side shows, NULL where none; its table of pane, NULL where it has none; and the pane's own
 // state, a state a tool
 EMBED_INLINE const CliTool *window_tool(const GuiWindowCtx *args)
 {
@@ -251,10 +251,10 @@ EMBED_INLINE const CliTool *window_tool(const GuiWindowCtx *args)
     return (args->window_read->strip.displayed >= 0) ? &g_cli_tools[args->window_read->strip.displayed] : NULL;
 }
 
-EMBED_INLINE const GuiPaneKind *window_pane_kind(const GuiWindowCtx *args)
+EMBED_INLINE const GuiPaneTable *window_pane_table(const GuiWindowCtx *args)
 {
     const CliTool *const tool = window_tool(args);
-    return (tool != NULL) ? EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = tool->name) : NULL;
+    return (tool != NULL) ? EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = tool->name) : NULL;
 }
 
 EMBED_INLINE GuiPane *window_pane(const GuiWindowCtx *args)
@@ -272,10 +272,10 @@ EMBED_INLINE const GuiPane *window_pane_read(const GuiWindowCtx *args)
                                                                   : 0u];
 }
 
-// whether the pane of `kind_read` is in sight: its tool's window the side's, and the side not collapsed
-EMBED_INLINE int window_kind_shown(const GuiWindowCtx *args)
+// whether the pane of `table_read` is in sight: its tool's window the side's, and the side not collapsed
+EMBED_INLINE int window_table_shown(const GuiWindowCtx *args)
 {
-    return (window_pane_kind(args) == args->kind_read) && !args->window_read->strip.collapsed;
+    return (window_pane_table(args) == args->table_read) && !args->window_read->strip.collapsed;
 }
 
 // the rows the editor shows, and the columns
@@ -366,18 +366,18 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
     }
 }
 
-// the shown pane's data read anew on `event`, one of the pane's events, for the tree and the view shown; a pane's kind
+// the shown pane's data read anew on `event`, one of the pane's events, for the tree and the view shown; a pane's table
 // reads on the events that change its data and no other
 EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
 {
-    const GuiPaneKind *const kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = args->window);
-    if (kind == NULL)
+    const GuiPaneTable *const table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window);
+    if (table == NULL)
     {
         return;
     }
     const int shown = cli_view_shown();
     // the view shown is among the views
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = args->event, .root = cli_command_line_root(),
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = args->event, .root = cli_command_line_root(),
                .key = (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL,
                .path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL);
 }
@@ -987,9 +987,9 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         cli_notices_due_ms(),
         g_cli_menus_open.rest_due_ms,
         window->memory_due_ms,
-        EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
-                   .shown =
-                       EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window, .kind_read = &gui_runs_kind)),
+        EMBED_CALL(
+            cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
+            .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window, .table_read = &gui_runs_table)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
         EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
     };
@@ -1929,7 +1929,8 @@ static void window_key_take(const GuiWindowCtx *args)
         return;
     }
     // the shown pane's field takes the key while it has the keys
-    if (EMBED_CALL(gui_pane.key, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+    if (EMBED_CALL(gui_pane.key, GuiPaneCfg,
+                   .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                    .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .name = name,
                    .root = cli_command_line_root()))
     {
@@ -2118,9 +2119,9 @@ void gui_window_step(const GuiWindowCfg *args)
     window->pending = EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u) || window->pending;
     const unsigned long long now_ms = cli_clock_milliseconds();
     // the query runs listed and the opened live runs read on their beats, the strip's Runs mark following
-    if (EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
-                   .shown =
-                       EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window, .kind_read = &gui_runs_kind)))
+    if (EMBED_CALL(
+            cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
+            .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window, .table_read = &gui_runs_table)))
     {
         EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &window->strip.runs_live,
                    .panicked_out = &window->strip.runs_panicked);
@@ -2132,8 +2133,8 @@ void gui_window_step(const GuiWindowCfg *args)
         EMBED_CALL(cli_search_pane.step, CliSearchPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms) ||
         window->pending;
     window->pending = EMBED_CALL(cli_git_log.step, CliGitLogCfg, .root = cli_command_line_root(), .now_ms = now_ms,
-                                 .on = EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window,
-                                                  .kind_read = &gui_git_kind)) ||
+                                 .on = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                                  .table_read = &gui_git_table)) ||
                       window->pending;
     if (now_ms >= window->memory_due_ms)
     {
@@ -2254,12 +2255,13 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
         const CliTool *const tool = EMBED_CALL(window_tool, GuiWindowCtx, .window_read = args->window);
         GuiFrame slid = *frame;
         slid.side = frame->side_pane;
-        EMBED_CALL(
-            gui_pane.draw, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = args->window),
-            .pane_read = EMBED_CALL(window_pane, GuiWindowCtx, .window = args->window), .frame = &slid,
-            .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
-            .title = tool->label, .tree = (args->window->title != NULL) ? args->window->title : "",
-            .cursor_line = (args->window->editor.frame != NULL) ? args->window->editor.frame->cursor.line : 0ULL);
+        EMBED_CALL(gui_pane.draw, GuiPaneCfg,
+                   .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window),
+                   .pane_read = EMBED_CALL(window_pane, GuiWindowCtx, .window = args->window), .frame = &slid,
+                   .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
+                   .title = tool->label, .tree = (args->window->title != NULL) ? args->window->title : "",
+                   .cursor_line =
+                       (args->window->editor.frame != NULL) ? args->window->editor.frame->cursor.line : 0ULL);
     }
     // the panel drawn where it stands as it arrives, its rectangle and its views' moved down by its way left
     GuiFrame arriving = *frame;
@@ -2459,6 +2461,8 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     const int x = args->x;
     const int y = args->y;
     input->hit = CLI_HIT_NONE;
+    input->x = x;
+    input->y = y;
     if (EMBED_CALL(gui_suggest_x.row_at, GuiSuggestXCfg, .suggest_read = &window->suggest, .x = x, .y = y,
                    .at = &input->index))
     {
@@ -2525,20 +2529,20 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y))
     {
         // the pane's head's action where the pixel stands on one, else its row
-        const GuiPaneKind *const kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window);
-        if (kind == NULL)
+        const GuiPaneTable *const table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window);
+        if (table == NULL)
         {
             return;
         }
         const GuiPane *const pane = EMBED_CALL(window_pane_read, GuiWindowCtx, .window_read = window);
-        input->index = EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = pane,
+        input->index = EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = pane,
                                   .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .x = x, .y = y);
         if (input->index != 0u)
         {
             input->hit = CLI_HIT_PANE_ACTION;
         }
-        else if (EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = pane, .frame = &window->frame, .x = x,
-                            .y = y, .row_pointer = &input->index))
+        else if (EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = pane, .frame = &window->frame,
+                            .x = x, .y = y, .row_pointer = &input->index))
         {
             input->hit = CLI_HIT_PANE_ROW;
         }
@@ -2685,7 +2689,7 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         // the pane head's action run, a run of the tree's code saving every view first
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
         EMBED_CALL(gui_pane.action, GuiPaneCfg,
-                   .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+                   .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                    .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .which = hit->index,
                    .root = cli_command_line_root(), .save_all = window_save_all, .context = window);
         window->pending = 1;
@@ -2695,8 +2699,9 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
         GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
         if (EMBED_CALL(gui_pane.press, GuiPaneCfg,
-                       .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window), .row = hit->index,
-                       .open_out = &open))
+                       .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window), .row = hit->index,
+                       .frame = &window->frame, .pane_read = EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
+                       .x = hit->x, .open_out = &open))
         {
             EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = open.path,
                        .place = open.placed ? &open.place : NULL);
@@ -2753,10 +2758,10 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = args->input->x,
                    .y = args->input->y))
     {
-        const GuiPaneKind *const kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window);
-        const int moved = (kind != NULL) && EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .kind = kind,
-                                                       .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
-                                                       .frame = &window->frame, .rows = args->input->rows);
+        const GuiPaneTable *const table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window);
+        const int moved = (table != NULL) && EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .table = table,
+                                                        .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
+                                                        .frame = &window->frame, .rows = args->input->rows);
         window->pending = moved || window->pending;
         return;
     }
@@ -2976,11 +2981,12 @@ static void window_move(const GuiInputHandlerCfg *args)
     {
         EMBED_CALL(window_sides_laid, GuiWindowCtx, .window = window);
     }
-    const GuiPaneKind *const kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window);
-    const int pane_moved = (kind != NULL) && EMBED_CALL(gui_pane.move, GuiPaneCfg, .kind = kind,
-                                                        .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
-                                                        .frame = &window->frame, .glyphs = &window->glyphs,
-                                                        .x = args->input->x, .y = args->input->y);
+    const GuiPaneTable *const table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window);
+    const int pane_moved =
+        (table != NULL) &&
+        EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table,
+                   .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .frame = &window->frame,
+                   .glyphs = &window->glyphs, .x = args->input->x, .y = args->input->y);
     window->pending = pane_moved || window->pending;
     // the slider dragged goes to the part of the text it stands over, as a press on the map does
     unsigned long long top = 0ULL;
@@ -3149,7 +3155,7 @@ EMBED_INLINE int window_editor_menu(const GuiWindowCtx *args)
 
 // the system's gesture for a menu: the menu of what stands at the pointer asked for there, none on a menu open, the
 // menus open closed first: the terminal's panel's for every place on it, a tab's, the editor's, and the shown pane's
-// kind's for a row of it or for the pane off its rows
+// table's for a row of it or for the pane off its rows
 static void window_menu(const GuiInputHandlerCfg *args)
 {
     GuiWindow *const window = args->window;
@@ -3182,7 +3188,7 @@ static void window_menu(const GuiInputHandlerCfg *args)
               EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y)))
     {
         built = EMBED_CALL(
-            gui_pane.menu, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+            gui_pane.menu, GuiPaneCfg, .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
             .row = (asked.hit == CLI_HIT_PANE_ROW) ? asked.index : GUI_PANE_OFF_ROWS, .root = cli_command_line_root());
     }
     if (built)
@@ -3209,7 +3215,8 @@ static void window_text(const GuiInputHandlerCfg *args)
         return;
     }
     // the shown pane's field takes the text while it has the keys
-    if (EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+    if (EMBED_CALL(gui_pane.text, GuiPaneCfg,
+                   .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                    .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .text = args->input->text,
                    .length = args->input->size, .root = cli_command_line_root()))
     {
@@ -3223,7 +3230,7 @@ static void window_text(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
 }
 
-// what answers each kind of input, in the main window and in Preferences' window
+// what answers each table of input, in the main window and in Preferences' window
 static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_MOVED] = window_move,
                                                     [GUI_INPUT_DOWN] = window_press,
                                                     [GUI_INPUT_UP] = window_release,

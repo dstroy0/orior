@@ -3,7 +3,7 @@
 // tests_test.c: the Tests pane's check: a tree of two Python test files reads as a row a file and a row a test under
 // each, labeled as pytest labels them; a file's row pressed closes its tests and opens them again; a run's reports, as
 // test_runs.h writes them, set a test's outcome, its time and its failure's message, which takes a row of its own,
-// the file's worst outcome and its counts, the summary of the run's end and the coverage's rows; the pane's kind draws
+// the file's worst outcome and its counts, the summary of the run's end and the coverage's rows; the pane's table draws
 // the bar with its actions and the rows under the Tests group's title, a press on Run All lands on the action and a
 // press on a row lands on it; and no tree leaves no rows
 #include "../../../../../ui/cli/src/tests/testing.h"
@@ -64,11 +64,11 @@ int main(void)
     file_written(s_root, "pkg/c_test.py", "class TestThing:\n    def test_c(self):\n        pass\n");
     file_written(s_root, "tests/test_a.py", "def test_a():\n    pass\n\n\ndef test_b():\n    pass\n");
 
-    const GuiPaneKind *const kind = &gui_tests_kind;
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "tests") == kind, "the Tests tool has the kind");
+    const GuiPaneTable *const table = &gui_tests_table;
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "tests") == table, "the Tests tool has the table");
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = NULL, .entries = NULL);
     cli_check(!EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u), "the tests begin not read");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SHOWN, .root = s_root);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = s_root);
     cli_check(EMBED_CALL(cli_tests_pane.loaded, CliTestsPaneCfg, .at = 0u), "the pane shown reads the tree's tests");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 5u,
               "two files and three tests are five rows");
@@ -138,44 +138,44 @@ int main(void)
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame);
+    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_TESTS_BAR +
                               GUI_TESTS_SAID,
               "the rows stand under the pane's head, the bar and the summary");
     const int bar_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_TESTS_BAR / 2);
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = bar_y) == CLI_TESTS_RUN,
               "a press at the bar's left lands on Run All");
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + frame.side.width - GUI_TESTS_ACTION_PAD - 4,
                          .y = bar_y) == CLI_TESTS_PARALLEL,
               "a press at the bar's right lands on the Parallel choice");
-    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
+    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
                          .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = bar_y) &&
                   (pane.action == CLI_TESTS_RUN) && (pane.pointed == GUI_PANE_NONE),
               "the pointer on Run All marks the action and no row");
     const GuiRect first =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 0u);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
     unsigned int hit_row = 0u;
-    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = first.x + 20,
+    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .x = first.x + 20,
                          .y = first.y + 3, .row_pointer = &hit_row) &&
                   (hit_row == 0u),
               "a press on the first row lands on it");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Tests", .tree = "");
     const GuiRect message =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 4u);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 4u);
     cli_check(message.y == first.y + (4 * GUI_PANE_ROW), "the message's row stands four rows under the first");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
-    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 3u, .open_out = &open) &&
+    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 3u, .open_out = &open) &&
                   (strcmp(open.path, "tests/test_a.py") == 0) && open.placed && (open.place.line == 1ULL),
               "the failed test's row pressed opens its file where it failed");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 4u, .open_out = &open),
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 4u, .open_out = &open),
               "a message's row pressed opens nothing");
-    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 7u, .open_out = &open) &&
+    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 7u, .open_out = &open) &&
                   (strcmp(open.path, "pkg/c.py") == 0) && (open.place.line == 5ULL),
               "a covered file's row pressed opens it at its first line missed");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 0u, .open_out = &open) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open) &&
                   (EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 7u),
               "a file's row pressed closes its tests and opens no file");
 

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git.h: the Git tool's kind of side pane, the graph as the Git pane lists it (code/git.h): under the pane's head the
+// git.h: the Git tool's side pane table, the graph as the Git pane lists it (code/git.h): under the pane's head the
 // choice of repository where the tree has more than one, the next chosen by a press, and a field the query is typed
 // into, which searches the whole history. Then the branch's row with its name and the commits counted, a row a commit
 // with its columns' strokes and its dot, the branches and tags at it in pills, HEAD's in signal and a
@@ -38,7 +38,7 @@
 #define GUI_GIT_MERGE_DOT_F32 3.0f
 #define GUI_GIT_CURVE_STEPS 6u
 
-// the Git tool's kind of pane
-extern const GuiPaneKind gui_git_kind;
+// the Git tool's pane table
+extern const GuiPaneTable gui_git_table;
 
 #endif

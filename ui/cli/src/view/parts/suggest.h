@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // suggest.h: the completion panel, as the panels over the editor rank and carry it (servers/servers.h): listed under
-// the prefix's first cell, the chosen row on the selection's ground, each row its kind's mark, its label with the
+// the prefix's first cell, the chosen row on the selection's ground, each row its table's mark, its label with the
 // prefix in signal and its detail quieter at the right; a detail pane beside the list for the chosen item. What keys
 // and presses do to it is the panels' (suggest.c)
 #ifndef GUI_PARTS_SUGGEST_H
@@ -15,7 +15,7 @@ typedef struct GuiSuggestXCfg GuiSuggestXCfg;
 typedef struct GuiSuggestCfg GuiSuggestCfg;
 
 // the sizes in the page's pixels: a row's height, the list's least and most width, 16rem and 26rem, the detail pane's
-// width, 18rem, and its most height, 14rem, a kind's mark, 0.55rem, a row's padding across, 0.55rem, the gap between a
+// width, 18rem, and its most height, 14rem, a table's mark, 0.55rem, a row's padding across, 0.55rem, the gap between a
 // row's parts, 0.5rem, the list's padding down, 0.2rem, how far the list's left stands before the prefix's cell, and
 // the detail's padding
 #define GUI_SUGGEST_ROW 22

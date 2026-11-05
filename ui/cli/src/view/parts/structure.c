@@ -141,7 +141,7 @@ static void structure_read(const GuiPaneCfg *args)
     }
 }
 
-const GuiPaneKind gui_structure_kind = {
+const GuiPaneTable gui_structure_table = {
     .tool = "structure",
     .title = structure_title,
     .rows = structure_rows,

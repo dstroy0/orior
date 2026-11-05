@@ -398,7 +398,7 @@ static int explorer_menu(const GuiPaneCfg *args)
     return cli_files_explorer_menu(args->row);
 }
 
-const GuiPaneKind gui_explorer_kind = {
+const GuiPaneTable gui_explorer_table = {
     .tool = "explorer",
     .title = explorer_title,
     .rows = explorer_rows,

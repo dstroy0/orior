@@ -183,28 +183,51 @@ typedef struct
 
 // The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
 // the repository containing it, as rows in the order git lists them, the list standing until the next read. A row is
-// the file's path from the tree's top, its name, the last part of that path, the bytes of the folder before it, and its
-// state letter as cli_git_change reads it
+// the file's path from the tree's top, its name, the last part of that path, the bytes of the folder before it, its
+// state letter as cli_git_change reads it, and whether the next commit takes it
 typedef struct
 {
     const char *path;
     const char *name;
     unsigned long long folder_length;
     char state;
+    int taken;
 } CliChangedRow;
 typedef struct CliGitChangesCfg CliGitChangesCfg;
-// the changes read anew of the tree at `root`, every repository of it; none where `root` is NULL
+// the most bytes of the commit's message with its end, and the head's actions: the message's box, which takes the
+// keys, and Commit
+#define CLI_CHANGES_MESSAGE_MAX 4096u
+#define CLI_CHANGES_FIELD 1u
+#define CLI_CHANGES_COMMIT 2u
+// the changes read anew of the tree at `root`, every repository of it, each file taken by the next commit unless it was
+// left out before; none where `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
-// how many rows the changes have; the row `at` into `row`: 1, or 0 past the last; and the menu of the row `at` built as
-// the menus' own rows, Open File, which a file gone cannot take, then Copy Path: 1, or 0 past the last
+// how many rows the changes have; the row `at` into `row`: 1, or 0 past the last; the file of the row `at` left out of
+// the next commit, or taken again; and the menu of the row `at` built as the menus' own rows, Open File, which a file
+// gone cannot take, then Copy Path: 1, or 0 past the last
 unsigned int cli_changes_rows(const CliGitChangesCfg *args);
 int cli_changes_row(const CliGitChangesCfg *args);
+void cli_changes_toggle(const CliGitChangesCfg *args);
 int cli_changes_menu(const CliGitChangesCfg *args);
+// `size` bytes of `text` typed at the message's end; the key `name` pressed in the box, Backspace erasing the last
+// letter: 1 where the key was taken; the message with its bytes into `length_out`; the files taken committed to the
+// tree at `root` with the message, the message and the files left out cleared and the changes read again where git
+// takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the last commit, or why nothing was
+// to commit, with its bytes into `length_out`, empty where the commit was taken
+void cli_changes_type(const CliGitChangesCfg *args);
+int cli_changes_key(const CliGitChangesCfg *args);
+const char *cli_changes_message(const CliGitChangesCfg *args);
+int cli_changes_commit(const CliGitChangesCfg *args);
+const char *cli_changes_refusal(const CliGitChangesCfg *args);
 struct CliGitChangesCfg
 {
     const char *root;
     unsigned int at;
     CliChangedRow *row;
+    const char *text;
+    unsigned long long size;
+    const char *name;
+    unsigned long long *length_out;
 };
 
 typedef struct
@@ -212,14 +235,26 @@ typedef struct
     void (*read)(const CliGitChangesCfg *args);
     unsigned int (*rows)(const CliGitChangesCfg *args);
     int (*row)(const CliGitChangesCfg *args);
+    void (*toggle)(const CliGitChangesCfg *args);
     int (*menu)(const CliGitChangesCfg *args);
+    void (*type)(const CliGitChangesCfg *args);
+    int (*key)(const CliGitChangesCfg *args);
+    const char *(*message)(const CliGitChangesCfg *args);
+    int (*commit)(const CliGitChangesCfg *args);
+    const char *(*refusal)(const CliGitChangesCfg *args);
 } CliChangesNs;
-EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row, menu);
+EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row, toggle, menu, type, key, message, commit, refusal);
 EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
     .read = cli_changes_read,
     .rows = cli_changes_rows,
     .row = cli_changes_row,
+    .toggle = cli_changes_toggle,
     .menu = cli_changes_menu,
+    .type = cli_changes_type,
+    .key = cli_changes_key,
+    .message = cli_changes_message,
+    .commit = cli_changes_commit,
+    .refusal = cli_changes_refusal,
 };
 
 // The Git pane as the window reads it (git_log.c): the repository chosen among the tree's, the one the tree is in

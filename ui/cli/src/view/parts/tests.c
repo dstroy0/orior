@@ -530,7 +530,7 @@ static void tests_read(const GuiPaneCfg *args)
     }
 }
 
-const GuiPaneKind gui_tests_kind = {
+const GuiPaneTable gui_tests_table = {
     .tool = "tests",
     .title = tests_title,
     .rows = tests_rows,

@@ -4,7 +4,7 @@
 // row a commit, the newest first, with its subject, its day, the branch's name at HEAD and its strokes; a commit's row
 // pressed opens the files it changed under it with their states and folders and closes them again; text typed rests
 // before the history is searched, then lists what the query finds; the authors setting shows each commit's author and
-// searches by it; the pane's kind stands the field under the head, a press on the field takes the keys, which typed
+// searches by it; the pane's table stands the field under the head, a press on the field takes the keys, which typed
 // text then reaches and Escape lets go, the branch's row is taller than a commit's, and a file's row pressed opens the
 // file
 #include "../../../../../ui/cli/src/code/git.h"
@@ -101,12 +101,12 @@ int main(void)
     char branch[CLI_NAME_MAX_LEN];
     cli_check(EMBED_CALL(cli_git_table.branch, CliGitCfg, .root = s_root, .name = branch), "the tree is on a branch");
 
-    const GuiPaneKind *const kind = &gui_git_kind;
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "git") == kind, "the Git tool has the kind");
+    const GuiPaneTable *const table = &gui_git_table;
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "git") == table, "the Git tool has the table");
     EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = NULL, .entries = NULL);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 0u, "nothing is listed before the pane shows");
     cli_check(!EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u), "authors are off until turned on");
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SHOWN, .root = s_root);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = s_root);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 3u,
               "the pane shown lists the branch's row and a row a commit");
     CliGitLogRow row;
@@ -216,24 +216,24 @@ int main(void)
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame);
+    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX,
               "the rows stand under the pane's head and the field, no repository choice for one repository");
     const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_BOX / 2);
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_PANE_PAD_LEFT + 20,
                          .y = field_y) == CLI_GIT_LOG_FIELD,
               "a press in the field lands on it");
-    EMBED_CALL(gui_pane.action, GuiPaneCfg, .kind = kind, .pane = &pane, .which = CLI_GIT_LOG_FIELD, .root = s_root);
+    EMBED_CALL(gui_pane.action, GuiPaneCfg, .table = table, .pane = &pane, .which = CLI_GIT_LOG_FIELD, .root = s_root);
     cli_check(pane.keys, "the field pressed takes the keys");
-    cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = kind, .pane = &pane, .text = "first", .length = 5ULL,
+    cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "first", .length = 5ULL,
                          .root = s_root) &&
                   (strcmp(EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length), "first") == 0),
               "text typed while the field has the keys reaches the query");
-    cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .kind = kind, .pane = &pane, .name = "Escape", .root = s_root) &&
+    cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape", .root = s_root) &&
                   !pane.keys,
               "Escape lets the keys go");
-    cli_check(!EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = kind, .pane = &pane, .text = "x", .length = 1ULL,
+    cli_check(!EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "x", .length = 1ULL,
                           .root = s_root),
               "text typed without the keys goes elsewhere");
     // the menus: a commit's rows open or close its files and copy its id and message, a file's row copies its path
@@ -244,7 +244,7 @@ int main(void)
     (void)mmgr_line_finish(&id_line);
     unsigned int built = 0u;
     const CliItem *rows = NULL;
-    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 4u) &&
                   (strcmp(rows[0].label, "Open Files") == 0) && (strcmp(rows[0].command, "commit-files") == 0) &&
                   (strcmp(rows[0].args, id) == 0) && rows[1].line &&
@@ -253,16 +253,16 @@ int main(void)
               "a closed commit's menu opens its files and copies its id and message");
     cli_check(EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = id, .root = s_root) &&
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open &&
-                  EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
+                  EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Close Files") == 0),
               "the commit opened by its id has its menu close its files");
     cli_check(!EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = "0000000", .root = s_root),
               "an id the graph has not opens nothing");
-    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 2u, .root = s_root) &&
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 1u) &&
                   (strcmp(rows[0].command, "file-copy-path") == 0) && (strcmp(rows[0].args, "a.txt") == 0),
               "a file's menu copies its path");
-    cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 0u, .root = s_root),
+    cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 0u, .root = s_root),
               "the branch's row has no menu");
     char message_text[1024];
     VerbaLinea message = {message_text, sizeof(message_text), 0ULL};
@@ -271,34 +271,34 @@ int main(void)
               "the commit's message is read by its id");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     const GuiRect first =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 0u);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
     const GuiRect second =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 1u);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 1u);
     cli_check((first.height == GUI_GIT_BRANCH_ROW) && (second.height == GUI_PANE_ROW) &&
                   (second.y == first.y + first.height),
               "the branch's row is taller than a commit's, which stands under it");
-    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
+    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
                          .x = second.x + 20, .y = second.y + 3) &&
                   (pane.pointed == 1),
               "the pointer on the commit's row marks it");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Git", .tree = "");
     const GuiColor on_first = raster.pixels[((unsigned int)(first.y + 2) * raster.width) + (unsigned int)first.x + 2u];
     const GuiColor on_second =
         raster.pixels[((unsigned int)(second.y + 2) * raster.width) + (unsigned int)second.x + 2u];
     cli_check(on_first != on_second, "the row pointed is drawn on a ground of its own");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 2u, .open_out = &open, .root = s_root) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
                   (EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 3u),
               "the first commit's row pressed closes its files and opens no file");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 1u, .open_out = &open, .root = s_root) &&
-                  EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 2u, .open_out = &open, .root = s_root) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open, .root = s_root) &&
+                  EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
                   (strcmp(open.path, "a.txt") == 0) && !open.placed,
               "the newest commit's row pressed opens its file's row, which pressed opens the file");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 0u, .open_out = &open, .root = s_root),
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open, .root = s_root),
               "the branch's row pressed opens nothing");
 
-    EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SHOWN, .root = NULL);
+    EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = NULL);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
     g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);

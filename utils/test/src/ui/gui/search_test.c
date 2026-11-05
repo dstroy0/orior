@@ -4,7 +4,7 @@
 // lists a row a file with its count and a row a line found under it with the match's place and bytes, case aside; the
 // case choice flipped searches at once and drops the line of another case; a file's row pressed closes its lines and
 // opens them again; the query erased lists nothing, one that is found nowhere reports so, and Enter searches without
-// the rest; the pane's kind draws the field, the choices and the rows, a press on the field takes the keys, which
+// the rest; the pane's table draws the field, the choices and the rows, a press on the field takes the keys, which
 // typed text then reaches and Escape lets go, and a line's row pressed opens the file at the match
 #include "../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../ui/cli/src/view/parts/search.h"
@@ -72,8 +72,8 @@ int main(void)
     file_written(s_root, "sub/b.txt", "Alpha\n");
     file_written(s_root, "c.txt", "nothing here\n");
 
-    const GuiPaneKind *const kind = &gui_search_kind;
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "search") == kind, "the Search tool has the kind");
+    const GuiPaneTable *const table = &gui_search_table;
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "search") == table, "the Search tool has the table");
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = NULL, .entries = NULL);
     cli_check((EMBED_CALL(cli_search_pane.rows, CliSearchPaneCfg, .at = 0u) == 0u) && report_is(""),
               "nothing is listed and nothing reported before a search");
@@ -154,42 +154,42 @@ int main(void)
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame);
+    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX +
                               GUI_SEARCH_REPORT,
               "the rows stand under the pane's head, the field and the report, no set listed");
     const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_BOX / 2);
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_PANE_PAD_LEFT + 20, .y = field_y) == CLI_SEARCH_FIELD,
               "a press in the field lands on it");
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + frame.side.width - GUI_PANE_PAD_LEFT - 8,
                          .y = field_y) == CLI_SEARCH_REGEX,
               "a press at the field's right end lands on the regular expression choice");
-    EMBED_CALL(gui_pane.action, GuiPaneCfg, .kind = kind, .pane = &pane, .which = CLI_SEARCH_FIELD, .root = s_root);
+    EMBED_CALL(gui_pane.action, GuiPaneCfg, .table = table, .pane = &pane, .which = CLI_SEARCH_FIELD, .root = s_root);
     cli_check(pane.keys, "the field pressed takes the keys");
-    cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = kind, .pane = &pane, .text = " beta", .length = 5ULL,
+    cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = " beta", .length = 5ULL,
                          .root = s_root) &&
                   (strcmp(EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &length), "alpha beta") == 0),
               "text typed while the field has the keys reaches the query");
-    cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .kind = kind, .pane = &pane, .name = "Escape", .root = s_root) &&
+    cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape", .root = s_root) &&
                   !pane.keys,
               "Escape lets the keys go");
-    cli_check(!EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = kind, .pane = &pane, .text = "x", .length = 1ULL,
+    cli_check(!EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "x", .length = 1ULL,
                           .root = s_root),
               "text typed without the keys goes elsewhere");
     cli_check(EMBED_CALL(cli_search_pane.step, CliSearchPaneCfg, .root = s_root, .now_ms = 9000ULL) &&
                   (EMBED_CALL(cli_search_pane.rows, CliSearchPaneCfg, .at = 0u) == 2u) &&
                   row_is(1u, CLI_SEARCH_ROW_HIT, "alpha beta", &row) && (row.match_length == 10ULL),
               "the longer query finds its one line with the match's bytes");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Search", .tree = "");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
-    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 1u, .open_out = &open) &&
+    cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open) &&
                   (strcmp(open.path, "a.txt") == 0) && open.placed && (open.place.line == 0ULL) &&
                   (open.place.col == 0ULL),
               "a line's row pressed opens the file at the match, counted from zero");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = 0u, .open_out = &open) &&
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open) &&
                   (EMBED_CALL(cli_search_pane.rows, CliSearchPaneCfg, .at = 0u) == 1u),
               "a file's row pressed closes its lines and opens no file");
 

@@ -381,7 +381,7 @@ static int git_menu(const GuiPaneCfg *args)
     return EMBED_CALL(cli_git_log.menu, CliGitLogCfg, .at = args->row);
 }
 
-const GuiPaneKind gui_git_kind = {
+const GuiPaneTable gui_git_table = {
     .tool = "git",
     .title = git_title,
     .rows = git_rows,

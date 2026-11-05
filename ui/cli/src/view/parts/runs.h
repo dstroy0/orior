@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// runs.h: the Runs tool's kind of side pane, the tree's query runs as the runs listing lists them (runs/qry.h): a row
+// runs.h: the Runs tool's side pane table, the tree's query runs as the runs listing lists them (runs/qry.h): a row
 // each folder of runs, under it a row each run with `live` in signal or `panicked` in the error's color while its
 // writer runs and its bytes where none does, under an opened run its detail, each panic's head and the lines of its
 // text behind a bar in the error's color, each conference's question and its accounts behind a quiet bar with the
@@ -20,7 +20,7 @@
 #define GUI_RUNS_SMALL_SIZE 11u
 #define GUI_RUNS_TEXT_SIZE 12u
 
-// the Runs tool's kind of pane
-extern const GuiPaneKind gui_runs_kind;
+// the Runs tool's pane table
+extern const GuiPaneTable gui_runs_table;
 
 #endif

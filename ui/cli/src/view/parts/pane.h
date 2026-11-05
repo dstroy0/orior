@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pane.h: the side's one pane, drawn and driven the same for every tool from a table of kinds. The side carries the
-// group's title at its head; under it the tool's kind supplies the pane's head, what stands under the head before the
+// pane.h: the side's one pane, drawn and driven the same for every tool from one table a tool. The side carries the
+// group's title at its head; under it the tool's table supplies the pane's head, what stands under the head before the
 // rows, the rows as the CLI lists them, a row's height, how a row draws, the row current, what a press on a row opens,
 // what a press on the head does, and the reading of its data as the events that change it come. The pane's own state
 // is the row the pointer stands on, the head's action it stands on and the rows scrolled off the top, one state a tool
@@ -16,7 +16,7 @@
 #include "embed_dispatch_layout.h"
 
 typedef struct GuiPaneCfg GuiPaneCfg;
-typedef struct GuiPaneKind GuiPaneKind;
+typedef struct GuiPaneTable GuiPaneTable;
 typedef struct GuiPanePartCfg GuiPanePartCfg;
 typedef struct GuiPaneFieldCfg GuiPaneFieldCfg;
 
@@ -36,9 +36,9 @@ typedef struct GuiPaneFieldCfg GuiPaneFieldCfg;
 #define GUI_PANE_HEAD_SIZE 12u
 #define GUI_PANE_ROW_SIZE 13u
 
-// the sizes in the page's pixels of what a kind's head stands under the pane's head: a field's row, the field's padding
-// inside its row and its text's padding inside its border, its corners' radius, the caret's width, a choice's row, and
-// the text sizes of the field and of a choice
+// the sizes in the page's pixels of what a table's head stands under the pane's head: a field's row, the field's
+// padding inside its row and its text's padding inside its border, its corners' radius, the caret's width, a choice's
+// row, and the text sizes of the field and of a choice
 #define GUI_PANE_BOX 30
 #define GUI_PANE_BOX_PAD 4
 #define GUI_PANE_FIELD_PAD 8
@@ -48,7 +48,7 @@ typedef struct GuiPaneFieldCfg GuiPaneFieldCfg;
 #define GUI_PANE_FIELD_SIZE 12u
 #define GUI_PANE_CHOICE_SIZE 12u
 
-// the events a kind reads its data on: its pane shown, the view shown or edited, and a file saved
+// the events a table reads its data on: its pane shown, the view shown or edited, and a file saved
 #define GUI_PANE_SHOWN 1u
 #define GUI_PANE_VIEW 2u
 #define GUI_PANE_SAVED 3u
@@ -75,17 +75,17 @@ typedef struct
     int placed;
 } GuiPaneOpen;
 
-// A kind of pane, the one of the tool `tool`: the pane head's title, NULL where the kind draws no pane head of its
+// A pane's table, the one of the tool `tool`: the pane head's title, NULL where the table draws no pane head of its
 // own; how many rows the CLI lists; a row's height in the page's pixels, GUI_PANE_ROW where NULL; the page pixels under
 // the head before the rows, none where NULL, drawn by `head_draw` in `rect` cut to `clip`, and the action at x, y in
 // them by `head_hit`, 0 for none, run by `action` as `which` for the tree at `root`; the row `row` drawn in `rect` cut
 // to `clip`; the row current for `cursor_line`, GUI_PANE_NONE where none or NULL; the row `row` pressed, 1 with what
 // it opens into `open_out`; the data read anew on `event` for the tree at `root` and the view `key` at `path`; and
 // while the pane has the keys, `length` bytes of `text` typed and the key `name` pressed, each 1 where taken, NULL
-// where the kind takes none; and the menu of the row `row`, or of the pane itself where `row` is GUI_PANE_OFF_ROWS,
-// built as the menus' own rows, 1 where it has any, NULL where the kind has no menu. An action that runs the tree's
+// where the table takes none; and the menu of the row `row`, or of the pane itself where `row` is GUI_PANE_OFF_ROWS,
+// built as the menus' own rows, 1 where it has any, NULL where the table has no menu. An action that runs the tree's
 // code saves every view first through `save_all` with `context`; one that takes the keys sets them on `pane`
-struct GuiPaneKind
+struct GuiPaneTable
 {
     const char *tool;
     const char *(*title)(const GuiPaneCfg *args);
@@ -106,9 +106,9 @@ struct GuiPaneKind
 
 // a pane pointing at no row and no action, scrolled to its top
 void gui_pane_init(const GuiPaneCfg *args);
-// the kind of the tool `tool`, NULL where the tool has no pane
-const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args);
-// the top of the kind's rows in `frame`'s side, under the group's title, the pane's head and what the kind stands
+// the table of the tool `tool`, NULL where the tool has no pane
+const GuiPaneTable *gui_pane_table_of(const GuiPaneCfg *args);
+// the top of the table's rows in `frame`'s side, under the group's title, the pane's head and what the table stands
 // under it; the height of the row `row` in pixels; the rectangle of the row `row` as `pane_read` is scrolled; and the
 // row at x, y: 1 with its number into `row_pointer`, else 0
 int gui_pane_rows_top(const GuiPaneCfg *args);
@@ -122,8 +122,8 @@ int gui_pane_move(const GuiPaneCfg *args);
 // the wheel turned `rows` rows, down where positive: the rows scrolled, no further than the last fills the pane: 1
 // where the scroll changed
 int gui_pane_wheel(const GuiPaneCfg *args);
-// the side drawn: its edge and `title`, the group's, at its head; and where `kind` is not NULL its pane: the line, the
-// pane's head with the arrow open and the kind's title, what the kind stands under it, and the rows on the editor's
+// the side drawn: its edge and `title`, the group's, at its head; and where `table` is not NULL its pane: the line, the
+// pane's head with the arrow open and the table's title, what the table stands under it, and the rows on the editor's
 // ground inside the work's inside, the row pointed on the line's ground and the row current on the idle selection's
 void gui_pane_draw(const GuiPaneCfg *args);
 // a guide down each of `depth` levels from the row `rect`'s left padding, cut to `clip`: the x past them
@@ -132,8 +132,8 @@ int gui_pane_guides(const GuiPaneCfg *args);
 // all, in `color`
 void gui_pane_arrow_draw(const GuiPaneCfg *args);
 // the row `row` pressed: 1 with what it opens into `open_out`; the head's action `which` run for the tree at `root`;
-// the kind's data read anew on `event`; `length` bytes of `text` typed and the key `name` pressed while `pane` has the
-// keys, each 1 where the kind took it; and the menu of the row `row` built as the menus' own rows: 1 where it has any
+// the table's data read anew on `event`; `length` bytes of `text` typed and the key `name` pressed while `pane` has the
+// keys, each 1 where the table took it; and the menu of the row `row` built as the menus' own rows: 1 where it has any
 int gui_pane_press(const GuiPaneCfg *args);
 void gui_pane_action(const GuiPaneCfg *args);
 void gui_pane_read(const GuiPaneCfg *args);
@@ -144,7 +144,7 @@ struct GuiPaneCfg
 {
     GuiPane *pane;
     const GuiPane *pane_read;
-    const GuiPaneKind *kind;
+    const GuiPaneTable *table;
     const GuiFrame *frame;
     const char *tool;
     unsigned int row;
@@ -178,7 +178,7 @@ struct GuiPaneCfg
     const char *name;
 };
 
-// what a kind draws in its pane: `x` pixels of the page at the pane's frame's scale; the width of `length` bytes of
+// what a table draws in its pane: `x` pixels of the page at the pane's frame's scale; the width of `length` bytes of
 // `text` in `face` at `size` page pixels; and the text drawn from `x_f32`, in `color` faded with the side, its baseline
 // centered in `clip` and cut to `clip` inside the pane's clip where `clipped`, else centered in the pane's row and cut
 // to the pane's clip: the x after it
@@ -212,7 +212,7 @@ EMBED_TABLE_STORAGE GuiPanePartNs gui_pane_part EMBED_UNUSED = {
     .text_draw = gui_pane_part_text_draw,
 };
 
-// what a kind stands in its head: a box `rect` with its corners rounded by `radius` page pixels drawn in `color` with
+// what a table stands in its head: a box `rect` with its corners rounded by `radius` page pixels drawn in `color` with
 // its inside, one page pixel in from its border, in `inside`, each cut to the pane's clip; the rectangle of a field in
 // the field's row at `y`, inside the row's padding; the field `rect` drawn, on the editor's ground inside a border in
 // signal while it has the `keys`, with `length` bytes of `text` or `placeholder` quieter while the text is empty, the
@@ -256,7 +256,7 @@ EMBED_TABLE_STORAGE GuiPaneFieldNs gui_pane_field EMBED_UNUSED = {
 typedef struct
 {
     void (*init)(const GuiPaneCfg *args);
-    const GuiPaneKind *(*kind_of)(const GuiPaneCfg *args);
+    const GuiPaneTable *(*table_of)(const GuiPaneCfg *args);
     int (*rows_top)(const GuiPaneCfg *args);
     int (*row_height)(const GuiPaneCfg *args);
     GuiRect (*row_rect)(const GuiPaneCfg *args);
@@ -274,11 +274,11 @@ typedef struct
     int (*key)(const GuiPaneCfg *args);
     int (*menu)(const GuiPaneCfg *args);
 } GuiPaneNs;
-EMBED_TABLE_LAYOUT(GuiPaneNs, init, kind_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
+EMBED_TABLE_LAYOUT(GuiPaneNs, init, table_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
                    arrow_draw, press, action, read, text, key, menu);
 EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .init = gui_pane_init,
-    .kind_of = gui_pane_kind_of,
+    .table_of = gui_pane_table_of,
     .rows_top = gui_pane_rows_top,
     .row_height = gui_pane_row_height,
     .row_rect = gui_pane_row_rect,

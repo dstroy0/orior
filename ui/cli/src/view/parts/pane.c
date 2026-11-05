@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pane.c: the side pane's arithmetic, drawing and input, each in the frame's words at the frame's scale, the kinds
+// pane.c: the side pane's arithmetic, drawing and input, each in the frame's words at the frame's scale, the tables
 // supplying what differs between the tools
 #include "pane.h"
 
@@ -14,10 +14,10 @@
 #include "structure.h"
 #include "tests.h"
 
-// the kinds, one a tool that has a pane
-static const GuiPaneKind *const s_kinds[] = {
-    &gui_explorer_kind, &gui_search_kind, &gui_problems_kind, &gui_structure_kind,
-    &gui_changes_kind,  &gui_tests_kind,  &gui_git_kind,      &gui_runs_kind,
+// the tables, one a tool that has a pane
+static const GuiPaneTable *const s_tables[] = {
+    &gui_explorer_table, &gui_search_table, &gui_problems_table, &gui_structure_table,
+    &gui_changes_table,  &gui_tests_table,  &gui_git_table,      &gui_runs_table,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)
@@ -28,13 +28,13 @@ void gui_pane_init(const GuiPaneCfg *args)
     args->pane->keys = 0;
 }
 
-const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args)
+const GuiPaneTable *gui_pane_table_of(const GuiPaneCfg *args)
 {
-    for (unsigned int at = 0u; at < sizeof(s_kinds) / sizeof(s_kinds[0]); at += 1u)
+    for (unsigned int at = 0u; at < sizeof(s_tables) / sizeof(s_tables[0]); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_kinds[at]->tool, .other = args->tool, .cap = 32ULL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_tables[at]->tool, .other = args->tool, .cap = 32ULL}))
         {
-            return s_kinds[at];
+            return s_tables[at];
         }
     }
     return NULL;
@@ -42,7 +42,7 @@ const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args)
 
 typedef struct
 {
-    const GuiPaneKind *kind;
+    const GuiPaneTable *table;
     const GuiFrame *frame;
     int pixels;
 } PaneCtx;
@@ -60,36 +60,36 @@ EMBED_INLINE int pane_head_top(const PaneCtx *args)
            EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame, .pixels = GUI_PANE_SIDE_HEAD + GUI_PANE_LINE);
 }
 
-// the rectangle of what the kind stands under the pane's head, empty where it stands nothing
+// the rectangle of what the table stands under the pane's head, empty where it stands nothing
 EMBED_INLINE GuiRect pane_head_rect(const GuiPaneCfg *args)
 {
-    const GuiPaneKind *const kind = args->kind;
+    const GuiPaneTable *const table = args->table;
     const GuiFrame *const frame = args->frame;
     const int top =
         EMBED_CALL(pane_head_top, PaneCtx, .frame = frame) +
-        EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (kind->title != NULL) ? GUI_PANE_HEAD : 0);
+        EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (table->title != NULL) ? GUI_PANE_HEAD : 0);
     return (GuiRect){
         frame->side.x, top, frame->side.width - EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 1),
-        (kind->head != NULL) ? EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = kind->head(args)) : 0};
+        (table->head != NULL) ? EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = table->head(args)) : 0};
 }
 
 int gui_pane_rows_top(const GuiPaneCfg *args)
 {
-    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = args->kind, .frame = args->frame);
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .table = args->table, .frame = args->frame);
     return head.y + head.height;
 }
 
 int gui_pane_row_height(const GuiPaneCfg *args)
 {
     return EMBED_CALL(pane_scaled, PaneCtx, .frame = args->frame,
-                      .pixels = (args->kind->row_height != NULL) ? args->kind->row_height(args) : GUI_PANE_ROW);
+                      .pixels = (args->table->row_height != NULL) ? args->table->row_height(args) : GUI_PANE_ROW);
 }
 
 GuiRect gui_pane_row_rect(const GuiPaneCfg *args)
 {
     const unsigned int scroll = args->pane_read->scroll;
     int y = gui_pane.rows_top(args);
-    if (args->kind->row_height == NULL)
+    if (args->table->row_height == NULL)
     {
         // rows of one height: the rows scrolled off are no more than the row, and the rows are far fewer than an int
         // counts
@@ -117,8 +117,8 @@ int gui_pane_hit(const GuiPaneCfg *args)
     {
         return 0;
     }
-    const unsigned int count = args->kind->rows(args);
-    if (args->kind->row_height == NULL)
+    const unsigned int count = args->table->rows(args);
+    if (args->table->row_height == NULL)
     {
         // the pointer stands below the top, and the rows it is down are far fewer than an unsigned int counts
         const unsigned int row = args->pane_read->scroll + (unsigned int)((args->y - top) / gui_pane.row_height(args));
@@ -146,18 +146,18 @@ int gui_pane_hit(const GuiPaneCfg *args)
 
 unsigned int gui_pane_head_hit(const GuiPaneCfg *args)
 {
-    if ((args->kind->head == NULL) || (args->kind->head_hit == NULL))
+    if ((args->table->head == NULL) || (args->table->head_hit == NULL))
     {
         return 0u;
     }
-    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = args->kind, .frame = args->frame);
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .table = args->table, .frame = args->frame);
     if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = head, .x = args->x, .y = args->y))
     {
         return 0u;
     }
     GuiPaneCfg hit = *args;
     hit.rect = head;
-    return args->kind->head_hit(&hit);
+    return args->table->head_hit(&hit);
 }
 
 int gui_pane_move(const GuiPaneCfg *args)
@@ -181,7 +181,7 @@ int gui_pane_wheel(const GuiPaneCfg *args)
     const int capacity = args->frame->side.y + args->frame->side.height - gui_pane.rows_top(args);
     const int displayed = (pixel_height > 0) ? capacity / pixel_height : 0;
     // the rows are far fewer than an int counts
-    const int count = (int)args->kind->rows(args);
+    const int count = (int)args->table->rows(args);
     const int most = (count > displayed) ? count - displayed : 0;
     const int required = (int)args->pane->scroll + args->rows;
     int clamped;
@@ -257,7 +257,7 @@ void gui_pane_draw(const GuiPaneCfg *args)
     GuiRaster *raster = args->raster;
     GuiGlyphs *glyphs = args->glyphs;
     const GuiFrame *const frame = args->frame;
-    const GuiPaneKind *const kind = args->kind;
+    const GuiPaneTable *const table = args->table;
     const GuiRect side = frame->side;
     if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = side))
     {
@@ -285,18 +285,18 @@ void gui_pane_draw(const GuiPaneCfg *args)
                                      .pixel_height = side_head),
                      .text = args->title, .length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = 64ULL}),
                      .color = GUI_FRAME_FADED(args->palette->text_2, frame->side_share), .clip = inside);
-    if (kind == NULL)
+    if (table == NULL)
     {
         return;
     }
-    // the pane's line, its head with the arrow open and the kind's title where it has one, what the kind stands under
+    // the pane's line, its head with the arrow open and the table's title where it has one, what the table stands under
     // the head, and the body on the editor's ground
     const int line_y = side.y + side_head;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                   .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
                .color = line_color);
-    const char *const title = (kind->title != NULL) ? kind->title(args) : NULL;
+    const char *const title = (table->title != NULL) ? table->title(args) : NULL;
     if (title != NULL)
     {
         const int pane_y = EMBED_CALL(pane_head_top, PaneCtx, .frame = frame);
@@ -318,13 +318,13 @@ void gui_pane_draw(const GuiPaneCfg *args)
                          .text = title, .length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = 64ULL}),
                          .color = head_color, .clip = inside);
     }
-    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .kind = kind, .frame = frame);
-    if ((head.height > 0) && (kind->head_draw != NULL))
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .table = table, .frame = frame);
+    if ((head.height > 0) && (table->head_draw != NULL))
     {
         GuiPaneCfg under = *args;
         under.rect = head;
         under.clip = inside;
-        kind->head_draw(&under);
+        table->head_draw(&under);
     }
     const int rows_top = head.y + head.height;
     const GuiRect body =
@@ -336,9 +336,9 @@ void gui_pane_draw(const GuiPaneCfg *args)
     }
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
                .color = GUI_FRAME_FADED(args->palette->editor_background, frame->side_share));
-    // the rows from the one scrolled to, each on its ground where pointed or current, drawn by the kind
-    const unsigned int count = kind->rows(args);
-    const int current = (kind->current != NULL) ? kind->current(args) : GUI_PANE_NONE;
+    // the rows from the one scrolled to, each on its ground where pointed or current, drawn by the table
+    const unsigned int count = table->rows(args);
+    const int current = (table->current != NULL) ? table->current(args) : GUI_PANE_NONE;
     GuiPaneCfg each = *args;
     for (each.row = args->pane_read->scroll; each.row < count; each.row += 1u)
     {
@@ -359,34 +359,34 @@ void gui_pane_draw(const GuiPaneCfg *args)
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = each.clip,
                        .color = GUI_FRAME_FADED(args->palette->selection_idle, frame->side_share));
         }
-        kind->row_draw(&each);
+        table->row_draw(&each);
     }
 }
 
 int gui_pane_press(const GuiPaneCfg *args)
 {
-    return (args->kind->press != NULL) && args->kind->press(args);
+    return (args->table->press != NULL) && args->table->press(args);
 }
 
 void gui_pane_action(const GuiPaneCfg *args)
 {
-    if (args->kind->action != NULL)
+    if (args->table->action != NULL)
     {
-        args->kind->action(args);
+        args->table->action(args);
     }
 }
 
 void gui_pane_read(const GuiPaneCfg *args)
 {
-    if (args->kind->read != NULL)
+    if (args->table->read != NULL)
     {
-        args->kind->read(args);
+        args->table->read(args);
     }
 }
 
 int gui_pane_text(const GuiPaneCfg *args)
 {
-    return (args->kind != NULL) && (args->kind->text != NULL) && args->pane->keys && args->kind->text(args);
+    return (args->table != NULL) && (args->table->text != NULL) && args->pane->keys && args->table->text(args);
 }
 
 int gui_pane_part_scaled(const GuiPanePartCfg *args)
@@ -502,10 +502,10 @@ void gui_pane_choice_draw(const GuiPaneFieldCfg *args)
 
 int gui_pane_key(const GuiPaneCfg *args)
 {
-    return (args->kind != NULL) && (args->kind->key != NULL) && args->pane->keys && args->kind->key(args);
+    return (args->table != NULL) && (args->table->key != NULL) && args->pane->keys && args->table->key(args);
 }
 
 int gui_pane_menu(const GuiPaneCfg *args)
 {
-    return (args->kind != NULL) && (args->kind->menu != NULL) && args->kind->menu(args);
+    return (args->table != NULL) && (args->table->menu != NULL) && args->table->menu(args);
 }

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// search.h: the Search tool's kind of side pane, Find in Files as the search pane lists it (editor/files.h): under the
+// search.h: the Search tool's side pane table, Find in Files as the search pane lists it (editor/files.h): under the
 // pane's head a field the query is typed into, with the case, whole word and regular expression choices at its right,
 // each lit in signal while on; under the field the set of files searched in, there while Preferences lists a set, the
 // next chosen by a press; and under that the report, the results and files counted or that none were found. Then a
@@ -26,7 +26,7 @@
 #define GUI_SEARCH_LEAD 30ULL
 #define GUI_SEARCH_LEAD_PAST 40ULL
 
-// the Search tool's kind of pane
-extern const GuiPaneKind gui_search_kind;
+// the Search tool's pane table
+extern const GuiPaneTable gui_search_table;
 
 #endif

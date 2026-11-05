@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // structure_test.c: the Outline pane's check: a C text stored under a key reads as rows of declarations in the order of
-// their lines, each with its kind, its name, its line and its depth; the pane's kind draws them on the side under the
+// their lines, each with its table, its name, its line and its depth; the pane's table draws them on the side under the
 // Structure group's title, a row its number of rows under the pane's head, the row of the declaration the cursor stands
 // in on the idle selection's ground and the row pointed on a ground of its own; a press lands on a row and on no row
 // over the group's title; the head offers no action; and a key with no text under it leaves no rows
@@ -73,8 +73,8 @@ int main(void)
               "the rows stand in the order of their lines");
     cli_check(!EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = rows, .row = &first), "no row stands past the last");
 
-    const GuiPaneKind *const kind = &gui_structure_kind;
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "structure") == kind, "the Structure tool has the kind");
+    const GuiPaneTable *const table = &gui_structure_table;
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "structure") == table, "the Structure tool has the table");
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     cli_check((pane.pointed == GUI_PANE_NONE) && (pane.scroll == 0u) && (pane.action == 0u),
@@ -84,55 +84,55 @@ int main(void)
     {
         main_row = (first.line == entry.line) ? at : main_row;
     }
-    cli_check(EMBED_CALL(kind->current, GuiPaneCfg, .cursor_line = 7ULL) == (int)main_row,
+    cli_check(EMBED_CALL(table->current, GuiPaneCfg, .cursor_line = 7ULL) == (int)main_row,
               "the cursor inside main stands in main's row");
-    cli_check(EMBED_CALL(kind->current, GuiPaneCfg, .cursor_line = 0ULL) <= 0,
+    cli_check(EMBED_CALL(table->current, GuiPaneCfg, .cursor_line = 0ULL) <= 0,
               "the cursor on the first line stands in the first row or none");
 
     GuiRaster raster;
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Structure", .tree = "", .cursor_line = 7ULL);
     const GuiRect main_rect =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = main_row);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = main_row);
     const unsigned int other_row = (main_row == 0u) ? 1u : 0u;
     const GuiRect other_rect =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = other_row);
+        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = other_row);
     const GuiColor on_main =
         raster.pixels[((unsigned int)(main_rect.y + 2) * raster.width) + (unsigned int)main_rect.x + 2u];
     const GuiColor on_other =
         raster.pixels[((unsigned int)(other_rect.y + 2) * raster.width) + (unsigned int)other_rect.x + 2u];
     cli_check(on_main != on_other, "the cursor's row is drawn on a ground of its own");
-    cli_check(main_rect.y == EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame) +
+    cli_check(main_rect.y == EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame) +
                                  ((int)main_row * GUI_PANE_ROW),
               "a row stands its number of rows under the pane's head");
 
     unsigned int hit_row = 0u;
-    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .x = main_rect.x + 20, .y = main_rect.y + (main_rect.height / 2), .row_pointer = &hit_row) &&
                   (hit_row == main_row),
               "a press on main's row lands on it");
-    cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                           .x = main_rect.x + 20, .y = frame.side.y + 10, .row_pointer = &hit_row),
               "a press on the group's title lands on no row");
-    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
+    cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
                          .x = main_rect.x + 20, .y = main_rect.y + 3) &&
                   (pane.pointed == (int)main_row),
               "the pointer on main's row marks it");
-    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .raster = &raster,
+    EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Structure", .tree = "", .cursor_line = 0ULL);
     cli_check(raster.pixels[((unsigned int)(main_rect.y + 2) * raster.width) + (unsigned int)main_rect.x + 2u] !=
                   on_main,
               "the row pointed is drawn on the line's ground");
-    cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .rows = 3),
+    cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .rows = 3),
               "a few rows do not scroll");
-    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+    cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = main_rect.x + 20, .y = main_rect.y - 10) == 0u,
               "the Outline's head offers no action");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .kind = kind, .row = main_row, .open_out = &open),
+    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = main_row, .open_out = &open),
               "a row pressed with no view shown opens nothing");
 
     EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = "check:none", .path = "none.c");
