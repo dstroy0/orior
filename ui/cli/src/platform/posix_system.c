@@ -19,11 +19,28 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #endif
+
+void cli_clock_civil(const CliClockCivilCtx *args)
+{
+    CliCivil *const civil = args->civil_out;
+    *civil = (CliCivil){1970u, 1u, 1u, 0u, 0u};
+    // a reading before 1970 is read as 1970; the system's time counts the seconds from 1970 as the reading does
+    const time_t since = (time_t)((args->seconds > 0LL) ? args->seconds : 0LL);
+    struct tm local;
+    if (localtime_r(&since, &local) == NULL)
+    {
+        return;
+    }
+    // the calendar's fields are not negative: the year is counted from 1900 and the month from 0
+    *civil = (CliCivil){(unsigned int)(local.tm_year + 1900), (unsigned int)(local.tm_mon + 1),
+                        (unsigned int)local.tm_mday, (unsigned int)local.tm_hour, (unsigned int)local.tm_min};
+}
 
 typedef struct
 {

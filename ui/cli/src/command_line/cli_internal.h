@@ -60,6 +60,7 @@ typedef struct CliFileStageCtx CliFileStageCtx;
 typedef struct CliLineCtx CliLineCtx;
 typedef struct CliPathErrMsgKindCtx CliPathErrMsgKindCtx;
 typedef struct CliCapacityLogonCtx CliCapacityLogonCtx;
+typedef struct CliClockCivilCtx CliClockCivilCtx;
 typedef struct CliCapacityFoldersCtx CliCapacityFoldersCtx;
 typedef struct CliPathOutKindCtx CliPathOutKindCtx;
 typedef struct CliPidCtx CliPidCtx;
@@ -136,6 +137,19 @@ unsigned long long cli_clock_milliseconds(void);
 // `logon`, sized for `capacity`, empty where the system names none (platform/windows_system.c, platform/posix_system.c)
 unsigned long long cli_booted_seconds(void);
 void cli_logon_by_name(const CliCapacityLogonCtx *args);
+// A calendar reading in the machine's own zone: the year, the month and the day of the month counted from 1, the hour
+// and the minute
+typedef struct
+{
+    unsigned int year;
+    unsigned int month;
+    unsigned int day;
+    unsigned int hour;
+    unsigned int minute;
+} CliCivil;
+// the calendar reading of `seconds` since 1970 in the machine's own zone into `civil_out`, 1970's first moment where
+// the system does not read it (platform/windows_system.c, platform/posix_system.c)
+void cli_clock_civil(const CliClockCivilCtx *args);
 // the size of the file at `path` into `size`: 1, or 0 where it is not there; and the milliseconds since 1970 the wall
 // clock reads (platform/windows_files.c, platform/posix_files.c)
 int cli_file_size(const CliPathSizeCtx *args);
@@ -944,6 +958,12 @@ struct CliCapacityLogonCtx
 {
     size_t capacity_bytes;
     char *logon;
+};
+
+struct CliClockCivilCtx
+{
+    long long seconds;
+    CliCivil *civil_out;
 };
 
 struct CliCapacityFoldersCtx

@@ -324,6 +324,11 @@ int query_remove(const QueryPathSecondsCtx *args)
     }
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0u)
     {
+        // a file the system has as read-only, as git has its objects, is removed as any other
+        if ((attributes & FILE_ATTRIBUTE_READONLY) != 0u)
+        {
+            (void)SetFileAttributesA(args->path, attributes & ~(DWORD)FILE_ATTRIBUTE_READONLY);
+        }
         return DeleteFileA(args->path) != 0;
     }
     QueryRemoval removal = {args->path, 1};

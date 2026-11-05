@@ -169,7 +169,7 @@ int query_environment_read(const QueryNameValueCtx *args);
 int query_environment_write(const QueryNameOutCtx *args);
 // each entry of `folder` handed to `each` by its name, 1 where it is a folder; 0 where the folder could not be read
 int query_folder_each(const QueryFolderEachCtx *args);
-// `folder` made with every folder above it; the file or the folder at `path` removed whole
+// `folder` made with every folder above it; the file or the folder at `path` removed whole, a read-only file among them
 int query_folder_init(const QueryFolderContextCtx *args);
 int query_remove(const QueryPathSecondsCtx *args);
 // the file at `from` copied whole to `to`; moved to `to`, any file there replaced

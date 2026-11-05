@@ -1050,7 +1050,11 @@ void gui_raster_outline(const GuiRasterRadiusWorkCfg *args)
 
 void gui_raster_line(const GuiRasterColorX0Cfg *args)
 {
-    const GuiRect on = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster);
+    const GuiRect whole = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster);
+    const GuiRect on =
+        EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->clip)
+            ? whole
+            : EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->clip, .other = whole);
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
     const int step_x = (args->x1 > args->x0) ? 1 : -1;
     const int step_y = (args->y1 > args->y0) ? 1 : -1;
@@ -1398,8 +1402,12 @@ void gui_raster_dot(const GuiRasterColorCfg *args)
     const int top = (int)floorf(args->y_f32 - reach);
     const GuiRect square = {left, top, (int)ceilf(args->x_f32 + reach) - left + 1,
                             (int)ceilf(args->y_f32 + reach) - top + 1};
-    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
-                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
+    const GuiRect whole = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster);
+    const GuiRect on = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
+        .other = EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->clip)
+                     ? whole
+                     : EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->clip, .other = whole));
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         for (int column = on.x; column < on.x + on.width; column += 1)

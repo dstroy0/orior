@@ -55,19 +55,14 @@ EMBED_INLINE int search_sets_listed(const SearchCtx *args)
 static int search_head(const GuiPaneCfg *args)
 {
     (void)args;
-    return GUI_SEARCH_BOX + (EMBED_CALL(search_sets_listed, SearchCtx, .pane = args) ? GUI_SEARCH_SET : 0) +
+    return GUI_PANE_BOX + (EMBED_CALL(search_sets_listed, SearchCtx, .pane = args) ? GUI_PANE_CHOICE : 0) +
            GUI_SEARCH_REPORT;
 }
 
-// the field's rectangle in the head's `rect`, inside the row's padding
+// the field's rectangle, in the head's first row
 EMBED_INLINE GuiRect search_field_rect(const SearchCtx *args)
 {
-    const GuiPaneCfg *const pane = args->pane;
-    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
-    const int box_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_SEARCH_BOX_PAD);
-    return (GuiRect){pane->rect.x + pad, pane->rect.y + box_pad, pane->rect.width - (2 * pad),
-                     EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_SEARCH_BOX) -
-                         (2 * box_pad)};
+    return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = args->pane->rect.y);
 }
 
 // the rectangle of the choice `which` inside the field, the choices standing from the field's right edge inward in
@@ -102,9 +97,9 @@ EMBED_INLINE GuiRect search_option_rect(const SearchCtx *args)
 EMBED_INLINE GuiRect search_set_rect(const SearchCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
-    const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_SEARCH_BOX);
+    const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX);
     const int set = EMBED_CALL(search_sets_listed, SearchCtx, .pane = pane)
-                        ? EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_SEARCH_SET)
+                        ? EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_CHOICE)
                         : 0;
     return (GuiRect){pane->rect.x, pane->rect.y + box, pane->rect.width, set};
 }
@@ -116,28 +111,12 @@ EMBED_INLINE GuiRect search_report_rect(const SearchCtx *args)
                      EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane, .x = GUI_SEARCH_REPORT)};
 }
 
-// the head drawn: the field on the editor's ground inside a border, in signal while it has the keys, the query or what
-// the field reads while empty, the caret after the query while it has the keys, the choices at its right each lit
-// where on and on the line's ground where pointed, the set chosen under the field where sets are listed, and the report
+// the head drawn: the choices at the field's right each lit where on and on the line's ground where pointed, the field
+// with the query cut before them, the set chosen under the field where sets are listed, and the report
 static void search_head_draw(const GuiPaneCfg *args)
 {
-    GuiRaster *raster = args->raster;
-    const GuiFrame *const frame = args->frame;
     const GuiPalette *const palette = args->palette;
-    const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 1);
-    const unsigned int radius = (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 5);
     const GuiRect field = EMBED_CALL(search_field_rect, SearchCtx, .pane = args);
-    const int keys = args->pane_read->keys;
-    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = field, .other = args->clip),
-               .radius = radius, .color = GUI_FRAME_FADED(keys ? palette->signal : palette->line, frame->side_share));
-    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-               .rect = EMBED_CALL(
-                   gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                   .one = (GuiRect){field.x + one, field.y + one, field.width - (2 * one), field.height - (2 * one)},
-                   .other = args->clip),
-               .radius = (radius > (unsigned int)one) ? radius - (unsigned int)one : 0u,
-               .color = GUI_FRAME_FADED(palette->editor_background, frame->side_share));
     // the choices, and the field's text cut before them
     int text_right = field.x + field.width;
     for (unsigned int at = 0u; at < sizeof(s_options) / sizeof(s_options[0]); at += 1u)
@@ -145,29 +124,13 @@ static void search_head_draw(const GuiPaneCfg *args)
         const SearchOption *const option = &s_options[at];
         const GuiRect box = EMBED_CALL(search_option_rect, SearchCtx, .pane = args, .which = option->which);
         const int on = EMBED_CALL(cli_search_pane.on, CliSearchPaneCfg, .which = option->which);
+        const int pointed = args->pane_read->action == option->which;
         text_right = (box.x < text_right) ? box.x : text_right;
-        if (args->pane_read->action == option->which)
+        if (on || pointed)
         {
-            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-                       .rect =
-                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->clip),
-                       .radius = radius / 2u, .color = GUI_FRAME_FADED(palette->line, frame->side_share));
-        }
-        if (on)
-        {
-            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-                       .rect =
-                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->clip),
-                       .radius = radius / 2u, .color = GUI_FRAME_FADED(palette->signal, frame->side_share));
-            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-                       .rect = EMBED_CALL(
-                           gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                           .one = (GuiRect){box.x + one, box.y + one, box.width - (2 * one), box.height - (2 * one)},
-                           .other = args->clip),
-                       .radius = (radius / 2u > (unsigned int)one) ? (radius / 2u) - (unsigned int)one : 0u,
-                       .color = GUI_FRAME_FADED((args->pane_read->action == option->which) ? palette->line
-                                                                                           : palette->editor_background,
-                                                frame->side_share));
+            EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = args, .rect = box,
+                       .radius = GUI_SEARCH_OPTION_RADIUS, .color = on ? palette->signal : palette->line,
+                       .inside = pointed ? palette->line : palette->editor_background);
         }
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = option->label, .cap = 8ULL});
         const float width =
@@ -180,59 +143,23 @@ static void search_head_draw(const GuiPaneCfg *args)
     }
     unsigned long long query_length = 0ULL;
     const char *const query = EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &query_length);
-    const int field_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_SEARCH_FIELD_PAD);
-    const GuiRect text_clip = {field.x + one, field.y, text_right - field.x - one, field.height};
-    const float after = EMBED_CALL(
-        gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_CODE,
-        .size = GUI_SEARCH_FIELD_SIZE, .x_f32 = (float)(field.x + field_pad),
-        .text = (query_length != 0ULL) ? query : SEARCH_PLACEHOLDER,
-        .length = (query_length != 0ULL) ? query_length
-                                         : cellul.len(&(CatenaFinitaCfg){.src = SEARCH_PLACEHOLDER, .cap = 32ULL}),
-        .color = (query_length != 0ULL) ? palette->text : palette->text_3, .clip = text_clip);
-    if (keys)
-    {
-        const int caret_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_SEARCH_BOX_PAD);
-        // the caret stands after the query, at the field's start while the query is empty
-        const int caret_x = (query_length != 0ULL) ? (int)(after + 0.5f) : field.x + field_pad;
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){caret_x, field.y + caret_pad,
-                                                       EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args,
-                                                                  .x = GUI_SEARCH_CARET),
-                                                       field.height - (2 * caret_pad)},
-                                      .other = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                                          .one = text_clip, .other = args->clip)),
-                   .color = GUI_FRAME_FADED(palette->caret, frame->side_share));
-    }
-    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
+    EMBED_CALL(gui_pane_field.field_draw, GuiPaneFieldCfg, .pane = args, .rect = field, .right = text_right,
+               .text = query, .length = query_length, .placeholder = SEARCH_PLACEHOLDER, .keys = args->pane_read->keys);
     const GuiRect set = EMBED_CALL(search_set_rect, SearchCtx, .pane = args);
     if (set.height != 0)
     {
         unsigned int count = 0u;
         const char *const name = EMBED_CALL(cli_search_pane.set, CliSearchPaneCfg, .count_out = &count);
-        const GuiRect box = {set.x + pad, set.y + one, set.width - (2 * pad), set.height - (2 * one)};
-        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->clip),
-                   .radius = radius,
-                   .color =
-                       GUI_FRAME_FADED((args->pane_read->action == CLI_SEARCH_SET) ? palette->hover : palette->line,
-                                       frame->side_share));
-        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(
-                       gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                       .one = (GuiRect){box.x + one, box.y + one, box.width - (2 * one), box.height - (2 * one)},
-                       .other = args->clip),
-                   .radius = (radius > (unsigned int)one) ? radius - (unsigned int)one : 0u,
-                   .color = GUI_FRAME_FADED(palette->editor_background, frame->side_share));
-        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_HEAD,
-                         .size = GUI_SEARCH_REPORT_SIZE, .x_f32 = (float)(box.x + field_pad), .text = name,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_SEARCH_NAME_MAX}),
-                         .color = palette->text_2, .clip = box);
+        EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = args, .rect = set, .text = name,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_SEARCH_NAME_MAX}),
+                   .pointed = args->pane_read->action == CLI_SEARCH_SET);
     }
     char report[CLI_SEARCH_REPORT];
     const unsigned long long reported = EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .report = report);
     if (reported != 0ULL)
     {
+        const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
+        const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 1);
         (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_HEAD,
                          .size = GUI_SEARCH_REPORT_SIZE, .x_f32 = (float)(args->rect.x + pad + one), .text = report,
                          .length = reported, .color = palette->text_3,

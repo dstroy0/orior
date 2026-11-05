@@ -14,6 +14,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../machine/state.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliGitRootCfg CliGitRootCfg;
@@ -214,6 +215,147 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
     .read = cli_changes_read,
     .rows = cli_changes_rows,
     .row = cli_changes_row,
+};
+
+// The Git pane as the window reads it (git_log.c): the repository chosen among the tree's, the one the tree is in
+// until another is chosen, the branch it is on, every branch's commits as a graph, or those the query typed over the
+// graph finds in the whole history, and under a commit opened the files it changed. The rows: the branch's row with the
+// commits counted, a row a commit, and under one opened a row each file it changed, or the notice that none under the
+// tree did. The query rests CLI_GIT_LOG_REST_MS after a change before the graph is read again, the watch marks the
+// graph stale from its thread, and the authors setting, saved under `git.authors`, has each commit's author shown and
+// searched. The texts of the rows are copied into the pane's own cell, taken as the first read comes
+#define CLI_GIT_LOG_QUERY_MAX 256u
+#define CLI_GIT_LOG_REST_MS 250ULL
+#define CLI_GIT_LOG_DAY 11u
+// the rows' kinds; and the head's actions: the field, which takes the keys, and the repository choice, which moves on
+// to the next repository
+#define CLI_GIT_LOG_ROW_BRANCH 0u
+#define CLI_GIT_LOG_ROW_COMMIT 1u
+#define CLI_GIT_LOG_ROW_FILE 2u
+#define CLI_GIT_LOG_ROW_NONE 3u
+#define CLI_GIT_LOG_FIELD 1u
+#define CLI_GIT_LOG_REPO 2u
+// A row: its kind; its text, the branch's name, the commit's subject, the file's name or the notice, and its bytes; a
+// second text, the commits counted, the commit's author where authors show or the file's folder, and its bytes; a
+// file's path from the tree's top and its state letter; and a commit's id, its day as YYYY-MM-DD, whether its files
+// show, whether it merges, the column its dot stands in and the number of its line, how many columns its strokes
+// cross, its strokes, each [from, to, half, line] as the graph lays them, and how many branches and tags stand at it
+typedef struct
+{
+    unsigned int kind;
+    const char *text;
+    unsigned long long text_length;
+    const char *second;
+    unsigned long long second_length;
+    const char *path;
+    char state;
+    const char *id;
+    const char *day;
+    int open;
+    int merge;
+    unsigned int lane_at;
+    unsigned int color;
+    unsigned int across;
+    const unsigned int (*stroke)[4];
+    unsigned int strokes;
+    unsigned int refs;
+} CliGitLogRow;
+// A name at a commit: the branch's or the tag's text and its bytes, whether HEAD stands at it, and whether it is a tag
+typedef struct
+{
+    const char *name;
+    unsigned long long length;
+    int head;
+    int tag;
+} CliGitLogRef;
+typedef struct CliGitLogCfg CliGitLogCfg;
+// the pane begun: `woken` wakes the view's thread as the watch marks the graph stale, and `entries` restore the
+// authors setting
+void cli_git_log_begin(const CliGitLogCfg *args);
+// `size` bytes of `text` typed into the query at `now_ms`; and the key `name` pressed: Backspace erases the query's
+// last letter and Enter ends the rest, each 1, any other key 0
+void cli_git_log_type(const CliGitLogCfg *args);
+int cli_git_log_key(const CliGitLogCfg *args);
+// the head's action `which` taken at `now_ms` for the tree at `root`: the repository choice moves on to the next
+// repository and the graph is read again
+void cli_git_log_option(const CliGitLogCfg *args);
+// the authors setting turned `on` or off at `now_ms`, saved, the graph read again; and whether it is on
+void cli_git_log_authors_set(const CliGitLogCfg *args);
+int cli_git_log_authors(const CliGitLogCfg *args);
+// the query, its bytes into `length_out`; and the repository chosen as `name: branch`, how many the tree has into
+// `count_out`
+const char *cli_git_log_query(const CliGitLogCfg *args);
+const char *cli_git_log_repo(const CliGitLogCfg *args);
+// the repositories, the branch and the graph of the tree at `root` read now, as the pane shows; the step at `now_ms`
+// while the pane is `on`: the graph read again where the query's rest has passed or the watch marked it stale, 1 where
+// it was; when the rest passes, 0 where no change waits; and the graph marked stale from any thread
+void cli_git_log_relist(const CliGitLogCfg *args);
+int cli_git_log_step(const CliGitLogCfg *args);
+unsigned long long cli_git_log_deadline_ms(const CliGitLogCfg *args);
+void cli_git_log_stale(const CliGitLogCfg *args);
+// how many rows the pane has; the row `at` into `row`: 1, or 0 past the last; the branch or tag `which` at the commit
+// of the row `at` into `ref`: 1, or 0 past its last; and the commit of the row `at` opened or closed, its files read
+// from the tree at `root` as it first opens
+unsigned int cli_git_log_rows(const CliGitLogCfg *args);
+int cli_git_log_row(const CliGitLogCfg *args);
+int cli_git_log_ref(const CliGitLogCfg *args);
+void cli_git_log_toggle(const CliGitLogCfg *args);
+struct CliGitLogCfg
+{
+    void (*woken)(void);
+    const CliStateEntries *entries;
+    const char *text;
+    unsigned long long size;
+    const char *name;
+    unsigned int which;
+    int on;
+    const char *root;
+    unsigned long long now_ms;
+    unsigned int at;
+    CliGitLogRow *row;
+    CliGitLogRef *ref;
+    unsigned long long *length_out;
+    unsigned int *count_out;
+};
+
+typedef struct
+{
+    void (*begin)(const CliGitLogCfg *args);
+    void (*type)(const CliGitLogCfg *args);
+    int (*key)(const CliGitLogCfg *args);
+    void (*option)(const CliGitLogCfg *args);
+    void (*authors_set)(const CliGitLogCfg *args);
+    int (*authors)(const CliGitLogCfg *args);
+    const char *(*query)(const CliGitLogCfg *args);
+    const char *(*repo)(const CliGitLogCfg *args);
+    void (*relist)(const CliGitLogCfg *args);
+    int (*step)(const CliGitLogCfg *args);
+    unsigned long long (*deadline_ms)(const CliGitLogCfg *args);
+    void (*stale)(const CliGitLogCfg *args);
+    unsigned int (*rows)(const CliGitLogCfg *args);
+    int (*row)(const CliGitLogCfg *args);
+    int (*ref)(const CliGitLogCfg *args);
+    void (*toggle)(const CliGitLogCfg *args);
+} CliGitLogNs;
+EMBED_TABLE_LAYOUT(CliGitLogNs, begin, type, key, option, authors_set, authors, query, repo, relist, step, deadline_ms,
+                   stale, rows, row, ref, toggle);
+EMBED_TABLE_STORAGE CliGitLogNs cli_git_log EMBED_UNUSED = {
+    .begin = cli_git_log_begin,
+    .type = cli_git_log_type,
+    .key = cli_git_log_key,
+    .option = cli_git_log_option,
+    .authors_set = cli_git_log_authors_set,
+    .authors = cli_git_log_authors,
+    .query = cli_git_log_query,
+    .repo = cli_git_log_repo,
+    .relist = cli_git_log_relist,
+    .step = cli_git_log_step,
+    .deadline_ms = cli_git_log_deadline_ms,
+    .stale = cli_git_log_stale,
+    .rows = cli_git_log_rows,
+    .row = cli_git_log_row,
+    .ref = cli_git_log_ref,
+    .toggle = cli_git_log_toggle,
 };
 
 // the commit the tree at `root` stands at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,

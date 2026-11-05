@@ -18,6 +18,7 @@
 typedef struct GuiPaneCfg GuiPaneCfg;
 typedef struct GuiPaneKind GuiPaneKind;
 typedef struct GuiPanePartCfg GuiPanePartCfg;
+typedef struct GuiPaneFieldCfg GuiPaneFieldCfg;
 
 // no row; the most tools the side has a pane for; and the sizes in the page's pixels: the side's head with the group's
 // title, the line under it, the pane's head, a row, a row's padding at the left, a guide's width, the arrow's side,
@@ -34,6 +35,18 @@ typedef struct GuiPanePartCfg GuiPanePartCfg;
 #define GUI_PANE_SIDE_HEAD_SIZE 12u
 #define GUI_PANE_HEAD_SIZE 12u
 #define GUI_PANE_ROW_SIZE 13u
+
+// the sizes in the page's pixels of what a kind's head stands under the pane's head: a field's row, the field's padding
+// inside its row and its text's padding inside its border, its corners' radius, the caret's width, a choice's row, and
+// the text sizes of the field and of a choice
+#define GUI_PANE_BOX 30
+#define GUI_PANE_BOX_PAD 4
+#define GUI_PANE_FIELD_PAD 8
+#define GUI_PANE_RADIUS 5
+#define GUI_PANE_CARET 2
+#define GUI_PANE_CHOICE 24
+#define GUI_PANE_FIELD_SIZE 12u
+#define GUI_PANE_CHOICE_SIZE 12u
 
 // the events a kind reads its data on: its pane shown, the view shown or edited, and a file saved
 #define GUI_PANE_SHOWN 1u
@@ -191,6 +204,47 @@ EMBED_TABLE_STORAGE GuiPanePartNs gui_pane_part EMBED_UNUSED = {
     .scaled = gui_pane_part_scaled,
     .text_width = gui_pane_part_text_width,
     .text_draw = gui_pane_part_text_draw,
+};
+
+// what a kind stands in its head: a box `rect` with its corners rounded by `radius` page pixels drawn in `color` with
+// its inside, one page pixel in from its border, in `inside`, each cut to the pane's clip; the rectangle of a field in
+// the field's row at `y`, inside the row's padding; the field `rect` drawn, on the editor's ground inside a border in
+// signal while it has the `keys`, with `length` bytes of `text` or `placeholder` quieter while the text is empty, the
+// text cut before `right`, and the caret after the text while it has the keys; and the choice drawn in its row `rect`,
+// a box on the line's ground, on the hover's where `pointed`, with `length` bytes of `text`
+void gui_pane_box_draw(const GuiPaneFieldCfg *args);
+GuiRect gui_pane_field_rect(const GuiPaneFieldCfg *args);
+void gui_pane_field_draw(const GuiPaneFieldCfg *args);
+void gui_pane_choice_draw(const GuiPaneFieldCfg *args);
+struct GuiPaneFieldCfg
+{
+    const GuiPaneCfg *pane;
+    int y;
+    GuiRect rect;
+    int radius;
+    GuiColor color;
+    GuiColor inside;
+    int right;
+    const char *text;
+    unsigned long long length;
+    const char *placeholder;
+    int keys;
+    int pointed;
+};
+
+typedef struct
+{
+    void (*box_draw)(const GuiPaneFieldCfg *args);
+    GuiRect (*field_rect)(const GuiPaneFieldCfg *args);
+    void (*field_draw)(const GuiPaneFieldCfg *args);
+    void (*choice_draw)(const GuiPaneFieldCfg *args);
+} GuiPaneFieldNs;
+EMBED_TABLE_LAYOUT(GuiPaneFieldNs, box_draw, field_rect, field_draw, choice_draw);
+EMBED_TABLE_STORAGE GuiPaneFieldNs gui_pane_field EMBED_UNUSED = {
+    .box_draw = gui_pane_box_draw,
+    .field_rect = gui_pane_field_rect,
+    .field_draw = gui_pane_field_draw,
+    .choice_draw = gui_pane_choice_draw,
 };
 
 typedef struct

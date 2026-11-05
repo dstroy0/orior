@@ -148,6 +148,8 @@ void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args);
 // `rect` grained inside its corners rounded by `radius`: each pixel blended with white by the alpha the tile of
 // `alpha` bytes, `tile` a side, gives it, the tile laid from the raster's own top left and repeated
 void gui_raster_grain(const GuiRasterRectRadiusCfg *args);
+// a line from x0, y0 to x1, y1, each pixel on it blended in `color` by the color's alpha, cut to `clip` where `clip` is
+// not empty
 void gui_raster_line(const GuiRasterColorX0Cfg *args);
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster
@@ -180,7 +182,8 @@ void gui_raster_picture_layout(const GuiRasterXCfg *args);
 unsigned int gui_raster_order(const GuiRasterRectCfg *args);
 // a dot about x, y of `radius`, each in pixels, soft-edged: each pixel takes `color` by the color's alpha and the
 // pixel's share inside the dot, a pixel-wide ramp from all of it at the dot's edge to none a pixel out, the share
-// dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both
+// dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both,
+// cut to `clip` where `clip` is not empty
 void gui_raster_dot(const GuiRasterColorCfg *args);
 struct GuiRasterWidthXCfg
 {
@@ -227,6 +230,7 @@ struct GuiRasterColorX0Cfg
     int y0;
     int x1;
     int y1;
+    GuiRect clip;
 };
 
 struct GuiRasterXYColorCfg
@@ -266,6 +270,7 @@ struct GuiRasterColorCfg
     float x_f32;
     float y_f32;
     float radius_f32;
+    GuiRect clip;
 };
 
 struct GuiRasterRectRadiusCfg

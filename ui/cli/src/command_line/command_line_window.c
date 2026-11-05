@@ -8,6 +8,7 @@
 // they are done. A file git leaves out, as a build's output is, is shown in the tree and not checked
 #include "command_line.h"
 
+#include "../code/git.h"
 #include "../code/symbols.h"
 #include "../debug/debug.h"
 #include "../editor/files.h"
@@ -87,10 +88,11 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     {
         EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = root);
     }
-    // what the Search pane found is found again as files git sees change
+    // what the Search pane found is found again, and the Git pane's graph read again, as files git sees change
     if (args->git || args->lost)
     {
         EMBED_CALL(cli_search_pane.stale, CliSearchPaneCfg, .at = 0u);
+        EMBED_CALL(cli_git_log.stale, CliGitLogCfg, .at = 0u);
     }
     const unsigned int files = args->files->count;
     for (unsigned int at = 0u; at < files; at += 1u)

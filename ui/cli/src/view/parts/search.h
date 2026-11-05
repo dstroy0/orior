@@ -12,20 +12,14 @@
 #define GUI_PARTS_SEARCH_H
 #include "pane.h"
 
-// the sizes in the page's pixels: the field's row, the field's padding inside its row and inside its border, a
-// choice's padding across and the gap between choices, the set row, the report row, a count pill's padding, the
-// caret's width, the text sizes of the field, the choices, the report and a line found, and the bytes of a line shown
-// before its match where the match stands past the lead
-#define GUI_SEARCH_BOX 30
-#define GUI_SEARCH_BOX_PAD 4
-#define GUI_SEARCH_FIELD_PAD 8
+// the sizes in the page's pixels: a choice's padding across, the gap between choices and the radius of a choice's
+// corners, the report row, a count pill's padding, the text sizes of the choices, the report and a line found, and the
+// bytes of a line shown before its match where the match stands past the lead
 #define GUI_SEARCH_OPTION_PAD 5
 #define GUI_SEARCH_OPTION_GAP 2
-#define GUI_SEARCH_SET 24
+#define GUI_SEARCH_OPTION_RADIUS 2
 #define GUI_SEARCH_REPORT 20
 #define GUI_SEARCH_COUNT_PAD 6
-#define GUI_SEARCH_CARET 2
-#define GUI_SEARCH_FIELD_SIZE 12u
 #define GUI_SEARCH_OPTION_SIZE 11u
 #define GUI_SEARCH_REPORT_SIZE 12u
 #define GUI_SEARCH_HIT_SIZE 12u

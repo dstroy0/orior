@@ -7,6 +7,7 @@
 // the editor takes the keys, the settings it draws with and the rows' scroll offsets and the marks the pointer leaves
 // on them
 #include "window.h"
+#include "../code/git.h"
 #include "../command_line/callback_cfg.h"
 
 #include "../command_line/cells.h"
@@ -19,6 +20,7 @@
 #include "../tests/testing.h"
 #include "../text/text.h"
 #include "parts/chrome.h"
+#include "parts/git.h"
 #include "parts/runs.h"
 
 // orior's repository, a press on the name opening it; the keys of orior's folder the settings, the session's wordmark
@@ -26,6 +28,7 @@
 // most bytes of a log in
 #define GUI_WINDOW_REPOSITORY "https://github.com/dstroy0/orior"
 #define GUI_WINDOW_REDUCE_KEY "reduce-motion"
+#define GUI_WINDOW_AUTHORS_KEY "git-authors"
 #define GUI_WINDOW_ZOOM_KEY "zoom"
 #define GUI_WINDOW_BAR_KEY "opacity.bar"
 #define GUI_WINDOW_EDITOR_KEY "opacity.editor"
@@ -45,7 +48,7 @@ static const char *const s_view_commands[] = {"sort-ascending", "sort-descending
 static const char *const s_own_commands[] = {
     "exit",           "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",   "terminal-view",
     "toggle",         "new",          "split",     "clear",       "kill",          "terminal-copy", "terminal-paste",
-    "terminal-close", "save",         "save-all"};
+    "terminal-close", "save",         "save-all",  "git-authors"};
 
 // the window, which the menus' answers and the walk's threads reach; and whether the walk colored a line since the
 // window last took the frame, set on the walk's threads, and what wakes the view's thread
@@ -118,6 +121,7 @@ typedef struct
     int starting;
     unsigned int event;
     const CliItem *item;
+    const GuiPaneKind *kind_read;
 } GuiWindowCtx;
 
 void gui_window_end(const GuiWindowCfg *args)
@@ -203,10 +207,10 @@ EMBED_INLINE const GuiPane *window_pane_read(const GuiWindowCtx *args)
                                                                   : 0u];
 }
 
-// whether the Runs pane is in sight: its tool's window the side's, and the side not collapsed
-EMBED_INLINE int window_runs_shown(const GuiWindowCtx *args)
+// whether the pane of `kind_read` is in sight: its tool's window the side's, and the side not collapsed
+EMBED_INLINE int window_kind_shown(const GuiWindowCtx *args)
 {
-    return (window_pane_kind(args) == &gui_runs_kind) && !args->window_read->strip.collapsed;
+    return (window_pane_kind(args) == args->kind_read) && !args->window_read->strip.collapsed;
 }
 
 // the rows the editor shows, and the columns
@@ -917,8 +921,10 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         g_cli_menus_open.rest_due_ms,
         window->memory_due_ms,
         EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
-                   .shown = EMBED_CALL(window_runs_shown, GuiWindowCtx, .window_read = window)),
+                   .shown =
+                       EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window, .kind_read = &gui_runs_kind)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
+        EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -1553,6 +1559,10 @@ static int window_item_checked(const CliItem *item)
     {
         return cli_notices_focused();
     }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = GUI_WINDOW_AUTHORS_KEY))
+    {
+        return EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u);
+    }
     return cli_terminal_tabs_checked(checks);
 }
 
@@ -1628,6 +1638,17 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_REDUCE_KEY,
                    .value = window->motion_saved ? "true" : "false");
         EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 0);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_AUTHORS_KEY))
+    {
+        // on or off by its word, else turned from what the Git pane shows
+        const char *const word = (args->count != 0u) ? args->words[0] : "";
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "off");
+        EMBED_CALL(cli_git_log.authors_set, CliGitLogCfg,
+                   .on = on || (!off && !EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u)),
+                   .now_ms = cli_clock_milliseconds());
+        window->pending = 1;
     }
     else if (cli_terminal_tabs_command(name, args->words, args->count))
     {
@@ -1859,6 +1880,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
+    EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -1923,16 +1945,22 @@ void gui_window_step(const GuiWindowCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     // the query runs listed and the opened live runs read on their beats, the strip's Runs mark following
     if (EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
-                   .shown = EMBED_CALL(window_runs_shown, GuiWindowCtx, .window_read = window)))
+                   .shown =
+                       EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window, .kind_read = &gui_runs_kind)))
     {
         EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &window->strip.runs_live,
                    .panicked_out = &window->strip.runs_panicked);
         window->pending = 1;
     }
-    // the Search pane's query searched as its rest passes or as the watch marks what it found stale
+    // the Search pane's query searched as its rest passes or as the watch marks what it found stale, and the Git
+    // pane's graph read again the same way while it is in sight
     window->pending =
         EMBED_CALL(cli_search_pane.step, CliSearchPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms) ||
         window->pending;
+    window->pending = EMBED_CALL(cli_git_log.step, CliGitLogCfg, .root = cli_command_line_root(), .now_ms = now_ms,
+                                 .on = EMBED_CALL(window_kind_shown, GuiWindowCtx, .window_read = window,
+                                                  .kind_read = &gui_git_kind)) ||
+                      window->pending;
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;

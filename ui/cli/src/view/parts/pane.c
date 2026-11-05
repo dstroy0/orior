@@ -7,6 +7,7 @@
 #include "../../command_line/cli_internal.h"
 #include "changes.h"
 #include "explorer.h"
+#include "git.h"
 #include "problems.h"
 #include "runs.h"
 #include "search.h"
@@ -16,7 +17,7 @@
 // the kinds, one a tool that has a pane
 static const GuiPaneKind *const s_kinds[] = {
     &gui_explorer_kind, &gui_search_kind, &gui_problems_kind, &gui_structure_kind,
-    &gui_changes_kind,  &gui_tests_kind,  &gui_runs_kind,
+    &gui_changes_kind,  &gui_tests_kind,  &gui_git_kind,      &gui_runs_kind,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)
@@ -417,6 +418,86 @@ float gui_pane_part_text_draw(const GuiPanePartCfg *args)
                       .clip = args->clipped ? EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                                          .one = args->clip, .other = pane->clip)
                                             : pane->clip);
+}
+
+void gui_pane_box_draw(const GuiPaneFieldCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiRect rect = args->rect;
+    const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = 1);
+    const unsigned int radius =
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = args->radius);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = pane->raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = pane->clip),
+               .radius = radius, .color = GUI_FRAME_FADED(args->color, pane->frame->side_share));
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = pane->raster,
+               .rect = EMBED_CALL(
+                   gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){rect.x + one, rect.y + one, rect.width - (2 * one), rect.height - (2 * one)},
+                   .other = pane->clip),
+               .radius = (radius > (unsigned int)one) ? radius - (unsigned int)one : 0u,
+               .color = GUI_FRAME_FADED(args->inside, pane->frame->side_share));
+}
+
+GuiRect gui_pane_field_rect(const GuiPaneFieldCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
+    const int box_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX_PAD);
+    return (GuiRect){pane->rect.x + pad, args->y + box_pad, pane->rect.width - (2 * pad),
+                     EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX) - (2 * box_pad)};
+}
+
+void gui_pane_field_draw(const GuiPaneFieldCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiPalette *const palette = pane->palette;
+    const GuiRect field = args->rect;
+    const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = 1);
+    EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = pane, .rect = field, .radius = GUI_PANE_RADIUS,
+               .color = args->keys ? palette->signal : palette->line, .inside = palette->editor_background);
+    const int field_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_FIELD_PAD);
+    const GuiRect text_clip = {field.x + one, field.y, args->right - field.x - one, field.height};
+    const int empty = args->length == 0ULL;
+    const float after = EMBED_CALL(
+        gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_CODE,
+        .size = GUI_PANE_FIELD_SIZE, .x_f32 = (float)(field.x + field_pad),
+        .text = empty ? args->placeholder : args->text,
+        .length = empty ? cellul.len(&(CatenaFinitaCfg){.src = args->placeholder, .cap = 64ULL}) : args->length,
+        .color = empty ? palette->text_3 : palette->text, .clip = text_clip);
+    if (!args->keys)
+    {
+        return;
+    }
+    // the caret stands after the text, at the field's start while the text is empty
+    const int caret_pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_BOX_PAD);
+    const int caret_x = empty ? field.x + field_pad : (int)(after + 0.5f);
+    EMBED_CALL(
+        gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = pane->raster,
+        .rect = EMBED_CALL(
+            gui_raster_one.rect_intersect, GuiRasterOneCfg,
+            .one = (GuiRect){caret_x, field.y + caret_pad,
+                             EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_CARET),
+                             field.height - (2 * caret_pad)},
+            .other = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = text_clip, .other = pane->clip)),
+        .color = GUI_FRAME_FADED(palette->caret, pane->frame->side_share));
+}
+
+void gui_pane_choice_draw(const GuiPaneFieldCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const GuiPalette *const palette = pane->palette;
+    const GuiRect row = args->rect;
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
+    const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = 1);
+    const GuiRect box = {row.x + pad, row.y + one, row.width - (2 * pad), row.height - (2 * one)};
+    EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = pane, .rect = box, .radius = GUI_PANE_RADIUS,
+               .color = args->pointed ? palette->hover : palette->line, .inside = palette->editor_background);
+    (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .clipped = 1, .face = GUI_FACE_HEAD,
+                     .size = GUI_PANE_CHOICE_SIZE,
+                     .x_f32 = (float)(box.x + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane,
+                                                         .x = GUI_PANE_FIELD_PAD)),
+                     .text = args->text, .length = args->length, .color = palette->text_2, .clip = box);
 }
 
 int gui_pane_key(const GuiPaneCfg *args)

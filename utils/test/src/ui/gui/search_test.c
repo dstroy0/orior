@@ -155,10 +155,10 @@ int main(void)
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .kind = kind, .frame = &frame);
-    cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_SEARCH_BOX +
+    cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX +
                               GUI_SEARCH_REPORT,
               "the rows stand under the pane's head, the field and the report, no set listed");
-    const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_SEARCH_BOX / 2);
+    const int field_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_BOX / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + GUI_PANE_PAD_LEFT + 20, .y = field_y) == CLI_SEARCH_FIELD,
               "a press in the field lands on it");

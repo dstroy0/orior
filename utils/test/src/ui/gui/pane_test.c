@@ -51,11 +51,11 @@ int main(void)
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
 
-    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "git") == NULL, "a tool without a pane has no kind");
+    cli_check(EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "debug") == NULL, "a tool without a pane has no kind");
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = NULL, .pane_read = &pane, .frame = &frame, .raster = &raster,
-               .glyphs = &glyphs, .icons = &icons, .palette = palette, .title = "Git", .tree = "");
+               .glyphs = &glyphs, .icons = &icons, .palette = palette, .title = "Debug", .tree = "");
     cli_check(1, "the side draws its title alone for a tool without a pane");
 
     static char s_root[CLI_PATH_MAX_LEN];

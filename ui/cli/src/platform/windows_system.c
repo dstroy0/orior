@@ -106,6 +106,24 @@ unsigned long long cli_booted_seconds(void)
     return (seconds > running) ? seconds - running : 0ull;
 }
 
+void cli_clock_civil(const CliClockCivilCtx *args)
+{
+    CliCivil *const civil = args->civil_out;
+    *civil = (CliCivil){1970u, 1u, 1u, 0u, 0u};
+    // a reading before 1970 is read as 1970, which is not negative
+    const unsigned long long since = (args->seconds > 0LL) ? (unsigned long long)args->seconds : 0ULL;
+    const unsigned long long ticks = (since + CLI_SYSTEM_EPOCH_SECONDS) * CLI_SYSTEM_TICKS_SECOND;
+    // the ticks split into the clock's two 32-bit halves
+    const FILETIME file = {(DWORD)(ticks & 0xFFFFFFFFULL), (DWORD)(ticks >> 32u)};
+    SYSTEMTIME universal;
+    SYSTEMTIME local;
+    if (!FileTimeToSystemTime(&file, &universal) || !SystemTimeToTzSpecificLocalTime(NULL, &universal, &local))
+    {
+        return;
+    }
+    *civil = (CliCivil){local.wYear, local.wMonth, local.wDay, local.wHour, local.wMinute};
+}
+
 // the logon session this process's token stands in, which every log in makes new, its id written in hexadecimal
 void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
