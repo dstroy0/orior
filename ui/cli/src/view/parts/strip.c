@@ -33,6 +33,7 @@ void gui_strip_init(const GuiStripInitCfg *args)
 {
     args->strip->pointed = GUI_STRIP_NONE;
     args->strip->displayed = GUI_STRIP_NONE;
+    args->strip->foot = GUI_STRIP_NONE;
     args->strip->collapsed = 0;
     args->strip->problems_marked = 0;
     args->strip->runs_live = 0u;
@@ -128,6 +129,7 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
         }
         // the tools are fewer than an int counts
         const int displayed = ((args->strip_read->displayed == (int)at) && !args->strip_read->collapsed) ||
+                              (args->strip_read->foot == (int)at) ||
                               (args->strip_read->terminal_open && (at == args->strip_read->terminal_at));
         const int pointed = args->strip_read->pointed == (int)at;
         if (pointed)

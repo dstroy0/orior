@@ -53,15 +53,17 @@ typedef struct
 extern const CliTool g_cli_tools[];
 extern const unsigned int g_cli_tools_count;
 
-// The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; whether
-// that tool's side pane has collapsed, its width back to the editor, the tool unlit while it stands so; whether the
-// Problems tool is marked, as it is while errors stand; how many query runs are live and how many of those have
-// panicked, which mark the Runs tool; and whether the terminal's panel is open, which shows the Terminal tool, at
-// `terminal_at` among the tools, as the tool whose window shows is
+// The strip: the tool the pointer stands on, the tool whose side window shows and the footer tool whose pane stands in
+// the panel at the work's foot, each GUI_STRIP_NONE for none; whether the side tool's pane has collapsed, its width
+// back to the editor, the tool unlit while it stands so; whether the Problems tool is marked, as it is while errors
+// stand; how many query runs are live and how many of those have panicked, which mark the Runs tool; and whether the
+// terminal's panel is open, which shows the Terminal tool, at `terminal_at` among the tools, as the tool whose window
+// shows is
 typedef struct
 {
     int pointed;
     int displayed;
+    int foot;
     int collapsed;
     int problems_marked;
     unsigned int runs_live;
