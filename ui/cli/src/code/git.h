@@ -107,11 +107,12 @@ typedef struct
     CliGitText text;
 } CliRepositories;
 
-// A file that differs from the last commit. Its state is one letter: M changed, A added, D gone, R renamed, U not yet
-// tracked, C in conflict
+// A file that differs from the last commit: its path from the tree's top, the place of its name in that path, and its
+// state, one letter: M changed, A added, D gone, R renamed, U not yet tracked, C in conflict
 typedef struct
 {
     unsigned int path;
+    unsigned int name;
     char state;
 } CliChanged;
 
@@ -255,7 +256,7 @@ typedef struct
     const char *path;
     char state;
     const char *id;
-    char day[CLI_GIT_LOG_DAY];
+    const char *day;
     int open;
     int merge;
     unsigned int lane_at;
@@ -301,7 +302,8 @@ void cli_git_log_stale(const CliGitLogCfg *args);
 // how many rows the pane has; the row `at` into `row`: 1, or 0 past the last; the branch or tag `which` at the commit
 // of the row `at` into `ref`: 1, or 0 past its last; the commit of the row `at` opened or closed, its files read from
 // the tree at `root` as it first opens, and the commit whose id is `name` the same: 1, or 0 where the graph has none;
-// the message of the commit whose id is `name` into `out`: 1, or 0 where git has none; and the menu of the row `at`
+// the message of the commit whose id is `name` into `out`, read from the tree at `root`: 1, or 0 where git has none;
+// and the menu of the row `at`
 // built as the menus' own rows, a commit's Open Files or Close Files, Copy Commit ID and Copy Commit Message, a file's
 // Copy Path: 1, or 0 where the row has none
 unsigned int cli_git_log_rows(const CliGitLogCfg *args);
@@ -459,7 +461,7 @@ int cli_git_new_by(const CliGitRootIdCfg *args);
 // branches and tags that stand at it, and its subject. `lane` is the column its dot stands in and `color` the number of
 // the line it is on. Its strokes are `stroke_count` from `first_stroke` of the graph's, each `[from, to, half, color]`:
 // from column `from` at the row's top to column `to` at its middle where `half` is 0, from `from` at the middle to `to`
-// at the bottom where it is 1
+// at the bottom where it is 1. `across` is how many columns the row crosses, the dot's and every stroke's ends
 typedef struct
 {
     unsigned int id;
@@ -474,6 +476,7 @@ typedef struct
     unsigned int color;
     unsigned int first_stroke;
     unsigned int stroke_count;
+    unsigned int across;
 } CliDrawn;
 
 typedef struct

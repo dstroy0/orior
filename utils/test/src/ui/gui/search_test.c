@@ -44,8 +44,8 @@ static int row_is(unsigned int at, unsigned int kind, const char *text, CliSearc
 // whether the report reads `text`
 static int report_is(const char *text)
 {
-    char report[CLI_SEARCH_REPORT];
-    (void)EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .report = report);
+    unsigned long long length = 0ULL;
+    const char *const report = EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .length_out = &length);
     return strcmp(report, text) == 0;
 }
 

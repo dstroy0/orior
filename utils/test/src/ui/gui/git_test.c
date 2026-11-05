@@ -266,7 +266,7 @@ int main(void)
               "the branch's row has no menu");
     char message_text[1024];
     VerbaLinea message = {message_text, sizeof(message_text), 0ULL};
-    cli_check(EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = id, .out = &message) &&
+    cli_check(EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = id, .out = &message, .root = s_root) &&
                   mmgr_line_finish(&message) && (strncmp(message_text, "second commit", 13u) == 0),
               "the commit's message is read by its id");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);

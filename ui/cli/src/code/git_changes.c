@@ -10,37 +10,15 @@
 // the list, standing between the window's frames until the next read
 static CliChangedList s_changed;
 
-typedef struct
-{
-    const char *path;
-} ChangesCtx;
-
-// where the name of `path` starts: the byte after its last slash, 0 where it has none
-EMBED_INLINE unsigned long long changes_name_at(const ChangesCtx *args)
-{
-    unsigned long long cut = 0ULL;
-    for (unsigned long long at = 0ULL; args->path[at] != '\0'; at += 1ULL)
-    {
-        cut = (args->path[at] == '/') ? at + 1ULL : cut;
-    }
-    return cut;
-}
-
 void cli_changes_read(const CliGitChangesCfg *args)
 {
-    if (s_changed.text.bytes != NULL)
-    {
-        g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
-        s_changed.text.bytes = NULL;
-        s_changed.text.used = 0ULL;
-        s_changed.text.capacity = 0ULL;
-    }
+    g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
+    s_changed.text = (CliGitText){NULL, 0ULL, 0ULL, 0, 1};
     s_changed.count = 0u;
     if (args->root == NULL)
     {
         return;
     }
-    s_changed.text.standing = 1;
     EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = args->root, .named = 0,
                .found_changed_list_pointer = &s_changed);
 }
@@ -60,8 +38,8 @@ int cli_changes_row(const CliGitChangesCfg *args)
     const CliChanged *const changed = &s_changed.item[args->at];
     const char *const path =
         EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_changed.text, .at = changed->path);
-    const unsigned long long cut = EMBED_CALL(changes_name_at, ChangesCtx, .path = path);
-    *args->row = (CliChangedRow){path, path + cut, (cut > 0ULL) ? cut - 1ULL : 0ULL, changed->state};
+    *args->row =
+        (CliChangedRow){path, path + changed->name, (changed->name > 0u) ? changed->name - 1u : 0u, changed->state};
     return 1;
 }
 

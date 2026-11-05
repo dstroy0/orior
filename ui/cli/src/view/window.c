@@ -1686,7 +1686,9 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
     {
         char text[GUI_WINDOW_MESSAGE_MAX];
         VerbaLinea out = {text, sizeof(text), 0ULL};
-        if ((args->count != 0u) && EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = first, .out = &out) &&
+        if ((args->count != 0u) &&
+            EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = first, .out = &out,
+                       .root = cli_command_line_root()) &&
             mmgr_line_finish(&out))
         {
             EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = text);

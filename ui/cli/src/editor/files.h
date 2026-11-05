@@ -697,7 +697,7 @@ void cli_search_pane_type(const CliSearchPaneCfg *args);
 int cli_search_pane_key(const CliSearchPaneCfg *args);
 void cli_search_pane_option(const CliSearchPaneCfg *args);
 // whether the choice `which` is on; the query with its bytes into `length_out`; and the set chosen's name, Whole tree
-// where none is, with how many sets Preferences lists into `count_out`
+// where none is, with its bytes into `length_out` and how many sets Preferences lists into `count_out`
 int cli_search_pane_on(const CliSearchPaneCfg *args);
 const char *cli_search_pane_query(const CliSearchPaneCfg *args);
 const char *cli_search_pane_set(const CliSearchPaneCfg *args);
@@ -708,12 +708,12 @@ int cli_search_pane_step(const CliSearchPaneCfg *args);
 unsigned long long cli_search_pane_deadline_ms(const CliSearchPaneCfg *args);
 void cli_search_pane_stale(const CliSearchPaneCfg *args);
 // how many rows there are; the row `at` into `row`: 1, or 0 past the last; the file row `at` closed or opened; and the
-// report into `report`, sized CLI_SEARCH_REPORT: the results and files counted, that none were found, or why the
-// search failed: its bytes, 0 where the query is empty
+// report with its bytes into `length_out`: the results and files counted, that none were found, or why the search
+// failed, empty where the query is
 unsigned int cli_search_pane_rows(const CliSearchPaneCfg *args);
 int cli_search_pane_row(const CliSearchPaneCfg *args);
 void cli_search_pane_toggle(const CliSearchPaneCfg *args);
-unsigned long long cli_search_pane_report(const CliSearchPaneCfg *args);
+const char *cli_search_pane_report(const CliSearchPaneCfg *args);
 struct CliSearchPaneCfg
 {
     void (*woken)(void);
@@ -728,7 +728,6 @@ struct CliSearchPaneCfg
     CliSearchRow *row;
     unsigned long long *length_out;
     unsigned int *count_out;
-    char *report;
 };
 
 typedef struct
@@ -746,7 +745,7 @@ typedef struct
     unsigned int (*rows)(const CliSearchPaneCfg *args);
     int (*row)(const CliSearchPaneCfg *args);
     void (*toggle)(const CliSearchPaneCfg *args);
-    unsigned long long (*report)(const CliSearchPaneCfg *args);
+    const char *(*report)(const CliSearchPaneCfg *args);
 } CliSearchPaneNs;
 EMBED_TABLE_LAYOUT(CliSearchPaneNs, begin, type, key, option, on, query, set, step, deadline_ms, stale, rows, row,
                    toggle, report);

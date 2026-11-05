@@ -294,6 +294,9 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
                     cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = path, .length = size);
                 args->found->item[args->found->count].state =
                     EMBED_CALL(cli_git_index_internal.state_get, CliGitIndexCtx, .index_value = index, .tree = tree);
+                // the name's place is below CLI_PATH_MAX_LEN, which an unsigned int counts
+                args->found->item[args->found->count].name = (unsigned int)EMBED_CALL(
+                    cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = size, .set = "/");
                 args->found->count += 1u;
             }
         }

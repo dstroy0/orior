@@ -38,9 +38,9 @@ typedef struct
     void (*each)(const CliEachHitCfg *args);
     void *context;
     int standing;
-    const CliSearchHit *ordered[CLI_HITS_MAX];
+    const CliSearchHit **ordered;
     unsigned int found;
-    unsigned int file_first[CLI_HITS_MAX];
+    unsigned int *file_first;
     unsigned int files;
 } CliSearch;
 
@@ -223,10 +223,25 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
     VerbaLinea *out = args->out;
     s_search.found = 0u;
     s_search.files = 0u;
+    if (s_search.standing)
+    {
+        // one cell for the lines standing after the search, each line's place and each file's first line, sized to
+        // the lines the stores have
+        unsigned int count = 0u;
+        for (unsigned int store = 0u; store < s_search.stores; store += 1u)
+        {
+            count += s_search.hits[store].lives;
+        }
+        count = (count < CLI_HITS_MAX) ? count : CLI_HITS_MAX;
+        s_search.ordered = g_cli_cells->persistent_buf_alloc(
+            (unsigned long long)count * (sizeof(const CliSearchHit *) + sizeof(unsigned int)), &g_cli_search_cells);
+        s_search.file_first = (s_search.ordered != NULL) ? (unsigned int *)(void *)(s_search.ordered + count) : NULL;
+    }
     if ((out != NULL) && !s_search.standing)
     {
         mmgr_line_ch(out, '[');
     }
+    unsigned int file = 0u;
     for (unsigned int at = 0u; at < CLI_HITS_MAX; at += 1u)
     {
         const CliSearchHit *const hit = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg,
@@ -235,14 +250,21 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
         {
             break;
         }
-        if ((s_search.found == 0u) || (hit->file != s_search.ordered[s_search.found - 1u]->file))
+        if (s_search.standing)
         {
-            s_search.file_first[s_search.files] = s_search.found;
-            s_search.files += 1u;
+            if (s_search.ordered != NULL)
+            {
+                if ((at == 0u) || (hit->file != file))
+                {
+                    s_search.file_first[s_search.files] = at;
+                    s_search.files += 1u;
+                    file = hit->file;
+                }
+                s_search.ordered[at] = hit;
+                s_search.found = at + 1u;
+            }
         }
-        s_search.ordered[s_search.found] = hit;
-        s_search.found += 1u;
-        if (!s_search.standing)
+        else
         {
             EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = at == 0u,
                        .path = EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx,
@@ -297,6 +319,9 @@ void cli_search_standing_free(void)
         s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0};
     }
     EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
+    g_cli_cells->persistent_buf_release(s_search.ordered, &g_cli_search_cells);
+    s_search.ordered = NULL;
+    s_search.file_first = NULL;
     s_search.found = 0u;
     s_search.files = 0u;
     s_search.standing = 0;

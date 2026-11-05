@@ -47,7 +47,8 @@ EMBED_INLINE int search_sets_listed(const SearchCtx *args)
 {
     (void)args;
     unsigned int count = 0u;
-    (void)EMBED_CALL(cli_search_pane.set, CliSearchPaneCfg, .count_out = &count);
+    unsigned long long length = 0ULL;
+    (void)EMBED_CALL(cli_search_pane.set, CliSearchPaneCfg, .count_out = &count, .length_out = &length);
     return count != 0u;
 }
 
@@ -149,13 +150,14 @@ static void search_head_draw(const GuiPaneCfg *args)
     if (set.height != 0)
     {
         unsigned int count = 0u;
-        const char *const name = EMBED_CALL(cli_search_pane.set, CliSearchPaneCfg, .count_out = &count);
+        unsigned long long name_length = 0ULL;
+        const char *const name =
+            EMBED_CALL(cli_search_pane.set, CliSearchPaneCfg, .count_out = &count, .length_out = &name_length);
         EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = args, .rect = set, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_SEARCH_NAME_MAX}),
-                   .pointed = args->pane_read->action == CLI_SEARCH_SET);
+                   .length = name_length, .pointed = args->pane_read->action == CLI_SEARCH_SET);
     }
-    char report[CLI_SEARCH_REPORT];
-    const unsigned long long reported = EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .report = report);
+    unsigned long long reported = 0ULL;
+    const char *const report = EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .length_out = &reported);
     if (reported != 0ULL)
     {
         const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);

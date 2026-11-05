@@ -74,6 +74,8 @@ EMBED_INLINE void cli_stroke(const GitGraphCtx *args)
     args->found->stroke[args->found->strokes][3] = args->color;
     args->found->strokes += 1u;
     args->drawn->stroke_count += 1u;
+    const unsigned int far = (args->from > args->to) ? args->from : args->to;
+    args->drawn->across = (far + 1u > args->drawn->across) ? far + 1u : args->drawn->across;
 }
 
 // the first free column, one put after the last where none is
@@ -206,6 +208,7 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
                                           .text_read = &args->found->text, .at = commit->id);
         commit->first_stroke = args->found->strokes;
         commit->stroke_count = 0u;
+        commit->across = 0u;
         unsigned int lane_at = EMBED_CALL(cli_lane_waiting, GitGraphCtx, .lanes = s_lanes, .count_value = lanes,
                                           .found_read = args->found, .text = id);
         unsigned int color = 0u;
@@ -235,6 +238,7 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
         }
         commit->lane_at = lane_at;
         commit->color = color;
+        commit->across = (lane_at + 1u > commit->across) ? lane_at + 1u : commit->across;
     }
 }
 
@@ -349,6 +353,7 @@ EMBED_INLINE int cli_draw_append(const GitGraphCtx *args)
     drawn->color = 0u;
     drawn->first_stroke = 0u;
     drawn->stroke_count = 0u;
+    drawn->across = 0u;
     return 1;
 }
 
