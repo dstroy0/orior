@@ -229,19 +229,6 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     return record->commit + 1u + (args->at - (record->row + block));
 }
 
-// the records' cells released, no commit's files read
-EMBED_INLINE void opened_release(const GitLogCtx *args)
-{
-    (void)args;
-    for (unsigned int at = 0u; at < s_log.opens; at += 1u)
-    {
-        g_cli_cells->persistent_buf_release(s_log.opened[at].file, &g_cli_git_log_cells);
-    }
-    g_cli_cells->persistent_buf_release(s_log.opened, &g_cli_git_log_cells);
-    s_log.opened = NULL;
-    s_log.opens = 0u;
-}
-
 // the files the commit at the graph's place `which`, whose id is `text` and `id` as a number, changed, read from the
 // chosen repository under the tree at `root` into a cell of their own, each path under the tree with the repository's
 // folder before git's path, and the commit's record appended with its files showing
@@ -316,35 +303,6 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     g_cli_cells->persistent_buf_release(touched, &g_cli_git_log_cells);
 }
 
-// the listing's cells released: the repositories, the graph, the listing's texts and every opened commit's files
-EMBED_INLINE void listing_release(const GitLogCtx *args)
-{
-    (void)args;
-    GitLog *const log = &s_log;
-    g_cli_cells->persistent_buf_release(log->listing, &g_cli_git_log_cells);
-    log->listing = NULL;
-    log->label = NULL;
-    log->label_length = 0ULL;
-    log->count = NULL;
-    log->count_length = 0ULL;
-    log->day = NULL;
-    if (log->repositories != NULL)
-    {
-        g_cli_cells->persistent_buf_release(log->repositories->text.bytes, &g_cli_git_cells);
-        g_cli_cells->persistent_buf_release(log->repositories, &g_cli_git_log_cells);
-        log->repositories = NULL;
-    }
-    if (log->graph != NULL)
-    {
-        g_cli_cells->persistent_buf_release(log->graph->text.bytes, &g_cli_git_cells);
-        g_cli_cells->persistent_buf_release(log->graph, &g_cli_git_log_cells);
-        log->graph = NULL;
-    }
-    EMBED_CALL(opened_release, GitLogCtx, .at = 0u);
-    log->listed = 0;
-    log->rows = 0u;
-}
-
 // the opened commits found again in the graph by their ids; one the graph does not list now, a query leaving it out,
 // stands at CLI_GIT_GRAPH with its files until a listing has it again
 EMBED_INLINE void opened_found(const GitLogCtx *args)
@@ -366,20 +324,12 @@ EMBED_INLINE void opened_found(const GitLogCtx *args)
     }
 }
 
-// the tree at `root` listed: its repositories, the chosen one's graph for the query, the listing's texts written, the
-// opened commits found again, and the rows indexed; nothing listed where `root` is NULL
-EMBED_INLINE void list(const GitLogCtx *args)
+// the listing read for the tree at `root`: the repositories and the graph read anew, the listing's texts, the label
+// `name: branch`, the commits' count and each commit's day, in a cell sized to them, every opened commit found again
+// and the rows indexed: 1, or 0 where the cells cannot meet it
+EMBED_INLINE int listing_read(const GitLogCtx *args)
 {
     GitLog *const log = &s_log;
-    EMBED_ATOMIC_STORE(&s_stale, 0u);
-    log->waits = 0;
-    log->listed = 0;
-    log->rows = 0u;
-    if (args->root == NULL)
-    {
-        EMBED_CALL(listing_release, GitLogCtx, .at = 0u);
-        return;
-    }
     g_cli_cells->persistent_buf_release(log->listing, &g_cli_git_log_cells);
     log->listing = NULL;
     // the lists' cells, taken at the first listing, their texts' cells released before each listing after
@@ -411,8 +361,7 @@ EMBED_INLINE void list(const GitLogCtx *args)
         {
             log->graph->text = (CliGitText){NULL, 0ULL, 0ULL, 0, 1};
         }
-        EMBED_CALL(listing_release, GitLogCtx, .at = 0u);
-        return;
+        return 0;
     }
     log->repositories->text = (CliGitText){NULL, 0ULL, 0ULL, 0, 1};
     log->repositories->count = 0u;
@@ -447,8 +396,7 @@ EMBED_INLINE void list(const GitLogCtx *args)
         label_bytes + count_bytes + ((unsigned long long)commits * CLI_GIT_LOG_DAY), &g_cli_git_log_cells);
     if (log->listing == NULL)
     {
-        EMBED_CALL(listing_release, GitLogCtx, .at = 0u);
-        return;
+        return 0;
     }
     VerbaLinea label = {log->listing, label_bytes, 0ULL};
     mmgr_line_put(&label, name);
@@ -474,6 +422,51 @@ EMBED_INLINE void list(const GitLogCtx *args)
     log->listed = 1;
     EMBED_CALL(opened_found, GitLogCtx, .at = 0u);
     EMBED_CALL(rows_index, GitLogCtx, .at = 0u);
+    return 1;
+}
+
+// the graph listed anew for the tree at `root`, the stale mark cleared and the rest ended; where there is no tree or
+// the listing cannot be read, the listing's cells released, the texts, the repositories, the graph and every opened
+// commit's files, no rows standing
+EMBED_INLINE void list(const GitLogCtx *args)
+{
+    GitLog *const log = &s_log;
+    EMBED_ATOMIC_STORE(&s_stale, 0u);
+    log->waits = 0;
+    log->listed = 0;
+    log->rows = 0u;
+    if ((args->root != NULL) && EMBED_CALL(listing_read, GitLogCtx, .root = args->root))
+    {
+        return;
+    }
+    g_cli_cells->persistent_buf_release(log->listing, &g_cli_git_log_cells);
+    log->listing = NULL;
+    log->label = NULL;
+    log->label_length = 0ULL;
+    log->count = NULL;
+    log->count_length = 0ULL;
+    log->day = NULL;
+    if (log->repositories != NULL)
+    {
+        g_cli_cells->persistent_buf_release(log->repositories->text.bytes, &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(log->repositories, &g_cli_git_log_cells);
+        log->repositories = NULL;
+    }
+    if (log->graph != NULL)
+    {
+        g_cli_cells->persistent_buf_release(log->graph->text.bytes, &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(log->graph, &g_cli_git_log_cells);
+        log->graph = NULL;
+    }
+    for (unsigned int at = 0u; at < log->opens; at += 1u)
+    {
+        g_cli_cells->persistent_buf_release(log->opened[at].file, &g_cli_git_log_cells);
+    }
+    g_cli_cells->persistent_buf_release(log->opened, &g_cli_git_log_cells);
+    log->opened = NULL;
+    log->opens = 0u;
+    log->listed = 0;
+    log->rows = 0u;
 }
 
 // a change to the query or the settings at `now_ms`: the rest begins

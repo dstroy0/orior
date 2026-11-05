@@ -237,18 +237,6 @@ EMBED_INLINE unsigned int search_file_of(const FilesSearchPaneCtx *args)
     return low;
 }
 
-// the search's cell released, no rows standing
-EMBED_INLINE void search_cell_release(const FilesSearchPaneCtx *args)
-{
-    (void)args;
-    g_cli_cells->persistent_buf_release(s_search.cell, &g_cli_search_pane_cells);
-    s_search.cell = NULL;
-    s_search.file = NULL;
-    s_search.match = NULL;
-    s_search.report_length = 0ULL;
-    s_search.rows = 0u;
-}
-
 // the tree at `root` searched for the query: the lines found standing in the search's cells; the search's cell taken
 // with the report, each file's path measured and its name found, and each line's regular expression match read; the
 // rows laid out; and the rows standing for the query
@@ -257,7 +245,12 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     Search *const search = &s_search;
     search->waits = 0;
     search->searched = 0;
-    EMBED_CALL(search_cell_release, FilesSearchPaneCtx, .at = 0u);
+    g_cli_cells->persistent_buf_release(s_search.cell, &g_cli_search_pane_cells);
+    s_search.cell = NULL;
+    s_search.file = NULL;
+    s_search.match = NULL;
+    s_search.report_length = 0ULL;
+    s_search.rows = 0u;
     unsigned long long trimmed = 0ULL;
     for (unsigned long long at = 0ULL; at < search->query.length; at += 1ULL)
     {

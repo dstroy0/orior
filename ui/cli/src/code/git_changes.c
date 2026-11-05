@@ -103,50 +103,13 @@ EMBED_INLINE void choice_settled(const ChangesCtx *args)
     s_changes.left_bytes = (left != NULL) ? bytes : 0ULL;
 }
 
-// `size` bytes of `text` as the refusal, in a cell sized to them; none where `size` is 0
-EMBED_INLINE void refusal_set(const ChangesCtx *args)
-{
-    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
-    s_changes.refusal =
-        (args->size != 0ULL) ? g_cli_cells->persistent_buf_alloc(args->size + 1ULL, &g_cli_git_cells) : NULL;
-    s_changes.refusal_length = (s_changes.refusal != NULL) ? args->size : 0ULL;
-    if (s_changes.refusal != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = args->text, .bytes = args->size});
-        s_changes.refusal[args->size] = '\0';
-    }
-}
-
-// `size` bytes of `text` put after the refusal on a line of their own, the cell grown to fit them
-EMBED_INLINE void refusal_added(const ChangesCtx *args)
-{
-    if (args->size == 0ULL)
-    {
-        return;
-    }
-    const unsigned long long before = s_changes.refusal_length;
-    const unsigned long long joined = before + ((before != 0ULL) ? 1ULL : 0ULL);
-    char *const grown = g_cli_cells->persistent_buf_alloc(joined + args->size + 1ULL, &g_cli_git_cells);
-    if (grown == NULL)
-    {
-        return;
-    }
-    if (before != 0ULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_changes.refusal, .bytes = before});
-        grown[before] = '\n';
-    }
-    memor.cpy(&(MemoriaCfg){.dst = grown + joined, .src = args->text, .bytes = args->size});
-    grown[joined + args->size] = '\0';
-    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
-    s_changes.refusal = grown;
-    s_changes.refusal_length = joined + args->size;
-}
-
-// git `run` at `root`, pull or push: its words into a cell of this run alone, 1, or 0 with the refusal set to why
+// git `run` at `root`, pull or push: its words into a cell of this run alone, 1, or 0 with the refusal in a cell sized
+// to why
 EMBED_INLINE int remote_run(const ChangesCtx *args)
 {
-    EMBED_CALL(refusal_set, ChangesCtx, .size = 0ULL);
+    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    s_changes.refusal = NULL;
+    s_changes.refusal_length = 0ULL;
     char *const scratch = g_cli_cells->temporary_buf_alloc(CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, &g_cli_git_cells);
     if (scratch == NULL)
     {
@@ -155,10 +118,13 @@ EMBED_INLINE int remote_run(const ChangesCtx *args)
     VerbaLinea out = {scratch, CHANGES_OUT, 0ULL};
     VerbaLinea err_msg = {scratch + CHANGES_OUT, CLI_ERR_MSG_MAX_LEN, 0ULL};
     const int ran = args->run(&(CliGitRootOutCountErrMsgCfg){.root = args->root, .out = &out, .err_msg = &err_msg});
-    if (!ran)
+    const unsigned long long refused = (!ran && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
+    s_changes.refusal = (refused != 0ULL) ? g_cli_cells->persistent_buf_alloc(refused + 1ULL, &g_cli_git_cells) : NULL;
+    s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
+    if (s_changes.refusal != NULL)
     {
-        EMBED_CALL(refusal_set, ChangesCtx, .text = scratch + CHANGES_OUT,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
+        memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = scratch + CHANGES_OUT, .bytes = refused});
+        s_changes.refusal[refused] = '\0';
     }
     g_cli_cells->persistent_buf_release(scratch, &g_cli_git_cells);
     return ran;
@@ -318,16 +284,22 @@ const char *cli_changes_message(const CliGitChangesCfg *args)
 
 int cli_changes_commit(const CliGitChangesCfg *args)
 {
-    EMBED_CALL(refusal_set, ChangesCtx, .size = 0ULL);
-    if (s_changes.message.length == 0ULL)
-    {
-        EMBED_CALL(refusal_set, ChangesCtx, .text = CHANGES_EMPTY, .size = sizeof(CHANGES_EMPTY) - 1ULL);
-        return 0;
-    }
+    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    s_changes.refusal = NULL;
+    s_changes.refusal_length = 0ULL;
     const unsigned int taken = s_changes.taken;
-    if (taken == 0u)
+    if ((s_changes.message.length == 0ULL) || (taken == 0u))
     {
-        EMBED_CALL(refusal_set, ChangesCtx, .text = CHANGES_NONE, .size = sizeof(CHANGES_NONE) - 1ULL);
+        // why nothing is to commit, in a cell sized to the sentence with its end
+        const char *const why = (s_changes.message.length == 0ULL) ? CHANGES_EMPTY : CHANGES_NONE;
+        const unsigned long long size =
+            (s_changes.message.length == 0ULL) ? sizeof(CHANGES_EMPTY) : sizeof(CHANGES_NONE);
+        s_changes.refusal = g_cli_cells->persistent_buf_alloc(size, &g_cli_git_cells);
+        s_changes.refusal_length = (s_changes.refusal != NULL) ? size - 1ULL : 0ULL;
+        if (s_changes.refusal != NULL)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = why, .bytes = size});
+        }
         return 0;
     }
     // the paths taken, git's own words and the error line, for this commit alone
@@ -359,10 +331,15 @@ int cli_changes_commit(const CliGitChangesCfg *args)
         g_cli_cells->persistent_buf_release(s_changes.message.bytes, &g_cli_git_cells);
         s_changes.message = (CliTyped){NULL, 0ULL};
     }
-    else
+    // git's refusal in a cell sized to it with its end
+    const unsigned long long refused = (!committed && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
+    s_changes.refusal = (refused != 0ULL) ? g_cli_cells->persistent_buf_alloc(refused + 1ULL, &g_cli_git_cells) : NULL;
+    s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
+    if (s_changes.refusal != NULL)
     {
-        EMBED_CALL(refusal_set, ChangesCtx, .text = scratch + paths_bytes + CHANGES_OUT,
-                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
+        memor.cpy(
+            &(MemoriaCfg){.dst = s_changes.refusal, .src = scratch + paths_bytes + CHANGES_OUT, .bytes = refused});
+        s_changes.refusal[refused] = '\0';
     }
     g_cli_cells->persistent_buf_release(scratch, &g_cli_git_cells);
     if (committed)
@@ -413,7 +390,9 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         return 0;
     }
     s_changes.armed_ms = 0ULL;
-    EMBED_CALL(refusal_set, ChangesCtx, .size = 0ULL);
+    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    s_changes.refusal = NULL;
+    s_changes.refusal_length = 0ULL;
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
         if ((s_changes.out != NULL) && s_changes.out[at])
@@ -422,13 +401,33 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         }
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        if (!EMBED_CALL(cli_git_root_err_msg_path.rollback, CliGitRootErrMsgPathCfg, .root = args->root,
-                        .path = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                           .text_read = &s_changed.text, .at = s_changed.item[at].path),
-                        .err_msg = &err_msg))
+        const int rolled = EMBED_CALL(cli_git_root_err_msg_path.rollback, CliGitRootErrMsgPathCfg, .root = args->root,
+                                      .path = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                         .text_read = &s_changed.text, .at = s_changed.item[at].path),
+                                      .err_msg = &err_msg);
+        const unsigned long long refused = (!rolled && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
+        if (refused == 0ULL)
         {
-            EMBED_CALL(refusal_added, ChangesCtx, .text = why, .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
+            continue;
         }
+        // the file's refusal put after the refusals before it on a line of its own, in a cell sized to them all
+        const unsigned long long before = s_changes.refusal_length;
+        const unsigned long long joined = before + ((before != 0ULL) ? 1ULL : 0ULL);
+        char *const grown = g_cli_cells->persistent_buf_alloc(joined + refused + 1ULL, &g_cli_git_cells);
+        if (grown == NULL)
+        {
+            continue;
+        }
+        if (before != 0ULL)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_changes.refusal, .bytes = before});
+            grown[before] = '\n';
+        }
+        memor.cpy(&(MemoriaCfg){.dst = grown + joined, .src = why, .bytes = refused});
+        grown[joined + refused] = '\0';
+        g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+        s_changes.refusal = grown;
+        s_changes.refusal_length = joined + refused;
     }
     return 1;
 }
