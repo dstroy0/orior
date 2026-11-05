@@ -283,64 +283,91 @@ static void explorer_row_draw(const GuiPaneCfg *args)
                    .color = GUI_FRAME_FADED(args->palette->text_2, frame->side_share), .clip = clip);
     }
     x += twisty;
-    const int icon = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON, .scale = scale);
-    if (node->dir)
+    if (!node->dir)
     {
-        const unsigned int size =
-            (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 14, .scale = scale);
-        const GuiMask *const mask_bits =
-            EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = args->icons, .name = "folder", .size = size,
-                       .stroke = GUI_ICON_STROKE * (float)size / GUI_ICON_UNITS);
-        if (mask_bits != NULL)
-        {
-            // the icon's side is far inside what an int represents
-            EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = raster, .mask_bits = mask_bits,
-                       .x = x + ((icon - (int)size) / 2), .y = rect.y + ((rect.height - (int)size) / 2),
-                       .color = GUI_FRAME_FADED(args->palette->link, frame->side_share), .clip = clip);
-        }
+        (void)EMBED_CALL(gui_explorer_file.file_draw, GuiExplorerFileCfg, .pane = args, .x = x, .name = node->name,
+                         .length = name_length, .color = node->ignored ? args->palette->text_3 : args->palette->text_2,
+                         .clip = clip);
+        return;
     }
-    else
+    const int icon = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON, .scale = scale);
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 14, .scale = scale);
+    const GuiMask *const mask_bits = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = args->icons, .name = "folder",
+                                                .size = size, .stroke = GUI_ICON_STROKE * (float)size / GUI_ICON_UNITS);
+    if (mask_bits != NULL)
     {
-        char text[GUI_EXPLORER_MARK_MOST];
-        const unsigned int color = EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = node->name,
-                                              .length = name_length, .text = text);
-        const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                           .pixels = (int)GUI_EXPLORER_MARK_SIZE, .scale = scale);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_EXPLORER_MARK_MOST});
-        const float pixel_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
-                                             .face = GUI_FACE_CODE_BOLD, .size = size, .text = text, .length = length);
-        (void)EMBED_CALL(
-            gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-            .face = GUI_FACE_CODE_BOLD, .size = size, .x_f32 = (float)x + (((float)icon - pixel_width) / 2.0f),
-            .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                            .face = GUI_FACE_CODE_BOLD, .size = size, .top = rect.y, .pixel_height = rect.height),
-            .text = text, .length = length,
-            .color = GUI_FRAME_FADED((color != 0u) ? args->palette->mark[color - 1u] : args->palette->text_3,
-                                     frame->side_share),
-            .clip = clip);
+        // the icon's side is far inside what an int represents
+        EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = raster, .mask_bits = mask_bits,
+                   .x = x + ((icon - (int)size) / 2), .y = rect.y + ((rect.height - (int)size) / 2),
+                   .color = GUI_FRAME_FADED(args->palette->link, frame->side_share), .clip = clip);
     }
     x += icon + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON_GAP, .scale = scale);
-    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = (int)GUI_PANE_ROW_SIZE, .scale = scale);
-    GuiColor color;
-    if (node->dir)
-    {
-        color = args->palette->text;
-    }
-    else if (node->ignored)
-    {
-        color = args->palette->text_3;
-    }
-    else
-    {
-        color = args->palette->text_2;
-    }
+    const unsigned int row_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                           .pixels = (int)GUI_PANE_ROW_SIZE, .scale = scale);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                     .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)x,
+                     .face = GUI_FACE_HEAD, .size = row_size, .x_f32 = (float)x,
                      .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size, .top = rect.y, .pixel_height = rect.height),
-                     .text = node->name, .length = name_length, .color = GUI_FRAME_FADED(color, frame->side_share),
-                     .clip = clip);
+                                     .face = GUI_FACE_HEAD, .size = row_size, .top = rect.y,
+                                     .pixel_height = rect.height),
+                     .text = node->name, .length = name_length,
+                     .color = GUI_FRAME_FADED(args->palette->text, frame->side_share), .clip = clip);
+}
+
+float gui_explorer_file_draw(const GuiExplorerFileCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    GuiRaster *raster = pane->raster;
+    GuiGlyphs *glyphs = pane->glyphs;
+    const GuiFrame *const frame = pane->frame;
+    const GuiRect rect = pane->rect;
+    const int scale = frame->scale;
+    const int icon = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON, .scale = scale);
+    char text[GUI_EXPLORER_MARK_MOST];
+    const unsigned int color = EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = args->name,
+                                          .length = args->length, .text = text);
+    const unsigned int mark_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                            .pixels = (int)GUI_EXPLORER_MARK_SIZE, .scale = scale);
+    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_EXPLORER_MARK_MOST});
+    const float mark_width =
+        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE_BOLD,
+                   .size = mark_size, .text = text, .length = mark_length);
+    (void)EMBED_CALL(
+        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+        .face = GUI_FACE_CODE_BOLD, .size = mark_size, .x_f32 = (float)args->x + (((float)icon - mark_width) / 2.0f),
+        .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE_BOLD,
+                        .size = mark_size, .top = rect.y, .pixel_height = rect.height),
+        .text = text, .length = mark_length,
+        .color =
+            GUI_FRAME_FADED((color != 0u) ? pane->palette->mark[color - 1u] : pane->palette->text_3, frame->side_share),
+        .clip = args->clip);
+    const int x =
+        args->x + icon +
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON_GAP, .scale = scale);
+    const unsigned int row_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                           .pixels = (int)GUI_PANE_ROW_SIZE, .scale = scale);
+    const float after =
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                   .face = GUI_FACE_HEAD, .size = row_size, .x_f32 = (float)x,
+                   .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                   .face = GUI_FACE_HEAD, .size = row_size, .top = rect.y, .pixel_height = rect.height),
+                   .text = args->name, .length = args->length, .color = GUI_FRAME_FADED(args->color, frame->side_share),
+                   .clip = args->clip);
+    if (args->folder_length == 0ULL)
+    {
+        return after;
+    }
+    const unsigned int where_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                             .pixels = (int)GUI_EXPLORER_WHERE_SIZE, .scale = scale);
+    return EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                      .face = GUI_FACE_HEAD, .size = where_size,
+                      .x_f32 = after + (float)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                         .pixels = GUI_EXPLORER_WHERE_GAP, .scale = scale),
+                      .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                      .face = GUI_FACE_HEAD, .size = where_size, .top = rect.y,
+                                      .pixel_height = rect.height),
+                      .text = args->folder, .length = args->folder_length,
+                      .color = GUI_FRAME_FADED(pane->palette->text_3, frame->side_share), .clip = args->clip);
 }
 
 // a folder's row pressed opens or closes it; a file's opens the file

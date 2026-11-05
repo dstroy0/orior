@@ -35,11 +35,6 @@ typedef struct
     int y;
     GuiColor ground;
     const char *text;
-    unsigned long long length;
-    GuiColor color;
-    unsigned int face;
-    unsigned int size;
-    float x_f32;
 } TestsCtx;
 
 static const char *tests_title(const GuiPaneCfg *args)
@@ -61,16 +56,11 @@ static int tests_head(const GuiPaneCfg *args)
     return GUI_TESTS_BAR + (EMBED_CALL(cli_tests_pane.said, CliTestsPaneCfg, .at = 0u) ? GUI_TESTS_SAID : 0);
 }
 
-// `pixels` of the page at the frame's scale
-EMBED_INLINE int tests_scaled(const TestsCtx *args)
-{
-    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = args->x, .scale = args->pane->frame->scale);
-}
-
 // the text size of the bar's actions and summary in pixels
 EMBED_INLINE unsigned int tests_action_size(const TestsCtx *args)
 {
-    return (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args->pane, .x = (int)GUI_TESTS_ACTION_SIZE);
+    return (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane,
+                                    .x = (int)GUI_TESTS_ACTION_SIZE);
 }
 
 // the rectangle of the action `which` in the bar, the head's `rect`: the buttons from the left, each its label's width
@@ -79,15 +69,15 @@ EMBED_INLINE GuiRect tests_action_rect(const TestsCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     const GuiRect bar = {pane->rect.x, pane->rect.y, pane->rect.width,
-                         EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_BAR)};
+                         EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_BAR)};
     const unsigned int size = EMBED_CALL(tests_action_size, TestsCtx, .pane = pane);
-    const int pad = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_ACTION_PAD);
-    const int gap = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_ACTION_GAP);
-    const int height = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_BAR - 8);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_ACTION_PAD);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_ACTION_GAP);
+    const int height = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_BAR - 8);
     const int y = bar.y + ((bar.height - height) / 2);
     if (args->which == CLI_TESTS_PARALLEL)
     {
-        const int box = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_BOX);
+        const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_BOX);
         const int width =
             box + gap +
             (int)(EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = pane->glyphs,
@@ -127,17 +117,6 @@ EMBED_INLINE int tests_action_enabled(const TestsCtx *args)
     return 1;
 }
 
-// `text` drawn at x in the head's row from `y`, `height` pixels, in `color` cut to the pane's clip
-EMBED_INLINE float tests_text_draw(const TestsCtx *args)
-{
-    const GuiPaneCfg *const pane = args->pane;
-    return EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = pane->raster,
-                      .glyphs = pane->glyphs, .face = args->face, .size = args->size, .x_f32 = args->x_f32,
-                      .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = pane->glyphs,
-                                      .face = args->face, .size = args->size, .top = args->y, .pixel_height = args->x),
-                      .text = args->text, .length = args->length, .color = args->color, .clip = pane->clip);
-}
-
 // the bar drawn: each action a bordered button on the editor's ground, its label centered, lit where the pointer stands
 // on it and dim where it cannot be taken; the Parallel choice its box, filled where on, and its label; and under the
 // bar the summary, in the error's color where the run's end counted a failure
@@ -146,8 +125,8 @@ static void tests_head_draw(const GuiPaneCfg *args)
     GuiRaster *raster = args->raster;
     const GuiFrame *const frame = args->frame;
     const unsigned int size = EMBED_CALL(tests_action_size, TestsCtx, .pane = args);
-    const int one = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = 1);
-    const unsigned int radius = (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = 6);
+    const int one = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 1);
+    const unsigned int radius = (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 6);
     const GuiColor ground = GUI_FRAME_FADED(args->palette->editor_background, frame->side_share);
     for (unsigned int at = 0u; at < sizeof(s_actions) / sizeof(s_actions[0]); at += 1u)
     {
@@ -158,8 +137,7 @@ static void tests_head_draw(const GuiPaneCfg *args)
         const int share = enabled ? GUI_FIXED_ONE : TESTS_DISABLED_SHARE;
         const GuiColor border = GUI_FRAME_FADED(
             GUI_FRAME_FADED(lit ? args->palette->hover : args->palette->line, share), frame->side_share);
-        const GuiColor text = GUI_FRAME_FADED(GUI_FRAME_FADED(lit ? args->palette->text : args->palette->text_2, share),
-                                              frame->side_share);
+        const GuiColor text = GUI_FRAME_FADED(lit ? args->palette->text : args->palette->text_2, share);
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
                    .rect =
                        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = button, .other = args->clip),
@@ -174,12 +152,14 @@ static void tests_head_draw(const GuiPaneCfg *args)
         const float width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
                        .face = GUI_FACE_HEAD, .size = size, .text = s_actions[at].label, .length = length);
-        (void)EMBED_CALL(tests_text_draw, TestsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = size,
-                         .x_f32 = (float)button.x + (((float)button.width - width) / 2.0f), .y = button.y,
-                         .x = button.height, .text = s_actions[at].label, .length = length, .color = text);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
+                         .size = GUI_TESTS_ACTION_SIZE,
+                         .x_f32 = (float)button.x + (((float)button.width - width) / 2.0f), .text = s_actions[at].label,
+                         .length = length, .color = text, .clipped = 1,
+                         .clip = (GuiRect){args->clip.x, button.y, args->clip.width, button.height});
     }
     const GuiRect parallel = EMBED_CALL(tests_action_rect, TestsCtx, .pane = args, .which = CLI_TESTS_PARALLEL);
-    const int box = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_BOX);
+    const int box = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_BOX);
     const int on = EMBED_CALL(cli_tests_pane.parallel, CliTestsPaneCfg, .at = 0u);
     const GuiRect square = {parallel.x, parallel.y + ((parallel.height - box) / 2), box, box};
     const GuiColor box_color =
@@ -195,23 +175,25 @@ static void tests_head_draw(const GuiPaneCfg *args)
                .radius = (unsigned int)one,
                .color = on ? GUI_FRAME_FADED(args->palette->link, frame->side_share) : ground);
     (void)EMBED_CALL(
-        tests_text_draw, TestsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = size,
-        .x_f32 = (float)(square.x + box + EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_ACTION_GAP)),
-        .y = parallel.y, .x = parallel.height, .text = "Parallel", .length = 8ULL,
-        .color = GUI_FRAME_FADED(args->palette->text_3, frame->side_share));
+        gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_TESTS_ACTION_SIZE,
+        .x_f32 = (float)(square.x + box +
+                         EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_ACTION_GAP)),
+        .text = "Parallel", .length = 8ULL, .color = args->palette->text_3, .clipped = 1,
+        .clip = (GuiRect){args->clip.x, parallel.y, args->clip.width, parallel.height});
     char summary[CLI_TESTS_SUMMARY];
     int failed = 0;
-    const unsigned long long said =
+    const unsigned long long summed =
         EMBED_CALL(cli_tests_pane.summary, CliTestsPaneCfg, .text = summary, .failed_out = &failed);
-    if (said != 0ULL)
+    if (summed != 0ULL)
     {
-        const int bar = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_BAR);
+        const int bar = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_BAR);
         (void)EMBED_CALL(
-            tests_text_draw, TestsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = size,
-            .x_f32 =
-                (float)(args->rect.x + EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_PANE_PAD_LEFT + 2)),
-            .y = args->rect.y + bar, .x = args->rect.height - bar, .text = summary, .length = said,
-            .color = GUI_FRAME_FADED(failed ? args->palette->error : args->palette->text_2, frame->side_share));
+            gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_TESTS_ACTION_SIZE,
+            .x_f32 = (float)(args->rect.x + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args,
+                                                       .x = GUI_PANE_PAD_LEFT + 2)),
+            .text = summary, .length = summed, .color = failed ? args->palette->error : args->palette->text_2,
+            .clipped = 1,
+            .clip = (GuiRect){args->clip.x, args->rect.y + bar, args->clip.width, args->rect.height - bar});
     }
 }
 
@@ -264,7 +246,7 @@ EMBED_INLINE void tests_mark_draw(const TestsCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     const GuiPalette *const palette = pane->palette;
-    const int mark = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = GUI_TESTS_MARK);
+    const int mark = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_TESTS_MARK);
     GuiColor color;
     int ring = 0;
     switch (args->outcome)
@@ -293,7 +275,7 @@ EMBED_INLINE void tests_mark_draw(const TestsCtx *args)
                .radius = (unsigned int)(mark / 2), .color = GUI_FRAME_FADED(color, pane->frame->side_share));
     if (ring)
     {
-        const int in = EMBED_CALL(tests_scaled, TestsCtx, .pane = pane, .x = 2);
+        const int in = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = 2);
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = pane->raster,
                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                       .one = (GuiRect){dot.x + in, dot.y + in, mark - (2 * in), mark - (2 * in)},
@@ -347,17 +329,16 @@ static void tests_row_draw(const GuiPaneCfg *args)
         return;
     }
     const unsigned int row_size =
-        (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = (int)GUI_PANE_ROW_SIZE);
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = (int)GUI_PANE_ROW_SIZE);
     const unsigned int where_size =
-        (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = (int)GUI_TESTS_WHERE_SIZE);
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = (int)GUI_TESTS_WHERE_SIZE);
     const unsigned int count_size =
-        (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = (int)GUI_TESTS_COUNT_SIZE);
-    const int pad = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_PANE_PAD_LEFT);
-    const int gap = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_GAP);
-    const int mark = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_MARK);
-    const int icon = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_ICON);
-    const int arrow = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_PANE_ARROW);
-    const int twisty = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_EXPLORER_TWISTY);
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = (int)GUI_TESTS_COUNT_SIZE);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_GAP);
+    const int mark = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_MARK);
+    const int arrow = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_ARROW);
+    const int twisty = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_EXPLORER_TWISTY);
     // the rows are fewer than an int counts
     const GuiColor ground = GUI_FRAME_FADED(
         (args->pane_read->pointed == (int)args->row) ? palette->line : palette->editor_background, frame->side_share);
@@ -377,30 +358,10 @@ static void tests_row_draw(const GuiPaneCfg *args)
         EMBED_CALL(tests_mark_draw, TestsCtx, .pane = args, .outcome = row.outcome, .x = x, .y = middle,
                    .ground = ground);
         x += mark + gap;
-        char mark_text[GUI_EXPLORER_MARK_MOST];
-        const unsigned int mark_color = EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = row.name,
-                                                   .length = row.name_length, .text = mark_text);
-        const unsigned long long mark_length =
-            cellul.len(&(CatenaFinitaCfg){.src = mark_text, .cap = GUI_EXPLORER_MARK_MOST});
-        const unsigned int mark_size =
-            (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = (int)GUI_EXPLORER_MARK_SIZE);
-        const float mark_width =
-            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
-                       .face = GUI_FACE_CODE_BOLD, .size = mark_size, .text = mark_text, .length = mark_length);
-        (void)EMBED_CALL(
-            gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-            .face = GUI_FACE_CODE_BOLD, .size = mark_size, .x_f32 = (float)x + (((float)icon - mark_width) / 2.0f),
-            .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                            .face = GUI_FACE_CODE_BOLD, .size = mark_size, .top = rect.y, .pixel_height = rect.height),
-            .text = mark_text, .length = mark_length,
-            .color = GUI_FRAME_FADED((mark_color != 0u) ? palette->mark[mark_color - 1u] : palette->text_3,
-                                     frame->side_share),
-            .clip = on);
-        x += icon + gap;
         // the counts at the right, failed, passed and skipped, each where it is not 0, right to left
         const unsigned int outcomes[3] = {CLI_TESTS_SKIPPED, CLI_TESTS_PASSED, CLI_TESTS_FAILED};
         const unsigned int counts[3] = {row.skipped, row.passed, row.failed};
-        const int between = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = 6);
+        const int between = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 6);
         float count_x = (float)right;
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
@@ -430,17 +391,9 @@ static void tests_row_draw(const GuiPaneCfg *args)
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){rect.x, rect.y, (int)count_x - gap - rect.x, rect.height}, .other = on);
-        const float after = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
-                                       .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = row_size, .x_f32 = (float)x,
-                                       .y = baseline, .text = row.name, .length = row.name_length,
-                                       .color = GUI_FRAME_FADED(palette->text, frame->side_share), .clip = text_clip);
-        if (row.folder_length != 0ULL)
-        {
-            (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                             .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = after + (float)gap, .y = baseline,
-                             .text = row.path, .length = row.folder_length,
-                             .color = GUI_FRAME_FADED(palette->text_3, frame->side_share), .clip = text_clip);
-        }
+        (void)EMBED_CALL(gui_explorer_file.file_draw, GuiExplorerFileCfg, .pane = args, .x = x, .name = row.name,
+                         .length = row.name_length, .folder = row.path, .folder_length = row.folder_length,
+                         .color = palette->text, .clip = text_clip);
         break;
     }
     case CLI_TESTS_ROW_TEST: {
@@ -474,16 +427,17 @@ static void tests_row_draw(const GuiPaneCfg *args)
         break;
     }
     case CLI_TESTS_ROW_MESSAGE: {
-        const unsigned int message_size =
-            (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = (int)GUI_TESTS_MESSAGE_SIZE);
-        (void)EMBED_CALL(
-            gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-            .face = GUI_FACE_CODE, .size = message_size,
-            .x_f32 = (float)(rect.x + EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_MESSAGE_PAD)),
-            .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE,
-                            .size = message_size, .top = rect.y, .pixel_height = rect.height),
-            .text = row.name, .length = row.name_length, .color = GUI_FRAME_FADED(palette->error, frame->side_share),
-            .clip = on);
+        const unsigned int message_size = (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args,
+                                                                   .x = (int)GUI_TESTS_MESSAGE_SIZE);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_CODE, .size = message_size,
+                         .x_f32 = (float)(rect.x + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args,
+                                                              .x = GUI_TESTS_MESSAGE_PAD)),
+                         .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                         .face = GUI_FACE_CODE, .size = message_size, .top = rect.y,
+                                         .pixel_height = rect.height),
+                         .text = row.name, .length = row.name_length,
+                         .color = GUI_FRAME_FADED(palette->error, frame->side_share), .clip = on);
         break;
     }
     case CLI_TESTS_ROW_COVER_HEAD: {
@@ -508,15 +462,17 @@ static void tests_row_draw(const GuiPaneCfg *args)
         VerbaLinea percent = {digits, sizeof(digits), 0ULL};
         mmgr_line_decimal(&percent, share, 1u);
         mmgr_line_ch(&percent, '%');
-        const int percent_width = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = 36);
+        const int percent_width = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = 36);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = (float)(right - percent_width),
                          .y = baseline, .text = digits, .length = percent.at,
                          .color = GUI_FRAME_FADED(palette->text_3, frame->side_share), .clip = on);
-        const int bar_width = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_COVER_WIDTH);
-        const int bar_height = EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_COVER_HEIGHT);
+        const int bar_width =
+            EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_COVER_WIDTH);
+        const int bar_height =
+            EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_COVER_HEIGHT);
         const unsigned int bar_radius =
-            (unsigned int)EMBED_CALL(tests_scaled, TestsCtx, .pane = args, .x = GUI_TESTS_COVER_RADIUS);
+            (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_TESTS_COVER_RADIUS);
         const GuiRect bar = {right - percent_width - gap - bar_width, middle - (bar_height / 2), bar_width, bar_height};
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = bar, .other = on),

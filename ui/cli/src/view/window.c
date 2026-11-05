@@ -918,6 +918,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         window->memory_due_ms,
         EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
                    .shown = EMBED_CALL(window_runs_shown, GuiWindowCtx, .window_read = window)),
+        EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -1732,6 +1733,14 @@ static void window_key_take(const GuiWindowCtx *args)
     {
         return;
     }
+    // the shown pane's field takes the key while it has the keys
+    if (EMBED_CALL(gui_pane.key, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+                   .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .name = name,
+                   .root = cli_command_line_root()))
+    {
+        window->pending = 1;
+        return;
+    }
     CliItem item;
     if (cli_menus_keyed(name, &item) &&
         EMBED_CALL(window_name_among, GuiWindowCtx, .name = item.command, .words = s_own_commands,
@@ -1849,6 +1858,7 @@ void gui_window_start(const GuiWindowCfg *args)
     window->entries = entries;
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
+    EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -1919,6 +1929,10 @@ void gui_window_step(const GuiWindowCfg *args)
                    .panicked_out = &window->strip.runs_panicked);
         window->pending = 1;
     }
+    // the Search pane's query searched as its rest passes or as the watch marks what it found stale
+    window->pending =
+        EMBED_CALL(cli_search_pane.step, CliSearchPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms) ||
+        window->pending;
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;
@@ -2469,7 +2483,8 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         // the pane head's action run, a run of the tree's code saving every view first
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
         EMBED_CALL(gui_pane.action, GuiPaneCfg,
-                   .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window), .which = hit->index,
+                   .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+                   .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .which = hit->index,
                    .root = cli_command_line_root(), .save_all = window_save_all, .context = window);
         window->pending = 1;
         break;
@@ -2660,6 +2675,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     }
     GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y, .hit = &pressed);
+    // a press anywhere takes the keys from the shown pane's field; the field's own action takes them back
+    EMBED_CALL(window_pane, GuiWindowCtx, .window = window)->keys = 0;
     // a press on the map goes to that part of the text and may begin the slider's drag, the top worked out from what
     // the map shows
     unsigned long long top = 0ULL;
@@ -2914,6 +2931,14 @@ static void window_text(const GuiInputHandlerCfg *args)
     if (cli_terminal_tabs_text(args->input->text, args->input->size))
     {
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+        return;
+    }
+    // the shown pane's field takes the text while it has the keys
+    if (EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+                   .pane = EMBED_CALL(window_pane, GuiWindowCtx, .window = window), .text = args->input->text,
+                   .length = args->input->size, .root = cli_command_line_root()))
+    {
+        window->pending = 1;
         return;
     }
     const CliViewInput typed = {.kind = CLI_VIEW_TEXT, .text = args->input->text, .length = args->input->size};

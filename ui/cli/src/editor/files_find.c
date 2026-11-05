@@ -15,6 +15,12 @@
 
 void cli_hit_write(const CliFilesPathCtx *args)
 {
+    if (args->each != NULL)
+    {
+        EMBED_CALL(args->each, CliEachHitCfg, .context = args->context, .path = args->path, .line = args->line,
+                   .col = args->col, .text = args->text, .size = cli_files_path_internal.hit_cut(args));
+        return;
+    }
     mmgr_line_put(args->out, args->first ? "{\"path\":" : ",{\"path\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->path,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -42,6 +48,8 @@ typedef struct
     VerbaLinea *out;
     const char *path;
     const char *query;
+    void (*each)(const CliEachHitCfg *args);
+    void *context;
 } FilesFindCtx;
 // a whole number as Rust reads one, a plus before it or none, from `length` bytes of `text`: 1 with it into `value`,
 // or 0 where it is none
@@ -103,7 +111,10 @@ EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
     const char *at = args->run_result->out;
     const char *const end = args->run_result->out + args->run_result->out_size;
     unsigned int found = 0u;
-    mmgr_line_ch(out, '[');
+    if (out != NULL)
+    {
+        mmgr_line_ch(out, '[');
+    }
     while ((at < end) && (found < CLI_HITS_MAX))
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = at, .at = 0ULL,
@@ -149,10 +160,13 @@ EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
         const char *const text = (field <= stop) ? field : stop;
         EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = found == 0u, .path = file,
                    .line = line, .col = column, .text = (const unsigned char *)text,
-                   .size = (unsigned long long)(stop - text));
+                   .size = (unsigned long long)(stop - text), .each = args->each, .context = args->context);
         found += 1u;
     }
-    mmgr_line_ch(out, ']');
+    if (out != NULL)
+    {
+        mmgr_line_ch(out, ']');
+    }
 }
 
 int cli_search_by_git(const CliFilesRootCtx *args)
@@ -205,12 +219,16 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     else if (run_result->code == 0LL)
     {
         EMBED_CALL(cli_git_hits, FilesFindCtx, .run_result = run_result, .prefix_read = s_prefix,
-                   .patterns = args->patterns, .set = args->set, .out = args->out);
+                   .patterns = args->patterns, .set = args->set, .out = args->out, .each = args->each,
+                   .context = args->context);
         received = CLI_GIT_SEARCH_FOUND;
     }
     else if (run_result->code == 1LL)
     {
-        mmgr_line_put(args->out, "[]");
+        if (args->out != NULL)
+        {
+            mmgr_line_put(args->out, "[]");
+        }
         received = CLI_GIT_SEARCH_FOUND;
     }
     else if (cellul.find(&(CatenaFinitaCfg){.src = run_result->err,

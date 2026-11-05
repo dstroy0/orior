@@ -10,6 +10,7 @@
 #ifndef FILES_H
 #define FILES_H
 #include "../command_line/callback_cfg.h"
+#include "../machine/state.h"
 #include "../text/patterns.h"
 #include "embed_dispatch_layout.h"
 
@@ -175,10 +176,23 @@ typedef struct
     int regex;
 } CliSearching;
 
+// A line a search found handed on: its file's path from the top of the tree, its line and column counted from 1, and
+// the bytes of its text a hit retains
+typedef struct
+{
+    void *context;
+    const char *path;
+    unsigned long long line;
+    unsigned long long col;
+    const unsigned char *text;
+    unsigned long long size;
+} CliEachHitCfg;
+
 // every line in the tree's files that contains the query, at most 2000 of them, less the files the search's patterns
-// hide, and only in the files `set` names where it names any, written as `[{"path", "line", "col", "text"}]`: 1, or
-// 0 with why given; and every listed file whose path contains each word of the query, case aside, at most 500 of them,
-// less the files the explorer's patterns hide, written as a JSON array of paths (files_search.c, files_find.c)
+// hide, and only in the files `set` includes where it includes any, written as `[{"path", "line", "col", "text"}]`, or
+// where `each` is not NULL each handed to it with `context` and nothing written: 1, or 0 with why in `err_msg`; and
+// every listed file whose path contains each word of the query, case aside, at most 500 of them, less the files the
+// explorer's patterns hide, written as a JSON array of paths (files_search.c, files_find.c)
 int cli_files_search(const CliFilesRootOutErrMsgCfg *args);
 
 // what opening a file left: nothing, with why given; its text stored whole; its text paged; or a file that is not text,
@@ -327,6 +341,8 @@ struct CliFilesRootOutErrMsgCfg
     const char *query;
     CliSearching how;
     const CliPatterns *set;
+    void (*each)(const CliEachHitCfg *args);
+    void *context;
 };
 
 struct CliFilesRootEachCfg
@@ -609,6 +625,133 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliFilesRootErrMsgNs, free_in);
 EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
     .free_in = cli_files_free_in,
+};
+
+// The Search pane as the window lists it (files_search_pane.c): every line of the tree's files that contains what is
+// typed, a row a file with its count and under it a row a line, the match marked. Case, whole words and regular
+// expressions each turn on and off beside the field, and under it the search is set to the whole tree or to a set of
+// files Preferences lists under `search.sets`, `<name>:` on a line and its patterns on the lines after, the set chosen
+// saved under `search.set`. Typing rests CLI_SEARCH_REST_MS before the tree is searched; a choice flipped searches at
+// once; what stands found is found again as files git sees change. A file's row closes and opens its lines, which
+// stays with the file across searches, and a line's row opens the file at the match
+// the most bytes a query takes with its end, the rest typing takes before the search, the most bytes of the report
+// with its end, the most sets Preferences lists and the most bytes of a set's name with its end
+#define CLI_SEARCH_QUERY_MAX 512u
+#define CLI_SEARCH_REST_MS 300ULL
+#define CLI_SEARCH_REPORT 128u
+#define CLI_SEARCH_SETS 32u
+#define CLI_SEARCH_NAME_MAX 64u
+// the rows: a file, and a line found under it
+#define CLI_SEARCH_ROW_FILE 0u
+#define CLI_SEARCH_ROW_HIT 1u
+// the head's actions: the field, which takes the keys; the case, whole word and regular expression choices; and the
+// set, which moves to the next
+#define CLI_SEARCH_FIELD 1u
+#define CLI_SEARCH_CASE 2u
+#define CLI_SEARCH_WORD 3u
+#define CLI_SEARCH_REGEX 4u
+#define CLI_SEARCH_SET 5u
+
+// A row of the pane: its kind; the file's path from the top of the tree; a file row's name with its bytes and the
+// bytes of its folder before the name, its count of lines found and whether its lines show; a line row's line and
+// column counted from 1, its text with the text's bytes, and the match's place and bytes in the text
+typedef struct
+{
+    unsigned int kind;
+    const char *path;
+    const char *name;
+    unsigned long long name_length;
+    unsigned long long folder_length;
+    unsigned int count;
+    int open;
+    unsigned long long line;
+    unsigned long long col;
+    const char *text;
+    unsigned long long text_length;
+    unsigned long long match_at;
+    unsigned long long match_length;
+} CliSearchRow;
+
+typedef struct CliSearchPaneCfg CliSearchPaneCfg;
+
+// what wakes the window as the watch marks the search stale, `woken`, from the watch's thread; and the set chosen
+// restored from the saved `entries`, which the sets are read from after
+void cli_search_pane_begin(const CliSearchPaneCfg *args);
+// `size` bytes of `text` typed at the query's end at `now_ms`; the key `name` pressed in the field at `now_ms`:
+// Backspace erases the query's last letter and Enter searches at the next step, 1 where the key was one of those; and
+// the choice `which` flipped, or the set moved to the next, at `now_ms`, searched at the next step
+void cli_search_pane_type(const CliSearchPaneCfg *args);
+int cli_search_pane_key(const CliSearchPaneCfg *args);
+void cli_search_pane_option(const CliSearchPaneCfg *args);
+// whether the choice `which` is on; the query with its bytes into `length_out`; and the set chosen's name, Whole tree
+// where none is, with how many sets Preferences lists into `count_out`
+int cli_search_pane_on(const CliSearchPaneCfg *args);
+const char *cli_search_pane_query(const CliSearchPaneCfg *args);
+const char *cli_search_pane_set(const CliSearchPaneCfg *args);
+// one step of the window at `now_ms` for the tree at `root`: the tree searched where a change waited its rest, where a
+// key asked for it, or where the watch marked the search stale: 1 where the rows changed; when the next search falls,
+// 0 where none waits; and the search marked stale, from the watch's thread
+int cli_search_pane_step(const CliSearchPaneCfg *args);
+unsigned long long cli_search_pane_deadline_ms(const CliSearchPaneCfg *args);
+void cli_search_pane_stale(const CliSearchPaneCfg *args);
+// how many rows there are; the row `at` into `row`: 1, or 0 past the last; the file row `at` closed or opened; and the
+// report into `report`, sized CLI_SEARCH_REPORT: the results and files counted, that none were found, or why the
+// search failed: its bytes, 0 where the query is empty
+unsigned int cli_search_pane_rows(const CliSearchPaneCfg *args);
+int cli_search_pane_row(const CliSearchPaneCfg *args);
+void cli_search_pane_toggle(const CliSearchPaneCfg *args);
+unsigned long long cli_search_pane_report(const CliSearchPaneCfg *args);
+struct CliSearchPaneCfg
+{
+    void (*woken)(void);
+    const CliStateEntries *entries;
+    const char *text;
+    unsigned long long size;
+    const char *name;
+    unsigned int which;
+    const char *root;
+    unsigned long long now_ms;
+    unsigned int at;
+    CliSearchRow *row;
+    unsigned long long *length_out;
+    unsigned int *count_out;
+    char *report;
+};
+
+typedef struct
+{
+    void (*begin)(const CliSearchPaneCfg *args);
+    void (*type)(const CliSearchPaneCfg *args);
+    int (*key)(const CliSearchPaneCfg *args);
+    void (*option)(const CliSearchPaneCfg *args);
+    int (*on)(const CliSearchPaneCfg *args);
+    const char *(*query)(const CliSearchPaneCfg *args);
+    const char *(*set)(const CliSearchPaneCfg *args);
+    int (*step)(const CliSearchPaneCfg *args);
+    unsigned long long (*deadline_ms)(const CliSearchPaneCfg *args);
+    void (*stale)(const CliSearchPaneCfg *args);
+    unsigned int (*rows)(const CliSearchPaneCfg *args);
+    int (*row)(const CliSearchPaneCfg *args);
+    void (*toggle)(const CliSearchPaneCfg *args);
+    unsigned long long (*report)(const CliSearchPaneCfg *args);
+} CliSearchPaneNs;
+EMBED_TABLE_LAYOUT(CliSearchPaneNs, begin, type, key, option, on, query, set, step, deadline_ms, stale, rows, row,
+                   toggle, report);
+EMBED_TABLE_STORAGE CliSearchPaneNs cli_search_pane EMBED_UNUSED = {
+    .begin = cli_search_pane_begin,
+    .type = cli_search_pane_type,
+    .key = cli_search_pane_key,
+    .option = cli_search_pane_option,
+    .on = cli_search_pane_on,
+    .query = cli_search_pane_query,
+    .set = cli_search_pane_set,
+    .step = cli_search_pane_step,
+    .deadline_ms = cli_search_pane_deadline_ms,
+    .stale = cli_search_pane_stale,
+    .rows = cli_search_pane_rows,
+    .row = cli_search_pane_row,
+    .toggle = cli_search_pane_toggle,
+    .report = cli_search_pane_report,
 };
 
 #endif

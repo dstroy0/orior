@@ -13,13 +13,43 @@
 
 typedef struct GuiExplorerMarkCfg GuiExplorerMarkCfg;
 
-// the sizes in the page's pixels: the arrow's box, the icon's box and the gap after it, and a mark's text size; and
-// the most bytes of a file's mark text with its end, and of the name it is read from
+// the sizes in the page's pixels: the arrow's box, the icon's box and the gap after it, a mark's text size, the gap
+// before a file's folder and the folder's text size; and the most bytes of a file's mark text with its end, and of the
+// name it is read from
 #define GUI_EXPLORER_TWISTY 16
 #define GUI_EXPLORER_ICON 16
 #define GUI_EXPLORER_ICON_GAP 8
 #define GUI_EXPLORER_MARK_SIZE 11u
+#define GUI_EXPLORER_WHERE_GAP 8
+#define GUI_EXPLORER_WHERE_SIZE 11u
 #define GUI_EXPLORER_MARK_MOST 64u
+
+typedef struct GuiExplorerFileCfg GuiExplorerFileCfg;
+
+// a file drawn in the pane's row from x: its mark centered in the icon's box in the mark's color, its name after the
+// icon's gap in `color`, and where `folder_length` is not 0 its folder after the where gap in the quieter color at the
+// where size, each cut to `clip`: the x after what was drawn
+float gui_explorer_file_draw(const GuiExplorerFileCfg *args);
+struct GuiExplorerFileCfg
+{
+    const GuiPaneCfg *pane;
+    int x;
+    const char *name;
+    unsigned long long length;
+    const char *folder;
+    unsigned long long folder_length;
+    GuiColor color;
+    GuiRect clip;
+};
+
+typedef struct
+{
+    float (*file_draw)(const GuiExplorerFileCfg *args);
+} GuiExplorerFileNs;
+EMBED_TABLE_LAYOUT(GuiExplorerFileNs, file_draw);
+EMBED_TABLE_STORAGE GuiExplorerFileNs gui_explorer_file EMBED_UNUSED = {
+    .file_draw = gui_explorer_file_draw,
+};
 
 // the explorer's kind of pane
 extern const GuiPaneKind gui_explorer_kind;

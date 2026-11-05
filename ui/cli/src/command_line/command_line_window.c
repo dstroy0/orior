@@ -87,6 +87,11 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     {
         EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = root);
     }
+    // what the Search pane found is found again as files git sees change
+    if (args->git || args->lost)
+    {
+        EMBED_CALL(cli_search_pane.stale, CliSearchPaneCfg, .at = 0u);
+    }
     const unsigned int files = args->files->count;
     for (unsigned int at = 0u; at < files; at += 1u)
     {

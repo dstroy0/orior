@@ -92,8 +92,9 @@ void cli_files_hits_in(const CliFilesContextCtx *args);
 #define CLI_GIT_SEARCH_FAILED 2
 
 // a found line written as the window reads it, `{"path", "line", "col", "text"}`, a comma before it where it is not the
-// first; and a regular expression searched by git over the files `specs` name, less those `patterns` or `set` hide, at
-// most CLI_HITS_MAX lines written as a JSON array (files_find.c)
+// first, or handed to `each` with `context` where `each` is not NULL, its text cut as a hit retains it; and a regular
+// expression searched by git over the files `specs` name, less those `patterns` or `set` hide, at most CLI_HITS_MAX
+// lines written as a JSON array, or each handed to `each` (files_find.c)
 void cli_hit_write(const CliFilesPathCtx *args);
 int cli_search_by_git(const CliFilesRootCtx *args);
 
@@ -152,6 +153,8 @@ struct CliFilesRootCtx
     const CliPatterns *patterns;
     const CliPatterns *set;
     VerbaLinea *err_msg;
+    void (*each)(const CliEachHitCfg *args);
+    void *context;
 };
 
 struct CliFilesPathCtx
@@ -163,6 +166,8 @@ struct CliFilesPathCtx
     int first;
     unsigned long long line;
     unsigned long long col;
+    void (*each)(const CliEachHitCfg *args);
+    void *context;
 };
 
 struct CliFilesContextCtx

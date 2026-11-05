@@ -9,12 +9,14 @@
 #include "explorer.h"
 #include "problems.h"
 #include "runs.h"
+#include "search.h"
 #include "structure.h"
 #include "tests.h"
 
 // the kinds, one a tool that has a pane
 static const GuiPaneKind *const s_kinds[] = {
-    &gui_explorer_kind, &gui_problems_kind, &gui_structure_kind, &gui_changes_kind, &gui_tests_kind, &gui_runs_kind,
+    &gui_explorer_kind, &gui_search_kind, &gui_problems_kind, &gui_structure_kind,
+    &gui_changes_kind,  &gui_tests_kind,  &gui_runs_kind,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)
@@ -22,6 +24,7 @@ void gui_pane_init(const GuiPaneCfg *args)
     args->pane->pointed = GUI_PANE_NONE;
     args->pane->action = 0u;
     args->pane->scroll = 0u;
+    args->pane->keys = 0;
 }
 
 const GuiPaneKind *gui_pane_kind_of(const GuiPaneCfg *args)
@@ -378,4 +381,45 @@ void gui_pane_read(const GuiPaneCfg *args)
     {
         args->kind->read(args);
     }
+}
+
+int gui_pane_text(const GuiPaneCfg *args)
+{
+    return (args->kind != NULL) && (args->kind->text != NULL) && args->pane->keys && args->kind->text(args);
+}
+
+int gui_pane_part_scaled(const GuiPanePartCfg *args)
+{
+    return EMBED_CALL(pane_scaled, PaneCtx, .frame = args->pane->frame, .pixels = args->x);
+}
+
+float gui_pane_part_text_width(const GuiPanePartCfg *args)
+{
+    return EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->pane->glyphs,
+                      .face = args->face,
+                      .size = (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args->pane,
+                                                       .x = (int)args->size),
+                      .text = args->text, .length = args->length);
+}
+
+float gui_pane_part_text_draw(const GuiPanePartCfg *args)
+{
+    const GuiPaneCfg *const pane = args->pane;
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = (int)args->size);
+    const GuiRect band = args->clipped ? args->clip : pane->rect;
+    return EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = pane->raster,
+                      .glyphs = pane->glyphs, .face = args->face, .size = size, .x_f32 = args->x_f32,
+                      .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = pane->glyphs,
+                                      .face = args->face, .size = size, .top = band.y, .pixel_height = band.height),
+                      .text = args->text, .length = args->length,
+                      .color = GUI_FRAME_FADED(args->color, pane->frame->side_share),
+                      .clip = args->clipped ? EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                                         .one = args->clip, .other = pane->clip)
+                                            : pane->clip);
+}
+
+int gui_pane_key(const GuiPaneCfg *args)
+{
+    return (args->kind != NULL) && (args->kind->key != NULL) && args->pane->keys && args->kind->key(args);
 }

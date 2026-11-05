@@ -17,13 +17,10 @@ typedef struct
     int x;
     unsigned int face;
     unsigned int size;
-    float x_f32;
     const char *text;
     unsigned long long length;
     GuiColor color;
     unsigned long long bytes;
-    GuiRect clip;
-    int clipped;
 } RunsCtx;
 
 static const char *runs_title(const GuiPaneCfg *args)
@@ -36,36 +33,6 @@ static unsigned int runs_rows(const GuiPaneCfg *args)
 {
     (void)args;
     return EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u);
-}
-
-// `x` pixels of the page at the frame's scale
-EMBED_INLINE int runs_scaled(const RunsCtx *args)
-{
-    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = args->x, .scale = args->pane->frame->scale);
-}
-
-// the width of `length` bytes of `text` in `face` at `size` page pixels
-EMBED_INLINE float runs_text_width(const RunsCtx *args)
-{
-    return EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->pane->glyphs,
-                      .face = args->face,
-                      .size = (unsigned int)EMBED_CALL(runs_scaled, RunsCtx, .pane = args->pane, .x = (int)args->size),
-                      .text = args->text, .length = args->length);
-}
-
-// `length` bytes of `text` drawn from x in the row, `face` at `size` page pixels, in `color` faded with the side, cut
-// to `clip` where `clipped` and to the row's clip where not: the x after them
-EMBED_INLINE float runs_text_draw(const RunsCtx *args)
-{
-    const GuiPaneCfg *const pane = args->pane;
-    const unsigned int size = (unsigned int)EMBED_CALL(runs_scaled, RunsCtx, .pane = pane, .x = (int)args->size);
-    return EMBED_CALL(
-        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = pane->raster, .glyphs = pane->glyphs,
-        .face = args->face, .size = size, .x_f32 = args->x_f32,
-        .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = pane->glyphs, .face = args->face,
-                        .size = size, .top = pane->rect.y, .pixel_height = pane->rect.height),
-        .text = args->text, .length = args->length, .color = GUI_FRAME_FADED(args->color, pane->frame->side_share),
-        .clip = args->clipped ? args->clip : pane->clip);
 }
 
 // `bytes` written into the line at `text`: under 1024 in bytes, under a mebibyte in kibibytes to a tenth, else in
@@ -92,11 +59,12 @@ EMBED_INLINE void runs_bar_draw(const RunsCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = pane->raster,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){args->x, pane->rect.y,
-                                                   EMBED_CALL(runs_scaled, RunsCtx, .pane = pane, .x = GUI_RUNS_BAR),
-                                                   pane->rect.height},
-                                  .other = pane->clip),
+               .rect = EMBED_CALL(
+                   gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){args->x, pane->rect.y,
+                                    EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_RUNS_BAR),
+                                    pane->rect.height},
+                   .other = pane->clip),
                .color = GUI_FRAME_FADED(args->color, pane->frame->side_share));
 }
 
@@ -104,12 +72,12 @@ EMBED_INLINE void runs_bar_draw(const RunsCtx *args)
 EMBED_INLINE float runs_text_draw_right(const RunsCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
-    const int pad = EMBED_CALL(runs_scaled, RunsCtx, .pane = pane, .x = GUI_PANE_PAD_LEFT);
-    const float width = EMBED_CALL(runs_text_width, RunsCtx, .pane = pane, .face = args->face, .size = args->size,
-                                   .text = args->text, .length = args->length);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT);
+    const float width = EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = pane, .face = args->face,
+                                   .size = args->size, .text = args->text, .length = args->length);
     const float x = (float)(pane->rect.x + pane->rect.width - pad) - width;
-    (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = pane, .face = args->face, .size = args->size, .x_f32 = x,
-                     .text = args->text, .length = args->length, .color = args->color);
+    (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = pane, .face = args->face, .size = args->size,
+                     .x_f32 = x, .text = args->text, .length = args->length, .color = args->color);
     return x;
 }
 
@@ -125,14 +93,14 @@ static void runs_row_draw(const GuiPaneCfg *args)
     {
         return;
     }
-    const int pad = EMBED_CALL(runs_scaled, RunsCtx, .pane = args, .x = GUI_PANE_PAD_LEFT);
-    const int gap = EMBED_CALL(runs_scaled, RunsCtx, .pane = args, .x = GUI_RUNS_GAP);
+    const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
+    const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_RUNS_GAP);
     // a folder's, a run's and the empty row's left; the detail's left, where its bars, counts, records and lessons
     // start; and a text's left past a bar
     const int left = rect.x + pad;
-    const int detail = left + EMBED_CALL(runs_scaled, RunsCtx, .pane = args, .x = GUI_RUNS_DETAIL_PAD);
-    const int past_bar = detail + EMBED_CALL(runs_scaled, RunsCtx, .pane = args, .x = GUI_RUNS_BAR) +
-                         EMBED_CALL(runs_scaled, RunsCtx, .pane = args, .x = GUI_RUNS_BAR_PAD);
+    const int detail = left + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_RUNS_DETAIL_PAD);
+    const int past_bar = detail + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_RUNS_BAR) +
+                         EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_RUNS_BAR_PAD);
     // the rows are fewer than an int counts
     const int pointed = args->pane_read->pointed == (int)args->row;
     char digits[64];
@@ -140,14 +108,15 @@ static void runs_row_draw(const GuiPaneCfg *args)
     switch (row.kind)
     {
     case CLI_RUNS_ROW_EMPTY:
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = (float)left, .text = RUNS_EMPTY_TEXT,
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = (float)left, .text = RUNS_EMPTY_TEXT,
                          .length = cellul.len(&(CatenaFinitaCfg){.src = RUNS_EMPTY_TEXT, .cap = 256ULL}),
                          .color = palette->text_3);
         break;
     case CLI_RUNS_ROW_FOLDER:
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_SMALL_SIZE,
-                         .x_f32 = (float)left, .text = row.text, .length = row.text_length, .color = palette->text_3);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_SMALL_SIZE, .x_f32 = (float)left, .text = row.text, .length = row.text_length,
+                         .color = palette->text_3);
         break;
     case CLI_RUNS_ROW_RUN: {
         if (row.open && !pointed)
@@ -174,8 +143,8 @@ static void runs_row_draw(const GuiPaneCfg *args)
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){rect.x, rect.y, (int)right_x - gap - rect.x, rect.height}, .other = args->clip);
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = (float)left, .text = row.text, .length = row.text_length,
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = (float)left, .text = row.text, .length = row.text_length,
                          .color = (pointed || row.open) ? palette->text : palette->text_2, .clip = text_clip,
                          .clipped = 1);
         break;
@@ -184,32 +153,34 @@ static void runs_row_draw(const GuiPaneCfg *args)
         EMBED_CALL(runs_bar_draw, RunsCtx, .pane = args, .x = detail, .color = palette->error);
         mmgr_line_put(&line, "panic #");
         mmgr_line_decimal(&line, row.number, 1u);
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_SMALL_SIZE,
-                         .x_f32 = (float)past_bar, .text = digits, .length = line.at, .color = palette->error);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_SMALL_SIZE, .x_f32 = (float)past_bar, .text = digits, .length = line.at,
+                         .color = palette->error);
         break;
     case CLI_RUNS_ROW_PANIC_LINE:
         EMBED_CALL(runs_bar_draw, RunsCtx, .pane = args, .x = detail, .color = palette->error);
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = (float)past_bar, .text = row.text, .length = row.text_length, .color = palette->text);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = (float)past_bar, .text = row.text,
+                         .length = row.text_length, .color = palette->text);
         break;
     case CLI_RUNS_ROW_QUESTION:
         EMBED_CALL(runs_bar_draw, RunsCtx, .pane = args, .x = detail, .color = palette->text_3);
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = (float)past_bar, .text = row.text, .length = row.text_length,
-                         .color = palette->text_2);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = (float)past_bar, .text = row.text,
+                         .length = row.text_length, .color = palette->text_2);
         break;
     case CLI_RUNS_ROW_ACCOUNT: {
         EMBED_CALL(runs_bar_draw, RunsCtx, .pane = args, .x = detail, .color = palette->text_3);
         float x = (float)past_bar;
         if (row.second_length != 0ULL)
         {
-            x = EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                           .x_f32 = x, .text = row.second, .length = row.second_length,
+            x = EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                           .size = GUI_RUNS_TEXT_SIZE, .x_f32 = x, .text = row.second, .length = row.second_length,
                            .color = row.ruling ? palette->signal : palette->text_2) +
                 (float)gap;
         }
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = x, .text = row.text, .length = row.text_length,
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = x, .text = row.text, .length = row.text_length,
                          .color = row.ruling ? palette->signal : palette->text);
         break;
     }
@@ -223,8 +194,9 @@ static void runs_row_draw(const GuiPaneCfg *args)
             mmgr_line_decimal(&line, row.size, 1u);
             mmgr_line_put(&line, " bytes after the last whole record");
         }
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_RUNS_SMALL_SIZE,
-                         .x_f32 = (float)detail, .text = digits, .length = line.at, .color = palette->text_3);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
+                         .size = GUI_RUNS_SMALL_SIZE, .x_f32 = (float)detail, .text = digits, .length = line.at,
+                         .color = palette->text_3);
         break;
     case CLI_RUNS_ROW_BLOB: {
         EMBED_CALL(runs_size_write, RunsCtx, .text = (const char *)&line, .bytes = row.size);
@@ -234,9 +206,9 @@ static void runs_row_draw(const GuiPaneCfg *args)
         line.at = 0ULL;
         mmgr_line_ch(&line, '#');
         mmgr_line_decimal(&line, row.number, 1u);
-        const float after =
-            EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_SMALL_SIZE,
-                       .x_f32 = (float)detail, .text = digits, .length = line.at, .color = palette->text_3);
+        const float after = EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                                       .size = GUI_RUNS_SMALL_SIZE, .x_f32 = (float)detail, .text = digits,
+                                       .length = line.at, .color = palette->text_3);
         GuiColor name_color = palette->text_2;
         if (row.priority == QRY_PANIC)
         {
@@ -249,25 +221,28 @@ static void runs_row_draw(const GuiPaneCfg *args)
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){rect.x, rect.y, (int)right_x - gap - rect.x, rect.height}, .other = args->clip);
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_SMALL_SIZE,
-                         .x_f32 = after + (float)gap, .text = row.text, .length = row.text_length, .color = name_color,
-                         .clip = text_clip, .clipped = 1);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_SMALL_SIZE, .x_f32 = after + (float)gap, .text = row.text,
+                         .length = row.text_length, .color = name_color, .clip = text_clip, .clipped = 1);
         break;
     }
     case CLI_RUNS_ROW_LESSONS:
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_RUNS_SMALL_SIZE,
-                         .x_f32 = (float)detail, .text = "Lessons", .length = 7ULL, .color = palette->text_3);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,
+                         .size = GUI_RUNS_SMALL_SIZE, .x_f32 = (float)detail, .text = "Lessons", .length = 7ULL,
+                         .color = palette->text_3);
         break;
     case CLI_RUNS_ROW_LESSON: {
-        float x =
-            EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                       .x_f32 = (float)detail, .text = row.text, .length = row.text_length, .color = palette->text) +
+        float x = EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                             .size = GUI_RUNS_TEXT_SIZE, .x_f32 = (float)detail, .text = row.text,
+                             .length = row.text_length, .color = palette->text) +
+                  (float)gap;
+        x = EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                       .size = GUI_RUNS_TEXT_SIZE, .x_f32 = x, .text = row.second, .length = row.second_length,
+                       .color = palette->text_3) +
             (float)gap;
-        x = EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                       .x_f32 = x, .text = row.second, .length = row.second_length, .color = palette->text_3) +
-            (float)gap;
-        (void)EMBED_CALL(runs_text_draw, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_TEXT_SIZE,
-                         .x_f32 = x, .text = row.third, .length = row.third_length, .color = palette->text_2);
+        (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                         .size = GUI_RUNS_TEXT_SIZE, .x_f32 = x, .text = row.third, .length = row.third_length,
+                         .color = palette->text_2);
         break;
     }
     default:

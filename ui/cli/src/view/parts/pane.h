@@ -17,6 +17,7 @@
 
 typedef struct GuiPaneCfg GuiPaneCfg;
 typedef struct GuiPaneKind GuiPaneKind;
+typedef struct GuiPanePartCfg GuiPanePartCfg;
 
 // no row; the most tools the side has a pane for; and the sizes in the page's pixels: the side's head with the group's
 // title, the line under it, the pane's head, a row, a row's padding at the left, a guide's width, the arrow's side,
@@ -39,13 +40,15 @@ typedef struct GuiPaneKind GuiPaneKind;
 #define GUI_PANE_VIEW 2u
 #define GUI_PANE_SAVED 3u
 
-// A pane: the row the pointer stands on, GUI_PANE_NONE for none; the head's action it stands on, 0 for none; and how
-// many rows are scrolled off the pane's top
+// A pane: the row the pointer stands on, GUI_PANE_NONE for none; the head's action it stands on, 0 for none; how many
+// rows are scrolled off the pane's top; and whether the pane's head has the keys, as it does from a press on its field
+// until a press elsewhere or Escape
 typedef struct
 {
     int pointed;
     unsigned int action;
     unsigned int scroll;
+    int keys;
 } GuiPane;
 
 // What a row pressed opens: the file's path in the tree, and the place in it where `placed`
@@ -61,8 +64,10 @@ typedef struct
 // the head before the rows, none where NULL, drawn by `head_draw` in `rect` cut to `clip`, and the action at x, y in
 // them by `head_hit`, 0 for none, run by `action` as `which` for the tree at `root`; the row `row` drawn in `rect` cut
 // to `clip`; the row current for `cursor_line`, GUI_PANE_NONE where none or NULL; the row `row` pressed, 1 with what
-// it opens into `open_out`; and the data read anew on `event` for the tree at `root` and the view `key` at `path`. An
-// action that runs the tree's code saves every view first through `save_all` with `context`
+// it opens into `open_out`; the data read anew on `event` for the tree at `root` and the view `key` at `path`; and
+// while the pane has the keys, `length` bytes of `text` typed and the key `name` pressed, each 1 where taken, NULL
+// where the kind takes none. An action that runs the tree's code saves every view first through `save_all` with
+// `context`; one that takes the keys sets them on `pane`
 struct GuiPaneKind
 {
     const char *tool;
@@ -77,6 +82,8 @@ struct GuiPaneKind
     int (*current)(const GuiPaneCfg *args);
     int (*press)(const GuiPaneCfg *args);
     void (*read)(const GuiPaneCfg *args);
+    int (*text)(const GuiPaneCfg *args);
+    int (*key)(const GuiPaneCfg *args);
 };
 
 // a pane pointing at no row and no action, scrolled to its top
@@ -107,10 +114,13 @@ int gui_pane_guides(const GuiPaneCfg *args);
 // all, in `color`
 void gui_pane_arrow_draw(const GuiPaneCfg *args);
 // the row `row` pressed: 1 with what it opens into `open_out`; the head's action `which` run for the tree at `root`;
-// and the kind's data read anew on `event`
+// the kind's data read anew on `event`; and `length` bytes of `text` typed and the key `name` pressed while `pane`
+// has the keys, each 1 where the kind took it
 int gui_pane_press(const GuiPaneCfg *args);
 void gui_pane_action(const GuiPaneCfg *args);
 void gui_pane_read(const GuiPaneCfg *args);
+int gui_pane_text(const GuiPaneCfg *args);
+int gui_pane_key(const GuiPaneCfg *args);
 struct GuiPaneCfg
 {
     GuiPane *pane;
@@ -144,6 +154,43 @@ struct GuiPaneCfg
     unsigned int event;
     void (*save_all)(void *context);
     void *context;
+    const char *text;
+    unsigned long long length;
+    const char *name;
+};
+
+// what a kind draws in its pane: `x` pixels of the page at the pane's frame's scale; the width of `length` bytes of
+// `text` in `face` at `size` page pixels; and the text drawn from `x_f32`, in `color` faded with the side, its baseline
+// centered in `clip` and cut to `clip` inside the pane's clip where `clipped`, else centered in the pane's row and cut
+// to the pane's clip: the x after it
+int gui_pane_part_scaled(const GuiPanePartCfg *args);
+float gui_pane_part_text_width(const GuiPanePartCfg *args);
+float gui_pane_part_text_draw(const GuiPanePartCfg *args);
+struct GuiPanePartCfg
+{
+    const GuiPaneCfg *pane;
+    int x;
+    unsigned int face;
+    unsigned int size;
+    float x_f32;
+    const char *text;
+    unsigned long long length;
+    GuiColor color;
+    GuiRect clip;
+    int clipped;
+};
+
+typedef struct
+{
+    int (*scaled)(const GuiPanePartCfg *args);
+    float (*text_width)(const GuiPanePartCfg *args);
+    float (*text_draw)(const GuiPanePartCfg *args);
+} GuiPanePartNs;
+EMBED_TABLE_LAYOUT(GuiPanePartNs, scaled, text_width, text_draw);
+EMBED_TABLE_STORAGE GuiPanePartNs gui_pane_part EMBED_UNUSED = {
+    .scaled = gui_pane_part_scaled,
+    .text_width = gui_pane_part_text_width,
+    .text_draw = gui_pane_part_text_draw,
 };
 
 typedef struct
@@ -163,9 +210,11 @@ typedef struct
     int (*press)(const GuiPaneCfg *args);
     void (*action)(const GuiPaneCfg *args);
     void (*read)(const GuiPaneCfg *args);
+    int (*text)(const GuiPaneCfg *args);
+    int (*key)(const GuiPaneCfg *args);
 } GuiPaneNs;
 EMBED_TABLE_LAYOUT(GuiPaneNs, init, kind_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
-                   arrow_draw, press, action, read);
+                   arrow_draw, press, action, read, text, key);
 EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .init = gui_pane_init,
     .kind_of = gui_pane_kind_of,
@@ -182,6 +231,8 @@ EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .press = gui_pane_press,
     .action = gui_pane_action,
     .read = gui_pane_read,
+    .text = gui_pane_text,
+    .key = gui_pane_key,
 };
 
 #endif

@@ -33,6 +33,8 @@ typedef struct
     CliSearchHits hits[CLI_WORKERS_MAX];
     unsigned int stores;
     CliThread worker_thread[CLI_WORKERS_MAX];
+    void (*each)(const CliEachHitCfg *args);
+    void *context;
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
@@ -184,7 +186,10 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_search.wake);
     }
-    mmgr_line_ch(out, '[');
+    if (out != NULL)
+    {
+        mmgr_line_ch(out, '[');
+    }
     for (unsigned int at = 0u; at < CLI_HITS_MAX; at += 1u)
     {
         const CliSearchHit *const hit = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg,
@@ -196,9 +201,13 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
         EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = at == 0u,
                    .path = EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx,
                                       .picked_read = &s_search.paths, .index = hit->file),
-                   .line = hit->line, .col = hit->col, .text = hit->text, .size = hit->size);
+                   .line = hit->line, .col = hit->col, .text = hit->text, .size = hit->size, .each = s_search.each,
+                   .context = s_search.context);
     }
-    mmgr_line_ch(out, ']');
+    if (out != NULL)
+    {
+        mmgr_line_ch(out, ']');
+    }
 }
 
 int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
@@ -206,9 +215,14 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     const char *root = args->root;
     static CliPatterns s_patterns;
     static CliWords s_specs;
+    s_search.each = args->each;
+    s_search.context = args->context;
     if (args->query[0] == '\0')
     {
-        mmgr_line_put(args->out, "[]");
+        if (args->out != NULL)
+        {
+            mmgr_line_put(args->out, "[]");
+        }
         return 1;
     }
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_SEARCH, .patterns_out = &s_patterns);
@@ -232,7 +246,7 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
         const int received =
             EMBED_CALL(cli_files_root_internal.search_by_git, CliFilesRootCtx, .root = root, .query = args->query,
                        .how = args->how, .specs = &s_specs, .patterns = &s_patterns, .set = args->set, .out = args->out,
-                       .err_msg = args->err_msg);
+                       .err_msg = args->err_msg, .each = args->each, .context = args->context);
         if (received != CLI_GIT_SEARCH_NONE)
         {
             return received == CLI_GIT_SEARCH_FOUND;
