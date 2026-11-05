@@ -43,8 +43,6 @@
 #define CLI_HIT_STATUS_NOTICE 23u
 #define CLI_HIT_STATUS_SILENCE 24u
 #define CLI_HIT_STATUS_FOCUS 25u
-#define CLI_HIT_QUICK_ROW 26u
-#define CLI_HIT_QUICK_BOX 27u
 
 // A place on the screen in the system's own pixels, and whether the window filled its monitor there
 typedef struct
