@@ -300,16 +300,16 @@ def window_program(gui_name, sanitizer=""):
 
 
 def window_built(gui_name, sanitizer=""):
-    """The window built by ui/cli/build.sh window for this machine, under `sanitizer` where one is named; or the
-    program ORIOR_TEST_GUI names."""
+    """The window built by harness.py build gui, under `sanitizer` where one is named; or the program
+    ORIOR_TEST_GUI names."""
     given = os.environ.get("ORIOR_TEST_GUI")
     if given and os.path.isfile(given):
         return given
-    import harness_window
+    import harness_build
 
-    env = dict(os.environ, ORIOR_SANITIZE=sanitizer) if sanitizer else dict(os.environ)
-    built = subprocess.run(["bash", findroot.at("ui", "cli", "build.sh"), "window", harness_window.host_target()], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
-    if built.returncode != 0:
+    if sanitizer:
+        os.environ["ORIOR_SANITIZE"] = sanitizer
+    if harness_build.cmd_build_gui(None) != 0:
         raise RuntimeError("the window did not build")
     return window_program(gui_name, sanitizer)
 
