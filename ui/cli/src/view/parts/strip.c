@@ -34,6 +34,9 @@ void gui_strip_init(const GuiStripInitCfg *args)
     args->strip->pointed = GUI_STRIP_NONE;
     args->strip->displayed = GUI_STRIP_NONE;
     args->strip->collapsed = 0;
+    args->strip->problems_marked = 0;
+    args->strip->runs_live = 0u;
+    args->strip->runs_panicked = 0u;
 }
 
 GuiRect gui_strip_button(const GuiStripCfg *args)
@@ -159,9 +162,20 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
                        .mask_bits = mask_bits, .x = button.x + ((button.width - (int)icon) / 2),
                        .y = button.y + ((button.height - (int)icon) / 2), .color = color, .clip = on);
         }
-        // the Problems tool's mark, a dot in the error's color at the button's top right corner
-        if (args->strip_read->problems_marked &&
-            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "problems", .cap = 32ULL}))
+        // a tool's mark, a dot at the button's top right corner: the Problems tool's in the error's color while it is
+        // marked, the Runs tool's in signal while a run is live and in the error's color while a live run has panicked
+        int marked = 0;
+        GuiColor mark_color = args->palette->error;
+        if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "problems", .cap = 32ULL}))
+        {
+            marked = args->strip_read->problems_marked;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "runs", .cap = 32ULL}))
+        {
+            marked = args->strip_read->runs_live != 0u;
+            mark_color = (args->strip_read->runs_panicked != 0u) ? args->palette->error : args->palette->signal;
+        }
+        if (marked)
         {
             const int mark =
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STRIP_MARK, .scale = scale);
@@ -171,7 +185,7 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
             // the dot's corners round by half its side, the dot a circle
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster,
                        .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = dot, .other = on),
-                       .radius = (unsigned int)(mark / 2), .color = args->palette->error);
+                       .radius = (unsigned int)(mark / 2), .color = mark_color);
         }
     }
 }

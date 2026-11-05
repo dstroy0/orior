@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry.h: query runs as the window watches them, each a .qry in a folder of runs, read through the run's member and the
 // .qry reader (`qry_member.h`, `qry_read.h`), never a copy of them (qry.c reads and appends, qry_queue.c queues the
-// backend's records, qry_listing.c lists a tree's runs).
+// backend's records, qry_listed.c lists a tree's runs for the Runs pane).
 //
 // A run whose writer runs is viewed in its shared memory, read alone: its records are read where the writer put them,
 // in the order of the writer's schedule, and each read goes on from the place the last stopped.
@@ -28,10 +28,21 @@ typedef struct CliQryOutSizeCfg CliQryOutSizeCfg;
 typedef struct CliQryPathRootCfg CliQryPathRootCfg;
 typedef struct CliQryOutRootCfg CliQryOutRootCfg;
 typedef struct CliQryPathPanickedCfg CliQryPathPanickedCfg;
+typedef struct CliQryPathFromEachCfg CliQryPathFromEachCfg;
 typedef struct CliQryCfg CliQryCfg;
+typedef struct CliRunsPaneCfg CliRunsPaneCfg;
 
-// the cells a tree's runs are listed in (qry_listing.c)
+// the cells a tree's runs are listed in (qry_listed.c)
 extern CellOwner g_cli_qry_listing_cells;
+
+// A record of a run handed on as it is read: the record where it stands, and its sequence, its count among the run's
+// records from 0
+typedef struct
+{
+    void *context;
+    const QryRecord *record;
+    unsigned long long sequence;
+} CliEachRecordCfg;
 
 // the prefix of a conference's records, its question's identity after it
 #define CLI_CONFERENCE "conference_"
@@ -76,11 +87,102 @@ void cli_qry_join_window(const CliQryPathPanickedCfg *args);
 void cli_qry_queue(const CliQryPathNameCfg *args);
 // whether the run at `path` is live, and the place of the panic on its line where it is
 int cli_qry_existing(const CliQryPathPanickedCfg *args);
+// each record of the run at `path` from the place `from` handed to `each` with `context`, counted on from `sequence`:
+// from its shared memory while its writer runs, `from` a place in the writer's schedule; from its .qry where none does,
+// `from` a byte of it. The place past the last record into `next`, and the .qry's bytes past the last whole record
+// into `rest`, 0 while the writer runs. 1 while the writer runs, else 0
+int cli_qry_records(const CliQryPathFromEachCfg *args);
 // a file the watch of the tree at `root` saw written, `length` bytes of its path from the top of the tree: where it is
-// a run, its folder put among the tree's folders of runs; and the watch's changes lost, so the tree is walked again for
-// its folders of runs at its next listing (qry_listing.c)
+// a run or a folder's overseer.txt, its folder put among the folders the next listing reads and the listing marked
+// stale; and the watch's changes lost, so the tree is walked again for its folders of runs at the next listing
+// (qry_listed.c)
 void cli_qry_run_write(const CliQryPathRootCfg *args);
 void cli_qry_runs_lose(const CliQryOutRootCfg *args);
+
+// The Runs pane as the window lists it (qry_listed.c): every query run of the tree, each a .qry in a folder of runs,
+// found wherever its script was started, and live while its writer runs. The runs are listed at the first step after
+// the tree opens, as the pane comes into sight, as the tree's watch sees a run or an overseer's lessons written or
+// loses changes, and every CLI_RUNS_LIST_LIVE_MS while a run is live. A run opened in the pane is read whole on its
+// opening, read on from where the last read stopped every CLI_RUNS_READ_LIVE_MS while it is live and the pane shows,
+// and read whole again once it has ended. While no run is live nothing is asked. A run's first panic is posted as a
+// failed notice the moment a listing sees it, and the strip's Runs icon is marked while a run is live and in the
+// error's color while a live run has panicked. A conference, the records `conference_` and its question's identity,
+// each space written as an underscore, shows each line `<expert>: <account>` of each of its records, and a line that
+// starts `overseer:` as the ruling. The lessons of each folder's overseer.txt, one `lesson <cause> <carrier or *>
+// <stand-in>` a line, show under the folder's runs
+// the beats while a run is live: the runs listed again, and an opened live run read on
+#define CLI_RUNS_LIST_LIVE_MS 1000ULL
+#define CLI_RUNS_READ_LIVE_MS 400ULL
+// the latest records an opened run lists as rows; its panics and conferences show however many came before
+#define CLI_RUNS_SHOWN_BLOBS 200u
+// the rows: the tree has no run; a folder of runs; a run; a panic's head and a line of its text; a conference's
+// question and a line of its accounts; an opened run's count of records; one of its latest records; and the lessons'
+// head and a lesson
+#define CLI_RUNS_ROW_EMPTY 0u
+#define CLI_RUNS_ROW_FOLDER 1u
+#define CLI_RUNS_ROW_RUN 2u
+#define CLI_RUNS_ROW_PANIC 3u
+#define CLI_RUNS_ROW_PANIC_LINE 4u
+#define CLI_RUNS_ROW_QUESTION 5u
+#define CLI_RUNS_ROW_ACCOUNT 6u
+#define CLI_RUNS_ROW_COUNT 7u
+#define CLI_RUNS_ROW_BLOB 8u
+#define CLI_RUNS_ROW_LESSONS 9u
+#define CLI_RUNS_ROW_LESSON 10u
+
+// A row of the pane: its kind; a run row's path from the top of the tree; its texts, a folder row's folder, a run's
+// name, a panic line's text, a question, an account's text with the expert in `second`, a record's name, a lesson's
+// cause with its carrier in `second` and its stand-in in `third`; `number`, a panic's or a record's sequence or the
+// count row's records; `size`, a run's or a record's bytes, or the count row's bytes after the .qry's last whole
+// record; a record's priority; whether a run is live and the place plus 1 of its panic, 0 where none; whether a run
+// row is opened; and whether an account is the ruling
+typedef struct
+{
+    unsigned int kind;
+    const char *path;
+    const char *text;
+    unsigned long long text_length;
+    const char *second;
+    unsigned long long second_length;
+    const char *third;
+    unsigned long long third_length;
+    unsigned long long number;
+    unsigned long long size;
+    unsigned int priority;
+    int live;
+    unsigned long long panicked;
+    int open;
+    int ruling;
+} CliRunsRow;
+
+// what wakes the window as the watch marks the listing stale, `woken`, from the watch's thread
+void cli_runs_pane_begin(const CliRunsPaneCfg *args);
+// the runs of the tree at `root` listed now
+void cli_runs_pane_relist(const CliRunsPaneCfg *args);
+// one step of the window at `now_ms` for the tree at `root`, NULL where none is open, the pane in sight where `shown`:
+// the runs listed where none were, where the listing is stale or where one is live and CLI_RUNS_LIST_LIVE_MS passed;
+// and where the pane shows, each opened live run read on where CLI_RUNS_READ_LIVE_MS passed: 1 where the rows changed.
+// And when the next beat falls, 0 where none is awaited
+int cli_runs_pane_step(const CliRunsPaneCfg *args);
+unsigned long long cli_runs_pane_deadline_ms(const CliRunsPaneCfg *args);
+// how many rows there are; the row `at` into `row`: 1, or 0 past the last; and the run row `at` opened and read, or
+// closed where it is opened, for the tree at `root`
+unsigned int cli_runs_pane_rows(const CliRunsPaneCfg *args);
+int cli_runs_pane_row(const CliRunsPaneCfg *args);
+void cli_runs_pane_toggle(const CliRunsPaneCfg *args);
+// how many runs are live into `live_out`, and how many of those have panicked into `panicked_out`
+void cli_runs_pane_marks(const CliRunsPaneCfg *args);
+struct CliRunsPaneCfg
+{
+    void (*woken)(void);
+    const char *root;
+    unsigned long long now_ms;
+    int shown;
+    unsigned int at;
+    CliRunsRow *row;
+    unsigned int *live_out;
+    unsigned int *panicked_out;
+};
 struct CliQryPathCfg
 {
     const char *path;
@@ -157,6 +259,17 @@ struct CliQryPathPanickedCfg
 {
     const char *path;
     unsigned long long *panicked;
+};
+
+struct CliQryPathFromEachCfg
+{
+    const char *path;
+    unsigned long long from;
+    unsigned long long sequence;
+    void (*each)(const CliEachRecordCfg *args);
+    void *context;
+    unsigned long long *next;
+    unsigned long long *rest;
 };
 
 struct CliQryCfg
@@ -251,6 +364,38 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliQryPathRootNs, run_write);
 EMBED_TABLE_STORAGE CliQryPathRootNs cli_qry_path_root EMBED_UNUSED = {
     .run_write = cli_qry_run_write,
+};
+
+typedef struct
+{
+    int (*records)(const CliQryPathFromEachCfg *args);
+} CliQryPathFromEachNs;
+EMBED_TABLE_LAYOUT(CliQryPathFromEachNs, records);
+EMBED_TABLE_STORAGE CliQryPathFromEachNs cli_qry_path_from_each EMBED_UNUSED = {
+    .records = cli_qry_records,
+};
+
+typedef struct
+{
+    void (*begin)(const CliRunsPaneCfg *args);
+    void (*relist)(const CliRunsPaneCfg *args);
+    int (*step)(const CliRunsPaneCfg *args);
+    unsigned long long (*deadline_ms)(const CliRunsPaneCfg *args);
+    unsigned int (*rows)(const CliRunsPaneCfg *args);
+    int (*row)(const CliRunsPaneCfg *args);
+    void (*toggle)(const CliRunsPaneCfg *args);
+    void (*marks)(const CliRunsPaneCfg *args);
+} CliRunsPaneNs;
+EMBED_TABLE_LAYOUT(CliRunsPaneNs, begin, relist, step, deadline_ms, rows, row, toggle, marks);
+EMBED_TABLE_STORAGE CliRunsPaneNs cli_runs_pane EMBED_UNUSED = {
+    .begin = cli_runs_pane_begin,
+    .relist = cli_runs_pane_relist,
+    .step = cli_runs_pane_step,
+    .deadline_ms = cli_runs_pane_deadline_ms,
+    .rows = cli_runs_pane_rows,
+    .row = cli_runs_pane_row,
+    .toggle = cli_runs_pane_toggle,
+    .marks = cli_runs_pane_marks,
 };
 
 #endif

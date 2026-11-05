@@ -15,9 +15,11 @@
 #include "../machine/reach.h"
 #include "../machine/report.h"
 #include "../machine/state.h"
+#include "../runs/qry.h"
 #include "../tests/testing.h"
 #include "../text/text.h"
 #include "parts/chrome.h"
+#include "parts/runs.h"
 
 // orior's repository, a press on the name opening it; the keys of orior's folder the settings, the session's wordmark
 // and the strip's group stand under; and two starts of a session, the seconds their boot times may read apart, and the
@@ -199,6 +201,12 @@ EMBED_INLINE const GuiPane *window_pane_read(const GuiWindowCtx *args)
     return &args->window_read
                 ->panes[(args->window_read->strip.displayed >= 0) ? (unsigned int)args->window_read->strip.displayed
                                                                   : 0u];
+}
+
+// whether the Runs pane is in sight: its tool's window the side's, and the side not collapsed
+EMBED_INLINE int window_runs_shown(const GuiWindowCtx *args)
+{
+    return (window_pane_kind(args) == &gui_runs_kind) && !args->window_read->strip.collapsed;
 }
 
 // the rows the editor shows, and the columns
@@ -908,6 +916,8 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         cli_notices_due_ms(),
         g_cli_menus_open.rest_due_ms,
         window->memory_due_ms,
+        EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
+                   .shown = EMBED_CALL(window_runs_shown, GuiWindowCtx, .window_read = window)),
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -1838,6 +1848,7 @@ void gui_window_start(const GuiWindowCfg *args)
             : NULL;
     window->entries = entries;
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = args->woken, .entries = entries);
+    EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -1900,6 +1911,14 @@ void gui_window_step(const GuiWindowCfg *args)
     // a run of tests reported on its own thread: the pane drawn anew
     window->pending = EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u) || window->pending;
     const unsigned long long now_ms = cli_clock_milliseconds();
+    // the query runs listed and the opened live runs read on their beats, the strip's Runs mark following
+    if (EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
+                   .shown = EMBED_CALL(window_runs_shown, GuiWindowCtx, .window_read = window)))
+    {
+        EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &window->strip.runs_live,
+                   .panicked_out = &window->strip.runs_panicked);
+        window->pending = 1;
+    }
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;

@@ -303,3 +303,34 @@ int cli_qry_existing(const CliQryPathPanickedCfg *args)
     *panicked = (run != NULL) ? qry_member_viewed_panicked(run) : 0ULL;
     return run != NULL;
 }
+
+int cli_qry_records(const CliQryPathFromEachCfg *args)
+{
+    QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
+    const QryRecord *record = NULL;
+    unsigned long long at = args->from;
+    unsigned long long sequence = args->sequence;
+    *args->rest = 0ULL;
+    if (run != NULL)
+    {
+        while (qry_member_viewed_read(run, &at, &record))
+        {
+            EMBED_CALL(args->each, CliEachRecordCfg, .context = args->context, .record = record, .sequence = sequence);
+            sequence += 1ULL;
+        }
+        *args->next = at;
+        return 1;
+    }
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
+                                                  .size_pointer = &size, .owner = &g_cli_runs_cells);
+    while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
+    {
+        EMBED_CALL(args->each, CliEachRecordCfg, .context = args->context, .record = record, .sequence = sequence);
+        sequence += 1ULL;
+    }
+    *args->rest = ((bytes != NULL) && (size > at)) ? size - at : 0ULL;
+    *args->next = at;
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_runs_cells);
+    return 0;
+}

@@ -8,12 +8,13 @@
 #include "changes.h"
 #include "explorer.h"
 #include "problems.h"
+#include "runs.h"
 #include "structure.h"
 #include "tests.h"
 
 // the kinds, one a tool that has a pane
 static const GuiPaneKind *const s_kinds[] = {
-    &gui_explorer_kind, &gui_problems_kind, &gui_structure_kind, &gui_changes_kind, &gui_tests_kind,
+    &gui_explorer_kind, &gui_problems_kind, &gui_structure_kind, &gui_changes_kind, &gui_tests_kind, &gui_runs_kind,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)
