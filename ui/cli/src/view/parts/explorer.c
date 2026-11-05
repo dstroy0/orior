@@ -392,6 +392,12 @@ static void explorer_read(const GuiPaneCfg *args)
     }
 }
 
+// the menu of a row, or the pane's own off its rows
+static int explorer_menu(const GuiPaneCfg *args)
+{
+    return cli_files_explorer_menu(args->row);
+}
+
 const GuiPaneKind gui_explorer_kind = {
     .tool = "explorer",
     .title = explorer_title,
@@ -400,4 +406,5 @@ const GuiPaneKind gui_explorer_kind = {
     .current = explorer_current,
     .press = explorer_press,
     .read = explorer_read,
+    .menu = explorer_menu,
 };

@@ -8,6 +8,7 @@
 // text then reaches and Escape lets go, the branch's row is taller than a commit's, and a file's row pressed opens the
 // file
 #include "../../../../../ui/cli/src/code/git.h"
+#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/view/parts/git.h"
 #include "../cli/cli_check.h"
 
@@ -235,6 +236,40 @@ int main(void)
     cli_check(!EMBED_CALL(gui_pane.text, GuiPaneCfg, .kind = kind, .pane = &pane, .text = "x", .length = 1ULL,
                           .root = s_root),
               "text typed without the keys goes elsewhere");
+    // the menus: a commit's rows open or close its files and copy its id and message, a file's row copies its path
+    cli_check(row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && !row.open, "the newest commit is closed");
+    char id[CLI_NAME_MAX_LEN];
+    VerbaLinea id_line = {id, sizeof(id), 0ULL};
+    mmgr_line_put(&id_line, row.id);
+    (void)mmgr_line_finish(&id_line);
+    unsigned int built = 0u;
+    const CliItem *rows = NULL;
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 4u) &&
+                  (strcmp(rows[0].label, "Open Files") == 0) && (strcmp(rows[0].command, "commit-files") == 0) &&
+                  (strncmp(rows[0].args, id, strlen(id)) == 0) && (rows[0].args[strlen(id)] == '\n') && rows[1].line &&
+                  (strcmp(rows[2].command, "commit-copy-id") == 0) &&
+                  (strcmp(rows[3].command, "commit-copy-message") == 0),
+              "a closed commit's menu opens its files and copies its id and message");
+    cli_check(EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = id, .root = s_root) &&
+                  row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open &&
+                  EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Close Files") == 0),
+              "the commit opened by its id has its menu close its files");
+    cli_check(!EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = "0000000", .root = s_root),
+              "an id the graph has not opens nothing");
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 2u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 1u) &&
+                  (strcmp(rows[0].command, "file-copy-path") == 0) && (strcmp(rows[0].args, "a.txt\n") == 0),
+              "a file's menu copies its path");
+    cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 0u, .root = s_root),
+              "the branch's row has no menu");
+    char message_text[1024];
+    VerbaLinea message = {message_text, sizeof(message_text), 0ULL};
+    cli_check(EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = id, .out = &message) &&
+                  mmgr_line_finish(&message) && (strncmp(message_text, "second commit", 13u) == 0),
+              "the commit's message is read by its id");
+    EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     const GuiRect first =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .kind = kind, .frame = &frame, .pane_read = &pane, .row = 0u);
     const GuiRect second =

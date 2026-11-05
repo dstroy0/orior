@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // changes_test.c: the Changes pane's check: a repository with two files git does not yet track lists them as rows,
-// each not yet tracked, the deeper one with its folder; the pane's kind draws the rows under the Commit group's title on
-// the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the kind reads on the
+// each not yet tracked, the deeper one with its folder; the pane's kind draws the rows under the Commit group's title
+// on the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the kind reads on the
 // pane's showing and a save and not on the view's change; and no tree leaves no rows
 #include "../../../../../ui/cli/src/code/git.h"
+#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/view/parts/changes.h"
 #include "../cli/cli_check.h"
 
@@ -99,12 +100,12 @@ int main(void)
         raster.pixels[((unsigned int)(second.y + 2) * raster.width) + (unsigned int)second.x + 2u];
     cli_check(on_first != on_second, "the row pointed is drawn on a ground of its own");
     unsigned int hit_row = 0u;
-    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = second.x + 20,
-                         .y = second.y + (second.height / 2), .row_pointer = &hit_row) &&
+    cli_check(EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+                         .x = second.x + 20, .y = second.y + (second.height / 2), .row_pointer = &hit_row) &&
                   (hit_row == 1u),
               "a press on the second row lands on it");
-    cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame, .x = second.x + 20,
-                          .y = second.y + second.height + 4, .row_pointer = &hit_row),
+    cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = kind, .pane_read = &pane, .frame = &frame,
+                          .x = second.x + 20, .y = second.y + second.height + 4, .row_pointer = &hit_row),
               "a press under the last row lands on none");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     CliChangedRow pressed;
@@ -114,6 +115,21 @@ int main(void)
               "a row pressed opens its file where the path's own place puts it");
     cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .kind = kind, .pane = &pane, .frame = &frame, .rows = 2),
               "two rows do not scroll");
+    unsigned int built = 0u;
+    const CliItem *rows = NULL;
+    char words[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, pressed.path);
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 1u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
+                  (strcmp(rows[0].label, "Open File") == 0) && (rows[0].needs[0] == '\0') &&
+                  (strcmp(rows[0].args, words) == 0) && rows[1].line &&
+                  (strcmp(rows[2].command, "file-copy-path") == 0),
+              "a changed file's menu opens it and copies its path");
+    cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = kind, .row = 2u, .root = s_root),
+              "no menu stands past the last row");
 
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .kind = kind, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");

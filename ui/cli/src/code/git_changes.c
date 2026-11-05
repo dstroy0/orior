@@ -6,6 +6,7 @@
 #include "git.h"
 
 #include "../command_line/cells.h"
+#include "../command_line/commands.h"
 
 // the bytes the rows' paths are copied into
 #define CHANGES_TEXT_BYTES (512u * 1024u)
@@ -108,5 +109,25 @@ int cli_changes_row(const CliGitChangesCfg *args)
     const char *const path = s_changes->text + row->path;
     *args->row = (CliChangedRow){path, (row->folder_length != 0ULL) ? path + row->folder_length + 1ULL : path,
                                  row->folder_length, row->state};
+    return 1;
+}
+
+int cli_changes_menu(const CliGitChangesCfg *args)
+{
+    CliChangedRow read;
+    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = args->at, .row = &read))
+    {
+        return 0;
+    }
+    char words[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, read.path);
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    cli_menus_own_begin();
+    cli_menus_own_row(
+        &(CliItem){"Open File", "file-open", "", words, (read.state == 'D') ? "never" : "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
     return 1;
 }

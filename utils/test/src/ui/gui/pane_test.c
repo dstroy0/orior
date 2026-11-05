@@ -5,6 +5,7 @@
 // tree's name, a folder's row pressed opens it and a file's opens the file; the problems' kind draws its own head in
 // place of the pane's, the whole head offering the check, its rows of two heights; and a pointer leaving the side
 // marks no row
+#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/view/parts/explorer.h"
 #include "../../../../../ui/cli/src/view/parts/problems.h"
 #include "../cli/cli_check.h"
@@ -87,6 +88,30 @@ int main(void)
                          .x = frame.side.x + frame.side.width + 40, .y = first.y + 3) &&
                   (pane.pointed == GUI_PANE_NONE),
               "the pointer leaving the side marks no row");
+    unsigned int built = 0u;
+    const CliItem *rows = NULL;
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = 0u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
+                  (strcmp(rows[0].label, "Close") == 0) && (strcmp(rows[0].args, "src\n") == 0) &&
+                  (strcmp(rows[2].command, "file-copy-path") == 0),
+              "the open folder's menu closes it and copies its path");
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = 1u, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Open") == 0) &&
+                  (strcmp(rows[0].args, "src/main.c\n") == 0),
+              "the file's menu opens it");
+    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .kind = explorer, .row = GUI_PANE_OFF_ROWS, .root = s_root) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 2u) &&
+                  (strcmp(rows[0].command, "explorer-refresh") == 0) &&
+                  (strcmp(rows[1].command, "explorer-collapse") == 0),
+              "the pane's own menu lists again and collapses");
+    cli_files_explorer_refresh();
+    cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .kind = explorer) == 3u,
+              "the explorer listed again stands with its folder open");
+    cli_files_explorer_collapse();
+    cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .kind = explorer) == 2u, "the folders collapsed close");
+    cli_check(cli_files_explorer_open("src") && (EMBED_CALL(explorer->rows, GuiPaneCfg, .kind = explorer) == 3u) &&
+                  !cli_files_explorer_open("notes.txt"),
+              "a folder opened by its path, a file not");
 
     const GuiPaneKind *const problems = EMBED_CALL(gui_pane.kind_of, GuiPaneCfg, .tool = "problems");
     cli_check((problems == &gui_problems_kind) && (problems->title == NULL), "the problems' kind draws its own head");
@@ -104,7 +129,8 @@ int main(void)
                          .glyphs = &glyphs, .x = frame.side.x + 20, .y = frame.side.y + 10) == 0u,
               "the group's title offers no action");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .kind = problems, .pane_read = &problems_pane, .frame = &frame,
-               .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .title = "Problems", .tree = "");
+               .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .title = "Problems",
+               .tree = "");
     unsigned int hit_row = 0u;
     cli_check(!EMBED_CALL(gui_pane.hit, GuiPaneCfg, .kind = problems, .pane_read = &problems_pane, .frame = &frame,
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),

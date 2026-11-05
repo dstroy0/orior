@@ -375,6 +375,12 @@ static void git_read(const GuiPaneCfg *args)
     }
 }
 
+// the menu of a commit's row or a file's
+static int git_menu(const GuiPaneCfg *args)
+{
+    return EMBED_CALL(cli_git_log.menu, CliGitLogCfg, .at = args->row);
+}
+
 const GuiPaneKind gui_git_kind = {
     .tool = "git",
     .title = git_title,
@@ -389,4 +395,5 @@ const GuiPaneKind gui_git_kind = {
     .read = git_read,
     .text = git_text,
     .key = git_key,
+    .menu = git_menu,
 };

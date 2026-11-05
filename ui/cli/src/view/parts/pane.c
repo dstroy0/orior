@@ -504,3 +504,8 @@ int gui_pane_key(const GuiPaneCfg *args)
 {
     return (args->kind != NULL) && (args->kind->key != NULL) && args->pane->keys && args->kind->key(args);
 }
+
+int gui_pane_menu(const GuiPaneCfg *args)
+{
+    return (args->kind != NULL) && (args->kind->menu != NULL) && args->kind->menu(args);
+}

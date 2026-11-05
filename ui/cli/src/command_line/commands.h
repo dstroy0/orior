@@ -26,9 +26,10 @@ typedef struct CliCommandsItemCfg CliCommandsItemCfg;
 #define CLI_LABEL_MAX_LEN 256u
 
 // One row of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after its
-// name, what it needs before it can be chosen, the name of the state it shows on or off, empty where it is neither, 1
-// where the command line runs it in the terminal, whether it is a line, hidden, or filled in as its menu opens, and the
-// list of the rows under it, 0 where it has none
+// name, or for a part's own row the words it runs with, each ended by a line break, what it needs before it can be
+// chosen, the name of the state it shows on or off, empty where it is neither, 1 where the command line runs it in the
+// terminal, whether it is a line, hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it
+// has none
 typedef struct
 {
     const char *label;
@@ -50,6 +51,12 @@ typedef struct
 #define CLI_MENU_REST_MS 180ULL
 #define CLI_MENU_PLACE_POINT 0u
 #define CLI_MENU_PLACE_TERMINAL_KEYS 1u
+
+// the rows of a part's own menu built as the menu is asked for: how many at the most, the bytes their texts take at the
+// most, and the most words a row runs with
+#define CLI_MENU_OWN_ROWS 24u
+#define CLI_MENU_OWN_TEXT 8192u
+#define CLI_MENU_OWN_WORDS 4u
 
 // One menu open: the list its rows are read from, 0 where they are the titles folded from the bar or a part's own rows;
 // those own rows, NULL for none; how many rows it has; the row marked and the row whose items are open under it, each
@@ -110,6 +117,17 @@ void cli_menus_bar(unsigned int shown, int folded);
 void cli_menus_title_open(unsigned int at, int marked);
 void cli_menus_row_open(unsigned int level, unsigned int at, int marked);
 void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int place, int x, int y);
+// a part's own rows, built as its menu is asked for and standing while it is open: begun empty; `item` added after
+// them, its texts copied; a line added; the catalog's item whose command is `command` added with `args` the same way:
+// 1, or 0 where the catalog has none; the rows, their count into `count_out`; and the words of a chosen row's `args`,
+// each ended by a line break, into `words`, CLI_MENU_OWN_WORDS at the most, standing in `text`, sized
+// CLI_MENU_OWN_TEXT: their count, 0 where the args are a catalog item's pattern
+void cli_menus_own_begin(void);
+void cli_menus_own_row(const CliItem *item);
+void cli_menus_own_line(void);
+int cli_menus_own_named(const char *command, const char *args);
+const CliItem *cli_menus_own_rows(unsigned int *count_out);
+unsigned int cli_menus_own_words(const char *args, char *text, const char **words);
 // a press on the title `at`, its menu closed where it is open and else opened; a press on the row `at` of the menu at
 // `level`, its items opened or it chosen, every menu closed: 1 with the row chosen into `chosen`, else 0; and a press
 // on neither, every menu closed

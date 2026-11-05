@@ -8,6 +8,7 @@
 #include "git.h"
 
 #include "../command_line/cells.h"
+#include "../command_line/commands.h"
 #include "../text/text.h"
 #include "embed_atomic.h"
 
@@ -696,20 +697,11 @@ int cli_git_log_ref(const CliGitLogCfg *args)
     return 1;
 }
 
-void cli_git_log_toggle(const CliGitLogCfg *args)
+// the commit `which` opened or closed, its files read as it first opens, and the rows indexed again
+EMBED_INLINE void commit_toggle(const GitLogCtx *args)
 {
     GitLog *const log = s_log;
-    unsigned int under = 0u;
-    if ((log == NULL) || !log->listed || (args->at >= log->rows))
-    {
-        return;
-    }
-    const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under);
-    if ((commit == CLI_GIT_GRAPH) || (under != 0u))
-    {
-        return;
-    }
-    const char *const id = log->text + log->graph.item[commit].id;
+    const char *const id = log->text + log->graph.item[args->which].id;
     const unsigned long long number = EMBED_CALL(id_number, GitLogCtx, .text = id);
     const unsigned int opened = EMBED_CALL(opened_at, GitLogCtx, .id = number);
     if (opened == GIT_LOG_OPENED)
@@ -721,4 +713,86 @@ void cli_git_log_toggle(const CliGitLogCfg *args)
         log->opened[opened].shown = !log->opened[opened].shown;
     }
     EMBED_CALL(rows_index, GitLogCtx, .at = 0u);
+}
+
+// the commit of the row `at` where the row is a commit's own: its place, or CLI_GIT_GRAPH where the row is another's
+EMBED_INLINE unsigned int commit_row(const GitLogCtx *args)
+{
+    const GitLog *const log = s_log;
+    unsigned int under = 0u;
+    if ((log == NULL) || !log->listed || (args->at >= log->rows))
+    {
+        return CLI_GIT_GRAPH;
+    }
+    const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under);
+    return (under == 0u) ? commit : CLI_GIT_GRAPH;
+}
+
+void cli_git_log_toggle(const CliGitLogCfg *args)
+{
+    const unsigned int commit = EMBED_CALL(commit_row, GitLogCtx, .at = args->at);
+    if (commit != CLI_GIT_GRAPH)
+    {
+        EMBED_CALL(commit_toggle, GitLogCtx, .which = commit);
+    }
+}
+
+int cli_git_log_toggle_id(const CliGitLogCfg *args)
+{
+    const GitLog *const log = s_log;
+    if ((log == NULL) || !log->listed)
+    {
+        return 0;
+    }
+    for (unsigned int at = 0u; at < log->graph.count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = log->text + log->graph.item[at].id, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
+        {
+            EMBED_CALL(commit_toggle, GitLogCtx, .which = at);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int cli_git_log_message(const CliGitLogCfg *args)
+{
+    const GitLog *const log = s_log;
+    if ((log == NULL) || !log->listed)
+    {
+        return 0;
+    }
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const char *const request[4] = {"log", "-1", "--format=%B", args->name};
+    return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = log->root,
+                      .out = args->out, .count = 4u, .err_msg = &err_msg, .request = request);
+}
+
+int cli_git_log_menu(const CliGitLogCfg *args)
+{
+    CliGitLogRow row;
+    if (!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = args->at, .row = &row) ||
+        ((row.kind != CLI_GIT_LOG_ROW_COMMIT) && (row.kind != CLI_GIT_LOG_ROW_FILE)))
+    {
+        return 0;
+    }
+    char words[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, (row.kind == CLI_GIT_LOG_ROW_COMMIT) ? row.id : row.path);
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    cli_menus_own_begin();
+    if (row.kind == CLI_GIT_LOG_ROW_FILE)
+    {
+        cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+        return 1;
+    }
+    cli_menus_own_row(
+        &(CliItem){row.open ? "Close Files" : "Open Files", "commit-files", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliItem){"Copy Commit ID", "commit-copy-id", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Copy Commit Message", "commit-copy-message", "", words, "", "", 0, 0, 0, 0, 0u});
+    return 1;
 }

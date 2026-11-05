@@ -45,10 +45,33 @@
 // their keys might mean, the terminal's among them
 static const char *const s_view_commands[] = {"sort-ascending", "sort-descending", "unique-lines",
                                               "upper-case",     "lower-case",      "title-case"};
-static const char *const s_own_commands[] = {
-    "exit",           "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",   "terminal-view",
-    "toggle",         "new",          "split",     "clear",       "kill",          "terminal-copy", "terminal-paste",
-    "terminal-close", "save",         "save-all",  "git-authors"};
+static const char *const s_own_commands[] = {"exit",
+                                             "close-editor",
+                                             "close-all",
+                                             "last-editor",
+                                             "reduce-motion",
+                                             "preferences",
+                                             "terminal-view",
+                                             "toggle",
+                                             "new",
+                                             "split",
+                                             "clear",
+                                             "kill",
+                                             "terminal-copy",
+                                             "terminal-paste",
+                                             "terminal-close",
+                                             "save",
+                                             "save-all",
+                                             "git-authors",
+                                             "file-open",
+                                             "file-copy-path",
+                                             "explorer-refresh",
+                                             "explorer-collapse",
+                                             "tab-close",
+                                             "tab-close-others",
+                                             "commit-files",
+                                             "commit-copy-id",
+                                             "commit-copy-message"};
 
 // the window, which the menus' answers and the walk's threads reach; and whether the walk colored a line since the
 // window last took the frame, set on the walk's threads, and what wakes the view's thread
@@ -1568,6 +1591,103 @@ static int window_item_checked(const CliItem *item)
 
 static void window_key_take(const GuiWindowCtx *args);
 
+// the view whose key is `name`: its place, or the views' count where none is
+EMBED_INLINE unsigned int window_tab_at(const GuiWindowCtx *args)
+{
+    const unsigned int count = cli_view_count();
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = cli_view_key(at), .other = args->name, .cap = CLI_PATH_MAX_LEN}))
+        {
+            return at;
+        }
+    }
+    return count;
+}
+
+// `text` put on the system's clipboard
+EMBED_INLINE void window_clipboard_put(const GuiWindowCtx *args)
+{
+    (void)cli_clipboard_text_write(&(CliSizeTextCtx){
+        .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_MENU_OWN_TEXT}), .text = args->name});
+}
+
+// the commands the parts' menus run with their rows' `words`, `count` of them: a path opened, a folder of the tree
+// opened or closed; a path, a commit's id or its message put on the clipboard; the explorer listed again or its folders
+// closed; the tab of a path closed, or every tab but it; and a commit's files opened or closed: 1, or 0 where `name` is
+// none of them
+EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    const char *const first = (args->count != 0u) ? args->words[0] : "";
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "file-open"))
+    {
+        if ((args->count != 0u) && !cli_files_explorer_open(first))
+        {
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = first, .place = NULL);
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "file-copy-path") ||
+        EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "commit-copy-id"))
+    {
+        if (args->count != 0u)
+        {
+            EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = first);
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "commit-copy-message"))
+    {
+        char text[CLI_MENU_OWN_TEXT];
+        VerbaLinea out = {text, sizeof(text), 0ULL};
+        if ((args->count != 0u) && EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = first, .out = &out) &&
+            mmgr_line_finish(&out))
+        {
+            EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = text);
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "explorer-refresh"))
+    {
+        cli_files_explorer_refresh();
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "explorer-collapse"))
+    {
+        cli_files_explorer_collapse();
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "tab-close"))
+    {
+        const unsigned int at = EMBED_CALL(window_tab_at, GuiWindowCtx, .name = first);
+        if (at < cli_view_count())
+        {
+            EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = at);
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "tab-close-others"))
+    {
+        // every other view closed once, the last first, a changed one standing for a second close
+        for (unsigned int at = cli_view_count(); at > 0u; at -= 1u)
+        {
+            if (!cellul.eq(&(CatenaFinitaCfg){.src = cli_view_key(at - 1u), .other = first, .cap = CLI_PATH_MAX_LEN}))
+            {
+                EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = at - 1u);
+            }
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "commit-files"))
+    {
+        (void)EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = first, .root = cli_command_line_root());
+        return 1;
+    }
+    return 0;
+}
+
 // the command `name` run with its `count` `words`, its keys `value`, whoever asked for it
 EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
 {
@@ -1650,6 +1770,11 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
                    .now_ms = cli_clock_milliseconds());
         window->pending = 1;
     }
+    else if (EMBED_CALL(window_words_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
+                        .count = args->count))
+    {
+        window->pending = 1;
+    }
     else if (cli_terminal_tabs_command(name, args->words, args->count))
     {
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
@@ -1718,8 +1843,12 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
     EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = args->window);
     if (args->on)
     {
+        // a part's own row runs with the words its args carry
+        char text[CLI_MENU_OWN_TEXT];
+        const char *words[CLI_MENU_OWN_WORDS];
+        const unsigned int count = cli_menus_own_words(args->item->args, text, words);
         EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
-                   .value = args->item->keys);
+                   .value = args->item->keys, .words = words, .count = count);
     }
 }
 
@@ -2926,23 +3055,100 @@ static void window_blur(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
 }
 
+// the menu of the tab at `at` built as the menus' own rows, as tabs.js gives it: Close, Close others, which one tab
+// alone cannot take, Close All, a line and Copy path: 1, or 0 where no view stands at `at`
+EMBED_INLINE int window_tab_menu(const GuiWindowCtx *args)
+{
+    const char *const key = cli_view_key(args->at);
+    if (key == NULL)
+    {
+        return 0;
+    }
+    char words[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, key);
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    cli_menus_own_begin();
+    cli_menus_own_row(&(CliItem){"Close", "tab-close", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){"Close others", "tab-close-others", "", words, (cli_view_count() < 2u) ? "never" : "",
+                                 "", 0, 0, 0, 0, 0u});
+    (void)cli_menus_own_named("close-all", "");
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+    return 1;
+}
+
+// the editor's menu built as the menus' own rows from the catalog's items, as the page's editor menu lists them: Go to
+// Definition, Find Usages, Rename Symbol and Quick Fix, a line, Cut, Copy and Paste, a line, Select All, Find, Replace
+// and Go to Line, a line and Save: 1, or 0 where no view is shown
+EMBED_INLINE int window_editor_menu(const GuiWindowCtx *args)
+{
+    static const char *const s_items[] = {"definition", "usages",  "rename", "quick-fix", "-",
+                                          "cut",        "copy",    "paste",  "-",         "select-all",
+                                          "find",       "replace", "line",   "-",         "save"};
+    if (args->window_read->editor.frame == NULL)
+    {
+        return 0;
+    }
+    cli_menus_own_begin();
+    for (unsigned int at = 0u; at < sizeof(s_items) / sizeof(s_items[0]); at += 1u)
+    {
+        if (s_items[at][0] == '-')
+        {
+            cli_menus_own_line();
+        }
+        else
+        {
+            (void)cli_menus_own_named(s_items[at], "");
+        }
+    }
+    return 1;
+}
+
 // the system's gesture for a menu: the menu of what stands at the pointer asked for there, none on a menu open, the
-// menus open closed first; the terminal's panel answers for every place on it
+// menus open closed first: the terminal's panel's for every place on it, a tab's, the editor's, and the shown pane's
+// kind's for a row of it or for the pane off its rows
 static void window_menu(const GuiInputHandlerCfg *args)
 {
     GuiWindow *const window = args->window;
+    const int x = args->input->x;
+    const int y = args->input->y;
     GuiWindowHit asked = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
-    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y,
-               .hit = &asked);
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = x, .y = y, .hit = &asked);
     if (asked.hit == CLI_HIT_MENU_ROW)
     {
         return;
     }
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = window);
+    int built = 0;
     if ((asked.hit >= CLI_HIT_TERMINAL) && (asked.hit <= CLI_HIT_TERMINAL_PANEL))
     {
-        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, args->input->x,
-                           args->input->y);
+        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, x, y);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        return;
+    }
+    if ((asked.hit == CLI_HIT_TAB) || (asked.hit == CLI_HIT_TAB_CLOSE))
+    {
+        built = EMBED_CALL(window_tab_menu, GuiWindowCtx, .at = asked.index);
+    }
+    else if ((asked.hit == CLI_HIT_EDITOR) || (asked.hit == CLI_HIT_GUTTER))
+    {
+        built = EMBED_CALL(window_editor_menu, GuiWindowCtx, .window_read = window);
+    }
+    else if ((asked.hit == CLI_HIT_PANE_ROW) || (asked.hit == CLI_HIT_PANE_ACTION) ||
+             ((asked.hit == CLI_HIT_NONE) &&
+              EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y)))
+    {
+        built = EMBED_CALL(
+            gui_pane.menu, GuiPaneCfg, .kind = EMBED_CALL(window_pane_kind, GuiWindowCtx, .window_read = window),
+            .row = (asked.hit == CLI_HIT_PANE_ROW) ? asked.index : GUI_PANE_OFF_ROWS, .root = cli_command_line_root());
+    }
+    if (built)
+    {
+        unsigned int count = 0u;
+        const CliItem *const rows = cli_menus_own_rows(&count);
+        cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, x, y);
         EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
     }
 }

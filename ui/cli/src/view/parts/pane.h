@@ -53,6 +53,9 @@ typedef struct GuiPaneFieldCfg GuiPaneFieldCfg;
 #define GUI_PANE_VIEW 2u
 #define GUI_PANE_SAVED 3u
 
+// the row number of the pane itself, off its rows, whose menu is the pane's own
+#define GUI_PANE_OFF_ROWS 0xFFFFFFFFu
+
 // A pane: the row the pointer stands on, GUI_PANE_NONE for none; the head's action it stands on, 0 for none; how many
 // rows are scrolled off the pane's top; and whether the pane's head has the keys, as it does from a press on its field
 // until a press elsewhere or Escape
@@ -79,8 +82,9 @@ typedef struct
 // to `clip`; the row current for `cursor_line`, GUI_PANE_NONE where none or NULL; the row `row` pressed, 1 with what
 // it opens into `open_out`; the data read anew on `event` for the tree at `root` and the view `key` at `path`; and
 // while the pane has the keys, `length` bytes of `text` typed and the key `name` pressed, each 1 where taken, NULL
-// where the kind takes none. An action that runs the tree's code saves every view first through `save_all` with
-// `context`; one that takes the keys sets them on `pane`
+// where the kind takes none; and the menu of the row `row`, or of the pane itself where `row` is GUI_PANE_OFF_ROWS,
+// built as the menus' own rows, 1 where it has any, NULL where the kind has no menu. An action that runs the tree's
+// code saves every view first through `save_all` with `context`; one that takes the keys sets them on `pane`
 struct GuiPaneKind
 {
     const char *tool;
@@ -97,6 +101,7 @@ struct GuiPaneKind
     void (*read)(const GuiPaneCfg *args);
     int (*text)(const GuiPaneCfg *args);
     int (*key)(const GuiPaneCfg *args);
+    int (*menu)(const GuiPaneCfg *args);
 };
 
 // a pane pointing at no row and no action, scrolled to its top
@@ -127,13 +132,14 @@ int gui_pane_guides(const GuiPaneCfg *args);
 // all, in `color`
 void gui_pane_arrow_draw(const GuiPaneCfg *args);
 // the row `row` pressed: 1 with what it opens into `open_out`; the head's action `which` run for the tree at `root`;
-// the kind's data read anew on `event`; and `length` bytes of `text` typed and the key `name` pressed while `pane`
-// has the keys, each 1 where the kind took it
+// the kind's data read anew on `event`; `length` bytes of `text` typed and the key `name` pressed while `pane` has the
+// keys, each 1 where the kind took it; and the menu of the row `row` built as the menus' own rows: 1 where it has any
 int gui_pane_press(const GuiPaneCfg *args);
 void gui_pane_action(const GuiPaneCfg *args);
 void gui_pane_read(const GuiPaneCfg *args);
 int gui_pane_text(const GuiPaneCfg *args);
 int gui_pane_key(const GuiPaneCfg *args);
+int gui_pane_menu(const GuiPaneCfg *args);
 struct GuiPaneCfg
 {
     GuiPane *pane;
@@ -266,9 +272,10 @@ typedef struct
     void (*read)(const GuiPaneCfg *args);
     int (*text)(const GuiPaneCfg *args);
     int (*key)(const GuiPaneCfg *args);
+    int (*menu)(const GuiPaneCfg *args);
 } GuiPaneNs;
 EMBED_TABLE_LAYOUT(GuiPaneNs, init, kind_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
-                   arrow_draw, press, action, read, text, key);
+                   arrow_draw, press, action, read, text, key, menu);
 EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .init = gui_pane_init,
     .kind_of = gui_pane_kind_of,
@@ -287,6 +294,7 @@ EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .read = gui_pane_read,
     .text = gui_pane_text,
     .key = gui_pane_key,
+    .menu = gui_pane_menu,
 };
 
 #endif

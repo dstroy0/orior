@@ -194,9 +194,11 @@ typedef struct
 typedef struct CliGitChangesCfg CliGitChangesCfg;
 // the changes read anew of the tree at `root`, every repository of it; none where `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
-// how many rows the changes have; and the row `at` into `row`: 1, or 0 past the last
+// how many rows the changes have; the row `at` into `row`: 1, or 0 past the last; and the menu of the row `at` built as
+// the menus' own rows, Open File, which a file gone cannot take, then Copy Path: 1, or 0 past the last
 unsigned int cli_changes_rows(const CliGitChangesCfg *args);
 int cli_changes_row(const CliGitChangesCfg *args);
+int cli_changes_menu(const CliGitChangesCfg *args);
 struct CliGitChangesCfg
 {
     const char *root;
@@ -209,12 +211,14 @@ typedef struct
     void (*read)(const CliGitChangesCfg *args);
     unsigned int (*rows)(const CliGitChangesCfg *args);
     int (*row)(const CliGitChangesCfg *args);
+    int (*menu)(const CliGitChangesCfg *args);
 } CliChangesNs;
-EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row);
+EMBED_TABLE_LAYOUT(CliChangesNs, read, rows, row, menu);
 EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
     .read = cli_changes_read,
     .rows = cli_changes_rows,
     .row = cli_changes_row,
+    .menu = cli_changes_menu,
 };
 
 // The Git pane as the window reads it (git_log.c): the repository chosen among the tree's, the one the tree is in
@@ -294,12 +298,18 @@ int cli_git_log_step(const CliGitLogCfg *args);
 unsigned long long cli_git_log_deadline_ms(const CliGitLogCfg *args);
 void cli_git_log_stale(const CliGitLogCfg *args);
 // how many rows the pane has; the row `at` into `row`: 1, or 0 past the last; the branch or tag `which` at the commit
-// of the row `at` into `ref`: 1, or 0 past its last; and the commit of the row `at` opened or closed, its files read
-// from the tree at `root` as it first opens
+// of the row `at` into `ref`: 1, or 0 past its last; the commit of the row `at` opened or closed, its files read from
+// the tree at `root` as it first opens, and the commit whose id is `name` the same: 1, or 0 where the graph has none;
+// the message of the commit whose id is `name` into `out`: 1, or 0 where git has none; and the menu of the row `at`
+// built as the menus' own rows, a commit's Open Files or Close Files, Copy Commit ID and Copy Commit Message, a file's
+// Copy Path: 1, or 0 where the row has none
 unsigned int cli_git_log_rows(const CliGitLogCfg *args);
 int cli_git_log_row(const CliGitLogCfg *args);
 int cli_git_log_ref(const CliGitLogCfg *args);
 void cli_git_log_toggle(const CliGitLogCfg *args);
+int cli_git_log_toggle_id(const CliGitLogCfg *args);
+int cli_git_log_message(const CliGitLogCfg *args);
+int cli_git_log_menu(const CliGitLogCfg *args);
 struct CliGitLogCfg
 {
     void (*woken)(void);
@@ -316,6 +326,7 @@ struct CliGitLogCfg
     CliGitLogRef *ref;
     unsigned long long *length_out;
     unsigned int *count_out;
+    VerbaLinea *out;
 };
 
 typedef struct
@@ -336,9 +347,12 @@ typedef struct
     int (*row)(const CliGitLogCfg *args);
     int (*ref)(const CliGitLogCfg *args);
     void (*toggle)(const CliGitLogCfg *args);
+    int (*toggle_id)(const CliGitLogCfg *args);
+    int (*message)(const CliGitLogCfg *args);
+    int (*menu)(const CliGitLogCfg *args);
 } CliGitLogNs;
 EMBED_TABLE_LAYOUT(CliGitLogNs, begin, type, key, option, authors_set, authors, query, repo, relist, step, deadline_ms,
-                   stale, rows, row, ref, toggle);
+                   stale, rows, row, ref, toggle, toggle_id, message, menu);
 EMBED_TABLE_STORAGE CliGitLogNs cli_git_log EMBED_UNUSED = {
     .begin = cli_git_log_begin,
     .type = cli_git_log_type,
@@ -356,6 +370,9 @@ EMBED_TABLE_STORAGE CliGitLogNs cli_git_log EMBED_UNUSED = {
     .row = cli_git_log_row,
     .ref = cli_git_log_ref,
     .toggle = cli_git_log_toggle,
+    .toggle_id = cli_git_log_toggle_id,
+    .message = cli_git_log_message,
+    .menu = cli_git_log_menu,
 };
 
 // the commit the tree at `root` stands at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,

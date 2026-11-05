@@ -100,6 +100,12 @@ static void changes_read(const GuiPaneCfg *args)
     }
 }
 
+// the menu of a changed file's row
+static int changes_menu(const GuiPaneCfg *args)
+{
+    return EMBED_CALL(cli_changes.menu, CliGitChangesCfg, .at = args->row);
+}
+
 const GuiPaneKind gui_changes_kind = {
     .tool = "commit",
     .title = changes_title,
@@ -107,4 +113,5 @@ const GuiPaneKind gui_changes_kind = {
     .row_draw = changes_row_draw,
     .press = changes_press,
     .read = changes_read,
+    .menu = changes_menu,
 };

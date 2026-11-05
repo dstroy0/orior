@@ -5,6 +5,7 @@
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
+#include "../command_line/commands.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "archive.h"
@@ -484,6 +485,95 @@ unsigned int cli_files_explorer_rows(void)
         count += 1u;
     }
     return count;
+}
+
+int cli_files_explorer_open(const char *path)
+{
+    CliExplorerRow row;
+    for (unsigned int at = 0u; cli_files_explorer_row(at, &row); at += 1u)
+    {
+        if (row.dir && cellul.eq(&(CatenaFinitaCfg){.src = row.path, .other = path, .cap = CLI_PATH_MAX_LEN}))
+        {
+            return cli_files_explorer_press(at);
+        }
+    }
+    return 0;
+}
+
+// the bytes the open folders' paths are copied into as the explorer lists again
+#define FILES_EXPLORER_OPEN_TEXT (1u << 20u)
+
+void cli_files_explorer_refresh(void)
+{
+    const char *const root = s_explorer_root;
+    if (root == NULL)
+    {
+        return;
+    }
+    // the open folders' paths copied, the top's aside, each ended by a NUL, those past the bytes closing
+    char *const open = g_cli_cells->persistent_buf_alloc(FILES_EXPLORER_OPEN_TEXT, &g_cli_editor_cells);
+    unsigned int used = 0u;
+    unsigned int count = 0u;
+    for (unsigned int at = 1u; (open != NULL) && (at < s_explorer_folders); at += 1u)
+    {
+        const char *const dir = s_explorer[at].dir;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_PATH_MAX_LEN});
+        if (s_explorer[at].open && (length + 1ULL <= (unsigned long long)(FILES_EXPLORER_OPEN_TEXT - used)))
+        {
+            memor.cpy(&(MemoriaCfg){.dst = open + used, .src = dir, .bytes = length + 1ULL});
+            // a path that fits the bytes is counted by an unsigned int
+            used += (unsigned int)length + 1u;
+            count += 1u;
+        }
+    }
+    cli_files_explorer_end();
+    cli_files_explorer_show(root);
+    // the folders opened again in their order, a parent before the folders under it
+    const char *path = open;
+    for (unsigned int at = 0u; (open != NULL) && (at < count); at += 1u)
+    {
+        (void)cli_files_explorer_open(path);
+        path += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+    }
+    if (open != NULL)
+    {
+        g_cli_cells->persistent_buf_release(open, &g_cli_editor_cells);
+    }
+}
+
+void cli_files_explorer_collapse(void)
+{
+    for (unsigned int at = 1u; at < s_explorer_folders; at += 1u)
+    {
+        s_explorer[at].open = 0;
+    }
+}
+
+int cli_files_explorer_menu(unsigned int at)
+{
+    if (s_explorer_folders == 0u)
+    {
+        return 0;
+    }
+    cli_menus_own_begin();
+    CliExplorerRow row;
+    if (!cli_files_explorer_row(at, &row))
+    {
+        cli_menus_own_row(&(CliItem){"Refresh Explorer", "explorer-refresh", "", "", "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(
+            &(CliItem){"Collapse Folders in Explorer", "explorer-collapse", "", "", "", "", 0, 0, 0, 0, 0u});
+        return 1;
+    }
+    char words[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&line, row.path);
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    cli_menus_own_row(
+        &(CliItem){(row.dir && row.open) ? "Close" : "Open", "file-open", "", words, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", words, "", "", 0, 0, 0, 0, 0u});
+    return 1;
 }
 
 int cli_files_explorer_press(unsigned int at)
