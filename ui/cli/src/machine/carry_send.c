@@ -42,7 +42,7 @@ EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
     const unsigned long long file_capacity =
         EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_sent_capacity,
                    CliMachineTransferTransferredCtx, .carried = &s_send.packed);
-    char *const file_cell = g_cli_cells->temporary_buf_alloc(file_capacity, &g_cli_machine_cells);
+    char *const file_cell = g_cli_guard->temporary_buf_alloc(file_capacity, g_cli_machine_owner);
     VerbaLinea file = mmgr_line_over(file_cell, file_capacity);
     if (file.out == NULL)
     {
@@ -57,7 +57,7 @@ EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
                                              CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at);
         mmgr_line_put(&file, (at != 0u) ? ",\n    " : "\n    ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file, .text = place,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(&file, ": ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file,
                    .text = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
@@ -68,7 +68,7 @@ EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
     const int written =
         mmgr_line_ok(&file) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                           .path = args->to, .bytes = file.out, .size = file.at);
-    g_cli_cells->persistent_buf_release(file.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(file.out, g_cli_machine_owner);
     if (!written)
     {
         mmgr_line_put(args->err_msg, args->to);

@@ -54,7 +54,7 @@ EMBED_INLINE long long query_build_read(const ToolsBuildCtx *args)
 {
     QueryProcess *process = args->process;
     VerbaLinea *output = args->output;
-    char *const cell = g_cli_cells->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ULL, &g_query_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ULL, g_query_owner);
     *output = mmgr_line_over(cell, QUERY_BUILD_OUTPUT_MAX_LEN + 1ULL);
     for (;;)
     {
@@ -89,7 +89,7 @@ EMBED_INLINE void query_build_fail(const ToolsBuildCtx *args)
     mmgr_line_put(args->err_msg, args->what);
     mmgr_line_ch(args->err_msg, '\n');
     mmgr_line_put_n(args->err_msg, args->output->out, mmgr_line_ok(args->output) ? args->output->at : 0ULL);
-    g_cli_cells->persistent_buf_release(args->output->out, &g_query_cells);
+    g_cli_guard->persistent_buf_release(args->output->out, g_query_owner);
 }
 
 // Every compile of `compiles`, `count` of them, run QUERY_LAUNCHES_AT_ONCE at a time and the launch spacing between
@@ -129,7 +129,7 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
                 const char *const slash =
                     EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->compiles[at].source,
                                .length_value = cellul.len(
-                                   &(CatenaFinitaCfg){.src = args->compiles[at].source, .cap = CLI_CELLS_POOL}),
+                                   &(CatenaFinitaCfg){.src = args->compiles[at].source, .cap = CLI_POOL_BYTES}),
                                .byte = '/');
                 EMBED_CALL(query_build_fail, ToolsBuildCtx,
                            .name = (slash != NULL) ? (slash + 1) : args->compiles[at].source, .what = "compile",
@@ -137,7 +137,7 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
                 whole = 0;
                 continue;
             }
-            g_cli_cells->persistent_buf_release(output.out, &g_query_cells);
+            g_cli_guard->persistent_buf_release(output.out, g_query_owner);
         }
         if (!whole)
         {
@@ -216,13 +216,13 @@ int query_tool_built_into(const QueryNameCapacityCtx *args)
     const int built = EMBED_CALL(query_tool_compile, ToolsBuildCtx, .root = args->root, .programs = args->programs,
                                  .name = args->name, .tool = tool, .out = args->out_text, .binary = args->binary,
                                  .c_compiler = s_c, .cxx_compiler = s_cxx, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
     *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
     *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
     *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
     *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     return built;
 }
@@ -300,9 +300,15 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     {
         link_words += 1u;
     }
+    unsigned int shared_link_words = 0u;
+    while (g_query_mmgr_link[shared_link_words] != NULL)
+    {
+        shared_link_words += 1u;
+    }
+    link_words += shared_link_words;
     const unsigned long long compile_bytes = (c + cxx + tools + 1ULL) * sizeof(QueryCompile);
-    char *const cell = g_cli_cells->persistent_buf_alloc(
-        compile_bytes + ((c + cxx + tools + link_words + 4ULL) * sizeof(const char *)), &g_query_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(
+        compile_bytes + ((c + cxx + tools + link_words + 4ULL) * sizeof(const char *)), g_query_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the compiles of ");
@@ -348,7 +354,7 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     if (!EMBED_CALL(query_compiled_at_once, ToolsBuildCtx, .compiles = compile_list, .count = compiles,
                     .err_msg = args->err_msg))
     {
-        g_cli_cells->persistent_buf_release(cell, &g_query_cells);
+        g_cli_guard->persistent_buf_release(cell, g_query_owner);
         return 0;
     }
     unsigned int word_text = 0u;
@@ -359,9 +365,13 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     {
         link[word_text++] = g_query_objects.path[at];
     }
-    for (unsigned int at = 0u; at < link_words; at += 1u)
+    for (unsigned int at = 0u; at < (link_words - shared_link_words); at += 1u)
     {
         link[word_text++] = tool->link[at];
+    }
+    for (unsigned int at = 0u; at < shared_link_words; at += 1u)
+    {
+        link[word_text++] = g_query_mmgr_link[at];
     }
     link[word_text] = NULL;
     QueryProcess linked;
@@ -381,8 +391,8 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     }
     else if (built)
     {
-        g_cli_cells->persistent_buf_release(output.out, &g_query_cells);
+        g_cli_guard->persistent_buf_release(output.out, g_query_owner);
     }
-    g_cli_cells->persistent_buf_release(cell, &g_query_cells);
+    g_cli_guard->persistent_buf_release(cell, g_query_owner);
     return built;
 }

@@ -3,7 +3,7 @@
 // mysql_sign.c: a MySQL connection made and let go: the server's greeting read, the answer to its scramble sent as the
 // account's plugin requires, a switch to another plugin followed, and the password sealed by the server's RSA key where
 // caching_sha2_password requires it whole over a connection that is not encrypted
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"
 #include "mysql_internal.h"
@@ -196,7 +196,7 @@ EMBED_INLINE int sign_seal(const MysqlSignCtx *args)
     unsigned long long sealed_size = 0ULL;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}) + 1u;
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u;
     memor.cpy(&(MemoriaCfg){.dst = secret, .src = args->password, .bytes = length});
     for (size_t at = 0u; (args->scramble_size_value > 0u) && (at < length); at += 1u)
     {
@@ -239,19 +239,19 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = scramble, .src = packet + end + 1u, .bytes = (size_t)*scramble_size});
     unsigned char answer[CLI_NAME_MAX_LEN + 1u];
     unsigned int answer_size = 0u;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "mysql_native_password", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "mysql_native_password", .cap = CLI_POOL_BYTES}))
     {
         answer_size = EMBED_CALL(cli_mysql_size_password_internal.answer, CliMysqlSizePasswordCtx, .password = password,
                                  .scramble = scramble, .size = *scramble_size, .caching = 0, .answer = answer);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "caching_sha2_password", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "caching_sha2_password", .cap = CLI_POOL_BYTES}))
     {
         answer_size = EMBED_CALL(cli_mysql_size_password_internal.answer, CliMysqlSizePasswordCtx, .password = password,
                                  .scramble = scramble, .size = *scramble_size, .caching = 1, .answer = answer);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "mysql_clear_password", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "mysql_clear_password", .cap = CLI_POOL_BYTES}))
     {
-        answer_size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_CELLS_POOL}) + 1u;
+        answer_size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_POOL_BYTES}) + 1u;
         memor.cpy(&(MemoriaCfg){.dst = answer, .src = password, .bytes = answer_size});
     }
     else
@@ -284,13 +284,13 @@ int cli_mysql_signed_in(const CliMysqlFailurePasswordCtx *args)
         return 0;
     }
     const int caching =
-        (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "caching_sha2_password", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "caching_sha2_password", .cap = CLI_POOL_BYTES}));
     if (!caching)
     {
         memor.cpy(&(MemoriaCfg){
             .dst = plugin,
             .src = "mysql_native_password",
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "mysql_native_password", .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "mysql_native_password", .cap = CLI_POOL_BYTES}) + 1u});
     }
     const unsigned int answer_size =
         EMBED_CALL(cli_mysql_size_password_internal.answer, CliMysqlSizePasswordCtx, .password = args->password,
@@ -375,7 +375,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     {
         at += 1u;
     }
-    mysql = (at < CLI_MYSQL_LINKS) ? g_cli_cells->persistent_buf_alloc(sizeof(CliMysql), &g_cli_db_cells) : NULL;
+    mysql = (at < CLI_MYSQL_LINKS) ? g_cli_guard->persistent_buf_alloc(sizeof(CliMysql), g_cli_db_owner) : NULL;
     if (mysql != NULL)
     {
         mysql->place = at;
@@ -398,15 +398,15 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     mysql->head.column_count = 0u;
     memor.cpy(&(MemoriaCfg){.dst = mysql->cancel.host,
                             .src = args->host,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_POOL_BYTES}) + 1u});
     mysql->cancel.port = port;
     memor.cpy(&(MemoriaCfg){.dst = mysql->cancel.user,
                             .src = args->user,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->user, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->user, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(
         &(MemoriaCfg){.dst = mysql->cancel.password,
                       .src = args->password,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u});
     mysql->cancel.id = 0u;
     // the wait is at most what a socket's wait counts, in milliseconds
     const unsigned int within = (args->wait > 0xffffffffULL) ? 0xffffffffu : (unsigned int)args->wait;
@@ -437,7 +437,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
         s_links[mysql->place] = NULL;
         // the password lies in the link's cancel, which the pool leaves as it is
         mmgr_zero_buf(mysql, sizeof(*mysql));
-        g_cli_cells->persistent_buf_release(mysql, &g_cli_db_cells);
+        g_cli_guard->persistent_buf_release(mysql, g_cli_db_owner);
         return NULL;
     }
     return mysql;
@@ -454,5 +454,5 @@ void cli_mysql_close(const CliMysqlFailureSqlCfg *args)
     s_links[args->mysql_out->place] = NULL;
     // the password lies in the link's cancel, which the pool leaves as it is
     mmgr_zero_buf(args->mysql_out, sizeof(*args->mysql_out));
-    g_cli_cells->persistent_buf_release(args->mysql_out, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(args->mysql_out, g_cli_db_owner);
 }

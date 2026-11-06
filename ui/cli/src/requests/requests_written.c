@@ -109,8 +109,8 @@ int cli_requests_on_parse(const CliRequestsTextCfg *args)
                    .values = parsed->variable_value, .count = parsed->variables, .out = args->out);
         mmgr_line_ch(args->out, '}');
     }
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.requests, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.text, g_cli_requests_owner);
     g_cli_requests_parsed.requests = NULL;
     g_cli_requests_parsed.requests_capacity = 0u;
     g_cli_requests_parsed.text = NULL;
@@ -150,8 +150,8 @@ int cli_requests_key_at(const CliRequestsTextCfg *args)
         EMBED_CALL(cli_requests_parsed_internal.key, CliRequestsParsedCtx, .parsed_read = &g_cli_requests_parsed,
                    .request = request, .out = args->out);
     }
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.requests, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.text, g_cli_requests_owner);
     g_cli_requests_parsed.requests = NULL;
     g_cli_requests_parsed.requests_capacity = 0u;
     g_cli_requests_parsed.text = NULL;

@@ -43,7 +43,7 @@ typedef struct
 // whether `length` bytes of `text` are `word` in either case
 EMBED_INLINE int cli_is(const SqlDoesCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) != args->length)
     {
         return 0;
     }
@@ -468,13 +468,13 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
     EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = 0u,
                .out_capacity = args->shaped->verb);
     if (!EMBED_CALL(cli_in, SqlDoesCtx, .text = args->shaped->verb,
-                    .length = cellul.len(&(CatenaFinitaCfg){.src = args->shaped->verb, .cap = CLI_CELLS_POOL}),
+                    .length = cellul.len(&(CatenaFinitaCfg){.src = args->shaped->verb, .cap = CLI_POOL_BYTES}),
                     .words = s_verbs, .count = 6u))
     {
         return 0;
     }
     unsigned int at = 1u;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "create", .cap = CLI_CELLS_POOL})) &&
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "create", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count, .index = 1u,
                    .word_text = "or") &&
         EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count, .index = 2u,
@@ -489,18 +489,18 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
     }
     EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = at,
                .out_capacity = args->shaped->kind);
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "truncate", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "table", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "truncate", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "table", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->shaped->kind,
                                 .src = "table",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "table", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "table", .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
         at += 1u;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "comment", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "comment", .cap = CLI_POOL_BYTES}))
     {
         return 0;
     }
@@ -517,8 +517,8 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
     }
     args->shaped->has_on = 0;
     args->shaped->on[0] = '\0';
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "index", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "trigger", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "index", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "trigger", .cap = CLI_POOL_BYTES})))
     {
         unsigned int found = 0u;
         while ((found < count) && !EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count,

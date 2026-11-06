@@ -4,7 +4,7 @@
 // one
 #include "templates.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -49,7 +49,7 @@ EMBED_INLINE int cli_plain(const TemplatesCtx *args)
 {
     int blank = 1;
     unsigned long long at = 0ULL;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     while (at < length)
     {
         unsigned int letter = 0u;
@@ -64,8 +64,8 @@ EMBED_INLINE int cli_plain(const TemplatesCtx *args)
     return !blank &&
            (args->name[EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->name, .set = "/\\:*?\"<>|")] ==
             '\0') &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ".", .cap = CLI_CELLS_POOL})) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "..", .cap = CLI_CELLS_POOL}));
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ".", .cap = CLI_POOL_BYTES})) &&
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "..", .cap = CLI_POOL_BYTES}));
 }
 
 // `text` with every `{{name}}` in it written as `name`, into `out`, sized for `capacity`: 1, or 0 where it does not fit
@@ -106,7 +106,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
 {
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->from,
-                                                  .size_pointer = &size, .owner = &g_cli_templates_cells);
+                                                  .size_pointer = &size, .owner = g_cli_templates_owner);
     if (bytes == NULL)
     {
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
@@ -129,10 +129,10 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         at += names ? 8ULL : 1ULL;
     }
     CliFilePiece *const piece =
-        g_cli_cells->temporary_buf_alloc(((2ULL * named) + 1ULL) * sizeof(*piece), &g_cli_templates_cells);
+        g_cli_guard->temporary_buf_alloc(((2ULL * named) + 1ULL) * sizeof(*piece), g_cli_templates_owner);
     if (piece == NULL)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_templates_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_templates_owner));
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     unsigned int pieces = 0u;
@@ -146,7 +146,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         }
         piece[pieces] = (CliFilePiece){bytes + start, at - start};
         piece[pieces + 1u] =
-            (CliFilePiece){args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL})};
+            (CliFilePiece){args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES})};
         pieces += 2u;
         at += 8ULL;
         start = at;
@@ -156,8 +156,8 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
     // a piece of no bytes contains no zeros either
     const int written = EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = args->to,
                                    .pieces = piece, .count = pieces);
-    g_cli_cells->persistent_buf_release(piece, &g_cli_templates_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_templates_cells));
+    g_cli_guard->persistent_buf_release(piece, g_cli_templates_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_templates_owner));
     return written || EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->to, .err_msg = args->err_msg);
 }
 
@@ -265,8 +265,8 @@ int cli_templates_save(const CliTemplatesNameCfg *args)
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
         const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_CELLS_POOL})) ||
-            (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_CELLS_POOL})))
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_POOL_BYTES})) ||
+            (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }

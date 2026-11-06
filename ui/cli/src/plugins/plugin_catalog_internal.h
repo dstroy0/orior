@@ -4,7 +4,7 @@
 // tree it is read into, and their lock (plugin_catalog.c, plugin_catalog_install.c)
 #ifndef PLUGIN_CATALOG_INTERNAL_H
 #define PLUGIN_CATALOG_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "plugin_catalog.h"
 

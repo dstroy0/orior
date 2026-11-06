@@ -4,7 +4,7 @@
 // from, a request ready to go, and its answer
 #ifndef REQUESTS_INTERNAL_H
 #define REQUESTS_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "requests.h"
 
@@ -36,9 +36,6 @@ typedef struct CliRequestsCtx CliRequestsCtx;
 typedef struct CliRequestsNameAnswerCtx CliRequestsNameAnswerCtx;
 typedef struct CliRequestsOutSecondsCtx CliRequestsOutSecondsCtx;
 typedef struct CliRequestsPoolCtx CliRequestsPoolCtx;
-
-// the cells the requests are read, filled and answered in (requests_values.c)
-extern CellOwner g_cli_requests_cells;
 
 // the most requests a file contains that are read, headers a request contains, variables a file sets, values an
 // environment gives, and the bytes their texts take; the most of an answer's body read, and of it stored with the

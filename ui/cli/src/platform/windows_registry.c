@@ -116,7 +116,7 @@ void cli_registry_expand(const CliOutCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->out,
                           .src = args->text,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 #endif

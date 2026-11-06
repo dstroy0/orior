@@ -33,11 +33,11 @@ static void parsed(const char *language, const char *text)
 static const char *classes_of(const char *text, unsigned int line, int plain)
 {
     const char *start = text;
-    for (unsigned int at = 0u; (at < line) && (cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL, .byte = '\n'}) != NULL); at += 1u)
+    for (unsigned int at = 0u; (at < line) && (cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES, .byte = '\n'}) != NULL); at += 1u)
     {
-        start = cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL, .byte = '\n'}) + 1;
+        start = cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES, .byte = '\n'}) + 1;
     }
-    const char *const newline = cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL, .byte = '\n'});
+    const char *const newline = cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES, .byte = '\n'});
     const char *const end = (newline != NULL) ? newline : (start + CLI_UNITY_LENGTH(start));
     // the line's end lies at or past its start
     const unsigned long long length = (unsigned long long)(end - start);
@@ -73,11 +73,11 @@ static const char *classes_of(const char *text, unsigned int line, int plain)
 static const char *word_at(const char *classes, unsigned int index)
 {
     const char *at = classes;
-    for (unsigned int skip = 0u; (skip < index) && (cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL, .byte = '|'}) != NULL); skip += 1u)
+    for (unsigned int skip = 0u; (skip < index) && (cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES, .byte = '|'}) != NULL); skip += 1u)
     {
-        at = cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL, .byte = '|'}) + 1;
+        at = cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES, .byte = '|'}) + 1;
     }
-    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL, .byte = '|'});
+    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES, .byte = '|'});
     const char *const end = (bar != NULL) ? bar : (at + CLI_UNITY_LENGTH(at));
     VerbaLinea line = {s_word, sizeof(s_word), 0ull};
     // the word's end lies at or past its start
@@ -91,7 +91,7 @@ static int contains_word(const char *classes, const char *required)
 {
     for (unsigned int index = 0u; index < 64u; index += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_at(classes, index), .other = required, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_at(classes, index), .other = required, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }

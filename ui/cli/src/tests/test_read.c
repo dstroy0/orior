@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_read.c: what a process of a run writes: its output read line by line as it comes, each line stored in its output
 // file, and its errors read whole into its errors file on a thread of their own
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "test_runs_internal.h"
 
 typedef struct
@@ -143,11 +143,11 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
     unsigned long long *size = args->size_pointer;
     *size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = size, .owner = &g_cli_tests_cells);
+                                                  .size_pointer = size, .owner = g_cli_tests_owner);
     if ((bytes != NULL) &&
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_tests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
         *size = 0ULL;
         return NULL;
     }
@@ -156,5 +156,5 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 
 void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args)
 {
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->text), (&g_cli_tests_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->text), (g_cli_tests_owner));
 }

@@ -10,8 +10,8 @@
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "callback_cfg.h"
-#include "cells.h"
 #include "command_line_internal.h"
+#include "pool.h"
 
 // the toolchains found, read as a tree sized to them while they are listed
 static CliJson s_json;
@@ -67,7 +67,7 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
     const char *displayed = "missing";
     for (unsigned int at = 0u; (at < 4u) && (state != NULL); at += 1u)
     {
-        displayed = (cellul.eq(&(CatenaFinitaCfg){.src = state, .other = s_states[at][0], .cap = CLI_CELLS_POOL}))
+        displayed = (cellul.eq(&(CatenaFinitaCfg){.src = state, .other = s_states[at][0], .cap = CLI_POOL_BYTES}))
                         ? s_states[at][1]
                         : displayed;
     }
@@ -85,14 +85,14 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
     mmgr_line_put(&line, named);
     for (unsigned long long letters =
              EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = named,
-                        .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
+                        .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}));
          letters < args->pixel_width; letters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
     }
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, displayed);
-    for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL});
+    for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_POOL_BYTES});
          letters < 11ULL; letters += 1ULL)
     {
         mmgr_line_ch(&line, ' ');
@@ -132,7 +132,7 @@ static void toolchains_group(const CliEachGroupCfg *args)
         const char *const tool_group =
             EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "group");
         if ((tool_group != NULL) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = tool_group, .other = args->group, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = tool_group, .other = args->group, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(toolchains_print, CommandLineToolchainsCtx, .tool = tool,
                        .pixel_width = list_entries->pixel_width);
@@ -148,7 +148,7 @@ static void toolchains_group(const CliEachGroupCfg *args)
 // every toolchain as orior_cli finds it, a group at a time, and whether orior_cli is on the PATH
 static int toolchains_list(void)
 {
-    char *const found_text = g_cli_cells->temporary_buf_alloc(CLI_TOOLCHAINS_FOUND, &g_cli_toolchains_words_cells);
+    char *const found_text = g_cli_guard->temporary_buf_alloc(CLI_TOOLCHAINS_FOUND, g_cli_toolchains_words_owner);
     VerbaLinea found = mmgr_line_over(found_text, CLI_TOOLCHAINS_FOUND);
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 1, .seen = NULL,
                .context_read = NULL, .out = &found);
@@ -160,10 +160,10 @@ static int toolchains_list(void)
     CliToolchainsListing list_entries = {
         (found_size != 0ULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                           .json = &s_json, .text = found_text, .size = found_size, .nodes_more = 0u,
-                                          .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_toolchains_words_cells)
+                                          .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_toolchains_words_owner)
                              : CLI_JSON_NONE,
         0ULL};
-    g_cli_cells->persistent_buf_release(found_text, &g_cli_toolchains_words_cells);
+    g_cli_guard->persistent_buf_release(found_text, g_cli_toolchains_words_owner);
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
                    .node = list_entries.found, .kind = CFG_JSON_ARRAY))
     {
@@ -172,14 +172,13 @@ static int toolchains_list(void)
         {
             const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "id");
             const unsigned long long size =
-                (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) : 0ULL;
+                (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}) : 0ULL;
             list_entries.pixel_width = (size > list_entries.pixel_width) ? size : list_entries.pixel_width;
         }
         EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group,
                    .context = &list_entries);
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char folder[CLI_PATH_MAX_LEN];
@@ -243,7 +242,7 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     char bash[CLI_PATH_MAX_LEN];
     // the PATH a setup runs with, as long as the system lets an environment's value be
     char *const path = EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = bash, .err_msg = err_msg)
-                           ? g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_words_cells)
+                           ? g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_words_owner)
                            : NULL;
     if (path == NULL)
     {
@@ -262,7 +261,7 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     const int spawned =
         EMBED_CALL(cli_words_err_msg_settings_internal.spawn_share, CliWordsErrMsgSettingsCtx, .words = words,
                    .settings = &setting, .count = 1u, .code = &code, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_words_cells);
+    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_words_owner);
     if (!spawned)
     {
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
@@ -278,7 +277,7 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     const char *const first = (args->count > 0u) ? args->words[0] : NULL;
     const char *const second = (args->count > 1u) ? args->words[1] : NULL;
-    if ((first != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add", .cap = CLI_CELLS_POOL})))
+    if ((first != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add", .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
                           .done = EMBED_CALL(cli_command_line_out_err_msg_internal.toolchain_add,
@@ -287,13 +286,13 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
                           .out = &out, .err_msg = &err_msg);
     }
     if ((first == NULL) ||
-        ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "check", .cap = CLI_CELLS_POOL})) && (second == NULL)))
+        ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "check", .cap = CLI_POOL_BYTES})) && (second == NULL)))
     {
         return toolchains_list();
     }
     char folder[CLI_PATH_MAX_LEN] = "";
     if ((args->count == 2u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-group", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-group", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(&out, "added the group ");
         mmgr_line_put(&out, second);
@@ -302,7 +301,7 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
                                              .name = second, .err_msg = &err_msg),
                           .out = &out, .err_msg = &err_msg);
     }
-    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(&out, "took out ");
         mmgr_line_put(&out, second);
@@ -312,7 +311,7 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
                           .out = &out, .err_msg = &err_msg);
     }
     if ((args->count == 2u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove-group", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove-group", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(&out, "took out the group ");
         mmgr_line_put(&out, second);
@@ -321,13 +320,13 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
                                              .name = second, .err_msg = &err_msg),
                           .out = &out, .err_msg = &err_msg);
     }
-    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "install", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "install", .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(toolchains_install, CommandLineToolchainsCtx, .id = second, .out_out = &out,
                           .err_msg_out = &err_msg);
     }
     if ((args->count == 2u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-path", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-path", .cap = CLI_POOL_BYTES})))
     {
         const int added = EMBED_CALL(cli_toolchains_err_msg_folder.add_to_path, CliToolchainsErrMsgFolderCfg,
                                      .what = second, .folder = folder, .err_msg = &err_msg);
@@ -335,7 +334,7 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
         mmgr_line_put(&out, " is on your PATH for every terminal started from now");
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = added, .out = &out, .err_msg = &err_msg);
     }
-    if ((args->count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "use", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "use", .cap = CLI_POOL_BYTES})))
     {
         char program[CLI_PATH_MAX_LEN] = "";
         const int chosen = EMBED_CALL(cli_toolchains_id.choose, CliToolchainsIdCfg, .id = second,
@@ -345,7 +344,7 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = chosen, .out = &out,
                           .err_msg = &err_msg);
     }
-    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "forget", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "forget", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(&out, "orior_cli looks for ");
         mmgr_line_put(&out, second);

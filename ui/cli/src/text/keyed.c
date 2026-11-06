@@ -6,7 +6,7 @@
 #include "keyed.h"
 #include "../command_line/callback_cfg.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 
 // the hash of a key, FNV-1a over its bytes
 unsigned int cli_keyed_hash(const CliKeyedKeyAdjacentCfg *args)
@@ -37,7 +37,7 @@ EMBED_INLINE unsigned int keyed_find(const KeyedCtx *args)
     {
         const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at);
         if (one->used && (one->hash == args->hash) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = one->cell, .other = args->key, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = one->cell, .other = args->key, .cap = CLI_POOL_BYTES})))
         {
             return at;
         }
@@ -48,7 +48,7 @@ EMBED_INLINE unsigned int keyed_find(const KeyedCtx *args)
 // a cell of `size` bytes for `keyed`'s entry, or NULL; and a cell given back
 EMBED_INLINE char *keyed_cell_alloc(const KeyedCtx *args)
 {
-    return g_cli_cells->persistent_buf_alloc(args->size, &g_cli_text_cells);
+    return g_cli_guard->persistent_buf_alloc(args->size, g_cli_text_owner);
 }
 
 // that `key` could not be stored by `keyed`, and why, reported on the standard error
@@ -99,7 +99,7 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
     const unsigned int reached = (keyed->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
     for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
     {
-        g_cli_cells->persistent_buf_release(((char *)keyed->page[page]), &g_cli_text_cells);
+        g_cli_guard->persistent_buf_release(((char *)keyed->page[page]), g_cli_text_owner);
         keyed->page[page] = NULL;
     }
 }
@@ -107,8 +107,8 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
 int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
 {
     cli_keyed_key_adjacent.remove(args);
-    const size_t key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
-    const size_t adjacent_size = cellul.len(&(CatenaFinitaCfg){.src = args->adjacent_value, .cap = CLI_CELLS_POOL});
+    const size_t key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
+    const size_t adjacent_size = cellul.len(&(CatenaFinitaCfg){.src = args->adjacent_value, .cap = CLI_POOL_BYTES});
     const unsigned long long needed = key_size + 1u + adjacent_size + 1u + args->size_value + 1u;
     if (args->keyed_out->entries == args->keyed_out->entries_max)
     {
@@ -176,9 +176,9 @@ void cli_keyed_remove(const CliKeyedKeyAdjacentCfg *args)
                                        .hash = cli_keyed_key_adjacent.hash(args));
     if (at < args->keyed_out->entries)
     {
-        g_cli_cells->persistent_buf_release(
+        g_cli_guard->persistent_buf_release(
             (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell),
-            &g_cli_text_cells);
+            g_cli_text_owner);
         EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used = 0;
         EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell = NULL;
     }
@@ -190,16 +190,16 @@ void cli_keyed_clear(const CliKeyedNameCfg *args)
     {
         if (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used)
         {
-            g_cli_cells->persistent_buf_release(
+            g_cli_guard->persistent_buf_release(
                 (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell),
-                &g_cli_text_cells);
+                g_cli_text_owner);
         }
     }
     args->keyed_out->entries = 0u;
     const unsigned int reached = (args->keyed_out->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
     for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
     {
-        g_cli_cells->persistent_buf_release(((char *)args->keyed_out->page[page]), &g_cli_text_cells);
+        g_cli_guard->persistent_buf_release(((char *)args->keyed_out->page[page]), g_cli_text_owner);
         args->keyed_out->page[page] = NULL;
     }
 }

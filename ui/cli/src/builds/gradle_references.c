@@ -91,7 +91,7 @@ EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
         popped = 0;
         for (unsigned int at = 0u; at < 9u; at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_getters[at], .cap = CLI_CELLS_POOL}) ==
+            if ((cellul.len(&(CatenaFinitaCfg){.src = s_getters[at], .cap = CLI_POOL_BYTES}) ==
                  args->to[count - 1u] - args->from[count - 1u]) &&
                 (memor.cmp(&(MemoriaCfg){.src = s_getters[at],
                                          .other = text + args->from[count - 1u],
@@ -119,7 +119,7 @@ EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
     *path_from = 0u;
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL}) == args->size) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_POOL_BYTES}) == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             *section = s_sections[at];
@@ -185,7 +185,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
         .from = from[path_from], .to = to[args->count - 1u], .severity = CLI_BUILD_ERROR, .code = "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
     const unsigned long long capacity = args->aliases->used + 1ULL;
-    char *const accessors = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_gradle_cells);
+    char *const accessors = g_cli_guard->temporary_buf_alloc(capacity, g_cli_gradle_owner);
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (accessors != NULL) && (at < args->aliases->count); at += 1u)
     {
@@ -220,14 +220,14 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
                    .title = &title, .lines = lines, .from = from[path_from], .to = to[args->count - 1u],
                    .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
     }
-    g_cli_cells->persistent_buf_release(accessors, &g_cli_gradle_cells);
+    g_cli_guard->persistent_buf_release(accessors, g_cli_gradle_owner);
 }
 
 void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
 {
     const char *const text = g_cli_gradle.text;
     const unsigned long long size = g_cli_gradle.size;
-    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     while (at + name_size + 1u <= size)
     {

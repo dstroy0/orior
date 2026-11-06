@@ -8,7 +8,7 @@ void cli_db_failure_set(const CliDbWireCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->failure, .val = 0, .bytes = sizeof(*args->failure)});
     memor.cpy(&(MemoriaCfg){.dst = args->failure->message,
                             .src = args->message,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 void cli_db_failure_write(const CliDbWireOutCfg *args)

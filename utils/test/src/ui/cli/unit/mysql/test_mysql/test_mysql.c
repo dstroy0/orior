@@ -128,7 +128,7 @@ static void statements_run(CliMysql *my, const char *const *sql, unsigned int co
 // whether the column `at` of the head is `name` of `kind`, a number where `numeric`, the kind not compared where NULL
 static int column_is(const CliDbHead *head, unsigned int at, const char *name, const char *kind, int numeric)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].name, .other = name, .cap = CLI_CELLS_POOL}) && ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].kind, .other = kind, .cap = CLI_CELLS_POOL})) && (head->columns[at].numeric == numeric);
+    return cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].name, .other = name, .cap = CLI_POOL_BYTES}) && ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].kind, .other = kind, .cap = CLI_POOL_BYTES})) && (head->columns[at].numeric == numeric);
 }
 
 // the server `name` names connected to as `user`, NULL where none answers or none is named
@@ -502,7 +502,7 @@ void test_mysql_a_wrong_password_is_refused(void)
 {
     mysql_ready();
     TEST_ASSERT_TRUE(s_wrong_refused);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_wrong_code, .other = "1045", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_wrong_code, .other = "1045", .cap = CLI_POOL_BYTES}));
 }
 
 void test_mysql_an_insert_reports_the_rows_it_affected(void)
@@ -510,7 +510,7 @@ void test_mysql_an_insert_reports_the_rows_it_affected(void)
     mysql_ready();
     TEST_ASSERT_TRUE(s_insert_run_result);
     TEST_ASSERT_FALSE(s_insert_rows);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_insert_tag, .other = "1000 rows affected", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_insert_tag, .other = "1000 rows affected", .cap = CLI_POOL_BYTES}));
 }
 
 void test_mysql_a_query_lists_its_columns_each_of_its_type(void)
@@ -556,7 +556,7 @@ void test_mysql_a_failure_has_the_servers_code(void)
 {
     mysql_ready();
     TEST_ASSERT_FALSE(s_missing_run_result);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_missing_code, .other = "1146", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_missing_code, .other = "1146", .cap = CLI_POOL_BYTES}));
 }
 
 void test_mysql_a_sleep_stopped_returns_1_at_once(void)
@@ -586,7 +586,7 @@ void test_mariadb_a_wrong_password_is_refused(void)
 {
     mariadb_ready();
     TEST_ASSERT_TRUE(s_maria_wrong_refused);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_maria_wrong_code, .other = "1045", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_maria_wrong_code, .other = "1045", .cap = CLI_POOL_BYTES}));
 }
 
 void test_mariadb_a_query_lists_its_columns(void)
@@ -617,7 +617,7 @@ void test_mariadb_a_sleep_stopped_fails_at_once(void)
     mariadb_ready();
     TEST_ASSERT_LESS_THAN_UINT64(10000ull, s_maria_sleep_consumed);
     TEST_ASSERT_FALSE(s_maria_sleep_returned);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_maria_sleep_code, .other = "1317", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_maria_sleep_code, .other = "1317", .cap = CLI_POOL_BYTES}));
 }
 
 void test_mariadb_the_connection_answers_after_a_stopped_sleep(void)

@@ -71,16 +71,16 @@ void setUp(void)
 
 void tearDown(void)
 {
-    g_cli_cells->persistent_buf_release(g_cli_validate->json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->json.node));
+    g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(g_cli_validate->manifest.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->manifest.node));
+    g_cli_guard->persistent_buf_release(g_cli_validate->manifest.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->manifest.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
-    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
+    g_cli_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
     g_cli_validate = NULL;
 }
 
@@ -94,7 +94,7 @@ void test_the_lean_tool_reads_its_barriers(void)
     int heartbeats = 0;
     for (unsigned int at = 0u; at < g_cli_validate->tool.barrier_count; at += 1u)
     {
-        heartbeats |= cellul.eq(&(CatenaFinitaCfg){.src = g_cli_validate->tool.barriers[at].name, .other = "maxHeartbeats", .cap = CLI_CELLS_POOL});
+        heartbeats |= cellul.eq(&(CatenaFinitaCfg){.src = g_cli_validate->tool.barriers[at].name, .other = "maxHeartbeats", .cap = CLI_POOL_BYTES});
     }
     TEST_ASSERT_TRUE(heartbeats);
 }
@@ -124,7 +124,7 @@ void test_flags_find_their_words(void)
     for (unsigned int at = 0u; at < g_cli_validate->finding_count; at += 1u)
     {
         const char *const message = g_cli_validate->finding_text + g_cli_validate->findings[at].message;
-        const char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL, .byte = ':'});
+        const char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES, .byte = ':'});
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
         // the colon lies in the message, at or past its start
         mmgr_line_put_n(&line, message, (colon != NULL) ? (unsigned long long)(colon - message) : CLI_UNITY_LENGTH(message));
@@ -240,7 +240,7 @@ void test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms(void
     VerbaLinea line = {changed, sizeof(changed), 0ull};
     const unsigned long long size = EMBED_CALL(cli_validate_text_size_internal.copy_get, CliValidateTextSizeCtx, .text = s_text, .size = sizeof(s_text) - 1u, .names = s_limit_names, .values = s_limit_values, .count = 1u, .changed = &line);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(sizeof(s_tail) - 1u, size);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = g_cli_validate->copy, .other = "set_option maxHeartbeats 800000 in\n", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = g_cli_validate->copy, .other = "set_option maxHeartbeats 800000 in\n", .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_EQUAL_MEMORY(s_tail, g_cli_validate->copy + size - (sizeof(s_tail) - 1u), sizeof(s_tail) - 1u);
 }
 

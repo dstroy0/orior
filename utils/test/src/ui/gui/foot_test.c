@@ -63,7 +63,7 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -134,7 +134,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane_part.share, GuiPanePartCfg, .pane = &sided) == frame.side_share,
               "a side table's text fades with the side's share");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

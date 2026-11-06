@@ -124,7 +124,7 @@ EMBED_INLINE unsigned int cli_text_init(const PluginsDraftCtx *args)
     CliJson *json = args->json;
     const char *text = args->text;
     return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
-                      .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+                      .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 // the strings given, NULL after the last, made a JSON array, the node `extra` after them where it is not none
@@ -400,7 +400,7 @@ typedef struct
 static void cli_template_each(const CliEachPluginCfg *args)
 {
     CliTemplate *const template_of = (CliTemplate *)args->context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = template_of->id, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = template_of->id, .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -412,13 +412,13 @@ static void cli_template_each(const CliEachPluginCfg *args)
                                           .text = args->plugin->text, .size = args->plugin->size) +
                                1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)count * sizeof(*tokens), &g_cli_plugins_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(*tokens), g_cli_plugins_owner);
     template_of->found =
         (tokens != NULL) ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                                       .json = template_of->json, .text = args->plugin->text, .size = args->plugin->size,
                                       .tokens = tokens, .tokens_max = count, .err_msg = &err_msg)
                          : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(tokens, g_cli_plugins_owner);
 }
 
 // The work state the plugin of `id` takes, the last found of that id: its tokens and its bytes
@@ -432,7 +432,7 @@ typedef struct
 static void cli_template_capacity_each(const CliEachPluginCfg *args)
 {
     CliTemplateCapacity *const work_state = (CliTemplateCapacity *)args->context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = work_state->id, .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = work_state->id, .cap = CLI_POOL_BYTES}))
     {
         work_state->nodes = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
                                        .text = args->plugin->text, .size = args->plugin->size) +
@@ -460,7 +460,7 @@ unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args)
     if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->draft,
                     .nodes_max = (2u * nodes) + work_state.nodes + CLI_DRAFT_NODES_MORE,
                     .text_max = (2ULL * text) + work_state.text + CLI_DRAFT_TEXT_MORE, .what = "a plugin's draft",
-                    .owner = &g_cli_plugins_cells))
+                    .owner = g_cli_plugins_owner))
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet a plugin's draft");
         return CLI_JSON_NONE;

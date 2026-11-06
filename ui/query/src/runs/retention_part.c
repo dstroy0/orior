@@ -60,8 +60,8 @@ int query_on_the_part(const QueryRetentionRootCtx *args)
     }
     // the lines as the root is written, in a cell of their size: where it is refused the answer is that a program
     // is there, which saves a run from being taken for one the part has let go
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->apps, .cap = CLI_CELLS_POOL});
-    char *const plain = g_cli_cells->temporary_buf_alloc(size + 1u, &g_query_cells);
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->apps, .cap = CLI_POOL_BYTES});
+    char *const plain = g_cli_guard->temporary_buf_alloc(size + 1u, g_query_owner);
     if (plain == NULL)
     {
         return 1;
@@ -71,7 +71,7 @@ int query_on_the_part(const QueryRetentionRootCtx *args)
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = plain, .size = size);
     const int there =
         cellul.find(&(CatenaFinitaCfg){.src = plain, .cap = size + 1u, .other = top, .other_cap = sizeof(top)}) != NULL;
-    g_cli_cells->persistent_buf_release(plain, &g_query_cells);
+    g_cli_guard->persistent_buf_release(plain, g_query_owner);
     return there;
 }
 
@@ -205,9 +205,9 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
     int newest = 1;
     for (unsigned int at = 0u; at < runs; at += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES});
         if ((length < 4u) ||
-            (!cellul.eq(&(CatenaFinitaCfg){.src = paths[at] + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
+            (!cellul.eq(&(CatenaFinitaCfg){.src = paths[at] + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }
@@ -220,17 +220,17 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
         writer.member = 0;
         memor.cpy(&(MemoriaCfg){.dst = writer.qry,
                                 .src = paths[at],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES}) + 1u});
         if (EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &writer))
         {
             continue;
         }
         const char *const name =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = paths[at],
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}),
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES}),
                        .byte = '/')
                 ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = paths[at],
-                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}),
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES}),
                               .byte = '/') +
                    1)
                 : paths[at];
@@ -261,7 +261,7 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
         {
             EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = paths[at]);
             // the crystal's own line, its end trimmed, and the seconds it took
-            size_t len = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL});
+            size_t len = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_POOL_BYTES});
             len = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = s_output,
                                      .at = len, .set = "\n\r");
             mmgr_line_put_most(&line, s_output, len);
@@ -281,8 +281,8 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
     }
-    g_cli_cells->persistent_buf_release(list_entries.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(list_entries.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
     *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -341,7 +341,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     // the list's text in a cell of its size, retained until the next build looks at it, the words naming its lines
     static char *s_objects_text;
     static const char *s_objects[QUERY_WORDS_MAX];
-    g_cli_cells->persistent_buf_release(s_objects_text, &g_query_cells);
+    g_cli_guard->persistent_buf_release(s_objects_text, g_query_owner);
     s_objects_text = NULL;
     unsigned int objects = 0u;
 #if defined(_WIN32)
@@ -352,7 +352,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     mmgr_line_finish(&listing_line);
     unsigned long long listed_size = 0ULL;
     const unsigned char *const list = qry_member_file_mapped(list_entries, &listed_size);
-    s_objects_text = (list != NULL) ? g_cli_cells->persistent_buf_alloc(listed_size + 1ULL, &g_query_cells) : NULL;
+    s_objects_text = (list != NULL) ? g_cli_guard->persistent_buf_alloc(listed_size + 1ULL, g_query_owner) : NULL;
     if (s_objects_text != NULL)
     {
         // a file mapped whole is counted by a size_t
@@ -412,11 +412,11 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
                    .context = context->programs->context, .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl),
                    .err_msg = &ignored) &&
         (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}),
+                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}),
                     .byte = '\\') != NULL))
     {
         cl[EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}), .byte = '\\') -
+                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\') -
            cl] = '\0';
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                    .word_text = "-ccbin");

@@ -6,12 +6,12 @@
 
 unsigned int cli_sql_dialect(const CliSqlCfg *args)
 {
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "mysql", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "mariadb", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "mysql", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "mariadb", .cap = CLI_POOL_BYTES})))
     {
         return CLI_SQL_MYSQL;
     }
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "sqlite", .cap = CLI_CELLS_POOL}))
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "sqlite", .cap = CLI_POOL_BYTES}))
                ? CLI_SQL_SQLITE
                : CLI_SQL_POSTGRES;
 }
@@ -291,7 +291,7 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
 // whether `length` bytes of `text` are `word` in either case
 EMBED_INLINE int cli_word_is(const SqlCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) != args->length)
     {
         return 0;
     }

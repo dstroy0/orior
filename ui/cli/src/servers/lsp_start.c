@@ -3,7 +3,7 @@
 // lsp_start.c: a language server started at a tree, its readers started, and requested to initialize with what
 // orior_cli can do
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "lsp_internal.h"
 
@@ -57,7 +57,7 @@ static int lsp_input_write(const CliSinkBytesSizeCfg *args)
 static CliLsp *lsp_position_alloc(void)
 {
     static unsigned int s_started;
-    CliLsp *const lsp = g_cli_cells->persistent_buf_alloc(sizeof(*lsp), &g_cli_servers_cells);
+    CliLsp *const lsp = g_cli_guard->persistent_buf_alloc(sizeof(*lsp), g_cli_servers_owner);
     if (lsp != NULL)
     {
         lsp->reserved = 1;
@@ -97,7 +97,7 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     char uri[CLI_PATH_MAX_LEN * 3u];
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->root, .uri_out = uri,
                .capacity = sizeof(uri));
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     end = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root, .at = end,
                              .set = "/\\");
     size_t start = end;
@@ -107,10 +107,10 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     mmgr_line_decimal(out, cli_process_own(), 1u);
     mmgr_line_put(out, ",\"rootUri\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = uri,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"workspaceFolders\":[{\"uri\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = uri,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->root + start, .length = end - start);
@@ -151,7 +151,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
                     .words = lsp->words.word_text, .folder = args->root, .settings = lsp->settings,
                     .count = settings_used, .detached = 1, .err_msg = args->err_msg))
     {
-        g_cli_cells->persistent_buf_release(lsp, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(lsp, g_cli_servers_owner);
         return NULL;
     }
     EMBED_CALL(cli_lsp_internal.readers_start, CliLspCtx, .lsp = lsp);
@@ -159,7 +159,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     // the server's options and the members around them
     const unsigned long long params_capacity =
         (CLI_PATH_MAX_LEN * 12ULL) + sizeof(s_capabilities) + args->length + 256ULL;
-    char *const params_text = g_cli_cells->temporary_buf_alloc(params_capacity, &g_cli_servers_cells);
+    char *const params_text = g_cli_guard->temporary_buf_alloc(params_capacity, g_cli_servers_owner);
     VerbaLinea params = mmgr_line_over(params_text, params_capacity);
     EMBED_CALL(lsp_initialize_params, LspStartCtx, .root = args->root, .options = args->options, .length = args->length,
                .out = &params);
@@ -173,7 +173,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
         mmgr_line_ok(&params) && EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = lsp,
                                             .method = "initialize", .params = params.out, .length = params.at,
                                             .wait = CLI_LSP_STARTING, .answer = &answer, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(params_text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(params_text, g_cli_servers_owner);
     if (!initialized)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 200u);
@@ -194,7 +194,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     const int has = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer.text, .size_value = answer.size,
                                .name = "capabilities", .start = &at, .length_pointer = &size);
     lsp->capabilities_size = has ? size : 4ULL;
-    lsp->capabilities = g_cli_cells->persistent_buf_alloc(lsp->capabilities_size + 1ULL, &g_cli_servers_cells);
+    lsp->capabilities = g_cli_guard->persistent_buf_alloc(lsp->capabilities_size + 1ULL, g_cli_servers_owner);
     if (lsp->capabilities != NULL)
     {
         // a member of the reply, which a size_t counts
@@ -202,7 +202,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
             .dst = lsp->capabilities, .src = has ? answer.text + at : "null", .bytes = (size_t)lsp->capabilities_size});
         lsp->capabilities[lsp->capabilities_size] = '\0';
     }
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = lsp, .method = "initialized",

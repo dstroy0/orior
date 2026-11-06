@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // trust_code.c: the files of a tree that run as code as its tools read it, cached a while, and the words git is
 // started with where a tree's hook is disabled
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -38,7 +38,7 @@ void cli_trust_forget(void)
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         s_found[at].has = 0;
-        g_cli_cells->persistent_buf_release((&s_found[at].code)->paths, &g_cli_trust_cells);
+        g_cli_guard->persistent_buf_release((&s_found[at].code)->paths, g_cli_trust_owner);
         *(&s_found[at].code) = (CliTrustCode){NULL, 0ULL, 0u};
     }
 }
@@ -71,7 +71,7 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
     {
         return 1;
     }
-    code->paths = g_cli_cells->persistent_buf_alloc(size, &g_cli_trust_cells);
+    code->paths = g_cli_guard->persistent_buf_alloc(size, g_cli_trust_owner);
     if (code->paths == NULL)
     {
         return 0;
@@ -85,7 +85,7 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
 // whether `length` bytes at `text` are `word` without regard to ASCII case
 EMBED_INLINE int cli_same_word(const TrustCodeCtx *args)
 {
-    if (args->length != cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}))
+    if (args->length != cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}))
     {
         return 0;
     }
@@ -121,7 +121,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
     {
         const char *end = line;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "\n");
         const char *const next = (end[0] != '\0') ? (end + 1) : end;
         const char *from = line;
         const char *to = end;
@@ -180,7 +180,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
 }
 
 // the file `name` under `folder` read whole, a zero after it, into a cell of its size given back with
-// g_cli_cells->persistent_buf_release: the cell, or NULL where it could not be read or the cellblock could not meet it
+// g_cli_guard->persistent_buf_release: the cell, or NULL where it could not be read or the cellblock could not meet it
 EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -191,15 +191,15 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                        .size_pointer = &size, .owner = &g_cli_trust_cells)
+                                                        .size_pointer = &size, .owner = g_cli_trust_owner)
                                            : NULL;
-    char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_trust_cells) : NULL;
+    char *const text = (bytes != NULL) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_trust_owner) : NULL;
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
         text[size] = '\0';
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_trust_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_trust_owner));
     return text;
 }
 
@@ -216,7 +216,7 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
         int longer = 0;
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = "\n");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .set = "\n");
         for (unsigned long long piece = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                    .text = at, .at = 0ULL, .size = stop, .set = " ");
              piece < stop;)
@@ -239,7 +239,7 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
         }
         name_buf[count] = '\0';
         if (!longer &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = name_buf, .other = "proc-macro=true", .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = name_buf, .other = "proc-macro=true", .cap = CLI_POOL_BYTES})))
         {
             return 1;
         }
@@ -253,7 +253,7 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->names[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->names[at], .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -263,7 +263,7 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
 
 int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
 {
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_TRUST_PATHS_CAPACITY, &g_cli_trust_cells);
+    char *const paths_cell = g_cli_guard->temporary_buf_alloc(CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
     VerbaLinea paths = mmgr_line_over(paths_cell, CLI_TRUST_PATHS_CAPACITY);
     const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->tree);
     unsigned int found = 0u;
@@ -272,10 +272,10 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
         const char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .byte = '/');
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .byte = '/');
         const char *const name = (slash != NULL) ? (slash + 1) : file;
         int is_code = 0;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "build.rs", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "build.rs", .cap = CLI_POOL_BYTES}))
         {
             char adjacent[CLI_PATH_MAX_LEN];
             VerbaLinea line = {adjacent, sizeof(adjacent), 0ULL};
@@ -284,11 +284,11 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
             is_code = (mmgr_line_finish(&line) != 0ULL) &&
                       EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = files, .path = adjacent);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))
         {
             char *const text = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = args->tree, .name = file);
             is_code = (text != NULL) && EMBED_CALL(cli_proc_macro, TrustCodeCtx, .text = text);
-            g_cli_cells->persistent_buf_release(text, &g_cli_trust_cells);
+            g_cli_guard->persistent_buf_release(text, g_cli_trust_owner);
         }
         else
         {
@@ -297,7 +297,7 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         }
         if (is_code)
         {
-            mmgr_line_put_n(&paths, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u);
+            mmgr_line_put_n(&paths, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u);
             found += 1u;
         }
     }
@@ -308,10 +308,10 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         mmgr_line_put_n(&paths, ".git/config", sizeof(".git/config"));
         found += 1u;
     }
-    g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(config, g_cli_trust_owner);
     const int done = mmgr_line_ok(&paths) && EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = paths.out,
                                                         .size = paths.at, .count = found, .code = args->code);
-    g_cli_cells->persistent_buf_release(paths.out, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(paths.out, g_cli_trust_owner);
     return done;
 }
 
@@ -322,7 +322,7 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         const CliTrustFound *const one = &s_found[at];
-        if (one->has && (cellul.eq(&(CatenaFinitaCfg){.src = one->tree, .other = args->tree, .cap = CLI_CELLS_POOL})) &&
+        if (one->has && (cellul.eq(&(CatenaFinitaCfg){.src = one->tree, .other = args->tree, .cap = CLI_POOL_BYTES})) &&
             ((now - one->when) < CLI_TRUST_FOUND_FOR))
         {
             const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = one->code.paths, .size = one->code.size,
@@ -345,7 +345,7 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
         {
             place =
                 (s_found[at].has &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = s_found[at].tree, .other = args->tree, .cap = CLI_CELLS_POOL})))
+                 (cellul.eq(&(CatenaFinitaCfg){.src = s_found[at].tree, .other = args->tree, .cap = CLI_POOL_BYTES})))
                     ? at
                     : place;
             at += 1u;
@@ -370,10 +370,10 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     CliTrustFound *const one = &s_found[place];
     memor.cpy(&(MemoriaCfg){.dst = one->tree,
                             .src = args->tree,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_POOL_BYTES}) + 1u});
     one->when = cli_clock_milliseconds();
     one->has = 1;
-    g_cli_cells->persistent_buf_release(one->code.paths, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(one->code.paths, g_cli_trust_owner);
     *(&one->code) = (CliTrustCode){NULL, 0ULL, 0u};
     one->code = looked;
     const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = looked.paths, .size = looked.size,
@@ -393,7 +393,7 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
     const int blocked =
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||
         (code.count != 0u);
-    g_cli_cells->persistent_buf_release(code.paths, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
@@ -409,14 +409,14 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args)
     const char *path = code.paths;
     for (unsigned int at = 0u; !blocked && (at < code.count); at += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         const char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path, .length_value = length, .byte = '/');
         blocked = EMBED_CALL(cli_by_name, TrustCodeCtx, .name = (slash != NULL) ? (slash + 1) : path,
                              .names = s_prettier, .count = 6u);
         path += length + 1u;
     }
-    g_cli_cells->persistent_buf_release(code.paths, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
@@ -426,7 +426,7 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = folder,
                             .src = args->tree,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_POOL_BYTES}) + 1u});
     int hook = 0;
     int going = 1;
     while (going)
@@ -441,7 +441,7 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
         {
             char *const config = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = folder, .name = ".git/config");
             hook = (config != NULL) && EMBED_CALL(cli_trust_table.names_a_hook, CliTrustCfg, .config = config);
-            g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
+            g_cli_guard->persistent_buf_release(config, g_cli_trust_owner);
             going = 0;
             continue;
         }
@@ -453,7 +453,7 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = folder,
                                 .src = above,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_POOL_BYTES}) + 1u});
     }
     int trusted = 0;
     if (!hook ||

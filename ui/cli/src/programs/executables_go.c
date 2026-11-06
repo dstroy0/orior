@@ -18,7 +18,7 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (args->is_folder)
     {
         char module[CLI_PATH_MAX_LEN];
@@ -26,7 +26,7 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
                                           .folder = path, .name = "go.mod", .out = module) &&
                                EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = module);
         if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && !own_module && (name[0] != '.') && (name[0] != '_') &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_CELLS_POOL})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_POOL_BYTES})) &&
             !EMBED_CALL(cli_executables_name_out_folder_internal.pass, CliExecutablesNameOutFolderCtx, .name = name))
         {
             (void)EMBED_CALL(cli_executables_walk_internal.pending_append, CliExecutablesWalkCtx, .walk = walk,
@@ -34,17 +34,17 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
         }
     }
     else if (!walk->main && (length > 3ULL) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 3ULL, .other = ".go", .cap = CLI_CELLS_POOL})) &&
+             (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 3ULL, .other = ".go", .cap = CLI_POOL_BYTES})) &&
              !((length > 8ULL) && (cellul.eq(&(CatenaFinitaCfg){
-                                      .src = name + length - 8ULL, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
+                                      .src = name + length - 8ULL, .other = "_test.go", .cap = CLI_POOL_BYTES}))))
     {
         char package[CLI_NAME_MAX_LEN];
         char *const text = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
         walk->main = (text != NULL) &&
                      EMBED_CALL(cli_executables_text_out_internal.go_package, CliExecutablesTextOutCtx, .text = text,
                                 .out = package) &&
-                     (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_CELLS_POOL}));
-        g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
+                     (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_POOL_BYTES}));
+        g_cli_guard->persistent_buf_release(text, g_cli_executables_owner);
     }
 }
 
@@ -58,7 +58,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
     {
         const char *stop = line;
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
@@ -75,14 +75,14 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
     if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->module_text, .out = top))
     {
         memor.cpy(&(MemoriaCfg){
-            .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+            .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
     }
     CliWalk go_walk;
     CliWalk *const walk = &go_walk;
     EMBED_CALL(cli_executables_walk_internal.walk_alloc, CliExecutablesWalkCtx, .walk = walk);
     EMBED_CALL(cli_executables_walk_top_internal.walk, CliExecutablesWalkTopCtx, .walk = walk, .top = top,
                .each = cli_go_each);
-    const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
+    const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_POOL_BYTES});
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
     {
         char package[CLI_PATH_MAX_LEN];
@@ -90,17 +90,17 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
         inner += ((inner[0] == '/') || (inner[0] == '\\')) ? 1 : 0;
         memor.cpy(&(MemoriaCfg){.dst = package,
                                 .src = inner,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_POOL_BYTES}) + 1u});
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = package,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_POOL_BYTES}), .from = '\\',
                    .to = '/');
         const char *const named = (package[0] == '\0') ? path : package;
         const char *const name =
             (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
-                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}),
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}),
                         .byte = '/') != NULL)
                 ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
-                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}),
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}),
                               .byte = '/') +
                    1)
                 : named;
@@ -113,15 +113,15 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->mains->name[args->mains->count],
                                     .src = name,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(
                 &(MemoriaCfg){.dst = args->mains->value[args->mains->count],
                               .src = displayed,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_POOL_BYTES}) + 1u});
             args->mains->count += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(walk->pending, &g_cli_executables_cells);
+    g_cli_guard->persistent_buf_release(walk->pending, g_cli_executables_owner);
     *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
     // the mains in the order of their names, then their folders
     for (unsigned int at = 1u; at < args->mains->count; at += 1u)
@@ -142,21 +142,21 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = name,
                 .src = args->mains->name[place],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->name[place], .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->name[place], .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(&(MemoriaCfg){
                 .dst = value,
                 .src = args->mains->value[place],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->value[place], .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->value[place], .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(&(MemoriaCfg){
                 .dst = args->mains->name[place], .bytes = CLI_NAME_MAX_LEN, .src = args->mains->name[place - 1u]});
             memor.cpy(&(MemoriaCfg){
                 .dst = args->mains->value[place], .bytes = CLI_PATH_MAX_LEN, .src = args->mains->value[place - 1u]});
             memor.cpy(&(MemoriaCfg){.dst = args->mains->name[place - 1u],
                                     .src = name,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(&(MemoriaCfg){.dst = args->mains->value[place - 1u],
                                     .src = value,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES}) + 1u});
         }
     }
 }

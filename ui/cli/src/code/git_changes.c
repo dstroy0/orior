@@ -149,7 +149,7 @@ EMBED_INLINE void choice_settled(const ChangesCtx *args)
         taken += s_changes.out[at] ? 0u : 1u;
     }
     s_changes.taken = taken;
-    char *const left = (bytes != 0ULL) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_git_cells) : NULL;
+    char *const left = (bytes != 0ULL) ? g_cli_guard->persistent_buf_alloc(bytes, g_cli_git_owner) : NULL;
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (left != NULL) && (at < s_changed.count); at += 1u)
     {
@@ -162,7 +162,7 @@ EMBED_INLINE void choice_settled(const ChangesCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = left + used, .src = path, .bytes = length + 1ULL});
         used += length + 1ULL;
     }
-    g_cli_cells->persistent_buf_release(s_changes.left, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.left, g_cli_git_owner);
     s_changes.left = left;
     s_changes.left_bytes = (left != NULL) ? bytes : 0ULL;
 }
@@ -171,10 +171,10 @@ EMBED_INLINE void choice_settled(const ChangesCtx *args)
 // to why
 EMBED_INLINE int remote_run(const ChangesCtx *args)
 {
-    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
     s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
-    char *const scratch = g_cli_cells->temporary_buf_alloc(CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, &g_cli_git_cells);
+    char *const scratch = g_cli_guard->temporary_buf_alloc(CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, g_cli_git_owner);
     if (scratch == NULL)
     {
         return 0;
@@ -183,14 +183,14 @@ EMBED_INLINE int remote_run(const ChangesCtx *args)
     VerbaLinea err_msg = {scratch + CHANGES_OUT, CLI_ERR_MSG_MAX_LEN, 0ULL};
     const int ran = args->run(&(CliGitRootOutCountErrMsgCfg){.root = args->root, .out = &out, .err_msg = &err_msg});
     const unsigned long long refused = (!ran && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
-    s_changes.refusal = (refused != 0ULL) ? g_cli_cells->persistent_buf_alloc(refused + 1ULL, &g_cli_git_cells) : NULL;
+    s_changes.refusal = (refused != 0ULL) ? g_cli_guard->persistent_buf_alloc(refused + 1ULL, g_cli_git_owner) : NULL;
     s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
     if (s_changes.refusal != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = scratch + CHANGES_OUT, .bytes = refused});
         s_changes.refusal[refused] = '\0';
     }
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
     return ran;
 }
 
@@ -220,7 +220,7 @@ static void changes_filled(const CliEachHunkCfg *args)
 // meet the read
 EMBED_INLINE int head_stored(const ChangesCtx *args)
 {
-    char *const scratch = g_cli_cells->temporary_buf_alloc(CHANGES_TEXT_MAX, &g_cli_git_cells);
+    char *const scratch = g_cli_guard->temporary_buf_alloc(CHANGES_TEXT_MAX, g_cli_git_owner);
     if (scratch == NULL)
     {
         return 0;
@@ -234,7 +234,7 @@ EMBED_INLINE int head_stored(const ChangesCtx *args)
     const int found = EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg,
                                  .key = args->key_text, .head_given = 1, .head = scratch,
                                  .head_size = tracked ? out.at : 0ULL, .each = changes_counted, .context = args->count);
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
     return found;
 }
 
@@ -251,14 +251,14 @@ EMBED_INLINE int part_laid(const ChangesCtx *args)
     const unsigned long long texts = (path_bytes + key_bytes + 7ULL) & ~7ULL;
     const unsigned long long numbers =
         ((4ULL * count->hunks) + (count->hunks + 1ULL) + count->hunks) * sizeof(unsigned int);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(texts + numbers + count->keys, &g_cli_git_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(texts + numbers + count->keys, g_cli_git_owner);
     if (cell == NULL)
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->path, .bytes = path_bytes});
     memor.cpy(&(MemoriaCfg){.dst = cell + path_bytes, .src = args->key_text, .bytes = key_bytes});
-    g_cli_cells->persistent_buf_release(part->cell, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
     part->cell = cell;
     part->path = (const char *)cell;
     part->key = (const char *)(cell + path_bytes);
@@ -295,21 +295,21 @@ EMBED_INLINE void part_closed(const ChangesCtx *args)
     {
         EMBED_CALL(cli_document.release, CliDocumentCfg, .key = part->key);
     }
-    g_cli_cells->persistent_buf_release(part->cell, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
     for (unsigned int from = args->at + 1u; from < s_changes.parts; from += 1u)
     {
         s_changes.part[from - 1u] = s_changes.part[from];
     }
     const unsigned int left = s_changes.parts - 1u;
     ChangesPart *const fewer =
-        (left != 0u) ? g_cli_cells->persistent_buf_alloc(left * sizeof(ChangesPart), &g_cli_git_cells) : NULL;
+        (left != 0u) ? g_cli_guard->persistent_buf_alloc(left * sizeof(ChangesPart), g_cli_git_owner) : NULL;
     if (fewer != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = fewer, .src = s_changes.part, .bytes = left * sizeof(ChangesPart)});
     }
     if ((left == 0u) || (fewer != NULL))
     {
-        g_cli_cells->persistent_buf_release(s_changes.part, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(s_changes.part, g_cli_git_owner);
         s_changes.part = fewer;
     }
     s_changes.parts = left;
@@ -320,18 +320,18 @@ EMBED_INLINE void part_closed(const ChangesCtx *args)
 EMBED_INLINE void rows_settled(const ChangesCtx *args)
 {
     (void)args;
-    g_cli_cells->persistent_buf_release(s_changes.first_row, &g_cli_git_cells);
-    g_cli_cells->persistent_buf_release(s_changes.file_part, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.first_row, g_cli_git_owner);
+    g_cli_guard->persistent_buf_release(s_changes.file_part, g_cli_git_owner);
     s_changes.first_row =
-        g_cli_cells->persistent_buf_alloc((s_changed.count + 1ULL) * sizeof(unsigned int), &g_cli_git_cells);
+        g_cli_guard->persistent_buf_alloc((s_changed.count + 1ULL) * sizeof(unsigned int), g_cli_git_owner);
     s_changes.file_part =
         (s_changed.count != 0u)
-            ? g_cli_cells->persistent_buf_alloc(s_changed.count * sizeof(unsigned int), &g_cli_git_cells)
+            ? g_cli_guard->persistent_buf_alloc(s_changed.count * sizeof(unsigned int), g_cli_git_owner)
             : NULL;
     if ((s_changes.first_row == NULL) || ((s_changed.count != 0u) && (s_changes.file_part == NULL)))
     {
-        g_cli_cells->persistent_buf_release(s_changes.first_row, &g_cli_git_cells);
-        g_cli_cells->persistent_buf_release(s_changes.file_part, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(s_changes.first_row, g_cli_git_owner);
+        g_cli_guard->persistent_buf_release(s_changes.file_part, g_cli_git_owner);
         s_changes.first_row = NULL;
         s_changes.file_part = NULL;
         return;
@@ -381,7 +381,7 @@ EMBED_INLINE void parts_matched(const ChangesCtx *args)
         part->file = file;
         // the changes as they were, for the choices to stand where they are the same
         const unsigned long long was_bytes = 4ULL * part->hunks * sizeof(unsigned int) + part->outs;
-        unsigned char *const was = g_cli_cells->temporary_buf_alloc(was_bytes + 1ULL, &g_cli_git_cells);
+        unsigned char *const was = g_cli_guard->temporary_buf_alloc(was_bytes + 1ULL, g_cli_git_owner);
         const unsigned int was_hunks = part->hunks;
         const unsigned int was_outs = part->outs;
         const unsigned int was_out_count = part->out_count;
@@ -416,10 +416,10 @@ EMBED_INLINE void parts_matched(const ChangesCtx *args)
                     }
                 }
             }
-            g_cli_cells->persistent_buf_release(part->cell, &g_cli_git_cells);
+            g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
             *part = laid;
         }
-        g_cli_cells->persistent_buf_release(was, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(was, g_cli_git_owner);
         if (!relaid)
         {
             EMBED_CALL(part_closed, ChangesCtx, .at = at);
@@ -612,16 +612,16 @@ int cli_changes_step(const CliGitChangesCfg *args)
 
 void cli_changes_read(const CliGitChangesCfg *args)
 {
-    g_cli_cells->persistent_buf_release(s_changed.text.bytes, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
     s_changed.text = (CliGitText){NULL, 0ULL, 0ULL, 0, 1};
     s_changed.count = 0u;
-    g_cli_cells->persistent_buf_release(s_changes.out, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.out, g_cli_git_owner);
     s_changes.out = NULL;
     s_changes.taken = 0u;
     s_changes.listed = args->root != NULL;
     if (args->root == NULL)
     {
-        g_cli_cells->persistent_buf_release(s_changes.left, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(s_changes.left, g_cli_git_owner);
         s_changes.left = NULL;
         s_changes.left_bytes = 0ULL;
         s_changes.followed = 0;
@@ -636,7 +636,7 @@ void cli_changes_read(const CliGitChangesCfg *args)
     // a byte a file, 1 where the file was left out before this read; the paths left out that are no longer in the
     // list go with the settling
     s_changes.out =
-        (s_changed.count != 0u) ? g_cli_cells->persistent_buf_alloc(s_changed.count, &g_cli_git_cells) : NULL;
+        (s_changed.count != 0u) ? g_cli_guard->persistent_buf_alloc(s_changed.count, g_cli_git_owner) : NULL;
     for (unsigned int at = 0u; (s_changes.out != NULL) && (at < s_changed.count); at += 1u)
     {
         // whether a file is left out is 0 or 1, which a byte carries
@@ -815,11 +815,11 @@ int cli_changes_open(const CliGitChangesCfg *args)
     // the parts grown by one for the file's
     ChangesCount count;
     ChangesPart *const grown =
-        g_cli_cells->persistent_buf_alloc((s_changes.parts + 1ULL) * sizeof(ChangesPart), &g_cli_git_cells);
+        g_cli_guard->persistent_buf_alloc((s_changes.parts + 1ULL) * sizeof(ChangesPart), g_cli_git_owner);
     if ((grown == NULL) || !EMBED_CALL(head_stored, ChangesCtx, .path = row.path, .key_text = key, .root = args->root,
                                        .state = row.state, .count = &count))
     {
-        g_cli_cells->persistent_buf_release(grown, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(grown, g_cli_git_owner);
         if (own)
         {
             EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
@@ -830,7 +830,7 @@ int cli_changes_open(const CliGitChangesCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_changes.part, .bytes = s_changes.parts * sizeof(ChangesPart)});
     }
-    g_cli_cells->persistent_buf_release(s_changes.part, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.part, g_cli_git_owner);
     s_changes.part = grown;
     s_changes.parts += 1u;
     ChangesPart *const part = &grown[s_changes.parts - 1u];
@@ -886,7 +886,7 @@ int cli_changes_menu(const CliGitChangesCfg *args)
 void cli_changes_type(const CliGitChangesCfg *args)
 {
     EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &s_changes.message, .text = args->text, .size = args->size,
-               .most = CLI_CHANGES_MESSAGE_MAX, .owner = &g_cli_git_cells);
+               .most = CLI_CHANGES_MESSAGE_MAX, .owner = g_cli_git_owner);
 }
 
 int cli_changes_key(const CliGitChangesCfg *args)
@@ -895,7 +895,7 @@ int cli_changes_key(const CliGitChangesCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &s_changes.message, .owner = &g_cli_git_cells);
+    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &s_changes.message, .owner = g_cli_git_owner);
     return 1;
 }
 
@@ -907,7 +907,7 @@ const char *cli_changes_message(const CliGitChangesCfg *args)
 
 int cli_changes_commit(const CliGitChangesCfg *args)
 {
-    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
     s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
     const unsigned int taken = s_changes.taken;
@@ -917,7 +917,7 @@ int cli_changes_commit(const CliGitChangesCfg *args)
         const char *const why = (s_changes.message.length == 0ULL) ? CHANGES_EMPTY : CHANGES_NONE;
         const unsigned long long size =
             (s_changes.message.length == 0ULL) ? sizeof(CHANGES_EMPTY) : sizeof(CHANGES_NONE);
-        s_changes.refusal = g_cli_cells->persistent_buf_alloc(size, &g_cli_git_cells);
+        s_changes.refusal = g_cli_guard->persistent_buf_alloc(size, g_cli_git_owner);
         s_changes.refusal_length = (s_changes.refusal != NULL) ? size - 1ULL : 0ULL;
         if (s_changes.refusal != NULL)
         {
@@ -944,8 +944,8 @@ int cli_changes_commit(const CliGitChangesCfg *args)
     // the paths taken whole, the parts with their texts, git's own words and the error line, for this commit alone
     const unsigned long long paths_bytes = (unsigned long long)whole * sizeof(const char *);
     const unsigned long long parts_bytes = (unsigned long long)partial * sizeof(CliGitPart);
-    char *const scratch = g_cli_cells->temporary_buf_alloc(
-        paths_bytes + parts_bytes + texts + CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, &g_cli_git_cells);
+    char *const scratch = g_cli_guard->temporary_buf_alloc(
+        paths_bytes + parts_bytes + texts + CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, g_cli_git_owner);
     if (scratch == NULL)
     {
         return 0;
@@ -988,20 +988,20 @@ int cli_changes_commit(const CliGitChangesCfg *args)
                          .push = args->push);
     if (committed)
     {
-        g_cli_cells->persistent_buf_release(s_changes.message.bytes, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(s_changes.message.bytes, g_cli_git_owner);
         s_changes.message = (CliTyped){NULL, 0ULL};
         EMBED_CALL(parts_released, ChangesCtx, .size = 0ULL);
     }
     // git's refusal in a cell sized to it with its end
     const unsigned long long refused = (!committed && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
-    s_changes.refusal = (refused != 0ULL) ? g_cli_cells->persistent_buf_alloc(refused + 1ULL, &g_cli_git_cells) : NULL;
+    s_changes.refusal = (refused != 0ULL) ? g_cli_guard->persistent_buf_alloc(refused + 1ULL, g_cli_git_owner) : NULL;
     s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
     if (s_changes.refusal != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = err_msg.out, .bytes = refused});
         s_changes.refusal[refused] = '\0';
     }
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
     if (committed)
     {
         EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = args->root);
@@ -1050,7 +1050,7 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         return 0;
     }
     s_changes.armed_ms = 0ULL;
-    g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
     s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
@@ -1071,7 +1071,7 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         // the file's refusal put after the refusals before it on a line of its own, in a cell sized to them all
         const unsigned long long before = s_changes.refusal_length;
         const unsigned long long joined = before + ((before != 0ULL) ? 1ULL : 0ULL);
-        char *const grown = g_cli_cells->persistent_buf_alloc(joined + refused + 1ULL, &g_cli_git_cells);
+        char *const grown = g_cli_guard->persistent_buf_alloc(joined + refused + 1ULL, g_cli_git_owner);
         if (grown == NULL)
         {
             continue;
@@ -1083,7 +1083,7 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = grown + joined, .src = why, .bytes = refused});
         grown[joined + refused] = '\0';
-        g_cli_cells->persistent_buf_release(s_changes.refusal, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
         s_changes.refusal = grown;
         s_changes.refusal_length = joined + refused;
     }

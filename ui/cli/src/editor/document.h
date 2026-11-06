@@ -198,7 +198,7 @@ typedef struct
 typedef struct
 {
     const char *key;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliDocumentNamesCfg;
 CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args);
 // the colors worked out from here on handed to `colored`, NULL for nowhere, and walked out by a thread of their own
@@ -254,7 +254,7 @@ typedef struct
     const unsigned long long *number;
     unsigned long long count;
     int mirrored;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliDocumentRunsCfg;
 CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args);
 // One bar of the minimap, a run the grammar names: its first cell, its width in cells and its name
@@ -283,7 +283,7 @@ typedef struct
     unsigned long long first;
     unsigned long long last;
     unsigned int tab;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliDocumentMapCfg;
 CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args);
 // The words of a text in one cell: each one's start among `text` and its length
@@ -304,7 +304,7 @@ typedef struct
     unsigned long long first;
     unsigned long long last;
     CliPosition cursor;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliDocumentWordsCfg;
 CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args);
 // the lines that open the regions the line `line` of the text under `key` stands inside, read off its lines' regions
@@ -334,7 +334,7 @@ struct CliDocumentKeyCfg
     unsigned long long *size_pointer;
     char *state;
     unsigned long long capacity;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliDocumentErrMsgCfg

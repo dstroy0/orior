@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_python.c: a run's Python tests: the Python they run with and whether it has pytest, the shares the tests are
 // spread over, and a process of pytest or unittest to each share, read on a thread of its own
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
@@ -36,15 +36,15 @@ int cli_test_python(const CliTestRunsCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = tool, .name = "id"),
                        .length_pointer = NULL);
-        if ((id == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_CELLS_POOL})))
+        if ((id == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_tests_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_tests_owner);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &s_found);
-        g_cli_cells->persistent_buf_release(folders, &g_cli_tests_cells);
+        g_cli_guard->persistent_buf_release(folders, g_cli_tests_owner);
         found = s_found.has_program;
         if (found)
         {
@@ -52,8 +52,7 @@ int cli_test_python(const CliTestRunsCfg *args)
         }
         break;
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -111,9 +110,9 @@ static unsigned int s_by_size[CLI_TEST_NAMED];
 EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
 {
     const char *const path = cellul.find(
-        &(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
     return (path != NULL) ? (unsigned long long)(path - args->id)
-                          : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL});
+                          : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
 }
 
 // the `count` supplied tests of `run` grouped by the file their names begin with, into s_file_of, s_file_first and
@@ -303,7 +302,7 @@ EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
             at = bounds.next;
             unsigned long long letter = start;
             while ((letter < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                          .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = text[letter]}) != NULL))
+                                          .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = text[letter]}) != NULL))
             {
                 letter += 1ULL;
             }
@@ -355,7 +354,7 @@ static void python_worker(void *context)
                            .outcome_pointer = &outcome))
             {
                 EMBED_CALL(python_result_visit, TestPythonCtx, .worker = worker, .id = id,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}),
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}),
                            .outcome = outcome);
             }
         }
@@ -442,11 +441,11 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = junit,
                 .src = "--junitxml=",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "--junitxml=", .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "--junitxml=", .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(&(MemoriaCfg){
                 .dst = junit + 11,
                 .src = worker->report,
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = worker->report, .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = worker->report, .cap = CLI_POOL_BYTES}) + 1u});
             const char *const head[4] = {"-c", g_cli_test_shim, worker->covered, run->root};
             const char *const module[2] = {"-m", "pytest"};
             for (unsigned int at = 0u; at < (args->cover ? 4u : 2u); at += 1u)

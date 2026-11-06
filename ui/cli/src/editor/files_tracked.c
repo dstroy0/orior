@@ -40,7 +40,7 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
     while (!found && (each < s_cached_count))
     {
         found =
-            cellul.eq(&(CatenaFinitaCfg){.src = s_cached_paths[each], .other = args->outside, .cap = CLI_CELLS_POOL});
+            cellul.eq(&(CatenaFinitaCfg){.src = s_cached_paths[each], .other = args->outside, .cap = CLI_POOL_BYTES});
         *ignored = found ? s_ignored[each] : *ignored;
         each += 1u;
     }
@@ -55,7 +55,7 @@ EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = s_cached_paths[s_cached_count],
                           .src = args->outside,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_POOL_BYTES}) + 1u});
         s_ignored[s_cached_count] = args->ignored_value;
         s_cached_count += 1u;
     }
@@ -72,7 +72,7 @@ int cli_files_track(const CliFilesRootPathCfg *args)
     }
     const char *const slash =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
     const unsigned long long folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL;
     char folder[CLI_PATH_MAX_LEN];
     VerbaLinea line = {folder, sizeof(folder), 0ULL};

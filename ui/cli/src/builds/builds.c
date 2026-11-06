@@ -16,10 +16,10 @@ unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     char lower[CLI_NAME_MAX_LEN];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (length >= sizeof(lower))
     {
         return 0u;
@@ -40,12 +40,12 @@ unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
     {
         return CLI_BUILD_CATALOG;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "pom.xml", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "pom.xml", .cap = CLI_POOL_BYTES}))
     {
         return CLI_BUILD_MAVEN;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "sconstruct", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "sconscript", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "sconstruct", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "sconscript", .cap = CLI_POOL_BYTES})))
     {
         return CLI_BUILD_SCONS;
     }
@@ -86,9 +86,9 @@ void cli_build_check(const CliBuildsPathCfg *args)
     }
     }
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = args->out);
-    g_cli_cells->persistent_buf_release(s_found.finding, &g_cli_build_cells);
+    g_cli_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
     *(&s_found) = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
-    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
+    g_cli_guard->persistent_buf_release(starts, g_cli_build_owner);
 }
 
 void cli_build_complete(const CliBuildsPathCfg *args)

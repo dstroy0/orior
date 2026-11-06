@@ -45,6 +45,17 @@
 #define CLI_HIT_STATUS_FOCUS 25u
 #define CLI_HIT_FOOT_ROW 26u
 #define CLI_HIT_FOOT_ACTION 27u
+// on the view that stands over the editor in its place: a control or a row of it, or none of them
+#define CLI_HIT_WORK 28u
+// the preview's rectangle beside the text or over it
+#define CLI_HIT_PREVIEW 29u
+// while the quick open stands: a row of it, the rest of its box, and anywhere outside the box
+#define CLI_HIT_QUICK_ROW 30u
+#define CLI_HIT_QUICK_BOX 31u
+#define CLI_HIT_QUICK_OUTSIDE 32u
+// a crumb of the status bar, its place among the crumbs; and the change peek over the editor, its control
+#define CLI_HIT_STATUS_CRUMB 33u
+#define CLI_HIT_CHANGE_PEEK 34u
 
 // A place on the screen in the system's own pixels, and whether the window filled its monitor there
 typedef struct

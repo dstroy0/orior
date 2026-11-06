@@ -70,7 +70,7 @@ struct CliContainerRestartsCfg
 
 struct CliContainerCfg
 {
-    CellOwner *owner;
+    const CellOwner *owner;
     unsigned int *count_pointer;
 };
 

@@ -25,7 +25,7 @@ static unsigned int tool_at(const char *name)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);

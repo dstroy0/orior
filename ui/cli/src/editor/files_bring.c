@@ -4,7 +4,7 @@
 // copied into a tree on another machine through calls of the tree's side there, a part at a time
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/base64.h"
 #include "../text/json_tree.h"
 #include "files_internal.h"

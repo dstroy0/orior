@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // structure_compare.c: two texts compared by structure: the lines changed, moved and reshaped, and the tokens of each
 // change changed or renamed, written as the window reads them
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "structure_internal.h"
 
 #include <stdlib.h>

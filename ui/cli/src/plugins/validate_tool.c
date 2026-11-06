@@ -34,7 +34,7 @@ int cli_validate_in_array(const CliValidateJsonCtx *args)
 
 int cli_validate_contains(const CliValidateTextLengthCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at + size <= args->length; at += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = args->part, .bytes = size}) == 0)
@@ -296,7 +296,7 @@ EMBED_INLINE int tool_read(const ValidateToolCtx *args)
                     .kind = CFG_JSON_OBJECT) ||
         !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "kind", .needed = 1,
                     .value = &kind) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "tool", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "tool", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
@@ -371,8 +371,7 @@ static void tool_look(const CliEachPluginCfg *args)
     // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the capacity
     // is
     CliJson *const json = &g_cli_validate->json;
-    g_cli_cells->persistent_buf_release(json->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -382,7 +381,7 @@ static void tool_look(const CliEachPluginCfg *args)
                    .size = args->plugin->size)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
                          .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                         .err_msg = &unread, .owner = &g_cli_plugins_cells)
+                         .err_msg = &unread, .owner = g_cli_plugins_owner)
             : CLI_JSON_NONE;
     CliTool *const tool = &g_cli_validate->tool;
     if ((root == CLI_JSON_NONE) || !EMBED_CALL(tool_read, ValidateToolCtx, .json = json, .root = root, .tool = tool))
@@ -396,13 +395,13 @@ static void tool_look(const CliEachPluginCfg *args)
     }
     unsigned int at = 0u;
     while ((at < look->count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = look->ids[at], .other = tool->id, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = look->ids[at], .other = tool->id, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
     if ((at == look->count) &&
         ((look->count == CLI_VALIDATE_TOOLS) ||
-         (cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN)))
+         (cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN)))
     {
         return;
     }
@@ -410,7 +409,7 @@ static void tool_look(const CliEachPluginCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = look->ids[at],
                                 .src = tool->id,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_POOL_BYTES}) + 1u});
         look->count += 1u;
     }
     look->positions[at] = place;
@@ -418,7 +417,7 @@ static void tool_look(const CliEachPluginCfg *args)
         (look->language != NULL) &&
         EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json, .array = tool->languages,
                    .text = look->language,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_POOL_BYTES}));
 }
 
 // every tool plugin looked over, each id's last recorded, under the look's lock, which the caller gives back
@@ -453,19 +452,18 @@ int cli_validate_tool_for(const CliValidateCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->id,
                                 .src = min,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = min, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = min, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_cells->persistent_buf_release(g_cli_validate->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                              .cell = g_cli_validate->json.node));
+    g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(
-        g_cli_validate->manifest.node,
-        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_validate->manifest.node));
+    g_cli_guard->persistent_buf_release(g_cli_validate->manifest.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->manifest.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
-    g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
+    g_cli_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
     g_cli_validate = NULL;
     return min != NULL;
 }
@@ -475,7 +473,7 @@ int cli_validate_tool_read(const CliValidateIdCtx *args)
     EMBED_CALL(tool_looked_over, ValidateToolCtx, .language = NULL);
     unsigned int at = 0u;
     while ((at < s_look.count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_look.ids[at], .other = args->id, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = s_look.ids[at], .other = args->id, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }

@@ -25,10 +25,10 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         return 0;
     }
     const char *const first = args->words[0];
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "discover", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "turns", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "registers", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "costs", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "discover", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "turns", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "registers", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "costs", .cap = CLI_POOL_BYTES})))
     {
         args->step->kind = QUERY_LEARN_PASS;
         args->step->word_text = first;
@@ -37,7 +37,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
             return 1;
         }
         if ((args->count == 3u) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[1], .other = "--base", .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[1], .other = "--base", .cap = CLI_POOL_BYTES})))
         {
             args->step->base = args->words[2];
             return 1;
@@ -45,14 +45,14 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_CELLS_POOL})) && (args->count >= 2u))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_POOL_BYTES})) && (args->count >= 2u))
     {
         args->step->kind = QUERY_LEARN_SEED;
         args->step->word_text = args->words[1];
         return 1;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "rounds", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "dry", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "rounds", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "dry", .cap = CLI_POOL_BYTES})))
     {
         args->step->kind = (first[0] == 'r') ? QUERY_LEARN_ROUNDS : QUERY_LEARN_DRY;
         args->step->rounds = 1u;
@@ -70,14 +70,14 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         }
         return 1;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "enumerate", .cap = CLI_CELLS_POOL})) &&
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "enumerate", .cap = CLI_POOL_BYTES})) &&
         (args->count >= 2u))
     {
         args->step->kind = QUERY_LEARN_ENUMERATE;
         args->step->word_text = args->words[1];
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "clock", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "clock", .cap = CLI_POOL_BYTES}))
     {
         args->step->kind = QUERY_LEARN_CLOCK;
         args->step->word_text = (args->count >= 2u) ? args->words[1] : QUERY_CLOCK_FROM;
@@ -215,7 +215,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
             place += 1u;
         }
         if ((place < verdicts) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = s_verdicts[place], .other = verdict, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = s_verdicts[place], .other = verdict, .cap = CLI_POOL_BYTES})))
         {
             s_counts[place] += 1ULL;
             continue;
@@ -234,7 +234,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
         s_counts[place] = 1ULL;
         verdicts += 1u;
     }
-    g_cli_cells->persistent_buf_release(dry, &g_query_cells);
+    g_cli_guard->persistent_buf_release(dry, g_query_owner);
     for (unsigned int place = 0u; place < verdicts; place += 1u)
     {
         char text[160];
@@ -274,5 +274,5 @@ int query_bar0_driver_runs(void)
     EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child);
     s_output[length] = '\0';
     return cellul.find(&(CatenaFinitaCfg){
-               .src = s_output, .cap = CLI_CELLS_POOL, .other = "RUNNING", .other_cap = CLI_CELLS_POOL}) != NULL;
+               .src = s_output, .cap = CLI_POOL_BYTES, .other = "RUNNING", .other_cap = CLI_POOL_BYTES}) != NULL;
 }

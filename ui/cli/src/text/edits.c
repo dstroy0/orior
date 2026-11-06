@@ -4,7 +4,7 @@
 // the text's lines, its places taken in the order of their lines, and the spans then written in the order of their
 // bytes, those of one span in the order they were given
 #include "edits.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "json_tree.h"
 
 #include <stdlib.h>
@@ -172,8 +172,8 @@ int cli_text_apply(const CliEditsOutCfg *args)
     }
     // the bytes first on the cell's boundary, then the places, then the order
     const unsigned long long positions = 2ULL * args->count;
-    char *const cell = g_cli_cells->temporary_buf_alloc(
-        (positions + 1ULL) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), &g_cli_text_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(
+        (positions + 1ULL) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), g_cli_text_owner);
     if (cell == NULL)
     {
         return 0;
@@ -206,6 +206,6 @@ int cli_text_apply(const CliEditsOutCfg *args)
     s_byte = NULL;
     s_position = NULL;
     s_order = NULL;
-    g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_text_owner);
     return 1;
 }

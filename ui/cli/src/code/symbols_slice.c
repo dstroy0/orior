@@ -7,7 +7,7 @@
 // known by the roles its grammar's tokens name, and a bracket left open is closed by the text of the one that closes it
 // in its branch
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
@@ -367,7 +367,7 @@ EMBED_INLINE void cli_slice_follow(const SymbolsSliceCtx *args)
             cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
                                                            .effect_read = effect, .at_value = one->kind),
                                          .other = "function",
-                                         .cap = CLI_CELLS_POOL});
+                                         .cap = CLI_POOL_BYTES});
         int defined = 0;
         one->end = EMBED_CALL(
             cli_slice_statement, SymbolsSliceCtx,
@@ -609,7 +609,7 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
     CliEffect *effect = args->effect;
     const unsigned long long name_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliSliceName);
     char *const lists =
-        g_cli_cells->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MAX * sizeof(CliSlicePart)), &g_cli_code_cells);
+        g_cli_guard->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MAX * sizeof(CliSlicePart)), g_cli_code_owner);
     CliSlice slice = {effect, CLI_JSON_NONE, NULL, 0u, 0u, NULL, 0u, 0u, NULL};
     if (lists != NULL)
     {
@@ -629,12 +629,12 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
                                                                      .effect_read = effect,
                                                                      .at_value = effect->branch_read[at].path),
                                                    .other = args->path,
-                                                   .cap = CLI_CELLS_POOL})
+                                                   .cap = CLI_POOL_BYTES})
                           ? at
                           : slice.start;
     }
     slice.written = (effect->seens != 0u)
-                        ? g_cli_cells->persistent_buf_alloc((unsigned long long)effect->seens, &g_cli_code_cells)
+                        ? g_cli_guard->persistent_buf_alloc((unsigned long long)effect->seens, g_cli_code_owner)
                         : NULL;
     effect->refused |= (effect->seens != 0u) && (slice.written == NULL);
     if (slice.written != NULL)
@@ -683,8 +683,8 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
         EMBED_CALL(cli_slice_dispatch, SymbolsSliceCtx, .slice_read = &slice, .each = args->each,
                    .context = args->context);
     }
-    g_cli_cells->persistent_buf_release(lists, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(slice.written, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(lists, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(slice.written, g_cli_code_owner);
     return !effect->refused;
 }
 

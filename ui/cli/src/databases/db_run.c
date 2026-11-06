@@ -34,7 +34,7 @@ static void run_notice(const CliEachNoticeCfg *args)
     mmgr_line_put(&running->notices_line, (running->notices_line.at > 1ULL) ? "," : "");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &running->notices_line,
                .text_bytes = (const unsigned char *)args->notice,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->notice, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->notice, .cap = CLI_POOL_BYTES}));
 }
 
 // the statement started on the query link, and its first page of rows buffered and written, or what it did
@@ -56,7 +56,7 @@ static int run_work(const CliEachLinkFailureCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = running->tag,
                                 .src = head->tag,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = head->tag, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = head->tag, .cap = CLI_POOL_BYTES}) + 1u});
         mmgr_line_put(running->out, "\"rows\":[]");
     }
     else
@@ -79,7 +79,7 @@ static int run_work(const CliEachLinkFailureCfg *args)
                             .src = EMBED_CALL(cli_db_internal.link_transaction, CliDbCtx, .link_read = link),
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_db_internal.link_transaction,
                                                                                      CliDbCtx, .link_read = link),
-                                                                   .cap = CLI_CELLS_POOL}) +
+                                                                   .cap = CLI_POOL_BYTES}) +
                                      1u});
     return 1;
 }
@@ -149,7 +149,7 @@ EMBED_INLINE int run_queries(const DbRunCtx *args)
         {
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                        .text_bytes = (const unsigned char *)counting.count,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = counting.count, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = counting.count, .cap = CLI_POOL_BYTES}));
         }
         else
         {
@@ -160,7 +160,7 @@ EMBED_INLINE int run_queries(const DbRunCtx *args)
     }
     if (args->open->config.matters &&
         (!cellul.eq(
-            &(CatenaFinitaCfg){.src = args->open->config.guard, .other = "read-only", .cap = CLI_CELLS_POOL})) &&
+            &(CatenaFinitaCfg){.src = args->open->config.guard, .other = "read-only", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(cli_sql_length.changes, CliSqlLengthCfg, .statement = statement, .length = args->size,
                    .dialect = dialect))
     {
@@ -176,13 +176,13 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     unsigned long long start = 0ULL;
     unsigned long long end = args->size;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[start]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->statement[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[end - 1u]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->statement[end - 1u]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -190,7 +190,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                               .text = args->statement + start, .at = end - start, .set = ";"));
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->statement[end - 1u]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->statement[end - 1u]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -263,11 +263,11 @@ int cli_db_run(const CliDbOutFailureCfg *args)
             mmgr_line_put(args->out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                        .text_bytes = (const unsigned char *)column->name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->name, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->name, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->out, ",\"kind\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                        .text_bytes = (const unsigned char *)column->kind,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->kind, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->kind, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->out, column->numeric ? ",\"numeric\":true}" : ",\"numeric\":false}");
         }
         mmgr_line_ch(args->out, ']');
@@ -281,7 +281,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)running->tag,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = running->tag, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = running->tag, .cap = CLI_POOL_BYTES}));
     }
     else
     {
@@ -292,7 +292,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     mmgr_line_put(args->out, ",\"transaction\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = running->transaction,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = running->transaction, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = running->transaction, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"zone\":");
     char zone[CLI_NAME_MAX_LEN];
     VerbaLinea zone_line = {zone, sizeof(zone), 0ULL};
@@ -305,21 +305,21 @@ int cli_db_run(const CliDbOutFailureCfg *args)
         mmgr_line_put(args->out, "{\"verb\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)shaped.verb,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.verb, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.verb, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"kind\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)shaped.kind,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.kind, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.kind, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)shaped.name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.name, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"on\":");
         if (shaped.has_on)
         {
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                        .text_bytes = (const unsigned char *)shaped.on,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.on, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.on, .cap = CLI_POOL_BYTES}));
         }
         else
         {

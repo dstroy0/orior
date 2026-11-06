@@ -45,7 +45,7 @@ static GuiColor sheet_at(const GuiPalette *palette, GuiColor background_fill, in
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 800u, .height = 600u, .scale = 100);
@@ -91,7 +91,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &small, .width = 8u, .height = 4u), "a raster of another size is made");
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &small, .background_fill = NULL, .color = palette->background_fill);
     cli_check(small.pixels[0] == 0u, "a raster not the base's size is left alone");
-    g_cli_cells->persistent_buf_release(small.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(small.pixels, g_gui_raster_owner);
     small.pixels = NULL;
     small.width = 0u;
     small.height = 0u;
@@ -177,15 +177,15 @@ int main(void)
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.terminal.x + 2, .y = frame.terminal.y + 2) == GUI_BASE_CLEAR),
               "the panel halfway through its arrival lies at its halfway part where it stands, its views at the editor's, and the band above it is the lattice");
 
-    g_cli_cells->persistent_buf_release(background_fill.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(background_fill.pixels, g_gui_raster_owner);
     background_fill.pixels = NULL;
     background_fill.width = 0u;
     background_fill.height = 0u;
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    g_cli_cells->persistent_buf_release(base.tile_red_blue, &g_gui_base_cells);
+    g_cli_guard->persistent_buf_release(base.tile_red_blue, g_gui_base_owner);
     base.tile_red_blue = NULL;
     base.tile_green = NULL;
     base.tile_remainder = NULL;

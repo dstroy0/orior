@@ -37,7 +37,7 @@
 // and try
 #ifndef PLUGINS_H
 #define PLUGINS_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "embed_dispatch_layout.h"
 
@@ -59,9 +59,6 @@ typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 // the most keys of extensions, names and paths the languages contain, and the most plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u
 #define CLI_USER_PLUGINS 1024u
-
-// the cells the plugins are read in (plugins.c)
-extern CellOwner g_cli_plugins_cells;
 
 // the bytes a plugin's text and its sample are written in, as a plugin is written
 #define CLI_PLUGIN_TEXT_CAPACITY (1ull << 20u)

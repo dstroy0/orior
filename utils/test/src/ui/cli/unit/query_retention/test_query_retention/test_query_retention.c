@@ -33,7 +33,7 @@ static int printed_contains(const char *text)
 {
     for (unsigned int at = 0u; at < s_line_count; at += 1u)
     {
-        if (cellul.find(&(CatenaFinitaCfg){.src = s_lines[at], .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL}) != NULL)
+        if (cellul.find(&(CatenaFinitaCfg){.src = s_lines[at], .cap = CLI_POOL_BYTES, .other = text, .other_cap = CLI_POOL_BYTES}) != NULL)
         {
             return 1;
         }

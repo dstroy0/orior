@@ -67,7 +67,7 @@ EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
                                 (int)(length / 2u), path, (int)sizeof(path) - 1, NULL, NULL);
         path[(made > 0) ? made : 0] = '\0';
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
         unsigned int kind;
         if ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))
         {

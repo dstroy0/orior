@@ -4,7 +4,7 @@
 // bytes; the placeholders of a pattern; and the match of the pattern's parts against the code's tokens
 #ifndef SHAPE_INTERNAL_H
 #define SHAPE_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "embed_dispatch_layout.h"
 #include "shape.h"
@@ -96,8 +96,6 @@ typedef struct
 } CliShapeMatcher;
 
 // the cells a search occupies while it runs, its capacity, its ends tried and a match's template written
-// (shape_search.c)
-extern CellOwner g_cli_shape_cells;
 
 // the matcher's stack of ends given back (shape_match.c)
 

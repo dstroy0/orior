@@ -204,11 +204,11 @@ static void assert_file_reads(const char *path, const char *required)
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
-    char *const read = EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = path, .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = &err_msg);
+    char *const read = EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = path, .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = &err_msg);
     TEST_ASSERT_NOT_NULL_MESSAGE(read, path);
     CLI_TEST_ASSERT_TEXT(required, read, size);
     TEST_ASSERT_EQUAL_CHAR('\0', read[size]);
-    g_cli_cells->persistent_buf_release(read, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(read, g_cli_editor_owner);
 }
 
 // `text` saved as the file `path` of s_dir: 1, or 0 with why in s_error
@@ -519,7 +519,7 @@ void test_an_archive_inside_an_archive_opens_and_its_file_reads(void)
 {
     nested_written();
     TEST_ASSERT_TRUE(folder_listing("outer.zip/inner.tar"));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_list_result, .other = "lib 1 ", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_list_result, .other = "lib 1 ", .cap = CLI_POOL_BYTES}));
     assert_file_reads("outer.zip/inner.tar/lib/x.py", "print(1)\n");
 }
 
@@ -629,5 +629,5 @@ void test_a_file_an_archive_does_not_contain_does_not_read(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
     split_tree_written();
-    TEST_ASSERT_NULL(EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = "lib/a.zip/missing", .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = &err_msg));
+    TEST_ASSERT_NULL(EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = "lib/a.zip/missing", .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = &err_msg));
 }

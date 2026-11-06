@@ -117,7 +117,7 @@ static unsigned int head_run_result(const char *variable, unsigned int *ids)
     (void)output_read(&spawned);
     const long long code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
-    const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL, .other = "ids ", .other_cap = CLI_CELLS_POOL});
+    const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_POOL_BYTES, .other = "ids ", .other_cap = CLI_POOL_BYTES});
     unsigned int count = 0u;
     if ((code != 0ll) || (at == NULL))
     {
@@ -237,7 +237,7 @@ void test_windows_a_process_started_in_a_group_has_its_own_job_and_runs(void)
     (void)output_read(&spawned);
     (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_output, .other = "ran", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_output, .other = "ran", .cap = CLI_POOL_BYTES}));
 #else
     TEST_IGNORE_MESSAGE("a job object is Windows's");
 #endif

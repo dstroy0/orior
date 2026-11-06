@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     const unsigned char *const grain = gui_grain();
     cli_check(grain == gui_grain(), "the grain is made once");
     unsigned int most = 0u;
@@ -57,11 +57,11 @@ int main(void)
         alike += (raster.pixels[(30u * 200u) + x] == plain.pixels[(30u * 200u) + x]) ? 1u : 0u;
     }
     cli_check(alike < 80u, "the grain over the tint and the tint over the grain differ, the grain lying where it lies");
-    g_cli_cells->persistent_buf_release(plain.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(plain.pixels, g_gui_raster_owner);
     plain.pixels = NULL;
     plain.width = 0u;
     plain.height = 0u;
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

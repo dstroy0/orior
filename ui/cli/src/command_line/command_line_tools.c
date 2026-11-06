@@ -72,20 +72,19 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     CliPluginRow *const row = &s_rows[s_row_count];
     s_row_count += 1u;
     EMBED_CALL(tools_copy, CommandLineToolsCtx, .into = row->id, .capacity = sizeof(row->id), .text = args->plugin->id,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->id, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->id, .cap = CLI_POOL_BYTES}));
     EMBED_CALL(tools_copy, CommandLineToolsCtx, .into = row->source, .capacity = sizeof(row->source),
                .text = args->plugin->source,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->source, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->source, .cap = CLI_POOL_BYTES}));
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int read =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &err_msg, .owner = &g_cli_command_line_cells);
+                   .err_msg = &err_msg, .owner = g_cli_command_line_owner);
     if (read == CLI_JSON_NONE)
     {
         VerbaLinea name = {row->name, sizeof(row->name), 0ULL};
@@ -93,8 +92,7 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
         mmgr_line_put_n(&name, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         (void)mmgr_line_finish(&name);
         row->opens[0] = '\0';
-        g_cli_cells->persistent_buf_release(s_json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+        g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
@@ -107,7 +105,7 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     EMBED_CALL(
         tools_copy, CommandLineToolsCtx, .into = row->name, .capacity = sizeof(row->name),
         .text = (name != NULL) ? name : args->plugin->id,
-        .size = cellul.len(&(CatenaFinitaCfg){.src = (name != NULL) ? name : args->plugin->id, .cap = CLI_CELLS_POOL}));
+        .size = cellul.len(&(CatenaFinitaCfg){.src = (name != NULL) ? name : args->plugin->id, .cap = CLI_POOL_BYTES}));
     VerbaLinea opens = {row->opens, sizeof(row->opens), 0ULL};
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &s_json, .object = read, .name = "extensions");
@@ -129,8 +127,7 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     {
         row->opens[0] = '\0';
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -142,7 +139,7 @@ EMBED_INLINE void tools_pad(const CommandLineToolsCtx *args)
     mmgr_line_put(args->line, text);
     for (unsigned long long letters =
              EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text,
-                        .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+                        .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
          letters < args->width; letters += 1ULL)
     {
         mmgr_line_ch(args->line, ' ');
@@ -151,8 +148,8 @@ EMBED_INLINE void tools_pad(const CommandLineToolsCtx *args)
 
 int cli_plugins_list(void)
 {
-    s_rows = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PLUGINS_LISTING * sizeof(*s_rows),
-                                              &g_cli_command_line_cells);
+    s_rows = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_PLUGINS_LISTING * sizeof(*s_rows),
+                                              g_cli_command_line_owner);
     s_row_capacity = (s_rows != NULL) ? CLI_PLUGINS_LISTING : 0u;
     s_row_count = 0u;
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tools_plugin_row, .context = NULL);
@@ -163,7 +160,7 @@ int cli_plugins_list(void)
         for (unsigned int column = 0u; column < 3u; column += 1u)
         {
             const unsigned long long size =
-                cellul.len(&(CatenaFinitaCfg){.src = columns[column], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = columns[column], .cap = CLI_POOL_BYTES});
             pixel_width[column] = (size > pixel_width[column]) ? size : pixel_width[column];
         }
     }
@@ -172,12 +169,12 @@ int cli_plugins_list(void)
         int replaced = 0;
         for (unsigned int user = 0u;
              (user < s_row_count) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[at].source, .other = "bundled", .cap = CLI_CELLS_POOL}));
+             (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[at].source, .other = "bundled", .cap = CLI_POOL_BYTES}));
              user += 1u)
         {
             replaced |=
-                (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].source, .other = "user", .cap = CLI_CELLS_POOL})) &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].id, .other = s_rows[at].id, .cap = CLI_CELLS_POOL}));
+                (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].source, .other = "user", .cap = CLI_POOL_BYTES})) &&
+                (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].id, .other = s_rows[at].id, .cap = CLI_POOL_BYTES}));
         }
         VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         EMBED_CALL(tools_pad, CommandLineToolsCtx, .line = &line, .text = s_rows[at].id, .width = pixel_width[0]);
@@ -200,7 +197,7 @@ int cli_plugins_list(void)
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     }
-    g_cli_cells->persistent_buf_release(s_rows, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_rows, g_cli_command_line_owner);
     s_rows = NULL;
     s_row_count = 0u;
     s_row_capacity = 0u;
@@ -214,16 +211,15 @@ EMBED_INLINE int tools_tree_reserve(const CommandLineToolsCtx *args)
     unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_CELLS_POOL}) + 1ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES}) + 1ULL;
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &s_json,
                       .nodes_max = (unsigned int)bytes + (4u * args->count) + CLI_TOOLS_NODES_MORE,
                       .text_max = (2ULL * bytes) + CLI_TOOLS_TEXT_MORE, .what = "a tree made of a command's words",
-                      .owner = &g_cli_command_line_cells);
+                      .owner = g_cli_command_line_owner);
 }
 
 // `text` split at commas into its parts, each trimmed, the empty ones left out
@@ -235,10 +231,10 @@ EMBED_INLINE unsigned int tools_list(const CommandLineToolsCtx *args)
     const char *part = text;
     for (;;)
     {
-        const char *const comma = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = ','});
+        const char *const comma = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = ','});
         const unsigned long long size = (comma != NULL)
                                             ? (unsigned long long)(comma - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         unsigned long long from = 0ULL;
         unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = part, .size = size,
@@ -268,7 +264,7 @@ EMBED_INLINE void tools_set_text(const CommandLineToolsCtx *args)
                .name = name,
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = &s_json, .text = text,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
 }
 
 // a line of the errors made of two texts
@@ -300,7 +296,7 @@ EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = &s_json, .text = text,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
     }
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = args->object,
                .name = "blockComment", .value = block);
@@ -322,7 +318,7 @@ EMBED_INLINE unsigned int tools_valued_flag(const CommandLineToolsCtx *args)
     const char *const value = args->words[args->at + 1u];
     for (unsigned int list = 0u; list < 5u; list += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_lists[list][0], .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
                        .object = args->object, .name = s_lists[list][1],
@@ -332,14 +328,14 @@ EMBED_INLINE unsigned int tools_valued_flag(const CommandLineToolsCtx *args)
     }
     for (unsigned int text = 0u; text < 3u; text += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_texts[text][0], .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = args->object, .name = s_texts[text][1],
                        .text = value);
             return 1u;
         }
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--block-comment", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--block-comment", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(tools_block_comment, CommandLineToolsCtx, .words = args->words, .count = args->count,
                           .at = args->at, .object = args->object);
@@ -378,7 +374,7 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
         const char *const word_text = args->words[at];
         const char *const value = (at + 1u < args->count) ? args->words[at + 1u] : NULL;
         const int replacing =
-            cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--replace", .cap = CLI_CELLS_POOL});
+            cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--replace", .cap = CLI_POOL_BYTES});
         replace = replace || replacing;
         const unsigned int reserved = (!replacing && (value != NULL))
                                           ? EMBED_CALL(tools_valued_flag, CommandLineToolsCtx, .words = args->words,
@@ -389,7 +385,7 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
             return CLI_WRONG;
         }
         const int known = replacing || (reserved != 0u);
-        if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_CELLS_POOL})))
+        if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(tools_flag_refused, CommandLineToolsCtx, .name = word_text, .text = value);
             return CLI_WRONG;
@@ -426,8 +422,7 @@ int cli_new_plugin(const CliCommandLineWordsCountCtx *args)
         return CLI_WRONG;
     }
     const int written = EMBED_CALL(tools_new_plugin, CommandLineToolsCtx, .words = args->words, .count = args->count);
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;
@@ -438,7 +433,7 @@ int cli_new_plugin(const CliCommandLineWordsCountCtx *args)
 EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
 {
     if ((args->count == 0u) ||
-        (cellul.starts(&(CatenaFinitaCfg){.src = args->words[0], .other = "--", .cap = CLI_CELLS_POOL})))
+        (cellul.starts(&(CatenaFinitaCfg){.src = args->words[0], .other = "--", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, "add takes the toolchain's name first");
         return CLI_JSON_NONE;
@@ -468,23 +463,23 @@ EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
         }
         const char *const flag = args->words[at];
         const char *const value = args->words[at + 1u];
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--group", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--for", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--id", .cap = CLI_CELLS_POOL})))
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--group", .cap = CLI_POOL_BYTES})) ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--for", .cap = CLI_POOL_BYTES})) ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--id", .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = tool, .name = flag + 2, .text = value);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--program", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--program", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = tool,
                        .name = "programs", .value = EMBED_CALL(tools_list, CommandLineToolsCtx, .text = value));
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--version", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--version", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = tool,
                        .name = "version", .value = EMBED_CALL(tools_list, CommandLineToolsCtx, .text = value));
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--install", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = flag, .other = "--install", .cap = CLI_POOL_BYTES}))
         {
             unsigned int install = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_json, .object = tool, .name = "install");
@@ -517,8 +512,7 @@ int cli_toolchain_add(const CliCommandLineOutErrMsgCtx *args)
     const int added =
         (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_err_msg.add, CliToolchainsErrMsgCfg, .supplied = &s_json,
                                               .tool = tool, .id_out = id, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!added)

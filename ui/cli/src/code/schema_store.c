@@ -4,7 +4,7 @@
 // those stored from a fetch, or by its path, its file mapped where it lies, its comments taken out in a cell of its
 // size and read in a cell of the tokens it contains, into one tree. A document larger than CLI_SCHEMA_DOCUMENT_TEXT, of
 // more tokens than CLI_SCHEMA_TOKENS, or whose values the tree cannot represent, is one that could not be read
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "schema_internal.h"
 
 #include "../text/text.h"
@@ -37,9 +37,9 @@ typedef struct
 EMBED_INLINE void store_url_key(const SchemaStoreCtx *args)
 {
     const char *const scheme = cellul.find(
-        &(CatenaFinitaCfg){.src = args->url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->url, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES});
     const char *const rest = (scheme != NULL) ? scheme + 3 : args->url;
-    unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
+    unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES});
     size =
         EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = rest, .at = size, .set = "#/");
     mmgr_line_put_n(args->out, rest, size);
@@ -138,7 +138,7 @@ EMBED_INLINE int store_missing(const SchemaStoreCtx *args)
     for (unsigned int at = 0u; at < args->store_read->missings; at += 1u)
     {
         if (cellul.eq(
-                &(CatenaFinitaCfg){.src = args->store_read->missing[at], .other = args->key, .cap = CLI_CELLS_POOL}))
+                &(CatenaFinitaCfg){.src = args->store_read->missing[at], .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -168,19 +168,19 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
     const char *path = args->key;
     char path_buf[CLI_PATH_MAX_LEN];
     if (cellul.find(&(CatenaFinitaCfg){
-            .src = args->key, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
+            .src = args->key, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         char required[CLI_PATH_MAX_LEN];
         VerbaLinea line = {required, sizeof(required), 0ULL};
         EMBED_CALL(store_url_key, SchemaStoreCtx, .url = args->key, .out = &line);
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][0], .cap = CLI_CELLS_POOL}) ==
+            if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][0], .cap = CLI_POOL_BYTES}) ==
                  line.at) &&
                 (memor.cmp(&(MemoriaCfg){.src = g_cli_schema_bundled[at][0], .other = required, .bytes = line.at}) ==
                  0))
             {
-                *size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][1], .cap = CLI_CELLS_POOL});
+                *size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][1], .cap = CLI_POOL_BYTES});
                 return g_cli_schema_bundled[at][1];
             }
         }
@@ -192,10 +192,10 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
         path = path_buf;
     }
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = size, .owner = &g_cli_schema_cells);
+                                                  .size_pointer = size, .owner = g_cli_schema_owner);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_schema_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_schema_owner));
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -208,7 +208,7 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    char *const stripped = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_schema_cells);
+    char *const stripped = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_schema_owner);
     if (stripped == NULL)
     {
         return CLI_JSON_NONE;
@@ -217,8 +217,8 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = stripped, .size = size) + 1u;
     CfgJsonToken *const tokens = (tokens_max <= CLI_SCHEMA_TOKENS)
-                                     ? g_cli_cells->temporary_buf_alloc(
-                                           (unsigned long long)tokens_max * sizeof(CfgJsonToken), &g_cli_schema_cells)
+                                     ? g_cli_guard->temporary_buf_alloc(
+                                           (unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_schema_owner)
                                      : NULL;
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg,
@@ -231,8 +231,8 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
                           .tokens_max = tokens_max, .err_msg = &err_msg);
         root = args->store->json.full ? CLI_JSON_NONE : root;
     }
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_schema_cells);
-    g_cli_cells->persistent_buf_release(stripped, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(tokens, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(stripped, g_cli_schema_owner);
     return root;
 }
 
@@ -240,7 +240,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
 {
     for (unsigned int at = 0u; at < args->store->documents; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->store->key[at], .other = args->key_read, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->store->key[at], .other = args->key_read, .cap = CLI_POOL_BYTES}))
         {
             return args->store->root[at];
         }
@@ -260,7 +260,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
             : CLI_JSON_NONE;
     if (mapped)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_schema_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_schema_owner));
     }
     if (root == CLI_JSON_NONE)
     {

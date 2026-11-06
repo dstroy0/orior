@@ -225,8 +225,8 @@ void test_a_loop_missing_a_program_reports_it_and_starts_no_run(void)
     const QuerySink sink = {line_recorded, NULL};
     s_printed_size = 0ull;
     TEST_ASSERT_LESS_THAN_INT(0, EMBED_CALL(query_table.run, QueryCfg, .root = s_root, .programs = &nothing, .words = s_learn, .count = 2u, .sink = sink));
-    const int not_found = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_CELLS_POOL, .other = "is not found", .other_cap = CLI_CELLS_POOL}) != NULL;
-    const int no_disassembler = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_CELLS_POOL, .other = "no nvdisasm", .other_cap = CLI_CELLS_POOL}) != NULL;
+    const int not_found = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_POOL_BYTES, .other = "is not found", .other_cap = CLI_POOL_BYTES}) != NULL;
+    const int no_disassembler = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_POOL_BYTES, .other = "no nvdisasm", .other_cap = CLI_POOL_BYTES}) != NULL;
     TEST_ASSERT_TRUE(not_found || no_disassembler);
     TEST_ASSERT_EQUAL_UINT(before, EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .capacity_u32 = QUERY_RUNS_MAX));
 }

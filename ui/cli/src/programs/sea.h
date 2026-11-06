@@ -10,8 +10,8 @@
 // the build, since only a bundler such as Bun or Deno takes those in.
 #ifndef SEA_H
 #define SEA_H
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliSeaNodeCfg CliSeaNodeCfg;
@@ -28,8 +28,6 @@ typedef struct CliSeaCfg CliSeaCfg;
 unsigned int cli_sea_outside(const CliSeaCfg *args);
 // the script at `main` built into the single executable `output` with `node`, `module` specifying the script is an ES
 // module, each step printed through `sink` as it goes: the executable's path into `made`, sized for CLI_PATH_MAX_LEN,
-// 1, or 0 with why given the cells a build occupies while it runs, the script read (sea_build.c)
-extern CellOwner g_cli_sea_cells;
 int cli_sea_build(const CliSeaNodeCfg *args);
 
 // What adding a note to a Linux node changes: the program headers as they become, `table` bytes of them; where the new

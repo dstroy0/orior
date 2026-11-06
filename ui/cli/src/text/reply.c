@@ -3,14 +3,14 @@
 // reply.c: a JSON reply read off its bytes in one pass with no tree made, as reply.h describes
 #include "reply.h"
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "text.h"
 
 int cli_reply_read(const CliReplyPathCfg *args)
 {
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = &size, .owner = &g_cli_text_cells);
+                                                  .size_pointer = &size, .owner = g_cli_text_owner);
     args->reply_out->text = (const char *)bytes;
     args->reply_out->size = size;
     return bytes != NULL;
@@ -18,8 +18,8 @@ int cli_reply_read(const CliReplyPathCfg *args)
 
 void cli_reply_let_go(const CliReplyPathCfg *args)
 {
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->reply_out->text),
-                                        (&g_cli_text_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->reply_out->text),
+                                        (g_cli_text_owner));
     args->reply_out->text = NULL;
     args->reply_out->size = 0ULL;
 }
@@ -117,7 +117,7 @@ unsigned long long cli_reply_member(const CliReplyObjectCfg *args)
     {
         return CLI_REPLY_NONE;
     }
-    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     unsigned long long at = EMBED_CALL(reply_dark, ReplyCtx, .reply = args->reply, .at = args->object + 1ULL);
     while ((at < args->reply->size) && (args->reply->text[at] == '"'))
     {
@@ -239,5 +239,5 @@ int cli_reply_string_is(const CliReplyAtCfg *args)
     char text[CLI_NAME_MAX_LEN];
     return EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->reply, .at = args->at, .out = text,
                       .capacity = sizeof(text)) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word_text, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word_text, .cap = CLI_POOL_BYTES}));
 }

@@ -64,7 +64,7 @@ void cli_requests_iso(const CliRequestsOutSecondsCtx *args)
 // whether `size` bytes of `name` are `word`
 EMBED_INLINE int fill_is(const RequestsFillCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) == args->size) &&
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) == args->size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->word_text, .bytes = (size_t)args->size}) == 0);
 }
 

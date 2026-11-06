@@ -4,7 +4,7 @@
 // that came or went reported, each file's stamp and git's index and HEAD set against the last reading
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "files_internal.h"
 #include "watch_internal.h"

@@ -154,7 +154,7 @@ EMBED_INLINE int write_commented(const InspectJsWriteCtx *args)
         unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = src,
                                             .at = line_start, .size = args->size_u64, .set = "\n");
         while ((end > line_start) && (cellul.chr(&(CatenaFinitaCfg){
-                                          .src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[end - 1u]}) != NULL))
+                                          .src = " \t\r\v\f", .cap = CLI_POOL_BYTES, .byte = src[end - 1u]}) != NULL))
         {
             end -= 1u;
         }

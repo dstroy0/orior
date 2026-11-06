@@ -77,7 +77,7 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
     const unsigned long long capacity =
         (args->size < CLI_COMMENT_CAPACITY) ? (args->size + 1ULL) : CLI_COMMENT_CAPACITY;
     const unsigned long long spans = 2ULL * line_capacity * sizeof(CliSpan);
-    char *const cell = g_cli_cells->persistent_buf_alloc(spans + (3ULL * capacity), &g_cli_purpose_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(spans + (3ULL * capacity), g_cli_purpose_owner);
     if (cell == NULL)
     {
         return 0;
@@ -96,7 +96,7 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
 
 static void cli_plugin_each(const CliEachPluginCfg *args)
 {
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = s_work_state.id, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = s_work_state.id, .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -106,7 +106,7 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &unread, .owner = &g_cli_purpose_cells);
+                   .err_msg = &unread, .owner = g_cli_purpose_owner);
     const unsigned int comments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                              .object = root, .name = "comments");
     const char *const line =
@@ -133,8 +133,7 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.open, .text = open, .otherwise = "");
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.close, .text = close,
                .otherwise = "");
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     // the first plugin of the id names the marks
@@ -318,13 +317,13 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
     mmgr_line_finish(&rest);
     const char *const joined = s_work_state.joined;
     const char *const opened = cellul.find(&(CatenaFinitaCfg){
-        .src = joined, .cap = CLI_CELLS_POOL, .other = s_work_state.open, .other_cap = CLI_CELLS_POOL});
+        .src = joined, .cap = CLI_POOL_BYTES, .other = s_work_state.open, .other_cap = CLI_POOL_BYTES});
     const unsigned long long from = ((opened != NULL) ? (unsigned long long)(opened - joined) : 0ULL) +
-                                    cellul.len(&(CatenaFinitaCfg){.src = s_work_state.open, .cap = CLI_CELLS_POOL});
+                                    cellul.len(&(CatenaFinitaCfg){.src = s_work_state.open, .cap = CLI_POOL_BYTES});
     const char *const closed = (from <= rest.at) ? cellul.find(&(CatenaFinitaCfg){.src = joined + from,
-                                                                                  .cap = CLI_CELLS_POOL,
+                                                                                  .cap = CLI_POOL_BYTES,
                                                                                   .other = s_work_state.close,
-                                                                                  .other_cap = CLI_CELLS_POOL})
+                                                                                  .other_cap = CLI_POOL_BYTES})
                                                  : NULL;
     unsigned long long end = rest.at;
     if (closed != NULL)
@@ -333,7 +332,7 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
         end = (unsigned long long)(closed - joined);
         unsigned int newlines = 0u;
         for (unsigned long long place = 0ULL;
-             place < (end + cellul.len(&(CatenaFinitaCfg){.src = s_work_state.close, .cap = CLI_CELLS_POOL}));
+             place < (end + cellul.len(&(CatenaFinitaCfg){.src = s_work_state.close, .cap = CLI_POOL_BYTES}));
              place += 1ULL)
         {
             newlines += (joined[place] == '\n') ? 1u : 0u;
@@ -368,22 +367,22 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     char extension[16] = "";
     if ((dot != NULL) && (dot != name))
     {
         (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = extension,
                          .capacity = sizeof(extension), .text = dot + 1);
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "md", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "markdown", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "mdx", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "rst", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "txt", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "md", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "markdown", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "mdx", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "rst", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "txt", .cap = CLI_POOL_BYTES})))
     {
         VerbaLinea paragraph = {s_work_state.made, s_work_state.capacity, 0ULL};
         EMBED_CALL(cli_first_paragraph, PurposeCommentCtx, .out = &paragraph);
@@ -428,7 +427,7 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
         {
             EMBED_CALL(cli_block_read, PurposeCommentCtx, .at = &at, .out = &text_line);
         }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_CELLS_POOL})) &&
+        else if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_POOL_BYTES})) &&
                  (EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg, .span = trimmed,
                              .text = "\"\"\"") ||
                   EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg, .span = trimmed,
@@ -438,22 +437,22 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
         {
             const char *const quote =
                 (cellul.find(&(CatenaFinitaCfg){
-                     .src = trimmed.at, .cap = CLI_CELLS_POOL, .other = "'''", .other_cap = CLI_CELLS_POOL}) != NULL) &&
+                     .src = trimmed.at, .cap = CLI_POOL_BYTES, .other = "'''", .other_cap = CLI_POOL_BYTES}) != NULL) &&
                         ((unsigned long long)(cellul.find(&(CatenaFinitaCfg){.src = trimmed.at,
-                                                                             .cap = CLI_CELLS_POOL,
+                                                                             .cap = CLI_POOL_BYTES,
                                                                              .other = "'''",
-                                                                             .other_cap = CLI_CELLS_POOL}) -
+                                                                             .other_cap = CLI_POOL_BYTES}) -
                                               trimmed.at) < trimmed.length)
                     ? "'''"
                     : "\"\"\"";
             const char *const first = cellul.find(
-                &(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = quote, .other_cap = CLI_CELLS_POOL});
+                &(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES, .other = quote, .other_cap = CLI_POOL_BYTES});
             const char *const body = (first != NULL) ? (first + 3) : text;
             const char *const ended = cellul.find(
-                &(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL, .other = quote, .other_cap = CLI_CELLS_POOL});
+                &(CatenaFinitaCfg){.src = body, .cap = CLI_POOL_BYTES, .other = quote, .other_cap = CLI_POOL_BYTES});
             mmgr_line_put_n(&text_line, body,
                             (ended != NULL) ? (unsigned long long)(ended - body)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}));
+                                            : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_POOL_BYTES}));
             // a docstring read is passed: a license's docstring does not stop the reading there
             at += 1u;
         }
@@ -480,7 +479,7 @@ void cli_purpose_first_comment(const CliPurposePathTextCfg *args)
     {
         EMBED_CALL(cli_comment_read, PurposeCommentCtx, .path = args->path, .text = args->text, .out = args->out);
     }
-    g_cli_cells->persistent_buf_release(s_work_state.line, &g_cli_purpose_cells);
+    g_cli_guard->persistent_buf_release(s_work_state.line, g_cli_purpose_owner);
     s_work_state.line = NULL;
     s_work_state.body = NULL;
     s_work_state.lines = 0u;

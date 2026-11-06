@@ -163,19 +163,19 @@ void test_nothing_completes_in_a_string(void)
 void test_every_scripts_memory_is_released(void)
 {
     (void)script_findings();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_gradle_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_gradle_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_gradle_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_gradle_owner));
 }
 
 void test_every_catalogs_memory_is_released(void)
 {
     (void)script_findings();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_versions_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_versions_owner));
 }
 
 void test_the_findings_memory_is_released_once_written(void)
 {
     (void)script_findings();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_build_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_build_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_build_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_build_owner));
 }

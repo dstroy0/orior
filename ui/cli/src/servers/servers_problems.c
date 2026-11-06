@@ -6,14 +6,14 @@
 // compare and swap, the table it replaced pushed on the retired tables with another; no writer waits on a reader. A
 // reading thread passes through a turnstile from one step to its next and reads the table it found in place; at each
 // step it ends its pass, waits out every other pass begun before the tables it takes off the retired were replaced, and
-// releases them (atomic_threads.h). A press on a row closes a file's rows or points to the file and the place a
+// releases them (embed_turnstile.h). A press on a row closes a file's rows or points to the file and the place a
 // diagnostic stands at; the tree's check is started and stopped here
 #include "servers.h"
 
-#include "../command_line/atomic_threads.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../text/text.h"
+#include "embed_turnstile.h"
 
 #include <stdlib.h>
 
@@ -52,7 +52,7 @@ typedef struct
     _Alignas(64) _Atomic unsigned long long check_done;
     _Atomic unsigned long long check_total;
     void (*_Atomic woken)(void);
-    CliTurnstiles turnstiles;
+    EmbedTurnstiles turnstiles;
 } ServersProblems;
 
 static ServersProblems s_problems;
@@ -97,7 +97,7 @@ static void problems_file_release(ServersProblemFile *file)
     if (file != NULL)
     {
         cli_servers_report_release(file->report);
-        g_cli_cells->persistent_buf_release(file, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(file, g_cli_servers_owner);
     }
 }
 
@@ -110,12 +110,12 @@ static void problems_reclaimed(void)
     {
         return;
     }
-    cli_turnstiles_drain(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles});
+    embed_turnstiles_drain(&s_problems.turnstiles);
     while (table != NULL)
     {
         ServersProblemsTable *const next = table->retired;
         problems_file_release(table->removed);
-        g_cli_cells->persistent_buf_release(table, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(table, g_cli_servers_owner);
         table = next;
     }
 }
@@ -124,7 +124,7 @@ static void problems_reclaimed(void)
 // in the order shown, the errors counted and the name found from the path's end; NULL where its cell could not be taken
 static ServersProblemFile *problems_file_built(CliServerReport *report)
 {
-    ServersProblemFile *const file = g_cli_cells->persistent_buf_alloc(sizeof(*file), &g_cli_servers_cells);
+    ServersProblemFile *const file = g_cli_guard->persistent_buf_alloc(sizeof(*file), g_cli_servers_owner);
     if (file == NULL)
     {
         return NULL;
@@ -166,8 +166,8 @@ static ServersProblemsTable *problems_table_built(const ServersProblemsTable *ta
     {
         return NULL;
     }
-    ServersProblemsTable *const built = g_cli_cells->persistent_buf_alloc(
-        sizeof(*built) + (((unsigned long long)count + 1ULL) * sizeof(built->file[0])), &g_cli_servers_cells);
+    ServersProblemsTable *const built = g_cli_guard->persistent_buf_alloc(
+        sizeof(*built) + (((unsigned long long)count + 1ULL) * sizeof(built->file[0])), g_cli_servers_owner);
     if (built == NULL)
     {
         return NULL;
@@ -196,6 +196,19 @@ static ServersProblemsTable *problems_table_built(const ServersProblemsTable *ta
 
 // from any thread: a file's report taken and published in the table in place of the file's last, or the file taken out
 // where it has no diagnostics; the table replaced pushed on the retired
+// a pass badged in at the table's turnstiles with the servers' owner place: badged in again while the bank is full
+static unsigned int problems_entered(void)
+{
+    unsigned int at =
+        embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_word_value)g_cli_servers_owner->place);
+
+    while (at == EMBED_TURNSTILE_NONE)
+    {
+        at = embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_word_value)g_cli_servers_owner->place);
+    }
+    return at;
+}
+
 static void problems_reported(const CliServerDiagnosticsCfg *args)
 {
     ServersProblemFile *file = NULL;
@@ -210,7 +223,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     }
     // the table read and built over inside a pass, so no reader releases it while it is read, and none of its
     // addresses comes back as another table's before the compare and swap
-    const unsigned int pass = cli_turnstile_enter(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles});
+    const unsigned int pass = problems_entered();
     ServersProblemsTable *old = atomic_load_explicit(&s_problems.table, memory_order_acquire);
     ServersProblemsTable *built = NULL;
     unsigned int found = 0u;
@@ -219,7 +232,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         built = problems_table_built(old, args->path, file, &found);
         if (built == NULL)
         {
-            cli_turnstile_leave(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles, .at = pass});
+            embed_turnstile_leave(&s_problems.turnstiles, pass);
             problems_file_release(file);
             return;
         }
@@ -230,7 +243,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         {
             break;
         }
-        g_cli_cells->persistent_buf_release(built, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(built, g_cli_servers_owner);
     }
     (void)atomic_fetch_add_explicit(&s_problems.published, 1ULL, memory_order_release);
     if (old != NULL)
@@ -245,7 +258,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         } while (!atomic_compare_exchange_weak_explicit(&s_problems.retired, &head, old, memory_order_release,
                                                         memory_order_relaxed));
     }
-    cli_turnstile_leave(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles, .at = pass});
+    embed_turnstile_leave(&s_problems.turnstiles, pass);
     void (*const woken)(void) = atomic_load_explicit(&s_problems.woken, memory_order_acquire);
     if (woken != NULL)
     {
@@ -290,7 +303,7 @@ static void problems_pass_ended(void)
 {
     if (t_pass.passing)
     {
-        cli_turnstile_leave(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles, .at = t_pass.at});
+        embed_turnstile_leave(&s_problems.turnstiles, t_pass.at);
         t_pass.passing = 0;
         t_pass.table = NULL;
     }
@@ -300,7 +313,7 @@ int cli_servers_problems_step(void)
 {
     problems_pass_ended();
     problems_reclaimed();
-    t_pass.at = cli_turnstile_enter(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles});
+    t_pass.at = problems_entered();
     t_pass.passing = 1;
     // the count read before the table: a publish between the two is seen again at the next step, never missed
     const unsigned long long published = atomic_load_explicit(&s_problems.published, memory_order_acquire);
@@ -320,12 +333,12 @@ void cli_servers_problems_end(void)
     problems_pass_ended();
     ServersProblemsTable *const last = atomic_exchange_explicit(&s_problems.table, NULL, memory_order_acq_rel);
     problems_reclaimed();
-    cli_turnstiles_drain(&(CliAtomicThreadsCfg){.turnstiles = &s_problems.turnstiles});
+    embed_turnstiles_drain(&s_problems.turnstiles);
     for (unsigned int at = 0u; (last != NULL) && (at < last->count); at += 1u)
     {
         problems_file_release(last->file[at]);
     }
-    g_cli_cells->persistent_buf_release(last, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(last, g_cli_servers_owner);
     atomic_store_explicit(&s_problems.woken, NULL, memory_order_release);
     t_pass = (ServersProblemsPass){0, 0u, NULL, 0ULL, 0ULL, 0ULL};
 }
@@ -446,8 +459,8 @@ void cli_servers_problems_check(const char *root)
     {
         return;
     }
-    const char **const paths = g_cli_cells->persistent_buf_alloc(
-        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), &g_cli_servers_cells);
+    const char **const paths = g_cli_guard->persistent_buf_alloc(
+        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
     if (paths != NULL)
     {
         for (unsigned int at = 0u; at < files->count; at += 1u)
@@ -457,7 +470,7 @@ void cli_servers_problems_check(const char *root)
         const CliServersSink sink = cli_servers_problems_sink(root);
         (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = root,
                          .files = paths, .count = files->count, .sink = &sink);
-        g_cli_cells->persistent_buf_release(paths, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(paths, g_cli_servers_owner);
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }

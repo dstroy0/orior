@@ -216,7 +216,7 @@ unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
     // the quieter mark: the first two letters of the type, or of the name past its leading dots
     const char *from = (type[0] != '\0') ? type : lower;
     from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = ".");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}), .set = ".");
     VerbaLinea line = {text, GUI_EXPLORER_MARK_MOST, 0ULL};
     mmgr_line_put_n(&line, from,
                     (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = GUI_EXPLORER_MARK_MOST}) < 2ULL) ? 1ULL : 2ULL);

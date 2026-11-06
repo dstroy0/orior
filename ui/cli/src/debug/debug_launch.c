@@ -79,7 +79,7 @@ EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
     return EMBED_CALL(cli_dap_program.start, CliDapProgramCfg, .program = args->plan->program, .request = words,
                       .count = count, .folder = root, .path = s_path[session_at],
                       .ends_program = cellul.eq(
-                          &(CatenaFinitaCfg){.src = args->plan->request, .other = "launch", .cap = CLI_CELLS_POOL}),
+                          &(CatenaFinitaCfg){.src = args->plan->request, .other = "launch", .cap = CLI_POOL_BYTES}),
                       .emit = cli_debug_event, .context = args->place, .err_msg = err_msg);
 }
 
@@ -133,15 +133,15 @@ EMBED_INLINE void launch_info(const DebugLaunchCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->info->name,
                       .src = args->plan->name,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->name, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->name, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(
         &(MemoriaCfg){.dst = args->info->tool,
                       .src = args->plan->tool,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->tool, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->tool, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){
         .dst = args->info->language,
         .src = args->plan->language,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->language, .cap = CLI_CELLS_POOL}) + 1u});
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->language, .cap = CLI_POOL_BYTES}) + 1u});
     args->info->has_parent = args->plan->has_parent;
     args->info->parent = args->plan->parent;
     for (unsigned int at = 0u; (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -163,7 +163,7 @@ EMBED_INLINE void launch_info(const DebugLaunchCtx *args)
         CliDebugFilter *const session_at = &args->info->filters[args->info->filter_count];
         memor.cpy(&(MemoriaCfg){.dst = session_at->filter,
                                 .src = filter,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = filter, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = filter, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){
             .dst = session_at->label,
             .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = reply,
@@ -176,7 +176,7 @@ EMBED_INLINE void launch_info(const DebugLaunchCtx *args)
                                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                               .json_read = reply, .object = one, .name = "label"),
                                            .fallback = filter),
-                         .cap = CLI_CELLS_POOL}) +
+                         .cap = CLI_POOL_BYTES}) +
                      1u});
         session_at->on = 0;
         for (unsigned int on = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -190,7 +190,7 @@ EMBED_INLINE void launch_info(const DebugLaunchCtx *args)
                            .length_pointer = NULL);
             session_at->on = session_at->on ||
                              ((named != NULL) &&
-                              (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = filter, .cap = CLI_CELLS_POOL})));
+                              (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = filter, .cap = CLI_POOL_BYTES})));
         }
         args->info->filter_count += 1u;
     }
@@ -271,7 +271,7 @@ static void launch_configure(const DebugLaunchCtx *args)
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                        .text_bytes = (const unsigned char *)args->info_read->filters[at].filter,
                        .length = cellul.len(
-                           &(CatenaFinitaCfg){.src = args->info_read->filters[at].filter, .cap = CLI_CELLS_POOL}));
+                           &(CatenaFinitaCfg){.src = args->info_read->filters[at].filter, .cap = CLI_POOL_BYTES}));
             written += 1u;
         }
     }
@@ -313,15 +313,15 @@ int cli_debug_start(const CliDebugRootCfg *args)
                     .json = args->json, .start = args->start, .options = args->options, .plan = &plan,
                     .err_msg = err_msg))
     {
-        g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
         place->data = NULL;
         place->data_count = 0u;
         place->data_capacity = 0u;
         place->positioned = NULL;
         place->positioned_count = 0u;
         place->positioned_capacity = 0u;
-        g_cli_cells->persistent_buf_release(
-            place->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+        g_cli_guard->persistent_buf_release(place->start.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         place->reserved = 0;
@@ -335,15 +335,15 @@ int cli_debug_start(const CliDebugRootCfg *args)
                             .err_msg = err_msg);
     if (place->dap == NULL)
     {
-        g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
         place->data = NULL;
         place->data_count = 0u;
         place->data_capacity = 0u;
         place->positioned = NULL;
         place->positioned_count = 0u;
         place->positioned_capacity = 0u;
-        g_cli_cells->persistent_buf_release(
-            place->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+        g_cli_guard->persistent_buf_release(place->start.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         place->reserved = 0;
@@ -358,7 +358,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
                    .fallback = "");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)adapter_id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&answer->args, ",\"locale\":\"en\",\"linesStartAt1\":true,\"columnsStartAt1\":true,"
                                  "\"pathFormat\":\"path\",\"supportsVariableType\":true,"
                                  "\"supportsRunInTerminalRequest\":false,\"supportsMemoryReferences\":true,"
@@ -393,7 +393,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
                    .options = args->options, .info_read = &info);
     }
     // the launch's arguments in a cell of the most they hold, given back once sent
-    char *const written = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
+    char *const written = g_cli_guard->temporary_buf_alloc(CLI_DEBUG_ARGS, g_cli_debug_owner);
     VerbaLinea arguments = mmgr_line_over(written, CLI_DEBUG_ARGS);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &place->start,
                .node = plan.arguments, .out = &arguments, .indent = 0u, .sorted = 0);
@@ -402,7 +402,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
         mmgr_line_ok(&arguments) &&
         EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = place->dap, .command = plan.request,
                    .arguments = written, .length = arguments.at, .seq_pointer = &seq, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(written, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(written, g_cli_debug_owner);
     if (!sent)
     {
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
@@ -438,7 +438,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     {
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
-    g_cli_cells->persistent_buf_release(launched.message, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(launched.message, g_cli_debug_owner);
     if (!info.has_process && (place->pid != 0ULL))
     {
         info.has_process = 1;
@@ -448,7 +448,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     place->info = info;
     memor.cpy(&(MemoriaCfg){.dst = place->program,
                             .src = adapter_id,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_POOL_BYTES}) + 1u});
     place->list_entries = 1;
     EMBED_CALL(cli_debug_info_internal.info_write, CliDebugInfoCtx, .info = &info, .out = args->out);
     return 1;

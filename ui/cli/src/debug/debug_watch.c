@@ -46,12 +46,12 @@ EMBED_INLINE int watch_number(const DebugWatchCtx *args)
         unsigned long long first = start;
         unsigned long long last = colon;
         while ((first < last) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = text[first]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[first]}) != NULL))
         {
             first += 1ull;
         }
         while ((last > first) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = text[last - 1ull]}) != NULL))
+                                      .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[last - 1ull]}) != NULL))
         {
             last -= 1ull;
         }
@@ -82,7 +82,7 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
 {
     CliDebugSession *session = args->session;
     VerbaLinea *err_msg = args->err_msg;
-    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = args->data, .cap = CLI_CELLS_POOL, .byte = '/'});
+    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = args->data, .cap = CLI_POOL_BYTES, .byte = '/'});
     if (slash == NULL)
     {
         mmgr_line_put(err_msg, "lldb named the bytes ");
@@ -116,12 +116,12 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
         unsigned long long start = 0ull;
         unsigned long long end = answer.at;
         while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = answer.out[start]}) != NULL))
+                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[start]}) != NULL))
         {
             start += 1ull;
         }
         while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = answer.out[end - 1ull]}) != NULL))
+                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[end - 1ull]}) != NULL))
         {
             end -= 1ull;
         }
@@ -155,7 +155,7 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = session->data[session->data_count],
                           .src = args->data,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->data, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->data, .cap = CLI_POOL_BYTES}) + 1u});
         session->data_count += 1u;
     }
     mmgr_line_put(&answer->args, "{\"breakpoints\":[");
@@ -164,7 +164,7 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
         mmgr_line_put(&answer->args, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                    .text_bytes = (const unsigned char *)session->data[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = session->data[at], .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = session->data[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_put(&answer->args, ",\"accessType\":\"write\"}");
     }
     mmgr_line_put(&answer->args, "]}");
@@ -193,7 +193,7 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
     mmgr_line_put(&answer->args, "{\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
     if (args->has_reference)
     {
         mmgr_line_put(&answer->args, ",\"variablesReference\":");
@@ -240,7 +240,7 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
 #if defined(_WIN32)
     // lldb-dap on Windows ends where it reports a stop at a watchpoint; the watchpoint is lldb's own, and its script
     // stops the program at the next instruction it runs
-    if (cellul.eq(&(CatenaFinitaCfg){.src = session->program, .other = "lldb-dap", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = session->program, .other = "lldb-dap", .cap = CLI_POOL_BYTES}))
     {
         watched = EMBED_CALL(watch_by_lldb, DebugWatchCtx, .session = session, .data = data, .err_msg = args->err_msg)
                       ? 1
@@ -259,6 +259,6 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
     }
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)description,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = description, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = description, .cap = CLI_POOL_BYTES}));
     return 1;
 }

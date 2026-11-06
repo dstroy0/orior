@@ -96,9 +96,6 @@ typedef struct
     unsigned int opens;
 } CliXml;
 
-// the cells the XML files read are allocated in, counted, each released through persistent_buf_release (maven_xml.c)
-extern CellOwner g_cli_xml_cells;
-
 // the cell of an XML file read given back, the file left read as empty; each read is given back before `xml` is read
 // again or let go
 // `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` contained
@@ -168,8 +165,6 @@ typedef struct
 // the cells the models read are allocated in, counted; a model's cell given back, the model left empty, a model given
 // back before it is read again or let go; a model's cell taken, its capacities none where it is refused; and `size`
 // bytes of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
-// (maven_model_text.c)
-extern CellOwner g_cli_maven_model_cells;
 void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args);
 unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args);
 

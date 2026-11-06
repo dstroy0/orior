@@ -52,7 +52,7 @@ int query_course_from(const QueryLoopsErrMsgWordsCountCfg *args)
     *first = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--from", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--from", .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -64,7 +64,7 @@ int query_course_from(const QueryLoopsErrMsgWordsCountCfg *args)
         for (unsigned int step = 0u; step < g_query_course_steps; step += 1u)
         {
             if (cellul.eq(&(CatenaFinitaCfg){
-                    .src = s_steps[step].name, .other = args->words[at + 1u], .cap = CLI_CELLS_POOL}))
+                    .src = s_steps[step].name, .other = args->words[at + 1u], .cap = CLI_POOL_BYTES}))
             {
                 *first = step;
                 return 1;
@@ -104,7 +104,7 @@ int query_course_run(const QueryLoopCfg *args)
     memor.cpy(
         &(MemoriaCfg){.dst = context->open,
                       .src = s_run.writer.qry,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_run.writer.qry, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_run.writer.qry, .cap = CLI_POOL_BYTES}) + 1u});
     char line[QUERY_LINE_MAX_LEN];
     VerbaLinea print_line = {line, sizeof(line), 0ULL};
     mmgr_line_put(&print_line, "course: ");

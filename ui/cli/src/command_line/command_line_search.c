@@ -32,7 +32,7 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
                                       .object = args->hit, .name = "text"),
                    .length_pointer = &length);
     const unsigned long long line_capacity = path_length + length + CLI_SEARCH_LINE_MORE;
-    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_capacity, &g_cli_command_line_cells);
+    char *const line_cell = g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_command_line_owner);
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     mmgr_line_put(&line, (path != NULL) ? path : "");
     static const char *const s_numbers[2] = {"line", "col"};
@@ -56,7 +56,7 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
     mmgr_line_put_n(&line, found + from, to - from);
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line.out,
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-    g_cli_cells->persistent_buf_release(line.out, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(line.out, g_cli_command_line_owner);
 }
 
 int cli_console_search(const CliCommandLineWordsCountCtx *args)
@@ -69,14 +69,14 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     {
         how.match_case =
             how.match_case ||
-            cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL});
+            cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_POOL_BYTES});
         how.word_text = how.word_text ||
-                        cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL});
+                        cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_POOL_BYTES});
         how.regex = how.regex ||
-                    cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_CELLS_POOL});
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_CELLS_POOL})))
+                    cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_POOL_BYTES});
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_POOL_BYTES})))
         {
             mmgr_line_put(&query, (query.at > 0ULL) ? " " : "");
             mmgr_line_put(&query, args->words[at]);
@@ -99,7 +99,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
-    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SEARCH_HITS_CAPACITY, &g_cli_command_line_cells);
+    char *const found_cell = g_cli_guard->temporary_buf_alloc(CLI_SEARCH_HITS_CAPACITY, g_cli_command_line_owner);
     VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_CAPACITY);
     if (found.out == NULL)
     {
@@ -110,7 +110,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     if (!EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = s_query,
                     .how = how, .set = &s_none, .out = &found, .err_msg = &err_msg))
     {
-        g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(found.out, g_cli_command_line_owner);
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_WRONG;
@@ -122,8 +122,8 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     const unsigned int list =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
                    .text = found.out, .size = mmgr_line_ok(&found) ? found.at : 0ULL, .nodes_more = 0u,
-                   .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_command_line_cells);
-    g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
+                   .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_command_line_owner);
+    g_cli_guard->persistent_buf_release(found.out, g_cli_command_line_owner);
     const int any = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &hits,
                                .node = list, .kind = CFG_JSON_ARRAY) &&
                     (hits.node[list].count != 0u);
@@ -132,8 +132,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     {
         EMBED_CALL(search_hit_write, CommandLineSearchCtx, .hits = &hits, .hit = hit);
     }
-    g_cli_cells->persistent_buf_release(hits.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = hits.node));
+    g_cli_guard->persistent_buf_release(hits.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), hits.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&hits),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return any ? 0 : 1;

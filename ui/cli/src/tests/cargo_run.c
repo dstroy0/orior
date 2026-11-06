@@ -55,11 +55,11 @@ EMBED_INLINE int run_same_target(const CargoRunCtx *args)
 {
     const CliCargoFound *other = args->other;
     return (cellul.eq(
-               &(CatenaFinitaCfg){.src = args->one->manifest, .other = other->manifest, .cap = CLI_CELLS_POOL})) &&
+               &(CatenaFinitaCfg){.src = args->one->manifest, .other = other->manifest, .cap = CLI_POOL_BYTES})) &&
            (args->one->target.kind == other->target.kind) &&
            ((args->one->target.name == NULL) ||
             (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->one->target.name, .other = other->target.name, .cap = CLI_CELLS_POOL})));
+                .src = args->one->target.name, .other = other->target.name, .cap = CLI_POOL_BYTES})));
 }
 
 // whether `supplied`, `count` of them, contains `text`
@@ -67,7 +67,7 @@ EMBED_INLINE int run_free(const CargoRunCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->supplied[at], .other = args->text, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->supplied[at], .other = args->text, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -150,7 +150,7 @@ EMBED_INLINE void run_tree_path(const CargoRunCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -179,7 +179,7 @@ static void run_line(const CliWorkerTextSizeCfg *args)
     for (unsigned int at = worker->named; at < worker->named + worker->named_count; at += 1u)
     {
         const CliTestNamed *const test = &run->named[at];
-        if ((cellul.len(&(CatenaFinitaCfg){.src = test->full, .cap = CLI_CELLS_POOL}) != name_size) ||
+        if ((cellul.len(&(CatenaFinitaCfg){.src = test->full, .cap = CLI_POOL_BYTES}) != name_size) ||
             (memor.cmp(&(MemoriaCfg){.src = test->full, .other = args->text + name, .bytes = name_size}) != 0))
         {
             continue;
@@ -213,12 +213,12 @@ static void run_failure_emit(const CliEachNameMessagePathLineCfg *args)
                    .worker_u32 = worker->index, .name = name, .length = args->name_size);
     for (unsigned int at = worker->named;
          (seen_outcome != NULL) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = seen_outcome, .other = "failed", .cap = CLI_CELLS_POOL})) &&
+         (cellul.eq(&(CatenaFinitaCfg){.src = seen_outcome, .other = "failed", .cap = CLI_POOL_BYTES})) &&
          (at < worker->named + worker->named_count);
          at += 1u)
     {
         const CliTestNamed *const test = &run->named[at];
-        if ((cellul.len(&(CatenaFinitaCfg){.src = test->full, .cap = CLI_CELLS_POOL}) != args->name_size) ||
+        if ((cellul.len(&(CatenaFinitaCfg){.src = test->full, .cap = CLI_POOL_BYTES}) != args->name_size) ||
             (memor.cmp(&(MemoriaCfg){.src = test->full, .other = name, .bytes = args->name_size}) != 0))
         {
             continue;
@@ -344,7 +344,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     char package[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char manifest[CLI_PATH_MAX_LEN];
-    const size_t folder_size = cellul.len(&(CatenaFinitaCfg){.src = first->manifest, .cap = CLI_CELLS_POOL}) - 10u;
+    const size_t folder_size = cellul.len(&(CatenaFinitaCfg){.src = first->manifest, .cap = CLI_POOL_BYTES}) - 10u;
     VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put_n(&folder_line, first->manifest, folder_size);
     mmgr_line_finish(&folder_line);
@@ -380,16 +380,16 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
         run->named[run->named_count] = (CliTestNamed){
             EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
                        .text = one->test.id,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.id, .cap = CLI_CELLS_POOL})),
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.id, .cap = CLI_POOL_BYTES})),
             EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
                        .text = one->test.file,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.file, .cap = CLI_CELLS_POOL})),
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.file, .cap = CLI_POOL_BYTES})),
             one->test.line,
             EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
                        .text = one->full,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}))};
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_POOL_BYTES}))};
         run->named_count += 1u;
-        names += cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL});
+        names += cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_POOL_BYTES});
     }
     worker->named_count = run->named_count - worker->named;
     if ((args->group->count != args->group->total) && (names < CLI_CARGO_NAMES_MAX))
@@ -474,10 +474,10 @@ int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_cells->persistent_buf_release(s_tests.found, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(s_tests.found, g_cli_cargo_owner);
     *(&s_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return started;
 }

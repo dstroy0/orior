@@ -238,7 +238,7 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     mmgr_line_put(&line, "\", \"n\": 1}");
     (void)mmgr_line_finish(&line);
     (void)line_colored("json", s_line, "root");
-    const char *const string = cellul.find(&(CatenaFinitaCfg){.src = s_runs, .cap = CLI_CELLS_POOL, .other = "|9 ", .other_cap = CLI_CELLS_POOL});
+    const char *const string = cellul.find(&(CatenaFinitaCfg){.src = s_runs, .cap = CLI_POOL_BYTES, .other = "|9 ", .other_cap = CLI_POOL_BYTES});
     TEST_ASSERT_NOT_NULL(string);
     CLI_TEST_ASSERT_CONTAINS("string", string);
     VerbaLinea next = {required, sizeof(required), 0ull};
@@ -246,7 +246,7 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     mmgr_line_decimal(&next, 9u + length + 2u, 1u);
     mmgr_line_ch(&next, ' ');
     (void)mmgr_line_finish(&next);
-    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = string + 1, .cap = CLI_CELLS_POOL, .byte = '|'});
+    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = string + 1, .cap = CLI_POOL_BYTES, .byte = '|'});
     TEST_ASSERT_NOT_NULL(bar);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = bar, .other_pointer = required, .size = CLI_UNITY_LENGTH(required)));
 }
@@ -504,13 +504,13 @@ void test_a_pattern_not_read_here_is_refused(void)
     TEST_ASSERT_FALSE(grammar_stored("bad", s_bad, sizeof(s_bad) - 1u, NULL));
 }
 
-void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock(void)
+void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_series_cellularum(void)
 {
     char report[160];
     VerbaLinea report_line = {report, sizeof(report), 0ull};
     EMBED_CALL(cli_highlight.cells_usage_write, CliHighlightCfg, .out = &report_line);
     (void)mmgr_line_finish(&report_line);
-    const char *const mark = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_CELLS_POOL, .byte = ' '});
+    const char *const mark = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_POOL_BYTES, .byte = ' '});
     TEST_ASSERT_NOT_NULL_MESSAGE(mark, report);
     TEST_ASSERT_NOT_EQUAL_MESSAGE('0', mark[1], report);
 }

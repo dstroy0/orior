@@ -6,7 +6,7 @@
 // braces, the names of those that name one, and their descriptions each in one column, a description that runs past the
 // margin going on under its own first word. A run's tags are joined from their lines into a work state sized to the
 // comment's bytes it left out of the run
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "fill_internal.h"
 

@@ -242,7 +242,7 @@ EMBED_INLINE void complete_reference_reached(const SchemaCompleteCtx *args)
                                              .map = args->schema, .name = "$ref", .size_pointer = &size);
     // the base a reference is read in, a cell retained while the schemas under it are reached
     char *const doc =
-        (reference != NULL) ? g_cli_cells->temporary_buf_alloc(CLI_PATH_MAX_LEN, &g_cli_schema_cells) : NULL;
+        (reference != NULL) ? g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN, g_cli_schema_owner) : NULL;
     if (doc != NULL)
     {
         const unsigned int target = EMBED_CALL(cli_schema_size_internal.resolve, CliSchemaSizeCtx, .store = store,
@@ -253,7 +253,7 @@ EMBED_INLINE void complete_reference_reached(const SchemaCompleteCtx *args)
                        .at_u32 = args->at_u32, .depth = args->depth + 1u);
         }
     }
-    g_cli_cells->persistent_buf_release(doc, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(doc, g_cli_schema_owner);
 }
 
 // the schemas reached through the branches of `schema` taken together: each of its `allOf`, `anyOf` and `oneOf`, and
@@ -315,7 +315,7 @@ EMBED_INLINE void complete_key_reached(const SchemaCompleteCtx *args)
     {
         const char *const pattern = json->text + json->node[one].key;
         if (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,
-                       .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}),
+                       .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES}),
                        .text = key, .size = key_size) == 1)
         {
             any = 1;

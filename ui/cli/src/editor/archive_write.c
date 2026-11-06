@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // archive_write.c: a file within an archive saved: each archive the path runs through written anew with the file its
 // path names changed, the outermost beside the old one and then put in its place
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "archive_internal.h"
 
 typedef struct
@@ -180,7 +180,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     int done = EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = 0u, .bytes = descent.bytes, .bytes_size = descent.size,
                           .kind = descent.kind, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
                           .data_size = args->size, .size = &written, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)descent.bytes, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)descent.bytes, (g_cli_editor_owner));
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char adjacent[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];

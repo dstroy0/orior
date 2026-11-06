@@ -26,7 +26,7 @@ const char *cli_settings_layer(const CliSettingsKeyCfg *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->layers_read->text + texts[at].key, .other = args->key, .cap = CLI_CELLS_POOL}))
+                .src = args->layers_read->text + texts[at].key, .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             return args->layers_read->text + texts[at].text;
         }

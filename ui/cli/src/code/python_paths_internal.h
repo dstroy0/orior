@@ -4,7 +4,7 @@
 // the values they may be, stored while the script is read under the module's lock
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "python_paths.h"
 
@@ -106,9 +106,6 @@ typedef struct
 } CliPy;
 
 extern CliPy g_cli_py;
-
-// the cells a script's reading is allocated in (python_paths.c)
-extern CellOwner g_cli_python_cells;
 
 // the reading of a script of `size` bytes begun empty in a cell sized to it, the reading before given back: 1, or 0
 // where the cell is refused and the reading contains nothing; and the reading's cell given back once what it found is

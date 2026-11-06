@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // picks.c: the window's lists stored by number, their rows matched against a query, a long list over the cores
 #include "picks.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/cores.h"
 #include "../text/json_tree.h"
 #include "files.h"
@@ -101,12 +101,12 @@ EMBED_INLINE int picks_work_state_alloc(const PicksCtx *args)
     const unsigned long long bytes =
         ((unsigned long long)args->rows * (sizeof(double) + 1ULL + (2ULL * sizeof(unsigned int)))) +
         ((unsigned long long)parts * sizeof(CliPickPart)) + (5ULL * 8ULL);
-    void *const capacity = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
+    void *const capacity = g_cli_guard->persistent_buf_alloc(bytes, g_cli_editor_owner);
     if (capacity == NULL)
     {
         return 0;
     }
-    g_cli_cells->persistent_buf_release(s_picks.capacity, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(s_picks.capacity, g_cli_editor_owner);
     s_picks.capacity = capacity;
     s_picks.capacity_rows = args->rows;
     s_picks.parts = parts;
@@ -135,8 +135,8 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     {
         return 0ULL;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        (rows * sizeof(unsigned int)) + args->length + 1ULL + 8ULL, &g_cli_editor_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+        (rows * sizeof(unsigned int)) + args->length + 1ULL + 8ULL, g_cli_editor_owner);
     if (cell == NULL)
     {
         return 0ULL;
@@ -144,7 +144,7 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     if (((s_picks.capacity == NULL) || (rows > s_picks.capacity_rows)) &&
         !EMBED_CALL(picks_work_state_alloc, PicksCtx, .rows = (unsigned int)rows))
     {
-        g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
         return 0ULL;
     }
     CliPickList *const list = &s_picks.list[s_picks.lists];
@@ -188,7 +188,7 @@ void cli_picks_forget(const CliPicksIdCfg *args)
     {
         return;
     }
-    g_cli_cells->persistent_buf_release(s_picks.list[at].cell, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(s_picks.list[at].cell, g_cli_editor_owner);
     for (unsigned int list = at + 1u; list < s_picks.lists; list += 1u)
     {
         s_picks.list[list - 1u] = s_picks.list[list];
@@ -196,7 +196,7 @@ void cli_picks_forget(const CliPicksIdCfg *args)
     s_picks.lists -= 1u;
     if (s_picks.lists == 0u)
     {
-        g_cli_cells->persistent_buf_release(s_picks.capacity, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(s_picks.capacity, g_cli_editor_owner);
         s_picks.capacity = NULL;
         s_picks.capacity_rows = 0u;
     }

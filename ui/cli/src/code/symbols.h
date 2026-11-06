@@ -133,7 +133,7 @@ int cli_symbols_slices_each(const CliSymbolsPathTextSizeContextErrMsgCfg *args);
 
 // one usage of a name: the tree's file it stands in, by its path in the tree, its line counted from 0, its span from
 // `from` to `to` in UTF-16 units, and its line's text, `length` bytes; and the text the editor holds of the tree's file
-// at `path`, in a cell the caller gives back with g_cli_cells->persistent_buf_release, its size into `size`, NULL where
+// at `path`, in a cell the caller gives back with g_cli_guard->persistent_buf_release, its size into `size`, NULL where
 // the editor holds none
 typedef void (*CliUsage)(const CliUsageCfg *args);
 typedef char *(*CliOpenText)(const CliOpenTextCfg *args);
@@ -306,7 +306,7 @@ struct CliSymbolsPathTextSizeOutCfg
     const char *path;
     const char *text;
     unsigned long long size;
-    CellOwner *owner;
+    const CellOwner *owner;
     const char *state;
     unsigned int line;
     unsigned int col;
@@ -386,7 +386,7 @@ struct CliSymbolsQueryMaxCfg
 {
     const char *query;
     unsigned int most;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliSymbolsContextCfg

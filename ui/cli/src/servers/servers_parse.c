@@ -6,7 +6,7 @@
 // the file's key with its text's hash, until the file's text changes, and is read one at a time, so that a parse
 // requested for again meanwhile waits for it and is answered from what was cached. Orior's own parse is counted, then
 // read into storage of what it counted; a server's into storage of what its answers give
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../inspect/inspect.h"
 #include "servers_internal.h"
 

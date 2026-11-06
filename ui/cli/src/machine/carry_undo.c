@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // machine_transfer_undo.c: the takings saved, read back and written, and a taking undone
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "carry_internal.h"
 
 void cli_machine_transfer_allocating_write(const CliMachineTransferOutCtx *args)
@@ -10,13 +10,13 @@ void cli_machine_transfer_allocating_write(const CliMachineTransferOutCtx *args)
     mmgr_line_put(args->out, args->pretty ? "{\n  \"id\": " : "{\"id\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->allocating->id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->id, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->id, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, args->pretty ? ",\n  \"at\": " : ",\"at\":");
     mmgr_line_decimal(args->out, args->allocating->at, 0u);
     mmgr_line_put(args->out, args->pretty ? ",\n  \"from\": " : ",\"from\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->allocating->from,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->from, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->from, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, args->pretty ? ",\n  \"files\": [" : ",\"files\":[");
     for (unsigned int at = 0u; at < args->allocating->files; at += 1u)
     {
@@ -30,7 +30,7 @@ void cli_machine_transfer_allocating_write(const CliMachineTransferOutCtx *args)
         }
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                    .text = args->allocating->place[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->place[at], .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->allocating->place[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, args->pretty ? ",\n      " : ",");
         mmgr_line_put(args->out, args->allocating->existed[at] ? "true" : "false");
         mmgr_line_put(args->out, args->pretty ? "\n    ]" : "]");
@@ -63,7 +63,7 @@ static int undo_lock(void)
 {
     // the takings' names and the taking read stand in one cell for as long as the work runs
     s_allocations.name =
-        g_cli_cells->persistent_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, &g_cli_machine_cells);
+        g_cli_guard->persistent_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (s_allocations.name == NULL)
     {
         return 0;
@@ -90,21 +90,20 @@ static int cli_allocating_read(const CarryUndoCtx *args)
     CliJson *const json = &s_allocations.work_state.json;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
-                                                  .size_pointer = &size, .owner = &g_cli_machine_cells);
+                                                  .size_pointer = &size, .owner = g_cli_machine_owner);
     if (bytes == NULL)
     {
         return 0;
     }
-    g_cli_cells->persistent_buf_release(json->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
-                                         .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_machine_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
+                                         .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_machine_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
     const char *const id =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -129,10 +128,10 @@ static int cli_allocating_read(const CarryUndoCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->allocating->id,
                             .src = id,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->allocating->from,
                             .src = from,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}) + 1u});
     args->allocating->at = 0ULL;
     const CliJsonNode *const number = &json->node[at];
     for (unsigned long long digit = 0ULL; digit < number->length; digit += 1ULL)
@@ -169,7 +168,7 @@ static int cli_allocating_read(const CarryUndoCtx *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->allocating->place[args->allocating->files],
                                     .src = place,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES}) + 1u});
             args->allocating->existed[args->allocating->files] = truth ? 1u : 0u;
             args->allocating->files += 1u;
         }
@@ -185,7 +184,7 @@ static void cli_allocating_each(const CliEachNameIsFolderCfg *args)
                .joined = folder);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "taking.json", .joined = file);
     if (!args->is_folder || (s_allocations.count >= CLI_ALLOCATIONS) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) >= 64u) ||
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= 64u) ||
         !EMBED_CALL(cli_allocating_read, CarryUndoCtx, .file = file, .allocating = &s_allocations.allocating))
     {
         return;
@@ -198,13 +197,13 @@ static void cli_allocating_each(const CliEachNameIsFolderCfg *args)
             .dst = s_allocations.name[place],
             .src = s_allocations.name[place - 1u],
             .bytes =
-                cellul.len(&(CatenaFinitaCfg){.src = s_allocations.name[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+                cellul.len(&(CatenaFinitaCfg){.src = s_allocations.name[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         s_allocations.at[place] = s_allocations.at[place - 1u];
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_allocations.name[place],
                             .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     s_allocations.at[place] = s_allocations.allocating.at;
     s_allocations.count += 1u;
 }
@@ -253,12 +252,11 @@ void cli_machine_transfer_allocations(const CliMachineTransferHomeToCfg *args)
         }
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_cells->persistent_buf_release(
-        s_allocations.work_state.json.node,
-        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+    g_cli_guard->persistent_buf_release(s_allocations.work_state.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
     s_allocations.name = NULL;
 }
 
@@ -277,19 +275,19 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
         found =
             EMBED_CALL(cli_allocating_get, CarryUndoCtx, .transferred_read = carried, .name = s_allocations.name[at]) &&
             (cellul.eq(
-                &(CatenaFinitaCfg){.src = s_allocations.allocating.id, .other = args->id, .cap = CLI_CELLS_POOL}));
+                &(CatenaFinitaCfg){.src = s_allocations.allocating.id, .other = args->id, .cap = CLI_POOL_BYTES}));
     }
     if (!found)
     {
         mmgr_line_put(args->err_msg, "no taking ");
         mmgr_line_put(args->err_msg, args->id);
         mmgr_line_put(args->err_msg, " is saved");
-        g_cli_cells->persistent_buf_release(
+        g_cli_guard->persistent_buf_release(
             s_allocations.work_state.json.node,
-            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+            mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+        g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
         s_allocations.name = NULL;
         return 0;
     }
@@ -308,22 +306,22 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
         {
             unsigned long long size = 0ULL;
             const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved,
-                                                          .size_pointer = &size, .owner = &g_cli_machine_cells);
+                                                          .size_pointer = &size, .owner = g_cli_machine_owner);
             const int back =
                 (bytes != NULL) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                               .path = path, .bytes = bytes, .size = size);
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
             if (!back)
             {
                 mmgr_line_put(args->err_msg, (bytes == NULL) ? saved : path);
                 mmgr_line_put(args->err_msg, (bytes == NULL) ? ": it could not be read" : ": it could not be written");
-                g_cli_cells->persistent_buf_release(
+                g_cli_guard->persistent_buf_release(
                     s_allocations.work_state.json.node,
-                    EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+                    mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
                 EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg,
                            .json = (&s_allocations.work_state.json), .node_json_node_pointer = NULL, .nodes_max = 0u,
                            .text_out = NULL, .text_max = 0ULL);
-                g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+                g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
                 s_allocations.name = NULL;
                 return 0;
             }
@@ -333,13 +331,13 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
         {
             mmgr_line_put(args->err_msg, path);
             mmgr_line_put(args->err_msg, ": it could not be taken out");
-            g_cli_cells->persistent_buf_release(
+            g_cli_guard->persistent_buf_release(
                 s_allocations.work_state.json.node,
-                EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+                mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
             EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg,
                        .json = (&s_allocations.work_state.json), .node_json_node_pointer = NULL, .nodes_max = 0u,
                        .text_out = NULL, .text_max = 0ULL);
-            g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+            g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
             s_allocations.name = NULL;
             return 0;
         }
@@ -348,23 +346,22 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
     {
         mmgr_line_put(args->err_msg, backup_dir);
         mmgr_line_put(args->err_msg, ": it could not be taken out");
-        g_cli_cells->persistent_buf_release(
+        g_cli_guard->persistent_buf_release(
             s_allocations.work_state.json.node,
-            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+            mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+        g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
         s_allocations.name = NULL;
         return 0;
     }
     EMBED_CALL(cli_machine_transfer_out_internal.allocating_write, CliMachineTransferOutCtx, .allocating = allocating,
                .pretty = 0, .out = args->out);
-    g_cli_cells->persistent_buf_release(
-        s_allocations.work_state.json.node,
-        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_allocations.work_state.json.node));
+    g_cli_guard->persistent_buf_release(s_allocations.work_state.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(s_allocations.name, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
     s_allocations.name = NULL;
     return 1;
 }

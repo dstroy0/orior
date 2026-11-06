@@ -48,7 +48,7 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     }
     if (args->layers->capacity == 0ULL)
     {
-        args->layers->text = g_cli_cells->persistent_buf_alloc(CLI_SETTINGS_TEXT, &g_cli_settings_cells);
+        args->layers->text = g_cli_guard->persistent_buf_alloc(CLI_SETTINGS_TEXT, g_cli_settings_owner);
         if (args->layers->text == NULL)
         {
             return 0u;
@@ -68,7 +68,7 @@ void cli_settings_problem(const CliSettingsLayersProblemCtx *args)
     for (unsigned int at = 0u; at < args->layers->problems; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->layers->text + args->layers->problem[at], .other = args->problem, .cap = CLI_CELLS_POOL}))
+                .src = args->layers->text + args->layers->problem[at], .other = args->problem, .cap = CLI_POOL_BYTES}))
         {
             return;
         }
@@ -78,7 +78,7 @@ void cli_settings_problem(const CliSettingsLayersProblemCtx *args)
         args->layers->problem[args->layers->problems] =
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = args->layers,
                        .text = args->problem,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->problem, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->problem, .cap = CLI_POOL_BYTES}));
         args->layers->problems += 1u;
     }
 }
@@ -143,7 +143,7 @@ static int cli_look(const CliEachNameLengthOutCfg *args)
         while (!found && (at > 0u))
         {
             const CliRaw *const raw = &names->raw[at - 1u];
-            if ((cellul.len(&(CatenaFinitaCfg){.src = raw->key, .cap = CLI_CELLS_POOL}) == (args->length - 8ULL)) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = raw->key, .cap = CLI_POOL_BYTES}) == (args->length - 8ULL)) &&
                 (memor.cmp(&(MemoriaCfg){.src = raw->key, .other = name + 8, .bytes = args->length - 8ULL}) == 0))
             {
                 names->depth += 1u;
@@ -216,7 +216,7 @@ static void cli_json_expand(const SettingsLayersCtx *args)
         {
             const char *const key = args->chain->json.text + args->chain->json.node[child].key;
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
             mmgr_line_ch(out, ':');
         }
         EMBED_CALL(cli_json_expand, SettingsLayersCtx, .chain = args->chain, .value = child, .out = out);
@@ -254,7 +254,7 @@ EMBED_INLINE void cli_text_set(const SettingsLayersCtx *args)
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = layers->text + args->texts[at].key, .other = args->key, .cap = CLI_CELLS_POOL}))
+                .src = layers->text + args->texts[at].key, .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             args->texts[at].text = text;
             return;
@@ -265,7 +265,7 @@ EMBED_INLINE void cli_text_set(const SettingsLayersCtx *args)
         args->texts[*count] = (CliLayerText){
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
                        .text = args->key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL})),
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES})),
             text};
         *count += 1u;
     }
@@ -278,7 +278,7 @@ EMBED_INLINE int cli_set_before(const SettingsLayersCtx *args)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = args->layers_read->text + args->layers_read->from[at].key,
                                          .other = args->key,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -296,14 +296,14 @@ EMBED_INLINE void cli_source_append(const SettingsLayersCtx *args)
         layers->from[layers->froms] = (CliLayerSource){
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
                        .text = args->key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL})),
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES})),
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
                        .text = args->file,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL})),
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES})),
             (args->part != NULL)
                 ? EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
                              .text = args->part,
-                             .length = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL}))
+                             .length = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_POOL_BYTES}))
                 : 0u,
             args->part != NULL, text};
         layers->froms += 1u;
@@ -379,7 +379,7 @@ EMBED_INLINE void cli_value_ranked(const SettingsLayersCtx *args)
                .out = &back);
     mmgr_line_finish(&back);
     const int named = cellul.find(&(CatenaFinitaCfg){
-                          .src = raw, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL}) != NULL;
+                          .src = raw, .cap = CLI_POOL_BYTES, .other = "${", .other_cap = CLI_POOL_BYTES}) != NULL;
     if ((part->rank == CLI_RANK_OVER) || ((part->rank == CLI_RANK_OWN) && named))
     {
         EMBED_CALL(cli_text_set, SettingsLayersCtx, .layers = layers, .texts = layers->over, .count = &layers->overs,
@@ -389,7 +389,7 @@ EMBED_INLINE void cli_value_ranked(const SettingsLayersCtx *args)
     {
         layers->own[layers->owner] = EMBED_CALL(
             cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers, .text = args->key,
-            .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}));
+            .length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}));
         layers->owner += 1u;
     }
     if (part->rank == CLI_RANK_UNDER)
@@ -431,8 +431,8 @@ EMBED_INLINE void cli_kind_member_read(const SettingsLayersCtx *args)
     const CliJson *const json = &set->chain->json;
     const char *const file = set->chain->file[set->file];
     const char *const key = json->text + json->node[args->value].key;
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.dark", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.light", .cap = CLI_CELLS_POOL})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.dark", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.light", .cap = CLI_POOL_BYTES})))
     {
         char problem[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea line = {problem, sizeof(problem), 0ULL};
@@ -456,16 +456,16 @@ EMBED_INLINE void cli_kind_member_read(const SettingsLayersCtx *args)
     {
         known = (cellul.eq(&(CatenaFinitaCfg){.src = layers->text + layers->kind[each].kind,
                                               .other = layers->text + kind_text,
-                                              .cap = CLI_CELLS_POOL})) &&
+                                              .cap = CLI_POOL_BYTES})) &&
                 (cellul.eq(&(CatenaFinitaCfg){
-                    .src = layers->text + layers->kind[each].key, .other = key, .cap = CLI_CELLS_POOL}));
+                    .src = layers->text + layers->kind[each].key, .other = key, .cap = CLI_POOL_BYTES}));
     }
     if (!known && (layers->kinds < CLI_LAYERS_KEYS))
     {
         layers->kind[layers->kinds] = (CliKindText){
             kind_text,
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
-                       .text = key, .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
+                       .text = key, .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES})),
             text};
         layers->kinds += 1u;
     }
@@ -515,7 +515,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
             args->layers->file[args->layers->files] =
                 EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx,
                            .layers = args->layers, .text = chain->file[file],
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = chain->file[file], .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = chain->file[file], .cap = CLI_POOL_BYTES}));
             args->layers->files += 1u;
         }
         parts = EMBED_CALL(cli_settings_layers_internal.file_parts, CliSettingsLayersCtx, .layers = args->layers,

@@ -4,7 +4,7 @@
 // numbered, and a file brought from another machine written a part at a time beside the file it becomes
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -35,7 +35,7 @@ EMBED_INLINE int cli_parts(const FilesPasteCtx *args)
 
 int cli_paste_name(const CliFilesPathNameCtx *args)
 {
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     while ((end > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->path[end - 1ULL]))
     {
         end -= 1ULL;
@@ -59,7 +59,7 @@ int cli_paste_name(const CliFilesPathNameCtx *args)
 
 int cli_paste_under(const CliFilesPathFolderCtx *args)
 {
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
     while ((length > 0ULL) && EMBED_CALL(cli_parts, FilesPasteCtx, .letter = args->folder[length - 1ULL]))
     {
         length -= 1ULL;
@@ -98,13 +98,13 @@ void cli_paste_free(const CliFilesFolderCtx *args)
     // the stem and the extension, split at the last dot, a dot that starts the name splitting nothing
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->name_read,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_POOL_BYTES}), .byte = '.');
     const int split = (dot != NULL) && (dot != args->name_read) &&
-                      (!cellul.eq(&(CatenaFinitaCfg){.src = args->name_read, .other = "..", .cap = CLI_CELLS_POOL}));
+                      (!cellul.eq(&(CatenaFinitaCfg){.src = args->name_read, .other = "..", .cap = CLI_POOL_BYTES}));
     // the dot lies in the name, at or past its start
     const unsigned long long stem = split
                                         ? (unsigned long long)(dot - args->name_read)
-                                        : cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL});
+                                        : cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_POOL_BYTES});
     char numbered[CLI_PATH_MAX_LEN];
     for (unsigned int number = 2u; number < CLI_FREE_MAX; number += 1u)
     {
@@ -121,7 +121,7 @@ void cli_paste_free(const CliFilesFolderCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->path_out,
                               .src = numbered,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = numbered, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = numbered, .cap = CLI_POOL_BYTES}) + 1u});
             return;
         }
     }
@@ -149,9 +149,9 @@ static CliPending *s_pending;
 EMBED_INLINE int cli_pending_append(const FilesPasteCtx *args)
 {
     const unsigned long long source_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->source, .cap = CLI_CELLS_POOL}) + 1ULL;
+        cellul.len(&(CatenaFinitaCfg){.src = args->source, .cap = CLI_POOL_BYTES}) + 1ULL;
     const unsigned long long target_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->target, .cap = CLI_CELLS_POOL}) + 1ULL;
+        cellul.len(&(CatenaFinitaCfg){.src = args->target, .cap = CLI_POOL_BYTES}) + 1ULL;
     if ((s_pending->count >= CLI_PENDING_MAX) || ((s_pending->used + source_length + target_length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
@@ -168,7 +168,7 @@ EMBED_INLINE int cli_pending_append(const FilesPasteCtx *args)
 
 static void cli_pending_name(const CliEachNameIsFolderCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1ULL;
     if ((s_pending->name_count >= CLI_PENDING_MAX) || ((s_pending->names_used + length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
@@ -220,7 +220,7 @@ EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
 
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
 {
-    s_pending = g_cli_cells->persistent_buf_alloc(sizeof(*s_pending), &g_cli_editor_cells);
+    s_pending = g_cli_guard->persistent_buf_alloc(sizeof(*s_pending), g_cli_editor_owner);
     if (s_pending == NULL)
     {
         mmgr_line_put(args->err_msg, "a paste's walk could not be taken");
@@ -238,13 +238,13 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
         char to[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = from,
                                 .src = pair,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){
             .dst = to,
-            .src = pair + cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_CELLS_POOL}) + 1,
+            .src = pair + cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_POOL_BYTES}) + 1,
             .bytes = cellul.len(&(CatenaFinitaCfg){
-                         .src = pair + cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_CELLS_POOL}) + 1,
-                         .cap = CLI_CELLS_POOL}) +
+                         .src = pair + cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_POOL_BYTES}) + 1,
+                         .cap = CLI_POOL_BYTES}) +
                      1u});
         s_pending->used = s_pending->start[s_pending->count];
         const int folder = EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = from);
@@ -253,7 +253,7 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
                  (!folder || EMBED_CALL(cli_pending_entries, FilesPasteCtx, .source = from, .target = to,
                                         .err_msg = args->err_msg));
     }
-    g_cli_cells->persistent_buf_release(s_pending, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(s_pending, g_cli_editor_owner);
     s_pending = NULL;
     return walked;
 }

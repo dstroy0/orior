@@ -233,7 +233,7 @@ void cli_patterns_read(const CliPatternsLinesCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         EMBED_CALL(cli_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->lines[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_POOL_BYTES}));
     }
 }
 
@@ -276,7 +276,7 @@ void cli_patterns_read_set(const CliPatternsLinesCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         EMBED_CALL(cli_set_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->lines[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_POOL_BYTES}));
     }
 }
 
@@ -313,7 +313,7 @@ EMBED_INLINE unsigned long long cli_path_letters(const PatternsCtx *args)
     unsigned int *letters = args->letters;
     const unsigned long long length =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path_text,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_POOL_BYTES}),
                    .letters = letters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // purpose.c: what a file declares it is for, and the files of the tree that use it, read on the cores the work may take
 #include "purpose.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files_internal.h"
 #include "../machine/cores.h"
 #include "../text/json_tree.h"
@@ -81,7 +81,7 @@ EMBED_INLINE int cli_word(const PurposeCtx *args)
 // whether `name` is a whole word in `size` bytes of `within`, its matches read without overlapping
 EMBED_INLINE int cli_name_in(const PurposeCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (length == 0ULL)
     {
         return 0;
@@ -110,7 +110,7 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
     {
         return 1;
     }
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->stem, .cap = CLI_CELLS_POOL}) < 2ULL)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->stem, .cap = CLI_POOL_BYTES}) < 2ULL)
     {
         return 0;
     }
@@ -141,7 +141,7 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
         while (!imports && (keyword < 12u))
         {
             const unsigned long long size_of =
-                cellul.len(&(CatenaFinitaCfg){.src = s_imports[keyword], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = s_imports[keyword], .cap = CLI_POOL_BYTES});
             imports =
                 ((length - lead) >= size_of) &&
                 (memor.cmp(&(MemoriaCfg){.src = line + lead, .other = s_imports[keyword], .bytes = size_of}) == 0);

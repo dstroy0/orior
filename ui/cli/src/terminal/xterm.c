@@ -5,8 +5,8 @@
 // past the row's columns cut where it wraps; a letter cut across two writes is put together on the stack, an
 // ill-formed one written as U+FFFD. A column's place in a row counts its letters, a sequence among them counting none
 #include "xterm.h"
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "../editor/document.h"
 
 // where the reading of the output stands: in plain text, after an escape, in a control sequence, in an
@@ -309,6 +309,39 @@ EMBED_INLINE void xterm_rendition(const XtermCtx *args)
     }
 }
 
+// the style `style` changed by the escape sequence of `size` units at `at` where it is an SGR, the units the text's
+// or the bytes where no units are passed: its numbers read, XTERM_NUMBERS at most, and the rendition applied
+EMBED_INLINE void xterm_sgr_apply(const XtermCtx *args)
+{
+    const unsigned long long place = args->at;
+    const unsigned long long sequence = args->size;
+    if ((sequence < 3ULL) || (EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes,
+                                         .at = place + sequence - 1ULL) != (unsigned int)'m'))
+    {
+        return;
+    }
+    unsigned int numbers[XTERM_NUMBERS];
+    unsigned int count = 1u;
+    numbers[0] = XTERM_ABSENT;
+    for (unsigned long long at = place + 2ULL; at < (place + sequence - 1ULL); at += 1ULL)
+    {
+        const unsigned int unit =
+            EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes, .at = at);
+        const unsigned int was = (numbers[count - 1u] == XTERM_ABSENT) ? 0u : numbers[count - 1u];
+        if ((unit >= (unsigned int)'0') && (unit <= (unsigned int)'9'))
+        {
+            // a number of more than nine digits stands at its first nine, far below what an unsigned int counts
+            numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unit - (unsigned int)'0')) : was;
+        }
+        else if (((unit == (unsigned int)';') || (unit == (unsigned int)':')) && (count < XTERM_NUMBERS))
+        {
+            numbers[count] = XTERM_ABSENT;
+            count += 1u;
+        }
+    }
+    EMBED_CALL(xterm_rendition, XtermCtx, .style = args->style, .numbers = numbers, .number_count = count);
+}
+
 // the style `style` changed by the SGR sequences of a row's units before `at`, the units the text's or the bytes where
 // no units are passed
 EMBED_INLINE void xterm_style_apply(const XtermCtx *args)
@@ -319,29 +352,10 @@ EMBED_INLINE void xterm_style_apply(const XtermCtx *args)
         const unsigned long long sequence =
             EMBED_CALL(xterm_sequence_units, XtermCtx, .units = args->units, .bytes = args->bytes,
                        .units_count = args->units_count, .at = place);
-        if ((sequence >= 3ULL) && (EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes,
-                                              .at = place + sequence - 1ULL) == (unsigned int)'m'))
+        if (sequence != 0ULL)
         {
-            unsigned int numbers[XTERM_NUMBERS];
-            unsigned int count = 1u;
-            numbers[0] = XTERM_ABSENT;
-            for (unsigned long long at = place + 2ULL; at < (place + sequence - 1ULL); at += 1ULL)
-            {
-                const unsigned int unit =
-                    EMBED_CALL(xterm_unit, XtermCtx, .units = args->units, .bytes = args->bytes, .at = at);
-                const unsigned int was = (numbers[count - 1u] == XTERM_ABSENT) ? 0u : numbers[count - 1u];
-                if ((unit >= (unsigned int)'0') && (unit <= (unsigned int)'9'))
-                {
-                    // a number of more than nine digits stands at its first nine, far below what an unsigned int counts
-                    numbers[count - 1u] = (was < 100000000u) ? ((was * 10u) + (unit - (unsigned int)'0')) : was;
-                }
-                else if (((unit == (unsigned int)';') || (unit == (unsigned int)':')) && (count < XTERM_NUMBERS))
-                {
-                    numbers[count] = XTERM_ABSENT;
-                    count += 1u;
-                }
-            }
-            EMBED_CALL(xterm_rendition, XtermCtx, .style = args->style, .numbers = numbers, .number_count = count);
+            EMBED_CALL(xterm_sgr_apply, XtermCtx, .units = args->units, .bytes = args->bytes, .at = place,
+                       .size = sequence, .style = args->style);
         }
         place += (sequence != 0ULL) ? sequence
                                     : EMBED_CALL(xterm_letter_units, XtermCtx, .units = args->units,
@@ -1559,8 +1573,8 @@ int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args)
 {
     CliTerminalXterm *const xterm = args->xterm;
     memor.set(&(MemoriaCfg){.dst = xterm, .val = 0, .bytes = sizeof(*xterm)});
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)CLI_TERMINAL_COMMAND_MAX + CLI_TERMINAL_ANSWER_MAX, &g_cli_terminal_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+        (unsigned long long)CLI_TERMINAL_COMMAND_MAX + CLI_TERMINAL_ANSWER_MAX, g_cli_terminal_owner);
     if (cell == NULL)
     {
         return 0;
@@ -1652,4 +1666,50 @@ unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args
         at += 1ULL;
     }
     return plain_count;
+}
+
+unsigned int cli_terminal_xterm_spans(const CliTerminalXtermSpansCfg *args)
+{
+    // the line's bytes read as the xterm reads every byte, unsigned
+    const unsigned char *const bytes = (const unsigned char *)args->text;
+    CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
+    unsigned long long plain_count = 0ULL;
+    unsigned int spans = 0u;
+    unsigned long long at = 0ULL;
+    while ((at < args->size) && (plain_count < args->plain_capacity))
+    {
+        const unsigned long long sequence =
+            EMBED_CALL(xterm_sequence_units, XtermCtx, .bytes = bytes, .units_count = args->size, .at = at);
+        if (sequence != 0ULL)
+        {
+            EMBED_CALL(xterm_sgr_apply, XtermCtx, .bytes = bytes, .at = at, .size = sequence, .style = &style);
+            at += sequence;
+            continue;
+        }
+        const unsigned int index = style.foreground & 0xffu;
+        const unsigned int color =
+            (((style.foreground & CLI_TERMINAL_COLOR_KIND) == CLI_TERMINAL_COLOR_INDEXED) && (index < 16u))
+                ? index
+                : CLI_TERMINAL_SPAN_PLAIN;
+        const int bold = (style.marks & CLI_TERMINAL_BOLD) != 0u;
+        CliTerminalXtermSpan *const last = (spans != 0u) ? &args->spans_out[spans - 1u] : NULL;
+        // a line's plain bytes are far fewer than an unsigned int counts, bounded by the capacity handed in
+        const unsigned int offset = (unsigned int)plain_count;
+        if ((last != NULL) && ((last->offset + last->length) == offset) && (last->color == color) &&
+            (last->bold == bold))
+        {
+            last->length += 1u;
+        }
+        else if (((color != CLI_TERMINAL_SPAN_PLAIN) || bold) && (spans < args->spans_capacity))
+        {
+            args->spans_out[spans] = (CliTerminalXtermSpan){offset, 1u, color, bold};
+            spans += 1u;
+        }
+        // the byte goes back as the char it was read from
+        args->plain_out[plain_count] = (char)bytes[at];
+        plain_count += 1ULL;
+        at += 1ULL;
+    }
+    *args->plain_size_out = plain_count;
+    return spans;
 }

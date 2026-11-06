@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_threads.c: the command line's wakes, address waits and threads on Windows: a thread asleep on a word's
 // address with WaitOnAddress until the word moves, woken with WakeByAddressAll, and a thread of its own
-#include "../command_line/atomic_threads.h"
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -13,60 +12,56 @@
 // the sleep
 #define CLI_WAKE_RECHECK_MS 10ul
 
-int cli_atomic_wait(const CliAtomicThreadsCfg *args)
+int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed_u32 milliseconds)
 {
-    unsigned int seen = args->seen;
-    // a sleep past the longest a DWORD counts short of INFINITE sleeps that long
-    const DWORD waited =
-        (args->milliseconds_u64 == CLI_ATOMIC_FOREVER)
-            ? INFINITE
-            : (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
-    (void)WaitOnAddress(args->word, &seen, sizeof(seen), waited);
-    return atomic_load_explicit(args->word, memory_order_acquire) != args->seen;
+    embed_atomic_word_value was = seen;
+    const DWORD waited = (milliseconds == EMBED_WAIT_FOREVER) ? INFINITE : (DWORD)milliseconds;
+    (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);
+    return embed_atomic_word_load(word) != seen;
 }
 
-void cli_atomic_wake(const CliAtomicThreadsCfg *args)
+void embed_word_wake(embed_atomic_word *word)
 {
-    WakeByAddressAll(args->word);
+    WakeByAddressAll(&word->value);
 }
 
 void cli_wake_wait(const CliWakeCtx *args)
 {
-    unsigned int seen = atomic_load_explicit(&args->wake->generation, memory_order_acquire);
-    (void)WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), CLI_WAKE_RECHECK_MS);
+    embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
+    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), CLI_WAKE_RECHECK_MS);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
-    unsigned int seen = atomic_load_explicit(&args->wake->generation, memory_order_acquire);
+    embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
     // a wait past the longest a DWORD counts waits that long
     const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
-    return WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), waited) != FALSE;
+    return WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), waited) != FALSE;
 }
 
 int cli_wake_wait_seen_for(const CliWakeCtx *args)
 {
-    unsigned int seen = args->seen;
+    embed_atomic_word_value seen = args->seen;
     // a wait past the longest a DWORD counts waits that long
     const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
-    return WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), waited) != FALSE;
+    return WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), waited) != FALSE;
 }
 
 unsigned int cli_wake_read(const CliWakeCtx *args)
 {
-    return atomic_load_explicit(&args->wake->generation, memory_order_acquire);
+    return (unsigned int)embed_atomic_word_load(&args->wake->generation);
 }
 
 void cli_wake_wait_seen(const CliWakeCtx *args)
 {
-    unsigned int seen = args->seen;
-    (void)WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), INFINITE);
+    embed_atomic_word_value seen = args->seen;
+    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), INFINITE);
 }
 
 void cli_wake_all(const CliWakeCtx *args)
 {
-    (void)atomic_fetch_add_explicit(&args->wake->generation, 1u, memory_order_release);
-    WakeByAddressAll(&args->wake->generation);
+    (void)embed_atomic_word_fetch_add(&args->wake->generation, 1u);
+    WakeByAddressAll(&args->wake->generation.value);
 }
 
 static DWORD WINAPI cli_thread_entry(LPVOID supplied)

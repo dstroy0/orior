@@ -63,14 +63,14 @@ EMBED_INLINE int facts_full_line_span(const InspectJsFactsCtx *args)
                           .size = size, .set = "\n");
     for (unsigned long long at = line_start; at < first->start; at += 1u)
     {
-        if (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[at]}) == NULL)
+        if (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\v\f", .cap = CLI_POOL_BYTES, .byte = src[at]}) == NULL)
         {
             return 0;
         }
     }
     for (unsigned long long at = last->end; at < line_end; at += 1u)
     {
-        if (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[at]}) == NULL)
+        if (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\v\f", .cap = CLI_POOL_BYTES, .byte = src[at]}) == NULL)
         {
             return 0;
         }

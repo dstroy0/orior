@@ -25,7 +25,7 @@ static int has(const GuiRaster *raster, GuiRect rect, GuiColor color)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -91,7 +91,7 @@ int main(void)
     cli_check(clamped.x == 200, "a box is kept inside its bounds at the right");
     const GuiRect left = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){10, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 30, .bounds = bounds, .above = 0, .scale = 100);
     cli_check(left.x == 0, "a box is kept inside its bounds at the left");
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

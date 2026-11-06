@@ -8,9 +8,8 @@
 #include "framebuffer.h"
 
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "memoria_anularis/memoria_anularis.h"
-
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_framebuffer");
 
 ParsMemoriaeHospes(gui_frames_pool);
 ParsMemoriaeHospes(gui_background_pool);
@@ -83,9 +82,7 @@ int gui_framebuffer_init(const GuiFramebufferMaxWidthCfg *args)
         gui_framebuffer_max_width.free(args);
         return 0;
     }
-    // a registration refused is the owner registered by the window before this one, or the queue full
-    (void)mmgr_owner_register(&s_owner);
-    mmgr_owner_bytes_taken(&s_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
+    mmgr_owner_bytes_taken(g_gui_framebuffer_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
     for (size_t segment = 0u; segment < 2u; segment += 1u)
     {
         EMBED_CALL(framebuffer_raster_layout, FramebufferCtx, .raster = &args->framebuffer->raster[segment],
@@ -144,7 +141,7 @@ void gui_framebuffer_free(const GuiFramebufferMaxWidthCfg *args)
     if ((args->framebuffer->pages != NULL) && (args->framebuffer->raster[0].pixels != NULL))
     {
         // the pages lie in this process's memory, whose sizes a size_t counts
-        mmgr_owner_bytes_given(&s_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
+        mmgr_owner_bytes_given(g_gui_framebuffer_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
     }
     if (args->framebuffer->pages != NULL)
     {

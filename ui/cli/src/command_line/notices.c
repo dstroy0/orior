@@ -10,8 +10,8 @@
 
 #include "../machine/state.h"
 #include "../text/text.h"
-#include "cells.h"
 #include "commands.h"
+#include "pool.h"
 
 // the notices the list takes at the most, and as many wait at the most; and the key of orior's folder the kinds put
 // away stand under, a line each
@@ -72,7 +72,7 @@ typedef struct
 // the bytes of `text`'s first line
 EMBED_INLINE unsigned long long notices_first_line(const CliNoticesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = 0ULL,
                       .size = size, .set = "\n");
 }
@@ -82,9 +82,9 @@ EMBED_INLINE unsigned long long notices_first_line(const CliNoticesCtx *args)
 // cells cannot meet it
 EMBED_INLINE int notices_built(const CliNoticesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long first = EMBED_CALL(notices_first_line, CliNoticesCtx, .text = args->text);
-    char *const cell = g_cli_cells->persistent_buf_alloc(size + first + 2ULL, &g_cli_command_line_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(size + first + 2ULL, g_cli_command_line_owner);
     if (cell == NULL)
     {
         return 0;
@@ -125,7 +125,7 @@ EMBED_INLINE void notices_released(const CliNoticesCtx *args)
     {
         EMBED_CALL(notices_hidden, CliNoticesCtx, .seen = 0);
     }
-    g_cli_cells->persistent_buf_release(args->notice_read->cell, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(args->notice_read->cell, g_cli_command_line_owner);
 }
 
 // the notice put last in the list, the oldest let go where the list is full, counted unseen where it is not `seen`: 1,
@@ -135,7 +135,7 @@ EMBED_INLINE int notices_listed(const CliNoticesCtx *args)
     if (s_notices.list == NULL)
     {
         s_notices.list =
-            g_cli_cells->persistent_buf_alloc(CLI_NOTICES_LISTED * sizeof(*s_notices.list), &g_cli_command_line_cells);
+            g_cli_guard->persistent_buf_alloc(CLI_NOTICES_LISTED * sizeof(*s_notices.list), g_cli_command_line_owner);
     }
     if (s_notices.list == NULL)
     {
@@ -174,10 +174,10 @@ EMBED_INLINE void notices_shown(const CliNoticesCtx *args)
 EMBED_INLINE int notices_away(const CliNoticesCtx *args)
 {
     const char *line = s_notices.away;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES});
     while ((line != NULL) && (*line != '\0'))
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES});
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = line, .at = 0ULL, .size = size, .set = "\n");
         if ((end == length) && (memor.cmp(&(MemoriaCfg){.src = line, .other = args->kind, .bytes = length}) == 0))
@@ -195,7 +195,7 @@ EMBED_INLINE void notices_away_set(const CliNoticesCtx *args)
     char *const away = args->owned;
     if (s_notices.away_owned)
     {
-        g_cli_cells->persistent_buf_release(s_notices.away, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     s_notices.away = away;
     s_notices.away_owned = 1;
@@ -251,8 +251,8 @@ void cli_notice_post(const char *text, int failed)
     }
     if (s_notices.waiting == NULL)
     {
-        s_notices.waiting = g_cli_cells->persistent_buf_alloc(CLI_NOTICES_LISTED * sizeof(*s_notices.waiting),
-                                                              &g_cli_command_line_cells);
+        s_notices.waiting = g_cli_guard->persistent_buf_alloc(CLI_NOTICES_LISTED * sizeof(*s_notices.waiting),
+                                                              g_cli_command_line_owner);
     }
     if (s_notices.waiting == NULL)
     {
@@ -323,10 +323,10 @@ void cli_notices_press(unsigned int part)
     if ((part == CLI_NOTICES_PRESS_SILENCE) && (kind != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .kind = kind))
     {
         const unsigned long long had =
-            (s_notices.away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_CELLS_POOL})
+            (s_notices.away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_POOL_BYTES})
                                      : 0ULL;
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL});
-        char *const joined = g_cli_cells->persistent_buf_alloc(had + length + 2ULL, &g_cli_command_line_cells);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
+        char *const joined = g_cli_guard->persistent_buf_alloc(had + length + 2ULL, g_cli_command_line_owner);
         if (joined != NULL)
         {
             VerbaLinea line = {joined, had + length + 2ULL, 0ULL};
@@ -359,9 +359,9 @@ void cli_notices_show_again(const char *kind)
     {
         return;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_CELLS_POOL});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL});
-    char *const left = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_command_line_cells);
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_POOL_BYTES});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
+    char *const left = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (left == NULL)
     {
         return;
@@ -422,7 +422,7 @@ void cli_notices_restore(const CliStateEntries *entries)
     }
     if (s_notices.away_owned)
     {
-        g_cli_cells->persistent_buf_release(s_notices.away, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     // read in place in the entries, which stand as long as the window does; a kind put away later writes a cell of
     // the notices' own
@@ -434,19 +434,19 @@ void cli_notices_end(void)
 {
     for (unsigned int at = 0u; at < s_notices.listed; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_notices.list[(s_notices.list_first + at) % CLI_NOTICES_LISTED].cell,
-                                            &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(s_notices.list[(s_notices.list_first + at) % CLI_NOTICES_LISTED].cell,
+                                            g_cli_command_line_owner);
     }
     for (unsigned int at = 0u; at < s_notices.waiting_count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_notices.waiting[(s_notices.waiting_first + at) % CLI_NOTICES_LISTED].cell,
-                                            &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(s_notices.waiting[(s_notices.waiting_first + at) % CLI_NOTICES_LISTED].cell,
+                                            g_cli_command_line_owner);
     }
-    g_cli_cells->persistent_buf_release(s_notices.list, &g_cli_command_line_cells);
-    g_cli_cells->persistent_buf_release(s_notices.waiting, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_notices.list, g_cli_command_line_owner);
+    g_cli_guard->persistent_buf_release(s_notices.waiting, g_cli_command_line_owner);
     if (s_notices.away_owned)
     {
-        g_cli_cells->persistent_buf_release(s_notices.away, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     s_notices = (CliNotices){0};
 }

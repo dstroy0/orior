@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_head.c: the head of a request as it goes out, the head of its answer stored as it is read, the answer's body
 // undone where it was packed, and whether that body is text
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/archive.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
@@ -72,10 +72,10 @@ typedef struct
 // whether the request has a header named `name`, ASCII case aside
 EMBED_INLINE int head_has(const RequestsHeadCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (unsigned int at = 0u; at < args->hop->headers; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = args->hop->header_name[at], .cap = CLI_CELLS_POOL}) == length) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = args->hop->header_name[at], .cap = CLI_POOL_BYTES}) == length) &&
             EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
                        .text = args->hop->header_name[at], .size = length, .needle = args->name))
         {
@@ -106,7 +106,7 @@ void cli_requests_head_write(const CliRequestsOutHopCtx *args)
     char host[CLI_REQUESTS_ADDRESS + 16u];
     VerbaLinea host_line = {host, sizeof(host), 0ULL};
     const int bracketed =
-        (cellul.chr(&(CatenaFinitaCfg){.src = args->address_read->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL);
+        (cellul.chr(&(CatenaFinitaCfg){.src = args->address_read->host, .cap = CLI_POOL_BYTES, .byte = ':'}) != NULL);
     mmgr_line_put(&host_line, bracketed ? "[" : "");
     mmgr_line_put(&host_line, args->address_read->host);
     mmgr_line_put(&host_line, bracketed ? "]" : "");
@@ -132,9 +132,9 @@ void cli_requests_head_write(const CliRequestsOutHopCtx *args)
     EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Accept-Encoding", .lower = "accept-encoding",
                .value = "gzip, deflate", .out = args->out);
     const int sends =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "POST", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PUT", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PATCH", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "POST", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PUT", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PATCH", .cap = CLI_POOL_BYTES}));
     if (((args->hop->body_size > 0u) || sends) &&
         !EMBED_CALL(head_has, RequestsHeadCtx, .hop = args->hop, .name = "transfer-encoding"))
     {
@@ -155,7 +155,7 @@ EMBED_INLINE int head_is(const RequestsHeadCtx *args)
 {
     return (args->value_requests_text_pointer != NULL) &&
            (args->value_requests_text_pointer->size ==
-            cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_CELLS_POOL})) &&
+            cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_POOL_BYTES})) &&
            EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
                       .text = args->answer->head + args->value_requests_text_pointer->at,
                       .size = args->value_requests_text_pointer->size, .needle = args->lower);
@@ -182,13 +182,13 @@ EMBED_INLINE int head_unpacked_capacity(const RequestsHeadCtx *args)
     {
         return 1;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(required, &g_cli_requests_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(required, g_cli_requests_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(args->work_state->unpacked, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(args->work_state->unpacked, g_cli_requests_owner);
     args->work_state->unpacked = cell;
     args->work_state->unpacked_capacity = required;
     return 1;

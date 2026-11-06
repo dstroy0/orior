@@ -105,7 +105,7 @@ static void cli_write(const PluginsTextCtx *args)
         {
             const char *const key = json->text + json->node[item].key;
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(out, ": ");
         }
         EMBED_CALL(cli_write, PluginsTextCtx, .json = json, .node = item, .out = out, .indent = inner);
@@ -259,12 +259,12 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
         mmgr_line_put(args->err_msg, ": it could not be made");
         return 0;
     }
-    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, &g_cli_plugins_cells);
+    char *const text_cell = g_cli_guard->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
     VerbaLinea text = mmgr_line_over(text_cell, CLI_PLUGIN_TEXT_CAPACITY);
     EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin, .out = &text);
     int written = mmgr_line_ok(&text) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                                     .path = file, .bytes = text.out, .size = text.at);
-    g_cli_cells->persistent_buf_release(text.out, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(text.out, g_cli_plugins_owner);
     const char *const extension =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
@@ -280,14 +280,14 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
     // 1 where both are written, 0 where plugin.json is not, 2 where the sample is not
     if (written)
     {
-        char *const sample_text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, &g_cli_plugins_cells);
+        char *const sample_text_cell = g_cli_guard->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
         VerbaLinea sample_text = mmgr_line_over(sample_text_cell, CLI_PLUGIN_TEXT_CAPACITY);
         EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
                    .out = &sample_text);
         const int sampled = (mmgr_line_finish(&sample_name) != 0ULL) && mmgr_line_ok(&sample_text) &&
                             EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sample,
                                        .bytes = sample_text.out, .size = sample_text.at);
-        g_cli_cells->persistent_buf_release(sample_text.out, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(sample_text.out, g_cli_plugins_owner);
         written = sampled ? 1 : 2;
     }
     if (written != 1)
@@ -313,8 +313,7 @@ int cli_plugins_create_in(const CliPluginsErrMsgCfg *args)
     const int written = (plugin != CLI_JSON_NONE) &&
                         EMBED_CALL(plugins_write, PluginsTextCtx, .dir = args->dir, .json = &draft, .plugin = plugin,
                                    .replace = args->replace, .folder = args->folder, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(draft.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = draft.node));
+    g_cli_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), draft.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&draft),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;

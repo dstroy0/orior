@@ -14,7 +14,7 @@ void cli_validate_finding_append(const CliValidateLengthCtx *args)
     const char *message = args->message_text;
     const char *lifted = args->lifted;
     const unsigned long long lifted_size =
-        (lifted != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}) + 1ULL : 0ULL;
+        (lifted != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_POOL_BYTES}) + 1ULL : 0ULL;
     if ((g_cli_validate->finding_count == CLI_VALIDATE_FINDINGS) ||
         (g_cli_validate->finding_used + args->length + 1ULL + lifted_size > CLI_VALIDATE_FINDING_TEXT))
     {
@@ -90,7 +90,7 @@ static void report_barriers(void)
                                                  .messages_read = last, .message = again);
             still = (again->severity == 1u) && (again->line == message->line) && (again_barrier >= 0) &&
                     (cellul.eq(&(CatenaFinitaCfg){
-                        .src = tool->barriers[again_barrier].name, .other = stopping->name, .cap = CLI_CELLS_POOL}));
+                        .src = tool->barriers[again_barrier].name, .other = stopping->name, .cap = CLI_POOL_BYTES}));
         }
         char lifted[1024];
         VerbaLinea lifted_line = {lifted, sizeof(lifted), 0ULL};
@@ -143,7 +143,7 @@ static void report_repeats(void)
         int repeated = 0;
         for (unsigned int now = 0u;
              !repeated &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_CELLS_POOL})) &&
+             (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_POOL_BYTES})) &&
              (now < last->count);
              now += 1u)
         {
@@ -304,7 +304,7 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
     mmgr_line_decimal(out, args->finding->severity, 1u);
     mmgr_line_put(out, ",\"kind\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->finding->kind,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->kind, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->kind, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"barrier\":");
     if (args->finding->barrier < 0)
     {
@@ -314,12 +314,12 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
     {
         const char *const name = g_cli_validate->tool.barriers[args->finding->barrier].name;
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     }
     const char *const message = g_cli_validate->finding_text + args->finding->message;
     mmgr_line_put(out, ",\"message\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = message,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"lifted\":");
     if (args->finding->lifted == CLI_VALIDATE_NONE)
     {
@@ -329,7 +329,7 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
     {
         const char *const lifted = g_cli_validate->finding_text + args->finding->lifted;
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = lifted,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_ch(out, '}');
 }
@@ -355,16 +355,16 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     {
         const CliFinding *const finding = &g_cli_validate->findings[at];
         const int error = (finding->severity == 1u);
-        math += (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_CELLS_POOL})))
+        math += (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_POOL_BYTES})))
                     ? 1ULL
                     : 0ULL;
         blocked +=
-            (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "barrier", .cap = CLI_CELLS_POOL})))
+            (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "barrier", .cap = CLI_POOL_BYTES})))
                 ? 1ULL
                 : 0ULL;
         gaps +=
-            (error && ((cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "flag", .cap = CLI_CELLS_POOL})) ||
-                       (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "axiom", .cap = CLI_CELLS_POOL}))))
+            (error && ((cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "flag", .cap = CLI_POOL_BYTES})) ||
+                       (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "axiom", .cap = CLI_POOL_BYTES}))))
                 ? 1ULL
                 : 0ULL;
     }
@@ -376,10 +376,10 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     const char *const name = g_cli_validate->tool.name;
     mmgr_line_put(args->report, "{\"tool\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->report, ",\"file\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->report, ",\"project\":");
     if (args->project == NULL)
     {
@@ -389,7 +389,7 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     {
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report,
                    .text = args->project,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->project, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->project, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(args->report, passed ? ",\"passes\":true,\"verdict\":" : ",\"passes\":false,\"verdict\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = verdict.out,

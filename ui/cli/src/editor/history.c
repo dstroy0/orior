@@ -3,7 +3,7 @@
 // history.c: a file's snapshots stored, listed and read back
 #include "history.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 
@@ -41,10 +41,10 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
     unsigned long long read = 0ULL;
     const unsigned char *const snapshot_bytes =
         EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->snapshot, .size_pointer = &read,
-                   .owner = &g_cli_editor_cells);
+                   .owner = g_cli_editor_owner);
     const int same = (snapshot_bytes != NULL) && (read == size) &&
                      (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (size_t)size}) == 0);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)snapshot_bytes, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)snapshot_bytes, (g_cli_editor_owner));
     return same;
 }
 
@@ -65,12 +65,12 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
 {
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '/');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '/');
     const char *const name = (slash != NULL) ? (slash + 1) : args->path;
     unsigned int letters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = name,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .letters = letters,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .letters = letters,
                    .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->home);
@@ -118,9 +118,9 @@ typedef struct
 static void cli_stamp_each(const CliEachNameIsFolderCfg *args)
 {
     CliStamps *const stamps = (CliStamps *)args->context;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (length <= 4u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".txt", .cap = CLI_CELLS_POOL})) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".txt", .cap = CLI_POOL_BYTES})) ||
         (stamps->count >= CLI_HISTORY_STAMPS))
     {
         return;

@@ -51,8 +51,7 @@ static unsigned int s_export_used;
 
 void cli_scons_cells_usage_write(const CliSconsCtx *args)
 {
-    EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_scons_work_states_cells,
-               .out = args->out);
+    cli_pool_owner_usage_write(g_cli_scons_work_states_owner, args->out);
 }
 
 typedef struct
@@ -76,13 +75,12 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned char *const class_of = (size <= CLI_SCONS_TEXT)
-                                        ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_scons_work_states_cells)
-                                        : NULL;
+    unsigned char *const class_of =
+        (size <= CLI_SCONS_TEXT) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_scons_work_states_owner) : NULL;
     if ((class_of != NULL) && !EMBED_CALL(cli_scons_text_size_class_of_internal.read, CliSconsTextSizeClassOfCtx,
                                           .text = text, .size = size, .class_of = class_of))
     {
-        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
+        g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
         return NULL;
     }
     return class_of;
@@ -110,7 +108,7 @@ EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
     {
         EMBED_CALL(check_copy, SconsCheckCtx, .from = root, .out = folder);
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES});
     for (;;)
     {
         for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -127,7 +125,7 @@ EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
         const int inside = EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = folder, .other_pointer = root,
                                       .size = length) &&
                            ((after == '\0') || (after == '/') || (after == '\\'));
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = root, .cap = CLI_CELLS_POOL})) || !inside ||
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = root, .cap = CLI_POOL_BYTES})) || !inside ||
             !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
         {
             EMBED_CALL(check_copy, SconsCheckCtx, .from = root, .out = out);
@@ -243,13 +241,13 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
         char other[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = file, .joined = other);
         unsigned long long bytes = 0ULL;
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL})) ||
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_POOL_BYTES})) ||
             !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = other, .size_pointer = &bytes) ||
             (bytes > CLI_SCONS_OTHER_TEXT))
         {
             continue;
         }
-        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ULL, &g_cli_scons_work_states_cells);
+        unsigned char *const text = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_scons_work_states_owner);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of =
             ((size != QRY_MEMBER_UNREAD) &&
@@ -260,8 +258,8 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
         {
             EMBED_CALL(cli_scons_context_internal.export, CliSconsContextCtx, .named = check_export, .context = NULL);
         }
-        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
-        g_cli_cells->persistent_buf_release(text, &g_cli_scons_work_states_cells);
+        g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+        g_cli_guard->persistent_buf_release(text, g_cli_scons_work_states_owner);
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }
@@ -288,8 +286,8 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
     s_imports = 0u;
     EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_import, .context = NULL);
     s_imports_max = s_imports;
-    s_import = (s_imports_max > 0u) ? g_cli_cells->persistent_buf_alloc(s_imports_max * sizeof(CliSconsImport),
-                                                                        &g_cli_scons_work_states_cells)
+    s_import = (s_imports_max > 0u) ? g_cli_guard->persistent_buf_alloc(s_imports_max * sizeof(CliSconsImport),
+                                                                        g_cli_scons_work_states_owner)
                                     : NULL;
     if (s_import == NULL)
     {
@@ -317,7 +315,7 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
                          .lines = lines, .from = s_import[at].from, .to = s_import[at].to,
                          .severity = CLI_BUILD_WARNING, .code = "scons-import");
     }
-    g_cli_cells->persistent_buf_release(s_import, &g_cli_scons_work_states_cells);
+    g_cli_guard->persistent_buf_release(s_import, g_cli_scons_work_states_owner);
     s_import = NULL;
 }
 
@@ -329,7 +327,7 @@ void cli_scons_check(const CliSconsTextCtx *args)
         EMBED_CALL(check_read_file, SconsCheckCtx, .root = args->root, .path = args->path, .text = args->text,
                    .lines = args->lines, .found = args->found);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
+    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
 // The hand a name SCons gives is handed to
@@ -356,7 +354,7 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
     for (unsigned int at = 0u; at < 76u; at += 1u)
     {
         EMBED_CALL(each, CliEachNameSizeCfg, .context = context, .name = g_cli_scons_globals[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_globals[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_globals[at], .cap = CLI_POOL_BYTES}));
     }
     unsigned char *const class_of = EMBED_CALL(check_read, SconsCheckCtx, .text = text, .size = size);
     if (class_of != NULL)
@@ -364,7 +362,7 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
         CliSconsInput supplied = {each, context};
         EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_input_import, .context = &supplied);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
+    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
 // whether a letter goes in an environment's name and its method
@@ -459,7 +457,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
                                       .size = token - since) == token - since);
         for (unsigned int one = 0u; blank && (one < 16u); one += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_setters[one], .cap = CLI_CELLS_POOL}) ==
+            if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_setters[one], .cap = CLI_POOL_BYTES}) ==
                  name_end - name) &&
                 (memor.cmp(&(MemoriaCfg){
                      .src = g_cli_scons_setters[one], .other = text + name, .bytes = (size_t)(name_end - name)}) == 0))
@@ -475,14 +473,14 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
         const char *const global = g_cli_scons_globals[one];
         int upper = 1;
         upper = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = global, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES}),
                            .classes = CLI_TEXT_UPPER,
-                           .set = "_") == cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL});
+                           .set = "_") == cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES});
         (void)EMBED_CALL(
             cli_edits_items.completion_append, CliEditsItemsCfg, .items = items, .label = global,
-            .label_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
+            .label_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES}),
             .kind = upper ? "constant" : "function", .detail = "SCons", .detail_size = 5u, .insert = global,
-            .insert_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}), .snippet = 0);
+            .insert_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES}), .snippet = 0);
     }
 }
 
@@ -493,5 +491,5 @@ void cli_scons_complete(const CliSconsTextSizeCtx *args)
     {
         EMBED_CALL(check_complete, SconsCheckCtx, .text = args->text, .at = args->at, .items = args->items);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
+    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }

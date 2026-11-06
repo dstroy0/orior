@@ -101,7 +101,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
                .under = QUERY_TABLE "/Lstar.klq", .path_out = klq);
     memor.cpy(&(MemoriaCfg){.dst = run_folder,
                             .src = folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
     static QueryRun s_run;
     if (!EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
                     .run_out = &s_run, .folder = run_folder, .err_msg = err_msg))
@@ -133,11 +133,11 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     if (EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
                    .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl), .err_msg = &ignored) &&
         (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}),
+                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}),
                     .byte = '\\') != NULL))
     {
         cl[EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}), .byte = '\\') -
+                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\') -
            cl] = '\0';
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
                    .word_text = "-ccbin");

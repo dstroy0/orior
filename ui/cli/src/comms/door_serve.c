@@ -93,10 +93,10 @@ static int serve_recv(const CliCommsRecvCfg *args)
     CliIpcEntry *const entry = &joined->entries[claimed % CLI_IPC_ENTRIES];
     memor.cpy(&(MemoriaCfg){.dst = entry->channel,
                             .src = args->channel,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = entry->from,
                             .src = args->from,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_POOL_BYTES}) + 1u});
     entry->size = size;
     entry->has_region = has_region;
     if (has_region)
@@ -165,7 +165,7 @@ EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->joined->end);
     g_cli_ipc_served.joined[args->joined->place] = NULL;
-    g_cli_cells->persistent_buf_release(args->joined, &g_cli_ipc_cells);
+    g_cli_guard->persistent_buf_release(args->joined, g_cli_ipc_owner);
 }
 
 // what the process's end has stopped taking told: its reader let go, and nothing more written
@@ -247,12 +247,12 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
     }
     unsigned int count = 0u;
     CliProcess *const parents =
-        EMBED_CALL(cli_container.processes_alloc, CliContainerCfg, .owner = &g_cli_ipc_cells, .count_pointer = &count);
+        EMBED_CALL(cli_container.processes_alloc, CliContainerCfg, .owner = g_cli_ipc_owner, .count_pointer = &count);
     const int under =
         args->joined->has_peer && ((args->joined->peer == supplied) ||
                                    EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = supplied,
                                               .id = args->joined->peer, .parents = parents, .count = count));
-    g_cli_cells->persistent_buf_release(parents, &g_cli_ipc_cells);
+    g_cli_guard->persistent_buf_release(parents, g_cli_ipc_owner);
     if (!under)
     {
         mmgr_line_put(&err_msg, "the key of ");
@@ -340,10 +340,10 @@ static void serve_accept(void *context)
         }
         // a joined process's frame, queued bodies and answer stand in its cell, after it
         joined = (place < CLI_IPC_JOINED)
-                     ? g_cli_cells->persistent_buf_alloc(
+                     ? g_cli_guard->persistent_buf_alloc(
                            sizeof(CliIpcJoined) + CLI_IPC_FRAME +
                                ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY) + CLI_IPC_SERVE_ANSWER,
-                           &g_cli_ipc_cells)
+                           g_cli_ipc_owner)
                      : NULL;
         if (joined != NULL)
         {
@@ -399,7 +399,7 @@ int cli_ipc_open(const CliIpcAddressCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->address,
             .src = g_cli_ipc_served.address,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_POOL_BYTES}) + 1u});
         return 1;
     }
     if (!EMBED_CALL(cli_ipc_listener_address_internal.listening, CliIpcListenerAddressCtx, .listener = &s_listener,
@@ -417,7 +417,7 @@ int cli_ipc_open(const CliIpcAddressCfg *args)
     memor.cpy(&(MemoriaCfg){
         .dst = args->address,
         .src = g_cli_ipc_served.address,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_CELLS_POOL}) + 1u});
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 

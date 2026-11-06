@@ -91,7 +91,7 @@ EMBED_INLINE void dependencies_scope(const MavenDependenciesCtx *args)
     }
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_CELLS_POOL}) == value.at) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_POOL_BYTES}) == value.at) &&
             (memor.cmp(&(MemoriaCfg){.src = g_cli_maven_scopes[at], .other = s_value, .bytes = value.at}) == 0))
         {
             return;
@@ -119,7 +119,7 @@ EMBED_INLINE void dependencies_scope(const MavenDependenciesCtx *args)
     {
         EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                    .one = g_cli_maven_scopes[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_POOL_BYTES}));
     }
     for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {

@@ -19,9 +19,9 @@ unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_zips[at], .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_zips[at], .cap = CLI_POOL_BYTES});
         if ((length >= size) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = lower + length - size, .other = s_zips[at], .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = lower + length - size, .other = s_zips[at], .cap = CLI_POOL_BYTES})))
         {
             return CLI_ARCHIVE_ZIP;
         }
@@ -37,9 +37,9 @@ unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
                    {".gz", CLI_ARCHIVE_GZ}};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_ends[at].end, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_ends[at].end, .cap = CLI_POOL_BYTES});
         if ((length >= size) && (cellul.eq(&(CatenaFinitaCfg){
-                                    .src = lower + length - size, .other = s_ends[at].end, .cap = CLI_CELLS_POOL})))
+                                    .src = lower + length - size, .other = s_ends[at].end, .cap = CLI_POOL_BYTES})))
         {
             return s_ends[at].kind;
         }
@@ -115,18 +115,18 @@ void cli_gz_inner(const CliArchiveNameOutCtx *args)
 {
     const char *const base =
         (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->name,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}),
+                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}),
                     .byte = '/') != NULL)
             ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->name,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}),
                           .byte = '/') +
                1)
             : args->name;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES});
     const int gz =
         (length >= 3ULL) &&
-        ((cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ULL, .other = ".gz", .cap = CLI_CELLS_POOL})) ||
-         (cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ULL, .other = ".GZ", .cap = CLI_CELLS_POOL})));
+        ((cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ULL, .other = ".gz", .cap = CLI_POOL_BYTES})) ||
+         (cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ULL, .other = ".GZ", .cap = CLI_POOL_BYTES})));
     VerbaLinea line = {args->out_capacity, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, base, gz ? (length - 3ULL) : length);
     mmgr_line_finish(&line);
@@ -183,7 +183,7 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
                    .name_u32 =
                        EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
                                   .members = args->members, .name = args->inner,
-                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_CELLS_POOL})),
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_POOL_BYTES})),
                    .raw = 0u, .has_raw = 0, .dir = 0, .size = *unpacked_size, .at = 0ULL);
         return 1;
     }
@@ -196,7 +196,7 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
                    .name_u32 =
                        EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
                                   .members = args->members, .name = s_names[at],
-                                  .length = cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL})),
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_POOL_BYTES})),
                    .raw = 0u, .has_raw = 0, .dir = 0, .size = 0ULL, .at = 0ULL);
     }
     return 1;

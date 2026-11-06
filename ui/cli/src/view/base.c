@@ -29,7 +29,7 @@ int gui_base_init(const GuiBaseWidthCfg *args)
     args->base->width = width;
     args->base->height = height;
     args->base->tile_red_blue =
-        g_cli_cells->persistent_buf_alloc(3ULL * BASE_TILE_WORDS * sizeof(unsigned int), &g_gui_base_cells);
+        g_cli_guard->persistent_buf_alloc(3ULL * BASE_TILE_WORDS * sizeof(unsigned int), g_gui_base_owner);
     if (args->base->tile_red_blue == NULL)
     {
         return 0;

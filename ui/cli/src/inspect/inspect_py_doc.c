@@ -263,7 +263,7 @@ static void doc_check(const InspectPyDocCtx *args)
     prefix = (prefix == length) ? 0ULL : prefix;
     for (unsigned long long at = 0ULL; at < prefix; at += 1u)
     {
-        if (cellul.chr(&(CatenaFinitaCfg){.src = "fFbBtT", .cap = CLI_CELLS_POOL, .byte = whole[at]}) != NULL)
+        if (cellul.chr(&(CatenaFinitaCfg){.src = "fFbBtT", .cap = CLI_POOL_BYTES, .byte = whole[at]}) != NULL)
         {
             return;
         }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_find.c: the tree searched: each declaration stored scored against a query, the best retained in rank
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "symbols_tree.h"
 
@@ -47,7 +47,7 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
     VerbaLinea *out = args->out;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_code_cells);
+                                                  .size_pointer = &size, .owner = g_cli_code_owner);
     if (bytes == NULL)
     {
         return;
@@ -73,14 +73,14 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
     const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MAX) ? (end - start) : CLI_SYMBOL_LINE_MAX;
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out, .text_bytes = bytes + start,
                .length = length);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_code_owner));
 }
 
 // one declaration of a stored file, read out of its cell
 EMBED_INLINE CliDeclaration find_symbol_read(const SymbolsFindCtx *args)
 {
     CliDeclaration read = {0u, 0u, 0u, 0u};
-    (void)g_cli_cells->movable_buf_read(&(CarcerMovableCfg){.cell = args->branch->cell,
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->branch->cell,
                                                             .offset = (size_t)args->symbol * sizeof(CliDeclaration),
                                                             .dst = &read,
                                                             .bytes = sizeof(read)});
@@ -91,7 +91,7 @@ EMBED_INLINE CliDeclaration find_symbol_read(const SymbolsFindCtx *args)
 EMBED_INLINE int find_bytes_order(const SymbolsFindCtx *args)
 {
     unsigned int bytes = args->bytes;
-    const embed_iword order = g_cli_cells->movable_buf_compare(&(CarcerMovableCfg){.cell = args->one->cell,
+    const embed_iword order = g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->one->cell,
                                                                                    .other_cell = args->other->cell,
                                                                                    .offset = args->one_at,
                                                                                    .other_offset = args->other_at,
@@ -103,9 +103,9 @@ EMBED_INLINE int find_bytes_order(const SymbolsFindCtx *args)
 EMBED_INLINE int find_text_order(const SymbolsFindCtx *args)
 {
     const size_t measured =
-        g_cli_cells->movable_buf_measure(&(CarcerMovableCfg){.cell = args->one->cell, .offset = args->one_at});
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->one->cell, .offset = args->one_at});
     const size_t theirs =
-        g_cli_cells->movable_buf_measure(&(CarcerMovableCfg){.cell = args->other->cell, .offset = args->other_at});
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->other->cell, .offset = args->other_at});
     const size_t shorter = (measured < theirs) ? measured : theirs;
     // a stored text is below what an unsigned int counts
     const int order = EMBED_CALL(find_bytes_order, SymbolsFindCtx, .one = args->one, .one_at = args->one_at,
@@ -220,7 +220,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
     // most
     const unsigned long long text_capacity =
         (count * ((3ULL * CLI_PATH_MAX_LEN) + (4ULL * CLI_SYMBOL_LINE_MAX))) + 1ULL;
-    CliFoundDeclarations *const declarations = g_cli_cells->persistent_buf_alloc(
+    CliFoundDeclarations *const declarations = g_cli_guard->persistent_buf_alloc(
         sizeof(*declarations) + (count * sizeof(CliFoundDeclaration)) + text_capacity, args->owner);
     if (declarations != NULL)
     {
@@ -258,6 +258,6 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             mmgr_line_ch(&text, '\0');
         }
     }
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
     return declarations;
 }

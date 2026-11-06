@@ -97,7 +97,7 @@ static void printer_found(void)
     TEST_ASSERT_GREATER_THAN_INT(0, EMBED_CALL(cli_ipp_err_msg_host.cups_printers, CliIppErrMsgHostCfg, .host_read = s_host, .port_value = s_port, .shared = s_shared, .capacity_u32 = 16u, .err_msg = &s_err_msg));
     const char *const with = s_shared[0].uri;
     VerbaLinea line = {s_uri, sizeof(s_uri), 0ull};
-    const char *const local = cellul.find(&(CatenaFinitaCfg){.src = with, .cap = CLI_CELLS_POOL, .other = "localhost", .other_cap = CLI_CELLS_POOL});
+    const char *const local = cellul.find(&(CatenaFinitaCfg){.src = with, .cap = CLI_POOL_BYTES, .other = "localhost", .other_cap = CLI_POOL_BYTES});
     const char *const from = (local != NULL) ? local + 9 : with;
     if (local != NULL)
     {
@@ -105,7 +105,7 @@ static void printer_found(void)
         mmgr_line_put_n(&line, with, (unsigned long long)(local - with));
         mmgr_line_put(&line, s_host);
     }
-    const char *const default_port = cellul.find(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .other = ":631", .other_cap = CLI_CELLS_POOL});
+    const char *const default_port = cellul.find(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .other = ":631", .other_cap = CLI_POOL_BYTES});
     if (default_port != NULL)
     {
         // `:631` lies in the address, at or past `from`
@@ -152,9 +152,9 @@ void tearDown(void)
 {
     if (s_message_allocated)
     {
-        g_cli_cells->persistent_buf_release(s_message.group, &g_cli_ipp_cells);
+        g_cli_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
         *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-        g_cli_cells->persistent_buf_release(s_back.group, &g_cli_ipp_cells);
+        g_cli_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
         *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     }
 }
@@ -228,14 +228,14 @@ void test_a_messages_document_follows_it(void)
 void test_a_messages_memory_is_released_once_it_is_done(void)
 {
     message_decoded();
-    const unsigned long long in_use = embed_atomic_usize_load(&g_cli_ipp_cells.in_use);
-    g_cli_cells->persistent_buf_release(s_message.group, &g_cli_ipp_cells);
+    const unsigned long long in_use = mmgr_owner_in_use(g_cli_ipp_owner);
+    g_cli_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
     *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_cells->persistent_buf_release(s_back.group, &g_cli_ipp_cells);
+    g_cli_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
     *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     s_message_allocated = 0;
     TEST_ASSERT_NOT_EQUAL(0ull, in_use);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_ipp_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_ipp_owner));
 }
 
 void test_an_address_with_no_port_uses_ipps(void)

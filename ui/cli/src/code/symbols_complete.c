@@ -6,7 +6,7 @@
 // the roles its grammar's tokens name, a region by the brackets it names a region's, a function's by a head that
 // declares a function
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
@@ -50,10 +50,10 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
     const int saved = mmgr_line_ok(&args->complete->transferred);
     for (unsigned long long at = 0ULL; saved && (at < args->complete->transferred.at);
          at +=
-         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.out + at, .cap = CLI_CELLS_POOL}) + 1ULL)
+         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.out + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
         const char *const one = args->complete->transferred.out + at;
-        if ((cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL}) == args->length) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES}) == args->length) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = one, .other_pointer = args->name,
                        .size = args->length))
         {
@@ -93,7 +93,7 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
             args->kind_out[(mmgr_line_finish(&written) != 0ULL) ? written.at : 0ULL] = '\0';
         }
     }
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
 }
 
 // the defines in effect where the walk ended, the database's first, each of the kind its declaration's grammar names,
@@ -105,7 +105,7 @@ EMBED_INLINE void complete_walk(const SymbolsCompleteCtx *args)
     {
         const char *const name = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
                                             .at_value = effect->macro[at].name);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
         if (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx, .effect_read = effect, .name = name,
                        .length = length) == at)
         {
@@ -227,7 +227,7 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     const unsigned long long words = CLI_LEAF_COMMENT | CLI_LEAF_STRING;
     const int named = leaved && (place < read.count) && (read.leaf[place].from < at) &&
                       ((read.leaf[place].is & CLI_LEAF_NAME) != 0u) && ((read.leaf[place].is & words) == 0u);
-    char *const transferred_cell = g_cli_cells->temporary_buf_alloc(CLI_COMPLETE_CAPACITY, &g_cli_code_cells);
+    char *const transferred_cell = g_cli_guard->temporary_buf_alloc(CLI_COMPLETE_CAPACITY, g_cli_code_owner);
     CliComplete complete = {named ? args->text + read.leaf[place].from : "", named ? at - read.leaf[place].from : 0ULL,
                             mmgr_line_over(transferred_cell, CLI_COMPLETE_CAPACITY), args->each_declared,
                             args->context};
@@ -259,17 +259,17 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     }
     if (leaved)
     {
-        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
     }
     if (languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(complete.transferred.out, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(complete.transferred.out, g_cli_code_owner);
     return done;
 }

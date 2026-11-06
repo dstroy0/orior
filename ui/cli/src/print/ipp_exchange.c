@@ -46,7 +46,7 @@ typedef struct
 // the text `prefix` begins `text` with, where it does: what follows it, else NULL
 EMBED_INLINE const char *cli_after(const IppExchangeCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->text, .other_pointer = args->prefix,
                       .size = length)
                ? (args->text + length)
@@ -98,9 +98,9 @@ int cli_ipp_address(const CliIppErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " is no ipp:// address");
         return 0;
     }
-    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '/'});
+    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '/'});
     const char *const end =
-        (slash != NULL) ? slash : (rest + cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
+        (slash != NULL) ? slash : (rest + cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES}));
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->path, .text = slash, .otherwise = "/");
     VerbaLinea named = {args->host, CLI_PATH_MAX_LEN, 0ULL};
     *port = 631u;
@@ -143,7 +143,7 @@ int cli_ipp_address(const CliIppErrMsgCfg *args)
 // whether `length` bytes at `text` are `word` in ASCII's either case
 EMBED_INLINE int cli_same(const IppExchangeCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) != args->length)
     {
         return 0;
     }
@@ -217,7 +217,7 @@ EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
 EMBED_INLINE int cli_send(const IppExchangeCtx *args)
 {
     unsigned long long size = args->size;
-    char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_IPP_REQUEST_CAPACITY, &g_cli_print_cells);
+    char *const body_cell = g_cli_guard->temporary_buf_alloc(CLI_IPP_REQUEST_CAPACITY, g_cli_print_owner);
     VerbaLinea body = mmgr_line_over(body_cell, CLI_IPP_REQUEST_CAPACITY);
     if (body.out == NULL)
     {
@@ -227,7 +227,7 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
                .out_verba_linea_pointer = &body);
     if (!mmgr_line_ok(&body))
     {
-        g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(body.out, g_cli_print_owner);
         return 0;
     }
     char head[CLI_PATH_MAX_LEN * 3u];
@@ -235,7 +235,7 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
     mmgr_line_put(&line, "POST ");
     mmgr_line_put(&line, args->path);
     mmgr_line_put(&line, " HTTP/1.1\r\nHost: ");
-    const int bracketed = cellul.chr(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL;
+    const int bracketed = cellul.chr(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_POOL_BYTES, .byte = ':'}) != NULL;
     mmgr_line_put(&line, bracketed ? "[" : "");
     mmgr_line_put(&line, args->host);
     mmgr_line_put(&line, bracketed ? "]:" : ":");
@@ -250,7 +250,7 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
                                 .bytes = body.out, .size = body.at) &&
                      ((size == 0ULL) || EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
                                                    .sock = args->socket, .bytes = args->document, .size = size));
-    g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(body.out, g_cli_print_owner);
     return sent;
 }
 
@@ -334,7 +334,7 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
         return 0;
     }
     unsigned long long read = 0ULL;
-    char *const answer_cell = g_cli_cells->persistent_buf_alloc(CLI_IPP_ANSWER, &g_cli_print_cells);
+    char *const answer_cell = g_cli_guard->persistent_buf_alloc(CLI_IPP_ANSWER, g_cli_print_owner);
     int read_state = answer_cell != NULL;
     while (read_state && (read < CLI_IPP_ANSWER))
     {
@@ -443,7 +443,7 @@ int cli_ipp_exchange(const CliIppSizeCfg *args)
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
     args->answer->data = NULL;
     args->answer->data_length = 0ULL;
-    g_cli_cells->persistent_buf_release(s_answer, &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(s_answer, g_cli_print_owner);
     s_answer = NULL;
     return done;
 }

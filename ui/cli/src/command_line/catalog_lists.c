@@ -27,7 +27,7 @@ EMBED_INLINE int cli_entry_include(const CatalogListsCtx *args)
     const int included = args->walk->folders ? args->is_folder
                                              : (!args->is_folder && (args->walk->filter != NULL) &&
                                                 EMBED_CALL(args->walk->filter, CliNameCfg, .name = args->name));
-    return included && (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) < CLI_NAME_MAX_LEN);
+    return included && (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) < CLI_NAME_MAX_LEN);
 }
 
 static void cli_entry_count(const CliEachNameIsFolderCfg *args)
@@ -60,14 +60,14 @@ static void cli_entry_each(const CliEachNameIsFolderCfg *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = entries->name[place],
                             .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
     entries->count += 1u;
 }
 
 void cli_catalog_entries(const CliCatalogFolderCtx *args)
 {
     CliEntries *entries = args->entries;
-    g_cli_cells->persistent_buf_release(entries->name, &g_cli_catalog_cells);
+    g_cli_guard->persistent_buf_release(entries->name, g_cli_catalog_owner);
     entries->name = NULL;
     entries->count = 0u;
     entries->capacity = 0u;
@@ -87,8 +87,8 @@ int cli_catalog_names_capacity(const CliCatalogNamesCtx *args)
 {
     if ((args->names->name == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
     {
-        args->names->name = g_cli_cells->temporary_buf_alloc(
-            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_NAME_MAX_LEN, &g_cli_catalog_cells);
+        args->names->name = g_cli_guard->temporary_buf_alloc(
+            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_NAME_MAX_LEN, g_cli_catalog_owner);
         args->names->capacity = (args->names->name != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
     return args->most <= args->names->capacity;
@@ -98,8 +98,8 @@ int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args)
 {
     if ((args->paths->path == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
     {
-        args->paths->path = g_cli_cells->temporary_buf_alloc(
-            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_PATH_MAX_LEN, &g_cli_catalog_cells);
+        args->paths->path = g_cli_guard->temporary_buf_alloc(
+            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_PATH_MAX_LEN, g_cli_catalog_owner);
         args->paths->capacity = (args->paths->path != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
     return args->most <= args->paths->capacity;

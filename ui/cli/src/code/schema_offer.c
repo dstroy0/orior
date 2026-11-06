@@ -76,12 +76,12 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
              one != CLI_JSON_NONE; one = json->node[one].next)
         {
             const char *const name = json->text + json->node[one].key;
-            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
             int seen = EMBED_CALL(offer_has_key, SchemaOfferCtx, .text = text, .name = name, .size = size);
             unsigned int earlier = 0u;
             while (!seen && (earlier < offered))
             {
-                seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_offered[earlier], .other = name, .cap = CLI_CELLS_POOL}));
+                seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_offered[earlier], .other = name, .cap = CLI_POOL_BYTES}));
                 earlier += 1u;
             }
             if (seen || (offered == CLI_SCHEMA_OFFERED) || (size < base - args->token) ||
@@ -217,7 +217,7 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
                                           .json_read = json, .node = types, .length_pointer = &size);
     if (single != NULL)
     {
-        return (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}) == size) &&
+        return (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
                (memor.cmp(&(MemoriaCfg){.src = single, .other = kind, .bytes = (size_t)size}) == 0);
     }
     for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
@@ -228,7 +228,7 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
     {
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = one, .length_pointer = &size);
-        if ((text != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}) == size) &&
+        if ((text != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
             (memor.cmp(&(MemoriaCfg){.src = text, .other = kind, .bytes = (size_t)size}) == 0))
         {
             return 1;
@@ -329,7 +329,7 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
     {
         if (g_cli_schema_read != NULL)
         {
-            g_cli_cells->persistent_buf_release(g_cli_schema_read->node, &g_cli_schema_cells);
+            g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
             g_cli_schema_read->node = NULL;
             g_cli_schema_read->member = NULL;
             g_cli_schema_read->pool = NULL;
@@ -339,14 +339,13 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
         }
         if (g_cli_schema_store != NULL)
         {
-            g_cli_cells->persistent_buf_release(
-                g_cli_schema_store->json.node,
-                EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_schema_store->json.node));
+            g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
+                                                mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
             EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
                        .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         }
-        g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
-        g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
+        g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
+        g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
         g_cli_schema_store = NULL;
         g_cli_schema_read = NULL;
         return;
@@ -382,7 +381,7 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
     }
     if (g_cli_schema_read != NULL)
     {
-        g_cli_cells->persistent_buf_release(g_cli_schema_read->node, &g_cli_schema_cells);
+        g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
         g_cli_schema_read->node = NULL;
         g_cli_schema_read->member = NULL;
         g_cli_schema_read->pool = NULL;
@@ -392,14 +391,13 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
     }
     if (g_cli_schema_store != NULL)
     {
-        g_cli_cells->persistent_buf_release(
-            g_cli_schema_store->json.node,
-            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_schema_store->json.node));
+        g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
 }

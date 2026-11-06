@@ -9,7 +9,7 @@
 // reads a language's text
 #include "../builds/compile_db.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
@@ -152,7 +152,7 @@ unsigned int cli_effect_macro(const CliSymbolsNameCtx *args)
         const char *const named =
             EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = args->effect_read,
                        .at_value = args->effect_read->macro[at - 1u].name);
-        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) == args->length) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) == args->length) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = named, .other_pointer = args->name,
                        .size = args->length))
         {
@@ -255,12 +255,12 @@ static void cli_effect_free(const CliDefineEachCfg *args)
     const unsigned int path =
         EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
                    .text = args->define->node,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->define->node, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->define->node, .cap = CLI_POOL_BYTES}));
     if (path == CLI_JSON_NONE)
     {
         return;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->define->value, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->define->value, .cap = CLI_POOL_BYTES});
     CliLeafRead read;
     // a value no grammar reads has no leaves, and a condition reads it as none
     const int leaved =
@@ -268,7 +268,7 @@ static void cli_effect_free(const CliDefineEachCfg *args)
                    .path = effect->start, .state = "root", .text = args->define->value, .size = size, .read = &read);
     CliEffectMet met = {.seen = CLI_JSON_NONE,
                         .name = args->define->name,
-                        .name_length = cellul.len(&(CatenaFinitaCfg){.src = args->define->name, .cap = CLI_CELLS_POOL}),
+                        .name_length = cellul.len(&(CatenaFinitaCfg){.src = args->define->name, .cap = CLI_POOL_BYTES}),
                         .value = args->define->value,
                         .value_length = size,
                         .read = &read,
@@ -283,10 +283,10 @@ static void cli_effect_free(const CliDefineEachCfg *args)
     for (unsigned int at = 0u; at < met.params; at += 1u)
     {
         met.param[at] = args->define->param[at];
-        met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = args->define->param[at], .cap = CLI_CELLS_POOL});
+        met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = args->define->param[at], .cap = CLI_POOL_BYTES});
     }
     EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = effect, .met = &met);
-    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
@@ -304,7 +304,7 @@ EMBED_INLINE int cli_effect_tree_path(const SymbolsEffectCtx *args)
     {
         // the tree's top first, then each mount
         const char *const top = (at == 0u) ? args->effect_read->root : paths[at - 1u];
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_POOL_BYTES});
         int under = length != 0ULL;
         unsigned long long each = 0ULL;
         while (under && (each < length))
@@ -345,7 +345,7 @@ static void cli_effect_include_intersect(const CliEachPathKindCfg *args)
         (effect->includes < effect->include_capacity)
             ? EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
                          .text = tree_path,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_CELLS_POOL}))
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_POOL_BYTES}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
@@ -422,7 +422,7 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
     unsigned long long length = args->length;
     const char *const slash =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
     // the branch's folder runs to its last slash, at or past its start
     int found =
         !args->angled && EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = path,
@@ -435,7 +435,7 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
                                               .at_value = include->path);
         found = (include->kind != CLI_INCLUDE_FORCED) && (!args->angled || (include->kind != CLI_INCLUDE_QUOTE)) &&
                 EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = folder,
-                           .folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}),
+                           .folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}),
                            .named = args->named, .length = length, .out = args->out);
     }
     found = found || EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = "", .folder_length = 0ULL,
@@ -450,7 +450,7 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
             EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
                        .path_out = stored_path);
         }
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = stored_path, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = stored_path, .cap = CLI_POOL_BYTES});
         const int ends = (size > length) && (stored_path[size - length - 1u] == '/') &&
                          EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = stored_path + size - length,
                                     .other_pointer = args->named, .size = length);
@@ -475,7 +475,7 @@ EMBED_INLINE int cli_effect_on_walk(const SymbolsEffectCtx *args)
         if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
                                                            .effect_read = effect, .at_value = effect->walked[at]),
                                          .other = args->path,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -484,7 +484,7 @@ EMBED_INLINE int cli_effect_on_walk(const SymbolsEffectCtx *args)
         (effect->walks < effect->walk_capacity)
             ? EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
                          .text = args->path,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}))
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
@@ -505,7 +505,7 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
     branch->needles = 0u;
     branch->declared =
         args->effect->slicing
-            ? g_cli_cells->temporary_buf_alloc(CLI_EFFECT_DECLARED_MAX * sizeof(CliEffectDeclared), &g_cli_code_cells)
+            ? g_cli_guard->temporary_buf_alloc(CLI_EFFECT_DECLARED_MAX * sizeof(CliEffectDeclared), g_cli_code_owner)
             : NULL;
     branch->declareds = 0u;
     branch->declared_capacity = (branch->declared != NULL) ? CLI_EFFECT_DECLARED_MAX : 0u;
@@ -533,7 +533,7 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
             branch->needles += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
@@ -565,7 +565,7 @@ static void cli_effect_declaring(const CliDeclaredCfg *args)
                                           .effect = effect, .text = args->name, .length = length);
     const unsigned int kinded = EMBED_CALL(
         cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect, .text = args->kind,
-        .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL}));
+        .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES}));
     if ((named != CLI_JSON_NONE) && (kinded != CLI_JSON_NONE))
     {
         // a name a grammar's token covers is below 2^32 bytes
@@ -615,8 +615,8 @@ EMBED_INLINE long long cli_effect_judged(const SymbolsEffectCtx *args)
 {
     CliEffect *effect = args->effect;
     const CliLeafRead *read = args->read;
-    CliEffectToken *const token = g_cli_cells->temporary_buf_alloc(
-        (unsigned long long)((args->to - args->from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+    CliEffectToken *const token = g_cli_guard->temporary_buf_alloc(
+        (unsigned long long)((args->to - args->from) + 1u) * sizeof(CliEffectToken), g_cli_code_owner);
     if (token == NULL)
     {
         effect->refused = 1;
@@ -637,7 +637,7 @@ EMBED_INLINE long long cli_effect_judged(const SymbolsEffectCtx *args)
     }
     const long long value = EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
                                        .token = token, .count = count, .through = 0u);
-    g_cli_cells->persistent_buf_release(token, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(token, g_cli_code_owner);
     return value;
 }
 
@@ -1024,12 +1024,12 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
         return;
     }
     const unsigned int path_at = effect->walked[effect->walks - 1u];
-    CliEffectBranch *const branch = g_cli_cells->temporary_buf_alloc(sizeof(CliEffectBranch), &g_cli_code_cells);
+    CliEffectBranch *const branch = g_cli_guard->temporary_buf_alloc(sizeof(CliEffectBranch), g_cli_code_owner);
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = effect->root, .relative = path, .joined = full);
     // the branch the walk starts from is the editor's text where one is given, else every branch is the disk's
     const int from_disk = (effect->start_text == NULL) ||
-                          !cellul.eq(&(CatenaFinitaCfg){.src = path, .other = effect->start, .cap = CLI_CELLS_POOL});
+                          !cellul.eq(&(CatenaFinitaCfg){.src = path, .other = effect->start, .cap = CLI_POOL_BYTES});
     unsigned long long size = from_disk ? 0ULL : effect->start_size;
     const unsigned char *bytes;
     if (branch == NULL)
@@ -1039,7 +1039,7 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     else if (from_disk)
     {
         bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full, .size_pointer = &size,
-                           .owner = &g_cli_code_cells);
+                           .owner = g_cli_code_owner);
     }
     else
     {
@@ -1048,7 +1048,7 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;
-        g_cli_cells->persistent_buf_release(branch, &g_cli_code_cells);
+        g_cli_guard->persistent_buf_release(branch, g_cli_code_owner);
         return;
     }
     branch->open = 0u;
@@ -1074,24 +1074,24 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     // a branch a slice's walk read whole stays in the walk's cell until the walk is given back
     if (branch->read_at == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(branch->read.leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release(branch->read.leaf, g_cli_leaves_owner);
         branch->read.leaf = NULL;
         branch->read.count = 0u;
         branch->read.capacity = 0u;
         if (from_disk)
         {
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_code_owner));
         }
     }
-    g_cli_cells->persistent_buf_release(branch->declared, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(branch, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(branch->declared, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(branch, g_cli_code_owner);
 }
 
 CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
 {
     const char *name = args->name;
     int slicing = args->slicing;
-    CliEffect *const effect = g_cli_cells->persistent_buf_alloc(sizeof(CliEffect), &g_cli_code_cells);
+    CliEffect *const effect = g_cli_guard->persistent_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
     CliSymbolsLanguages *const languages = (effect != NULL) ? cli_symbols_languages_read() : NULL;
     // the walk's lists and texts in one cell, each at its most
     const unsigned long long branch_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectBranchRead);
@@ -1103,17 +1103,17 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     const unsigned long long list_bytes =
         branch_bytes + macro_bytes + seen_bytes + leaf_bytes + include_bytes + walked_bytes;
     char *const cell = (languages != NULL)
-                           ? g_cli_cells->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_CAPACITY, &g_cli_code_cells)
+                           ? g_cli_guard->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_CAPACITY, g_cli_code_owner)
                            : NULL;
     if (cell == NULL)
     {
         if (languages != NULL)
         {
-            g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
             *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
         }
-        g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
-        g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
+        g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+        g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
     }
@@ -1143,7 +1143,7 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     effect->walks = 0u;
     effect->walk_capacity = CLI_EFFECT_LIST_MAX;
     effect->name = name;
-    effect->length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    effect->length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     effect->found = 0;
     effect->first_path = CLI_JSON_NONE;
     effect->first_line = 0u;
@@ -1183,22 +1183,22 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
 {
     for (unsigned int at = 0u; at < args->effect->branches_read; at += 1u)
     {
-        g_cli_cells->persistent_buf_release((&args->effect->branch_read[at].read)->leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release((&args->effect->branch_read[at].read)->leaf, g_cli_leaves_owner);
         (&args->effect->branch_read[at].read)->leaf = NULL;
         (&args->effect->branch_read[at].read)->count = 0u;
         (&args->effect->branch_read[at].read)->capacity = 0u;
         if (args->effect->branch_read[at].from_disk)
         {
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->effect->branch_read[at].bytes),
-                                                (&g_cli_code_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)(args->effect->branch_read[at].bytes),
+                                                (g_cli_code_owner));
         }
     }
-    g_cli_cells->persistent_buf_release(args->effect->branch_read, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
     if (args->effect->languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(args->effect->languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(args->effect->languages->languages.pair, g_cli_plugins_owner);
         *(&args->effect->languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(args->effect->languages, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(args->effect, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(args->effect->languages, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(args->effect, g_cli_code_owner);
 }

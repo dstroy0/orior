@@ -4,7 +4,7 @@
 // with their end, taken as the first is typed and released as the last is erased (typed.c)
 #ifndef TYPED_H
 #define TYPED_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTypedCfg CliTypedCfg;
@@ -28,7 +28,7 @@ struct CliTypedCfg
     const char *text;
     unsigned long long size;
     unsigned long long most;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 typedef struct

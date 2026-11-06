@@ -119,9 +119,9 @@ int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " has no folder");
         return 0;
     }
-    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_POOL_BYTES});
     name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .set = "/\\");
     if (name[0] == '\0')
     {
         mmgr_line_put(args->err_msg, args->file);

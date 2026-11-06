@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_templates.c: project templates: they list in order, a project created from one has its name substituted, binary files
 // copy unchanged, and paths that escape their folder are refused
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/plugins/templates.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -82,5 +82,5 @@ void test_every_allocation_is_released(void)
     (void)created("script", "counter");
     (void)created("script", "counter");
     (void)created("../x", "y");
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_templates_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_templates_owner));
 }

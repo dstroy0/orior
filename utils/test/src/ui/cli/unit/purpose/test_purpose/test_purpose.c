@@ -85,9 +85,9 @@ void test_a_long_comment_is_cut_at_a_sentence(void)
 void test_a_comments_memory_is_sized_to_its_text_and_released(void)
 {
     assert_comment("", "a.js", "const a = 1;\n// late\n");
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_purpose_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_purpose_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(65536ull, embed_atomic_usize_load(&g_cli_purpose_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_purpose_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_purpose_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(65536ull, mmgr_owner_hw(g_cli_purpose_owner));
 }
 
 void test_an_import_uses_a_script(void)

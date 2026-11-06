@@ -22,7 +22,7 @@ static int adjacent(double value, double required, double within)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     const double step = 22.0 / sqrt(3.0) / sqrt(8.0);
 
     // laid out
@@ -155,7 +155,7 @@ int main(void)
     EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &other);
     EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &background_fill);
     cli_check((background_fill.raster.pixels == NULL) && !background_fill.laid, "the ground given holds no raster");
-    g_cli_cells->persistent_buf_release(background_raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(background_raster.pixels, g_gui_raster_owner);
     background_raster.pixels = NULL;
     background_raster.width = 0u;
     background_raster.height = 0u;

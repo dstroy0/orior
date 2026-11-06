@@ -63,14 +63,14 @@ EMBED_INLINE void messages_trim(const ValidateMessagesCtx *args)
     unsigned long long *start = args->start;
     unsigned long long *length = args->length_pointer;
     while ((*length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start]}) != NULL))
+                                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start]}) != NULL))
     {
         *start += 1ULL;
         *length -= 1ULL;
     }
     while ((*length > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start + *length - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start + *length - 1ULL]}) != NULL))
     {
         *length -= 1ULL;
     }
@@ -208,11 +208,11 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
         {
             message.severity = 3u;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "error", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "error", .cap = CLI_POOL_BYTES}))
         {
             message.severity = 1u;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "warning", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "warning", .cap = CLI_POOL_BYTES}))
         {
             message.severity = 2u;
         }

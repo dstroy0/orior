@@ -383,7 +383,8 @@
         { "label": "Copy path", "command": "file-copy-path", "args": "<path>" },
         { "label": "Open in terminal", "command": "file-terminal", "args": "[path]" },
         { "label": "Select for Compare", "command": "file-select-compare", "args": "<file>" },
-        { "label": "Compare with Selected", "command": "file-compare", "args": "<file> [other]" }
+        { "label": "Compare with Selected", "command": "file-compare", "args": "<file> [other]" },
+        { "label": "Show Changes", "command": "show-changes", "args": "[file]" }
       ]
     },
     {
@@ -472,6 +473,7 @@
         { "label": "Show Its First Rows", "command": "db-first-rows", "args": "<schema> <table> [connection]" },
         { "label": "Copy Name", "command": "db-copy-name", "args": "<name>" },
         { "label": "Read Again", "command": "db-read-again", "args": "[schema [kind]]" },
+        { "label": "Choose the Connection", "command": "db-choose", "args": "<connection>" },
         { "label": "Join Again", "command": "remote-rejoin" },
         { "label": "Copy Address", "command": "remote-copy-address" }
       ]

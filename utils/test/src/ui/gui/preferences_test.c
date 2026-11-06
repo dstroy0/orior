@@ -60,7 +60,7 @@ static unsigned int brightest(const GuiRaster *raster, GuiRect rect)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     static GuiGlyphs glyphs;
@@ -266,7 +266,7 @@ int main(void)
     const GuiRect colors_name = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_COLORS);
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = colors_name.x + 3, .y = colors_name.y + 3, .change = &change) && (preferences.section == GUI_PREFERENCES_COLORS), "a press on a section's name shows it");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

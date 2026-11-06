@@ -13,9 +13,6 @@
 typedef struct CliDefsPathCfg CliDefsPathCfg;
 typedef struct CliDefsCfg CliDefsCfg;
 
-// the cells the definitions are read through, counted, each given back before cli_defs_read returns
-extern CellOwner g_cli_defs_cells;
-
 // the most cells of a table's line read, those past it left out
 #define CLI_DEFS_CELLS 32u
 

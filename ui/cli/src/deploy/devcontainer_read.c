@@ -112,7 +112,7 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_text,
                                 .src = ".",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
     }
     EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .positions = positions,
                .out = s_read);
@@ -138,7 +138,7 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
 // root none
 EMBED_INLINE void cli_last_by_name(const DevcontainerReadCtx *args)
 {
-    const char *end = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const char *end = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     end = args->path + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path,
                                   .at = (unsigned long long)(end - args->path), .set = "/\\");
     const char *last = end;
@@ -183,13 +183,13 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
     // the description's folder, or the tree where it stands in none
     char base[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
-        .dst = base, .src = file, .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = base, .src = file, .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u});
     char *const forward =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), .byte = '/');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}), .byte = '/');
     char *const backward =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), .byte = '\\');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}), .byte = '\\');
     char *const cut = ((backward != NULL) && ((forward == NULL) || (backward > forward))) ? backward : forward;
     if (cut != NULL)
     {
@@ -199,7 +199,7 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = base,
                                 .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES}) + 1u});
     }
     unsigned int compose[CLI_PLAN_LIST_MAX];
     const unsigned int composes = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,

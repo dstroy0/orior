@@ -28,14 +28,14 @@ void cli_out(const CliCommandLineCtx *args)
 {
     const char *text = args->text;
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 void cli_err(const CliCommandLineCtx *args)
 {
     const char *text = args->text;
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 unsigned int cli_width(void)
@@ -47,7 +47,7 @@ unsigned int cli_width(void)
     {
         const unsigned long long read =
             EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = columns, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = columns, .cap = CLI_CELLS_POOL}), .end = NULL);
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = columns, .cap = CLI_POOL_BYTES}), .end = NULL);
         width = (read < 100000ULL) ? read : 100ULL;
     }
     // the width is under 100000 here, as checked as it was read
@@ -82,7 +82,7 @@ void cli_wrap(const CliCommandLineTextCtx *args)
     unsigned long long size = args->size;
     static char s_line[1u << 16u];
     const unsigned long long comment_prefix_size =
-        cellul.len(&(CatenaFinitaCfg){.src = args->lead, .cap = CLI_CELLS_POOL});
+        cellul.len(&(CatenaFinitaCfg){.src = args->lead, .cap = CLI_POOL_BYTES});
     VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, args->lead);
     unsigned long long at = 0ULL;
@@ -108,8 +108,8 @@ void cli_wrap(const CliCommandLineTextCtx *args)
 
 int cli_contains_word(const CliCommandLineCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     for (size_t at = 0u; at + length <= size; at += 1u)
     {
         size_t same = 0u;
@@ -145,15 +145,15 @@ void cli_quoted_word(const CliCommandLineOutCtx *args)
 CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
 {
     const char *root = args->root;
-    CellOwner *const cells = s_catalog.cells;
+    const CellOwner *const cells = s_catalog.cells;
     if (cells != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_catalog.job, cells);
+        g_cli_guard->persistent_buf_release(s_catalog.job, cells);
     }
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = (&s_catalog), .jobs = NULL, .jobs_max = 0u,
                .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,
                .lists = NULL, .lists_max = 0u, .text_out = NULL, .text_max = 0u);
-    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &s_catalog, .cells = &g_cli_line_catalog_cells,
+    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &s_catalog, .cells = g_cli_line_catalog_owner,
                .jobs_max = CLI_LINE_JOBS);
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = root, .catalog = &s_catalog);
     return &s_catalog;
@@ -169,12 +169,12 @@ unsigned int cli_job_by_name(const CliCommandLineCatalogAmongCtx *args)
         if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                            .catalog_read = catalog, .text_u32 = catalog->job[at].id),
                                          .other = args->name,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     unsigned int found = CLI_CATALOG_NONE;
     unsigned int count = 0u;
     static unsigned int s_many[CLI_LINE_JOBS];
@@ -183,15 +183,15 @@ unsigned int cli_job_by_name(const CliCommandLineCatalogAmongCtx *args)
         const unsigned int at = (args->among != NULL) ? args->among[one] : one;
         const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                           .text_u32 = catalog->job[at].id);
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL});
+        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES});
         const int tail =
             (size > length) && (id[size - length - 1u] == '/') &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = id + size - length, .other = args->name, .cap = CLI_CELLS_POOL}));
+            (cellul.eq(&(CatenaFinitaCfg){.src = id + size - length, .other = args->name, .cap = CLI_POOL_BYTES}));
         if (tail || (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                                     .catalog_read = catalog,
                                                                     .text_u32 = catalog->job[at].title),
                                                   .other = args->name,
-                                                  .cap = CLI_CELLS_POOL})))
+                                                  .cap = CLI_POOL_BYTES})))
         {
             found = at;
             s_many[count] = at;
@@ -240,7 +240,7 @@ EMBED_INLINE int values_know(const CommandLineCtx *args)
                                                            .catalog_read = catalog,
                                                            .text_u32 = catalog->param[one->param_first + at].key),
                                          .other = args->key,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -272,7 +272,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = values);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--", .cap = CLI_POOL_BYTES}))
         {
             if (!EMBED_CALL(values_know, CommandLineCtx, .catalog = catalog, .job = args->job, .key = "arguments",
                             .err_msg = args->err_msg))
@@ -293,7 +293,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
             break;
         }
         const char *const equals =
-            cellul.chr(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_CELLS_POOL, .byte = '='});
+            cellul.chr(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES, .byte = '='});
         if (equals == NULL)
         {
             mmgr_line_put(args->err_msg, args->words[at]);
@@ -343,12 +343,12 @@ void cli_job_subject(const CliCommandLineCatalogJobCtx *args)
     const CliCatalog *catalog = args->catalog;
     const char *const file = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                         .text_u32 = catalog->job[args->job].file);
-    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL, .byte = '/'});
+    const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES, .byte = '/'});
     const char *const from = (slash != NULL) ? slash + 1 : file;
     const char *const end =
-        (slash != NULL) ? cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '/'}) : NULL;
+        (slash != NULL) ? cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .byte = '/'}) : NULL;
     const size_t size =
-        (end != NULL) ? (size_t)(end - from) : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+        (end != NULL) ? (size_t)(end - from) : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
     const size_t copied_len = (size < CLI_NAME_MAX_LEN) ? size : CLI_NAME_MAX_LEN - 1u;
     memor.cpy(&(MemoriaCfg){.dst = args->subject, .src = from, .bytes = copied_len});
     args->subject[copied_len] = '\0';

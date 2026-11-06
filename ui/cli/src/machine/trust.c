@@ -51,7 +51,7 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
     static unsigned int s_letters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->folder,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}),
                    .letters = s_letters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
@@ -65,7 +65,7 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
                      .to = '/');
 #endif
     mmgr_line_finish(&line);
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->key, .at = length,
                         .set = "/");
     args->key[length] = '\0';
@@ -73,7 +73,7 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
 
 int cli_trust_under(const CliTrustFolderInnerCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->inner, .other_pointer = args->folder,
                       .size = length) &&
            ((args->inner[length] == '\0') || (args->inner[length] == '/'));
@@ -91,7 +91,7 @@ EMBED_INLINE void cli_state_read(const TrustCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = json, .path = path,
-                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_machine_cells);
+                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_machine_owner);
     const int object = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                   .node = root, .kind = CFG_JSON_OBJECT);
     *trusted = object ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -122,9 +122,9 @@ EMBED_INLINE unsigned long long cli_nearest(const TrustCtx *args)
                                               .json_read = json, .node = item, .length_pointer = NULL);
         if ((folder != NULL) &&
             EMBED_CALL(cli_trust_folder_inner.under, CliTrustFolderInnerCfg, .inner = args->tree, .folder = folder) &&
-            ((cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ULL) > nearest))
+            ((cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1ULL) > nearest))
         {
-            nearest = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1ULL;
+            nearest = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1ULL;
         }
     }
     return nearest;
@@ -143,8 +143,7 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = yes, .tree = key);
     const unsigned long long by_refused =
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = no, .tree = key);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     *trusted = by_trusted > by_refused;

@@ -30,8 +30,6 @@ typedef struct CliDbErrMsgCtx CliDbErrMsgCtx;
 typedef struct CliDbStopCtx CliDbStopCtx;
 
 // what the connections and SQLite's processes occupy in the cellblock, each a cell taken as it opens and given back as
-// it closes (db_open.c)
-extern CellOwner g_cli_db_cells;
 
 // the most connections open at once; how long, in milliseconds, a connection, a tunnel or a sign-in is waited for; how
 // many statements a connection's history stores; and how often, in rows, the place of a row buffered is marked, and how

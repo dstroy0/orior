@@ -160,7 +160,7 @@ void test_the_scons_checks_report_their_peak_memory(void)
     VerbaLinea line = {report, sizeof(report), 0ull};
     EMBED_CALL(cli_scons_internal.cells_usage_write, CliSconsCtx, .out = &line);
     (void)mmgr_line_finish(&line);
-    const char *const peak = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_CELLS_POOL, .byte = ' '});
+    const char *const peak = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_POOL_BYTES, .byte = ' '});
     TEST_ASSERT_NOT_NULL(peak);
     TEST_ASSERT_NOT_EQUAL('0', peak[1]);
 }

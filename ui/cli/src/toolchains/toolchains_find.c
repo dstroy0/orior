@@ -17,8 +17,8 @@ static char s_positions[64][CLI_PATH_MAX_LEN];
 unsigned int cli_toolchains_find_path(void)
 {
     unsigned int count = 0u;
-    g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
-    g_cli_toolchains_path = cli_toolchains_path_allocated(&count, &g_cli_toolchains_cells);
+    g_cli_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
+    g_cli_toolchains_path = cli_toolchains_path_allocated(&count, g_cli_toolchains_owner);
     return count;
 }
 
@@ -26,12 +26,12 @@ void cli_toolchains_find_release(const CliToolchainsJsonCtx *args)
 {
     if (args->json != NULL)
     {
-        g_cli_cells->persistent_buf_release(
-            args->json->node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->json->node));
+        g_cli_guard->persistent_buf_release(args->json->node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), args->json->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
+    g_cli_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
     g_cli_toolchains_path = NULL;
 }
 
@@ -70,13 +70,13 @@ EMBED_INLINE int cli_passed_over(const ToolchainsFindCtx *args)
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = item, .length_pointer = NULL);
         const unsigned long long length =
-            (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) : 0ULL;
+            (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) : 0ULL;
         const char *part = args->dir;
         while ((name != NULL) && (part[0] != '\0'))
         {
             const char *end = part;
             end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "/\\");
             if (((unsigned long long)(end - part) == length) &&
                 cellul.starts(&(CatenaFinitaCfg){.src = part, .other = name, .cap = length, .ci = 1}))
             {
@@ -118,11 +118,11 @@ EMBED_INLINE void cli_set(const ToolchainsFindCtx *args)
     args->found->has_program = 1;
     memor.cpy(&(MemoriaCfg){.dst = args->found->program,
                             .src = args->program,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->found->folder,
                             .src = args->program,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
-    char *cut = args->found->folder + cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_POOL_BYTES}) + 1u});
+    char *cut = args->found->folder + cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_POOL_BYTES});
     cut = args->found->folder + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                            .text = args->found->folder,
                                            .at = (unsigned long long)(cut - args->found->folder), .set = "/\\");
@@ -159,7 +159,7 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
                                       .object = tool, .name = "id"),
                    .length_pointer = NULL);
     CliTreeEnvironment environment;
-    if ((id != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_CELLS_POOL})) &&
+    if ((id != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &environment) &&
         environment.has_python)
     {
@@ -238,7 +238,7 @@ EMBED_INLINE void cli_quoted_or_null(const ToolchainsFindCtx *args)
         return;
     }
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 // what a spawned program wrote, its output then its errors, each ended with a line's end and the whole with a 0, in a
@@ -291,7 +291,7 @@ EMBED_INLINE const char *cli_version_line_pick(const ToolchainsFindCtx *args)
     {
         const char *const end =
             at + EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                            .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = "\n");
+                            .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .set = "\n");
         const char *const from =
             at + EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                             .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
@@ -712,7 +712,7 @@ int cli_toolchains_open_install(const CliToolchainsIdErrMsgCfg *args)
     {
         return 0;
     }
-    if (!cellul.starts(&(CatenaFinitaCfg){.src = url, .other = "https://", .cap = CLI_CELLS_POOL}))
+    if (!cellul.starts(&(CatenaFinitaCfg){.src = url, .other = "https://", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->err_msg, url);
         mmgr_line_put(args->err_msg, " is not an https page");

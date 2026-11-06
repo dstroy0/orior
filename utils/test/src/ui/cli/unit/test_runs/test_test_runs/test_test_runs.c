@@ -55,8 +55,8 @@ static unsigned int line_found(const char *kind, const char *id, unsigned int fr
             unsigned int one = CLI_JSON_NONE;
             const CliJson *const read = cli_unity_parsed(s_seen + at, length, &one);
             const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = read, .object = one, .name = "outcome");
-            const int kind_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "kind"), .other = kind, .cap = CLI_CELLS_POOL});
-            const int id_matches = (id == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(outcome, "id"), .other = id, .cap = CLI_CELLS_POOL});
+            const int kind_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "kind"), .other = kind, .cap = CLI_POOL_BYTES});
+            const int id_matches = (id == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(outcome, "id"), .other = id, .cap = CLI_POOL_BYTES});
             if (kind_matches && id_matches)
             {
                 s_json = read;
@@ -96,7 +96,7 @@ static int pytest_line_is(const char *line, const char *id, const char *outcome)
     {
         return id == NULL;
     }
-    return (id != NULL) && (size == CLI_UNITY_LENGTH(id)) && (memor.cmp(&(MemoriaCfg){.src = line + at, .other = id, .bytes = size}) == 0) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_CELLS_POOL});
+    return (id != NULL) && (size == CLI_UNITY_LENGTH(id)) && (memor.cmp(&(MemoriaCfg){.src = line + at, .other = id, .bytes = size}) == 0) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_POOL_BYTES});
 }
 
 // whether a unittest verbose line reads as `id` with `outcome`
@@ -104,7 +104,7 @@ static int unittest_line_is(const char *line, const char *id, const char *outcom
 {
     char read_id[CLI_PATH_MAX_LEN];
     const char *read = NULL;
-    return EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx, .line = line, .size = CLI_UNITY_LENGTH(line), .id_out = read_id, .capacity = sizeof(read_id), .outcome_pointer = &read) && cellul.eq(&(CatenaFinitaCfg){.src = read_id, .other = id, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_CELLS_POOL});
+    return EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx, .line = line, .size = CLI_UNITY_LENGTH(line), .id_out = read_id, .capacity = sizeof(read_id), .outcome_pointer = &read) && cellul.eq(&(CatenaFinitaCfg){.src = read_id, .other = id, .cap = CLI_POOL_BYTES}) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_POOL_BYTES});
 }
 
 // a worker of the run set up to report into the recorded events, empty
@@ -308,9 +308,9 @@ void test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released(void)
 {
     report_ready();
     EMBED_CALL(cli_test_runs_worker_internal.test_report_emit, CliTestRunsWorkerCtx, .worker = &s_run.workers[0], .xml = s_xml, .size = sizeof(s_xml) - 1u);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_test_report_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_test_report_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_xml) * 4u, embed_atomic_usize_load(&g_cli_test_report_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_test_report_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_test_report_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_xml) * 4u, mmgr_owner_hw(g_cli_test_report_owner));
 }
 
 void test_unittests_failures_are_read(void)
@@ -387,7 +387,7 @@ void test_coverage_reports_a_files_lines_run_result_and_missed(void)
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = files, .index = at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int file = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = files, .index = at);
-        shapes = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(file, "file"), .other = "shapes.py", .cap = CLI_CELLS_POOL}) ? file : shapes;
+        shapes = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(file, "file"), .other = "shapes.py", .cap = CLI_POOL_BYTES}) ? file : shapes;
     }
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, shapes);
     TEST_ASSERT_TRUE(numbers_contain(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = shapes, .name = "ran"), '1'));

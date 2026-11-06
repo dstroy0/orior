@@ -46,7 +46,7 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
     credential.TargetName = name;
     credential.UserName = user;
     // the secret's bytes, as the credential carries a blob of them
-    credential.CredentialBlobSize = (DWORD)cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_CELLS_POOL});
+    credential.CredentialBlobSize = (DWORD)cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_POOL_BYTES});
     credential.CredentialBlob = (LPBYTE)(uintptr_t)args->secret;
     credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
     if (!CredWriteW(&credential, 0u))

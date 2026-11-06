@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_read.c: a file read for the editor: its text where it is text, its first bytes where it is not, and a larger
 // text read a window of whole lines at a time
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "archive.h"
@@ -131,7 +131,7 @@ EMBED_INLINE const unsigned char *cli_map(const FilesReadCtx *args)
         return NULL;
     }
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = size, .owner = &g_cli_editor_cells);
+                                                  .size_pointer = size, .owner = g_cli_editor_owner);
     if (bytes == NULL)
     {
         EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = err_msg);
@@ -162,7 +162,7 @@ EMBED_INLINE const unsigned char *cli_piece(const FilesReadCtx *args)
     const unsigned long long capacity = (from < *args->whole) ? *args->whole - from : 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = path,
                                                   .from = from, .count_u64 = (count < capacity) ? count : capacity,
-                                                  .size_pointer = args->got, .owner = &g_cli_editor_cells);
+                                                  .size_pointer = args->got, .owner = g_cli_editor_owner);
     if (bytes == NULL)
     {
         EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = err_msg);
@@ -205,7 +205,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
             const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
             const int paged_text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = first, .size = got) &&
                                    EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = first, .size = probe, .cut = 1);
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)first, (&g_cli_editor_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)first, (g_cli_editor_owner));
             if (!paged_text)
             {
                 return CLI_FILES_OPEN_NOT_TEXT;
@@ -218,7 +218,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
     }
     char *const joined =
         archived ? EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = args->root, .path = args->file,
-                              .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = args->err_msg)
+                              .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = args->err_msg)
                  : NULL;
     const unsigned char *const bytes = archived
                                            ? (const unsigned char *)joined
@@ -235,11 +235,11 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
                                           .text = (const char *)bytes, .size = size, .shape = &shape);
     if (archived)
     {
-        g_cli_cells->persistent_buf_release(joined, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(joined, g_cli_editor_owner);
     }
     else
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_editor_owner));
     }
     if (text && !stored)
     {

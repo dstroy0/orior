@@ -21,7 +21,7 @@ const char *cli_pg_parameter(const CliPgNameCfg *args)
 {
     for (unsigned int at = 0u; at < args->pg_read->parameters; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->pg_read->names[at], .other = args->name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->pg_read->names[at], .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             return args->pg_read->values[at];
         }

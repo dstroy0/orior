@@ -3,7 +3,7 @@
 // plugins_code.c: a script plugin's code: the file its plugin.json names as `main`, or each of the files it names there
 // in order, joined by a line's end, plugin.js where it names none, every one in the plugin's own folder. The code of a
 // script plugin that comes with orior is read the same way as the program is built, and built into it
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "plugins.h"
@@ -52,7 +52,7 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ULL,
-                                         .err_msg = &err_msg, .owner = &g_cli_plugins_cells);
+                                         .err_msg = &err_msg, .owner = g_cli_plugins_owner);
     mains->mains = 0u;
     const unsigned int main = (root != CLI_JSON_NONE)
                                   ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -75,8 +75,7 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
     {
         EMBED_CALL(code_main_append, PluginsCodeCtx, .mains = mains, .name = (one != NULL) ? one : "plugin.js");
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return root != CLI_JSON_NONE;
@@ -86,13 +85,13 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
 EMBED_INLINE int code_own(const PluginsCodeCtx *args)
 {
     int own = (args->name[0] != '/') && (args->name[0] != '\\') &&
-              (cellul.chr(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL, .byte = ':'}) == NULL);
+              (cellul.chr(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES, .byte = ':'}) == NULL);
     const char *part = args->name;
     while (own && (part[0] != '\0'))
     {
         const char *end = part;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "/\\");
         const unsigned long long length = (unsigned long long)(end - part);
         own = (length != 0ULL) && !((length == 1u) && (part[0] == '.')) &&
               !((length == 2u) && (part[0] == '.') && (part[1] == '.'));

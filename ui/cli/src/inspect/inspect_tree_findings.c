@@ -5,7 +5,7 @@
 // protocol's diagnostic. The tree's findings are counted by one walk of what makes them and stored by a second, in one
 // cell sized to their count and their messages; a diagnostic is measured before it is written, in a cell of its size
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/measured.h"
 #include "inspect_tree_internal.h"
 
@@ -86,7 +86,7 @@ static void *findings_alloc(void)
     const unsigned long long finding_bytes = count * sizeof(CliInspectFinding);
     const unsigned long long number_bytes = ((2ULL * count) + (2ULL * files)) * sizeof(unsigned int);
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ULL, &g_cli_inspect_cells);
+        g_cli_guard->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ULL, g_cli_inspect_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -128,7 +128,7 @@ EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
                .finding = finding, .out = &measure);
     const unsigned long long size =
         EMBED_CALL(cli_measured_table.measure, CliMeasuredCfg, .line_read = &measure) + 1ULL;
-    char *const written = g_cli_cells->temporary_buf_alloc(size, &g_cli_inspect_cells);
+    char *const written = g_cli_guard->temporary_buf_alloc(size, g_cli_inspect_owner);
     if (written == NULL)
     {
         return;
@@ -141,7 +141,7 @@ EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
         EMBED_CALL(args->each, CliInspectFoundCfg, .context = args->context, .path = args->path, .finding = written,
                    .size = line.at);
     }
-    g_cli_cells->persistent_buf_release(written, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(written, g_cli_inspect_owner);
 }
 
 void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
@@ -172,6 +172,6 @@ void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
                        .each = args->each_inspect_found, .context = args->context);
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_inspect_owner);
     s_findings = (CliTreeFindings){0, 0u, 0ULL, NULL, NULL, NULL, NULL, NULL, NULL};
 }

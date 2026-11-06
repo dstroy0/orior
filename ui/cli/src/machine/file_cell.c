@@ -3,15 +3,15 @@
 // file_cell.c: a file's bytes read straight into one cell a caller's owner holds, whole or a piece, so every read of
 // them, the word a walk loads over a text's last bytes included, stays in the pool the cellblock bounds
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 
 unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     *size = 0ULL;
-    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(args->count_u64 + CLI_FILE_SLACK, args->owner);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(args->count_u64 + CLI_FILE_SLACK, args->owner);
     if (cell == NULL)
     {
         return NULL;
@@ -21,7 +21,7 @@ unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
                     .bytes_bytes = cell, .count_u64 = args->count_u64, .got = size) &&
         (args->count_u64 != 0ULL))
     {
-        g_cli_cells->persistent_buf_release(cell, args->owner);
+        g_cli_guard->persistent_buf_release(cell, args->owner);
         *size = 0ULL;
         return NULL;
     }
@@ -49,7 +49,7 @@ unsigned char *cli_file_alloc_utf8(const CliPathCtx *args)
     if ((bytes != NULL) &&
         !EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg, .text_bytes = bytes, .size = *size))
     {
-        g_cli_cells->persistent_buf_release(bytes, args->owner);
+        g_cli_guard->persistent_buf_release(bytes, args->owner);
         *size = 0ULL;
         return NULL;
     }

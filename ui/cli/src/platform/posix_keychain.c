@@ -24,13 +24,13 @@ EMBED_INLINE void keychain_errors(const PosixKeychainCtx *args)
     unsigned long long end = args->run_result->err_size;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[start]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->run_result->err[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[end - 1u]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->run_result->err[end - 1u]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -71,7 +71,7 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
                                   named,         "account", args->account, NULL};
     const int started = EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words, .folder = NULL,
                                    .settings = NULL, .count = 0u, .input = args->secret,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_CELLS_POOL}),
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_POOL_BYTES}),
                                    .run_result = run_result, .err_msg = &err_buf);
     const char *const program = "secret-tool, which stores secrets in the Secret Service";
 #endif

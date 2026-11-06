@@ -110,7 +110,7 @@ static void cli_description_each(const CliEachNameIsFolderCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = found->min,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
         found->found = 1;
     }
 }
@@ -146,7 +146,7 @@ int cli_devcontainer_find(const CliDevcontainerCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->file,
                           .src = s_found.min,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.min, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.min, .cap = CLI_POOL_BYTES}) + 1u});
     }
     return s_found.found;
 }
@@ -154,7 +154,7 @@ int cli_devcontainer_find(const CliDevcontainerCfg *args)
 void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
 {
     // the tree's folder: its path's last part, the separators after it left off
-    const char *end = args->root + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const char *end = args->root + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     end = args->root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root,
                                   .at = (unsigned long long)(end - args->root), .set = "/\\");
     const char *base = end;

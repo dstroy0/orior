@@ -108,7 +108,7 @@ static void file_written(const char *root, const char *relative, const char *tex
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -453,7 +453,7 @@ int main(void)
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

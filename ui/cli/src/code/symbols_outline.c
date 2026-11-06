@@ -5,7 +5,7 @@
 // as they come, and the depths are read off the lines' indents in one walk of the text once every row stands
 #include "symbols.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/document.h"
 
 // the bytes each row's name and kind are copied into
@@ -125,7 +125,7 @@ void cli_outline_read(const CliOutlineCfg *args)
 {
     if (s_outline == NULL)
     {
-        s_outline = g_cli_cells->persistent_buf_alloc(sizeof(Outline), &g_cli_code_cells);
+        s_outline = g_cli_guard->persistent_buf_alloc(sizeof(Outline), g_cli_code_owner);
         if (s_outline == NULL)
         {
             return;
@@ -145,7 +145,7 @@ void cli_outline_read(const CliOutlineCfg *args)
     }
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                  .owner = &g_cli_code_cells, .size_pointer = &size);
+                                  .owner = g_cli_code_owner, .size_pointer = &size);
     if (text == NULL)
     {
         return;
@@ -153,7 +153,7 @@ void cli_outline_read(const CliOutlineCfg *args)
     EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = args->path, .text = text,
                .size = size, .each_declared = outline_declared);
     EMBED_CALL(outline_depths_read, OutlineCtx, .text = text, .length = size);
-    g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
 }
 
 unsigned int cli_outline_rows(const CliOutlineCfg *args)

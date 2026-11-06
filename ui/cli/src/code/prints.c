@@ -3,7 +3,7 @@
 // prints.c: the lines a change added that print as a print for a task does, read from git's diff of each repository
 // of the tree and from the files new to git
 #include "prints.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -76,7 +76,7 @@ EMBED_INLINE const char *const *cli_starts(const PrintsCtx *args)
                 {"swift", s_swift}, {"dart", s_swift}, {"cs", s_cs}};
     for (unsigned int at = 0u; at < (sizeof(s_by) / sizeof(s_by[0])); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_by[at].extension, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_by[at].extension, .cap = CLI_POOL_BYTES}))
         {
             return s_by[at].starts;
         }
@@ -90,7 +90,7 @@ int cli_prints_line(const CliPrintsPathCfg *args)
     char extension[CLI_NAME_MAX_LEN];
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '.');
     (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = extension,
                      .capacity = sizeof(extension), .text = (dot != NULL) ? (dot + 1) : "");
     // the line with the whitespace at its start left off
@@ -110,7 +110,7 @@ int cli_prints_line(const CliPrintsPathCfg *args)
     for (const char *const *start = EMBED_CALL(cli_starts, PrintsCtx, .extension = extension); start[0] != NULL;
          start += 1)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = start[0], .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = start[0], .cap = CLI_POOL_BYTES});
         // a start of no bytes has no last byte to read
         if ((size == 0ULL) || ((args->length - from) < size) ||
             (memor.cmp(&(MemoriaCfg){.src = args->text + from, .other = start[0], .bytes = size}) != 0))

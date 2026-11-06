@@ -74,7 +74,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
-                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_bundle_cells);
+                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_bundle_owner);
     const char *const kind =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -84,8 +84,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
             : NULL;
     const int script =
         (kind != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "script", .cap = CLI_NAME_MAX_LEN});
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return script;
@@ -123,7 +122,7 @@ EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
 static void cli_folder_each(const CliEachNameIsFolderCfg *args)
 {
     if (!args->is_folder || (s_count >= CLI_BUNDLE_MAX) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN))
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN))
     {
         return;
     }
@@ -134,12 +133,12 @@ static void cli_folder_each(const CliEachNameIsFolderCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = s_ids[place],
             .src = s_ids[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_ids[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_ids[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_ids[place],
                             .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     s_count += 1u;
 }
 
@@ -182,7 +181,7 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
 
 int main(int count, char **words)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     if (count != 5)
     {
         return 2;

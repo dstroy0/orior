@@ -28,7 +28,8 @@ typedef struct CliCommsKeyCfg CliCommsKeyCfg;
 typedef struct CliCommsKeyProcessCfg CliCommsKeyProcessCfg;
 typedef struct CliCommsChannelBytesCfg CliCommsChannelBytesCfg;
 typedef struct CliCommsInnerCfg CliCommsInnerCfg;
-typedef struct CliCommsCfg CliCommsCfg;
+typedef struct CliCommsPaneCfg CliCommsPaneCfg;
+typedef struct CliCommsCommandCfg CliCommsCommandCfg;
 typedef struct CliCommsListenerCfg CliCommsListenerCfg;
 
 // the bytes of a key written, its 32 bytes in hex and a 0 after; the most grants a part has to listen and to send
@@ -148,9 +149,92 @@ struct CliCommsInnerCfg
     const char *outer;
 };
 
-struct CliCommsCfg
+// The Comms pane as the window reads it (comms_view.c): one of four views, Channels, Requests, Network and Report,
+// the Channels view current until another is chosen. The Channels view lists a group row Parts with its count, a row
+// each part registered by name, a group row Channels with its count, a row each channel that carried or refused a
+// message by name, and under a channel opened a row each of its last messages, the oldest first. A part's row carries
+// its name, its counts sent and refused as its status, its process and its grants as its detail, and whether it had
+// a message refused; a channel's carries its name, its messages and refusals as its status, its bytes, those through
+// the transfer layer and the parts that listen as its detail, whether it refused one, whether it is open and whether
+// it is the channel last opened or closed; a message's carries its sender as its name and its body as its status.
+// Every text is a pointer into the pane's one text cell and a length. The rows are listed again only where the comms
+// layer's stamp moved since they were last listed, or where they are read with `force`
+#define CLI_COMMS_VIEW_CHANNELS 0u
+#define CLI_COMMS_VIEW_REQUESTS 1u
+#define CLI_COMMS_VIEW_NETWORK 2u
+#define CLI_COMMS_VIEW_REPORT 3u
+#define CLI_COMMS_VIEWS 4u
+// the head's actions: the view `at` chosen, CLI_COMMS_CHOOSE and on; the layer listed again; and an action of the view
+// shown, CLI_COMMS_FORWARD and on; and the milliseconds between two listings while the Channels view is in sight
+#define CLI_COMMS_CHOOSE 1u
+#define CLI_COMMS_READ 5u
+#define CLI_COMMS_FORWARD 64u
+#define CLI_COMMS_REFRESH_MS 1000ULL
+// a row's kind: a group's, a part's, a channel's, a stored message's
+#define CLI_COMMS_ROW_GROUP 0u
+#define CLI_COMMS_ROW_PART 1u
+#define CLI_COMMS_ROW_CHANNEL 2u
+#define CLI_COMMS_ROW_MESSAGE 3u
+typedef struct
 {
-    VerbaLinea *out;
+    unsigned int kind;
+    const char *name;
+    unsigned long long name_length;
+    const char *status;
+    unsigned long long status_length;
+    const char *detail;
+    unsigned long long detail_length;
+    int refused;
+    int open;
+    int current;
+} CliCommsRow;
+
+// the pane begun, `woken` waking the view's thread as the Requests view's answer comes in; and while the pane is
+// `shown`, the Channels view listed again where the layer's stamp moved or where `force`, and the view shown stepped
+// on at `now_ms`: 1 where either changed what the pane draws
+void cli_comms_pane_begin(const CliCommsPaneCfg *args);
+int cli_comms_pane_step(const CliCommsPaneCfg *args);
+// the millisecond the Channels view next looks at the layer while `shown`, 0 for none
+unsigned long long cli_comms_pane_deadline_ms(const CliCommsPaneCfg *args);
+// how many rows the Channels view has; the row `at` into `row`: 1, or 0 past the last; the channel of the row `at`
+// opened under it, or closed where it is open; and the row of the channel last opened or closed, -1 for none
+unsigned int cli_comms_pane_rows(const CliCommsPaneCfg *args);
+int cli_comms_pane_row(const CliCommsPaneCfg *args);
+void cli_comms_pane_toggle(const CliCommsPaneCfg *args);
+int cli_comms_pane_current(const CliCommsPaneCfg *args);
+// the view shown; the view `view` chosen; the count of parts and channels as a sentence; and the text of the head's
+// action `at`, a view's choice or the layer's read again, each with its bytes into `length_out`
+unsigned int cli_comms_pane_view(const CliCommsPaneCfg *args);
+void cli_comms_pane_choose(const CliCommsPaneCfg *args);
+const char *cli_comms_pane_summary(const CliCommsPaneCfg *args);
+const char *cli_comms_pane_label(const CliCommsPaneCfg *args);
+struct CliCommsPaneCfg
+{
+    void (*woken)(void);
+    const char *root;
+    unsigned int at;
+    CliCommsRow *row;
+    int shown;
+    int force;
+    unsigned long long now_ms;
+    unsigned int view;
+    unsigned long long *length_out;
+};
+
+// The Comms commands of the catalog run (comms_command.c): send-request, copy-as-curl and private-environment on the
+// request the shown view's cursor stands in, network, network-off, report, remote-rejoin and remote-copy-address. A
+// command that shows a view of the pane chooses it and answers 1 in `shown_out`; one whose text goes to the system's
+// clipboard writes it into `clipboard`; one that opens a file writes its path in the tree into `open_out`. The run
+// answers 1 where `name` is one of them, else 0 and nothing written
+int cli_comms_command_run(const CliCommsCommandCfg *args);
+struct CliCommsCommandCfg
+{
+    const char *name;
+    const char *const *words;
+    unsigned int count;
+    VerbaLinea *clipboard;
+    VerbaLinea *open_out;
+    int *shown_out;
 };
 
 struct CliCommsListenerCfg
@@ -254,6 +338,44 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliCommsChannelBytesNs, transfer);
 EMBED_TABLE_STORAGE CliCommsChannelBytesNs cli_comms_channel_bytes EMBED_UNUSED = {
     .transfer = cli_comms_transfer,
+};
+
+typedef struct
+{
+    void (*begin)(const CliCommsPaneCfg *args);
+    int (*step)(const CliCommsPaneCfg *args);
+    unsigned long long (*deadline_ms)(const CliCommsPaneCfg *args);
+    unsigned int (*rows)(const CliCommsPaneCfg *args);
+    int (*row)(const CliCommsPaneCfg *args);
+    void (*toggle)(const CliCommsPaneCfg *args);
+    int (*current)(const CliCommsPaneCfg *args);
+    unsigned int (*view)(const CliCommsPaneCfg *args);
+    void (*choose)(const CliCommsPaneCfg *args);
+    const char *(*summary)(const CliCommsPaneCfg *args);
+    const char *(*label)(const CliCommsPaneCfg *args);
+} CliCommsPaneNs;
+EMBED_TABLE_LAYOUT(CliCommsPaneNs, begin, step, deadline_ms, rows, row, toggle, current, view, choose, summary, label);
+EMBED_TABLE_STORAGE CliCommsPaneNs cli_comms_pane EMBED_UNUSED = {
+    .begin = cli_comms_pane_begin,
+    .step = cli_comms_pane_step,
+    .deadline_ms = cli_comms_pane_deadline_ms,
+    .rows = cli_comms_pane_rows,
+    .row = cli_comms_pane_row,
+    .toggle = cli_comms_pane_toggle,
+    .current = cli_comms_pane_current,
+    .view = cli_comms_pane_view,
+    .choose = cli_comms_pane_choose,
+    .summary = cli_comms_pane_summary,
+    .label = cli_comms_pane_label,
+};
+
+typedef struct
+{
+    int (*run)(const CliCommsCommandCfg *args);
+} CliCommsCommandNs;
+EMBED_TABLE_LAYOUT(CliCommsCommandNs, run);
+EMBED_TABLE_STORAGE CliCommsCommandNs cli_comms_command EMBED_UNUSED = {
+    .run = cli_comms_command_run,
 };
 
 #endif

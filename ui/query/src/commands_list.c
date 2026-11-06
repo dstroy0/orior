@@ -24,12 +24,12 @@ typedef struct
 static void query_names_walk(const CliEachNameIsFolderCfg *args)
 {
     QueryNamesWalk *const walk = (QueryNamesWalk *)args->context;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    const size_t kind = cellul.len(&(CatenaFinitaCfg){.src = walk->kinds[0], .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const size_t kind = cellul.len(&(CatenaFinitaCfg){.src = walk->kinds[0], .cap = CLI_POOL_BYTES});
     if (args->is_folder || (walk->count >= QUERY_NAMES_MAX) || (length <= (kind + 1u)) ||
         (args->name[length - kind - 1u] != '.') ||
         (!cellul.eq(
-            &(CatenaFinitaCfg){.src = args->name + length - kind, .other = walk->kinds[0], .cap = CLI_CELLS_POOL})) ||
+            &(CatenaFinitaCfg){.src = args->name + length - kind, .other = walk->kinds[0], .cap = CLI_POOL_BYTES})) ||
         ((length - kind - 1u) >= QUERY_NAME_MAX_LEN))
     {
         return;
@@ -292,7 +292,7 @@ int query_loop_run(const QueryLoopsContextErrMsgNameCfg *args)
                      {"retention", query_retention_run}, {"sweep", query_sweep_run}};
     for (unsigned int at = 0u; at < 11u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_loops[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_loops[at].name, .other = name, .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(s_loops[at].loop, QueryLoopCfg, .context = context, .words = words, .count = count,
                               .err_msg = args->err_msg);

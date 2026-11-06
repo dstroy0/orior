@@ -24,7 +24,7 @@ void gui_bar_draw(const GuiChromeRasterCfg *args)
         EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
                    .size = size, .top = args->frame->bar.y, .pixel_height = args->frame->bar.height);
     unsigned long long length = 0ULL;
-    length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_CELLS_POOL});
+    length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_POOL_BYTES});
     const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BAR_NAME_WIDTH,
                                 .scale = args->frame->scale);
     const float measured = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,

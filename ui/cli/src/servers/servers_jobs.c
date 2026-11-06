@@ -6,7 +6,7 @@
 // it, and is taken by the first of the servers' threads free, which gives the cell back once the job is done; the
 // threads started as the first jobs come; a job handed over while every place is taken waits for one
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 // the threads that take the jobs, and the places jobs wait in
@@ -55,13 +55,13 @@ static void jobs_worker(void *context)
         place->used = 0;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
         EMBED_CALL(run, CliServersJobCfg, .job = bytes, .size = size);
-        g_cli_cells->persistent_buf_release(bytes, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(bytes, g_cli_servers_owner);
     }
 }
 
 int cli_servers_later(const CliServersRunCtx *args)
 {
-    char *const bytes = g_cli_cells->persistent_buf_alloc(args->size, &g_cli_servers_cells);
+    char *const bytes = g_cli_guard->persistent_buf_alloc(args->size, g_cli_servers_owner);
     if (bytes != NULL)
     {
         // a size the cell stores fits a size_t

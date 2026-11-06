@@ -4,7 +4,7 @@
 // and writes them with the lines each file could run, and what the run's processes wrote, put together by file and
 // reported
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
@@ -161,7 +161,7 @@ EMBED_INLINE int cover_work_state_alloc(const TestCoverageCtx *args)
     const unsigned long long lines = args->counts_read->numbers + 1ULL;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
                                      (lines * sizeof(CliCoverLine)) + args->counts_read->bytes + 1ULL + (4ULL * 8ULL);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_tests_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_tests_owner);
     if (cell == NULL)
     {
         return 0;
@@ -183,7 +183,7 @@ EMBED_INLINE void cover_white(const TestCoverageCtx *args)
 {
     while ((args->read->at < args->read->size) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->read->text[args->read->at]}) != NULL))
+                .src = " \t\r\n", .cap = CLI_POOL_BYTES, .byte = args->read->text[args->read->at]}) != NULL))
     {
         args->read->at += 1ULL;
     }
@@ -242,7 +242,7 @@ EMBED_INLINE unsigned int cover_file(const TestCoverageCtx *args)
 {
     for (unsigned int at = 0u; at < s_cover->files; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_cover->text + s_cover->names[at], .cap = CLI_CELLS_POOL}) ==
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_cover->text + s_cover->names[at], .cap = CLI_POOL_BYTES}) ==
              args->length) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = s_cover->text + s_cover->names[at], .other = args->name, .bytes = args->length}) == 0))
@@ -304,7 +304,7 @@ static void cover_skip(const TestCoverageCtx *args)
     }
     while ((args->read->at < args->read->size) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = ",]} \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->read->text[args->read->at]}) == NULL))
+                .src = ",]} \t\r\n", .cap = CLI_POOL_BYTES, .byte = args->read->text[args->read->at]}) == NULL))
     {
         args->read->at += 1ULL;
     }
@@ -366,8 +366,8 @@ EMBED_INLINE void cover_file_object(const TestCoverageCtx *args)
         mmgr_line_finish(&key_line);
         EMBED_CALL(cover_white, TestCoverageCtx, .read = read);
         read->at += 1ULL;
-        const int run_result = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_CELLS_POOL}));
-        const int could = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "could", .cap = CLI_CELLS_POOL}));
+        const int run_result = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_POOL_BYTES}));
+        const int could = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "could", .cap = CLI_POOL_BYTES}));
         if (run_result || could)
         {
             EMBED_CALL(cover_lines, TestCoverageCtx, .read = read, .file = args->file, .could = could ? 1u : 0u);
@@ -560,7 +560,7 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
     const unsigned long long out_capacity = (s_cover->used * 6ULL) + ((unsigned long long)s_cover->files * 64ULL) +
                                             ((unsigned long long)s_cover->line_count * 12ULL) + 64ULL;
     char *const out_cell =
-        (s_cover->files > 0u) ? g_cli_cells->temporary_buf_alloc(out_capacity, &g_cli_tests_cells) : NULL;
+        (s_cover->files > 0u) ? g_cli_guard->temporary_buf_alloc(out_capacity, g_cli_tests_owner) : NULL;
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     if (out_cell != NULL)
     {
@@ -590,7 +590,7 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
             const char *const name = s_cover->text + s_cover->names[file];
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                        .text_bytes = (const unsigned char *)name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
             EMBED_CALL(cover_file_write, TestCoverageCtx, .out = &out, .from = from, .to = to);
         }
         mmgr_line_put(&out, "]}");
@@ -600,8 +600,8 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
                        .size = out.at);
         }
     }
-    g_cli_cells->persistent_buf_release(out.out, &g_cli_tests_cells);
-    g_cli_cells->persistent_buf_release(s_cover->capacity, &g_cli_tests_cells);
+    g_cli_guard->persistent_buf_release(out.out, g_cli_tests_owner);
+    g_cli_guard->persistent_buf_release(s_cover->capacity, g_cli_tests_owner);
     s_cover->capacity = NULL;
     s_cover = NULL;
 }

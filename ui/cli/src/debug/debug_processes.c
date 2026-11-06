@@ -43,7 +43,7 @@ typedef struct
 // a text stored in the listing's text: where it starts, or where an empty one does where it does not fit
 EMBED_INLINE unsigned long long processes_text_store(const DebugProcessesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
     if (args->listing->used + size > args->listing->text_capacity)
     {
         return 0ULL;
@@ -116,15 +116,15 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
     CliDebugListing listing = {NULL, 0u, CLI_DEBUG_PROCESSES, NULL, 1ULL, CLI_DEBUG_PROCESS_TEXT, cli_process_own(),
                                NULL};
     listing.process =
-        g_cli_cells->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
-    listing.text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_PROCESS_TEXT, &g_cli_debug_processes_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess), g_cli_debug_processes_owner);
+    listing.text = g_cli_guard->temporary_buf_alloc(CLI_DEBUG_PROCESS_TEXT, g_cli_debug_processes_owner);
     if ((listing.process != NULL) && (listing.text != NULL))
     {
         listing.text[0] = '\0';
         EMBED_CALL(cli_context_internal.processes_each, CliContextCtx, .each_callback = processes_list,
                    .context = &listing);
-        listing.sorted = g_cli_cells->persistent_buf_alloc(
-            ((unsigned long long)listing.count + 1ULL) * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
+        listing.sorted = g_cli_guard->persistent_buf_alloc(
+            ((unsigned long long)listing.count + 1ULL) * sizeof(CliDebugProcess), g_cli_debug_processes_owner);
     }
     const unsigned int count = (listing.sorted != NULL) ? listing.count : 0u;
     EMBED_CALL(processes_sort, DebugProcessesCtx, .listing = &listing, .from = 0u, .to = count);
@@ -138,15 +138,15 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
         mmgr_line_put(args->out, ",\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"command\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)command,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(args->out, '}');
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_cells->persistent_buf_release(listing.sorted, &g_cli_debug_processes_cells);
-    g_cli_cells->persistent_buf_release(listing.text, &g_cli_debug_processes_cells);
-    g_cli_cells->persistent_buf_release(listing.process, &g_cli_debug_processes_cells);
+    g_cli_guard->persistent_buf_release(listing.sorted, g_cli_debug_processes_owner);
+    g_cli_guard->persistent_buf_release(listing.text, g_cli_debug_processes_owner);
+    g_cli_guard->persistent_buf_release(listing.process, g_cli_debug_processes_owner);
 }

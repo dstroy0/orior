@@ -4,7 +4,7 @@
 // its findings with it, each file the editor has open checked again with them, and the tree where its check is on; the
 // names no checker answers to given back
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../toolchains/checkers.h"
 #include "servers_internal.h"
 

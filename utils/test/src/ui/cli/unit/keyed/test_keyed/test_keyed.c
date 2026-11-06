@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_keyed.c: a keyed store's listed size is exactly the bytes its keys and side values write
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/text/keyed.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"

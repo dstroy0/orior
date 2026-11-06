@@ -138,7 +138,7 @@ int gui_busy_tick(const GuiBusyRunningCfg *args)
         return 0;
     }
     args->busy->displayed = 0;
-    g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->busy->cell, g_gui_owner);
     args->busy->cell = NULL;
     args->busy->cell_bytes = 0ULL;
     args->busy->under_saved = 0;
@@ -191,7 +191,7 @@ void gui_busy_still(const GuiBusyStillCfg *args)
     int still = args->still;
     if (args->busy->still != still)
     {
-        g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->busy->cell, g_gui_owner);
         args->busy->cell = NULL;
         args->busy->cell_bytes = 0ULL;
         args->busy->under_saved = 0;
@@ -379,7 +379,7 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
 EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
 {
     int scale = args->scale;
-    g_cli_cells->persistent_buf_release(args->busy->cell, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->busy->cell, g_gui_owner);
     args->busy->cell = NULL;
     args->busy->cell_bytes = 0ULL;
     args->busy->under_saved = 0;
@@ -389,7 +389,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
     const unsigned long long under_bytes = (unsigned long long)pixels * sizeof(GuiColor);
     const unsigned long long lane_bytes = (unsigned long long)stages * pixels * sizeof(unsigned int);
     const unsigned long long bytes = under_bytes + (3ULL * lane_bytes) + (3ULL * pixels);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_gui_owner);
     if (cell == NULL)
     {
         return 0;

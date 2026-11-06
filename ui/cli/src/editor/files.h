@@ -19,7 +19,7 @@ typedef struct CliFilesCountCfg CliFilesCountCfg;
 typedef struct CliFilesRootCfg CliFilesRootCfg;
 typedef struct CliFilesCountOutCfg CliFilesCountOutCfg;
 typedef struct CliFilesRootCountCfg CliFilesRootCountCfg;
-typedef struct CliFilesRootOutCfg CliFilesRootOutCfg;
+typedef struct CliFilesRootRowsCfg CliFilesRootRowsCfg;
 typedef struct CliFilesRootPathCfg CliFilesRootPathCfg;
 typedef struct CliFilesQueryCfg CliFilesQueryCfg;
 typedef struct CliFilesRootOutErrMsgCfg CliFilesRootOutErrMsgCfg;
@@ -108,7 +108,7 @@ typedef struct
 {
     const char *root;
     const char *dir;
-    CellOwner *owner;
+    const CellOwner *owner;
     VerbaLinea *err_msg;
 } CliFilesEntriesCfg;
 CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args);
@@ -170,14 +170,44 @@ unsigned int cli_files_want(const CliFilesQueryLettersCfg *args);
 unsigned int cli_files_letters(const CliFilesTextCfg *args);
 int cli_files_fuzzy_matches(const CliFilesCountCfg *args);
 
-// the tree listed behind the window for the quick open, where it is not listed; whether it is not listed yet; and the
-// tree's files that answer
-// `query`, at most `most` of them, the best first, written as `{"found": [{"path", "score", "hits"}], "reading"}`:
-// until the files are read, those of `recent` alone answer; a file in `recent` scores more, and one named as typed
-// more again; with `fuzzy` off a file answers only where its path contains the query as typed, case aside
+// the tree listed behind the window for the quick open, where it is not listed; and whether it is not listed yet
 // (files_ranked.c)
 void cli_files_read_behind(const CliFilesRootPathsCfg *args);
 int cli_files_unread(const CliFilesRootPathsCfg *args);
+
+// the most files a ranked find answers
+#define CLI_FILES_RANKED_MOST 200u
+
+// A file that answers a query: its path from the tree's top, its score, and the places of its path's letters that
+// matched, counted in letters, `hit_count` of them from `hit_first` among the answer's places
+typedef struct
+{
+    const char *path;
+    double score;
+    unsigned int hit_first;
+    unsigned int hit_count;
+} CliFileRanked;
+
+// The files that answer a query, in one cell, NULL where none do: how many, the files best first, the places their
+// letters matched, and whether the tree's files are still being read, so that more may answer
+typedef struct
+{
+    void *cell;
+    unsigned int count;
+    const CliFileRanked *row;
+    const unsigned int *hit;
+    int reading;
+} CliFilesRanked;
+
+// the tree's files at `root` that answer `query`, at most `most` of them and no more than CLI_FILES_RANKED_MOST, the
+// best first in one pass over the sorted files, into `rows`, its cell of `owner` released and taken anew sized to the
+// answer: a file whose name equals the query scores CLI_FILES_RANKED_EXACT over the match, one whose name starts with
+// it half that, and one among the `recents` paths of `recent` CLI_FILES_RANKED_LATELY over it; with `fuzzy` off a
+// file answers only where its path contains the query's letters in a row, case aside; until the tree is listed the
+// paths of `recent` alone answer and `reading` is 1. 1, or 0 where the cells cannot meet the answer, `rows` empty
+#define CLI_FILES_RANKED_EXACT 100000.0
+#define CLI_FILES_RANKED_LATELY 6.0
+int cli_files_ranked_find(const CliFilesRootRowsCfg *args);
 // How a search reads its query: case as given or not, whole words only or not, and a regular expression or the text
 typedef struct
 {
@@ -311,15 +341,16 @@ struct CliFilesRootCountCfg
     int moving;
 };
 
-struct CliFilesRootOutCfg
+struct CliFilesRootRowsCfg
 {
     const char *root;
-    VerbaLinea *out;
+    CliFilesRanked *rows;
     const char *query;
     const char *const *recent;
     unsigned int recents;
     unsigned int most;
     int fuzzy;
+    const CellOwner *owner;
 };
 
 struct CliFilesRootPathCfg
@@ -473,6 +504,15 @@ EMBED_TABLE_STORAGE CliFilesRootPathsNs cli_files_root_paths EMBED_UNUSED = {
     .warm = cli_files_warm,
     .read_behind = cli_files_read_behind,
     .unread = cli_files_unread,
+};
+
+typedef struct
+{
+    int (*ranked_find)(const CliFilesRootRowsCfg *args);
+} CliFilesRootRowsNs;
+EMBED_TABLE_LAYOUT(CliFilesRootRowsNs, ranked_find);
+EMBED_TABLE_STORAGE CliFilesRootRowsNs cli_files_root_rows EMBED_UNUSED = {
+    .ranked_find = cli_files_ranked_find,
 };
 
 typedef struct

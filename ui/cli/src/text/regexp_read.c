@@ -3,7 +3,7 @@
 // regexp_read.c: a pattern read into nodes: alternation, sequence, quantifiers, escapes, classes and atoms, as
 // JavaScript's syntax writes them; and each alternation's first characters and each repeat's one way filled in once
 // the pattern is read. Each read takes a reader of its own from the cells, as patterns are read on many threads
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "regexp_match_internal.h"
 #include "regexp_read_internal.h"
 
@@ -411,16 +411,16 @@ EMBED_INLINE int cli_regexp_read_by(const RegexpReadCtx *args)
     const char *source = args->source;
     VerbaLinea *err_msg = args->err_msg;
     reader->length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = source,
-                                .size = cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}),
+                                .size = cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_POOL_BYTES}),
                                 .letters = reader->letters, .capacity_u64 = CLI_REGEXP_LETTERS);
-    reader->unicode = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_CELLS_POOL, .byte = 'u'}) != NULL;
+    reader->unicode = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_POOL_BYTES, .byte = 'u'}) != NULL;
     reader->regexp = regexp;
     reader->source = source;
     reader->err_msg = err_msg;
     regexp->nodes = 0u;
     regexp->items = 0u;
     regexp->parts = 0u;
-    regexp->fold = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_CELLS_POOL, .byte = 'i'}) != NULL;
+    regexp->fold = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_POOL_BYTES, .byte = 'i'}) != NULL;
     const unsigned int root = EMBED_CALL(cli_regexp_read_internal.alternation, CliRegexpReadCtx, .reader = reader);
     if (root == CLI_REGEXP_FAILED)
     {
@@ -444,7 +444,7 @@ EMBED_INLINE int cli_regexp_read_by(const RegexpReadCtx *args)
 int cli_regexp_read(const CliRegexpSourceCfg *args)
 {
     // patterns are read on many threads at once, each by a reader in a cell of its own
-    CliRegexpReader *const reader = g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpReader), &g_cli_text_cells);
+    CliRegexpReader *const reader = g_cli_guard->temporary_buf_alloc(sizeof(CliRegexpReader), g_cli_text_owner);
     if (reader == NULL)
     {
         mmgr_line_put(args->err_msg, "the pattern could not be read: the cells cannot meet it");
@@ -453,6 +453,6 @@ int cli_regexp_read(const CliRegexpSourceCfg *args)
     mmgr_zero_buf(reader, sizeof(*reader));
     const int read = EMBED_CALL(cli_regexp_read_by, RegexpReadCtx, .reader = reader, .regexp = args->regexp_out,
                                 .source = args->source, .flags = args->flags, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(reader, &g_cli_text_cells);
+    g_cli_guard->persistent_buf_release(reader, g_cli_text_owner);
     return read;
 }

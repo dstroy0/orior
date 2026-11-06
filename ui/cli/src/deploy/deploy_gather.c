@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deploy_gather.c: whether a file is left out by a deployment's patterns, the mode git's index gives a file, else the
 // one it has here, and a release's name by the time it is made
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
@@ -36,7 +36,7 @@ EMBED_INLINE unsigned long long gather_letter(const DeployGatherCtx *args)
 
 int cli_deploy_fits(const CliDeploySizePatternCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_POOL_BYTES});
     unsigned long long p = 0ULL;
     unsigned long long n = 0ULL;
     unsigned long long star = 0ULL;
@@ -93,7 +93,7 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
     named[args->folder_size] = '\0';
     unsigned long long starts[CLI_PATH_MAX_LEN / 2u];
     unsigned int parts = 0u;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     {
         unsigned long long at = 0ULL;
         while ((at <= length) && (parts < CLI_PATH_MAX_LEN / 2u))
@@ -142,11 +142,11 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
 
 const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     for (unsigned int index = 0u; index < args->count; index += 1u)
     {
         const char *const pattern = args->patterns[index];
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES});
         if ((size > 0u) && (pattern[size - 1u] == '/'))
         {
             if (EMBED_CALL(gather_folder_out, DeployGatherCtx, .folder = pattern, .folder_size = size - 1u,
@@ -161,7 +161,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
             const char *trimmed = pattern;
             trimmed +=
                 EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = "/");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_POOL_BYTES}), .set = "/");
             if (EMBED_CALL(cli_deploy_size_pattern_internal.fits, CliDeploySizePatternCtx, .pattern = trimmed,
                            .name = args->path, .size = length))
             {

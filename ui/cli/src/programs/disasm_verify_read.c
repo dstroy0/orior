@@ -470,7 +470,7 @@ EMBED_INLINE void read_one_spelling(const DisasmVerifyReadCtx *args)
     unsigned long long length = 0ULL;
     length =
         EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->mnemonic, .at = 0ULL,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->mnemonic, .cap = CLI_CELLS_POOL}), .set = ".");
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->mnemonic, .cap = CLI_POOL_BYTES}), .set = ".");
     length = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
     memor.cpy(&(MemoriaCfg){.dst = args->out, .src = args->mnemonic, .bytes = (size_t)length});
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out, .size = length);

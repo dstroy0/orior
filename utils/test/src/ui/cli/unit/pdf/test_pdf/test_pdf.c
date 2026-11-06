@@ -46,8 +46,8 @@ static void pdf_written(const char *layout_text)
 static unsigned long long cross_reference_offset(void)
 {
     const char *start = NULL;
-    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_pdf, .cap = CLI_CELLS_POOL, .other = "startxref\n", .other_cap = CLI_CELLS_POOL}); at != NULL;
-         at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_CELLS_POOL, .other = "startxref\n", .other_cap = CLI_CELLS_POOL}))
+    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_pdf, .cap = CLI_POOL_BYTES, .other = "startxref\n", .other_cap = CLI_POOL_BYTES}); at != NULL;
+         at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_POOL_BYTES, .other = "startxref\n", .other_cap = CLI_POOL_BYTES}))
     {
         start = at;
     }
@@ -109,13 +109,13 @@ void test_each_cross_reference_offset_starts_its_object(void)
     const char *line = s_pdf + cross_reference_offset();
     for (unsigned int skip = 0u; skip < 3u; skip += 1u)
     {
-        line = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        line = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         TEST_ASSERT_NOT_NULL(line);
         line += 1;
     }
     unsigned int index = 1u;
     // an entry is ten digits of offset, a space, five of generation, then " n" and its two-byte end
-    while (cellul.starts(&(CatenaFinitaCfg){.src = line + 16, .other = " n", .cap = CLI_CELLS_POOL}))
+    while (cellul.starts(&(CatenaFinitaCfg){.src = line + 16, .other = " n", .cap = CLI_POOL_BYTES}))
     {
         unsigned long long offset = 0ull;
         for (unsigned int digit = 0u; digit < 10u; digit += 1u)
@@ -130,7 +130,7 @@ void test_each_cross_reference_offset_starts_its_object(void)
         TEST_ASSERT_LESS_THAN_UINT64(s_size, offset);
         TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_pdf + offset, .other_pointer = object, .size = CLI_UNITY_LENGTH(object)), object);
         index += 1u;
-        line = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        line = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         TEST_ASSERT_NOT_NULL(line);
         line += 1;
     }

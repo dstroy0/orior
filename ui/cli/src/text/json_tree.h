@@ -175,7 +175,7 @@ struct CliJsonTreeTextSizeErrMsgCfg
     const char *text;
     unsigned long long size;
     VerbaLinea *err_msg;
-    CellOwner *owner;
+    const CellOwner *owner;
     unsigned int nodes_more;
     unsigned long long text_more;
 };
@@ -184,7 +184,7 @@ struct CliJsonTreeErrMsgCfg
 {
     CliJson *json;
     VerbaLinea *err_msg;
-    CellOwner *owner;
+    const CellOwner *owner;
     unsigned int nodes_more;
     unsigned long long text_more;
     const char *path;
@@ -224,7 +224,7 @@ struct CliJsonTreeNodesMaxCfg
     unsigned int nodes_max;
     unsigned long long text_max;
     const char *what;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliJsonTreeNodeOutCfg

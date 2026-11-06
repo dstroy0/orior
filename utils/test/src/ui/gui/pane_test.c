@@ -31,7 +31,7 @@ static void file_written(const char *root, const char *relative, const char *tex
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -52,7 +52,7 @@ int main(void)
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
 
-    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "debug") == NULL, "a tool without a pane has no table");
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "more") == NULL, "a tool without a pane has no table");
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = NULL, .pane_read = &pane, .frame = &frame, .raster = &raster,
@@ -136,7 +136,7 @@ int main(void)
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
               "no problem stands, so no row is pressed");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
@@ -144,7 +144,7 @@ int main(void)
     {
         if (icons.entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            g_cli_guard->persistent_buf_release(icons.entry[at].mask_bits.cover, g_gui_icons_owner);
             icons.entry[at].mask_bits.cover = NULL;
             icons.entry[at].used = 0;
         }

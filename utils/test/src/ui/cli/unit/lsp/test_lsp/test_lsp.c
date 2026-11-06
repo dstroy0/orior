@@ -3,7 +3,7 @@
 // test_lsp.c: a path and its URI name each other, a server that ends is known to have ended with what it had open and why, a request the server sends
 // is answered later while it is received on meanwhile, a request's answer is its message returned, and a message is read by its length into a cell of
 // the owner named. The cases on a live server are ignored on a machine with no Python
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/servers/lsp.h"
 #include "ui/cli/src/servers/lsp_internal.h"
@@ -139,9 +139,9 @@ static void ended_run_result(void)
         return;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "a.txt", .joined = file);
-    s_in_use_closed = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
+    s_in_use_closed = mmgr_owner_in_use(g_cli_lsp_files_owner);
     (void)EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = server, .path = file, .language_id = "plaintext", .text = "one\n", .length = 4ull, .err_msg = &err_msg);
-    s_in_use_open = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
+    s_in_use_open = mmgr_owner_in_use(g_cli_lsp_files_owner);
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/end", .params = "null", .length = 4ull, .err_msg = &err_msg);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     while (EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = server) && (cli_clock_milliseconds() < until))
@@ -160,7 +160,7 @@ static void ended_run_result(void)
     EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &complaint);
     s_ended_complaint_size = complaint.at;
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
-    s_in_use_released = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
+    s_in_use_released = mmgr_owner_in_use(g_cli_lsp_files_owner);
 }
 
 // the next piece of the text
@@ -192,7 +192,7 @@ void test_a_path_is_written_as_a_file_uri_its_letters_escaped(void)
 #endif
     char uri[CLI_PATH_MAX_LEN * 3u];
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = s_path, .uri_out = uri, .capacity = sizeof(uri));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = uri, .other = "file:///", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = uri, .other = "file:///", .cap = CLI_POOL_BYTES}));
     CLI_TEST_ASSERT_CONTAINS("a%20b/c%23.cu", uri);
 }
 
@@ -255,7 +255,7 @@ void test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0(void
     TEST_ASSERT_TRUE(answer.text > answer.message);
     CLI_TEST_ASSERT_TEXT("[1, 2]", answer.text, answer.size);
     TEST_ASSERT_EQUAL_CHAR('\0', answer.text[answer.size]);
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
 }
@@ -267,12 +267,12 @@ void test_an_answers_cell_stays_allocated_until_the_caller_releases_it(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliLsp *const server = server_started("lsp_handed", request_answered_null, NULL, dir);
     TEST_ASSERT_NOT_NULL(server);
-    const unsigned long long before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
+    const unsigned long long before = mmgr_owner_in_use(g_cli_servers_owner);
     CliLspAnswer answer;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/echo", .params = "[1,2]", .length = 5ull, .wait = 5000ull, .answer = &answer, .err_msg = &err_msg));
-    TEST_ASSERT_GREATER_THAN_UINT64(before, embed_atomic_usize_load(&g_cli_servers_cells.in_use));
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
-    TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_cli_servers_cells.in_use));
+    TEST_ASSERT_GREATER_THAN_UINT64(before, mmgr_owner_in_use(g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_cli_servers_owner));
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
 }
@@ -284,12 +284,12 @@ void test_a_request_the_server_refuses_returns_nothing_and_records_its_reason(vo
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliLsp *const server = server_started("lsp_handed", request_answered_null, NULL, dir);
     TEST_ASSERT_NOT_NULL(server);
-    const unsigned long long before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
+    const unsigned long long before = mmgr_owner_in_use(g_cli_servers_owner);
     CliLspAnswer answer;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/refuse", .params = "null", .length = 4ull, .wait = 5000ull, .answer = &answer, .err_msg = &err_msg));
     TEST_ASSERT_NULL(answer.message);
     CLI_TEST_ASSERT_TEXT("refused", why, err_msg.at);
-    TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_cli_servers_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_cli_servers_owner));
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
 }
@@ -322,15 +322,15 @@ void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void
     static CliLspReader s_reader;
     s_reader.read = source_read;
     s_reader.source = &s_source;
-    const unsigned long long debug_before = embed_atomic_usize_load(&g_cli_debug_cells.in_use);
-    const unsigned long long servers_before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
+    const unsigned long long debug_before = mmgr_owner_in_use(g_cli_debug_owner);
+    const unsigned long long servers_before = mmgr_owner_in_use(g_cli_servers_owner);
     unsigned long long size = 0ull;
-    char *const message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = &g_cli_debug_cells);
+    char *const message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = g_cli_debug_owner);
     TEST_ASSERT_NOT_NULL(message);
     CLI_TEST_ASSERT_TEXT("{}", message, size);
     TEST_ASSERT_EQUAL_CHAR('\0', message[size]);
-    TEST_ASSERT_GREATER_THAN_UINT64(debug_before, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
-    TEST_ASSERT_EQUAL_UINT64(servers_before, embed_atomic_usize_load(&g_cli_servers_cells.in_use));
-    g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
-    TEST_ASSERT_EQUAL_UINT64(debug_before, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
+    TEST_ASSERT_GREATER_THAN_UINT64(debug_before, mmgr_owner_in_use(g_cli_debug_owner));
+    TEST_ASSERT_EQUAL_UINT64(servers_before, mmgr_owner_in_use(g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release(message, g_cli_debug_owner);
+    TEST_ASSERT_EQUAL_UINT64(debug_before, mmgr_owner_in_use(g_cli_debug_owner));
 }

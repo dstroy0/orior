@@ -89,7 +89,7 @@ EMBED_INLINE void read_error(const VersionCatalogReadCtx *args)
 EMBED_INLINE void read_error_text(const VersionCatalogReadCtx *args)
 {
     EMBED_CALL(read_error, VersionCatalogReadCtx, .from = args->from, .to = args->to, .bytes = args->message,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_POOL_BYTES}));
 }
 
 // the byte of the first of `stops` from the reader's place, the text's end where there is none
@@ -98,7 +98,7 @@ EMBED_INLINE unsigned long long read_find(const VersionCatalogReadCtx *args)
     for (unsigned long long at = args->read_read->at; at < args->read_read->size; at += 1u)
     {
         if (cellul.chr(&(CatenaFinitaCfg){
-                .src = args->stops, .cap = CLI_CELLS_POOL, .byte = args->read_read->text[at]}) != NULL)
+                .src = args->stops, .cap = CLI_POOL_BYTES, .byte = args->read_read->text[at]}) != NULL)
         {
             return at;
         }

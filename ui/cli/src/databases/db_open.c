@@ -31,7 +31,7 @@ EMBED_INLINE int open_link(const DbOpenCtx *args)
     const CliDbConnection *const config = &args->open->config;
     const char *const host = (config->host[0] != '\0') ? config->host : "127.0.0.1";
     if ((config->ssh[0] == '\0') ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "sqlite", .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(
             cli_db_link_internal.link_open, CliDbLinkCtx, .link = link, .root = args->open->root, .config = config,
@@ -90,7 +90,7 @@ void cli_db_zone_read(const CliDbFailureContextCtx *args)
     zone[out.at] = '\0';
     memor.cpy(&(MemoriaCfg){.dst = args->open->zone,
                             .src = zone,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = zone, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = zone, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
@@ -104,7 +104,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     }
     if (entry_at < CLI_DB_OPENS)
     {
-        open = g_cli_cells->persistent_buf_alloc(sizeof(CliDbOpen), &g_cli_db_cells);
+        open = g_cli_guard->persistent_buf_alloc(sizeof(CliDbOpen), g_cli_db_owner);
         s_opens[entry_at] = open;
     }
     if (open == NULL)
@@ -117,13 +117,13 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     open->config = *config;
     memor.cpy(&(MemoriaCfg){.dst = open->root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     if (args->password != NULL)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = open->password,
                           .src = args->password,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -193,7 +193,7 @@ void cli_db_close(const CliDbErrMsgCfg *args)
     }
     // the connection's password lies in its cell, which the pool leaves as it is
     mmgr_zero_buf(args->open, sizeof(*args->open));
-    g_cli_cells->persistent_buf_release(args->open, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(args->open, g_cli_db_owner);
 }
 
 // a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next
@@ -217,7 +217,7 @@ static int open_with(const DbOpenCtx *args)
         EMBED_CALL(args->work, CliEachLinkFailureCfg, .context = args->context, .link = link, .failure = args->failure);
     args->open->busy -= args->runs ? 1 : 0;
     if (!done && (cellul.starts(&(CatenaFinitaCfg){
-                     .src = args->failure->message, .other = "the connection broke", .cap = CLI_CELLS_POOL})))
+                     .src = args->failure->message, .other = "the connection broke", .cap = CLI_POOL_BYTES})))
     {
         // the link's stop let go before it closes: no stop reaches it closed
         *has_stop = 0;
@@ -227,7 +227,7 @@ static int open_with(const DbOpenCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->failure->hint,
                                     .src = "The next statement connects again.",
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = "The next statement connects again.",
-                                                                           .cap = CLI_CELLS_POOL}) +
+                                                                           .cap = CLI_POOL_BYTES}) +
                                              1u});
         }
     }

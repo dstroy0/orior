@@ -42,7 +42,7 @@ void test_the_recent_list_holds_the_newest_twenty_errors_scrubbed(void)
     VerbaLinea line = {recent, sizeof(recent), 0ull};
     EMBED_CALL(cli_report_root_out.recent, CliReportRootOutCfg, .out = &line);
     (void)mmgr_line_finish(&line);
-    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = recent, .cap = CLI_CELLS_POOL, .other = "error 00", .other_cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = recent, .cap = CLI_POOL_BYTES, .other = "error 00", .other_cap = CLI_POOL_BYTES}));
     CLI_TEST_ASSERT_CONTAINS("error 01 in <tree>\\x.rs\n\nerror 02", recent);
     CLI_TEST_ASSERT_CONTAINS("error 20", recent);
 }
@@ -62,7 +62,7 @@ void test_a_fingerprint_differs_by_category(void)
     char other[17];
     EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js broke", .out_capacity = one);
     EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "cli", .text = "edit.js broke", .out_capacity = other);
-    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_panic_in_the_library_is_categorized_library(void)

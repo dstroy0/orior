@@ -4,7 +4,7 @@
 // line of a file of the connection's own in orior's temporary folder, the place of every 64th marked; a page of them
 // written back out, read on from the run where they are not buffered yet
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "db_internal.h"
 
@@ -81,7 +81,7 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
     static const char *const s_words[3] = {"inf", "infinity", "nan"};
     for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
-        int same = (rest == cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL}));
+        int same = (rest == cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_POOL_BYTES}));
         unsigned long long one = 0ULL;
         while (same && (one < rest))
         {
@@ -200,7 +200,7 @@ static int results_row(const CliDbRowCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = column->kind,
                           .src = column_kind,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_kind, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_kind, .cap = CLI_POOL_BYTES}) + 1u});
         column->numeric = integer || real;
         reader->kinded[at] = 1;
     }
@@ -248,7 +248,7 @@ int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args)
         .dst = results->done,
         .src = results->has_done ? args->tag : "",
         .bytes =
-            cellul.len(&(CatenaFinitaCfg){.src = results->has_done ? args->tag : "", .cap = CLI_CELLS_POOL}) + 1u});
+            cellul.len(&(CatenaFinitaCfg){.src = results->has_done ? args->tag : "", .cap = CLI_POOL_BYTES}) + 1u});
     return read;
 }
 
@@ -282,7 +282,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = (args->start < args->end)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = results->path,
-                                                        .size_pointer = &size, .owner = &g_cli_db_cells)
+                                                        .size_pointer = &size, .owner = g_cli_db_owner)
                                            : NULL;
     if (bytes == NULL)
     {
@@ -303,7 +303,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
         row += 1ULL;
         at = line_end + 1ULL;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_db_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_db_owner));
 }
 
 // a buffered row's line written into the page after those before it
@@ -350,7 +350,7 @@ int cli_db_rows(const CliDbOutFailureOpenCfg *args)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)results->done,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = results->done, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = results->done, .cap = CLI_POOL_BYTES}));
     }
     else
     {

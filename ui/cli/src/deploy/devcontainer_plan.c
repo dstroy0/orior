@@ -3,7 +3,7 @@
 // devcontainer_plan.c: a description's JSON read, its strings, members and lists, its variables read in, and the
 // plan's texts it is stored in
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "devcontainer_internal.h"
@@ -26,21 +26,21 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
     s_full = 0;
     unsigned long long size = 0ULL;
     const unsigned char *const raw = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
-                                                .size_pointer = &size, .owner = &g_cli_devcontainer_cells);
+                                                .size_pointer = &size, .owner = g_cli_devcontainer_owner);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)raw, (&g_cli_devcontainer_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)raw, (g_cli_devcontainer_owner));
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
     }
     // plain JSON is the description with its comments and trailing commas left out, never longer
-    s_plain = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_devcontainer_cells);
+    s_plain = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_devcontainer_owner);
     VerbaLinea plain = mmgr_line_over(s_plain, size + 1ULL);
     // the description's bytes read as the text they are
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)raw, .size = size,
                .plain = &plain);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)raw, (&g_cli_devcontainer_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)raw, (g_cli_devcontainer_owner));
     const unsigned int counted =
         mmgr_line_ok(&plain)
             ? EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_plain, .size = plain.at)
@@ -62,7 +62,7 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
         tokens = CLI_DESCRIPTION_TOKENS;
     }
     s_tokens = mmgr_line_ok(&plain)
-                   ? g_cli_cells->persistent_buf_alloc(tokens * sizeof(*s_tokens), &g_cli_devcontainer_cells)
+                   ? g_cli_guard->persistent_buf_alloc(tokens * sizeof(*s_tokens), g_cli_devcontainer_owner)
                    : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
     if ((s_tokens != NULL) && cfg_json_parse_metadata(s_plain, plain.at, s_tokens, tokens, &parse))
@@ -94,8 +94,8 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
 
 void cli_plan_description_free(void)
 {
-    g_cli_cells->persistent_buf_release(s_tokens, &g_cli_devcontainer_cells);
-    g_cli_cells->persistent_buf_release(s_plain, &g_cli_devcontainer_cells);
+    g_cli_guard->persistent_buf_release(s_tokens, g_cli_devcontainer_owner);
+    g_cli_guard->persistent_buf_release(s_plain, g_cli_devcontainer_owner);
     s_tokens = NULL;
     s_plain = NULL;
 }
@@ -216,7 +216,7 @@ EMBED_INLINE unsigned int cli_members(const DevcontainerPlanCtx *args)
 // The empty text at 0 where `text` does not fit
 unsigned int cli_plan_append(const CliDevcontainerPlanTextCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
     if ((args->plan->used + size) > CLI_PLAN_TEXT)
     {
         s_full = 1;
@@ -243,7 +243,7 @@ void cli_plan_list(const CliDevcontainerPlanTextCtx *args)
 // the last part of `path`, after its last separator
 EMBED_INLINE const char *cli_last_part(const DevcontainerPlanCtx *args)
 {
-    const char *last = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const char *last = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     last = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                                    .at = (unsigned long long)(last - args->path), .set = "/\\");
     return last;
@@ -255,11 +255,11 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
     VerbaLinea line = {args->out, CLI_STRING_MAX_LEN, 0ULL};
     const char *rest = args->text;
     const char *open =
-        cellul.find(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL});
+        cellul.find(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .other = "${", .other_cap = CLI_POOL_BYTES});
     while (open != NULL)
     {
         mmgr_line_put_n(&line, rest, (unsigned long long)(open - rest));
-        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_CELLS_POOL, .byte = '}'});
+        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_POOL_BYTES, .byte = '}'});
         if (close == NULL)
         {
             rest = open;
@@ -269,33 +269,33 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
         VerbaLinea name_line = {named, sizeof(named), 0ULL};
         mmgr_line_put_n(&name_line, open + 2, (unsigned long long)(close - open - 2));
         mmgr_line_finish(&name_line);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolder", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolder", .cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put(&line, args->positions->root);
         }
         else if (cellul.eq(
-                     &(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
+                     &(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolderBasename", .cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put(&line, EMBED_CALL(cli_last_part, DevcontainerPlanCtx, .path = args->positions->root));
         }
         else if (cellul.eq(
-                     &(CatenaFinitaCfg){.src = named, .other = "containerWorkspaceFolder", .cap = CLI_CELLS_POOL}))
+                     &(CatenaFinitaCfg){.src = named, .other = "containerWorkspaceFolder", .cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put(&line, args->positions->folder);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){
-                     .src = named, .other = "containerWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
+                     .src = named, .other = "containerWorkspaceFolderBasename", .cap = CLI_POOL_BYTES}))
         {
             const char *const slash = EMBED_CALL(
                 cli_text_byte.last, CliTextByteCfg, .text = args->positions->folder,
-                .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->positions->folder, .cap = CLI_CELLS_POOL}),
+                .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->positions->folder, .cap = CLI_POOL_BYTES}),
                 .byte = '/');
             mmgr_line_put(&line, (slash != NULL) ? (slash + 1) : args->positions->folder);
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = named, .other = "localEnv:", .cap = CLI_CELLS_POOL}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = named, .other = "localEnv:", .cap = CLI_POOL_BYTES}))
         {
             const char *const name = named + 9;
-            char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL, .byte = ':'});
+            char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES, .byte = ':'});
             const char *const fallback = (colon != NULL) ? (colon + 1) : "";
             if (colon != NULL)
             {
@@ -312,7 +312,7 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
         }
         rest = close + 1;
         open = cellul.find(
-            &(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL});
+            &(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .other = "${", .other_cap = CLI_POOL_BYTES});
     }
     mmgr_line_put(&line, rest);
     s_full = s_full || !mmgr_line_ok(&line);
@@ -329,10 +329,10 @@ void cli_plan_join(const CliDevcontainerOutBaseCtx *args)
     {
         const char *const forward = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = args->base,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}), .byte = '/');
         const char *const backward = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = args->base,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .byte = '\\');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}), .byte = '\\');
         mmgr_line_put(&line, args->base);
         mmgr_line_ch(&line, ((backward != NULL) && ((forward == NULL) || (backward > forward))) ? '\\' : '/');
     }

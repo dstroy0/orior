@@ -30,7 +30,7 @@ static void assert_paths(const char *const *required, unsigned int count, const 
     }
     cli_py_read_state_free();
     TEST_ASSERT_EQUAL_UINT(count, matched);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_python_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_python_owner));
 }
 
 // the parent of `path` is `required`

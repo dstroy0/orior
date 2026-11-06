@@ -134,7 +134,7 @@ static const char *server_requested(const char *method, const char *params)
 // the count of the items of the array `member` of what was received at `at`, its event after the first space
 static unsigned int event_items(unsigned int at, const char *member)
 {
-    const char *const json = cellul.chr(&(CatenaFinitaCfg){.src = s_events[at], .cap = CLI_CELLS_POOL, .byte = ' '});
+    const char *const json = cellul.chr(&(CatenaFinitaCfg){.src = s_events[at], .cap = CLI_POOL_BYTES, .byte = ' '});
     const unsigned int read = text_parsed((json != NULL) ? json + 1 : "null");
     const unsigned int array = (member != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = read, .name = member) : read;
     return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = array, .kind = CFG_JSON_ARRAY) ? s_json->node[array].count : 0u;
@@ -204,7 +204,7 @@ static int text_names(const char *text, const char *stem)
     const char *line = text;
     while (line[0] != '\0')
     {
-        const char *const newline = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const char *const newline = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         const char *const end = (newline != NULL) ? newline : (line + CLI_UNITY_LENGTH(line));
         // a line's end is at or past its start
         if (EMBED_CALL(cli_servers_size_length_internal.line_names, CliServersSizeLengthCtx, .line_text = line, .length = (unsigned long long)(end - line), .stem = stem, .size = CLI_UNITY_LENGTH(stem)))
@@ -277,7 +277,7 @@ void test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order(v
     mmgr_line_ch(&want, ']');
     (void)mmgr_line_finish(&want);
     CLI_TEST_ASSERT_TEXT(required, list_entries, out.at);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_servers_launch_owner));
 }
 
 void test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done(void)
@@ -313,7 +313,7 @@ void test_clangd_names_cuda_files_as_cuda(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = "c", .spec = &s_spec));
     for (unsigned int at = 0u; at < s_spec.ids; at += 1u)
     {
-        cuda = cuda || (cellul.eq(&(CatenaFinitaCfg){.src = s_spec.id_extension[at], .other = "cu", .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = s_spec.id_name[at], .other = "cuda-cpp", .cap = CLI_CELLS_POOL}));
+        cuda = cuda || (cellul.eq(&(CatenaFinitaCfg){.src = s_spec.id_extension[at], .other = "cu", .cap = CLI_POOL_BYTES}) && cellul.eq(&(CatenaFinitaCfg){.src = s_spec.id_name[at], .other = "cuda-cpp", .cap = CLI_POOL_BYTES}));
     }
     TEST_ASSERT_TRUE(cuda);
 }
@@ -393,10 +393,10 @@ void test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_relea
     mmgr_line_put(&line, "]}}");
     (void)mmgr_line_finish(&line);
     (void)files_edited(s_edit);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_servers_edits_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_servers_edits_owner));
     // the workspace edits read are a few files of a few edits each, far below the capacity of every edit and file
-    TEST_ASSERT_LESS_THAN_UINT64(16384ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.hw));
+    TEST_ASSERT_LESS_THAN_UINT64(16384ull, mmgr_owner_hw(g_cli_servers_edits_owner));
 }
 
 void test_edits_are_written_by_utf16_columns_the_line_ends_preserved(void)
@@ -454,7 +454,7 @@ void test_an_edit_the_server_requests_is_applied_and_passed_on(void)
 {
     TEST_ASSERT_EQUAL_STRING("{\"applied\":true}", server_requested("workspace/applyEdit", "{\"edit\":{\"changes\":{\"file:///t/a.c\":[]}}}"));
     TEST_ASSERT_EQUAL_UINT(1u, s_event_count);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_events[0], .other = "lsp-edits ", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_events[0], .other = "lsp-edits ", .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_EQUAL_UINT(1u, event_items(0u, NULL));
 }
 

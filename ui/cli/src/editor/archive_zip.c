@@ -3,7 +3,7 @@
 // archive_zip.c: a zip read and written: its directory found at its end, zip64's among them, each central record and
 // its member's name, UTF-8 or the old DOS page; a member's bytes, stored or deflated and checked; and the zip written
 // anew with one member changed
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "archive_internal.h"
 
@@ -390,7 +390,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     const unsigned long long directory_capacity = end - start;
     const unsigned long long deflated_capacity = args->data_size;
     unsigned char *const writing =
-        g_cli_cells->temporary_buf_alloc(directory_capacity + deflated_capacity + 1ULL, &g_cli_editor_cells);
+        g_cli_guard->temporary_buf_alloc(directory_capacity + deflated_capacity + 1ULL, g_cli_editor_owner);
     if (writing == NULL)
     {
         mmgr_line_put(args->err_msg, "a zip's writing could not be taken");
@@ -537,6 +537,6 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         used += tail;
         *out_size = used;
     }
-    g_cli_cells->persistent_buf_release(writing, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(writing, g_cli_editor_owner);
     return done;
 }

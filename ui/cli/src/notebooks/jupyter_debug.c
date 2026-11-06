@@ -70,7 +70,7 @@ EMBED_INLINE int jupyter_port_read(const JupyterDebugCtx *args)
     const char *text = args->text;
     unsigned int *port = args->port;
     unsigned long long start = 0ULL;
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = start,
                        .size = end, .set = " \t\n\r");
     end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text + start,
@@ -105,7 +105,7 @@ EMBED_INLINE int jupyter_reply_read(const JupyterDebugCtx *args)
                                             .object = args->root, .name = "content");
     const char *const status = EMBED_CALL(jupyter_string_at, JupyterDebugCtx, .json = &json, .node = content,
                                           .first = "status", .second = NULL);
-    if ((status == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = status, .other = "ok", .cap = CLI_CELLS_POOL})))
+    if ((status == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = status, .other = "ok", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, displayed);
         mmgr_line_put(args->err_msg, " cannot name a cell's code as its own file, as IPython 8 and later can: ");
@@ -125,12 +125,12 @@ EMBED_INLINE int jupyter_reply_read(const JupyterDebugCtx *args)
     const char *const listened_status = EMBED_CALL(jupyter_string_at, JupyterDebugCtx, .json = &json, .node = listened,
                                                    .first = "status", .second = NULL);
     if ((listened_status == NULL) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = listened_status, .other = "ok", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = listened_status, .other = "ok", .cap = CLI_POOL_BYTES})))
     {
         const char *const name = EMBED_CALL(jupyter_string_at, JupyterDebugCtx, .json = &json, .node = listened,
                                             .first = "ename", .second = NULL);
         if ((name != NULL) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "ModuleNotFoundError", .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "ModuleNotFoundError", .cap = CLI_POOL_BYTES})))
         {
             const char *const python = (kernel->spec.argv_count > 0u)
                                            ? EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
@@ -171,10 +171,10 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     char content[32768];
     VerbaLinea code = {text, sizeof(text), 0ULL};
     const char *const mark = cellul.find(
-        &(CatenaFinitaCfg){.src = s_debug_next, .cap = CLI_CELLS_POOL, .other = "{file}", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = s_debug_next, .cap = CLI_POOL_BYTES, .other = "{file}", .other_cap = CLI_POOL_BYTES});
     mmgr_line_put_n(&code, s_debug_next, (unsigned long long)(mark - s_debug_next));
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &code, .text = args->file,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&code, mark + 6);
     VerbaLinea content_line = {content, sizeof(content), 0ULL};
     mmgr_line_put(&content_line, "{\"code\":");
@@ -204,11 +204,10 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = reply.out, .size = reply.at, .nodes_more = 0u,
-                                         .text_more = 0ULL, .err_msg = &unread, .owner = &g_cli_notebook_cells);
+                                         .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_notebook_owner);
     const int read = EMBED_CALL(jupyter_reply_read, JupyterDebugCtx, .kernel = kernel, .reply_json = &json,
                                 .root = root, .port = args->port, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return read;

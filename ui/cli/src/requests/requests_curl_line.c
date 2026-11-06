@@ -53,21 +53,21 @@ void cli_requests_curl_write(const CliRequestsOutCtx *args)
     mmgr_line_ch(args->out, '"');
     EMBED_CALL(line_append, RequestsCurlLineCtx, .out = args->out, .text = "curl", .size = 4u);
     const char *const fallback = (args->sent->body_size == 0u) ? "GET" : "POST";
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = "HEAD", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = "HEAD", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
         EMBED_CALL(line_append, RequestsCurlLineCtx, .out = args->out, .text = "--head", .size = 6u);
     }
-    else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = fallback, .cap = CLI_CELLS_POOL}))
+    else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = fallback, .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
         EMBED_CALL(line_append, RequestsCurlLineCtx, .out = args->out, .text = "-X ", .size = 3u);
         EMBED_CALL(line_append, RequestsCurlLineCtx, .out = args->out, .text = args->sent->method,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->method, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->method, .cap = CLI_POOL_BYTES}));
     }
     EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
     EMBED_CALL(line_quote, RequestsCurlLineCtx, .out = args->out, .text = args->sent->url,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_POOL_BYTES}));
     for (unsigned int at = 0u; at < args->sent->headers; at += 1u)
     {
         char header[CLI_REQUESTS_NAME + CLI_REQUESTS_VALUE + 2u];

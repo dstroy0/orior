@@ -36,7 +36,7 @@ void test_no_two_menus_share_a_word(void)
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = s_words[menu]);
         for (unsigned int before = 0u; before < menu; before += 1u)
         {
-            TEST_ASSERT_FALSE_MESSAGE(cellul.eq(&(CatenaFinitaCfg){.src = s_words[before], .other = s_words[menu], .cap = CLI_CELLS_POOL}), s_words[menu]);
+            TEST_ASSERT_FALSE_MESSAGE(cellul.eq(&(CatenaFinitaCfg){.src = s_words[before], .other = s_words[menu], .cap = CLI_POOL_BYTES}), s_words[menu]);
         }
     }
 }
@@ -50,7 +50,7 @@ void test_no_menu_lists_a_command_twice(void)
         {
             for (unsigned int before = 0u; before < at; before += 1u)
             {
-                TEST_ASSERT_FALSE_MESSAGE(cellul.eq(&(CatenaFinitaCfg){.src = s_items[before].command, .other = s_items[at].command, .cap = CLI_CELLS_POOL}), s_items[at].command);
+                TEST_ASSERT_FALSE_MESSAGE(cellul.eq(&(CatenaFinitaCfg){.src = s_items[before].command, .other = s_items[at].command, .cap = CLI_POOL_BYTES}), s_items[at].command);
             }
         }
     }
@@ -63,7 +63,7 @@ void test_every_command_is_one_word(void)
         const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_CELLS_POOL, .byte = ' '}), s_items[at].command);
+            TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_POOL_BYTES, .byte = ' '}), s_items[at].command);
         }
     }
 }
@@ -80,7 +80,7 @@ void test_no_command_of_a_job_menu_is_a_job_path(void)
         const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_CELLS_POOL, .byte = '/'}), s_items[at].command);
+            TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_POOL_BYTES, .byte = '/'}), s_items[at].command);
         }
     }
 }
@@ -93,12 +93,12 @@ void test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_
         const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "split", .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "split", .cap = CLI_POOL_BYTES}))
             {
                 TEST_ASSERT_EQUAL_STRING("terminal-split", s_items[at].checks);
                 found += 1u;
             }
-            else if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "toggle", .cap = CLI_CELLS_POOL}))
+            else if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "toggle", .cap = CLI_POOL_BYTES}))
             {
                 TEST_ASSERT_EQUAL_STRING("", s_items[at].checks);
                 found += 1u;

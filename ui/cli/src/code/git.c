@@ -121,7 +121,7 @@ int cli_git_branch(const CliGitCfg *args)
     {
         return 0;
     }
-    return (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "HEAD", .cap = CLI_CELLS_POOL})) ||
+    return (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "HEAD", .cap = CLI_POOL_BYTES})) ||
            EMBED_CALL(cli_query_line, GitCtx, .root = args->root, .request = s_short, .count = 3u, .out = args->name,
                       .capacity = CLI_NAME_MAX_LEN);
 }
@@ -135,7 +135,7 @@ void cli_git_name(const CliGitCfg *args)
     {
         remote[0] = '\0';
     }
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL});
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_POOL_BYTES});
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = remote, .at = length,
                         .set = "/");
     unsigned long long start = length;
@@ -154,7 +154,7 @@ void cli_git_name(const CliGitCfg *args)
         return;
     }
     // the folder's own name, the last part of its path
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root, .at = end,
                      .set = "/\\");
     unsigned long long first = end;
@@ -204,7 +204,7 @@ const char *cli_git_owner(const CliGitCountCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const repo = args->repos[at];
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = repo, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = repo, .cap = CLI_POOL_BYTES});
         const int contains = (size == 0ULL) ||
                              ((size == args->length) &&
                               (memor.cmp(&(MemoriaCfg){.src = args->path, .other = repo, .bytes = size}) == 0)) ||
@@ -242,14 +242,14 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
         EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
         return;
     }
-    const unsigned long long prefix_length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL});
-    const unsigned long long repo_length = cellul.len(&(CatenaFinitaCfg){.src = args->repo, .cap = CLI_CELLS_POOL});
+    const unsigned long long prefix_length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_POOL_BYTES});
+    const unsigned long long repo_length = cellul.len(&(CatenaFinitaCfg){.src = args->repo, .cap = CLI_POOL_BYTES});
     const char *record = result->out;
     const char *const end = result->out + result->out_size;
     int skip = 0;
     while (record < end)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = record, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = record, .cap = CLI_POOL_BYTES});
         const char *const next = record + length + 1;
         if (length == 0ULL)
         {
@@ -288,7 +288,7 @@ EMBED_INLINE void cli_changed_at(const GitCtx *args)
             const char *const owner = EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = repos,
                                                  .count = count, .path = path, .length = trimmed);
             if ((size != 0ULL) && (owner != NULL) &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = owner, .other = args->repo, .cap = CLI_CELLS_POOL})))
+                (cellul.eq(&(CatenaFinitaCfg){.src = owner, .other = args->repo, .cap = CLI_POOL_BYTES})))
             {
                 args->found->item[args->found->count].path = EMBED_CALL(
                     cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = path, .length = size);
@@ -341,7 +341,7 @@ void cli_git_change(const CliGitRootReposCfg *args)
                        .found = args->found_changed_list_pointer);
         }
     }
-    g_cli_cells->persistent_buf_release(s_repositories.text.bytes, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_repositories.text.bytes, g_cli_git_owner);
     s_repositories.text.bytes = NULL;
     s_repositories.text.used = 0ULL;
     s_repositories.text.capacity = 0ULL;

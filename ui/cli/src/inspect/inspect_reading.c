@@ -3,7 +3,7 @@
 // inspect_read_state.c: the reading of one text: its tokens, lines, comments, columns and names counted from its
 // letters, and every list the sources of its language read it into carved from one cell sized to those counts, taken
 // with the inspections' lock and given back before it is
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "inspect_internal.h"
 
 CliInspectMax g_cli_inspect_max;
@@ -80,7 +80,7 @@ EMBED_INLINE void read_state_layout(const InspectReadingCtx *args)
     EMBED_CALL(cli_inspect_partition_internal.scan_layout, CliInspectPartitionCtx, .partition = partition);
     EMBED_CALL(cli_inspect_partition_internal.paint_layout, CliInspectPartitionCtx, .partition = partition);
     EMBED_CALL(cli_inspect_partition_internal.sort_layout, CliInspectPartitionCtx, .partition = partition);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_inspect_partition_internal.py_lex_layout, CliInspectPartitionCtx, .partition = partition);
         EMBED_CALL(cli_inspect_partition_internal.py_parse_layout, CliInspectPartitionCtx, .partition = partition);
@@ -101,7 +101,7 @@ int cli_inspect_read_state_reserve(const CliInspectLanguageCtx *args)
     EMBED_CALL(read_state_count, InspectReadingCtx, .text = args->text_text, .size = args->size);
     CliInspectPartition measured = {NULL, 0ULL};
     EMBED_CALL(read_state_layout, InspectReadingCtx, .language = args->language, .partition = &measured);
-    s_read_state = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ULL, &g_cli_inspect_cells);
+    s_read_state = g_cli_guard->persistent_buf_alloc(measured.bytes + 8ULL, g_cli_inspect_owner);
     if (s_read_state == NULL)
     {
         return 0;
@@ -113,6 +113,6 @@ int cli_inspect_read_state_reserve(const CliInspectLanguageCtx *args)
 
 void cli_inspect_read_state_free(void)
 {
-    g_cli_cells->persistent_buf_release(s_read_state, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(s_read_state, g_cli_inspect_owner);
     s_read_state = NULL;
 }

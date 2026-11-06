@@ -16,7 +16,7 @@ unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
         count += (args->text[at] == '\n') ? 1ULL : 0ULL;
     }
     unsigned int *const starts =
-        (count <= 0xffffffffULL) ? g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
+        (count <= 0xffffffffULL) ? g_cli_guard->persistent_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
                                  : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = args->text, .size = args->size,
@@ -110,12 +110,11 @@ unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
 
 void cli_build_findings_begin(const CliBuildsLinesCfg *args)
 {
-    g_cli_cells->persistent_buf_release(args->found->finding, &g_cli_build_cells);
+    g_cli_guard->persistent_buf_release(args->found->finding, g_cli_build_owner);
     *args->found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     const unsigned long long finding_bytes = (unsigned long long)CLI_BUILD_FINDINGS * sizeof(CliBuildFinding);
     const unsigned long long fix_bytes = (unsigned long long)CLI_BUILD_FIXES * sizeof(CliBuildFix);
-    char *const cell =
-        g_cli_cells->persistent_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, &g_cli_build_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, g_cli_build_owner);
     if (cell == NULL)
     {
         args->found->full = 1;
@@ -349,7 +348,7 @@ void cli_build_findings_write(const CliBuildsCfg *args)
                    .text = args->found_read->text + one->message_at, .length = one->message_size);
         mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = one->code,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = one->code, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = one->code, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"data\":{\"orior\":[");
         int first = 1;
         for (unsigned int fix = 0u; fix < args->found_read->fixes; fix += 1u)
@@ -440,7 +439,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        unsigned long long label = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_CELLS_POOL});
+        unsigned long long label = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES});
         while ((label >= 2u) &&
                (memor.cmp(&(MemoriaCfg){.src = args->words[at] + label - 2u, .other = "()", .bytes = 2u}) == 0))
         {
@@ -448,9 +447,9 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
         }
         (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
                          .label = args->words[at], .label_size = label, .kind = args->kind, .detail = args->detail,
-                         .detail_size = cellul.len(&(CatenaFinitaCfg){.src = args->detail, .cap = CLI_CELLS_POOL}),
+                         .detail_size = cellul.len(&(CatenaFinitaCfg){.src = args->detail, .cap = CLI_POOL_BYTES}),
                          .insert = args->words[at],
-                         .insert_size = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_CELLS_POOL}),
+                         .insert_size = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES}),
                          .snippet = 0);
     }
 }
@@ -458,7 +457,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
 void cli_build_inside(const CliBuildsRootCfg *args)
 {
     VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ULL};
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     const char after = args->folder[length];
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
                     .size = length) ||
@@ -470,7 +469,7 @@ void cli_build_inside(const CliBuildsRootCfg *args)
     }
     const char *rest = args->folder + length;
     rest += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES}), .set = "/\\");
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
     line.at = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->out_capacity,
                          .at = line.at, .set = "/");

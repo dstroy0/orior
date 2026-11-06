@@ -3,7 +3,7 @@
 // debug_find.c: the adapter a language is debugged by, the first toolchain found of those that have one for it, and a
 // program built for debugging: by the CMake or Meson build that makes it, or by the `builds` of the toolchain that
 // builds its language, into build/debug/
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../programs/executables.h"
 #include "../toolchains/toolchains.h"
 #include "debug_internal.h"
@@ -44,11 +44,11 @@ typedef struct
 // a search's toolchains and the PATH's folders given back, and the lock
 EMBED_INLINE void find_release(const DebugFindCtx *args)
 {
-    g_cli_cells->persistent_buf_release(
-        args->manifest->node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->manifest->node));
+    g_cli_guard->persistent_buf_release(args->manifest->node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->manifest->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->manifest,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(s_folders, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(s_folders, g_cli_debug_owner);
     s_folders = NULL;
 }
 
@@ -66,7 +66,7 @@ EMBED_INLINE int find_contains(const DebugFindCtx *args)
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = array, .index = at),
                        .length_pointer = NULL);
-        if ((one != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->text, .cap = CLI_CELLS_POOL})))
+        if ((one != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->text, .cap = CLI_POOL_BYTES})))
         {
             return 1;
         }
@@ -102,7 +102,7 @@ EMBED_INLINE void find_ahead_first(const DebugFindCtx *args)
                                                      .json_read = json, .object = args->named_out[at], .name = "id"),
                                   .fallback = ""),
                 .other = args->ahead,
-                .cap = CLI_CELLS_POOL}))
+                .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -169,7 +169,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
     EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &manifest_json, .named_out = named, .words = specs,
                .count = count, .ahead = args->ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_allocated(&folders, &g_cli_debug_cells);
+    s_folders = cli_toolchains_path_allocated(&folders, g_cli_debug_owner);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = named[at],
@@ -199,7 +199,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
                                                                   CliJsonTreeObjectCfg, .json_read = &manifest_json,
                                                                   .object = named[at], .name = "name"),
                                                .fallback = ""),
-                             .cap = CLI_CELLS_POOL}) +
+                             .cap = CLI_POOL_BYTES}) +
                          1u});
             memor.cpy(&(MemoriaCfg){
                 .dst = args->tool_id,
@@ -215,7 +215,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
                                                                   CliJsonTreeObjectCfg, .json_read = &manifest_json,
                                                                   .object = named[at], .name = "id"),
                                                .fallback = ""),
-                             .cap = CLI_CELLS_POOL}) +
+                             .cap = CLI_POOL_BYTES}) +
                          1u});
             EMBED_CALL(find_release, DebugFindCtx, .manifest = &manifest_json);
             return 1;
@@ -250,7 +250,7 @@ EMBED_INLINE void find_tail(const DebugFindCtx *args)
             unsigned long long at = start;
             while (blank && (at < end))
             {
-                blank = (cellul.chr(&(CatenaFinitaCfg){.src = " \t\f\v\r", .cap = CLI_CELLS_POOL, .byte = text[at]}) !=
+                blank = (cellul.chr(&(CatenaFinitaCfg){.src = " \t\f\v\r", .cap = CLI_POOL_BYTES, .byte = text[at]}) !=
                          NULL);
                 at += 1ULL;
             }
@@ -288,7 +288,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
     char path[CLI_PATH_TEXT];
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = sizeof(path));
     const CliSetting settings[1] = {{"PATH", path}};
-    const int meson = (cellul.eq(&(CatenaFinitaCfg){.src = args->made->tool, .other = "meson", .cap = CLI_CELLS_POOL}));
+    const int meson = (cellul.eq(&(CatenaFinitaCfg){.src = args->made->tool, .other = "meson", .cap = CLI_POOL_BYTES}));
     const char *const meson_words[6] = {tool, "compile", "-C", args->made->build, args->made->target, NULL};
     const char *const cmake_words[9] = {
         tool, "--build", args->made->build, "--target", args->made->target, "--config", args->made->config, NULL, NULL};
@@ -308,7 +308,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
         char *const both =
-            g_cli_cells->temporary_buf_alloc(run_result->out_size + run_result->err_size + 1ULL, &g_cli_debug_cells);
+            g_cli_guard->temporary_buf_alloc(run_result->out_size + run_result->err_size + 1ULL, g_cli_debug_owner);
         mmgr_line_put(args->err_msg, "The build of ");
         mmgr_line_put(args->err_msg, args->made->target);
         mmgr_line_put(args->err_msg, " failed");
@@ -321,7 +321,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
             EMBED_CALL(find_tail, DebugFindCtx, .text = both, .size = run_result->out_size + run_result->err_size,
                        .out = args->err_msg);
         }
-        g_cli_cells->persistent_buf_release(both, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(both, g_cli_debug_owner);
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
@@ -329,7 +329,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->program,
                       .src = args->made->program,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->program, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->program, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 
@@ -341,11 +341,11 @@ EMBED_INLINE void find_name_parts(const DebugFindCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     const int has = (dot != NULL) && (dot != name);
     VerbaLinea extension = {out, CLI_NAME_MAX_LEN, 0ULL};
     EMBED_CALL(cli_text_out_name.append_lower, CliTextOutNameCfg, .out = &extension, .text = has ? (dot + 1) : "");
@@ -353,7 +353,7 @@ EMBED_INLINE void find_name_parts(const DebugFindCtx *args)
     VerbaLinea stem_line = {args->stem, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&stem_line, name,
                     has ? (unsigned long long)(dot - name)
-                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     mmgr_line_finish(&stem_line);
 }
 
@@ -382,17 +382,17 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
                                           .json_read = json, .array = args->words_node, .index = at),
                        .length_pointer = &length);
         const char *const text = (word_text != NULL) ? word_text : "";
-        if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{path}", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{path}", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word_text = path);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{out}", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{out}", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word_text = out);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{program}", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{program}", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word_text = args->program);
@@ -448,7 +448,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = keys[1],
                       .src = args->language,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_POOL_BYTES}) + 1u});
     unsigned int named[CLI_DEBUG_NAMED];
     unsigned int words_of[CLI_DEBUG_NAMED];
     unsigned int count = 0u;
@@ -486,7 +486,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &json, .named_out = named, .words = words_of, .count = count,
                .ahead = args->ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_allocated(&folders, &g_cli_debug_cells);
+    s_folders = cli_toolchains_path_allocated(&folders, g_cli_debug_owner);
     unsigned int chosen = count;
     char compiler[CLI_PATH_MAX_LEN];
     {
@@ -502,7 +502,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
                 memor.cpy(&(MemoriaCfg){
                     .dst = compiler,
                     .src = s_found.program,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.program, .cap = CLI_CELLS_POOL}) + 1u});
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.program, .cap = CLI_POOL_BYTES}) + 1u});
             }
             at += 1u;
         }
@@ -530,13 +530,13 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     // the stem's own extension, where it has one, gives way to .exe, as a program's name is set on Windows
     char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), .byte = '.');
     if ((dot != NULL) && (dot != stem))
     {
         *dot = '\0';
     }
-    VerbaLinea exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}),
-                      CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), 0ULL};
+    VerbaLinea exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}),
+                      CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), 0ULL};
     mmgr_line_put(&exe, ".exe");
     mmgr_line_finish(&exe);
 #endif
@@ -590,14 +590,14 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
                    .text_bytes = (const unsigned char *)run_result->out, .length = run_result->out_size);
         while ((args->err_msg->at > start) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n\f\v",
-                                              .cap = CLI_CELLS_POOL,
+                                              .cap = CLI_POOL_BYTES,
                                               .byte = args->err_msg->out[args->err_msg->at - 1ULL]}) != NULL))
         {
             args->err_msg->at -= 1ULL;
         }
         while ((start + length < args->err_msg->at) &&
                (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->err_msg->out[start + length]}) != NULL))
+                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->err_msg->out[start + length]}) != NULL))
         {
             length += 1ULL;
         }
@@ -612,7 +612,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->program,
                                 .src = out,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_POOL_BYTES}) + 1u});
         *built = 1;
     }
     return done;

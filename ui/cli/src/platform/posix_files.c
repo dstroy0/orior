@@ -170,7 +170,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
     {
         return 0;
     }
-    VerbaLinea named = {path, sizeof(path), cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL})};
+    VerbaLinea named = {path, sizeof(path), cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES})};
     mmgr_line_put(&named, "/orior-");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '-');

@@ -20,7 +20,7 @@ void cli_typed_put(const CliTypedCfg *args)
         return;
     }
     // the bytes typed so far and the new ones, in a cell sized to them with their end, the cell they stood in released
-    char *const bytes = g_cli_cells->persistent_buf_alloc(length + size + 1ULL, args->owner);
+    char *const bytes = g_cli_guard->persistent_buf_alloc(length + size + 1ULL, args->owner);
     if (bytes == NULL)
     {
         return;
@@ -31,7 +31,7 @@ void cli_typed_put(const CliTypedCfg *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = bytes + length, .src = args->text, .bytes = size});
     bytes[length + size] = '\0';
-    g_cli_cells->persistent_buf_release(typed->bytes, args->owner);
+    g_cli_guard->persistent_buf_release(typed->bytes, args->owner);
     typed->bytes = bytes;
     typed->length = length + size;
 }
@@ -49,7 +49,7 @@ void cli_typed_erase(const CliTypedCfg *args)
         }
     }
     // the bytes left, in a cell sized to them with their end, the cell they stood in released; none where none is left
-    char *const bytes = (length != 0ULL) ? g_cli_cells->persistent_buf_alloc(length + 1ULL, args->owner) : NULL;
+    char *const bytes = (length != 0ULL) ? g_cli_guard->persistent_buf_alloc(length + 1ULL, args->owner) : NULL;
     if ((length != 0ULL) && (bytes == NULL))
     {
         return;
@@ -59,7 +59,7 @@ void cli_typed_erase(const CliTypedCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = bytes, .src = typed->bytes, .bytes = length});
         bytes[length] = '\0';
     }
-    g_cli_cells->persistent_buf_release(typed->bytes, args->owner);
+    g_cli_guard->persistent_buf_release(typed->bytes, args->owner);
     typed->bytes = bytes;
     typed->length = length;
 }

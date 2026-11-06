@@ -14,8 +14,8 @@
 // files, each up to 512 KiB (purpose.c, purpose_comment.c)
 #ifndef PURPOSE_H
 #define PURPOSE_H
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliPurposeCfg CliPurposeCfg;
@@ -32,7 +32,6 @@ typedef struct CliPurposeTextCfg CliPurposeTextCfg;
 // what the first comment of `size` bytes of `text`, the text of the file at `path`, states, past a license's comment,
 // written into `out`; and the cells the capacity it is read in occupies (purpose_comment.c)
 void cli_purpose_first_comment(const CliPurposePathTextCfg *args);
-extern CellOwner g_cli_purpose_cells;
 
 // whether `size` bytes of `text` use the file named `name`, whose name without its extension is `stem`; what the first
 // comment of the file at `path` of the tree `root` states, written as a JSON string; the files of the tree that use it,

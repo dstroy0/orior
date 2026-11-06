@@ -334,7 +334,7 @@ static void cli_write(const JsonTreeWriteCtx *args)
         {
             const char *const key = args->json->text + args->json->node[child].key;
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(out, (args->indent != 0u) ? ": " : ":");
         }
         EMBED_CALL(cli_write, JsonTreeWriteCtx, .json = args->json, .node = child, .out = out, .indent = args->indent,

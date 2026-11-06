@@ -4,7 +4,7 @@
 // plugin's version and its arguments; and Maven's own, from the user's `settings.xml` and the global one in Maven's
 // home: the folders, the local repository, whether it works offline, and its mirrors, proxies and active profiles.
 // One reading runs at a time; a settings file larger than CLI_MAVEN_SETTINGS_TEXT is read as empty
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "maven.h"

@@ -123,9 +123,9 @@ static int file_reads(const char *name, const char *required)
     tree_path(name, path);
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_checks_cells);
+                                                  .size_pointer = &size, .owner = g_checks_owner);
     const int same = (bytes != NULL) && (size == strlen(required)) && (memcmp(bytes, required, size) == 0);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_checks_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     return same;
 }
 
@@ -379,7 +379,7 @@ static void terminal_menu_checked(void)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     cli_check_folder("window_tree", s_root);
     cli_check(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_ROOT", .value = s_root),
               "the tree is set");

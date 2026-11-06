@@ -133,7 +133,7 @@ extern const char g_cli_recording_shim[];
 // the recording the recorder wrote at `path` read into the replay's, the file retained until the next is read; the
 // recording let go; a text of its names; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP
 // for none; the values of frame `serial`'s names as step `at` was about to run, by name, `most` of them at the most, in
-// a cell of their count into `reserved`, given back with g_cli_cells->persistent_buf_release: their count; the frames
+// a cell of their count into `reserved`, given back with g_cli_guard->persistent_buf_release: their count; the frames
 // standing at step `at`, the innermost first, each frame's number and the step of its line then: their count; and each
 // step where `name` of frame `serial` took a new value, the line that gave it and the value, handed to `each`
 // (recording_read.c, recording_values.c, the last step recording_replay.c)
@@ -198,7 +198,7 @@ struct CliRecordingAtCtx
     unsigned int serial;
     CliRecordedValue **reserved;
     unsigned int most;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliRecordingSerialCtx

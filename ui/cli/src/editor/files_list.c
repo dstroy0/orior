@@ -4,8 +4,8 @@
 // leave it out; an archive, and a folder within one, listing what the archive contains
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
 #include "../command_line/commands.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "archive.h"
@@ -58,7 +58,7 @@ typedef struct
     const char *other;
     VerbaLinea *out;
     const char *root;
-    CellOwner *owner;
+    const CellOwner *owner;
     int counting;
     unsigned long long *count;
     unsigned long long *bytes;
@@ -66,7 +66,7 @@ typedef struct
 // a text put in the entries' texts: its place
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     if ((s_listing->used + length + 1ULL) > s_listing->text_capacity)
     {
         return 0u;
@@ -145,10 +145,10 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
     for (unsigned int at = 0u; at < s_listing->count; at += 1u)
     {
         const CliEntry *const one = &s_listing->item[at];
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 2ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_POOL_BYTES}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_POOL_BYTES}) + 2ULL;
     }
-    CliFileEntries *const entries = g_cli_cells->persistent_buf_alloc(
+    CliFileEntries *const entries = g_cli_guard->persistent_buf_alloc(
         sizeof(*entries) + (s_listing->count * sizeof(CliFileEntry)) + bytes, args->owner);
     if (entries == NULL)
     {
@@ -161,9 +161,9 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
     {
         const CliEntry *const one = &s_listing->item[at];
         const unsigned long long name =
-            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) + 1ULL;
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_POOL_BYTES}) + 1ULL;
         const unsigned long long full =
-            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 1ULL;
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_POOL_BYTES}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_listing->text + one->name, .bytes = name});
         memor.cpy(&(MemoriaCfg){.dst = text + name, .src = s_listing->text + one->path, .bytes = full});
         entries->entry[at] = (CliFileEntry){text, text + name, one->dir, one->ignored};
@@ -177,7 +177,7 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
 EMBED_INLINE void cli_folders_of(const FilesListCtx *args)
 {
     const char *const file = args->path;
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES});
     for (unsigned long long slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = file,
                                                .at = 0ULL, .size = whole, .set = "/");
          slash < whole; slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = file,
@@ -251,7 +251,7 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
     }
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = list_entries->root, .path = full,
                .relative_out = path);
-    if ((args->is_folder && (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL}))) ||
+    if ((args->is_folder && (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_POOL_BYTES}))) ||
         EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_listing->patterns, .path = path,
                    .dir = args->is_folder))
     {
@@ -272,8 +272,8 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
                       : !EMBED_CALL(cli_symbols_path_name.tree_has_file, CliSymbolsPathNameCfg, .path = path);
     }
     else if (args->is_folder &&
-             ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL})) ||
-              (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL}))))
+             ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_POOL_BYTES})) ||
+              (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_POOL_BYTES}))))
     {
         return;
     }
@@ -287,8 +287,8 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
 static void list_release(void)
 {
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &s_listing->folders);
-    g_cli_cells->persistent_buf_release(s_listing->item, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(s_listing, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(s_listing->item, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(s_listing, g_cli_editor_owner);
     s_listing = NULL;
 }
 
@@ -296,14 +296,14 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
-    s_listing = g_cli_cells->persistent_buf_alloc(sizeof(*s_listing), &g_cli_editor_cells);
+    s_listing = g_cli_guard->persistent_buf_alloc(sizeof(*s_listing), g_cli_editor_owner);
     if (s_listing == NULL)
     {
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
         return NULL;
     }
     const unsigned long long item_bytes = (unsigned long long)CLI_LIST_MAX * sizeof(*s_listing->item);
-    char *const lists = g_cli_cells->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, &g_cli_editor_cells);
+    char *const lists = g_cli_guard->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, g_cli_editor_owner);
     s_listing->item = NULL;
     s_listing->count = 0u;
     s_listing->item_capacity = 0u;
@@ -412,7 +412,7 @@ static FilesExplorerFolder *explorer_list(const char *dir)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliFileEntries *const entries =
         EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = s_explorer_root, .dir = dir,
-                   .owner = &g_cli_editor_cells, .err_msg = &err_msg);
+                   .owner = g_cli_editor_owner, .err_msg = &err_msg);
     if (entries == NULL)
     {
         return NULL;
@@ -439,7 +439,7 @@ void cli_files_explorer_end(void)
 {
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_explorer[at].entries, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(s_explorer[at].entries, g_cli_editor_owner);
     }
     s_explorer_folders = 0u;
     s_explorer_root = NULL;
@@ -511,7 +511,7 @@ void cli_files_explorer_refresh(void)
         return;
     }
     // the open folders' paths copied, the top's aside, each ended by a NUL, those past the bytes closing
-    char *const open = g_cli_cells->persistent_buf_alloc(FILES_EXPLORER_OPEN_TEXT, &g_cli_editor_cells);
+    char *const open = g_cli_guard->persistent_buf_alloc(FILES_EXPLORER_OPEN_TEXT, g_cli_editor_owner);
     unsigned int used = 0u;
     unsigned int count = 0u;
     for (unsigned int at = 1u; (open != NULL) && (at < s_explorer_folders); at += 1u)
@@ -537,7 +537,7 @@ void cli_files_explorer_refresh(void)
     }
     if (open != NULL)
     {
-        g_cli_cells->persistent_buf_release(open, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(open, g_cli_editor_owner);
     }
 }
 

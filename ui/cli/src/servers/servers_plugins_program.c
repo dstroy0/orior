@@ -43,13 +43,13 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
     if (tool != CLI_JSON_NONE)
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_servers_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_servers_owner);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found);
-        g_cli_cells->persistent_buf_release(folders, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(folders, g_cli_servers_owner);
     }
-    g_cli_cells->persistent_buf_release(
-        manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+    g_cli_guard->persistent_buf_release(manifest_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const char *const names[1] = {name};
@@ -71,12 +71,12 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
 // string where `escaped`
 void cli_servers_plugin_folder_append(const CliServersTextCtx *args)
 {
-    const unsigned long long folder_length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
+    const unsigned long long folder_length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const int named =
             ((args->length - at) >= 8ULL) &&
-            cellul.starts(&(CatenaFinitaCfg){.src = args->text + at, .other = "{folder}", .cap = CLI_CELLS_POOL});
+            cellul.starts(&(CatenaFinitaCfg){.src = args->text + at, .other = "{folder}", .cap = CLI_POOL_BYTES});
         if (named && args->escaped)
         {
             EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = args->written,
@@ -111,7 +111,7 @@ void cli_servers_plugin_args(const CliServersJsonServerCtx *args)
         char word_text[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea written = {word_text, sizeof(word_text), 0ULL};
         EMBED_CALL(cli_servers_text_internal.plugin_folder_append, CliServersTextCtx, .written = &written, .text = text,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .folder = args->folder,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .folder = args->folder,
                    .escaped = 0);
         if (mmgr_line_finish(&written) != 0ULL)
         {

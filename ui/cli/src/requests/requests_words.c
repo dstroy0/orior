@@ -140,7 +140,7 @@ EMBED_INLINE int words_double(const RequestsWordsCtx *args)
     while (fits && (*at < args->size) && (args->line[*at] != '"'))
     {
         if ((args->line[*at] == '\\') && (*at + 1u < args->size) &&
-            (cellul.chr(&(CatenaFinitaCfg){.src = "\"\\$`", .cap = CLI_CELLS_POOL, .byte = args->line[*at + 1u]}) !=
+            (cellul.chr(&(CatenaFinitaCfg){.src = "\"\\$`", .cap = CLI_POOL_BYTES, .byte = args->line[*at + 1u]}) !=
              NULL) &&
             (args->line[*at + 1u] != '\0'))
         {

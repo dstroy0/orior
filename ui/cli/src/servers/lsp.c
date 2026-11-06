@@ -4,7 +4,7 @@
 // waiting on it and what it sends unprompted to its receiver, what it writes to its errors retained, requests and
 // notifications sent, and the server ended
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "lsp_internal.h"
 
@@ -72,7 +72,7 @@ EMBED_INLINE int lsp_answer(const LspCtx *args)
                 memor.cpy(&(MemoriaCfg){
                     .dst = waiter->error,
                     .src = args->error,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->error, .cap = CLI_CELLS_POOL}) + 1u});
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->error, .cap = CLI_POOL_BYTES}) + 1u});
             }
             else
             {
@@ -108,7 +108,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     const int has_id = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body, .size_value = size, .name = "id",
                                   .start = &id, .length_pointer = &id_size);
     // a request's answer in a cell of the most it holds; what the server sends unprompted is answered with nothing
-    char *const answer_text = has_id ? g_cli_cells->temporary_buf_alloc(CLI_LSP_ANSWERED, &g_cli_servers_cells) : NULL;
+    char *const answer_text = has_id ? g_cli_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_servers_owner) : NULL;
     VerbaLinea answer = mmgr_line_over(answer_text, CLI_LSP_ANSWERED);
     t_request_id = has_id ? (body + id) : NULL;
     t_request_id_size = has_id ? id_size : 0ULL;
@@ -130,7 +130,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
         (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
                          .parts = parts, .count = 5u, .err_msg = &unsent);
     }
-    g_cli_cells->persistent_buf_release(answer_text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(answer_text, g_cli_servers_owner);
 }
 
 // a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer handed
@@ -174,7 +174,7 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = error,
                 .src = "the server refused",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server refused", .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server refused", .cap = CLI_POOL_BYTES}) + 1u});
         }
         return EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = NULL, .result = NULL,
                           .length = 0ULL, .error = error);
@@ -199,11 +199,11 @@ static void lsp_read(void *context)
     char *body = NULL;
     // each message read into a cell of its length, given back here unless it went with an answer
     while ((body = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &lsp->reader,
-                              .size = &size, .owner = &g_cli_servers_cells)) != NULL)
+                              .size = &size, .owner = g_cli_servers_owner)) != NULL)
     {
         if (!EMBED_CALL(lsp_message, LspCtx, .lsp = lsp, .body_out = body, .size = size))
         {
-            g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
+            g_cli_guard->persistent_buf_release(body, g_cli_servers_owner);
         }
     }
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
@@ -213,7 +213,7 @@ static void lsp_read(void *context)
             memor.cpy(&(MemoriaCfg){
                 .dst = lsp->waiters[at].error,
                 .src = "the server stopped",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server stopped", .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server stopped", .cap = CLI_POOL_BYTES}) + 1u});
             lsp->waiters[at].answered = 1;
             lsp->waiters[at].waiting = 0;
         }
@@ -229,13 +229,13 @@ static void lsp_complaint_line(const LspCtx *args)
     unsigned long long size = args->size;
     unsigned long long start = 0ULL;
     while ((start < size) && (cellul.chr(&(CatenaFinitaCfg){
-                                  .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[start]}) != NULL))
+                                  .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->line[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((size > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[size - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->line[size - 1ULL]}) != NULL))
     {
         size -= 1ULL;
     }
@@ -330,7 +330,7 @@ int cli_lsp_notify(const CliLspErrMsgLengthCfg *args)
 {
     const CliLspPart parts[5] = {
         CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"method\":\""),
-        {args->method, cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_CELLS_POOL}), 1},
+        {args->method, cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_POOL_BYTES}), 1},
         CLI_LSP_RAW("\",\"params\":"),
         {args->params, args->length, 0},
         CLI_LSP_RAW("}")};
@@ -369,7 +369,7 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
         CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
         {number, number_line.at, 0},
         CLI_LSP_RAW(",\"method\":\""),
-        {args->method, cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_CELLS_POOL}), 1},
+        {args->method, cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_POOL_BYTES}), 1},
         CLI_LSP_RAW("\",\"params\":"),
         {args->params, args->length, 0},
         CLI_LSP_RAW("}")};
@@ -455,7 +455,7 @@ void cli_lsp_complaint(const CliLspPathOutCfg *args)
     unsigned long long end = args->lsp->complaint_size;
     while ((end > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->lsp->complaint[end - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->lsp->complaint[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -482,7 +482,7 @@ void cli_lsp_stop(const CliLspContextCfg *args)
     VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = args->lsp, .method = "shutdown",
                      .params = "null", .length = 4ULL, .wait = 2000ULL, .answer = &answer, .err_msg = &err_buf);
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = args->lsp, .method = "exit",
                      .params = "null", .length = 4ULL, .err_msg = &err_buf);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
@@ -518,6 +518,6 @@ void cli_lsp_unref(const CliLspContextCfg *args)
         return;
     }
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->lsp->spawned);
-    g_cli_cells->persistent_buf_release(args->lsp->capabilities, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(args->lsp, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(args->lsp->capabilities, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(args->lsp, g_cli_servers_owner);
 }

@@ -75,7 +75,7 @@ void cli_profile_stop(void)
 EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
 {
     const unsigned long long capacity = (args->size * 6ULL) + 64ULL;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
+    char *const json_buf = g_cli_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
     if (json_buf == NULL)
     {
         return;
@@ -90,7 +90,7 @@ EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
         EMBED_CALL(args->profile->sink.emit, CliEachJsonSizeCfg, .context = args->profile->sink.context,
                    .json = out.out, .size = out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &g_cli_profile_cells);
+    g_cli_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
 }
 
 // a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
@@ -110,7 +110,7 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long capacity = length + 64ULL;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
+    char *const json_buf = g_cli_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
     if (json_buf == NULL)
     {
         return;
@@ -149,14 +149,14 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         EMBED_CALL(profile->sink.emit, CliEachJsonSizeCfg, .context = profile->sink.context, .json = out.out,
                    .size = out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &g_cli_profile_cells);
+    g_cli_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
 }
 
 // the lines of a pipe read until it ends, each in one cell of CLI_PROFILE_LINE, handed on with its "\r" before "\n"
 // taken off, a longer line handed on in pieces of that length
 static void profile_lines(const ProfileCtx *args)
 {
-    char *const line = g_cli_cells->temporary_buf_alloc(CLI_PROFILE_LINE, &g_cli_profile_cells);
+    char *const line = g_cli_guard->temporary_buf_alloc(CLI_PROFILE_LINE, g_cli_profile_owner);
     const unsigned long long capacity = (line != NULL) ? CLI_PROFILE_LINE : 0ULL;
     unsigned long long used = 0ULL;
     char piece[4096];
@@ -199,7 +199,7 @@ static void profile_lines(const ProfileCtx *args)
     {
         EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line, .size = used);
     }
-    g_cli_cells->persistent_buf_release(line, &g_cli_profile_cells);
+    g_cli_guard->persistent_buf_release(line, g_cli_profile_owner);
 }
 
 // a line the program wrote to its errors reported as output
@@ -218,8 +218,8 @@ EMBED_INLINE void profile_reader_end(const ProfileCtx *args)
     if (args->profile->going == 0u)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->profile->spawned);
-        g_cli_cells->persistent_buf_release(args->profile->words, &g_cli_profile_cells);
-        g_cli_cells->persistent_buf_release(args->profile->path, &g_cli_profile_cells);
+        g_cli_guard->persistent_buf_release(args->profile->words, g_cli_profile_owner);
+        g_cli_guard->persistent_buf_release(args->profile->path, g_cli_profile_owner);
         args->profile->words = NULL;
         args->profile->path = NULL;
         args->profile->reserved = 0;
@@ -313,7 +313,7 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
     profile->has_code = 0;
     profile->code = 0LL;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
-    profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &g_cli_profile_cells);
+    profile->words = g_cli_guard->persistent_buf_alloc(sizeof(*profile->words), g_cli_profile_owner);
     profile->path = NULL;
     if (profile->words != NULL)
     {
@@ -327,8 +327,8 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
 // a profile's place given back where its process did not start
 EMBED_INLINE void profile_let_go(const ProfileCtx *args)
 {
-    g_cli_cells->persistent_buf_release(args->profile->words, &g_cli_profile_cells);
-    g_cli_cells->persistent_buf_release(args->profile->path, &g_cli_profile_cells);
+    g_cli_guard->persistent_buf_release(args->profile->words, g_cli_profile_owner);
+    g_cli_guard->persistent_buf_release(args->profile->path, g_cli_profile_owner);
     args->profile->words = NULL;
     args->profile->path = NULL;
     args->profile->reserved = 0;
@@ -350,10 +350,10 @@ int cli_profile_start(const CliProfileCfg *args)
     cli_profile_stop();
     const char *trimmed = (args->remote != NULL) ? args->remote : "";
     trimmed += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = " \t");
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_POOL_BYTES}), .set = " \t");
     const int far = (*trimmed != '\0');
     const char *const colon =
-        far ? cellul.chr(&(CatenaFinitaCfg){.src = args->remote, .cap = CLI_CELLS_POOL, .byte = ':'}) : NULL;
+        far ? cellul.chr(&(CatenaFinitaCfg){.src = args->remote, .cap = CLI_POOL_BYTES, .byte = ':'}) : NULL;
     if (far && (colon == NULL))
     {
         mmgr_line_put(args->err_msg, args->remote);
@@ -369,7 +369,7 @@ int cli_profile_start(const CliProfileCfg *args)
     CliProfile *const profile = EMBED_CALL(profile_alloc, ProfileCtx, .sink = args->sink);
     // the PATH a program here runs with, as long as the system lets an environment's value be
     profile->path = ((profile->words != NULL) && !far)
-                        ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_cli_profile_cells)
+                        ? g_cli_guard->persistent_buf_alloc(CLI_PATH_TEXT, g_cli_profile_owner)
                         : NULL;
     if ((profile->words == NULL) || (!far && (profile->path == NULL)))
     {
@@ -423,7 +423,7 @@ int cli_profile_start(const CliProfileCfg *args)
     const int supplied =
         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = profile->spawned.in,
                    .bytes = g_cli_profile_shim,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_profile_shim, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_profile_shim, .cap = CLI_POOL_BYTES}));
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &profile->spawned);
     profile->running = 1;
     profile->going = 2u;

@@ -11,7 +11,7 @@
 #include "unity.h"
 
 // the size of a NUL-terminated string, no longer than the pool
-#define CLI_UNITY_LENGTH(text_) cellul.len(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_CELLS_POOL})
+#define CLI_UNITY_LENGTH(text_) cellul.len(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_POOL_BYTES})
 // `size_` bytes at `text_` are exactly the string `requested_`
 #define CLI_TEST_ASSERT_TEXT(requested_, text_, size_)                                                                          \
     do                                                                                                                       \
@@ -24,10 +24,10 @@
     } while (0)
 // the string `text_` contains the string `part_`
 #define CLI_TEST_ASSERT_CONTAINS(part_, text_)                                                                               \
-    TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_CELLS_POOL, .other = (part_), .other_cap = CLI_CELLS_POOL}))
+    TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_POOL_BYTES, .other = (part_), .other_cap = CLI_POOL_BYTES}))
 // the string `text_` does not contain the string `part_`
 #define CLI_TEST_ASSERT_NOT_CONTAINS(part_, text_)                                                                           \
-    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_CELLS_POOL, .other = (part_), .other_cap = CLI_CELLS_POOL}))
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_POOL_BYTES, .other = (part_), .other_cap = CLI_POOL_BYTES}))
 
 // the memory pool started, once for the process: every suite's setUp calls it
 void cli_unity_begun(void);

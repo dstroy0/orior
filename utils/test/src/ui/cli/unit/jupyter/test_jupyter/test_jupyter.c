@@ -103,15 +103,15 @@ static unsigned int message_found(const char *id, const char *kind, const char *
         s_json = json;
         at += length + 1ull;
         const char *const type = cli_unity_member_text(one, "msg_type");
-        const int parent_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "parent"), .other = id, .cap = CLI_CELLS_POOL});
-        const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = type, .other = kind, .cap = CLI_CELLS_POOL}) || ((other != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = other, .cap = CLI_CELLS_POOL}));
+        const int parent_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "parent"), .other = id, .cap = CLI_POOL_BYTES});
+        const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = type, .other = kind, .cap = CLI_POOL_BYTES}) || ((other != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = other, .cap = CLI_POOL_BYTES}));
         if (!parent_matches || !type_matches)
         {
             continue;
         }
         const unsigned int content = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "content");
         const unsigned int holder = (inner != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = content, .name = member) : content;
-        if ((member == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(holder, (inner != NULL) ? inner : member), .other = required, .cap = CLI_CELLS_POOL}))
+        if ((member == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(holder, (inner != NULL) ? inner : member), .other = required, .cap = CLI_POOL_BYTES}))
         {
             return one;
         }
@@ -146,7 +146,7 @@ static int python_found(void)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = specs, .index = at);
         const unsigned int install = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "install");
-        const int python = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "language"), .other = "python", .cap = CLI_CELLS_POOL});
+        const int python = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "language"), .other = "python", .cap = CLI_POOL_BYTES});
         if (python && ((install == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = install, .kind = CFG_JSON_NULL)))
         {
             s_python_found = EMBED_CALL(cli_jupyter_name.spec_by_name, CliJupyterNameCfg, .name = cli_unity_member_text(one, "name"), .spec = &s_spec);
@@ -262,13 +262,13 @@ static void debug_run_result(void)
     }
     char id[CLI_KERNEL_ID];
     code_run(kernel, "import sys\nsys._getframe().f_code.co_filename + ''", id);
-    s_other_code_named_by_file = cellul.find(&(CatenaFinitaCfg){.src = run_result(id), .cap = CLI_CELLS_POOL, .other = "cell.py", .other_cap = CLI_CELLS_POOL}) != NULL;
+    s_other_code_named_by_file = cellul.find(&(CatenaFinitaCfg){.src = run_result(id), .cap = CLI_POOL_BYTES, .other = "cell.py", .other_cap = CLI_POOL_BYTES}) != NULL;
     code_run(kernel, s_file_code, id);
     VerbaLinea named = {s_debug_named, sizeof(s_debug_named), 0ull};
     mmgr_line_put(&named, run_result(id));
     (void)mmgr_line_finish(&named);
     code_run(kernel, s_file_code, id);
-    s_later_run_named_by_file = cellul.find(&(CatenaFinitaCfg){.src = run_result(id), .cap = CLI_CELLS_POOL, .other = "cell.py", .other_cap = CLI_CELLS_POOL}) != NULL;
+    s_later_run_named_by_file = cellul.find(&(CatenaFinitaCfg){.src = run_result(id), .cap = CLI_POOL_BYTES, .other = "cell.py", .other_cap = CLI_POOL_BYTES}) != NULL;
     err_msg.at = 0ull;
     s_debug_prepared_again = EMBED_CALL(cli_jupyter_err_msg_kernel_file.debug_next, CliJupyterErrMsgKernelFileCfg, .kernel = kernel, .file = file, .port = &s_debug_port_again, .err_msg = &err_msg);
     (void)EMBED_CALL(cli_jupyter_err_msg.stop, CliJupyterErrMsgCfg, .kernel = kernel, .wait = 10000ull);

@@ -4,7 +4,7 @@
 // time: the capabilities, the launch, the breakpoints, the run started as configuration is done, the recording taken as
 // the run ends, and the run ended where the client lets the adapter go. One replay is open at a time: an adapter begun
 // lets go of the replay before it and ends the run that replay was recording
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "recording_internal.h"
 
@@ -54,11 +54,11 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     unsigned int message = args->message;
     s_seq += 1ULL;
     const int body_untruncated = mmgr_line_ok(args->body);
-    const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL});
+    const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_POOL_BYTES});
     // the members around the body, the body or null, and the command and the reason with every byte escaped
     const unsigned long long capacity =
         (body_untruncated ? args->body->at : 4ULL) + ((command_size + args->err_msg->at) * 6ULL) + 512ULL;
-    char *const sent = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_debug_cells);
+    char *const sent = g_cli_guard->temporary_buf_alloc(capacity, g_cli_debug_owner);
     VerbaLinea reply = mmgr_line_over(sent, capacity);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
@@ -88,7 +88,7 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     {
         (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = reply.out, .size = reply.at);
     }
-    g_cli_cells->persistent_buf_release(sent, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(sent, g_cli_debug_owner);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new
@@ -108,7 +108,7 @@ EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
     unsigned int file = 0u;
     while (
         (file < g_cli_replay->break_file_count) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[file], .other = key, .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[file], .other = key, .cap = CLI_POOL_BYTES})))
     {
         file += 1u;
     }
@@ -117,7 +117,7 @@ EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = g_cli_replay->break_files[file],
                                 .src = key,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
         g_cli_replay->break_file_count += 1u;
     }
     if (fits)
@@ -175,7 +175,7 @@ EMBED_INLINE int request_on_raise(const RecordingRequestCtx *args)
                                           .json_read = &s_json, .array = filters, .index = at),
                        .length_pointer = NULL);
         if ((filter != NULL) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = filter, .other = "raised", .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = filter, .other = "raised", .cap = CLI_POOL_BYTES})))
         {
             return 1;
         }
@@ -187,7 +187,7 @@ int cli_replay_lock(void)
 {
     if (g_cli_replay == NULL)
     {
-        g_cli_replay = g_cli_cells->persistent_buf_alloc(sizeof(CliReplay), &g_cli_debug_cells);
+        g_cli_replay = g_cli_guard->persistent_buf_alloc(sizeof(CliReplay), g_cli_debug_owner);
         if (g_cli_replay != NULL)
         {
             memor.set(&(MemoriaCfg){.dst = g_cli_replay, .val = 0, .bytes = sizeof(CliReplay)});
@@ -207,7 +207,7 @@ void *cli_recording_begin(const CliRecordingCfg *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = g_cli_replay->root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     g_cli_replay->program[0] = '\0';
     g_cli_replay->python[0] = '\0';
     g_cli_replay->at = 0u;
@@ -224,13 +224,12 @@ int cli_recording_serve(const CliDapServeCfg *args)
     char why[CLI_RECORDING_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     // the request before this one given back with its tree, and this one read into a tree of its size
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                             .json = &s_json, .text = args->request, .size = size, .nodes_more = 0u,
-                                            .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+                                            .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_debug_owner);
     if (message == CLI_JSON_NONE)
     {
         return 1;
@@ -240,7 +239,7 @@ int cli_recording_serve(const CliDapServeCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
                                       .object = message, .name = "type"),
                    .length_pointer = NULL);
-    if ((type != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "orior", .cap = CLI_CELLS_POOL})))
+    if ((type != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "orior", .cap = CLI_POOL_BYTES})))
     {
         EMBED_CALL(cli_recording_dap_json_internal.record, CliRecordingDapJsonCtx, .dap = dap, .json = &s_json,
                    .message = message);
@@ -256,17 +255,17 @@ int cli_recording_serve(const CliDapServeCfg *args)
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_json, .object = message, .name = "arguments");
     // the answer's body in a cell of the most it holds, given back once the reply is sent
-    char *const body_text = g_cli_cells->temporary_buf_alloc(CLI_RECORDING_BODY, &g_cli_debug_cells);
+    char *const body_text = g_cli_guard->temporary_buf_alloc(CLI_RECORDING_BODY, g_cli_debug_owner);
     VerbaLinea body = mmgr_line_over(body_text, CLI_RECORDING_BODY);
     int success = 1;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(&body, "{\"supportsConfigurationDoneRequest\":true,\"supportsStepBack\":true,"
                              "\"supportsExceptionInfoRequest\":true,\"supportsEvaluateForHovers\":true,"
                              "\"exceptionBreakpointFilters\":[{\"filter\":\"raised\",\"label\":\"Raised "
                              "Exceptions\",\"default\":false}]}");
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "launch", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "launch", .cap = CLI_POOL_BYTES}))
     {
         const char *const program =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
@@ -285,28 +284,28 @@ int cli_recording_serve(const CliDapServeCfg *args)
         mmgr_line_put(&body, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = 1, .body = &body, .err_msg = &err_msg);
-        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(body_text, g_cli_debug_owner);
         const char initialized[] = "{\"type\":\"event\",\"event\":\"initialized\"}";
         (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = initialized,
                          .size = sizeof(initialized) - 1u);
         return 1;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setBreakpoints", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setBreakpoints", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(request_breakpoints, RecordingRequestCtx, .arguments = arguments, .body_out = &body);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setExceptionBreakpoints", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setExceptionBreakpoints", .cap = CLI_POOL_BYTES}))
     {
         g_cli_replay->on_raised = EMBED_CALL(request_on_raise, RecordingRequestCtx, .arguments = arguments);
         mmgr_line_put(&body, "null");
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "configurationDone", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "configurationDone", .cap = CLI_POOL_BYTES}))
     {
         success = EMBED_CALL(cli_recording_dap_internal.run, CliRecordingDapCtx, .dap = dap, .err_msg = &err_msg);
         mmgr_line_put(&body, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = success, .body = &body, .err_msg = &err_msg);
-        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(body_text, g_cli_debug_owner);
         if (!success)
         {
             const char terminated[] = "{\"type\":\"event\",\"event\":\"terminated\",\"body\":{}}";
@@ -315,15 +314,15 @@ int cli_recording_serve(const CliDapServeCfg *args)
         }
         return 1;
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "terminate", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "terminate", .cap = CLI_POOL_BYTES})))
     {
         cli_recording_run_kill();
         mmgr_line_put(&body, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = 1, .body = &body, .err_msg = &err_msg);
-        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
-        return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL});
+        g_cli_guard->persistent_buf_release(body_text, g_cli_debug_owner);
+        return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_POOL_BYTES});
     }
     else
     {
@@ -333,6 +332,6 @@ int cli_recording_serve(const CliDapServeCfg *args)
     }
     EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                .success = success, .body = &body, .err_msg = &err_msg);
-    g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(body_text, g_cli_debug_owner);
     return 1;
 }

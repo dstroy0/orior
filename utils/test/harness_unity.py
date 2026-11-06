@@ -114,7 +114,7 @@ def compile_words(root):
     """The include roots and MMgr's configuration, matching what ui/cli/build.sh compiles the library with."""
     mmgr = os.path.join(root, "src", "cu", "includes", "mmgr")
     return ["-I", root, "-I", os.path.join(mmgr, "include"), "-I", os.path.join(mmgr, "src"), "-I", os.path.join(root, "src", "cu", "includes", "embedded_types", "include"),
-            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ENABLE_HOST=1", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_CARCER_OWNERS=1024u"]
+            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_CARCER_OWNERS=1024u"]
 
 
 def suite_dirs(root, names, suites=SUITES, extension=".c"):
@@ -223,20 +223,30 @@ def sanitizer_reports(name, run):
 
 def program_ran(name, program, run, env):
     """A suite's program run in `run`, a line printed for it: its tests, its failures, and whether the suite failed. A sanitizer's
-    report fails it, and the pool's and owners' lines it prints under ORIOR_CELLS_OWNERS are printed."""
-    try:
-        ran = subprocess.run([program], cwd=run, env=env, capture_output=True, text=True, errors="replace", timeout=300, check=False)
-    except subprocess.TimeoutExpired:
-        print("  %s: stopped after 300 s" % name, flush=True)
-        return 0, 0, True
-    for line in ran.stdout.splitlines():
+    report fails it, and the pool's and owners' lines it prints under ORIOR_CELLS_OWNERS are printed.
+    The program writes into files and never into pipes. A process a suite starts and leaves behind inherits the suite's output handles,
+    and a pipe stays open while that process lives, which a read of the pipe would wait out; a file's end is read as the
+    program ends whatever else holds the file."""
+    out_path = os.path.join(run, name + ".out.txt")
+    err_path = os.path.join(run, name + ".err.txt")
+    with open(out_path, "w", encoding="utf-8") as out, open(err_path, "w", encoding="utf-8") as err:
+        try:
+            ran = subprocess.run([program], cwd=run, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=err, timeout=300, check=False)
+        except subprocess.TimeoutExpired:
+            print("  %s: stopped after 300 s" % name, flush=True)
+            return 0, 0, True
+    with open(out_path, encoding="utf-8", errors="replace") as out:
+        stdout = out.read()
+    with open(err_path, encoding="utf-8", errors="replace") as err:
+        stderr = err.read()
+    for line in stdout.splitlines():
         if line.startswith("cells "):
             print(line, flush=True)
-    result = RESULT.search(ran.stdout)
+    result = RESULT.search(stdout)
     failed = (sanitizer_reports(name, run) > 0) or result is None or ran.returncode != 0
     if failed:
-        print("\n".join(line for line in ran.stdout.splitlines() if ":FAIL" in line) or ran.stdout[-3000:], flush=True)
-        print(ran.stderr[-1000:], flush=True)
+        print("\n".join(line for line in stdout.splitlines() if ":FAIL" in line) or stdout[-3000:], flush=True)
+        print(stderr[-1000:], flush=True)
         print("  %s: exit %d" % (name, ran.returncode), flush=True)
     if result is None:
         return 0, 0, failed

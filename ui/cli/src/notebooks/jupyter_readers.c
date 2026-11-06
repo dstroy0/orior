@@ -39,7 +39,7 @@ EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
         {
             CliKernelWaiter *const waiter = &kernel->waiters[at];
             if (waiter->waiting &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = waiter->id, .other = parent, .cap = CLI_CELLS_POOL})))
+                (cellul.eq(&(CatenaFinitaCfg){.src = waiter->id, .other = parent, .cap = CLI_POOL_BYTES})))
             {
                 mmgr_line_put_n(waiter->reply, args->message, args->size);
                 waiter->answered = 1;

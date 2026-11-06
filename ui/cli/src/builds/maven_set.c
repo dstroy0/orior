@@ -5,7 +5,7 @@
 // properties is given them after its coordinates, a step deeper than its root. The compiler plugin's version is
 // written over its own. Maven's own settings are written to the user's `settings.xml`, made where there is none. An
 // element added under another goes on a line of its own, at the depth of the other's first child
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"

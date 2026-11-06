@@ -4,7 +4,7 @@
 // of the plugin of that id that stands, the reader's in place of one that comes with orior, made whole from the tree's
 // tables, and stored again only where the whole grammar changed. A language `<id>:<name>` is the plugin `<id>`'s for
 // the folder `<name>`
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/highlight.h"
 #include "../text/text.h"
 #include "plugins.h"
@@ -31,8 +31,8 @@ static int cli_grammars_init(void)
 {
     CliPluginGrammar *const cell =
         (s_grammar_capacity == 0u)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_PLUGIN_GRAMMARS_MAX * sizeof(*cell),
-                                                &g_cli_plugins_cells)
+            ? g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_PLUGIN_GRAMMARS_MAX * sizeof(*cell),
+                                                g_cli_plugins_owner)
             : NULL;
     if (cell == NULL)
     {
@@ -80,7 +80,7 @@ EMBED_INLINE unsigned long long cli_grammar_stamp(const PluginsGrammarCtx *args)
 static void cli_grammar_each(const CliEachPluginCfg *args)
 {
     CliGrammarNeedle *const needle = (CliGrammarNeedle *)args->context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -92,7 +92,7 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = needle->err_msg, .owner = &g_cli_plugins_cells);
+                   .err_msg = needle->err_msg, .owner = g_cli_plugins_owner);
     const unsigned int grammar = (root != CLI_JSON_NONE)
                                      ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &json, .object = root, .name = "grammar")
@@ -128,8 +128,7 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
         mmgr_line_ch(needle->whole, '}');
         needle->made = mmgr_line_ok(needle->whole);
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -145,12 +144,11 @@ EMBED_INLINE int cli_grammar_resolved_store(const PluginsGrammarCtx *args)
     const unsigned int grammar =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->whole->out, .size = args->whole->at, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = err_msg, .owner = &g_cli_plugins_cells);
+                   .err_msg = err_msg, .owner = g_cli_plugins_owner);
     const int stored =
         (grammar != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = key,
                                                  .json = &json, .def = grammar, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return stored;
@@ -166,7 +164,7 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
     VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ULL};
     const char *name = args->id;
     name += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = ":");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .set = ":");
     // the colon lies at or after the id's first letter
     mmgr_line_put_n(&split, args->id, (unsigned long long)(name - args->id));
     name = (*name == ':') ? (name + 1) : name;
@@ -175,7 +173,7 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
         mmgr_line_put(args->err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;
     }
-    char *const grammar_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_GRAMMAR_CAPACITY, &g_cli_plugins_cells);
+    char *const grammar_cell = g_cli_guard->temporary_buf_alloc(CLI_PLUGIN_GRAMMAR_CAPACITY, g_cli_plugins_owner);
     VerbaLinea whole = mmgr_line_over(grammar_cell, CLI_PLUGIN_GRAMMAR_CAPACITY);
     if (grammar_cell == NULL)
     {
@@ -193,7 +191,7 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
         EMBED_CALL(cli_grammar_stamp, PluginsGrammarCtx, .text = whole.out, .size = whole.at);
     unsigned int at = 0u;
     while ((at < s_grammar_count) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].id, .other = args->id, .cap = CLI_CELLS_POOL}))
+           !cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].id, .other = args->id, .cap = CLI_POOL_BYTES}))
     {
         at += 1u;
     }
@@ -208,7 +206,7 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = s_grammars[at].id,
                               .src = args->id,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1u});
             s_grammar_count += 1u;
         }
         if (stored && (at < s_grammar_count))
@@ -216,7 +214,7 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
             s_grammars[at].stamp = stamp;
         }
     }
-    g_cli_cells->persistent_buf_release(whole.out, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(whole.out, g_cli_plugins_owner);
     if (!needle.found)
     {
         mmgr_line_put(args->err_msg, "no plugin is named ");

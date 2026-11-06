@@ -4,7 +4,7 @@
 #include "bridge.h"
 #include "../command_line/callback_cfg.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 
 // One line that contains something: its number from 0, its first word and the rest, trimmed
@@ -121,7 +121,7 @@ static int cli_next_line(const BridgeCtx *args)
 EMBED_INLINE int cli_word_is(const BridgeCtx *args)
 {
     return (args->parsed_read->word_length ==
-            cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL})) &&
+            cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES})) &&
            (memor.cmp(&(MemoriaCfg){.src = args->parsed_read->word_text,
                                     .other = args->word_text,
                                     .bytes = args->parsed_read->word_length}) == 0);
@@ -419,7 +419,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
                .name = "path",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = args->json, .text = args->path,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = klq,
                .name = "keys", .value = keys);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = klq,
@@ -539,7 +539,7 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
                .name = "path",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = args->json, .text = args->path,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = klm,
                .name = "language", .value = language);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = klm,
@@ -627,7 +627,7 @@ unsigned int cli_bridge_ruleset(const CliBridgePathCfg *args)
                .name = "path",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = args->json, .text = args->path,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = ruleset,
                .name = "entries", .value = entries);
     return ruleset;
@@ -638,7 +638,7 @@ static void cli_file_each(const CliEachNameIsFolderCfg *args)
 {
     CliBridgeFiles *const files = (CliBridgeFiles *)args->context;
     if (args->is_folder ||
-        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN))
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN))
     {
         return;
     }
@@ -647,7 +647,7 @@ static void cli_file_each(const CliEachNameIsFolderCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = files->file[files->count].name,
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     }
     files->count += ((files->file == NULL) || (files->count < files->most)) ? 1u : 0u;
 }
@@ -657,12 +657,12 @@ EMBED_INLINE int cli_bridge_by_name(const BridgeCtx *args)
 {
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->name,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}), .byte = '.');
     const char *const ext = (dot != NULL) ? (dot + 1) : "";
-    return (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klq", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klm", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "krs", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "kdm", .cap = CLI_CELLS_POOL}));
+    return (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klq", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klm", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "krs", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "kdm", .cap = CLI_POOL_BYTES}));
 }
 
 unsigned int cli_bridge_read(const CliBridgeCfg *args)
@@ -681,7 +681,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_file_each,
                .context_bytess = &files);
     files = (CliBridgeFiles){
-        g_cli_cells->persistent_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), &g_cli_editor_cells), 0u,
+        g_cli_guard->persistent_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), g_cli_editor_owner), 0u,
         files.count};
     if (files.file == NULL)
     {
@@ -713,7 +713,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
         mmgr_line_put(&file, one->name);
         one->bytes = (EMBED_CALL(cli_bridge_by_name, BridgeCtx, .name = one->name) && (mmgr_line_finish(&file) != 0ULL))
                          ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                      .size_pointer = &one->size, .owner = &g_cli_editor_cells)
+                                      .size_pointer = &one->size, .owner = g_cli_editor_owner)
                          : NULL;
         if (one->bytes != NULL)
         {
@@ -728,7 +728,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     const int swap =
         (nodes < CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                               .json = args->json, .nodes_max = (unsigned int)nodes, .text_max = text,
-                                              .what = "the bridge read", .owner = &g_cli_editor_cells);
+                                              .what = "the bridge read", .owner = g_cli_editor_owner);
     const unsigned int bridge =
         swap ? EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_OBJECT)
              : CLI_JSON_NONE;
@@ -737,7 +737,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
                .value =
                    EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                               .json = args->json, .text = CLI_BRIDGE_DIR,
-                              .length = cellul.len(&(CatenaFinitaCfg){.src = CLI_BRIDGE_DIR, .cap = CLI_CELLS_POOL})));
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = CLI_BRIDGE_DIR, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,
                .name = "klq",
                .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json,
@@ -755,7 +755,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
         }
         const char *const ext =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = one->name,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_CELLS_POOL}),
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_POOL_BYTES}),
                        .byte = '.') +
             1;
         const char *const text_of = (const char *)one->bytes;
@@ -766,14 +766,14 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
         mmgr_line_finish(&file);
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = path,
                    .relative_out = relative);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klq", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klq", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
                        .object = bridge, .name = "klq",
                        .value = EMBED_CALL(cli_bridge_path.klq, CliBridgePathCfg, .json = args->json, .path = relative,
                                            .text = text_of, .size = one->size));
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klm", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klm", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->json, .array = maps,
                        .value = EMBED_CALL(cli_bridge_path.klm, CliBridgePathCfg, .json = args->json, .path = relative,
@@ -785,9 +785,9 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
                        .value = EMBED_CALL(cli_bridge_path.ruleset, CliBridgePathCfg, .json = args->json,
                                            .path = relative, .text = text_of, .size = one->size));
         }
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)one->bytes, (&g_cli_editor_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)one->bytes, (g_cli_editor_owner));
     }
-    g_cli_cells->persistent_buf_release(files.file, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(files.file, g_cli_editor_owner);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,
                .name = "maps", .value = maps);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,

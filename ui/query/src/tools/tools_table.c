@@ -45,14 +45,24 @@ const char *const g_query_mmgr[] = {"src/cu/includes/mmgr/src/ascii_persona_bito
                                     "src/cu/includes/mmgr/src/transformo/*.c",
                                     "src/cu/includes/mmgr/src/verba_scribo/*.c",
                                     "src/cu/includes/mmgr/src/verbum_scrutor/*.c",
+                                    // the host's address wait, wake and clock, which LocusCarcerum's turnstiles
+                                    // sleep, wake and stamp through and the program is to define
+                                    "src/cu/includes/mmgr/test/support/host_wait.c",
                                     NULL};
 
 // MMgr's include folders, from the top of the tree, and the settings it is built with, given every compile
 const char *const g_query_mmgr_includes[] = {"src/cu/includes/mmgr/include", "src/cu/includes/mmgr/src",
-                                             "src/cu/includes/embedded_types/include", NULL};
+                                             "src/cu/includes/embedded_types/include",
+                                             "src/cu/includes/mmgr/test/support", NULL};
 
-const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",        "-DMMGR_ENABLE_EXTRAM=0",
-                                             "-DMMGR_ENABLE_HOST=1",       "-DMMGR_ALIGN_BYTES=32",
+// the words every program's link ends with: on Windows the library the address wait is in
+#if defined(_WIN32)
+const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
+#else
+const char *const g_query_mmgr_link[] = {NULL};
+#endif
+
+const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
                                              "-DMMGR_CARCER_OWNERS=1024u", NULL};
 
 // the folders the file definitions' headers stand in beyond their sources' own

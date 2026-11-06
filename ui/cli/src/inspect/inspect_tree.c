@@ -4,7 +4,7 @@
 // laid one after another; a file found by its path through a table; and the function of a file that contains a line, or
 // whose name starts on it
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "inspect_tree_internal.h"
 
@@ -76,7 +76,7 @@ EMBED_INLINE void *tree_work_alloc(const InspectTreeCtx *args)
         (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
         (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
         (counted.names * sizeof(CliInspectName)) + counted.used + (8ULL * 8ULL);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_inspect_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_inspect_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -220,7 +220,7 @@ EMBED_INLINE unsigned long long tree_size(const InspectTreeCtx *args)
 EMBED_INLINE void tree_alloc(const InspectTreeCtx *args)
 {
     tree_bucket_alloc(args);
-    g_cli_cells->persistent_buf_release(CLI_TREE_FILE(args->file).cell, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(CLI_TREE_FILE(args->file).cell, g_cli_inspect_owner);
     CLI_TREE_FILE(args->file).cell = NULL;
     CLI_TREE_FILE(args->file).used = 0;
     cli_tree_families_free();
@@ -245,7 +245,7 @@ static unsigned int tree_position(void)
     if (g_cli_tree_page[page] == NULL)
     {
         g_cli_tree_page[page] =
-            g_cli_cells->persistent_buf_alloc(CLI_TREE_PAGE * sizeof(CliTreeFile), &g_cli_inspect_cells);
+            g_cli_guard->persistent_buf_alloc(CLI_TREE_PAGE * sizeof(CliTreeFile), g_cli_inspect_owner);
         if (g_cli_tree_page[page] == NULL)
         {
             return CLI_TREE_NONE;
@@ -275,10 +275,10 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     const int read = EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = language,
                                 .text = text, .size = size, .facts = facts) &&
                      !facts->full;
-    const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
     const unsigned long long needed =
         read ? EMBED_CALL(tree_size, InspectTreeCtx, .facts = facts, .path_size = path_size) : 0ULL;
-    unsigned char *const cell = read ? g_cli_cells->persistent_buf_alloc(needed, &g_cli_inspect_cells) : NULL;
+    unsigned char *const cell = read ? g_cli_guard->persistent_buf_alloc(needed, g_cli_inspect_owner) : NULL;
     const unsigned int place =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = path, .size = path_size);
     if (place != CLI_TREE_NONE)
@@ -288,8 +288,8 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     const unsigned int file = (cell != NULL) ? tree_position() : CLI_TREE_NONE;
     if (file == CLI_TREE_NONE)
     {
-        g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
-        g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_inspect_owner);
+        g_cli_guard->persistent_buf_release(work_cell, g_cli_inspect_owner);
         return 0;
     }
     CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
@@ -300,7 +300,7 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
                                              .bytes_bytess = path, .size = path_size + 1u);
     tree_file->path = path_copy;
     tree_file->path_size = (unsigned int)path_size;
-    tree_file->python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));
+    tree_file->python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_POOL_BYTES}));
     tree_file->facts = *facts;
     tree_file->facts.import =
         EMBED_CALL(tree_copy, InspectTreeCtx, .cell = cell, .at_u64s = &at, .bytes_bytess = work->imports,
@@ -333,7 +333,7 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     tree_file->used = 1;
     EMBED_CALL(tree_bucket_append, InspectTreeCtx, .file = file);
     cli_tree_families_free();
-    g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(work_cell, g_cli_inspect_owner);
     return 1;
 }
 
@@ -341,7 +341,7 @@ void cli_inspect_tree_remove(const CliInspectTreePathLineCfg *args)
 {
     const unsigned int place =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     if (place != CLI_TREE_NONE)
     {
         EMBED_CALL(tree_alloc, InspectTreeCtx, .file = place);
@@ -352,13 +352,13 @@ void cli_inspect_tree_clear(void)
 {
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        g_cli_cells->persistent_buf_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
+        g_cli_guard->persistent_buf_release(CLI_TREE_FILE(file).cell, g_cli_inspect_owner);
         CLI_TREE_FILE(file).cell = NULL;
         CLI_TREE_FILE(file).used = 0;
     }
     for (unsigned int page = 0u; page < CLI_TREE_PAGES; page += 1u)
     {
-        g_cli_cells->persistent_buf_release(g_cli_tree_page[page], &g_cli_inspect_cells);
+        g_cli_guard->persistent_buf_release(g_cli_tree_page[page], g_cli_inspect_owner);
         g_cli_tree_page[page] = NULL;
     }
     g_cli_tree_files = 0u;
@@ -370,7 +370,7 @@ int cli_inspect_tree_contains(const CliInspectTreePathLineCfg *args)
 {
     const int found =
         (EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL})) != CLI_TREE_NONE);
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES})) != CLI_TREE_NONE);
     return found;
 }
 
@@ -390,7 +390,7 @@ int cli_inspect_tree_function_at(const CliInspectTreePathLineCfg *args)
     unsigned int *at = args->at_pointer;
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     int found = 0;
     unsigned int min = 0u;
     for (unsigned int index = 0u; (file != CLI_TREE_NONE) && (index < CLI_TREE_FILE(file).facts.functions); index += 1u)
@@ -410,7 +410,7 @@ int cli_inspect_tree_function(const CliInspectTreePathCfg *args)
 {
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     const int found = (file != CLI_TREE_NONE) && (args->at < CLI_TREE_FILE(file).facts.functions);
     if (found)
     {
@@ -425,7 +425,7 @@ int cli_inspect_tree_function_on(const CliInspectTreePathLineCfg *args)
     unsigned int *at = args->at_pointer;
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     int found = 0;
     for (unsigned int index = 0u; !found && (file != CLI_TREE_NONE) && (index < CLI_TREE_FILE(file).facts.functions);
          index += 1u)

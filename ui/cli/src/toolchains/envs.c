@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // envs.c: the packages the files of a folder require, read from its `setup.cfg`, Pipfile and `requirements.txt`, by
 // name, each once
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -54,14 +54,14 @@ EMBED_INLINE CliSpan cli_trim(const EnvsCtx *args)
 // whether the span starts with `text`, and whether it is `text`
 EMBED_INLINE int cli_starts(const EnvsCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     return (args->span.length >= length) &&
            (memor.cmp(&(MemoriaCfg){.src = args->span.at, .other = args->text, .bytes = length}) == 0);
 }
 
 EMBED_INLINE int cli_is(const EnvsCtx *args)
 {
-    return (args->span.length == cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL})) &&
+    return (args->span.length == cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES})) &&
            cli_starts(args);
 }
 
@@ -69,7 +69,7 @@ void cli_required_alloc(const CliEnvsCtx *args)
 {
     CliRequired *required = args->required;
     const unsigned long long name_bytes = (unsigned long long)CLI_ENVS_NAMES * sizeof(CliRequiredName);
-    char *const cell = g_cli_cells->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, &g_cli_envs_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, g_cli_envs_owner);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
     if (cell != NULL)
     {
@@ -145,7 +145,7 @@ EMBED_INLINE const unsigned char *cli_text_map(const EnvsCtx *args)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = args->name_text, .joined = path);
     return EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = size,
-                      .owner = &g_cli_envs_cells);
+                      .owner = g_cli_envs_owner);
 }
 
 // the next line of `size` bytes from `*at`, `*at` moved past it: 1, or 0 where the text has ended
@@ -303,6 +303,6 @@ void cli_required_in(const CliEnvsCtx *args)
         {
             EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_envs_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_envs_owner));
     }
 }

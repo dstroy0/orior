@@ -49,13 +49,13 @@ EMBED_INLINE int ipc_address(const PosixDoorCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->address, .val = 0, .bytes = sizeof(*args->address)});
     args->address->sun_family = AF_UNIX;
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) >= sizeof(args->address->sun_path))
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) >= sizeof(args->address->sun_path))
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->address->sun_path,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 

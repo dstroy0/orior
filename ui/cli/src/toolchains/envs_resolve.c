@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // envs_resolve.c: an environment of the tree made ready to use, Pipenv and Nix queried where theirs are, and the
 // packages its Python has not installed
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "envs.h"
@@ -55,10 +55,10 @@ EMBED_INLINE int cli_venv_at(const EnvsResolveCtx *args)
     args->environment->bins = 1u;
     memor.cpy(&(MemoriaCfg){.dst = args->environment->bin[0],
                             .src = bin,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = bin, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = bin, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->environment->python,
                             .src = python,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_POOL_BYTES}) + 1u});
     args->environment->has_python = 1;
     args->environment->place[0] = '\0';
     return 1;
@@ -82,8 +82,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
                    .id = id, .err_msg = &unknown);
     if (tool == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, id);
@@ -98,13 +97,12 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
     char name[CLI_NAME_MAX_LEN];
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = name, .text = displayed, .otherwise = id);
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&folders, &g_cli_toolchains_cells);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&folders, g_cli_toolchains_owner);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = folders,
                .found = &s_work_state->found);
-    g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_owner);
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!s_work_state->found.has_program)
@@ -160,8 +158,8 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    g_cli_cells->persistent_buf_release(s_work_state->output, &g_cli_toolchains_cells);
-    s_work_state->output = g_cli_cells->persistent_buf_alloc(run_result->out_size + 1ULL, &g_cli_toolchains_cells);
+    g_cli_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
+    s_work_state->output = g_cli_guard->persistent_buf_alloc(run_result->out_size + 1ULL, g_cli_toolchains_owner);
     if (s_work_state->output == NULL)
     {
         s_work_state->output_size = 0ULL;
@@ -187,11 +185,10 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = s_work_state->output, .size = s_work_state->output_size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &unread, .owner = &g_cli_toolchains_cells);
+                   .err_msg = &unread, .owner = g_cli_toolchains_owner);
     if (root == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "Nix: ");
@@ -235,13 +232,13 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = folder, .src = start, .bytes = size});
         folder[size] = '\0';
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = folder, .cap = CLI_CELLS_POOL, .other = "/nix/store/", .other_cap = CLI_CELLS_POOL}) == NULL)
+                .src = folder, .cap = CLI_POOL_BYTES, .other = "/nix/store/", .other_cap = CLI_POOL_BYTES}) == NULL)
         {
             continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = args->environment->bin[args->environment->bins],
                                 .src = folder,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
         args->environment->bins += 1u;
         char python[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "python3", .joined = python);
@@ -251,12 +248,11 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->environment->python,
                               .src = python,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_POOL_BYTES}) + 1u});
             args->environment->has_python = 1;
         }
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -270,13 +266,13 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->place, .joined = folder);
     }
-    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_toolchains_cells);
+    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
     if (s_work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "an environment's resolving could not be taken");
@@ -285,12 +281,12 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     s_work_state->output = NULL;
     s_work_state->output_size = 0ULL;
     int made = 0;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "venv", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "venv", .cap = CLI_POOL_BYTES}))
     {
         made = EMBED_CALL(cli_venv_at, EnvsResolveCtx, .folder = folder, .environment = args->environment,
                           .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "pipenv", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "pipenv", .cap = CLI_POOL_BYTES}))
     {
         static const char *const s_args[1] = {"--venv"};
         made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "pipenv", .folder = folder, .request = s_args,
@@ -309,7 +305,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
                               .environment = args->environment, .err_msg = args->err_msg);
         }
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "nix", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "nix", .cap = CLI_POOL_BYTES}))
     {
         static const char *const s_args[2] = {"print-dev-env", "--json"};
         made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "nix", .folder = folder, .request = s_args,
@@ -326,10 +322,10 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->environment->place,
                           .src = args->place,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->place, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->place, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_cells->persistent_buf_release(s_work_state->output, &g_cli_toolchains_cells);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_toolchains_cells);
+    g_cli_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return made;
 }

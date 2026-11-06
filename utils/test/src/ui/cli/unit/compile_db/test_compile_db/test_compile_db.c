@@ -40,7 +40,7 @@ static int words_contain(const char *word)
 {
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = word, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = word, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -110,10 +110,10 @@ static void cmake_refreshed(void)
     cli_unity_file(reply, "toolchains-v1-a.json", s_toolchains);
     cli_unity_file(reply, "target-probe.json", s_target);
     (void)EMBED_CALL(cli_compile_db_root_database.refresh, CliCompileDbRootDatabaseCfg, .root = s_cmake_dir, .database = &s_cmake);
-    s_in_use_after_first = embed_atomic_usize_load(&g_cli_compile_cells.in_use);
+    s_in_use_after_first = mmgr_owner_in_use(g_cli_compile_owner);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 2100u);
     (void)EMBED_CALL(cli_compile_db_root_database.refresh, CliCompileDbRootDatabaseCfg, .root = s_cmake_dir, .database = &s_cmake);
-    s_in_use_after_second = embed_atomic_usize_load(&g_cli_compile_cells.in_use);
+    s_in_use_after_second = mmgr_owner_in_use(g_cli_compile_owner);
 }
 
 // a tree whose .clangd names its own database read and gathered, once for the process
@@ -132,9 +132,9 @@ static void own_gathered(void)
     cli_unity_file(out, "compile_commands.json",
                    "[{\"directory\": \"/t\", \"file\": \"/t/a.c\", \"command\": "
                    "\"\\\"/opt/cross/bin/arm-none-eabi-gcc\\\" -c a.c\"}]");
-    const size_t top_before = g_cli_cells->temporary_buf_mark();
+    const size_t top_before = g_cli_guard->temporary_buf_mark();
     EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs, CliCompileDbInputsCtx, .root = s_own_dir, .inputs = &s_inputs);
-    s_files_in_temporary_tier = g_cli_cells->temporary_buf_mark() < top_before;
+    s_files_in_temporary_tier = g_cli_guard->temporary_buf_mark() < top_before;
     EMBED_CALL(cli_compile_db_root_internal.compile_gather, CliCompileDbRootCtx, .root = s_own_dir, .inputs_read = &s_inputs, .database = &s_own);
 }
 
@@ -160,7 +160,7 @@ void tearDown(void)
 void test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more(void)
 {
     cmake_refreshed();
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_compile_cells.hw));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_compile_owner));
     TEST_ASSERT_NOT_EQUAL(0ull, s_in_use_after_first);
     TEST_ASSERT_EQUAL_UINT64(s_in_use_after_first, s_in_use_after_second);
 }

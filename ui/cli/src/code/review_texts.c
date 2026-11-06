@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // review_texts.c: the files' texts put in the review's capacity, each read whole into a line first
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "review_internal.h"
 
 unsigned int cli_review_text_append(const CliReviewTextLengthCtx *args)
@@ -31,13 +31,13 @@ int cli_review_text_add(const CliReviewLineCtx *args)
     }
     const int added = g_cli_review.used != was;
     *size = added ? args->line->at : 0ULL;
-    g_cli_cells->persistent_buf_release(args->line->out, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(args->line->out, g_cli_code_owner);
     return added;
 }
 
 VerbaLinea cli_review_text_line(void)
 {
-    char *const line_cell = g_cli_cells->temporary_buf_alloc(CLI_REVIEW_TEXT_CAPACITY, &g_cli_code_cells);
+    char *const line_cell = g_cli_guard->temporary_buf_alloc(CLI_REVIEW_TEXT_CAPACITY, g_cli_code_owner);
     VerbaLinea line = mmgr_line_over(line_cell, CLI_REVIEW_TEXT_CAPACITY);
     return line;
 }

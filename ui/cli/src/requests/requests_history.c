@@ -3,7 +3,7 @@
 // requests_history.c: each request's last answers stored in orior's own folder, under requests/, a folder for the file
 // named by the SHA-256 of its path and a file for the request named by the SHA-256 of its key, the last answer first,
 // ten of them, each body cut to 1 MiB; and the answers stored read back
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/digest.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -85,12 +85,12 @@ EMBED_INLINE int history_folder(const RequestsHistoryCtx *args)
     {
 #if defined(_WIN32)
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = file,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .from = '/', .to = '\\');
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .from = '/', .to = '\\');
 #endif
         mmgr_line_put(&line, home);
         mmgr_line_put(&line, "/requests/");
         EMBED_CALL(history_by_name, RequestsHistoryCtx, .bytes = file,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .out = &line);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .out = &line);
     }
     if (!known || (mmgr_line_finish(&line) == 0ULL))
     {
@@ -130,7 +130,7 @@ EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
     unsigned long long *size = args->size_pointer;
     unsigned long long *first = args->first;
     *bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file_read, .size_pointer = size,
-                        .owner = &g_cli_requests_cells);
+                        .owner = g_cli_requests_owner);
     VerbaLinea none = {NULL, 0ULL, 0ULL};
     unsigned long long at = 0ULL;
     while ((*bytes != NULL) && (at < *size) && EMBED_CALL(history_white, RequestsHistoryCtx, .byte = (*bytes)[at]))
@@ -141,7 +141,7 @@ EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
                              !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
                                          .text = (const char *)*bytes, .size = *size, .out = &none)))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)(*bytes), (&g_cli_requests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)(*bytes), (g_cli_requests_owner));
         *bytes = NULL;
     }
     *first = at + 1u;
@@ -218,7 +218,7 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     }
     if (before)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_requests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
     }
     mmgr_line_ch(&piece, ']');
     done = done && mmgr_line_flush(&piece) &&
@@ -263,7 +263,7 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     {
         (void)EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = (const char *)bytes,
                          .size = byte_count, .out = args->out);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_requests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
     }
     else
     {

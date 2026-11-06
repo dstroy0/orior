@@ -145,7 +145,7 @@ struct CliArchiveErrMsgCfg
     const char *root;
     const char *path;
     unsigned long long *size_pointer;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliArchiveSizeDataCfg

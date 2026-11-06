@@ -92,7 +92,7 @@ unsigned int cli_json_number_init(const CliJsonTreeTextLengthKindCfg *args)
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_NUMBER);
     if (made != CLI_JSON_NONE)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
         args->json->node[made].text =
             EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->json, .text = text, .length = length);
         args->json->node[made].length = args->json->full ? 0ULL : length;
@@ -114,7 +114,7 @@ EMBED_INLINE unsigned int cli_on_key(const JsonTreeCtx *args)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = args->json_read->text + args->json_read->node[child].key,
                                          .other = args->name,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return child;
         }
@@ -222,7 +222,7 @@ void cli_json_set(const CliJsonTreeObjectNameCfg *args)
         (had != CLI_JSON_NONE)
             ? args->json->node[had].key
             : EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->json, .text = args->name,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
     if (!args->json->full)
     {
         EMBED_CALL(cli_append_key, JsonTreeCtx, .json = args->json, .object = args->object, .key = key,
@@ -371,7 +371,7 @@ unsigned int cli_json_copy_from(const CliJsonTreeNodeCfg *args)
             const char *const key = args->from->text + args->from->node[child].key;
             const unsigned long long at =
                 EMBED_CALL(cli_text_store, JsonTreeCtx, .json = args->to, .text = key,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
             if (args->to->full)
             {
                 return CLI_JSON_NONE;
@@ -452,7 +452,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             return CLI_JSON_NONE;
         }
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = json->text + json->used, .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = json->text + json->used, .cap = CLI_POOL_BYTES});
         json->node[made].text = json->used;
         json->node[made].length = length;
         json->used += length + 1ULL;

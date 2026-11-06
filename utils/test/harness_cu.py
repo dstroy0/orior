@@ -7,9 +7,9 @@
     harness.py cu test [name...]    the Unity suites of the .cu sources generated, built by nvcc and run, every one where none is named
 
 A .cu is C++ for nvcc: its static functions, kernels and device functions have no C linkage, and many of its signatures name std:: types
-no C caller could spell. A wrapper is a translation unit that includes its source, and a Unity suite nvcc compiles includes the wrapper:
+no C caller could write. A wrapper is a translation unit that includes its source, and a Unity suite nvcc compiles includes the wrapper:
 the suite then calls every function of the source. A source with a `main` has it renamed <source>_main, the suite's runner holding the
-program's main. No two sources share a header's name, as utils/maint/engine/clangd_database.py checks, so one include path serves them all."""
+program's main. No two sources share a header's name, as utils/maint/engine/clangd_database.py checks, and one include path serves them all."""
 
 import os
 import re

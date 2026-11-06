@@ -3,7 +3,7 @@
 // deploy_there.c: the hashes of the files a place has, and of those last sent there as the record stored in orior's
 // own folder has them
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/digest.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -37,14 +37,13 @@ void cli_deploy_there_free(void)
     while (s_pool.page != NULL)
     {
         CliDeployPage *const before = s_pool.page->before;
-        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
         s_pool.page = before;
     }
     s_pool.refused = 0;
-    g_cli_cells->persistent_buf_release(s_listing, &g_cli_deploy_cells);
+    g_cli_guard->persistent_buf_release(s_listing, g_cli_deploy_owner);
     s_listing = NULL;
-    g_cli_cells->persistent_buf_release(s_record.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_record.node));
+    g_cli_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_record.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -158,8 +157,7 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
 {
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
-    g_cli_cells->persistent_buf_release(s_record.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_record.node));
+    g_cli_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_record.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char path[CLI_PATH_MAX_LEN];
@@ -169,7 +167,7 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
         EMBED_CALL(cli_deploy_index_path_internal.record_path, CliDeployIndexPathCtx, .index = args->index,
                    .path_out = path)
             ? EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &s_record, .path = path,
-                         .nodes_more = 0u, .text_more = 0ULL, .err_msg = &none, .owner = &g_cli_deploy_cells)
+                         .nodes_more = 0u, .text_more = 0ULL, .err_msg = &none, .owner = g_cli_deploy_owner)
             : CLI_JSON_NONE;
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_record, .node = top,
                     .kind = CFG_JSON_OBJECT))
@@ -238,7 +236,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     }
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                  .size_pointer = &size, .owner = &g_cli_deploy_cells);
+                                                  .size_pointer = &size, .owner = g_cli_deploy_owner);
     if (bytes == NULL)
     {
         return;
@@ -246,7 +244,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
     EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),
@@ -273,10 +271,10 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
         VerbaLinea command = {line, sizeof(line), 0ULL};
         mmgr_line_put(&command, "cd ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = args->folder,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}), .out = &command);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}), .out = &command);
         mmgr_line_put(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
         mmgr_line_finish(&command);
-        s_listing = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_HASHES, &g_cli_deploy_cells);
+        s_listing = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_HASHES, g_cli_deploy_owner);
         VerbaLinea listing = mmgr_line_over(s_listing, CLI_DEPLOY_HASHES);
         const int run_result =
             EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
@@ -313,7 +311,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
             }
             const char *hash = entry;
             hash += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ULL,
-                               .size = cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_CELLS_POOL}), .set = "\\");
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_POOL_BYTES}), .set = "\\");
             EMBED_CALL(there_pair_append, DeployThereCtx, .path = path, .hash = hash);
         }
     }

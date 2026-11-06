@@ -210,11 +210,11 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->pg->head.columns[0].name,
                               .src = "copy",
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = "copy", .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = "copy", .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(
                 &(MemoriaCfg){.dst = args->pg->head.columns[0].kind,
                               .src = "text",
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_POOL_BYTES}) + 1u});
             args->pg->head.columns[0].numeric = 0;
             return 1;
         }
@@ -345,7 +345,7 @@ int cli_pg_finish(const CliPgFailureCfg *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->tag,
                               .src = done_tag,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = done_tag, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = done_tag, .cap = CLI_POOL_BYTES}) + 1u});
         }
     }
     return 1;

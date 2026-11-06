@@ -5,7 +5,7 @@
 #ifndef DEBUG_INTERNAL_H
 #define DEBUG_INTERNAL_H
 #include "../builds/compile_db.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "debug.h"
 #include "embed_dispatch_layout.h"
 
@@ -44,9 +44,6 @@ typedef struct CliDebugCtx CliDebugCtx;
 // taken as the session is planned and given back as its place is freed
 #define CLI_DEBUG_START_NODES 8192u
 #define CLI_DEBUG_START_TEXT (1u << 18u)
-
-// the cells the sessions' places occupy: their lists and the trees they start with (debug_position.c)
-extern CellOwner g_cli_debug_cells;
 
 // how long, in milliseconds, the adapter has to start, to be ready for breakpoints, and to launch the program; a
 // request about the stopped program may take; after it is initialized an adapter has to report it is ready before the

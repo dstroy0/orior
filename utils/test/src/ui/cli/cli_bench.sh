@@ -21,7 +21,7 @@ case "$(uname -s)" in
 esac
 MMGR="$TOP/src/cu/includes/mmgr"
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
     -DMMGR_CARCER_OWNERS=1024u)
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "bench exit 1"; exit 1; }

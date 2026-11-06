@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages_lines.c: the lines a reading of a paged text gives, in one cell sized to the lines requested and the bytes
 // read
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "pages_internal.h"
 
 typedef struct
@@ -50,8 +50,8 @@ int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args)
         (args->text_first < 1ULL)
             ? 1ULL
             : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->text_first, .most = CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        EMBED_CALL(lines_heads, PagesLinesCtx, .lines_max = lines_max) + text_max, &g_cli_editor_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+        EMBED_CALL(lines_heads, PagesLinesCtx, .lines_max = lines_max) + text_max, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the lines a reading gives could not be taken");
@@ -122,7 +122,7 @@ int cli_page_block_read(const CliPagesLinesCtx *args)
 
 void cli_page_lines_free(const CliPagesLinesLinesFirstCtx *args)
 {
-    g_cli_cells->persistent_buf_release(args->lines->cell, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(args->lines->cell, g_cli_editor_owner);
     args->lines->cell = NULL;
     args->lines->start = NULL;
     args->lines->length = NULL;

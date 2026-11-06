@@ -76,12 +76,12 @@ EMBED_INLINE void rows_ok(const MysqlRowsCtx *args)
     unsigned long long start = at + 4u;
     unsigned long long end = size;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = payload[start]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = payload[start]}) != NULL))
     {
         start += 1u;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = payload[end - 1u]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = payload[end - 1u]}) != NULL))
     {
         end -= 1u;
     }

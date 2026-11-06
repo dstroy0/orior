@@ -129,11 +129,11 @@ static void cli_worker(void *context)
             unsigned long long got = 0ULL;
             const unsigned char *const bytes =
                 EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = full, .from = 0ULL,
-                           .count_u64 = size, .size_pointer = &got, .owner = &g_cli_editor_cells);
+                           .count_u64 = size, .size_pointer = &got, .owner = g_cli_editor_owner);
             if (bytes != NULL)
             {
                 EMBED_CALL(cli_search, FilesSearchCtx, .bytes = bytes, .size = got, .index = index, .hits = hits);
-                g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, &g_cli_editor_cells);
+                g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, g_cli_editor_owner);
             }
         }
     }
@@ -233,8 +233,8 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
             count += s_search.hits[store].lives;
         }
         count = (count < CLI_HITS_MAX) ? count : CLI_HITS_MAX;
-        s_search.ordered = g_cli_cells->persistent_buf_alloc(
-            (unsigned long long)count * (sizeof(const CliSearchHit *) + sizeof(unsigned int)), &g_cli_search_cells);
+        s_search.ordered = g_cli_guard->persistent_buf_alloc(
+            (unsigned long long)count * (sizeof(const CliSearchHit *) + sizeof(unsigned int)), g_cli_search_owner);
         s_search.file_first = (s_search.ordered != NULL) ? (unsigned int *)(void *)(s_search.ordered + count) : NULL;
     }
     if ((out != NULL) && !s_search.standing)
@@ -313,13 +313,13 @@ void cli_search_standing_free(void)
         while (cell != NULL)
         {
             CliHitCell *const next = cell->next;
-            g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
+            g_cli_guard->persistent_buf_release(cell, g_cli_search_owner);
             cell = next;
         }
         s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0};
     }
     EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
-    g_cli_cells->persistent_buf_release(s_search.ordered, &g_cli_search_cells);
+    g_cli_guard->persistent_buf_release(s_search.ordered, g_cli_search_owner);
     s_search.ordered = NULL;
     s_search.file_first = NULL;
     s_search.found = 0u;
@@ -395,17 +395,17 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int stores
     const unsigned int letters =
         (unsigned int)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query,
-                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}),
+                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}),
                                  .letters = s_search.lower, .capacity_u64 = CLI_FUZZY_LETTERS);
     int ascii = 1;
     ascii = ascii && EMBED_CALL(cli_text_size_byte.ascii, CliTextSizeByteCfg, .text = args->query,
-                                .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}));
+                                .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}));
     for (unsigned int at = 0u; at < letters; at += 1u)
     {
         s_search.lower[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_search.lower[at]);
     }
     s_search.needle =
-        (CliNeedle){args->query, cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}),
+        (CliNeedle){args->query, cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}),
                     ascii,       s_search.lower,
                     letters,     args->how};
     EMBED_ATOMIC_STORE(&s_search.next, 0u);
@@ -419,7 +419,7 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
             while (cell != NULL)
             {
                 CliHitCell *const next = cell->next;
-                g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
+                g_cli_guard->persistent_buf_release(cell, g_cli_search_owner);
                 cell = next;
             }
             s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0};

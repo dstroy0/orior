@@ -4,7 +4,7 @@
 // first error, and the folder a package's paths are written from
 #include "cargo_report.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 
 #include "../text/text.h"
 
@@ -65,14 +65,14 @@ EMBED_INLINE void report_trim(const CargoReportCtx *args)
     unsigned long long *start = args->start;
     unsigned long long *length = args->length;
     while ((*length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start]}) != NULL))
+                                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start]}) != NULL))
     {
         *start += 1ULL;
         *length -= 1ULL;
     }
     while ((*length > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[*start + *length - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start + *length - 1ULL]}) != NULL))
     {
         *length -= 1ULL;
     }
@@ -81,7 +81,7 @@ EMBED_INLINE void report_trim(const CargoReportCtx *args)
 // whether `length` bytes from `start` begin with `head`
 EMBED_INLINE int report_starts(const CargoReportCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->head, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->head, .cap = CLI_POOL_BYTES});
     return (args->length_value >= size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->text + args->start_value, .other = args->head, .bytes = size}) == 0);
 }
@@ -315,9 +315,9 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
                 ? 1u
                 : 0u;
     }
-    CliCargoFailure *const failures = g_cli_cells->temporary_buf_alloc(
-        ((unsigned long long)named + 1ULL) * sizeof(CliCargoFailure), &g_cli_tests_cells);
-    char *const texts = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_tests_cells);
+    CliCargoFailure *const failures = g_cli_guard->temporary_buf_alloc(
+        ((unsigned long long)named + 1ULL) * sizeof(CliCargoFailure), g_cli_tests_owner);
+    char *const texts = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
     VerbaLinea text = mmgr_line_over(texts, size + 1ULL);
     unsigned int count = 0u;
     at = 0ULL;
@@ -361,8 +361,8 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
                        .line = failure->line);
         }
     }
-    g_cli_cells->persistent_buf_release(texts, &g_cli_tests_cells);
-    g_cli_cells->persistent_buf_release(failures, &g_cli_tests_cells);
+    g_cli_guard->persistent_buf_release(texts, g_cli_tests_owner);
+    g_cli_guard->persistent_buf_release(failures, g_cli_tests_owner);
 }
 
 int cli_cargo_build_error(const CliCargoReportSizeCfg *args)
@@ -392,7 +392,7 @@ int cli_cargo_build_error(const CliCargoReportSizeCfg *args)
          reserved += 1u)
     {
         while ((size_of > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                        .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->output[start]}) != NULL))
+                                        .src = " \t", .cap = CLI_POOL_BYTES, .byte = args->output[start]}) != NULL))
         {
             start += 1ULL;
             size_of -= 1ULL;
@@ -434,7 +434,7 @@ void cli_cargo_last_line(const CliCargoReportSizeTextCfg *args)
     }
     VerbaLinea line = {args->out_out, args->capacity, 0ULL};
     mmgr_line_put_n(&line, found ? args->text + last : args->none,
-                    found ? last_size : cellul.len(&(CatenaFinitaCfg){.src = args->none, .cap = CLI_CELLS_POOL}));
+                    found ? last_size : cellul.len(&(CatenaFinitaCfg){.src = args->none, .cap = CLI_POOL_BYTES}));
     *length = line.at;
 }
 
@@ -444,11 +444,11 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
     char above[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = args->workspace,
                             .src = args->package,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = folder,
                             .src = args->package,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_CELLS_POOL}) + 1u});
-    const size_t root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_POOL_BYTES}) + 1u});
+    const size_t root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     int going = 1;
     while (going)
     {
@@ -466,7 +466,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "Cargo.toml", .joined = manifest);
         unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = manifest,
-                                                      .size_pointer = &size, .owner = &g_cli_tests_cells);
+                                                      .size_pointer = &size, .owner = g_cli_tests_owner);
         unsigned long long at = 0ULL;
         unsigned long long start = 0ULL;
         unsigned long long length = 0ULL;
@@ -480,13 +480,13 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                 (length == 11ULL) &&
                 (memor.cmp(&(MemoriaCfg){.src = bytes + start, .other = "[workspace]", .bytes = 11u}) == 0);
         }
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_tests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
         if (workspace_table)
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = args->workspace,
                               .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
         }
         if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
         {

@@ -47,10 +47,10 @@ void cli_help_wrap(const CliCommandLineTextEachCtx *args)
     const char *word_text = text;
     for (;;)
     {
-        const char *const space = cellul.chr(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL, .byte = ' '});
+        const char *const space = cellul.chr(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES, .byte = ' '});
         const unsigned long long size = (space != NULL)
                                             ? (unsigned long long)(space - word_text)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES});
         const unsigned long long length =
             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = word_text, .size = size);
         const unsigned long long lead = any ? args->indent : 0ULL;
@@ -111,7 +111,7 @@ static void help_adjacent(const CliEachLineSizeCfg *args)
     mmgr_line_put(lines->out, "  ");
     mmgr_line_put(lines->out, left);
     for (unsigned long long at = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = left,
-                                            .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL}));
+                                            .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES}));
          at < lines->pad; at += 1ULL)
     {
         mmgr_line_ch(lines->out, ' ');
@@ -135,7 +135,7 @@ EMBED_INLINE void help_row(const CommandLineHelpCtx *args)
 {
     const unsigned long long letters =
         EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->usage,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->usage, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->usage, .cap = CLI_POOL_BYTES}));
     if (args->made->out == NULL)
     {
         if ((letters <= CLI_HELP_COLUMN) && (letters > args->made->pad))
@@ -259,7 +259,7 @@ void cli_keys(void)
             {
                 const unsigned long long letters =
                     EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_items[at].label,
-                               .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_CELLS_POOL}));
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
                 pad = (letters > pad) ? letters : pad;
                 count += 1u;
             }
@@ -283,7 +283,7 @@ void cli_keys(void)
             mmgr_line_put(&row, s_items[at].label);
             for (unsigned long long letters = EMBED_CALL(
                      cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_items[at].label,
-                     .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_CELLS_POOL}));
+                     .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
                  letters < pad; letters += 1ULL)
             {
                 mmgr_line_ch(&row, ' ');
@@ -343,7 +343,7 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
         }
         EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx, .catalog = catalog,
                    .job = s_list_result[at], .subject = subject);
-        if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_CELLS_POOL})))
+        if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = subject);
         }
@@ -389,18 +389,18 @@ EMBED_INLINE void help_bash(const CommandLineHelpCtx *args)
 
 int cli_completions(const CliCommandLineOutErrMsgShellCtx *args)
 {
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "bash", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "bash", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(help_bash, CommandLineHelpCtx, .out = args->out);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "zsh", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "zsh", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->out, "autoload -U +X bashcompinit && bashcompinit\n");
         EMBED_CALL(help_bash, CommandLineHelpCtx, .out = args->out);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "fish", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "fish", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->out, "complete -c orior_cli -n __fish_use_subcommand -a \"");
         EMBED_CALL(help_first, CommandLineHelpCtx, .out = args->out, .quoted = 0);
@@ -408,7 +408,7 @@ int cli_completions(const CliCommandLineOutErrMsgShellCtx *args)
                                  "'(orior_cli __words (commandline -opc)[2])'\n");
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "powershell", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "powershell", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->out, "Register-ArgumentCompleter -Native -CommandName orior_cli -ScriptBlock {\n"
                                  "  param($word, $ast, $at)\n"

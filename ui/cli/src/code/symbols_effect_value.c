@@ -5,7 +5,7 @@
 // name, a macro called with arguments expanded by the roles of its value's leaves, brackets and separators by the
 // roles their grammar names, and each operator doing the operation its grammar names. Nothing of a language is read
 // here but by its plugin's grammar
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
@@ -99,8 +99,8 @@ EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
 EMBED_INLINE CliEffectToken *cli_effect_tokens_get(const SymbolsEffectValueCtx *args)
 {
     const CliEffect *effect = args->effect;
-    CliEffectToken *const tokens = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)(args->count + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+    CliEffectToken *const tokens = g_cli_guard->persistent_buf_alloc(
+        (unsigned long long)(args->count + 1u) * sizeof(CliEffectToken), g_cli_code_owner);
     for (unsigned int at = 0u; (tokens != NULL) && (at < args->count); at += 1u)
     {
         const CliEffectValueLeaf *const leaf = &effect->value_leaf[args->first + at];
@@ -206,7 +206,7 @@ EMBED_INLINE unsigned int cli_effect_parameter(const SymbolsEffectValueCtx *args
                                   .at_value = args->macro->params);
     for (unsigned int at = 0u; at < args->macro->param_count; at += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
         if ((length == args->token->length) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = name,
                                                           .other_pointer = args->token->text, .size = length))
         {
@@ -242,12 +242,12 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
     const unsigned long long token_bytes = (unsigned long long)capacity * sizeof(CliEffectToken);
     const unsigned long long position_bytes = (unsigned long long)capacity * sizeof(unsigned int);
     char *const cell = (value != NULL)
-                           ? g_cli_cells->temporary_buf_alloc(token_bytes + position_bytes + CLI_EFFECT_JOINED_CAPACITY,
-                                                              &g_cli_code_cells)
+                           ? g_cli_guard->temporary_buf_alloc(token_bytes + position_bytes + CLI_EFFECT_JOINED_CAPACITY,
+                                                              g_cli_code_owner)
                            : NULL;
     if (cell == NULL)
     {
-        g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
+        g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
         return 0LL;
     }
     CliEffectCalled called = {(CliEffectToken *)(void *)cell,
@@ -325,8 +325,8 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
                                             : EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx,
                                                          .effect = effect, .token = called.token, .count = called.count,
                                                          .through = args->read_state->through + 1u);
-    g_cli_cells->persistent_buf_release(cell, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
     return result;
 }
 
@@ -358,7 +358,7 @@ EMBED_INLINE long long cli_effect_by_name(const SymbolsEffectValueCtx *args)
             ? EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
                          .token = value, .count = effect->macro[macro].count, .through = args->read_state->through + 1u)
             : 0LL;
-    g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
     return result;
 }
 

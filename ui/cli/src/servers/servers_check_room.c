@@ -3,7 +3,7 @@
 // servers_check_capacity.c: the tree's check's capacity: four cells taken as the check starts and given back as it is
 // let go, each sized from the tree's files: their paths, where each starts, the files waiting in a ring, and the paths
 // of those. Every call with the queue's lock acquired
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 #include <stdlib.h>
@@ -24,7 +24,7 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     unsigned long long bytes = CLI_SERVERS_CAPACITY_MORE;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_CELLS_POOL}) + 2ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
     const unsigned int required = args->count + CLI_SERVERS_POSITIONS_MORE;
     const unsigned int positions = (required < CLI_SERVERS_WAITING) ? required : CLI_SERVERS_WAITING;
@@ -33,20 +33,20 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     {
         return 1;
     }
-    g_cli_cells->persistent_buf_release(args->queue->files, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->file_at, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->waiting, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(args->queue->capacity, &g_cli_servers_check_work_state_cells);
+    g_cli_guard->persistent_buf_release(args->queue->files, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(args->queue->file_at, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(args->queue->waiting, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(args->queue->capacity, g_cli_servers_check_work_state_owner);
     args->queue->files = NULL;
     args->queue->file_at = NULL;
     args->queue->waiting = NULL;
     args->queue->capacity = NULL;
-    args->queue->files = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_servers_check_work_state_cells);
-    args->queue->file_at = g_cli_cells->persistent_buf_alloc(positions * sizeof(*args->queue->file_at),
-                                                             &g_cli_servers_check_work_state_cells);
-    args->queue->waiting = g_cli_cells->persistent_buf_alloc(positions * sizeof(*args->queue->waiting),
-                                                             &g_cli_servers_check_work_state_cells);
-    args->queue->capacity = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_servers_check_work_state_cells);
+    args->queue->files = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_check_work_state_owner);
+    args->queue->file_at = g_cli_guard->persistent_buf_alloc(positions * sizeof(*args->queue->file_at),
+                                                             g_cli_servers_check_work_state_owner);
+    args->queue->waiting = g_cli_guard->persistent_buf_alloc(positions * sizeof(*args->queue->waiting),
+                                                             g_cli_servers_check_work_state_owner);
+    args->queue->capacity = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_check_work_state_owner);
     args->queue->files_max = bytes;
     args->queue->file_at_max = positions;
     args->queue->waiting_max = positions;
@@ -54,10 +54,10 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     if ((args->queue->files == NULL) || (args->queue->file_at == NULL) || (args->queue->waiting == NULL) ||
         (args->queue->capacity == NULL))
     {
-        g_cli_cells->persistent_buf_release(args->queue->files, &g_cli_servers_check_work_state_cells);
-        g_cli_cells->persistent_buf_release(args->queue->file_at, &g_cli_servers_check_work_state_cells);
-        g_cli_cells->persistent_buf_release(args->queue->waiting, &g_cli_servers_check_work_state_cells);
-        g_cli_cells->persistent_buf_release(args->queue->capacity, &g_cli_servers_check_work_state_cells);
+        g_cli_guard->persistent_buf_release(args->queue->files, g_cli_servers_check_work_state_owner);
+        g_cli_guard->persistent_buf_release(args->queue->file_at, g_cli_servers_check_work_state_owner);
+        g_cli_guard->persistent_buf_release(args->queue->waiting, g_cli_servers_check_work_state_owner);
+        g_cli_guard->persistent_buf_release(args->queue->capacity, g_cli_servers_check_work_state_owner);
         args->queue->files = NULL;
         args->queue->file_at = NULL;
         args->queue->waiting = NULL;
@@ -121,7 +121,7 @@ EMBED_INLINE void capacity_compact(const ServersCheckCapacityCtx *args)
 
 int cli_servers_check_queue_append(const CliServersQueueCtx *args)
 {
-    const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     if (args->queue->capacity == NULL)
     {
         return 0;
@@ -157,7 +157,7 @@ void cli_servers_check_files_append(const CliServersQueueFilesCtx *args)
 {
     for (unsigned int at = 0u; (args->queue->files != NULL) && (at < args->count); at += 1u)
     {
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->files[at], .cap = CLI_CELLS_POOL}) + 1u;
+        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->files[at], .cap = CLI_POOL_BYTES}) + 1u;
         if ((args->queue->file_count == args->queue->file_at_max) ||
             (args->queue->files_used + size > args->queue->files_max))
         {

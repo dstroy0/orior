@@ -120,7 +120,7 @@ static void assert_found(const char *name, unsigned int found, const char *by)
     const CliLibrary *library = NULL;
     for (unsigned int at = 0u; (library == NULL) && (at < s_report.libraries); at += 1u)
     {
-        library = cellul.eq(&(CatenaFinitaCfg){.src = s_report.library[at].name, .other = name, .cap = CLI_CELLS_POOL}) ? &s_report.library[at] : NULL;
+        library = cellul.eq(&(CatenaFinitaCfg){.src = s_report.library[at].name, .other = name, .cap = CLI_POOL_BYTES}) ? &s_report.library[at] : NULL;
     }
     TEST_ASSERT_NOT_NULL_MESSAGE(library, name);
     TEST_ASSERT_EQUAL_UINT(found, library->found);

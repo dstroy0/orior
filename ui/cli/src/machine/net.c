@@ -3,7 +3,7 @@
 // net.c: an address reached requested, refused where orior_cli is blocked from the network, and logged where it is let
 // on
 #include "net.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../deploy/devcontainer.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -26,7 +26,7 @@ typedef struct
     const char *address;
     const char *purpose;
 } NetCtx;
-// the tokens `size` bytes of JSON make, in a cell of their count given back with g_cli_cells->persistent_buf_release,
+// the tokens `size` bytes of JSON make, in a cell of their count given back with g_cli_guard->persistent_buf_release,
 // NULL where it is refused; their count into `count`
 EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
 {
@@ -34,7 +34,7 @@ EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
     unsigned long long size = args->size;
     unsigned int *count = args->count;
     *count = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
-    return g_cli_cells->persistent_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), &g_cli_machine_cells);
+    return g_cli_guard->persistent_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), g_cli_machine_owner);
 }
 
 void cli_net_disable(const CliNetCfg *args)
@@ -57,18 +57,18 @@ static int cli_settings_off(void)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                        .size_pointer = &size, .owner = &g_cli_machine_cells)
+                                                        .size_pointer = &size, .owner = g_cli_machine_owner)
                                            : NULL;
     if (bytes == NULL)
     {
         return 0;
     }
     // a text made plain is never longer than the text, as it only leaves comments and commas out
-    char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_machine_cells);
+    char *const plain_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
     unsigned int count = 0u;
     CfgJsonToken *const tokens =
         (plain_text != NULL) ? EMBED_CALL(cli_net_tokens, NetCtx, .text = plain_text, .size = plain.at, .count = &count)
@@ -80,9 +80,9 @@ static int cli_settings_off(void)
                                      ? cfg_json_member(plain_text, tokens, 0u, "network")
                                      : 0u;
     const int off = (network != 0u) && cfg_json_string(plain_text, &tokens[network], value, sizeof(value)) &&
-                    (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_CELLS_POOL}));
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_machine_cells);
-    g_cli_cells->persistent_buf_release(plain_text, &g_cli_machine_cells);
+                    (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_POOL_BYTES}));
+    g_cli_guard->persistent_buf_release(tokens, g_cli_machine_owner);
+    g_cli_guard->persistent_buf_release(plain_text, g_cli_machine_owner);
     return off;
 }
 
@@ -107,11 +107,11 @@ int cli_net_is_disable(void)
 void cli_net_host_get(const CliNetAddressHostCfg *args)
 {
     const char *rest = cellul.find(
-        &(CatenaFinitaCfg){.src = args->address, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->address, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES});
     rest = (rest != NULL) ? (rest + 3) : args->address;
     const char *end = rest;
     end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                      .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/?#");
+                      .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "/?#");
     // after the last `@`, the user before it left off
     {
         const char *at = end;
@@ -150,7 +150,7 @@ int cli_net_local(const CliNetHostCfg *args)
 {
     char lower[CLI_PATH_MAX_LEN];
     const char *from = args->host_read;
-    const char *to = args->host_read + cellul.len(&(CatenaFinitaCfg){.src = args->host_read, .cap = CLI_CELLS_POOL});
+    const char *to = args->host_read + cellul.len(&(CatenaFinitaCfg){.src = args->host_read, .cap = CLI_POOL_BYTES});
     from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
@@ -167,20 +167,20 @@ int cli_net_local(const CliNetHostCfg *args)
     }
     lower[length] = '\0';
     return (length == 0ULL) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "localhost", .cap = CLI_CELLS_POOL})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "localhost", .cap = CLI_POOL_BYTES})) ||
            ((length >= 10u) && (cellul.eq(&(CatenaFinitaCfg){
-                                   .src = lower + length - 10u, .other = ".localhost", .cap = CLI_CELLS_POOL}))) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "::1", .cap = CLI_CELLS_POOL})) ||
-           (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "127.", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "0.0.0.0", .cap = CLI_CELLS_POOL}));
+                                   .src = lower + length - 10u, .other = ".localhost", .cap = CLI_POOL_BYTES}))) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "::1", .cap = CLI_POOL_BYTES})) ||
+           (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "127.", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "0.0.0.0", .cap = CLI_POOL_BYTES}));
 }
 
 int cli_net_path(const CliNetAddressCfg *args)
 {
     const char first = args->address[0];
     return (first == '/') || (first == '\\') || (first == '.') ||
-           (cellul.starts(&(CatenaFinitaCfg){.src = args->address, .other = "file://", .cap = CLI_CELLS_POOL})) ||
-           ((cellul.len(&(CatenaFinitaCfg){.src = args->address, .cap = CLI_CELLS_POOL}) > 2u) &&
+           (cellul.starts(&(CatenaFinitaCfg){.src = args->address, .other = "file://", .cap = CLI_POOL_BYTES})) ||
+           ((cellul.len(&(CatenaFinitaCfg){.src = args->address, .cap = CLI_POOL_BYTES}) > 2u) &&
             (((first | 0x20) >= 'a') && ((first | 0x20) <= 'z')) && (args->address[1] == ':') &&
             ((args->address[2] == '\\') || (args->address[2] == '/')));
 }
@@ -206,7 +206,7 @@ EMBED_INLINE void net_log(const NetCtx *args)
     unsigned long long log_size = 0ULL;
     (void)EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &log_size);
     const unsigned long long line_capacity = log_size + CLI_NET_LINE_MORE;
-    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_capacity, &g_cli_machine_cells);
+    char *const line_cell = g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner);
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     if (line.out == NULL)
     {
@@ -218,14 +218,14 @@ EMBED_INLINE void net_log(const NetCtx *args)
     mmgr_line_decimal(&line, cli_wall_milliseconds(), 1u);
     mmgr_line_put(&line, ",\"address\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->address,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->address, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->address, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&line, ",\"for\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->purpose,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->purpose, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->purpose, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&line, "}\n");
     if (!mmgr_line_ok(&line))
     {
-        g_cli_cells->persistent_buf_release(line.out, &g_cli_machine_cells);
+        g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
         return;
     }
     // the lines counted from the end, the file cut from the CLI_NET_LOG_MAX_LINES-th last where it contains more than
@@ -244,7 +244,7 @@ EMBED_INLINE void net_log(const NetCtx *args)
     EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                .bytes = line.out + ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ULL),
                .size = line.at - ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ULL));
-    g_cli_cells->persistent_buf_release(line.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
 }
 
 int cli_net_reach(const CliNetAddressCfg *args)

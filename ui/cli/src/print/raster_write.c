@@ -140,7 +140,7 @@ void cli_print_pwg_page(const CliPrintLayoutCfg *args)
     const char *const media = cli_print_layout.media(args);
     memor.cpy(&(MemoriaCfg){.dst = head + 1732u,
                             .src = media,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = media, .cap = CLI_CELLS_POOL})});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = media, .cap = CLI_POOL_BYTES})});
     mmgr_line_put_n(args->out, (const char *)head, sizeof(head));
     cli_print_layout.compress(args);
 }

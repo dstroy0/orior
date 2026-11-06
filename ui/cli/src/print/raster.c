@@ -3,7 +3,7 @@
 // raster.c: the pages laid out as pixels, for a printer that takes no PDF: each drawn on white at a printer's
 // resolution with the system's monospace font, its own bold and italic where it has them and made from the regular
 // face where it does not. A page laid on its side is turned onto the paper as it feeds
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "font.h"
 
@@ -68,19 +68,18 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(s_typefaces->face_data[face]),
-                                                (&g_cli_print_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)(s_typefaces->face_data[face]), (g_cli_print_owner));
         }
-        g_cli_cells->persistent_buf_release(s_typefaces->cover, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
     }
-    g_cli_cells->persistent_buf_release(s_typefaces, &g_cli_print_cells);
-    s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(s_typefaces, g_cli_print_owner);
+    s_typefaces = g_cli_guard->persistent_buf_alloc(sizeof(*s_typefaces), g_cli_print_owner);
     if (s_typefaces == NULL)
     {
         mmgr_line_put(args->err_msg, "the faces drawn with could not be taken");
         return 0;
     }
-    s_typefaces->cover = g_cli_cells->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), &g_cli_print_cells);
+    s_typefaces->cover = g_cli_guard->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
     s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ULL;
     s_typefaces->cover_used = 0ULL;
     char paths[4][CLI_PATH_MAX_LEN];
@@ -94,12 +93,12 @@ int cli_print_faces(const CliPrintJsonCfg *args)
             ((paths[face][0] != '\0') &&
              EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = paths[face], .size_pointer = &size) &&
              (size <= CLI_FONT_BYTES))
-                ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_print_cells)
+                ? g_cli_guard->persistent_buf_alloc(size + CLI_FILE_SLACK, g_cli_print_owner)
                 : NULL;
         if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = paths[face],
                                           .from = 0ULL, .bytes_bytes = data, .count_u64 = size, .got = &size))
         {
-            g_cli_cells->persistent_buf_release(data, &g_cli_print_cells);
+            g_cli_guard->persistent_buf_release(data, g_cli_print_owner);
             data = NULL;
             size = 0ULL;
         }
@@ -350,7 +349,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     const CliPrintListing *listing = args->listing;
     const CliPrintLayout *layout = args->layout;
     s_work_state =
-        (s_typefaces != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(*s_work_state), &g_cli_print_cells) : NULL;
+        (s_typefaces != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_print_owner) : NULL;
     if (s_work_state == NULL)
     {
         return;
@@ -366,11 +365,11 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
                       layout->gray ? 1ULL : 3ULL, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
-    s_work_state->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_cells->temporary_buf_alloc(bytes, &g_cli_print_cells) : NULL;
+    s_work_state->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_print_owner) : NULL;
     page.data = s_work_state->page;
     if (s_work_state->page == NULL)
     {
-        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
         s_work_state = NULL;
         return;
     }
@@ -430,8 +429,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
                    .count = count);
         index += 1u;
     }
-    g_cli_cells->persistent_buf_release(s_work_state->page, &g_cli_print_cells);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(s_work_state->page, g_cli_print_owner);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
     s_work_state = NULL;
 }
 

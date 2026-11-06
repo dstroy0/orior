@@ -3,7 +3,7 @@
 // jupyter_specs.c: every kernel the machine has, each name once, in Jupyter's order: the specs in the folders Jupyter
 // stores its data in, then a kernel for each Python orior_cli finds that has no spec of its own
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../toolchains/toolchains.h"
 #include "jupyter_internal.h"
 
@@ -87,12 +87,12 @@ EMBED_INLINE unsigned int jupyter_append(const JupyterSpecsCtx *args)
 static void jupyter_entry(const CliEachNameIsFolderCfg *args)
 {
     if ((s_listing.entry_count < CLI_KERNEL_ENTRIES) &&
-        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) < CLI_KERNEL_ENTRY))
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) < CLI_KERNEL_ENTRY))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = s_listing.entries[s_listing.entry_count],
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
         s_listing.entry_count += 1u;
     }
 }
@@ -117,7 +117,7 @@ EMBED_INLINE int jupyter_member(const JupyterSpecsCtx *args)
     if ((member == CLI_JSON_NONE) && (args->fallback != NULL))
     {
         *at = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = args->spec, .text = args->fallback,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->fallback, .cap = CLI_CELLS_POOL}));
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->fallback, .cap = CLI_POOL_BYTES}));
         return *at != CLI_KERNEL_NONE;
     }
     if (text == NULL)
@@ -137,7 +137,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     CliKernelSpec *const spec = &s_listing.spec;
     memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
     spec->name = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = name,
-                            .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_listing.json,
                     .node = args->root, .kind = CFG_JSON_OBJECT) ||
         !EMBED_CALL(jupyter_member, JupyterSpecsCtx, .object = args->root, .name = "display_name", .fallback = NULL,
@@ -197,7 +197,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
         const char *const key = s_listing.json.text + s_listing.json.node[member].key;
         spec->env_name[spec->env_count] =
             EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = key,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
         spec->env_value[spec->env_count] =
             EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = value, .length = length);
         spec->env_count += 1u;
@@ -214,7 +214,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
         return 0;
     }
     spec->folder = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = folder,
-                              .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}));
     return !spec->full;
 }
 
@@ -254,7 +254,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
         int seen = 0;
         for (unsigned int one = 0u; (one < s_listing.list_entries) && !seen; one += 1u)
         {
-            seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.names[one], .other = name, .cap = CLI_CELLS_POOL}));
+            seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.names[one], .other = name, .cap = CLI_POOL_BYTES}));
         }
         char folder[CLI_PATH_MAX_LEN];
         char file[CLI_PATH_MAX_LEN];
@@ -263,7 +263,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
         unsigned long long size = 0ULL;
         const unsigned char *const bytes = seen ? NULL
                                                 : EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
-                                                             .size_pointer = &size, .owner = &g_cli_notebook_cells);
+                                                             .size_pointer = &size, .owner = g_cli_notebook_owner);
         if (bytes == NULL)
         {
             continue;
@@ -282,7 +282,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
                 : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) &&
                          EMBED_CALL(jupyter_spec_read, JupyterSpecsCtx, .root = root, .name = name, .folder = folder);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_notebook_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_notebook_owner));
         if (read && !jupyter_list(args))
         {
             return 0;
@@ -319,18 +319,18 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
         mmgr_line_finish(&displayed_line);
         static const char *const words[4] = {"-m", "ipykernel_launcher", "-f", "{connection_file}"};
         spec->name = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = name,
-                                .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                                .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         spec->display_name =
             EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = displayed,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_POOL_BYTES}));
         spec->language = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "python", .length = 6u);
         spec->argv[0] = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = python,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_POOL_BYTES}));
         for (unsigned int word_text = 0u; word_text < 4u; word_text += 1u)
         {
             spec->argv[word_text + 1u] =
                 EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = words[word_text],
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_POOL_BYTES}));
         }
         spec->argv_count = 5u;
         spec->interrupt_mode =
@@ -346,13 +346,13 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
             mmgr_line_put(&line, "\" -m pip install ipykernel");
             mmgr_line_finish(&line);
             spec->install = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = install,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_CELLS_POOL}));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_POOL_BYTES}));
         }
         int runs = 0;
         for (unsigned int one = 0u; (one < s_listing.list_entries) && !runs; one += 1u)
         {
             runs =
-                (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.programs[one], .other = python, .cap = CLI_CELLS_POOL}));
+                (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.programs[one], .other = python, .cap = CLI_POOL_BYTES}));
         }
         if (!runs && !jupyter_list(args))
         {
@@ -365,8 +365,8 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
     s_listing.list_entries = 0u;
-    s_listing.names = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)CLI_KERNEL_LISTING * (CLI_KERNEL_ENTRY + CLI_PATH_MAX_LEN), &g_cli_notebook_cells);
+    s_listing.names = g_cli_guard->persistent_buf_alloc(
+        (unsigned long long)CLI_KERNEL_LISTING * (CLI_KERNEL_ENTRY + CLI_PATH_MAX_LEN), g_cli_notebook_owner);
     if (s_listing.names == NULL)
     {
         return;
@@ -392,7 +392,7 @@ EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
         EMBED_CALL(jupyter_python_specs, JupyterSpecsCtx, .pythons = pythons, .has_environment = has_environment,
                    .each = args->each, .context = args->context);
     }
-    g_cli_cells->persistent_buf_release(s_listing.names, &g_cli_notebook_cells);
+    g_cli_guard->persistent_buf_release(s_listing.names, g_cli_notebook_owner);
     s_listing.names = NULL;
     s_listing.programs = NULL;
 }
@@ -409,13 +409,13 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->display_name),
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->language)};
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = texts[0],
-               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[0], .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[0], .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"display_name\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = texts[1],
-               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[1], .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[1], .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"language\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = texts[2],
-               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[2], .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = texts[2], .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"argv\":[");
     for (unsigned int word_text = 0u; word_text < spec->argv_count; word_text += 1u)
     {
@@ -423,13 +423,13 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
                                             .at = spec->argv[word_text]);
         mmgr_line_put(out, (word_text > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
     }
     const char *const mode =
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->interrupt_mode);
     mmgr_line_put(out, "],\"interrupt_mode\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = mode,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = mode, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = mode, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"env\":{");
     unsigned int order[CLI_KERNEL_SETTINGS] = {0u};
     for (unsigned int at = 0u; at < spec->env_count; at += 1u)
@@ -456,16 +456,16 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
                                              .at = spec->env_value[order[at]]);
         mmgr_line_put(out, (at > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = value,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES}));
     }
     const char *const folder =
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->folder);
     mmgr_line_put(out, "},\"folder\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = folder,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"install\":");
     if (spec->install == CLI_KERNEL_NONE)
     {
@@ -476,7 +476,7 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
         const char *const install =
             EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->install);
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = install,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_ch(out, '}');
     return 1;
@@ -504,7 +504,7 @@ static int jupyter_spec_find(const CliKernelEachCfg *args)
     if (!cellul.eq(&(CatenaFinitaCfg){
             .src = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->name),
             .other = needle->name,
-            .cap = CLI_CELLS_POOL}))
+            .cap = CLI_POOL_BYTES}))
     {
         return 1;
     }

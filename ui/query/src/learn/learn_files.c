@@ -22,8 +22,8 @@ void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
     static unsigned int s_next;
     if (s_texts == NULL)
     {
-        s_texts = g_cli_cells->persistent_buf_alloc((unsigned long long)QUERY_WORD_TEXTS * QUERY_PATH_MAX_LEN,
-                                                    &g_query_cells);
+        s_texts =
+            g_cli_guard->persistent_buf_alloc((unsigned long long)QUERY_WORD_TEXTS * QUERY_PATH_MAX_LEN, g_query_owner);
     }
     if (s_texts == NULL)
     {
@@ -33,7 +33,7 @@ void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
     s_next += 1u;
     memor.cpy(&(MemoriaCfg){.dst = text,
                             .src = args->text,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
                .words_words_pointer = args->words_words_pointer, .word_text = text);
 }
@@ -190,7 +190,7 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
     const char *name = args->base;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->base + name_end) : name;
     char line[QUERY_LINE_MAX_LEN];
     VerbaLinea print_line = {line, sizeof(line), 0ULL};

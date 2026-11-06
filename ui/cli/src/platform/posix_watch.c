@@ -7,8 +7,8 @@
 // on every other system, the tree is read every two seconds instead (watch.c)
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../text/text.h"
 
@@ -203,8 +203,8 @@ static void inotify_walk_each(const CliEachNameIsFolderCfg *args)
 EMBED_INLINE void inotify_walk(const PosixWatchCtx *args)
 {
     CliInotifyWalk walk = {
-        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(unsigned int),
-                                         &g_cli_watch_folders_cells),
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(unsigned int),
+                                         g_cli_watch_folders_owner),
         0u, 0u, NULL, args->reported};
     if (walk.pending == NULL)
     {
@@ -231,7 +231,7 @@ EMBED_INLINE void inotify_walk(const PosixWatchCtx *args)
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = full,
                    .each = inotify_walk_each, .context_bytess = &walk);
     }
-    g_cli_cells->persistent_buf_release(walk.pending, &g_cli_watch_folders_cells);
+    g_cli_guard->persistent_buf_release(walk.pending, g_cli_watch_folders_owner);
 }
 
 // an inotify opened, every folder of the tree watched: 1, or 0 where the system refuses, none left open
@@ -394,9 +394,9 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
     s_watch.folder_max = CLI_INOTIFY_FOLDERS;
-    s_watch.folder = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(CliInotifyFolder), &g_cli_watch_folders_cells);
-    s_watch.names = g_cli_cells->persistent_buf_alloc(CLI_INOTIFY_NAMES, &g_cli_watch_folders_cells);
+    s_watch.folder = g_cli_guard->persistent_buf_alloc(
+        (unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(CliInotifyFolder), g_cli_watch_folders_owner);
+    s_watch.names = g_cli_guard->persistent_buf_alloc(CLI_INOTIFY_NAMES, g_cli_watch_folders_owner);
     s_watch.emit = emit;
     s_watch.context = context;
     s_watch.inotify = -1;
@@ -407,8 +407,8 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         {
             (void)close(s_watch.stopped);
         }
-        g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
-        g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+        g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
+        g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
         s_watch.folder = NULL;
         s_watch.names = NULL;
         return 0;
@@ -419,8 +419,8 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     {
         (void)close(s_watch.inotify);
         (void)close(s_watch.stopped);
-        g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
-        g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+        g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
+        g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
         s_watch.folder = NULL;
         s_watch.names = NULL;
         return 0;
@@ -441,8 +441,8 @@ void cli_watch_system_stop(void)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
     }
-    g_cli_cells->persistent_buf_release(s_watch.folder, &g_cli_watch_folders_cells);
-    g_cli_cells->persistent_buf_release(s_watch.names, &g_cli_watch_folders_cells);
+    g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
+    g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
     s_watch.folder = NULL;
     s_watch.names = NULL;
     s_watch.running = 0;

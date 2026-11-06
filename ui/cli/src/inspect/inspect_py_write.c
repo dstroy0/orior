@@ -286,7 +286,7 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
             for (unsigned int one = 0u; !known && (one < s_sign.raises); one += 1u)
             {
                 known = (cellul.eq(&(CatenaFinitaCfg){
-                    .src = s_sign.raised[one], .other = s_sign.raised[s_sign.raises], .cap = CLI_CELLS_POOL}));
+                    .src = s_sign.raised[one], .other = s_sign.raised[s_sign.raises], .cap = CLI_POOL_BYTES}));
             }
             s_sign.raises += known ? 0u : 1u;
         }
@@ -332,11 +332,11 @@ EMBED_INLINE void write_text_line(const InspectPyWriteCtx *args)
 EMBED_INLINE void write_section(const InspectPyWriteCtx *args)
 {
     EMBED_CALL(write_text_line, InspectPyWriteCtx, .text = "");
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(write_text_line, InspectPyWriteCtx, .text = args->title);
         VerbaLinea *const line = write_line();
-        for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_CELLS_POOL}); at += 1u)
+        for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_POOL_BYTES}); at += 1u)
         {
             mmgr_line_ch(line, '-');
         }
@@ -406,7 +406,7 @@ EMBED_INLINE void write_params_section(const InspectPyWriteCtx *args)
     {
         return;
     }
-    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_POOL_BYTES});
     EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = numpy ? "Parameters" : "Args");
     for (unsigned int at = 0u; at < s_sign.params; at += 1u)
     {
@@ -433,7 +433,7 @@ EMBED_INLINE void write_returns_section(const InspectPyWriteCtx *args)
     {
         return;
     }
-    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_POOL_BYTES});
     EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = s_sign.yields ? "Yields" : "Returns");
     VerbaLinea *const line = write_line();
     if (s_sign.has_returns)
@@ -458,7 +458,7 @@ EMBED_INLINE void write_raises_section(const InspectPyWriteCtx *args)
     {
         return;
     }
-    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_POOL_BYTES});
     EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = "Raises");
     for (unsigned int at = 0u; at < s_sign.raises; at += 1u)
     {
@@ -536,11 +536,11 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
     }
     s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ULL};
     s_lines = 0u;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "rest", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "rest", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(write_remainder, InspectPyWriteCtx, .src = src);
     }
-    else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "plain", .cap = CLI_CELLS_POOL}))
+    else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "plain", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(write_sections, InspectPyWriteCtx, .src = src, .form = args->form);
     }

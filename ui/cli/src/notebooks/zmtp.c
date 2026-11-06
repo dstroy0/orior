@@ -157,7 +157,7 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
         return 0;
     }
     unsigned char ready[64];
-    const size_t kind_length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL});
+    const size_t kind_length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES});
     unsigned int at = 0u;
     ready[at++] = 5u;
     memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = "READY", .bytes = 5u});
@@ -200,7 +200,7 @@ int cli_zmtp_connect(const CliZmtpSocketHostCfg *args)
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = args->socket_out);
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "SUB", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "SUB", .cap = CLI_POOL_BYTES}))
     {
         const unsigned char subscribe = 1u;
         const CliZmtpFrame frame = {&subscribe, 1ULL};
@@ -218,7 +218,7 @@ unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args)
     {
         total += ((args->frames[at].size > 255ULL) ? 9ULL : 2ULL) + args->frames[at].size;
     }
-    unsigned char *const message = g_cli_cells->persistent_buf_alloc(total, &g_cli_notebook_cells);
+    unsigned char *const message = g_cli_guard->persistent_buf_alloc(total, g_cli_notebook_owner);
     if (message == NULL)
     {
         return NULL;
@@ -244,7 +244,7 @@ int cli_zmtp_send(const CliZmtpFramesCountCfg *args)
         EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = args->frames, .count = args->count, .size = &size);
     const int sent = (message != NULL) && EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
                                                      .sock = args->socket, .bytes = message, .size = size);
-    g_cli_cells->persistent_buf_release(message, &g_cli_notebook_cells);
+    g_cli_guard->persistent_buf_release(message, g_cli_notebook_owner);
     return sent;
 }
 

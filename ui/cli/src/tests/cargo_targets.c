@@ -52,13 +52,13 @@ EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
     const char *value = args->value;
     unsigned long long length = args->length;
     while ((length > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[0]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_POOL_BYTES, .byte = value[0]}) != NULL))
     {
         value += 1;
         length -= 1ULL;
     }
     while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                   .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[length - 1ULL]}) != NULL))
+                                   .src = " \t\r", .cap = CLI_POOL_BYTES, .byte = value[length - 1ULL]}) != NULL))
     {
         length -= 1ULL;
     }
@@ -74,7 +74,7 @@ EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
     const char *const comment = memor.chr(&(MemoriaCfg){.src = value, .val = '#', .bytes = length});
     unsigned long long size = (comment != NULL) ? (unsigned long long)(comment - value) : length;
     while ((size > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = value[size - 1ULL]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_POOL_BYTES, .byte = value[size - 1ULL]}) != NULL))
     {
         size -= 1ULL;
     }
@@ -88,13 +88,13 @@ EMBED_INLINE void found_trim(const CargoTargetsCtx *args)
     const char *text = args->text;
     unsigned long long length = args->length;
     while ((length > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = text[0]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_POOL_BYTES, .byte = text[0]}) != NULL))
     {
         text += 1;
         length -= 1ULL;
     }
     while ((length > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_CELLS_POOL, .byte = text[length - 1ULL]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r", .cap = CLI_POOL_BYTES, .byte = text[length - 1ULL]}) != NULL))
     {
         length -= 1ULL;
     }
@@ -118,12 +118,12 @@ int cli_cargo_line(const CliCargoTestsTextCtx *args)
     unsigned long long end = bounds.stop;
     *at = bounds.next;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[start]}) != NULL))
+                                 .src = " \t\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ULL]}) != NULL))
+                                 .src = " \t\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -155,7 +155,7 @@ int cli_cargo_package_name(const CliCargoTestsCtx *args)
         }
         unsigned long long key = (unsigned long long)(equal - line);
         while ((key > 0ULL) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = line[key - 1ULL]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_POOL_BYTES, .byte = line[key - 1ULL]}) != NULL))
         {
             key -= 1ULL;
         }
@@ -197,7 +197,7 @@ static CliCargoTargets s_targets;
 
 void cli_cargo_firsts_free(void)
 {
-    g_cli_cells->persistent_buf_release(s_targets.firsts, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(s_targets.firsts, g_cli_cargo_owner);
     s_targets.firsts = NULL;
     s_targets.count = 0u;
     s_targets.capacity = 0u;
@@ -214,11 +214,11 @@ EMBED_INLINE void found_first(const CargoTargetsCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = first->name,
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(
             &(MemoriaCfg){.dst = first->path,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         s_targets.count += 1u;
     }
 }
@@ -228,7 +228,7 @@ EMBED_INLINE int found_alloc(const CargoTargetsCtx *args)
 {
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_targets.firsts[at].path, .other = args->path, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_targets.firsts[at].path, .other = args->path, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -244,7 +244,7 @@ static void found_entry(const CliEachNameIsFolderCfg *args)
         return;
     }
     CliCargoFirst *const entry = &s_targets.entries[s_targets.entry_count];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     char path[CLI_PATH_MAX_LEN];
     if (!args->is_folder && (length >= 3u) &&
         (memor.cmp(&(MemoriaCfg){.src = args->name + length - 3u, .other = ".rs", .bytes = 3u}) == 0))
@@ -269,10 +269,10 @@ static void found_entry(const CliEachNameIsFolderCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = entry->name,
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){.dst = entry->path,
                                 .src = inside,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inside, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inside, .cap = CLI_POOL_BYTES}) + 1u});
         s_targets.entry_count += 1u;
     }
 }
@@ -315,7 +315,7 @@ EMBED_INLINE void found_auto(const CargoTargetsCtx *args)
 EMBED_INLINE void found_clean(const CargoTargetsCtx *args)
 {
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->path_out,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_out, .cap = CLI_CELLS_POOL}), .from = '\\',
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_out, .cap = CLI_POOL_BYTES}), .from = '\\',
                .to = '/');
     size_t start = 0u;
     while ((args->path_out[start] == '.') && (args->path_out[start + 1u] == '/'))
@@ -325,7 +325,7 @@ EMBED_INLINE void found_clean(const CargoTargetsCtx *args)
     memor.move_down(&(MemoriaCfg){
         .dst = args->path_out,
         .src = args->path_out + start,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path_out + start, .cap = CLI_CELLS_POOL}) + 1u});
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path_out + start, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 // a table's header line, the `length` bytes at `text`: its name trimmed into `out`, sized for `capacity`; whether it
@@ -338,14 +338,14 @@ EMBED_INLINE int found_header(const CargoTargetsCtx *args)
     const unsigned long long open = doubled ? 2ULL : 1ULL;
     const char *const closed =
         doubled ? cellul.find(&(CatenaFinitaCfg){
-                      .src = line + open, .cap = CLI_CELLS_POOL, .other = "]]", .other_cap = CLI_CELLS_POOL})
+                      .src = line + open, .cap = CLI_POOL_BYTES, .other = "]]", .other_cap = CLI_POOL_BYTES})
                 : memor.chr(&(MemoriaCfg){.src = line + open, .val = ']', .bytes = length - open});
     const unsigned long long end =
         ((closed != NULL) && (closed < line + length)) ? (unsigned long long)(closed - line) : length;
     EMBED_CALL(found_trim, CargoTargetsCtx, .text = line + open, .length = end - open, .out = args->out,
                .capacity = args->capacity);
-    return doubled && ((cellul.eq(&(CatenaFinitaCfg){.src = args->out, .other = "bin", .cap = CLI_CELLS_POOL})) ||
-                       (cellul.eq(&(CatenaFinitaCfg){.src = args->out, .other = "test", .cap = CLI_CELLS_POOL})));
+    return doubled && ((cellul.eq(&(CatenaFinitaCfg){.src = args->out, .other = "bin", .cap = CLI_POOL_BYTES})) ||
+                       (cellul.eq(&(CatenaFinitaCfg){.src = args->out, .other = "test", .cap = CLI_POOL_BYTES})));
 }
 
 // a `key = value` line read under the table `table`: the package's autobins and autotests into `autobins_out` and
@@ -356,31 +356,31 @@ EMBED_INLINE void found_setting_put(const CargoTargetsCtx *args)
     const char *const table = args->table;
     const char *const key = args->key;
     const char *const value = args->value;
-    const int package = cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "package", .cap = CLI_CELLS_POOL});
-    const int listing = (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
-                        (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL}));
+    const int package = cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "package", .cap = CLI_POOL_BYTES});
+    const int listing = (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_POOL_BYTES})) ||
+                        (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_POOL_BYTES}));
     CliCargoListing *const last = (listing && (args->count > 0u)) ? &args->tables[args->count - 1u] : NULL;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u;
-    if (package && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "autobins", .cap = CLI_CELLS_POOL})))
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES}) + 1u;
+    if (package && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "autobins", .cap = CLI_POOL_BYTES})))
     {
-        *args->autobins_out = (!cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_CELLS_POOL}));
+        *args->autobins_out = (!cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_POOL_BYTES}));
     }
-    else if (package && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "autotests", .cap = CLI_CELLS_POOL})))
+    else if (package && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "autotests", .cap = CLI_POOL_BYTES})))
     {
-        *args->autotests_out = (!cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_CELLS_POOL}));
+        *args->autotests_out = (!cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_POOL_BYTES}));
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "lib", .cap = CLI_CELLS_POOL})) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "lib", .cap = CLI_POOL_BYTES})) &&
+             (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->path_out, .src = value, .bytes = size});
         EMBED_CALL(found_clean, CargoTargetsCtx, .path_out = args->path_out);
     }
-    else if ((last != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "name", .cap = CLI_CELLS_POOL})))
+    else if ((last != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "name", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = last->name, .src = value, .bytes = size});
         last->named = 1;
     }
-    else if ((last != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL})))
+    else if ((last != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = last->path, .src = value, .bytes = size});
         last->pathed = 1;
@@ -408,7 +408,7 @@ EMBED_INLINE unsigned int found_manifest_read(const CargoTargetsCtx *args)
             if (lists && (list_entries < args->capacity))
             {
                 args->tables[list_entries] = (CliCargoListing){
-                    cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL}), "", "", 0, 0};
+                    cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_POOL_BYTES}), "", "", 0, 0};
                 list_entries += 1u;
             }
         }
@@ -441,7 +441,7 @@ EMBED_INLINE void found_listed(const CargoTargetsCtx *args)
         mmgr_line_put(&path_line, entry->path);
     }
     else if (entry->bin &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = entry->name, .other = args->package, .cap = CLI_CELLS_POOL})))
+             (cellul.eq(&(CatenaFinitaCfg){.src = entry->name, .other = args->package, .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(&path_line, "src/main.rs");
     }
@@ -463,13 +463,13 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     unsigned int *count = args->count;
     cli_cargo_firsts_free();
     s_targets.folder = folder;
-    s_targets.firsts = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
-                                                         &g_cli_cargo_cells);
+    s_targets.firsts = g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
+                                                         g_cli_cargo_owner);
     s_targets.capacity = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
     // the folder's entries and the tables the manifest lists, given back as the targets are found
     const unsigned long long entry_bytes = (unsigned long long)CLI_CARGO_ENTRIES * sizeof(CliCargoFirst);
-    char *const work = g_cli_cells->temporary_buf_alloc(
-        entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListing)), &g_cli_cargo_cells);
+    char *const work = g_cli_guard->temporary_buf_alloc(
+        entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListing)), g_cli_cargo_owner);
     s_targets.entries = NULL;
     s_targets.entry_capacity = 0u;
     CliCargoListing *tables = NULL;
@@ -519,7 +519,7 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
         EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .kind = CLI_CARGO_TEST, .from = listing_first,
                    .to = reserved);
     }
-    g_cli_cells->persistent_buf_release(work, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(work, g_cli_cargo_owner);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
     s_targets.entry_capacity = 0u;

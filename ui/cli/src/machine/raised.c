@@ -21,13 +21,13 @@ int cli_raised_is_reject(const CliRaisedCfg *args)
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = lower, .cap = CLI_CELLS_POOL, .other = s_parts[at], .other_cap = CLI_CELLS_POOL}) != NULL)
+                .src = lower, .cap = CLI_POOL_BYTES, .other = s_parts[at], .other_cap = CLI_POOL_BYTES}) != NULL)
         {
             return 1;
         }
     }
     return cellul.find(&(CatenaFinitaCfg){
-               .src = lower, .cap = CLI_CELLS_POOL, .other = "read-only file system", .other_cap = CLI_CELLS_POOL}) !=
+               .src = lower, .cap = CLI_POOL_BYTES, .other = "read-only file system", .other_cap = CLI_POOL_BYTES}) !=
            NULL;
 }
 

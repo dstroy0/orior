@@ -4,7 +4,7 @@
 // queued for it, its server started where it is not running, at most CLI_SERVERS_LARGEST bytes of a file; a server
 // that checks its projects as a whole instructed once to check them, unless the tree's own code is disabled, as a check
 // of the projects as a whole builds them and runs the tree's own code
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/trust.h"
 #include "../plugins/plugins.h"
 #include "servers_internal.h"
@@ -51,7 +51,7 @@ EMBED_INLINE unsigned int check_files_language(const ServersCheckFilesCtx *args)
     const CliServersSink *sink = args->sink;
     for (unsigned int at = 0u; at < s_languages; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_batch->language[at].id, .other = args->id, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_batch->language[at].id, .other = args->id, .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
@@ -63,7 +63,7 @@ EMBED_INLINE unsigned int check_files_language(const ServersCheckFilesCtx *args)
     CliServersBatchLanguage *const one = &s_batch->language[s_languages];
     memor.cpy(&(MemoriaCfg){.dst = one->id,
                             .src = args->id,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1u});
     one->reported = 0;
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
@@ -81,25 +81,25 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
 {
     // a file's full path is the tree's, a slash, and its own: the paths' text is no longer than those
     const unsigned int most = (args->count < CLI_SERVERS_BATCH) ? args->count : CLI_SERVERS_BATCH;
-    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     unsigned long long text_bytes = 1ULL;
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
         text_bytes +=
-            root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_CELLS_POOL}) + 2ULL;
+            root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
-    s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &g_cli_servers_check_cells);
-    char *const text = g_cli_cells->temporary_buf_alloc(text_bytes, &g_cli_servers_check_cells);
-    const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(*paths),
-                                                                &g_cli_servers_check_cells);
-    CliServersWaiting *const waiting_on = g_cli_cells->temporary_buf_alloc(
-        ((unsigned long long)most + 1ULL) * sizeof(*waiting_on), &g_cli_servers_check_cells);
+    s_batch = g_cli_guard->persistent_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_servers_check_owner);
+    const char **const paths =
+        g_cli_guard->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(*paths), g_cli_servers_check_owner);
+    CliServersWaiting *const waiting_on = g_cli_guard->temporary_buf_alloc(
+        ((unsigned long long)most + 1ULL) * sizeof(*waiting_on), g_cli_servers_check_owner);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
-        g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);
-        g_cli_cells->persistent_buf_release(paths, &g_cli_servers_check_cells);
-        g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
-        g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
+        g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
+        g_cli_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
+        g_cli_guard->persistent_buf_release(text, g_cli_servers_check_owner);
+        g_cli_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
         s_batch = NULL;
         return 0u;
     }
@@ -141,7 +141,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         char full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[file],
                    .joined = full);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1ULL;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}) + 1ULL;
         unsigned long long size = 0ULL;
         if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &size) ||
             (size > CLI_SERVERS_LARGEST) || ((used + length) > text_bytes))
@@ -164,14 +164,14 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_batch->language[at].server);
         }
     }
-    g_cli_cells->persistent_buf_release(s_batch->known.pair, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(s_batch->known.pair, g_cli_plugins_owner);
     *(&s_batch->known) = (CliLanguages){NULL, 0u, 0u};
     const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
                                            .waiting = waiting_on, .count = waiting, .sink = args->sink);
-    g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);
-    g_cli_cells->persistent_buf_release(paths, &g_cli_servers_check_cells);
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
-    g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
+    g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
+    g_cli_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_check_owner);
+    g_cli_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
     s_batch = NULL;
     return queued;
 }

@@ -549,7 +549,7 @@ void cli_py_unread(const CliInspectPySrcSizeCfg *args)
         if (EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_read,
                        .at = s_coordinates[word_text],
                        .size_u32 = (unsigned int)cellul.len(
-                           &(CatenaFinitaCfg){.src = s_coordinates[word_text], .cap = CLI_CELLS_POOL})))
+                           &(CatenaFinitaCfg){.src = s_coordinates[word_text], .cap = CLI_POOL_BYTES})))
         {
             return;
         }

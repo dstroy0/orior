@@ -15,7 +15,7 @@ typedef struct
 // whether `length` bytes from `start` of `text` contain `part`
 EMBED_INLINE int python_contains(const TestLinesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at + size <= args->length; at += 1ULL)
     {
         if (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = args->part, .bytes = size}) == 0)
@@ -36,14 +36,14 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
     static const char *const s_outcomes[6] = {"passed", "failed", "failed", "skipped", "skipped", "passed"};
     while ((size > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[size - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->line[size - 1ULL]}) != NULL))
     {
         size -= 1ULL;
     }
     for (unsigned int word_text = 0u; word_text < 6u; word_text += 1u)
     {
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_POOL_BYTES});
         unsigned long long at = 0ULL;
         while ((at + length <= size) &&
                (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = s_words[word_text], .bytes = length}) != 0))
@@ -57,12 +57,12 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
         unsigned long long start = 0ULL;
         unsigned long long end = at;
         while ((start < end) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = args->line[start]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_POOL_BYTES, .byte = args->line[start]}) != NULL))
         {
             start += 1ULL;
         }
         while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ULL]}) != NULL))
+                                     .src = " \t", .cap = CLI_POOL_BYTES, .byte = args->line[end - 1ULL]}) != NULL))
         {
             end -= 1ULL;
         }
@@ -109,14 +109,14 @@ int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
     unsigned long long tail = split + 5ULL;
     unsigned long long tail_size = args->size - tail;
     while ((tail_size > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->line[tail]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_POOL_BYTES, .byte = args->line[tail]}) != NULL))
     {
         tail += 1ULL;
         tail_size -= 1ULL;
     }
     while ((tail_size > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->line[tail + tail_size - 1ULL]}) != NULL))
+                .src = " \t\r\n", .cap = CLI_POOL_BYTES, .byte = args->line[tail + tail_size - 1ULL]}) != NULL))
     {
         tail_size -= 1ULL;
     }
@@ -157,9 +157,9 @@ void cli_test_dot(const CliTestRunsCtx *args)
     char dotted[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {dotted, sizeof(dotted), 0ULL};
     const char *const path = cellul.find(
-        &(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
     unsigned long long module = (path != NULL) ? (unsigned long long)(path - args->id)
-                                               : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL});
+                                               : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
     while ((module >= 3ULL) &&
            (memor.cmp(&(MemoriaCfg){.src = args->id + module - 3ULL, .other = ".py", .bytes = 3u}) == 0))
     {
@@ -173,11 +173,11 @@ void cli_test_dot(const CliTestRunsCtx *args)
     {
         rest += 2;
         const char *const next = cellul.find(
-            &(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
+            &(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
         mmgr_line_ch(&line, '.');
         mmgr_line_put_n(&line, rest,
                         (next != NULL) ? (unsigned long long)(next - rest)
-                                       : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
+                                       : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES}));
         rest = next;
     }
     mmgr_line_finish(&line);

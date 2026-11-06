@@ -43,7 +43,7 @@ EMBED_INLINE void query_word_quote(const WindowsCtx *args)
     }
     mmgr_line_ch(args->line, '"');
     unsigned int slashes = 0u;
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ull; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -258,8 +258,8 @@ int query_folder_each(const QueryFolderEachCtx *args)
     }
     do
     {
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = found.cFileName, .other = ".", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = found.cFileName, .other = "..", .cap = CLI_CELLS_POOL})))
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = found.cFileName, .other = ".", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = found.cFileName, .other = "..", .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(args->each, CliEachNameIsFolderCfg, .context = args->context_bytess, .name = found.cFileName,
                        .is_folder = (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u);
@@ -272,7 +272,7 @@ int query_folder_each(const QueryFolderEachCtx *args)
 int query_folder_init(const QueryFolderContextCtx *args)
 {
     char path[QUERY_PATH_MAX_LEN];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
     if (length >= sizeof(path))
     {
         return 0;
@@ -436,12 +436,12 @@ int query_path_full(const QueryCapacityPathCtx *args)
     {
         return 0;
     }
-    if (cellul.starts(&(CatenaFinitaCfg){.src = args->full, .other = "\\\\?\\", .cap = CLI_CELLS_POOL}))
+    if (cellul.starts(&(CatenaFinitaCfg){.src = args->full, .other = "\\\\?\\", .cap = CLI_POOL_BYTES}))
     {
         memor.move_down(
             &(MemoriaCfg){.dst = args->full,
                           .src = args->full + 4,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->full + 4, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->full + 4, .cap = CLI_POOL_BYTES}) + 1u});
     }
     return 1;
 }

@@ -89,7 +89,7 @@ static void cli_channel_run(void *context)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                     .src = why,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_POOL_BYTES}) + 1u});
         }
         channel->tail += item->total;
         channel->used -= item->total;
@@ -104,8 +104,8 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
     unsigned int priority = args->priority;
     const unsigned int named = (args->channel_named < CLI_CHANNELS) ? args->channel_named : CLI_CHANNEL_PRIMARY;
     CliChannel *const channel = &s_channels[(priority < QRY_ORDINARY) ? CLI_CHANNEL_SIGNAL : named];
-    const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
+    const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     const unsigned long long need =
         (CLI_QUEUE_HEAD + path_length + 1ULL + name_length + 1ULL + args->size + 7ULL) & ~7ULL;
     if (need > (CLI_QUEUE_BYTES / 2u))
@@ -122,19 +122,19 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                     .src = why,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_POOL_BYTES}) + 1u});
         }
         return;
     }
-    channel->ring = (channel->ring != NULL) ? channel->ring
-                                            : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &g_cli_queue_cells);
+    channel->ring =
+        (channel->ring != NULL) ? channel->ring : g_cli_guard->persistent_buf_alloc(CLI_QUEUE_BYTES, g_cli_queue_owner);
     if (channel->ring == NULL)
     {
         s_failed += 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                 .src = "no ring could be taken for the channel",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "no ring could be taken for the channel",
-                                                                       .cap = CLI_CELLS_POOL}) +
+                                                                       .cap = CLI_POOL_BYTES}) +
                                          1u});
         return;
     }

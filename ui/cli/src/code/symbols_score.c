@@ -35,7 +35,7 @@ int cli_symbols_score(const CliSymbolsQueryCfg *args)
     unsigned int query_letters[CLI_SCORED_LETTERS];
     unsigned int letters[CLI_SCORED_LETTERS];
     unsigned int lower[CLI_SCORED_LETTERS];
-    const unsigned long long query_length = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL});
+    const unsigned long long query_length = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES});
     if (query_length == 0ULL)
     {
         *points = 0LL;

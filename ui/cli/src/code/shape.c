@@ -255,7 +255,7 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
     CliShapeHolePosition positions[CLI_SHAPE_HOLES];
     // the pattern's copy, its placeholders blank, which its grammar reads
     char *const blank =
-        (args->holes != NULL) ? g_cli_cells->temporary_buf_alloc(args->size + 1ULL, &g_cli_shape_cells) : NULL;
+        (args->holes != NULL) ? g_cli_guard->temporary_buf_alloc(args->size + 1ULL, g_cli_shape_owner) : NULL;
     if ((args->holes != NULL) && (blank == NULL))
     {
         return 0;
@@ -277,10 +277,10 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
         EMBED_CALL(shape_leaves_append, ShapeCtx, .tokens = args->tokens, .src = src, .size = args->size, .read = &read,
                    .holes = args->holes, .positions_read = positions);
     }
-    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    g_cli_cells->persistent_buf_release(blank, &g_cli_shape_cells);
+    g_cli_guard->persistent_buf_release(blank, g_cli_shape_owner);
     return leaved;
 }

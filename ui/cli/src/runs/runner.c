@@ -44,7 +44,7 @@ typedef struct
 // a text stored among the command's: where it starts, NULL where it does not fit
 EMBED_INLINE const char *cli_text_store(const RunnerCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
     if ((args->command->used + size) > CLI_COMMAND_TEXT)
     {
         args->command->words.full = 1;
@@ -63,7 +63,7 @@ void cli_command_set(const CliRunnerCommandNameCfg *args)
     for (unsigned int at = 0u; at < args->command->settings; at += 1u)
     {
         if (cellul.eq(
-                &(CatenaFinitaCfg){.src = args->command->setting[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
+                &(CatenaFinitaCfg){.src = args->command->setting[at].name, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             args->command->setting[at].value =
                 (value != NULL) ? EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = value) : NULL;
@@ -87,7 +87,7 @@ int cli_command_sets(const CliRunnerNameCommandCfg *args)
     for (unsigned int at = 0u; at < args->command_read->settings; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->command_read->setting[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
+                .src = args->command_read->setting[at].name, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -99,7 +99,7 @@ void cli_command_folder(const CliRunnerCommandFolderCfg *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = args->command->folder,
                             .src = args->folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}) + 1u});
     args->command->has_folder = 1;
 }
 
@@ -169,7 +169,7 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
 #if !defined(_WIN32)
     memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "bash",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 #else
     static char s_folders[256][CLI_PATH_MAX_LEN];
@@ -185,10 +185,10 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
         // the folder above the one git stands in
         char *cut = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), .byte = '\\');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_POOL_BYTES}), .byte = '\\');
         char *const forward = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_POOL_BYTES}), .byte = '/');
         cut = ((forward != NULL) && ((cut == NULL) || (forward > cut))) ? forward : cut;
         if (cut == NULL)
         {
@@ -232,11 +232,11 @@ void cli_runner_python(const CliRunnerNameCfg *args)
 #if defined(_WIN32)
     memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "python",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_POOL_BYTES}) + 1u});
 #else
     memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "python3",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python3", .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python3", .cap = CLI_POOL_BYTES}) + 1u});
 #endif
 }
 
@@ -355,7 +355,7 @@ EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
         return 0;
     }
     const char *from = text;
-    char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     while ((from < to) && EMBED_CALL(cli_space, RunnerCtx, .letter = from[0]))
     {
         from += 1;
@@ -392,7 +392,7 @@ int cli_runner_runs(const CliRunnerCommandCfg *args)
                                        .src = supplied,
                                        .other = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                            .catalog_read = args->catalog, .text_u32 = arg->text[1]),
-                                       .cap = CLI_CELLS_POOL}))))
+                                       .cap = CLI_POOL_BYTES}))))
         {
             return 0;
         }
@@ -427,8 +427,8 @@ int cli_runner_check(const CliRunnerErrMsgCfg *args)
             mmgr_line_put(args->err_msg, " needs a value");
             return 0;
         }
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "many", .cap = CLI_CELLS_POOL})))
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "many", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }
@@ -443,7 +443,7 @@ int cli_runner_check(const CliRunnerErrMsgCfg *args)
                     .src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog,
                                       .text_u32 = args->catalog->list[param->first + choice]),
                     .other = value,
-                    .cap = CLI_CELLS_POOL});
+                    .cap = CLI_POOL_BYTES});
             }
             if (!among)
             {

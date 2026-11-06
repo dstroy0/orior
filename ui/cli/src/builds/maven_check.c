@@ -45,7 +45,7 @@ void cli_maven_update(const CliMavenSizeCheckCtx *args)
     mmgr_line_put_n(&command, args->coordinates, args->size);
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
                .title = &title, .folder = args->check->displayed,
-               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->displayed, .cap = CLI_CELLS_POOL}),
+               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->displayed, .cap = CLI_POOL_BYTES}),
                .line_text = line, .line_size = command.at);
 }
 
@@ -75,7 +75,7 @@ EMBED_INLINE void check_elements(const MavenCheckCtx *args)
         int known = 0;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            known |= (cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_CELLS_POOL}) == size) &&
+            known |= (cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_POOL_BYTES}) == size) &&
                      (memor.cmp(&(MemoriaCfg){.src = allowed[at], .other = name, .bytes = (size_t)size}) == 0);
         }
         if (known)
@@ -98,7 +98,7 @@ EMBED_INLINE void check_elements(const MavenCheckCtx *args)
         {
             EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                        .one = allowed[at],
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_CELLS_POOL}));
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_POOL_BYTES}));
         }
         for (unsigned int at = 0u; at < adjacent.count; at += 1u)
         {
@@ -264,7 +264,7 @@ EMBED_INLINE void check_phase(const MavenCheckCtx *args)
     }
     for (unsigned int at = 0u; at < 29u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_phases[at], .cap = CLI_CELLS_POOL}) == phase.at) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_phases[at], .cap = CLI_POOL_BYTES}) == phase.at) &&
             (memor.cmp(&(MemoriaCfg){.src = g_cli_maven_phases[at], .other = s_phase, .bytes = phase.at}) == 0))
         {
             return;
@@ -285,7 +285,7 @@ EMBED_INLINE void check_phase(const MavenCheckCtx *args)
     {
         EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                    .one = g_cli_maven_phases[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_phases[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_phases[at], .cap = CLI_POOL_BYTES}));
     }
     for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
@@ -336,7 +336,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
     if ((project == CLI_XML_NONE) || !EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx,
                                                  .xml = &s_xml, .element = project, .name = "project"))
     {
-        g_cli_cells->persistent_buf_release(s_xml.element, &g_cli_xml_cells);
+        g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
         *(&s_xml) = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
         return;
     }
@@ -397,8 +397,8 @@ void cli_maven_check(const CliMavenTextCtx *args)
             EMBED_CALL(check_phase, MavenCheckCtx, .check = &s_check, .index = index);
         }
     }
-    g_cli_cells->persistent_buf_release(s_xml.element, &g_cli_xml_cells);
+    g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
     *(&s_xml) = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
-    g_cli_cells->persistent_buf_release(s_model.name_at, &g_cli_maven_model_cells);
+    g_cli_guard->persistent_buf_release(s_model.name_at, g_cli_maven_model_owner);
     *(&s_model) = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
 }

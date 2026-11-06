@@ -24,12 +24,12 @@ void cli_replay_full(const CliRecordingRelativeCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->full,
                       .src = g_cli_replay->root,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_replay->root, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_replay->root, .cap = CLI_POOL_BYTES}) + 1u});
     for (const char *part = args->relative; *part != '\0';)
     {
-        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = '/'});
+        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '/'});
         const size_t length = (slash != NULL) ? (size_t)(slash - part)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+                                              : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if (length > 0u)
         {
             char one[CLI_PATH_MAX_LEN];
@@ -107,7 +107,7 @@ int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args)
     EMBED_CALL(cli_recording_path_internal.replay_key, CliRecordingPathCtx, .path = full, .key = key);
     for (unsigned int file = 0u; file < g_cli_replay->break_file_count; file += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[file], .other = key, .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[file], .other = key, .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -167,21 +167,21 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
     const unsigned int thread =
         EMBED_CALL(cli_recording_serial_step_internal.replay_thread_get, CliRecordingSerialStepCtx, .step = here);
     const unsigned int depth = steps[here].depth;
-    const int forward = (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "continue", .cap = CLI_CELLS_POOL})) ||
-                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_CELLS_POOL})) ||
-                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_CELLS_POOL})) ||
-                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL}));
+    const int forward = (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "continue", .cap = CLI_POOL_BYTES})) ||
+                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_POOL_BYTES})) ||
+                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_POOL_BYTES})) ||
+                        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_POOL_BYTES}));
     const int backward =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "reverseContinue", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepBack", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "reverseContinue", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepBack", .cap = CLI_POOL_BYTES}));
     if (!forward && !backward)
     {
         *step = here;
         return "pause";
     }
     const int continues =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "continue", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "reverseContinue", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "continue", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "reverseContinue", .cap = CLI_POOL_BYTES}));
     for (unsigned int one = forward ? here + 1u : here; forward ? (one <= last) : (one > 0u);
          one = forward ? one + 1u : one - 1u)
     {
@@ -193,15 +193,15 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
         {
             hit = EMBED_CALL(replay_stops, RecordingReplayCtx, .step = at);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_POOL_BYTES}))
         {
             hit = same && (steps[at].depth <= depth);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_POOL_BYTES}))
         {
             hit = same;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_POOL_BYTES}))
         {
             hit = same && (steps[at].depth < depth);
         }
@@ -224,16 +224,16 @@ void cli_replay_stopped_send(const CliRecordingDapReasonCtx *args)
     CliDap *dap = args->dap;
     char out_buf[1024];
     VerbaLinea out = {out_buf, sizeof(out_buf), 0ULL};
-    const int bound = (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "end", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "start", .cap = CLI_CELLS_POOL}));
+    const int bound = (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "end", .cap = CLI_POOL_BYTES})) ||
+                      (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "start", .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&out, "{\"type\":\"event\",\"event\":\"stopped\",\"body\":{\"reason\":\"");
     mmgr_line_put(&out, bound ? "step" : args->reason);
     mmgr_line_put(&out, "\",\"description\":\"");
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "end", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "end", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(&out, "the end of the recording");
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "start", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reason, .other = "start", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(&out, "the start of the recording");
     }
@@ -271,11 +271,11 @@ void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
     mmgr_line_put(args->out, ",\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"line\":");
     mmgr_line_decimal(args->out, recording->steps[args->step].line, 1u);
     mmgr_line_put(args->out, ",\"column\":1,\"source\":{\"name\":");
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
+    size_t end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES});
     size_t start = end;
     start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full, .at = start,
                                .set = "/\\");
@@ -291,7 +291,7 @@ void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
     mmgr_line_put(args->out, ",\"path\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)full,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, "}}");
 }
 

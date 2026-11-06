@@ -48,8 +48,8 @@ EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = cli_report_auto() ? "on" : "off");
         return 0;
     }
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "off", .cap = CLI_CELLS_POOL})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "off", .cap = CLI_POOL_BYTES})))
     {
         VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, args->word_text);
@@ -60,7 +60,7 @@ EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
     }
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg,
-                    .on = cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_CELLS_POOL}),
+                    .on = cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_POOL_BYTES}),
                     .err_msg = &err_msg))
     {
         EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
@@ -168,10 +168,10 @@ EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
     const int inside_a_job = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
                                         .name = CLI_RUN_VARIABLE, .value_out = value, .capacity = sizeof(value));
     const int read_state =
-        (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "decode", .cap = CLI_CELLS_POOL})) ||
-        ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "tables", .cap = CLI_CELLS_POOL})) && (count > 0u) &&
-         ((cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "read", .cap = CLI_CELLS_POOL})) ||
-          (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "fields", .cap = CLI_CELLS_POOL}))));
+        (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "decode", .cap = CLI_POOL_BYTES})) ||
+        ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "tables", .cap = CLI_POOL_BYTES})) && (count > 0u) &&
+         ((cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "read", .cap = CLI_POOL_BYTES})) ||
+          (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "fields", .cap = CLI_POOL_BYTES}))));
     if (!inside_a_job && !read_state)
     {
         static CliReachAnswer s_answer;
@@ -237,12 +237,12 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     int *code = args->code;
     const char *const first = (count > 0u) ? words[0] : NULL;
     static char s_root[CLI_PATH_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "keys", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "keys", .cap = CLI_POOL_BYTES}))
     {
         cli_keys();
         *code = 0;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "about", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "about", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "orior_cli " CLI_VERSION);
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
@@ -253,63 +253,63 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
         }
         *code = 0;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "auto-report", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "auto-report", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(console_auto_report, CommandLineConsoleCtx, .word_text = first);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "search", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "search", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.console_search, CliCommandLineWordsCountCtx,
                            .named = named, .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "plugins", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "plugins", .cap = CLI_POOL_BYTES}))
     {
         *code = cli_plugins_list();
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "new-plugin", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "new-plugin", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.new_plugin, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "user-css", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "user-css", .cap = CLI_POOL_BYTES}))
     {
         *code = console_user_css();
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "toolchains", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "toolchains", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.toolchains_words, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "clone", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "clone", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.clone_words, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "dev-container", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "dev-container", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(console_dev_container, CommandLineConsoleCtx, .named = named);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "format", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "format", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.format_files, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "run-file", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "run-file", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.run_file_words, CliCommandLineWordsCountCtx,
                            .named = named, .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "validate", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "validate", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.validate_files, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "disasm-verify", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "disasm-verify", .cap = CLI_POOL_BYTES}))
     {
         *code =
             EMBED_CALL(cli_disasm_verify_words_table.words, CliDisasmVerifyWordsCfg, .words = words, .count = count);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "report", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "report", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(console_report_page, CommandLineConsoleCtx, .named = named, .words = words, .count = count);
     }
@@ -340,24 +340,24 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const char *const first = (args->count > 0u) ? args->words[0] : NULL;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "list", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "list", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(cli_command_line_word_internal.jobs_list, CliCommandLineWordCtx, .root = s_root,
                           .word_text = first);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "tests", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "tests", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(cli_command_line_root_internal.tests_list, CliCommandLineRootCtx, .root = s_root,
                           .words = args->words, .count = args->count);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "bridge", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "bridge", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(cli_command_line_word_internal.bridge_words, CliCommandLineWordCtx, .root = s_root,
                           .word_text = first);
     }
     for (unsigned int at = 0u; at < sizeof(s_protocol) / sizeof(s_protocol[0]); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = s_protocol[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = s_protocol[at], .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(console_protocol, CommandLineConsoleCtx, .root = s_root, .command = args->command,
                               .words = args->words, .count = args->count);
@@ -383,7 +383,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
         EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
         return CLI_NO_CODE;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "show", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "show", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_command_line_root_internal.job_show, CliCommandLineRootCtx, .root = s_root, .catalog = catalog,
                    .job = job);
@@ -399,7 +399,7 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     // the path is the word before a line and a column, each a colon and digits, that follow it
-    size_t path = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
+    size_t path = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     for (unsigned int part = 0u; part < 2u; part += 1u)
     {
         size_t colon = path;
@@ -439,7 +439,7 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     {
         return 0;
     }
-    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_CELLS_POOL});
+    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_POOL_BYTES});
     const int separated = (root > 0u) && ((s_root[root - 1u] == '/') || (s_root[root - 1u] == '\\'));
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full, .other_pointer = s_root, .size = root) ||
         (!separated && (full[root] != '/') && (full[root] != '\\') && (full[root] != '\0')))
@@ -451,7 +451,7 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     }
     const char *inner = full + root;
     inner += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = inner, .at = 0ULL,
-                        .size = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                        .size = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_POOL_BYTES}), .set = "/\\");
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = out, .text = inner, .from = '\\', .to = '/');
     mmgr_line_put(out, args->word_text + path);
     return 1;

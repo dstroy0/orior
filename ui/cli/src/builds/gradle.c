@@ -119,7 +119,7 @@ const char *const *cli_gradle_block_words(const CliGradleSizeCtx *args)
     }
     for (unsigned int at = 0u; at < sizeof(s_block_words) / sizeof(s_block_words[0]); at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_block_words[at][0], .cap = CLI_CELLS_POOL}) == args->size) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_block_words[at][0], .cap = CLI_POOL_BYTES}) == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_block_words[at][0], .other = args->name, .bytes = (size_t)args->size}) ==
              0))
         {
@@ -253,7 +253,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     script->declares = 0u;
     // a byte past the text, so a script of no bytes is a cell too
     script->class_of =
-        (size <= CLI_GRADLE_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_gradle_cells) : NULL;
+        (size <= CLI_GRADLE_TEXT) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_gradle_owner) : NULL;
     if (script->class_of == NULL)
     {
         return 0;
@@ -270,18 +270,17 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     }
     opens = (opens < CLI_GRADLE_BLOCKS) ? opens : CLI_GRADLE_BLOCKS;
     closes = (closes < CLI_GRADLE_BLOCKS) ? closes : CLI_GRADLE_BLOCKS;
-    script->block = g_cli_cells->persistent_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), &g_cli_gradle_cells);
-    script->stray =
-        g_cli_cells->persistent_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), &g_cli_gradle_cells);
+    script->block = g_cli_guard->persistent_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), g_cli_gradle_owner);
+    script->stray = g_cli_guard->persistent_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), g_cli_gradle_owner);
     unsigned int *const opened =
-        g_cli_cells->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), &g_cli_gradle_cells);
+        g_cli_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), g_cli_gradle_owner);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
-        g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
+        g_cli_guard->persistent_buf_release(opened, g_cli_gradle_owner);
         CliGradleScript *const script = &g_cli_gradle;
-        g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
-        g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
-        g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
+        g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
+        g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
+        g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
         script->class_of = NULL;
         script->block = NULL;
         script->stray = NULL;
@@ -317,7 +316,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
             script->strays += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
+    g_cli_guard->persistent_buf_release(opened, g_cli_gradle_owner);
     return 1;
 }
 
@@ -337,7 +336,7 @@ unsigned int cli_gradle_block_at(const CliGradleTextCtx *args)
 
 int cli_gradle_block_by_name(const CliGradleCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) == args->block->name_size) &&
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) == args->block->name_size) &&
            (memor.cmp(&(MemoriaCfg){.src = g_cli_gradle.text + args->block->name,
                                     .other = args->name,
                                     .bytes = (size_t)args->block->name_size}) == 0);
@@ -417,7 +416,7 @@ static void gradle_declared_statement(const CliGradleStatementCfg *args)
                                                 .name = "configurations", .size = 14u, .count = &count);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) == args->word_size) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_POOL_BYTES}) == args->word_size) &&
             (memor.cmp(&(MemoriaCfg){.src = words[at],
                                      .other = g_cli_gradle.text + args->word_text,
                                      .bytes = (size_t)args->word_size}) == 0))
@@ -438,7 +437,7 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
         for (unsigned int call = 0u; call < 3u; call += 1u)
         {
             const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_calls[call], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = s_calls[call], .cap = CLI_POOL_BYTES});
             unsigned long long before = 0ULL;
             if (!EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
                             .prefix = s_calls[call]) ||

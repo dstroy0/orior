@@ -4,7 +4,7 @@
 // the nearest settings file read, under the formatting's lock
 #ifndef FORMAT_INTERNAL_H
 #define FORMAT_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "embed_dispatch_layout.h"
 #include "format.h"

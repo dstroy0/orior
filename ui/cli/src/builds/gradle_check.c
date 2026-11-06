@@ -7,7 +7,7 @@
 // name a catalog's accessor leads, against the catalog's aliases (gradle_references.c). A catalog larger than
 // CLI_GRADLE_CATALOG_TEXT is not read
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "gradle_internal.h"
@@ -64,7 +64,7 @@ EMBED_INLINE void check_snapshot(const GradleCheckCtx *args)
     mmgr_line_put(&command, " --refresh-dependencies dependencies");
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
                .title = &title, .folder = args->check->folder,
-               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->folder, .cap = CLI_CELLS_POOL}),
+               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->folder, .cap = CLI_POOL_BYTES}),
                .line_text = line, .line_size = command.at);
 }
 
@@ -125,7 +125,7 @@ EMBED_INLINE void check_notation(const GradleCheckCtx *args)
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = line_end - at,
                        .prefix = s_wrappers[wrapper]))
         {
-            at += cellul.len(&(CatenaFinitaCfg){.src = s_wrappers[wrapper], .cap = CLI_CELLS_POOL});
+            at += cellul.len(&(CatenaFinitaCfg){.src = s_wrappers[wrapper], .cap = CLI_POOL_BYTES});
             at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
                             .size = line_end, .set = " \t(");
         }
@@ -186,7 +186,7 @@ static void check_dependency(const CliGradleStatementCfg *args)
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         removed =
-            ((cellul.len(&(CatenaFinitaCfg){.src = s_removed[at][0], .cap = CLI_CELLS_POOL}) == args->word_size) &&
+            ((cellul.len(&(CatenaFinitaCfg){.src = s_removed[at][0], .cap = CLI_POOL_BYTES}) == args->word_size) &&
              (memor.cmp(&(MemoriaCfg){.src = s_removed[at][0], .other = name, .bytes = (size_t)args->word_size}) == 0))
                 ? at
                 : removed;
@@ -213,7 +213,7 @@ static void check_dependency(const CliGradleStatementCfg *args)
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
                    .title = &title, .lines = check->lines, .from = word_text, .to = word_text + args->word_size,
                    .text = s_removed[removed][1],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = s_removed[removed][1], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = s_removed[removed][1], .cap = CLI_POOL_BYTES}));
         return;
     }
     if (next == '{')
@@ -239,7 +239,7 @@ static void check_dependency(const CliGradleStatementCfg *args)
             EMBED_CALL(
                 cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                 .one = g_cli_gradle_configurations[at],
-                .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_CELLS_POOL}));
+                .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_POOL_BYTES}));
         }
         for (unsigned int at = 0u; at < g_cli_gradle.declares; at += 1u)
         {
@@ -325,7 +325,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
         unsigned long long read = 0ULL;
         const unsigned char *const catalog =
             EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_catalogs.path[at], .size_pointer = &read,
-                       .owner = &g_cli_gradle_cells);
+                       .owner = g_cli_gradle_owner);
         CliVersionsAliases aliases;
         const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                           EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)catalog,
@@ -333,7 +333,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                           EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases,
                                      CliVersionCatalogTextSizeAliasesCtx, .text = (const char *)catalog, .size = read,
                                      .aliases = &aliases);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)catalog, (&g_cli_gradle_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)catalog, (g_cli_gradle_owner));
         if (!whole)
         {
             continue;
@@ -343,8 +343,8 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                    .out_capacity = displayed);
         EMBED_CALL(cli_version_catalog_lines_internal.gradle_references, CliVersionCatalogLinesCtx, .lines = lines,
                    .found = found, .name = s_catalogs.name[at], .displayed = displayed, .aliases_read = &aliases);
-        g_cli_cells->persistent_buf_release(aliases.text, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(aliases.alias, &g_cli_versions_cells);
+        g_cli_guard->persistent_buf_release(aliases.text, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(aliases.alias, g_cli_versions_owner);
         aliases.alias = NULL;
         aliases.text = NULL;
         aliases.count = 0u;
@@ -352,9 +352,9 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
         aliases.capacity = 0u;
     }
     CliGradleScript *const script = &g_cli_gradle;
-    g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
-    g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
-    g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
+    g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
+    g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
+    g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
     script->class_of = NULL;
     script->block = NULL;
     script->stray = NULL;

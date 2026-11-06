@@ -59,9 +59,6 @@ typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 #define CLI_BUILD_FIRST 16u
 #define CLI_BUILD_MSG_MIN_LEN 16384u
 
-// the cells the findings and the lines indexed are allocated in, counted, each given back once the findings are written
-extern CellOwner g_cli_build_cells;
-
 // the kind of build file at `path`, by its name, 0 where it is none
 unsigned int cli_build_kind_get(const CliBuildsPathCfg *args);
 
@@ -93,8 +90,8 @@ typedef struct
 // the lines of `size` bytes of `text`, their starts stored in `starts`, sized for `most`; the line and the column, in
 // UTF-16 units, of byte `at`; and the byte line `line` starts at, the text's end past its last (builds_help.c)
 void cli_build_lines_get(const CliBuildsTextSizeCfg *args);
-// the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_cells sized to
-// them: the cell, given back with g_cli_cells->persistent_buf_release once the lines are done with, or NULL with no
+// the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_owner sized to
+// them: the cell, given back with g_cli_guard->persistent_buf_release once the lines are done with, or NULL with no
 // line indexed where it is refused
 unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args);
 CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args);

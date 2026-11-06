@@ -81,10 +81,9 @@ int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->folder,
                                 .src = supplied,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_cells->persistent_buf_release(((&json))->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = ((&json))->node));
+    g_cli_guard->persistent_buf_release(((&json))->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), ((&json))->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return supplied != NULL;
@@ -101,8 +100,7 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
     // a read the cells refused has no tree, and tells nothing
     if (chosen == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(
-            ((&json))->node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = ((&json))->node));
+        g_cli_guard->persistent_buf_release(((&json))->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), ((&json))->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
@@ -120,12 +118,11 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = s_folders[count],
                               .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
             count += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(((&json))->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = ((&json))->node));
+    g_cli_guard->persistent_buf_release(((&json))->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), ((&json))->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -148,8 +145,8 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
                    .manifest = manifest, .id = args->id, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(
-            manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+        g_cli_guard->persistent_buf_release(manifest_json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -169,14 +166,14 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
                                                 .json_read = &manifest_json, .node = item, .length_pointer = NULL);
             mmgr_line_put(args->err_msg, (name != NULL) ? name : "");
         }
-        g_cli_cells->persistent_buf_release(
-            manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+        g_cli_guard->persistent_buf_release(manifest_json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
     }
-    g_cli_cells->persistent_buf_release(
-        manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+    g_cli_guard->persistent_buf_release(manifest_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliJson json;
@@ -186,12 +183,11 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
                .name = args->id,
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = &json, .text = dir,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_POOL_BYTES})));
     const int saved = (path[0] != '\0') &&
                       EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
                                  .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(((&json))->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = ((&json))->node));
+    g_cli_guard->persistent_buf_release(((&json))->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), ((&json))->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if ((path[0] == '\0') && !saved)
@@ -215,8 +211,7 @@ int cli_toolchains_forget(const CliToolchainsIdErrMsgCfg *args)
         saved = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
                            .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
     }
-    g_cli_cells->persistent_buf_release(((&json))->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = ((&json))->node));
+    g_cli_guard->persistent_buf_release(((&json))->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), ((&json))->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return saved;
@@ -240,8 +235,8 @@ int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args)
     const int found =
         (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg,
                                               .json = &manifest_json, .tool = tool, .dir = folder, .path = args->path);
-    g_cli_cells->persistent_buf_release(
-        manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+    g_cli_guard->persistent_buf_release(manifest_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -273,7 +268,7 @@ EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         hash = EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = hash, .bytes = path[at],
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = path[at], .cap = CLI_CELLS_POOL}) + 1u);
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = path[at], .cap = CLI_POOL_BYTES}) + 1u);
     }
     static const char *const s_files[2] = {"user_toolchains.json", "toolchains.json"};
     for (unsigned int at = 0u; at < 2u; at += 1u)
@@ -324,8 +319,8 @@ EMBED_INLINE int found_append(const ToolchainsChosenCtx *args)
     }
     if (s_found.most == 0u)
     {
-        s_found.tool = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_FOUND_MAX * sizeof(*s_found.tool),
-                                                         &g_cli_toolchains_found_cells);
+        s_found.tool = g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_FOUND_MAX * sizeof(*s_found.tool),
+                                                         g_cli_toolchains_found_owner);
         s_found.most = (s_found.tool != NULL) ? CLI_FOUND_MAX : 0u;
     }
     if (place >= s_found.most)
@@ -406,8 +401,7 @@ static void found_current(const ToolchainsChosenCtx *args)
                                  .state = state, .program = (program != NULL) ? program : "");
             }
         }
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         s_found.changed = 0;
@@ -493,7 +487,7 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
         char *cut = args->found->folder;
         const unsigned long long cut_end = EMBED_CALL(
             cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->found->folder,
-            .at = cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
+            .at = cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_POOL_BYTES}), .set = "/\\");
         cut = (cut_end != 0ULL) ? (args->found->folder + (cut_end - 1ULL)) : cut;
         *cut = '\0';
     }

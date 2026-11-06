@@ -13,7 +13,7 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
                    .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = args->err_msg, .owner = &g_cli_machine_cells);
+                   .err_msg = args->err_msg, .owner = g_cli_machine_owner);
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->chain->json,
                     .node = root, .kind = CFG_JSON_OBJECT))
     {
@@ -42,7 +42,7 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = args->chain->file[args->chain->files],
                                 .src = file,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u});
         args->chain->values[args->chain->files] = values;
         args->chain->files += 1u;
     }

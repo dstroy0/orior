@@ -108,8 +108,8 @@ typedef struct
 // whether `text` ends with `ending`, case aside
 EMBED_INLINE int arguments_ends_with(const DebugArgumentsCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_POOL_BYTES});
     for (size_t at = 0u; (size <= length) && (at < size); at += 1u)
     {
         char one = args->text[length - size + at];
@@ -126,7 +126,7 @@ int cli_debug_allocs(const CliDebugFileCtx *args)
 {
     const int python = EMBED_CALL(arguments_ends_with, DebugArgumentsCtx, .text = args->file, .ending = ".py") ||
                        EMBED_CALL(arguments_ends_with, DebugArgumentsCtx, .text = args->file, .ending = ".pyw");
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL})) == python;
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES})) == python;
 }
 
 unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
@@ -315,15 +315,15 @@ unsigned int cli_debug_fill(const CliDebugJsonCtx *args)
 EMBED_INLINE const char *arguments_trim(const DebugArgumentsCtx *args)
 {
     unsigned long long *length = args->length_pointer;
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     unsigned long long start = 0ULL;
     while ((start < end) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = args->text[start]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = args->text[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = args->text[end - 1ULL]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = args->text[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -336,7 +336,7 @@ EMBED_INLINE int arguments_names_path(const DebugArgumentsCtx *args)
 {
     int marked = 0;
     int dotted = 1;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_POOL_BYTES});
     marked = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
                         .size = size, .set = "/\\*.") < size;
     dotted = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ULL,
@@ -356,7 +356,7 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
                                          .json_read = args->json, .object = args->stepping, .name = "skip");
     const unsigned int ours_index = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = args->json, .object = args->stepping, .name = "mine_only");
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}))
     {
         const int ours_only =
             (ours_index == CLI_JSON_NONE) || EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx,

@@ -5,7 +5,7 @@
 // toolchains_path.c
 #ifndef TOOLCHAINS_INTERNAL_H
 #define TOOLCHAINS_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "toolchains.h"
 

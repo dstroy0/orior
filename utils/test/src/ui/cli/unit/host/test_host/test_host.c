@@ -27,7 +27,7 @@ void tearDown(void)
 void test_a_wrapper_is_a_shell_script(void)
 {
     (void)wrapper_of("cargo");
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_text, .other = "#!/bin/sh\n", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_text, .other = "#!/bin/sh\n", .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_wrapper_passes_its_program_and_arguments(void)

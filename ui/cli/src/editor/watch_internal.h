@@ -5,7 +5,7 @@
 #ifndef WATCH_INTERNAL_H
 #define WATCH_INTERNAL_H
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "watch.h"
 
@@ -13,8 +13,6 @@ typedef struct CliWatchPathsCtx CliWatchPathsCtx;
 typedef struct CliWatchCtx CliWatchCtx;
 
 // a change put for the next batch, its path from the tree's top; whether the watch is stopping; the end of the thread
-// that reads the tree notified, so the watch can stop; and the cells the changes waiting and a batch occupy (watch.c)
-extern CellOwner g_cli_watch_cells;
 void cli_watch_change(const CliEachPathKindCfg *args);
 int cli_watch_stopping(void);
 void cli_watch_poll_end(void);

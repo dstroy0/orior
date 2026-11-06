@@ -10,8 +10,8 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "callback_cfg.h"
-#include "cells.h"
 #include "command_line_internal.h"
+#include "pool.h"
 
 // a test written after those written
 static void jobs_test_write(const CliTestEachCfg *args)
@@ -42,7 +42,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
     int json = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        json = json || cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--json", .cap = CLI_CELLS_POOL});
+        json = json || cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--json", .cap = CLI_POOL_BYTES});
     }
     if (json)
     {
@@ -57,7 +57,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
             CliJson json;
         } CliTestsListWorkState;
         CliTestsListWorkState *const work_state =
-            g_cli_cells->temporary_buf_alloc(sizeof(*work_state), &g_cli_command_line_cells);
+            g_cli_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_command_line_owner);
         if (work_state == NULL)
         {
             EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -87,7 +87,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
         }
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = work_state->pretty,
                    .size = mmgr_line_ok(&pretty) ? pretty.at : 0ULL);
-        g_cli_cells->persistent_buf_release(work_state, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(work_state, g_cli_command_line_owner);
         return 0;
     }
     unsigned int list_entries = 0u;
@@ -131,7 +131,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         count += 1u;
         const unsigned long long letters =
             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = id,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}));
         pad = (letters > pad) ? letters : pad;
     }
     if (count == 0u)
@@ -156,7 +156,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         mmgr_line_put(&line, id);
         for (unsigned long long letters =
                  EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = id,
-                            .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+                            .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}));
              letters < pad; letters += 1ULL)
         {
             mmgr_line_ch(&line, ' ');
@@ -169,7 +169,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         else if (capacity >= 20ULL)
         {
             EMBED_CALL(cli_command_line_text_size_internal.cut, CliCommandLineTextSizeCtx, .text = about,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_CELLS_POOL}), .most = capacity,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_POOL_BYTES}), .most = capacity,
                        .out = &line);
         }
         const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ULL;
@@ -226,7 +226,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "");
         EMBED_CALL(cli_command_line_text_internal.wrap, CliCommandLineTextCtx, .text = about,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_CELLS_POOL}), .lead = "  ",
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_POOL_BYTES}), .lead = "  ",
                    .most = most, .each = jobs_line_out, .context = NULL);
     }
     if (one->params > 0u)
@@ -274,7 +274,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "runs");
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliValues *const values = g_cli_cells->temporary_buf_alloc(sizeof(*values), &g_cli_command_line_cells);
+    CliValues *const values = g_cli_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
     if (values == NULL)
     {
         mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
@@ -285,7 +285,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
                    .job = args->job, .words = NULL, .count = 0u, .values = values, .err_msg = &err_msg) &&
         EMBED_CALL(cli_runner_err_msg_root.show, CliRunnerErrMsgRootCfg, .root = args->root, .catalog = catalog,
                    .job = args->job, .values = values, .each = jobs_show, .context = NULL, .err_msg = &err_msg);
-    g_cli_cells->persistent_buf_release(values, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
     if (!displayed)
     {
         line.at = 0ULL;
@@ -333,11 +333,11 @@ static void jobs_run_event(const CliEachEventCfg *args)
     }
     if (args->event->kind == CLI_RUN_EVENT_LINE)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "stdout", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "stdout", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = args->event->text);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "command", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "command", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(jobs_err_prefix, CommandLineJobsCtx, .lead = "$ ", .text = args->event->text);
         }
@@ -367,7 +367,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
     unsigned int job = args->job;
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliValues *const values = g_cli_cells->temporary_buf_alloc(sizeof(*values), &g_cli_command_line_cells);
+    CliValues *const values = g_cli_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
     if ((values == NULL) ||
         !EMBED_CALL(cli_command_line_catalog_internal.job_values, CliCommandLineCatalogCtx, .catalog = catalog,
                     .job = job, .words = args->words, .count = args->count, .values = values, .err_msg = &err_msg))
@@ -375,7 +375,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
         mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
-        g_cli_cells->persistent_buf_release(values, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
         return CLI_WRONG;
     }
     s_run.ended = 0;
@@ -387,7 +387,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
     const int started =
         EMBED_CALL(cli_runner_err_msg.runs_start, CliRunnerErrMsgCfg, .sink = sink, .root = root, .catalog = catalog,
                    .job = job, .values = values, .run_number_pointer = &run, .err_msg = &err_msg);
-    g_cli_cells->persistent_buf_release(values, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
     if (!started)
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,

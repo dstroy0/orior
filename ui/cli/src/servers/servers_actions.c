@@ -6,7 +6,7 @@
 // listed once, those that can be carried out first and the preferred fixes before the rest. An action of a plugin's
 // server carries the plugin's id, so it is carried out by that server (servers_act.c). A server given the file as a
 // slice is asked about the slice's lines, with the diagnostics on them
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 typedef struct

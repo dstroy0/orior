@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables.c: a toolchain's program found where the toolchains window finds the tool, a tool's output read, and the
 // file a job's build made read back from its id and the lines its build printed
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
@@ -24,8 +24,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
                    .id = args->tool, .err_msg = &unknown);
     if (one == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "no toolchain ");
@@ -33,10 +32,10 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_executables_cells);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_executables_owner);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = one,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found_tool);
-    g_cli_cells->persistent_buf_release(folders, &g_cli_executables_cells);
+    g_cli_guard->persistent_buf_release(folders, g_cli_executables_owner);
     char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {args->name};
     const int found = found_tool.has_program &&
@@ -55,8 +54,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
         mmgr_line_put(err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -162,12 +160,11 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &unread, .owner = &g_cli_executables_cells);
+                   .err_msg = &unread, .owner = g_cli_executables_owner);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (root == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "cargo metadata: ");
@@ -181,17 +178,15 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
                    .length_pointer = NULL);
     if (target == NULL)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "cargo metadata names no target_directory");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = out, .src = target, .bytes = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}) + 1u});
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        .dst = out, .src = target, .bytes = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_POOL_BYTES}) + 1u});
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -208,12 +203,12 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
     mmgr_line_put(&marked, args->name);
     mmgr_line_put(&marked, " -> ");
     mmgr_line_finish(&marked);
-    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
+    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_POOL_BYTES});
     for (unsigned int index = lines->count; index > 0u; index -= 1u)
     {
         const char *from = EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines,
                                       .index = index - 1u);
-        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
         if ((length < mark_length) || (memor.cmp(&(MemoriaCfg){.src = from, .other = mark, .bytes = mark_length}) != 0))
@@ -242,7 +237,7 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
                 memor.cpy(&(MemoriaCfg){
                     .dst = artifact,
                     .src = args->out,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_CELLS_POOL}) + 1u});
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES}) + 1u});
             }
             else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->out,
                                  .out = artifact))
@@ -252,7 +247,7 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
             VerbaLinea joined = {args->out, CLI_PATH_MAX_LEN, 0ULL};
             mmgr_line_put(&joined, artifact);
             const unsigned long long artifact_length =
-                cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_POOL_BYTES});
             const int slashed = (artifact_length > 0ULL) && ((artifact[artifact_length - 1ULL] == '/') ||
                                                              (artifact[artifact_length - 1ULL] == '\\'));
             mmgr_line_put(&joined, ((artifact_length > 0ULL) && !slashed) ? "/" : "");
@@ -282,8 +277,8 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
 {
     const char *const colon =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->id,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}), .byte = ':');
-    if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->id, .other = "executable/", .cap = CLI_CELLS_POOL})) ||
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}), .byte = ':');
+    if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->id, .other = "executable/", .cap = CLI_POOL_BYTES})) ||
         (colon == NULL) || (colon < (args->id + 11)))
     {
         mmgr_line_put(args->err_msg, args->id);
@@ -304,12 +299,12 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     }
     const char *base = full;
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}), .set = "/\\");
     base = (base_end != 0ULL) ? (full + base_end) : base;
     const unsigned int kind =
         EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
@@ -328,12 +323,12 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         const char *const profile = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                                .values = args->values, .key = "profile", .fallback = "dev");
         const char *const profile_folder =
-            (cellul.eq(&(CatenaFinitaCfg){.src = profile, .other = "dev", .cap = CLI_CELLS_POOL})) ? "debug" : profile;
+            (cellul.eq(&(CatenaFinitaCfg){.src = profile, .other = "dev", .cap = CLI_POOL_BYTES})) ? "debug" : profile;
         const char *const target = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                               .values = args->values, .key = "target", .fallback = "this machine");
         char built[CLI_PATH_MAX_LEN] = "";
         found = EMBED_CALL(cli_cargo_target, ExecutablesCtx, .manifest = full, .out = built, .err_msg = args->err_msg);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = target, .other = "this machine", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = target, .other = "this machine", .cap = CLI_POOL_BYTES}))
         {
             const char *const parts[3] = {built, profile_folder, file};
             EMBED_CALL(cli_parts, ExecutablesCtx, .parts = parts, .count = 3u, .out = args->path);
@@ -346,7 +341,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
             mmgr_line_put(
                 &line,
                 (cellul.find(&(CatenaFinitaCfg){
-                     .src = target, .cap = CLI_CELLS_POOL, .other = "windows", .other_cap = CLI_CELLS_POOL}) != NULL)
+                     .src = target, .cap = CLI_POOL_BYTES, .other = "windows", .other_cap = CLI_POOL_BYTES}) != NULL)
                     ? ".exe"
                     : "");
             mmgr_line_finish(&line);
@@ -396,7 +391,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         VerbaLinea program = {named, sizeof(named), 0ULL};
         mmgr_line_put(&program, name);
         mmgr_line_put(&program,
-                      (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_CELLS_POOL})) ? ".exe"
+                      (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_POOL_BYTES})) ? ".exe"
                                                                                                                 : "");
         mmgr_line_finish(&program);
         const char *const parts[5] = {args->root, "build", "exe", pair, named};
@@ -431,7 +426,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         }
         found = EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = spec,
                            .exe_capacity = exe, .path_out = under);
-        g_cli_cells->persistent_buf_release(spec, &g_cli_executables_cells);
+        g_cli_guard->persistent_buf_release(spec, g_cli_executables_owner);
         if (!found)
         {
             mmgr_line_put(args->err_msg, script);

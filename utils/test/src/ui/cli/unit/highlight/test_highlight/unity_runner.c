@@ -38,7 +38,7 @@ extern void test_an_sgr_sequence_is_a_keyword_each_number_its_dotted_token_and_t
 extern void test_a_leading_zero_is_a_keyword_of_its_own_and_a_bright_color_its_number_among_the_sixteen(void);
 extern void test_a_color_of_the_256_and_of_red_green_and_blue_are_keywords_by_their_parts(void);
 extern void test_a_pattern_not_read_here_is_refused(void);
-extern void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock(void);
+extern void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_series_cellularum(void);
 
 
 /*=======Mock Management=====*/
@@ -129,7 +129,7 @@ int main(void)
   run_test(test_a_leading_zero_is_a_keyword_of_its_own_and_a_bright_color_its_number_among_the_sixteen, "test_a_leading_zero_is_a_keyword_of_its_own_and_a_bright_color_its_number_among_the_sixteen", 484);
   run_test(test_a_color_of_the_256_and_of_red_green_and_blue_are_keywords_by_their_parts, "test_a_color_of_the_256_and_of_red_green_and_blue_are_keywords_by_their_parts", 492);
   run_test(test_a_pattern_not_read_here_is_refused, "test_a_pattern_not_read_here_is_refused", 501);
-  run_test(test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock, "test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock", 507);
+  run_test(test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_series_cellularum, "test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_series_cellularum", 507);
 
   return UNITY_END();
 }

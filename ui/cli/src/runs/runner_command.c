@@ -48,10 +48,10 @@ EMBED_INLINE const char *cli_for_bash(const RunnerCommandCtx *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = args->out,
                             .src = args->value,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}) + 1u});
 #if defined(_WIN32)
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_CELLS_POOL}), .from = '\\',
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES}), .from = '\\',
                .to = '/');
 #endif
     return args->out;
@@ -108,7 +108,7 @@ EMBED_INLINE int cli_arg_words(const RunnerCommandCtx *args)
 EMBED_INLINE void cli_arg_when(const RunnerCommandCtx *args)
 {
     const char *const given = EMBED_CALL(cli_first, RunnerCommandCtx, .values = args->values, .key = args->key);
-    if ((given == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = given, .other = args->value, .cap = CLI_CELLS_POOL}))
+    if ((given == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = given, .other = args->value, .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -129,7 +129,7 @@ EMBED_INLINE void cli_arg_format(const RunnerCommandCtx *args)
     unsigned int now = 0u;
     memor.cpy(&(MemoriaCfg){.dst = s_filled[now],
                             .src = args->value,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}) + 1u});
     for (unsigned int key = 0u; key < values->keys; key += 1u)
     {
         char marker[CLI_NAME_MAX_LEN + 2u];
@@ -145,9 +145,9 @@ EMBED_INLINE void cli_arg_format(const RunnerCommandCtx *args)
         VerbaLinea next = {s_filled[1u - now], CLI_PATH_MAX_LEN * 4u, 0ULL};
         const char *rest = s_filled[now];
         for (const char *found = cellul.find(
-                 &(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = marker, .other_cap = CLI_CELLS_POOL});
+                 &(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .other = marker, .other_cap = CLI_POOL_BYTES});
              found != NULL; found = cellul.find(&(CatenaFinitaCfg){
-                                .src = rest, .cap = CLI_CELLS_POOL, .other = marker, .other_cap = CLI_CELLS_POOL}))
+                                .src = rest, .cap = CLI_POOL_BYTES, .other = marker, .other_cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put_n(&next, rest, (unsigned long long)(found - rest));
             mmgr_line_put(&next, supplied);
@@ -234,7 +234,7 @@ EMBED_INLINE int cli_step_arguments(const RunnerCommandCtx *args)
                 (!cellul.eq(
                     &(CatenaFinitaCfg){.src = EMBED_CALL(cli_first, RunnerCommandCtx, .values = values, .key = b),
                                        .other = c,
-                                       .cap = CLI_CELLS_POOL})))
+                                       .cap = CLI_POOL_BYTES})))
             {
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                            .word_text = a);
@@ -333,7 +333,7 @@ EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = s_settings_buf[count],
                               .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
             count += 1u;
         }
         if (place[0] == '\0')
@@ -393,12 +393,12 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
                        .value = input_b);
         }
         else if ((arg->kind == CLI_ARG_SET_WHEN) && (raw_a != NULL) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = raw_a, .other = b, .cap = CLI_CELLS_POOL})))
+                 (cellul.eq(&(CatenaFinitaCfg){.src = raw_a, .other = b, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = c, .value = d);
         }
         else if ((arg->kind == CLI_ARG_ENV_BUT) && (input_a != NULL) &&
-                 (!cellul.eq(&(CatenaFinitaCfg){.src = input_a, .other = b, .cap = CLI_CELLS_POOL})))
+                 (!cellul.eq(&(CatenaFinitaCfg){.src = input_a, .other = b, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = a,
                        .value = input_a);
@@ -453,7 +453,7 @@ EMBED_INLINE void cli_displayed_set(const RunnerCommandCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->displayed_out,
                       .src = args->word_text,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 // the program the step runs found into `out`, its text `word_text`, and the name its line shows into `displayed_out`,
@@ -515,7 +515,7 @@ EMBED_INLINE int cli_path_given(const RunnerCommandCtx *args)
              (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                              .catalog_read = args->catalog, .text_u32 = arg->text[0]),
                                            .other = "PATH",
-                                           .cap = CLI_CELLS_POOL}))))
+                                           .cap = CLI_POOL_BYTES}))))
         {
             return 1;
         }
@@ -632,12 +632,12 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     EMBED_CALL(cli_set_shown, RunnerCommandCtx, .word_text = s_set, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
                .displayed = args->displayed, .first = &first);
     EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = displayed_program,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_CELLS_POOL}),
+               .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_POOL_BYTES}),
                .first = &first);
     if ((args->step->program == CLI_PROGRAM_BASH) || (args->step->program == CLI_PROGRAM_PYTHON))
     {
         EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = text,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .first = &first);
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .first = &first);
     }
     for (unsigned int at = 0u; at < s_args.count; at += 1u)
     {
@@ -646,7 +646,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
                 ? EMBED_CALL(cli_for_bash, RunnerCommandCtx, .value = s_args.word_text[at], .out = bashed)
                 : s_args.word_text[at];
         EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = word_text,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}), .first = &first);
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES}), .first = &first);
     }
     if (args->command->words.full || s_args.full)
     {

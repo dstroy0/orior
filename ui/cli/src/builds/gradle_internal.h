@@ -62,9 +62,6 @@ typedef struct
 
 extern CliGradleScript g_cli_gradle;
 
-// what the scripts read occupy in the cellblock (gradle.c)
-extern CellOwner g_cli_gradle_cells;
-
 // the configurations Gradle's own plugins and the common ones of others declare, what a `dependencies` block calls
 // beside them, and the ends of the configurations a source set or a build variant declares (gradle.c)
 extern const char *const g_cli_gradle_configurations[30];

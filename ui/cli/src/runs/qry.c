@@ -3,7 +3,7 @@
 // qry.c: a run read from its shared memory while its writer runs and from its .qry where none does, its records of a
 // name joined, records appended to it, and the run the window is joined to
 #include "qry.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 
 // what a record contains is read for at most so many of its bytes, and in whole where it is at most so many; the most
@@ -63,7 +63,7 @@ static QryShared *cli_view(const QryCtx *args)
     for (unsigned int at = 0u; at < CLI_VIEWS_MAX; at += 1u)
     {
         found = ((s_views[at].run != NULL) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].path, .other = args->path, .cap = CLI_CELLS_POOL})))
+                 (cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].path, .other = args->path, .cap = CLI_POOL_BYTES})))
                     ? at
                     : found;
         free_view = ((s_views[at].run == NULL) && (free_view == CLI_VIEWS_MAX)) ? at : free_view;
@@ -72,7 +72,7 @@ static QryShared *cli_view(const QryCtx *args)
     {
         QryShared *const run = qry_member_shared(args->path);
         if ((run == NULL) || (free_view == CLI_VIEWS_MAX) ||
-            (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_MAX_LEN))
+            (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) >= CLI_PATH_MAX_LEN))
         {
             if (run != NULL)
             {
@@ -83,7 +83,7 @@ static QryShared *cli_view(const QryCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = s_views[free_view].path,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         s_views[free_view].run = run;
         found = free_view;
     }
@@ -99,7 +99,7 @@ static QryShared *cli_view(const QryCtx *args)
 // whether a record's name is `name`
 EMBED_INLINE int cli_by_name(const QryCtx *args)
 {
-    return (args->record->name_length == cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL})) &&
+    return (args->record->name_length == cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES})) &&
            (memor.cmp(&(MemoriaCfg){
                 .src = QRY_RECORD_NAME(args->record), .other = args->name, .bytes = args->record->name_length}) == 0);
 }
@@ -121,7 +121,7 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
     }
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = &size, .owner = &g_cli_runs_cells);
+                                                  .size_pointer = &size, .owner = g_cli_runs_owner);
     unsigned long long at = 0ULL;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
@@ -129,7 +129,7 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
                         EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
                                                                                               : 0ULL);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_runs_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_runs_owner));
     if ((bytes == NULL) || (at != size))
     {
         mmgr_line_put(args->err_msg, args->path);
@@ -154,14 +154,14 @@ unsigned int cli_qry_member_names(const CliQryDataCfg *args)
         unsigned int each = 0u;
         while (!seen && (each < count))
         {
-            seen = cellul.eq(&(CatenaFinitaCfg){.src = args->names[each], .other = name, .cap = CLI_CELLS_POOL});
+            seen = cellul.eq(&(CatenaFinitaCfg){.src = args->names[each], .other = name, .cap = CLI_POOL_BYTES});
             each += 1u;
         }
         if (!seen && (count < args->capacity))
         {
             memor.cpy(&(MemoriaCfg){.dst = args->names[count],
                                     .src = name,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
             count += 1u;
         }
     }
@@ -201,14 +201,14 @@ int cli_qry_append(const CliQryPathCfg *args)
         mmgr_line_put(args->err_msg, " is not a priority: 0 a panic, 1 critical, 2 ordinary");
         return 0;
     }
-    if (!s_membered || (!cellul.eq(&(CatenaFinitaCfg){.src = s_member, .other = args->path, .cap = CLI_CELLS_POOL})))
+    if (!s_membered || (!cellul.eq(&(CatenaFinitaCfg){.src = s_member, .other = args->path, .cap = CLI_POOL_BYTES})))
     {
         if (s_membered)
         {
             qry_member_parted();
             s_membered = 0;
         }
-        if ((cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_MAX_LEN) ||
+        if ((cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) >= CLI_PATH_MAX_LEN) ||
             (qry_member_joined(args->path) == NULL))
         {
             mmgr_line_put(args->err_msg, "no writer runs for this run: ");
@@ -218,7 +218,7 @@ int cli_qry_append(const CliQryPathCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = s_member,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         s_membered = 1;
     }
     const int appended = qry_member_append(args->name, bytes, args->size, args->priority) != 0ULL;
@@ -281,7 +281,7 @@ int cli_qry_join(const CliQryCfg *args)
     memor.cpy(&(MemoriaCfg){
         .dst = args->path_out,
         .src = joined ? s_window : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = joined ? s_window : "", .cap = CLI_CELLS_POOL}) + 1u});
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = joined ? s_window : "", .cap = CLI_POOL_BYTES}) + 1u});
     return joined;
 }
 
@@ -289,11 +289,11 @@ void cli_qry_join_window(const CliQryPathPanickedCfg *args)
 {
     s_window_read = 1;
     s_windowed = (args->path != NULL) &&
-                 (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) < CLI_PATH_MAX_LEN);
+                 (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) < CLI_PATH_MAX_LEN);
     memor.cpy(&(MemoriaCfg){
         .dst = s_window,
         .src = s_windowed ? args->path : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_windowed ? args->path : "", .cap = CLI_CELLS_POOL}) + 1u});
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_windowed ? args->path : "", .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 int cli_qry_existing(const CliQryPathPanickedCfg *args)
@@ -323,7 +323,7 @@ int cli_qry_records(const CliQryPathFromEachCfg *args)
     }
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = &size, .owner = &g_cli_runs_cells);
+                                                  .size_pointer = &size, .owner = g_cli_runs_owner);
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
         EMBED_CALL(args->each, CliEachRecordCfg, .context = args->context, .record = record, .sequence = sequence);
@@ -331,6 +331,6 @@ int cli_qry_records(const CliQryPathFromEachCfg *args)
     }
     *args->rest = ((bytes != NULL) && (size > at)) ? size - at : 0ULL;
     *args->next = at;
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_runs_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_runs_owner));
     return 0;
 }

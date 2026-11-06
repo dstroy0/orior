@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // runner_start.c: a run started on a thread of its own, waited on, and stopped with all it started
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "runner_internal.h"
 
 typedef struct
@@ -33,12 +33,12 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
         sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
         ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
         ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ULL;
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_runs_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_runs_owner);
     CliLines *const lines =
-        (cell != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliLines), &g_cli_runs_cells) : NULL;
+        (cell != NULL) ? g_cli_guard->persistent_buf_alloc(sizeof(CliLines), g_cli_runs_owner) : NULL;
     if (lines == NULL)
     {
-        g_cli_cells->persistent_buf_release(cell, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
         mmgr_line_put(args->err_msg, "a run's cells could not be taken");
         return 0;
     }
@@ -62,8 +62,8 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
     if (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
                    .to = &args->run->catalog) == CLI_CATALOG_NONE)
     {
-        g_cli_cells->persistent_buf_release(lines, &g_cli_runs_cells);
-        g_cli_cells->persistent_buf_release(cell, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(lines, g_cli_runs_owner);
+        g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
         mmgr_line_put(args->err_msg, "the job contains more than a run stores");
         return 0;
     }
@@ -120,7 +120,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = run->values, .src = args->values, .bytes = sizeof(*args->values)});
     memor.cpy(&(MemoriaCfg){.dst = run->root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     run->sink = sink;
     g_cli_next_run += 1ULL;
     run->run = g_cli_next_run;

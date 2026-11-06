@@ -64,7 +64,7 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
         return 0;
     }
     const char *from = message;
-    const char *to = message + cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL});
+    const char *to = message + cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     // the trimmed message's length, a difference of two places in it, `to` never before `from`
     const unsigned long long length = (unsigned long long)(to - from);
@@ -73,8 +73,8 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
     const unsigned long long parts = many * sizeof(CliGitPart);
     const unsigned long long pointers = ((many + 8ULL) + (many * 2ULL)) * sizeof(const char *);
     const unsigned long long marks = many * (sizeof(unsigned int) + sizeof(int));
-    char *const cell = g_cli_cells->persistent_buf_alloc(
-        parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + capacity, &g_cli_git_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(
+        parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + capacity, g_cli_git_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "a commit's work state could not be allocated");
@@ -98,7 +98,7 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
 EMBED_INLINE int cli_message(const GitCommitCtx *args)
 {
     const char *from = args->message;
-    const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL});
+    const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     VerbaLinea line = {s_committing.message, s_committing.message_capacity, 0ULL};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
@@ -148,7 +148,7 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
             return 0;
         }
     }
-    char *const run_result_cell = g_cli_cells->temporary_buf_alloc(CLI_GIT_OUTPUT_CAPACITY, &g_cli_git_cells);
+    char *const run_result_cell = g_cli_guard->temporary_buf_alloc(CLI_GIT_OUTPUT_CAPACITY, g_cli_git_owner);
     VerbaLinea run_result = mmgr_line_over(run_result_cell, CLI_GIT_OUTPUT_CAPACITY);
     if (run_result.out == NULL)
     {
@@ -179,7 +179,7 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
         EMBED_CALL(cli_git_length_out_internal.commit_line, CliGitLengthOutCtx, .output = run_result.out,
                    .length = run_result.at, .out = out);
     }
-    g_cli_cells->persistent_buf_release(run_result.out, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(run_result.out, g_cli_git_owner);
     return made;
 }
 
@@ -224,7 +224,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     mmgr_line_put(&joined, absolute ? "" : "/");
     mmgr_line_put(&joined, named);
     mmgr_line_finish(&joined);
-    char *const run_result_cell = g_cli_cells->temporary_buf_alloc(CLI_GIT_OUTPUT_CAPACITY, &g_cli_git_cells);
+    char *const run_result_cell = g_cli_guard->temporary_buf_alloc(CLI_GIT_OUTPUT_CAPACITY, g_cli_git_owner);
     VerbaLinea run_result = mmgr_line_over(run_result_cell, CLI_GIT_OUTPUT_CAPACITY);
     if (run_result.out == NULL)
     {
@@ -273,7 +273,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
         mode_length = EMBED_CALL(
             cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = list_entries, .at = mode_length,
             .size =
-                mode_length + cellul.len(&(CatenaFinitaCfg){.src = list_entries + mode_length, .cap = CLI_CELLS_POOL}),
+                mode_length + cellul.len(&(CatenaFinitaCfg){.src = list_entries + mode_length, .cap = CLI_POOL_BYTES}),
             .set = " \t\n");
         char info[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
         VerbaLinea cacheinfo = {info, sizeof(info), 0ULL};
@@ -327,7 +327,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
         EMBED_CALL(cli_git_length_out_internal.commit_line, CliGitLengthOutCtx, .output = run_result.out,
                    .length = run_result.at, .out = out);
     }
-    g_cli_cells->persistent_buf_release(run_result.out, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(run_result.out, g_cli_git_owner);
     return made;
 }
 
@@ -350,7 +350,7 @@ EMBED_INLINE int cli_own(const GitCommitCtx *args)
         const char *const owner =
             EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = s_repos, .count = s_repositories.count,
                        .path = args->paths[at],
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_POOL_BYTES}));
         if (owner == NULL)
         {
             mmgr_line_put(args->err_msg, "no repository contains ");
@@ -382,7 +382,7 @@ EMBED_INLINE void cli_repo_folder(const GitCommitCtx *args)
 // a path of the tree as its repository's folder gives it
 EMBED_INLINE const char *cli_short(const GitCommitCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_repos[args->repo], .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_repos[args->repo], .cap = CLI_POOL_BYTES});
     return (length == 0ULL) ? args->path : (args->path + length + 1ULL);
 }
 
@@ -440,11 +440,11 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
             ok = 0;
         }
     }
-    g_cli_cells->persistent_buf_release(s_repositories.text.bytes, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_repositories.text.bytes, g_cli_git_owner);
     s_repositories.text.bytes = NULL;
     s_repositories.text.used = 0ULL;
     s_repositories.text.capacity = 0ULL;
-    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
     s_committing = (CliCommitting){0};
     return ok;
 }
@@ -490,7 +490,7 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
             for (unsigned int each = 0u; (part == args->part_count) && (each < args->part_count); each += 1u)
             {
                 part = (cellul.eq(&(CatenaFinitaCfg){
-                           .src = args->parts[each].path, .other = s_committing.paths[at], .cap = CLI_CELLS_POOL}))
+                           .src = args->parts[each].path, .other = s_committing.paths[at], .cap = CLI_POOL_BYTES}))
                            ? each
                            : part;
             }
@@ -534,11 +534,11 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         }
         first += 1u;
     }
-    g_cli_cells->persistent_buf_release(s_repositories.text.bytes, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_repositories.text.bytes, g_cli_git_owner);
     s_repositories.text.bytes = NULL;
     s_repositories.text.used = 0ULL;
     s_repositories.text.capacity = 0ULL;
-    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
     s_committing = (CliCommitting){0};
     return ok;
 }

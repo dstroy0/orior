@@ -171,13 +171,13 @@ EMBED_INLINE int query_part_write(const WriteCtx *args)
 int query_write_words(const QueryLoopsErrMsgWordsCfg *args)
 {
     if ((args->count >= 1u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "bridge", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "bridge", .cap = CLI_POOL_BYTES})))
     {
         return QUERY_WRITE_BRIDGE;
     }
     if ((args->count == 1u) &&
-        ((cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "krs", .cap = CLI_CELLS_POOL})) ||
-         (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "gsm", .cap = CLI_CELLS_POOL}))))
+        ((cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "krs", .cap = CLI_POOL_BYTES})) ||
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "gsm", .cap = CLI_POOL_BYTES}))))
     {
         return (args->words[0][0] == 'k') ? QUERY_WRITE_KRS : QUERY_WRITE_GSM;
     }
@@ -239,7 +239,7 @@ EMBED_INLINE int query_flagged_names(const WriteCtx *args)
     {
         unsigned int flag = 0u;
         while ((flag < 3u) &&
-               !cellul.eq(&(CatenaFinitaCfg){.src = args->plain[at], .other = s_flags[flag], .cap = CLI_CELLS_POOL}))
+               !cellul.eq(&(CatenaFinitaCfg){.src = args->plain[at], .other = s_flags[flag], .cap = CLI_POOL_BYTES}))
         {
             flag += 1u;
         }
@@ -266,7 +266,7 @@ EMBED_INLINE int query_bare_names(const WriteCtx *args)
 {
     for (unsigned int at = 0u; at < args->plains; at += 1u)
     {
-        if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->plain[at], .other = "--", .cap = CLI_CELLS_POOL})) ||
+        if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->plain[at], .other = "--", .cap = CLI_POOL_BYTES})) ||
             (*args->named >= 3u))
         {
             return 0;
@@ -341,7 +341,7 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
     *dry = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--dry", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--dry", .cap = CLI_POOL_BYTES}))
         {
             *dry = 1;
         }
@@ -353,9 +353,9 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
     }
     *named = 0u;
     const int flagged =
-        (plains != 0u) && ((cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--from", .cap = CLI_CELLS_POOL})) ||
-                           (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--to", .cap = CLI_CELLS_POOL})) ||
-                           (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--part", .cap = CLI_CELLS_POOL})));
+        (plains != 0u) && ((cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--from", .cap = CLI_POOL_BYTES})) ||
+                           (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--to", .cap = CLI_POOL_BYTES})) ||
+                           (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--part", .cap = CLI_POOL_BYTES})));
     const int read = flagged ? EMBED_CALL(query_flagged_names, WriteCtx, .plain = plain, .plains = plains,
                                           .names = args->names_letters, .named = named)
                              : EMBED_CALL(query_bare_names, WriteCtx, .plain = plain, .plains = plains,

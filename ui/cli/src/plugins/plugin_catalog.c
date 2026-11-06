@@ -15,7 +15,7 @@
 // names another id or version than its catalog's entry is not installed. What a plugin reads, writes and reaches on
 // the network is what its own plugin.json declares (plugins.h); the window restricts it to that. Nothing is read from a
 // catalog or installed but when the reader requests it, and a plugin is updated only by installing it again
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "plugin_catalog_internal.h"
 
 #include "../machine/net.h"
@@ -43,13 +43,13 @@ int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
 
 unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args)
 {
-    g_cli_cells->persistent_buf_release(g_cli_catalog->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                             .cell = g_cli_catalog->json.node));
+    g_cli_guard->persistent_buf_release(g_cli_catalog->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_catalog->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_catalog->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                       .json = &g_cli_catalog->json, .text = args->text, .size = args->size_value, .nodes_more = 0u,
-                      .text_more = 0ull, .err_msg = args->err_msg, .owner = &g_cli_plugins_cells);
+                      .text_more = 0ull, .err_msg = args->err_msg, .owner = g_cli_plugins_owner);
 }
 
 typedef struct
@@ -80,18 +80,18 @@ EMBED_INLINE int catalog_absolute(const PluginCatalogCtx *args)
 void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)
 {
     if ((cellul.find(&(CatenaFinitaCfg){
-             .src = args->address, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL) ||
+             .src = args->address, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) != NULL) ||
         EMBED_CALL(catalog_absolute, PluginCatalogCtx, .path = args->address))
     {
         mmgr_line_put(args->out, args->address);
         return;
     }
     if (cellul.find(&(CatenaFinitaCfg){
-            .src = args->base, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
+            .src = args->base, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         const char *const cut = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = args->base,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}), .byte = '/');
         if (cut != NULL)
         {
             mmgr_line_put_n(args->out, args->base, (unsigned long long)(cut - args->base));
@@ -103,7 +103,7 @@ void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)
     char parent[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->base, .out = parent))
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_POOL_BYTES});
         mmgr_line_put(args->out, parent);
         if ((length > 0u) && (parent[length - 1u] != '/') && (parent[length - 1u] != '\\'))
         {

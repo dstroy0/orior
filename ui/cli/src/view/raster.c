@@ -134,7 +134,7 @@ int gui_raster_init(const GuiRasterWidthXCfg *args)
     args->raster->pages = NULL;
     args->raster->pages_bytes = 0ULL;
     args->raster->positioned = 0ULL;
-    args->raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_raster_cells);
+    args->raster->pixels = g_cli_guard->persistent_buf_alloc(bytes, g_gui_raster_owner);
     if (args->raster->pixels == NULL)
     {
         return 0;

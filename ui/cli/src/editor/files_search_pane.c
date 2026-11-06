@@ -10,7 +10,7 @@
 // word
 #include "files.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "../text/typed.h"
@@ -98,7 +98,7 @@ EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
         *args->count_out = 0u;
     }
     const unsigned long long size =
-        (sets != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = sets, .cap = CLI_CELLS_POOL}) : 0ULL;
+        (sets != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = sets, .cap = CLI_POOL_BYTES}) : 0ULL;
     for (unsigned long long at = 0ULL; at < size;)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -245,7 +245,7 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     Search *const search = &s_search;
     search->waits = 0;
     search->searched = 0;
-    g_cli_cells->persistent_buf_release(s_search.cell, &g_cli_search_pane_cells);
+    g_cli_guard->persistent_buf_release(s_search.cell, g_cli_search_pane_owner);
     s_search.cell = NULL;
     s_search.file = NULL;
     s_search.match = NULL;
@@ -271,7 +271,7 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
         groups_at + SEARCH_ALIGNED(sizeof(CliRegexpSpan) * (CLI_REGEXP_GROUPS + 1ULL));
     const unsigned long long scratch_bytes =
         search->how.regex ? letters_at + SEARCH_ALIGNED(sizeof(unsigned int) * SEARCH_LETTERS) : regexp_at;
-    char *const scratch = g_cli_cells->temporary_buf_alloc(scratch_bytes, &g_cli_search_pane_cells);
+    char *const scratch = g_cli_guard->temporary_buf_alloc(scratch_bytes, g_cli_search_pane_owner);
     if (scratch == NULL)
     {
         cli_search_standing_free();
@@ -298,14 +298,14 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     const unsigned int files = cli_search_standing_files();
     const unsigned int hits = cli_search_standing_count();
     const unsigned long long files_bytes = (unsigned long long)files * sizeof(SearchFile);
-    search->cell = g_cli_cells->persistent_buf_alloc(
+    search->cell = g_cli_guard->persistent_buf_alloc(
         CLI_SEARCH_REPORT + files_bytes + (regexp_read ? (unsigned long long)hits * sizeof(unsigned int) : 0ULL),
-        &g_cli_search_pane_cells);
+        g_cli_search_pane_owner);
     if (search->cell == NULL)
     {
         search->searched = 0;
         cli_search_standing_free();
-        g_cli_cells->persistent_buf_release(scratch, &g_cli_search_pane_cells);
+        g_cli_guard->persistent_buf_release(scratch, g_cli_search_pane_owner);
         return;
     }
     search->file = (SearchFile *)(void *)(search->cell + CLI_SEARCH_REPORT);
@@ -344,7 +344,7 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
         mmgr_line_put(&report, (files == 1u) ? " file" : " files");
     }
     search->report_length = mmgr_line_finish(&report) ? report.at : 0ULL;
-    g_cli_cells->persistent_buf_release(scratch, &g_cli_search_pane_cells);
+    g_cli_guard->persistent_buf_release(scratch, g_cli_search_pane_owner);
 }
 
 // a change to the query or its choices at `now_ms`: the rest begins
@@ -361,7 +361,7 @@ void cli_search_pane_begin(const CliSearchPaneCfg *args)
     Search *const search = &s_search;
     search->patterns = (search->patterns != NULL)
                            ? search->patterns
-                           : g_cli_cells->persistent_buf_alloc(sizeof(CliPatterns), &g_cli_search_pane_cells);
+                           : g_cli_guard->persistent_buf_alloc(sizeof(CliPatterns), g_cli_search_pane_owner);
     if (search->patterns == NULL)
     {
         return;
@@ -379,7 +379,7 @@ void cli_search_pane_type(const CliSearchPaneCfg *args)
 {
     const unsigned long long before = s_search.query.length;
     EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &s_search.query, .text = args->text, .size = args->size,
-               .most = CLI_SEARCH_QUERY_MAX, .owner = &g_cli_search_pane_cells);
+               .most = CLI_SEARCH_QUERY_MAX, .owner = g_cli_search_pane_owner);
     if (s_search.query.length != before)
     {
         EMBED_CALL(search_changed, FilesSearchPaneCtx, .now_ms = args->now_ms);
@@ -390,7 +390,7 @@ int cli_search_pane_key(const CliSearchPaneCfg *args)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Backspace", .cap = 16ULL}))
     {
-        EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &s_search.query, .owner = &g_cli_search_pane_cells);
+        EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &s_search.query, .owner = g_cli_search_pane_owner);
         EMBED_CALL(search_changed, FilesSearchPaneCtx, .now_ms = args->now_ms);
         return 1;
     }
@@ -421,8 +421,8 @@ void cli_search_pane_option(const CliSearchPaneCfg *args)
         search->set = (search->set < search->sets) ? search->set + 1u : 0u;
         search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set);
         // the set's name saved as its own text, with the folder it is saved in, in the temporary tier for the save
-        char *const folder = g_cli_cells->temporary_buf_alloc(
-            CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN + search->set_name_length + 1ULL, &g_cli_search_pane_cells);
+        char *const folder = g_cli_guard->temporary_buf_alloc(
+            CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN + search->set_name_length + 1ULL, g_cli_search_pane_owner);
         if (folder == NULL)
         {
             break;
@@ -437,7 +437,7 @@ void cli_search_pane_option(const CliSearchPaneCfg *args)
             (void)cli_state_value_save(
                 &(CliStateValueCfg){.folder = folder, .key = SEARCH_SET_KEY, .value = value, .err_msg = &err_msg});
         }
-        g_cli_cells->persistent_buf_release(folder, &g_cli_search_pane_cells);
+        g_cli_guard->persistent_buf_release(folder, g_cli_search_pane_owner);
         break;
     }
     default:

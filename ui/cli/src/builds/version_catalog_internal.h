@@ -120,7 +120,6 @@ typedef struct
 // the catalog read, under the catalog reader's lock (version_catalog_read.c); and the cells the catalogs' reader,
 // check and aliases occupy (version_catalog_cells.c)
 extern CliVersionsParsed g_cli_versions;
-extern CellOwner g_cli_versions_cells;
 
 // `size` bytes of a catalog's text counted, each part of the catalog read taken as a cell of as many as the text can
 // make, up to its most: 1, or 0 where the cellblock could not meet one and none is allocated; the catalog read's cells

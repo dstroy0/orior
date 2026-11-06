@@ -54,7 +54,7 @@ static void assert_statement_at(const char *required, unsigned long long at)
 static unsigned long long position_of(const char *needle)
 {
     // the needle lies in the sample, at or past its start
-    return (unsigned long long)(cellul.find(&(CatenaFinitaCfg){.src = s_positions, .cap = CLI_CELLS_POOL, .other = needle, .other_cap = CLI_CELLS_POOL}) - s_positions);
+    return (unsigned long long)(cellul.find(&(CatenaFinitaCfg){.src = s_positions, .cap = CLI_POOL_BYTES, .other = needle, .other_cap = CLI_POOL_BYTES}) - s_positions);
 }
 
 // the count `statement` asks for is `required`, NULL for none

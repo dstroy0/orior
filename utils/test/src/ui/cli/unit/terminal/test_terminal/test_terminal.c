@@ -11,7 +11,7 @@
 // panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder and the
 // rows standing at the end written to its history; and the panel's menu, Split Terminal shown on while a shell stands
 // beside the one shown, opened where it was asked for
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/machine/state.h"
@@ -197,7 +197,7 @@ void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
 
 void tearDown(void)
 {
-    g_cli_cells->persistent_buf_release(s_xterm.cell, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(s_xterm.cell, g_cli_terminal_owner);
     s_xterm.cell = NULL;
     if (s_stored)
     {
@@ -589,7 +589,7 @@ static CliStateEntries *entries_read(void)
 {
     char folder[CLI_PATH_MAX_LEN];
     return EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
-               ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_checks_cells})
+               ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_checks_owner})
                : NULL;
 }
 
@@ -599,7 +599,7 @@ static void place_restored(void)
     CliStateEntries *const entries = entries_read();
     TEST_ASSERT_NOT_NULL(entries);
     cli_terminal_tabs_restore(entries, NULL);
-    g_cli_cells->persistent_buf_release(entries, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(entries, g_checks_owner);
 }
 
 void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
@@ -682,14 +682,14 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     terminal_ended();
     unsigned long long size = 0ull;
     const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = history_path,
-                                                    .size_pointer = &size, .owner = &g_cli_terminal_cells);
+                                                    .size_pointer = &size, .owner = g_cli_terminal_owner);
     TEST_ASSERT_NOT_NULL(history);
     int found = 0;
     for (unsigned long long at = 0ull; (at + 12ull) <= size; at += 1ull)
     {
         found = found || (memcmp(history + at, "place_folder", 12u) == 0);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)history, (&g_cli_terminal_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_terminal_owner));
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
 }
 

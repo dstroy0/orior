@@ -148,8 +148,6 @@ typedef struct
 // the cells the store occupies while it reads a document; the store made empty; the document at `key` read where it was
 // not, a bundled meta-schema, a file, or a schema stored from an earlier fetch: its root, CLI_SCHEMA_NONE where none
 // could be read; and the file a schema fetched from `url` is stored in, into `out`: 1, or 0 where orior_cli has no
-// folder of its own (schema_store.c)
-extern CellOwner g_cli_schema_cells;
 void cli_schema_store_begin(const CliSchemaStoreCtx *args);
 unsigned int cli_schema_load(const CliSchemaStoreCtx *args);
 int cli_schema_cache_path(const CliSchemaUrlCtx *args);

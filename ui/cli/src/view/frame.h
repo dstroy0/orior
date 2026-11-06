@@ -55,6 +55,12 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // how far either side of the panel's top line its grip reaches, the 6px grip set 3px above it
 #define GUI_TERMINAL_GRIP 3
 
+// the preview's modes as the frame lays them, the numbers of the CLI's CLI_PREVIEW_OFF, CLI_PREVIEW_BESIDE and
+// CLI_PREVIEW_ALONE
+#define GUI_FRAME_PREVIEW_OFF 0
+#define GUI_FRAME_PREVIEW_BESIDE 1
+#define GUI_FRAME_PREVIEW_ALONE 2
+
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_FIXED_ONE 65536
 // the parts a fading part's share stands at, sixteenths, which the base lays the part's ground at and its colors fade
@@ -121,7 +127,9 @@ typedef struct
 // the left by that share of its own size, which is where the pane is drawn, and the share of it shown, its opacity at
 // the parts a fading part's share stands at; and the terminal's panel as it arrives: the share of its way left,
 // GUI_FIXED_ONE as it begins and 0 arrived, the panel's rectangle and its views' moved down by that share of
-// GUI_TERMINAL_ARRIVES, which is where the panel is drawn, and the share of it shown, its opacity at those parts
+// GUI_TERMINAL_ARRIVES, which is where the panel is drawn, and the share of it shown, its opacity at those parts; and
+// the preview's mode, one of GUI_FRAME_PREVIEW_*, with its rectangle: none while it is off, the editor's right half
+// beside the text, and the editor's whole rectangle alone, the editor left no width under it
 typedef struct
 {
     unsigned int width;
@@ -129,6 +137,8 @@ typedef struct
     int scale;
     int side_displayed;
     int terminal_height;
+    int preview_mode;
+    GuiRect preview;
     GuiAutohideNumbers claim;
     GuiRect bar;
     GuiRect controls;
@@ -177,6 +187,9 @@ void gui_frame_layout(const GuiFrameScaleCfg *args);
 // none where `height` is 0
 void gui_frame_side(const GuiFrameDisplayedCfg *args);
 void gui_frame_terminal(const GuiFrameDisplayedCfg *args);
+// the work's inside laid again with the preview's mode `displayed`: off, the editor whole; beside, the editor's right
+// half the preview's; alone, the editor's rectangle the preview's and the editor left none of its width
+void gui_frame_preview(const GuiFrameDisplayedCfg *args);
 // the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the
 // claim runs, the bar, the strip and the status bar slid off and back as their reveals run, each a pane standing in
 // from the window's edges by the gap, the work giving each its inset as its inset runs, the tabs row and the map away
@@ -242,11 +255,13 @@ typedef struct
 {
     void (*side)(const GuiFrameDisplayedCfg *args);
     void (*terminal)(const GuiFrameDisplayedCfg *args);
+    void (*preview)(const GuiFrameDisplayedCfg *args);
 } GuiFrameDisplayedNs;
-EMBED_TABLE_LAYOUT(GuiFrameDisplayedNs, side, terminal);
+EMBED_TABLE_LAYOUT(GuiFrameDisplayedNs, side, terminal, preview);
 EMBED_TABLE_STORAGE GuiFrameDisplayedNs gui_frame_displayed EMBED_UNUSED = {
     .side = gui_frame_side,
     .terminal = gui_frame_terminal,
+    .preview = gui_frame_preview,
 };
 
 typedef struct

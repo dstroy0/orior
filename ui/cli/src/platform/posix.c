@@ -148,7 +148,7 @@ static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
     stat[size] = '\0';
     const char *const close =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stat,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stat, .cap = CLI_CELLS_POOL}), .byte = ')');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stat, .cap = CLI_POOL_BYTES}), .byte = ')');
     if (close == NULL)
     {
         return;
@@ -373,7 +373,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
     for (unsigned int path = 0u; path < 2u; path += 1u)
     {
         mmgr_line_put(&script, (path == 0u) ? "'" : " '");
-        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = paths[path], .cap = CLI_CELLS_POOL});
+        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = paths[path], .cap = CLI_POOL_BYTES});
         for (unsigned long long at = 0ULL; at < whole;)
         {
             const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,

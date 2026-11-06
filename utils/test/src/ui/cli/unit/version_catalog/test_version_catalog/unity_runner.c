@@ -86,22 +86,22 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\version_catalog\\test_version_catalog\\test_version_catalog.c");
   run_test(test_a_catalog_reads_its_sections_in_order_with_no_error, "test_a_catalog_reads_its_sections_in_order_with_no_error", 61);
-  run_test(test_a_librarys_alias_reads_its_module_and_version, "test_a_librarys_alias_reads_its_module_and_version", 80);
-  run_test(test_a_bundles_alias_reads_its_libraries, "test_a_bundles_alias_reads_its_libraries", 89);
-  run_test(test_a_version_reference_no_version_names_is_found, "test_a_version_reference_no_version_names_is_found", 97);
-  run_test(test_a_bundles_library_no_library_names_is_found, "test_a_bundles_library_no_library_names_is_found", 102);
-  run_test(test_a_library_of_two_parts_is_found, "test_a_library_of_two_parts_is_found", 107);
-  run_test(test_a_snapshot_is_a_note, "test_a_snapshot_is_a_note", 112);
-  run_test(test_a_section_no_catalog_has_is_found, "test_a_section_no_catalog_has_is_found", 121);
-  run_test(test_the_nearest_version_is_offered, "test_the_nearest_version_is_offered", 126);
-  run_test(test_a_snapshot_offers_the_command_that_refreshes_it, "test_a_snapshot_offers_the_command_that_refreshes_it", 133);
-  run_test(test_nothing_else_is_found, "test_nothing_else_is_found", 140);
-  run_test(test_a_sections_name_completes, "test_a_sections_name_completes", 146);
-  run_test(test_a_version_reference_completes, "test_a_version_reference_completes", 151);
-  run_test(test_a_tables_key_completes, "test_a_tables_key_completes", 158);
-  run_test(test_a_tables_key_completes_after_a_dot, "test_a_tables_key_completes_after_a_dot", 163);
-  run_test(test_a_bundles_library_completes, "test_a_bundles_library_completes", 170);
-  run_test(test_every_catalogs_memory_is_released, "test_every_catalogs_memory_is_released", 177);
+  run_test(test_a_librarys_alias_reads_its_module_and_version, "test_a_librarys_alias_reads_its_module_and_version", 122);
+  run_test(test_a_bundles_alias_reads_its_libraries, "test_a_bundles_alias_reads_its_libraries", 137);
+  run_test(test_a_version_reference_no_version_names_is_found, "test_a_version_reference_no_version_names_is_found", 151);
+  run_test(test_a_bundles_library_no_library_names_is_found, "test_a_bundles_library_no_library_names_is_found", 156);
+  run_test(test_a_library_of_two_parts_is_found, "test_a_library_of_two_parts_is_found", 161);
+  run_test(test_a_snapshot_is_a_note, "test_a_snapshot_is_a_note", 166);
+  run_test(test_a_section_no_catalog_has_is_found, "test_a_section_no_catalog_has_is_found", 175);
+  run_test(test_the_nearest_version_is_offered, "test_the_nearest_version_is_offered", 180);
+  run_test(test_a_snapshot_offers_the_command_that_refreshes_it, "test_a_snapshot_offers_the_command_that_refreshes_it", 187);
+  run_test(test_nothing_else_is_found, "test_nothing_else_is_found", 194);
+  run_test(test_a_sections_name_completes, "test_a_sections_name_completes", 200);
+  run_test(test_a_version_reference_completes, "test_a_version_reference_completes", 205);
+  run_test(test_a_tables_key_completes, "test_a_tables_key_completes", 212);
+  run_test(test_a_tables_key_completes_after_a_dot, "test_a_tables_key_completes_after_a_dot", 217);
+  run_test(test_a_bundles_library_completes, "test_a_bundles_library_completes", 224);
+  run_test(test_every_catalogs_memory_is_released, "test_every_catalogs_memory_is_released", 231);
 
   return UNITY_END();
 }

@@ -56,7 +56,7 @@ static CliGrammar s_read;
 
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args)
 {
-    EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_grammars_cells, .out = args->out);
+    cli_pool_owner_usage_write(g_cli_grammars_owner, args->out);
 }
 
 typedef struct
@@ -96,7 +96,7 @@ EMBED_INLINE void cli_grammar_append_out(const HighlightStoreCtx *args)
         atomic_fetch_or_explicit(&cli_grammar_head(args)->readers, CLI_GRAMMAR_APPEND_OUT, memory_order_acq_rel);
     if (readers == 0ULL)
     {
-        g_cli_cells->persistent_buf_release(args->region, &g_cli_grammars_cells);
+        g_cli_guard->persistent_buf_release(args->region, g_cli_grammars_owner);
     }
 }
 
@@ -108,7 +108,7 @@ EMBED_INLINE void cli_grammar_let_go(const HighlightStoreCtx *args)
         atomic_fetch_sub_explicit(&cli_grammar_head(args)->readers, 1ULL, memory_order_acq_rel);
     if (readers == (CLI_GRAMMAR_APPEND_OUT | 1ULL))
     {
-        g_cli_cells->persistent_buf_release(args->region, &g_cli_grammars_cells);
+        g_cli_guard->persistent_buf_release(args->region, g_cli_grammars_owner);
     }
 }
 
@@ -206,8 +206,8 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
 static int cli_grammars_init(void)
 {
     CliGrammarEntry *const cell = (s_grammar_capacity == 0u)
-                                      ? g_cli_cells->persistent_buf_alloc(
-                                            (unsigned long long)CLI_GRAMMARS_MAX * sizeof(*cell), &g_cli_grammars_cells)
+                                      ? g_cli_guard->persistent_buf_alloc(
+                                            (unsigned long long)CLI_GRAMMARS_MAX * sizeof(*cell), g_cli_grammars_owner)
                                       : NULL;
     if (cell == NULL)
     {
@@ -240,7 +240,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     {
         entry_at =
             (s_grammars[at].used &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].key, .other = args->key, .cap = CLI_CELLS_POOL})))
+             (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].key, .other = args->key, .cap = CLI_POOL_BYTES})))
                 ? at
                 : entry_at;
         free_at = (!s_grammars[at].used && (free_at == s_grammar_capacity)) ? at : free_at;
@@ -251,7 +251,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
         s_grammars[entry_at].used = 0;
         free_at = entry_at;
     }
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN)
     {
         mmgr_line_put(err_msg, "a grammar's key is longer than orior_cli supports");
         return 0;
@@ -262,7 +262,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
     }
-    unsigned char *const region = g_cli_cells->persistent_buf_alloc(CLI_GRAMMAR_HEAD + size, &g_cli_grammars_cells);
+    unsigned char *const region = g_cli_guard->persistent_buf_alloc(CLI_GRAMMAR_HEAD + size, g_cli_grammars_owner);
     if (region == NULL)
     {
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
@@ -272,7 +272,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     CliGrammarEntry *const grammar = &s_grammars[free_at];
     memor.cpy(&(MemoriaCfg){.dst = grammar->key,
                             .src = args->key,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) + 1u});
     grammar->region = region;
     grammar->size = size;
     EMBED_CALL(cli_copy, HighlightStoreCtx, .read = &s_read, .region = region + CLI_GRAMMAR_HEAD,
@@ -371,9 +371,9 @@ EMBED_INLINE unsigned char *cli_grammar_capacity(const HighlightStoreCtx *args)
     args->work_state->own_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_OWN);
     args->work_state->text_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = (4ULL * bytes) + nodes + 1ULL, .limit = CLI_GRAMMAR_TEXT);
-    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
         EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .work_state = args->work_state, .cell = NULL),
-        &g_cli_grammars_cells);
+        g_cli_grammars_owner);
     if (cell != NULL)
     {
         (void)EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .work_state = args->work_state, .cell = cell);
@@ -426,7 +426,7 @@ EMBED_INLINE CliHighlightWorkState *cli_coloring_capacity(const HighlightStoreCt
     unsigned long long most = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_CELLS_POOL});
+        const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_POOL_BYTES});
         most = (bytes > most) ? bytes : most;
     }
     args->highlight_work_state_pointer->most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
@@ -434,10 +434,10 @@ EMBED_INLINE CliHighlightWorkState *cli_coloring_capacity(const HighlightStoreCt
     // each line's ending, and the byte the endings reserve back for their terminator
     args->highlight_work_state_pointer->endings_size =
         (args->highlight_work_state_pointer->count * CLI_HIGHLIGHT_ENDING) + 1ULL;
-    *cell = g_cli_cells->temporary_buf_alloc(
+    *cell = g_cli_guard->temporary_buf_alloc(
         EMBED_CALL(cli_coloring_parts, HighlightStoreCtx,
                    .highlight_work_state_pointer = args->highlight_work_state_pointer, .cell = NULL),
-        &g_cli_grammars_cells);
+        g_cli_grammars_owner);
     if (*cell == NULL)
     {
         return NULL;
@@ -455,7 +455,7 @@ int cli_highlight_store(const CliHighlightKeyJsonCfg *args)
     const int stored =
         (cell != NULL) && EMBED_CALL(cli_grammar_store, HighlightStoreCtx, .key = args->key, .json = args->json,
                                      .def = args->def, .work_state = &work_state, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_grammars_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "no capacity to read a grammar into");
@@ -470,7 +470,7 @@ EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
     while (
         (entry_at < s_grammar_capacity) &&
         !(s_grammars[entry_at].used &&
-          (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[entry_at].key, .other = args->key, .cap = CLI_CELLS_POOL}))))
+          (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[entry_at].key, .other = args->key, .cap = CLI_POOL_BYTES}))))
     {
         entry_at += 1u;
     }
@@ -516,7 +516,7 @@ static int cli_color(const HighlightStoreCtx *args)
                    .work_state = work_state, .state = args->colored->state, .lines = args->colored->lines,
                    .count = args->colored->count, .out = args->colored->out);
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_grammars_owner);
     EMBED_CALL(cli_grammar_let_go, HighlightStoreCtx, .region = region);
     if (work_state == NULL)
     {
@@ -570,7 +570,7 @@ unsigned int cli_highlight_state(const CliHighlightNameCtx *args)
     for (unsigned int at = 0u; at < args->grammar->states; at += 1u)
     {
         const char *const named = args->grammar->text + args->grammar->state[at].name;
-        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) == args->length) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) == args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = named, .other = args->name, .bytes = args->length}) == 0))
         {
             return at;

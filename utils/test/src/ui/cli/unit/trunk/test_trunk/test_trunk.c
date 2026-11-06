@@ -133,7 +133,7 @@ void test_nothing_of_the_list_remains_after_it(void)
 {
     repository_listing("trunk_opened");
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root));
-    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(&g_cli_files_views_cells));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_files_views_owner));
 }
 
 void test_the_tree_is_listing_as_it_opens(void)
@@ -325,17 +325,17 @@ void test_a_changed_branch_walked_releases_no_cell_it_did_not_take(void)
     static const char *const s_changed[1] = {"src/a.c"};
     const unsigned long long words = 1ull << 22u;
     repository_listing("trunk_walked");
-    void *const standing = g_cli_cells->persistent_buf_alloc(64u, &g_cli_code_cells);
+    void *const standing = g_cli_guard->persistent_buf_alloc(64u, g_cli_code_owner);
     TEST_ASSERT_NOT_NULL(standing);
-    void **const stale = g_cli_cells->temporary_buf_alloc(words * sizeof(*stale), &g_cli_code_cells);
+    void **const stale = g_cli_guard->temporary_buf_alloc(words * sizeof(*stale), g_cli_code_owner);
     TEST_ASSERT_NOT_NULL(stale);
     for (unsigned long long at = 0ull; at < words; at += 1ull)
     {
         stale[at] = standing;
     }
-    g_cli_cells->persistent_buf_release(stale, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(stale, g_cli_code_owner);
     EMBED_CALL(cli_symbols_root.tree_branches_walk, CliSymbolsRootCfg, .root = s_root, .paths = s_changed, .count = 1u);
-    TEST_ASSERT_EQUAL_PTR(&g_cli_code_cells, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = standing));
-    g_cli_cells->persistent_buf_release(standing, &g_cli_code_cells);
+    TEST_ASSERT_EQUAL_PTR(g_cli_code_owner, mmgr_owner_of_buf(cli_pool_series_cellularum(), standing));
+    g_cli_guard->persistent_buf_release(standing, g_cli_code_owner);
 }
 

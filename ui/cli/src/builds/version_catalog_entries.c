@@ -307,11 +307,11 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
     const char *const dot = memor.chr(&(MemoriaCfg){.src = named, .val = '.', .bytes = line.at});
     const unsigned long long head = (dot != NULL) ? (unsigned long long)(dot - named) : line.at;
     for (unsigned int at = 0u;
-         (cellul.eq(&(CatenaFinitaCfg){.src = args->section, .other = "libraries", .cap = CLI_CELLS_POOL})) &&
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->section, .other = "libraries", .cap = CLI_POOL_BYTES})) &&
          (at < 6u);
          at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_reserved[at], .cap = CLI_CELLS_POOL}) == head) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_reserved[at], .cap = CLI_POOL_BYTES}) == head) &&
             (memor.cmp(&(MemoriaCfg){.src = s_reserved[at], .other = named, .bytes = (size_t)head}) == 0))
         {
             VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
@@ -353,8 +353,8 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     static CliVersionsCheck s_check;
     if (!cli_version_catalog_text_internal.versions_parse(args))
     {
-        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+        g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
         g_cli_versions_libraries.at = NULL;
         g_cli_versions_libraries.size = NULL;
         g_cli_versions_libraries.text = NULL;
@@ -362,8 +362,8 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
         g_cli_versions_libraries.most = 0u;
         g_cli_versions_libraries.used = 0u;
         g_cli_versions_libraries.capacity = 0u;
-        g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+        g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
         g_cli_versions_known.at = NULL;
         g_cli_versions_known.size = NULL;
         g_cli_versions_known.text = NULL;
@@ -372,12 +372,12 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
         g_cli_versions_known.used = 0u;
         g_cli_versions_known.capacity = 0u;
         CliVersionsParsed *const parsed = &g_cli_versions;
-        g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+        g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
         parsed->line = NULL;
         parsed->pool = NULL;
         parsed->error = NULL;
@@ -426,7 +426,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
     s_check.capacity = g_cli_versions.used + 2ULL;
-    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ULL * s_check.capacity, &g_cli_versions_cells);
+    s_check.coordinates = g_cli_guard->persistent_buf_alloc(3ULL * s_check.capacity, g_cli_versions_owner);
     s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.capacity : NULL;
     const int met = (s_check.coordinates != NULL) &&
                     EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,
@@ -441,7 +441,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
         unsigned int kind = 5u;
         for (unsigned int one = 0u; one < 5u; one += 1u)
         {
-            kind = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_sections[one], .cap = CLI_CELLS_POOL})) ? one
+            kind = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_sections[one], .cap = CLI_POOL_BYTES})) ? one
                                                                                                                  : kind;
         }
         if (kind == 5u)
@@ -475,11 +475,11 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(s_check.coordinates, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(s_check.coordinates, g_cli_versions_owner);
     s_check.coordinates = NULL;
     s_check.full = NULL;
-    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
     g_cli_versions_libraries.at = NULL;
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
@@ -487,8 +487,8 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     g_cli_versions_libraries.most = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
-    g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
     g_cli_versions_known.at = NULL;
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
@@ -497,12 +497,12 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;

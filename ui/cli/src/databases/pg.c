@@ -3,7 +3,7 @@
 // pg.c: a PostgreSQL connection's messages, read off the socket through a capacity of their own and sent whole; a
 // statement started by the simple query protocol, its rows read a page at a time, and a statement running stopped by
 // a cancel request
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"
 #include "pg_internal.h"
@@ -194,7 +194,7 @@ void cli_pg_parameter_store(const CliPgBodyCtx *args)
     unsigned int place = args->pg->parameters;
     for (unsigned int at = 0u; at < args->pg->parameters; at += 1u)
     {
-        place = ((cellul.len(&(CatenaFinitaCfg){.src = args->pg->names[at], .cap = CLI_CELLS_POOL}) == key) &&
+        place = ((cellul.len(&(CatenaFinitaCfg){.src = args->pg->names[at], .cap = CLI_POOL_BYTES}) == key) &&
                  (memor.cmp(&(MemoriaCfg){.src = args->pg->names[at], .other = args->body, .bytes = (size_t)key}) == 0))
                     ? at
                     : place;
@@ -248,7 +248,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     {
         at += 1u;
     }
-    pg = (at < CLI_PG_LINKS) ? g_cli_cells->persistent_buf_alloc(sizeof(CliPg), &g_cli_db_cells) : NULL;
+    pg = (at < CLI_PG_LINKS) ? g_cli_guard->persistent_buf_alloc(sizeof(CliPg), g_cli_db_owner) : NULL;
     if (pg != NULL)
     {
         pg->place = at;
@@ -277,7 +277,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
         s_links[pg->place] = NULL;
         mmgr_zero_buf(pg, sizeof(*pg));
-        g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
+        g_cli_guard->persistent_buf_release(pg, g_cli_db_owner);
         return NULL;
     }
     EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = within);
@@ -288,7 +288,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &pg->socket);
         s_links[pg->place] = NULL;
         mmgr_zero_buf(pg, sizeof(*pg));
-        g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
+        g_cli_guard->persistent_buf_release(pg, g_cli_db_owner);
         return NULL;
     }
     EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = 0u);
@@ -303,5 +303,5 @@ void cli_pg_close(const CliPgFailureSqlCfg *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->pg->socket);
     s_links[args->pg->place] = NULL;
     mmgr_zero_buf(args->pg, sizeof(*args->pg));
-    g_cli_cells->persistent_buf_release(args->pg, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(args->pg, g_cli_db_owner);
 }

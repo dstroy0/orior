@@ -39,7 +39,7 @@ static char s_groups_after[1024];
 // whether a tree of Python files alone contains a file of the name or the ending `kind`
 static int python_tree_contains(const CliEachKindCfg *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = ".py", .cap = CLI_CELLS_POOL});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = ".py", .cap = CLI_POOL_BYTES});
 }
 
 // whether the check reported tool `id` of its array `tools` is used
@@ -48,7 +48,7 @@ static int tool_used(const CliJson *json, unsigned int tools, const char *id)
     for (unsigned int tool = json->node[tools].first; tool != CLI_JSON_NONE; tool = json->node[tool].next)
     {
         const char *const named = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "id"), .length_pointer = NULL);
-        if ((named != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = named, .other = id, .cap = CLI_CELLS_POOL}))
+        if ((named != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = named, .other = id, .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "used"), .kind = CFG_JSON_TRUE);
         }
@@ -83,8 +83,8 @@ static void reader_groups_read(char *out, unsigned long long capacity)
         mmgr_line_put(&line, (group != NULL) ? group : "");
     }
     (void)mmgr_line_finish(&line);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -155,12 +155,31 @@ void tearDown(void)
 
 void test_a_read_the_cells_refuse_reports_no_chosen_folder(void)
 {
+    enum
+    {
+        FILLS_MOST = 4096
+    };
+    static void *s_fills[FILLS_MOST];
+    static const unsigned long long s_fill_sizes[] = {1ull << 20u, 4096ull, 8ull};
     unsigned int reported = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = 256ull));
+    unsigned int fills = 0u;
+    // the pool filled to the word, in cells of a mebibyte, then of a page, then of a word: every take after refuses
+    for (unsigned int size = 0u; size < 3u; size += 1u)
+    {
+        void *cell = g_cli_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
+        while ((cell != NULL) && (fills < FILLS_MOST))
+        {
+            s_fills[fills] = cell;
+            fills += 1u;
+            cell = g_cli_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
+        }
+    }
     EMBED_CALL(cli_toolchains_context.chosen_each, CliToolchainsContextCfg, .each_callback = chosen_counted, .context = &reported);
-    const int remade = EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    for (unsigned int at = 0u; at < fills; at += 1u)
+    {
+        g_cli_guard->persistent_buf_release(s_fills[at], g_checks_owner);
+    }
     TEST_ASSERT_EQUAL_UINT(0u, reported);
-    TEST_ASSERT_TRUE(remade);
 }
 
 void test_posix_a_login_shells_path_is_read(void)
@@ -213,8 +232,8 @@ void test_the_jobs_need_git_bash_and_python(void)
             mmgr_line_put(&line, (id != NULL) ? id : "");
         }
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CLI_TEST_ASSERT_TEXT("git|bash|python", needed, line.at);
@@ -268,9 +287,9 @@ void test_the_next_search_reads_what_was_stored(void)
     CliFound found;
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 0, .seen = NULL, .context_read = NULL, .out = &out);
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_checks_cells);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_checks_owner);
     const int cached = EMBED_CALL(cli_toolchains_id_internal.found_cache, CliToolchainsIdCtx, .id = "git", .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = count, .found = &found);
-    g_cli_cells->persistent_buf_release(path, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(path, g_checks_owner);
     TEST_ASSERT_TRUE(cached);
 }
 
@@ -290,7 +309,7 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the program's own bytes are toolchains.json's text
-    const unsigned int read = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)g_cli_toolchains_json, .size = g_cli_toolchains_json_size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    const unsigned int read = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)g_cli_toolchains_json, .size = g_cli_toolchains_json_size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
     const unsigned int tools = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = read, .name = "tools");
     unsigned int count = 0u;
     int once = 1;
@@ -303,7 +322,7 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
         once = once && (id != NULL);
         for (unsigned int at = 0u; once && (at < count); at += 1u)
         {
-            once = !cellul.eq(&(CatenaFinitaCfg){.src = s_ids[at], .other = id_text, .cap = CLI_CELLS_POOL});
+            once = !cellul.eq(&(CatenaFinitaCfg){.src = s_ids[at], .other = id_text, .cap = CLI_POOL_BYTES});
         }
         memor.cpy(&(MemoriaCfg){.dst = s_ids[count], .src = id_text, .bytes = CLI_UNITY_LENGTH(id_text) + 1u});
         count += 1u;
@@ -314,11 +333,11 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
         for (unsigned int page = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = install, .kind = CFG_JSON_OBJECT) ? json.node[install].first : CLI_JSON_NONE; page != CLI_JSON_NONE; page = json.node[page].next)
         {
             const char *const address = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = page, .length_pointer = NULL);
-            paged = paged && (address != NULL) && cellul.starts(&(CatenaFinitaCfg){.src = address, .other = "https://", .cap = CLI_CELLS_POOL});
+            paged = paged && (address != NULL) && cellul.starts(&(CatenaFinitaCfg){.src = address, .other = "https://", .cap = CLI_POOL_BYTES});
         }
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_GREATER_THAN_UINT(0u, count);
@@ -452,8 +471,8 @@ void test_a_tool_in_a_chosen_folder_is_found_there_first(void)
     const unsigned int tool = EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json, .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json, .nodes_more = 0u, .text_more = 0ull), .id = "ghdl", .err_msg = &err_msg);
     CliFound found;
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool, .path_callback = NULL, .count = 0u, .found = &found);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, tool);
@@ -471,14 +490,14 @@ void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_on
     char ahead[2][CLI_PATH_MAX_LEN];
     cli_unity_folder("toolchains_ahead", ahead[0]);
     memor.cpy(&(MemoriaCfg){.dst = ahead[1], .src = ahead[0], .bytes = sizeof(ahead[0])});
-    char *const path = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_checks_cells);
+    char *const path = g_cli_guard->persistent_buf_alloc(CLI_PATH_TEXT, g_checks_owner);
     TEST_ASSERT_NOT_NULL(path);
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg, .ahead = (const char (*)[CLI_PATH_MAX_LEN])ahead, .count = 2u, .path = path, .size = CLI_PATH_TEXT);
     const unsigned long long length = CLI_UNITY_LENGTH(ahead[0]);
-    const int first = cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ahead[0], .cap = CLI_CELLS_POOL}) && (path[length] == TOOLCHAINS_SEPARATOR[0]);
-    const int once = cellul.find(&(CatenaFinitaCfg){.src = path + length, .cap = CLI_CELLS_POOL, .other = ahead[0], .other_cap = CLI_CELLS_POOL}) == NULL;
+    const int first = cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ahead[0], .cap = CLI_POOL_BYTES}) && (path[length] == TOOLCHAINS_SEPARATOR[0]);
+    const int once = cellul.find(&(CatenaFinitaCfg){.src = path + length, .cap = CLI_POOL_BYTES, .other = ahead[0], .other_cap = CLI_POOL_BYTES}) == NULL;
     const int goes_on = path[length + 1u] != '\0';
-    g_cli_cells->persistent_buf_release(path, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(path, g_checks_owner);
     TEST_ASSERT_TRUE(first);
     TEST_ASSERT_TRUE(once);
     TEST_ASSERT_TRUE(goes_on);

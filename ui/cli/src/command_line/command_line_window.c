@@ -20,7 +20,7 @@
 #include "../servers/servers.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
-#include "cells.h"
+#include "pool.h"
 
 #include <stdlib.h>
 
@@ -53,7 +53,7 @@ EMBED_INLINE void window_err(const CliCommandLineWindowCtx *args)
 int cli_command_line_window(int *window)
 {
     // the window runs no main of orior's and enters here first: the pool every later call takes from starts here
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     static const char *s_words[CLI_LAUNCH_ARGS];
     const unsigned int count = EMBED_CALL(cli_capacity_count_internal.arguments, CliCapacityCountCtx, .count_i32 = 0,
                                           .supplied = NULL, .words_read = s_words, .capacity_u32 = CLI_LAUNCH_ARGS);
@@ -104,7 +104,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
         EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = root, .path = path, .length = length);
     }
     const char **const path =
-        (files != 0u) ? g_cli_cells->persistent_buf_alloc(files * sizeof(*path), &g_cli_command_line_cells) : NULL;
+        (files != 0u) ? g_cli_guard->persistent_buf_alloc(files * sizeof(*path), g_cli_command_line_owner) : NULL;
     if (path == NULL)
     {
         return;
@@ -133,7 +133,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
         EMBED_CALL(cli_servers_root_sink_count.change, CliServersRootSinkCountCfg, .root = root, .files = path,
                    .count = unique);
     }
-    g_cli_cells->persistent_buf_release(path, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(path, g_cli_command_line_owner);
 }
 
 void cli_command_line_tree_begin(void (*woken)(void))
@@ -159,7 +159,7 @@ void cli_command_line_tree_begin(void (*woken)(void))
     }
     const unsigned long long size =
         (root != NULL) ? (cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ULL) : 0ULL;
-    s_window.root = (root != NULL) ? g_cli_cells->persistent_buf_alloc(size, &g_cli_command_line_cells) : NULL;
+    s_window.root = (root != NULL) ? g_cli_guard->persistent_buf_alloc(size, g_cli_command_line_owner) : NULL;
     if (s_window.root != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_window.root, .src = root, .bytes = size});
@@ -186,7 +186,7 @@ void cli_command_line_tree_end(void)
     cli_debug_stop_all();
     cli_container_members_end();
     cli_reach_close();
-    g_cli_cells->persistent_buf_release(s_window.root, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_window.root, g_cli_command_line_owner);
     s_window.root = NULL;
 }
 

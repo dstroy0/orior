@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // format_width.c: the width a formatter wraps a file's lines to, read from the project's settings for it, and the
 // nearest settings file read
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "format_internal.h"
 
@@ -65,7 +65,7 @@ void cli_format_fail(const CliFormatErrMsgCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     mmgr_line_put(args->err_msg, args->program);
     mmgr_line_put(args->err_msg, " could not format ");
@@ -112,16 +112,16 @@ int cli_format_nearest(const CliFormatPathCtx *args)
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = args->names[at], .joined = file);
             unsigned long long size = 0ULL;
             const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
-                                                          .size_pointer = &size, .owner = &g_cli_toolchains_cells);
+                                                          .size_pointer = &size, .owner = g_cli_toolchains_owner);
             if (bytes == NULL)
             {
                 continue;
             }
             // the settings stored in a cell sized to the file, ended by a 0, the ones stored before given back
-            g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+            g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
             g_cli_format.settings = EMBED_CALL(cli_format_bytes_internal.utf8, CliFormatBytesCtx,
                                                .bytes = (const char *)bytes, .size = size)
-                                        ? g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_toolchains_cells)
+                                        ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_toolchains_owner)
                                         : NULL;
             const int text = g_cli_format.settings != NULL;
             if (text)
@@ -130,19 +130,19 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ULL;
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_toolchains_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_toolchains_owner));
             if (text)
             {
                 return 1;
             }
         }
         if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = up) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = up, .other = folder, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = up, .other = folder, .cap = CLI_POOL_BYTES})))
         {
             return 0;
         }
         memor.cpy(&(MemoriaCfg){
-            .dst = folder, .src = up, .bytes = cellul.len(&(CatenaFinitaCfg){.src = up, .cap = CLI_CELLS_POOL}) + 1u});
+            .dst = folder, .src = up, .bytes = cellul.len(&(CatenaFinitaCfg){.src = up, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 
@@ -155,7 +155,7 @@ EMBED_INLINE int cli_number_after(const FormatWidthCtx *args)
     const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                .text = rest.at, .at = 0ULL, .size = rest.length, .set = "\"'");
     rest = (CliSpan){rest.at + lead, rest.length - lead};
-    const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     if ((rest.length < key_length) ||
         (memor.cmp(&(MemoriaCfg){.src = rest.at, .other = args->key, .bytes = key_length}) != 0))
     {
@@ -188,8 +188,8 @@ int cli_format_number_in(const CliFormatTextCtx *args)
     int inside = args->table == NULL;
     for (const char *line = args->text; line[0] != '\0';)
     {
-        const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
-        end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
+        const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
+        end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES}));
         const char *const hash =
             memor.chr(&(MemoriaCfg){.src = line, .val = '#', .bytes = (unsigned long long)(end - line)});
         const CliSpan code =
@@ -206,7 +206,7 @@ int cli_format_number_in(const CliFormatTextCtx *args)
                                      .at = name.length, .set = "[]");
             name = EMBED_CALL(cli_trim, FormatWidthCtx, .span = name);
             inside = (args->table != NULL) &&
-                     (name.length == cellul.len(&(CatenaFinitaCfg){.src = args->table, .cap = CLI_CELLS_POOL})) &&
+                     (name.length == cellul.len(&(CatenaFinitaCfg){.src = args->table, .cap = CLI_POOL_BYTES})) &&
                      (memor.cmp(&(MemoriaCfg){.src = name.at, .other = args->table, .bytes = name.length}) == 0);
             continue;
         }
@@ -246,10 +246,10 @@ EMBED_INLINE int cli_wraps_prose(const FormatWidthCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = piece, .src = part, .bytes = length});
             piece[length] = '\0';
             if ((cellul.find(&(CatenaFinitaCfg){
-                     .src = piece, .cap = CLI_CELLS_POOL, .other = "proseWrap", .other_cap = CLI_CELLS_POOL}) !=
+                     .src = piece, .cap = CLI_POOL_BYTES, .other = "proseWrap", .other_cap = CLI_POOL_BYTES}) !=
                  NULL) &&
                 (cellul.find(&(CatenaFinitaCfg){
-                     .src = piece, .cap = CLI_CELLS_POOL, .other = "always", .other_cap = CLI_CELLS_POOL}) != NULL))
+                     .src = piece, .cap = CLI_POOL_BYTES, .other = "always", .other_cap = CLI_POOL_BYTES}) != NULL))
             {
                 return 1;
             }
@@ -289,7 +289,7 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     const char *table = NULL;
     const char *key = NULL;
     unsigned int own = 0u;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "black", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "black", .cap = CLI_POOL_BYTES}))
     {
         names = s_black;
         count = 1u;
@@ -297,21 +297,21 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
         key = "line-length";
         own = 88u;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "rustfmt", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "rustfmt", .cap = CLI_POOL_BYTES}))
     {
         names = s_rustfmt;
         count = 2u;
         key = "max_width";
         own = 100u;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "clang-format", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "clang-format", .cap = CLI_POOL_BYTES}))
     {
         names = s_clang;
         count = 2u;
         key = "ColumnLimit";
         own = 80u;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "prettier", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "prettier", .cap = CLI_POOL_BYTES}))
     {
         names = s_prettier;
         count = 4u;
@@ -320,25 +320,25 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     }
     if (names == NULL)
     {
-        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                               .cell = g_cli_format.json.node));
+        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
     }
     const int settings = EMBED_CALL(cli_format_path_internal.nearest, CliFormatPathCtx, .path = args->path,
                                     .names = names, .count = count);
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "markdown", .cap = CLI_CELLS_POOL})) &&
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "markdown", .cap = CLI_POOL_BYTES})) &&
         !(settings && EMBED_CALL(cli_wraps_prose, FormatWidthCtx, .text = g_cli_format.settings)))
     {
-        g_cli_cells->persistent_buf_release(g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                               .cell = g_cli_format.json.node));
+        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
@@ -356,11 +356,11 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
                    .length_pointer = NULL);
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->by, .text = name, .otherwise = "");
     *width = found;
-    g_cli_cells->persistent_buf_release(
-        g_cli_format.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = g_cli_format.json.node));
+    g_cli_guard->persistent_buf_release(g_cli_format.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
+    g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ULL;
     return found > 0u;

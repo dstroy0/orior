@@ -70,7 +70,7 @@ int cli_git_init(const CliGitOutCfg *args)
 int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args)
 {
     const char *from = args->url;
-    const char *to = args->url + cellul.len(&(CatenaFinitaCfg){.src = args->url, .cap = CLI_CELLS_POOL});
+    const char *to = args->url + cellul.len(&(CatenaFinitaCfg){.src = args->url, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = "/\\");
@@ -167,11 +167,11 @@ EMBED_INLINE void cli_progress_emit(const GitCloneCtx *args)
     EMBED_CALL(args->progress->progress_line, CliEachLineEndedCfg, .context = args->progress->context, .line = text,
                .ended = args->ended);
     if (!args->progress->has_fatal &&
-        (cellul.starts(&(CatenaFinitaCfg){.src = text, .other = "fatal: ", .cap = CLI_CELLS_POOL})))
+        (cellul.starts(&(CatenaFinitaCfg){.src = text, .other = "fatal: ", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->progress->fatal,
                                 .src = text + 7,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = text + 7, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = text + 7, .cap = CLI_POOL_BYTES}) + 1u});
         args->progress->has_fatal = 1;
     }
 }

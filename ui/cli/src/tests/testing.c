@@ -4,7 +4,7 @@
 // pytest, read as pytest reads them, a setting's values split at spaces and commas with a TOML list's brackets and
 // quotes taken off, and a setting carried on to the lines indented under it; and a name matched to a rule
 #include "testing.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
@@ -13,11 +13,11 @@ void cli_test_write(const CliTestingCfg *args)
     mmgr_line_put(args->out, "{\"id\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)args->test->id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->id, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->id, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"file\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)args->test->file,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"class\":");
     if (args->test->class_name == NULL)
     {
@@ -27,12 +27,12 @@ void cli_test_write(const CliTestingCfg *args)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)args->test->class_name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->class_name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->class_name, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(args->out, ",\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)args->test->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->name, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"line\":");
     mmgr_line_decimal(args->out, args->test->line, 1u);
     mmgr_line_ch(args->out, '}');
@@ -135,7 +135,7 @@ EMBED_INLINE void testing_set(const TestingCtx *args)
                                   &args->rules->functions};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_CELLS_POOL}) == args->key_size) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_POOL_BYTES}) == args->key_size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_keys[at], .other = args->key, .bytes = (size_t)args->key_size}) == 0))
         {
             EMBED_CALL(testing_values_get, TestingCtx, .rules = args->rules, .rule = rule[at], .raw = args->value,
@@ -171,7 +171,7 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
     int keyed = 0;
     int inside = 0;
     int found = 0;
-    const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = args->section, .cap = CLI_CELLS_POOL});
+    const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = args->section, .cap = CLI_POOL_BYTES});
     for (unsigned long long start = 0ULL; start < args->size;)
     {
         const unsigned long long end =
@@ -254,7 +254,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_files[at], .joined = path);
         unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                      .size_pointer = &size, .owner = &g_cli_tests_cells);
+                                                      .size_pointer = &size, .owner = g_cli_tests_owner);
         if (bytes == NULL)
         {
             continue;
@@ -263,7 +263,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         const int read = EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
                          EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
                                     .section = s_sections[at], .rules = args->rules);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_tests_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
         if (read)
         {
             return;
@@ -298,7 +298,7 @@ EMBED_INLINE unsigned long long testing_letter(const TestingCtx *args)
 
 int cli_test_glob(const CliTestingSizeCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_POOL_BYTES});
     unsigned long long matched = 0ULL;
     unsigned long long at = 0ULL;
     unsigned long long star = length;
@@ -347,10 +347,10 @@ int cli_test_by_name(const CliTestingRulesRuleSizeCfg *args)
     {
         const char *const value = EMBED_CALL(cli_testing_rules_rule.test_rule_value, CliTestingRulesRuleCfg,
                                              .rules_read = args->rules_read, .rule = args->rule, .at = at);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES});
         const int globbed =
-            (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL, .byte = '*'}) != NULL) ||
-            (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL, .byte = '?'}) != NULL);
+            (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES, .byte = '*'}) != NULL) ||
+            (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES, .byte = '?'}) != NULL);
         if (globbed ? EMBED_CALL(cli_testing_size.test_glob, CliTestingSizeCfg, .pattern = value, .name = args->name,
                                  .size = args->size)
                     : ((length <= args->size) &&

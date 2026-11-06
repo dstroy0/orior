@@ -174,7 +174,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
     const char *const text = g_cli_scons.text;
     const unsigned long long size = g_cli_scons.size;
     const unsigned char *const class_of = g_cli_scons.class_of;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     while (at + length <= size)
     {

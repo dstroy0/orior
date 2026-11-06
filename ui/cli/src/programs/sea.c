@@ -72,15 +72,15 @@ unsigned int cli_sea_outside(const CliSeaCfg *args)
     {
         const char *rest = text;
         for (const char *at = cellul.find(&(CatenaFinitaCfg){
-                 .src = rest, .cap = CLI_CELLS_POOL, .other = s_marks[mark], .other_cap = CLI_CELLS_POOL});
+                 .src = rest, .cap = CLI_POOL_BYTES, .other = s_marks[mark], .other_cap = CLI_POOL_BYTES});
              at != NULL; at = cellul.find(&(CatenaFinitaCfg){
-                             .src = rest, .cap = CLI_CELLS_POOL, .other = s_marks[mark], .other_cap = CLI_CELLS_POOL}))
+                             .src = rest, .cap = CLI_POOL_BYTES, .other = s_marks[mark], .other_cap = CLI_POOL_BYTES}))
         {
-            rest = at + cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL});
+            rest = at + cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_POOL_BYTES});
             const char *trimmed = rest;
             trimmed += EMBED_CALL(
                 cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ULL,
-                .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
+                .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_POOL_BYTES}), .set = CLI_TEXT_WHITE);
             const char quote = trimmed[0];
             if ((quote != '"') && (quote != '\'') && (quote != '`'))
             {
@@ -91,14 +91,14 @@ unsigned int cli_sea_outside(const CliSeaCfg *args)
             const char closing[2] = {quote, '\0'};
             end +=
                 EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = closing);
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = closing);
             const unsigned long long length = (unsigned long long)(end - name);
             int bare = (length >= 5ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "node:", .bytes = 5u}) == 0);
             unsigned int at_builtin = 0u;
             while (!bare && (at_builtin < 51u))
             {
                 bare =
-                    (cellul.len(&(CatenaFinitaCfg){.src = s_builtin[at_builtin], .cap = CLI_CELLS_POOL}) == length) &&
+                    (cellul.len(&(CatenaFinitaCfg){.src = s_builtin[at_builtin], .cap = CLI_POOL_BYTES}) == length) &&
                     (memor.cmp(&(MemoriaCfg){.src = s_builtin[at_builtin], .other = name, .bytes = length}) == 0);
                 at_builtin += 1u;
             }
@@ -107,7 +107,7 @@ unsigned int cli_sea_outside(const CliSeaCfg *args)
             while (!known && (at_found < count))
             {
                 known =
-                    (cellul.len(&(CatenaFinitaCfg){.src = args->found[at_found], .cap = CLI_CELLS_POOL}) == length) &&
+                    (cellul.len(&(CatenaFinitaCfg){.src = args->found[at_found], .cap = CLI_POOL_BYTES}) == length) &&
                     (memor.cmp(&(MemoriaCfg){.src = args->found[at_found], .other = name, .bytes = length}) == 0);
                 at_found += 1u;
             }

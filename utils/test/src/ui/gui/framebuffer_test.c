@@ -14,17 +14,7 @@
 // the bytes an owner named `gui_framebuffer` counts now
 static unsigned long long owner_bytes(void)
 {
-    const size_t list_entries = mmgr_owner_count();
-    for (size_t at = 0u; at < list_entries; at += 1u)
-    {
-        const CellOwner *const owner = mmgr_owner_at(at);
-        if ((owner != NULL) &&
-            cellul.eq(&(CatenaFinitaCfg){.src = owner->name, .other = "gui_framebuffer", .cap = 64u}))
-        {
-            return (unsigned long long)mmgr_owner_in_use(owner);
-        }
-    }
-    return 0ull;
+    return (unsigned long long)mmgr_owner_in_use(g_gui_framebuffer_owner);
 }
 
 // the bytes a window `width` by `height` draws in one raster
@@ -35,7 +25,7 @@ static unsigned long long window_bytes(unsigned int width, unsigned int height)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     GuiFramebuffer framebuffer;
     cli_check(EMBED_CALL(gui_framebuffer_max_width.init, GuiFramebufferMaxWidthCfg, .framebuffer = &framebuffer, .width = 1920u, .height = 1080u, .max_width = MONITOR_WIDTH, .max_height = MONITOR_HEIGHT),
               "the rasters are made for a window with capacity for the largest monitor");

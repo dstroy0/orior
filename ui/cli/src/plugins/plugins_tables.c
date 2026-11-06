@@ -3,7 +3,7 @@
 // plugins_tables.c: a language plugin's grammar made whole before the colorer stores it: each word list a table of the
 // tree fills read from that table, `{name}` in the tables' paths the name of the folder the plugin stands for, and each
 // rule whose pattern is a word list given the list's words as its pattern; and the folders a plugin stands for
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/defs.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
@@ -49,7 +49,7 @@ void cli_plugins_set_tree(const CliPluginsRootCfg *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = s_tree,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_has_tree = 1;
 }
 
@@ -329,7 +329,7 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
     VerbaLinea *out = args->out;
     char path[CLI_PATH_MAX_LEN];
     CliRegexpWorkState *const work_state =
-        g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpWorkState), &g_cli_plugins_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpWorkState), g_cli_plugins_owner);
     if (work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "a table's patterns could not be given a cell");
@@ -375,7 +375,7 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
         (void)EMBED_CALL(cli_defs_path.lines, CliDefsPathCfg, .path = path, .each = cli_tables_line, .context = &read);
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(work_state, g_cli_plugins_owner);
     return patterns_read;
 }
 
@@ -394,7 +394,7 @@ EMBED_INLINE int cli_tables_lists_write(const PluginsTablesCtx *args)
         const char *const key = json->text + json->node[member].key;
         mmgr_line_put(out, (member != json->node[args->grammar].first) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
         if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
                        .kind = CFG_JSON_OBJECT) &&
@@ -494,7 +494,7 @@ EMBED_INLINE int cli_tables_rule_write(const PluginsTablesCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = pattern, .name = "after"),
                    .length_pointer = NULL);
-    char *const source_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERN_CAPACITY, &g_cli_plugins_cells);
+    char *const source_cell = g_cli_guard->temporary_buf_alloc(CLI_TABLES_PATTERN_CAPACITY, g_cli_plugins_owner);
     VerbaLinea source = mmgr_line_over(source_cell, CLI_TABLES_PATTERN_CAPACITY);
     if (source.out == NULL)
     {
@@ -518,7 +518,7 @@ EMBED_INLINE int cli_tables_rule_write(const PluginsTablesCtx *args)
         }
         mmgr_line_ch(out, ']');
     }
-    g_cli_cells->persistent_buf_release(source.out, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(source.out, g_cli_plugins_owner);
     return reserved != 0u;
 }
 
@@ -536,9 +536,9 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
         const char *const key = json->text + json->node[member].key;
         mmgr_line_put(out, (member != json->node[args->grammar].first) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "tokenizer", .cap = CLI_CELLS_POOL}) ||
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "tokenizer", .cap = CLI_POOL_BYTES}) ||
             !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
                         .kind = CFG_JSON_OBJECT))
         {
@@ -552,7 +552,7 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
             const char *const name = json->text + json->node[state].key;
             mmgr_line_put(out, (state != json->node[member].first) ? "," : "");
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(out, ":[");
             unsigned int written = 0u;
             for (unsigned int rule = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
@@ -580,7 +580,7 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
 
 int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args)
 {
-    char *const lists_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_CAPACITY, &g_cli_plugins_cells);
+    char *const lists_cell = g_cli_guard->temporary_buf_alloc(CLI_TABLES_CAPACITY, g_cli_plugins_owner);
     VerbaLinea lists = mmgr_line_over(lists_cell, CLI_TABLES_CAPACITY);
     if (lists.out == NULL)
     {
@@ -596,16 +596,15 @@ int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args)
     const unsigned int filled_grammar =
         whole ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                            .json = &filled, .text = lists.out, .size = lists.at, .nodes_more = 0u, .text_more = 0ULL,
-                           .err_msg = args->err_msg, .owner = &g_cli_plugins_cells)
+                           .err_msg = args->err_msg, .owner = g_cli_plugins_owner)
               : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) &&
             EMBED_CALL(cli_tables_rules_write, PluginsTablesCtx, .json = &filled, .grammar = filled_grammar,
                        .out = args->out, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(filled.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = filled.node));
+    g_cli_guard->persistent_buf_release(filled.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), filled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&filled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(lists.out, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(lists.out, g_cli_plugins_owner);
     return whole;
 }
 
@@ -656,7 +655,7 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
         const char *const left_out = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = args->json, .node = item, .length_pointer = NULL);
         if ((left_out != NULL) &&
-            cellul.eq(&(CatenaFinitaCfg){.src = left_out, .other = args->name, .cap = CLI_CELLS_POOL}))
+            cellul.eq(&(CatenaFinitaCfg){.src = left_out, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             return 0;
         }
@@ -682,7 +681,7 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
                                       .object = unless, .name = "match"),
                    .length_pointer = NULL);
     CliRegexpWorkState *const work_state =
-        (source != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpWorkState), &g_cli_plugins_cells) : NULL;
+        (source != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(CliRegexpWorkState), g_cli_plugins_owner) : NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliRegexp pattern;
@@ -694,6 +693,6 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
                        EMBED_CALL(cli_defs_path.lines, CliDefsPathCfg, .path = path, .each = cli_tables_unless_line,
                                   .context = &matched) &&
                        !matched.matched;
-    g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(work_state, g_cli_plugins_owner);
     return exists;
 }

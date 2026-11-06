@@ -18,14 +18,14 @@ static void cli_index_each(const CliEachNameIsFolderCfg *args)
 {
     CliIndex *const index = (CliIndex *)args->context;
     if (!args->is_folder &&
-        (cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_CELLS_POOL})) &&
+        (cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_POOL_BYTES})) &&
         (!index->has ||
          (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->name, .other_pointer = index->last) > 0)))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = index->last,
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
         index->has = 1;
     }
 }
@@ -77,7 +77,7 @@ EMBED_INLINE int cli_reply_file(const ExecutablesCmakeCtx *args)
 EMBED_INLINE int cli_same_case_aside(const ExecutablesCmakeCtx *args)
 {
     const char *other = args->other;
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_POOL_BYTES, .ci = 1});
 }
 
 // the member `key` of the first item of the array at `array` whose member `match` is `required`, decoded into `out`,
@@ -124,7 +124,7 @@ EMBED_INLINE int cli_artifact(const ExecutablesCmakeCtx *args)
         {
             continue;
         }
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_POOL_BYTES});
         int passed = 0;
         {
             unsigned int at = 0u;
@@ -256,7 +256,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->out,
                                 .src = artifact,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_findings.c: a checker's findings stored, by file, each file's findings by the checkers' ids in order, and the
 // diagnostics of each file whose findings from that checker changed passed on whole
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 // the findings read, under the reading's lock
@@ -39,7 +39,7 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
     path[size] = '\0';
     EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = path, .uri_out = uri);
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
+               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}), .key = key);
     return 1;
 }
 
@@ -55,7 +55,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
         EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key,
                    .adjacent = &adjacent, .size = &size);
     unsigned int nodes_more = 1u;
-    unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1ULL;
+    unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1ULL;
     EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = &s_found.json,
                .node = args->items, .nodes_pointer = &nodes_more, .text_u64s = &text_more);
     char quiet[256];
@@ -68,11 +68,11 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     {
         entry = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                            .text = stored, .size = size, .nodes_more = nodes_more, .text_more = text_more,
-                           .err_msg = &err_msg, .owner = &g_cli_servers_cells);
+                           .err_msg = &err_msg, .owner = g_cli_servers_owner);
     }
     else if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &json,
                          .nodes_max = nodes_more, .text_max = text_more, .what = "a file's findings",
-                         .owner = &g_cli_servers_cells))
+                         .owner = g_cli_servers_owner))
     {
         return 0;
     }
@@ -85,8 +85,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     if ((had != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = &json,
                                              .one = had, .other_json = &s_found.json, .other = args->items))
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -98,7 +97,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = entry);
     const unsigned long long capacity =
         EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json);
-    char *const entry_written = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
+    char *const entry_written = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea written = mmgr_line_over(entry_written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = entry,
                .out = &written, .indent = 0u, .sorted = 1);
@@ -107,9 +106,8 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
         (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_checked,
                          .key = key, .adjacent_value = args->uri_read, .text = written.out, .size_value = written.at);
     }
-    g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(entry_written, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -129,7 +127,7 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
                                    : 0u;
     unsigned int *const changed_files =
         (files > 0u)
-            ? g_cli_cells->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells)
+            ? g_cli_guard->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), g_cli_servers_owner)
             : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
@@ -161,9 +159,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
                        .sink = args->sink);
         }
     }
-    g_cli_cells->persistent_buf_release(changed_files, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(s_found.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_found.json.node));
+    g_cli_guard->persistent_buf_release(changed_files, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(s_found.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_found.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_found.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

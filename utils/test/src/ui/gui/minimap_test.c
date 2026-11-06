@@ -28,7 +28,7 @@ static int all_colored(const GuiRaster *raster, GuiRect rect, GuiColor color)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
@@ -74,7 +74,7 @@ int main(void)
     const int strip = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_STRIP, .scale = 100);
     const GuiRect strip_rect = {frame.map.x + frame.map.width - strip, frame.map.y, strip, frame.map.height};
     cli_check(!all_colored(&raster, strip_rect, MINIMAP_TEST_UNDER), "the overview strip stands at the map's right");
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

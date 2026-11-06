@@ -115,7 +115,7 @@ EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
              needs != CLI_JSON_NONE; needs = json->node[needs].next)
         {
             const char *const name = json->text + json->node[needs].key;
-            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
             unsigned int member = CLI_SCHEMA_NONE;
             for (unsigned int at = read->node[node].first; (member == CLI_SCHEMA_NONE) && (at != CLI_SCHEMA_NONE);
                  at = read->member[at].next)
@@ -200,7 +200,7 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
     {
         const char *const name = json->text + json->node[at].key;
         EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
-                   .one = name, .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .one = name, .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     }
     for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
@@ -328,7 +328,7 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
         {
             const char *const pattern = json->text + json->node[at].key;
             if (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,
-                           .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}),
+                           .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES}),
                            .text = name, .size = one->key_size) != 1)
             {
                 continue;

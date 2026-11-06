@@ -111,9 +111,9 @@ void test_a_script_that_requires_an_outside_module_is_refused_and_its_memory_rel
     TEST_ASSERT_FALSE(EMBED_CALL(cli_sea_node.build, CliSeaNodeCfg, .node = "node", .main = path, .output = out, .module = 0, .sink = sink, .made = made, .err_msg = &s_err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&s_err_msg));
     CLI_TEST_ASSERT_CONTAINS("requires left-pad", s_error);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_sea_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_sea_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) * 4u, embed_atomic_usize_load(&g_cli_sea_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_sea_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_sea_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) * 4u, mmgr_owner_hw(g_cli_sea_owner));
 }
 
 void test_the_fuse_is_found(void)

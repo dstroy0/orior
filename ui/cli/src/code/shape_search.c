@@ -5,7 +5,7 @@
 // on after it; each match's span and first line found by one walk of the text forward; and the template written with
 // each placeholder as the code it took, its statement ends at its close left off. The code's tokens past
 // CLI_SHAPE_TOKENS and the pattern's past CLI_SHAPE_PATTERN are not read. One search runs at a time
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "shape_internal.h"
@@ -113,12 +113,12 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
 {
     const CliShapeTokens *const code = s_work_state->matcher.tokens;
     const char *rest = args->template_text;
-    for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '$'});
-         open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '$'}))
+    for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '$'});
+         open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '$'}))
     {
         mmgr_line_put_n(args->out, rest, (unsigned long long)(open - rest));
         const char *const after = open + 1;
-        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = after, .cap = CLI_CELLS_POOL, .byte = '$'});
+        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = after, .cap = CLI_POOL_BYTES, .byte = '$'});
         if (close == NULL)
         {
             mmgr_line_ch(args->out, '$');
@@ -158,8 +158,8 @@ EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
     // the starts and ends of both and each part's hole, then the kinds of both, then their roles
     const unsigned long long words = (2ULL * args->code_capacity) + (3ULL * args->part_capacity);
     const unsigned long long bytes = 2ULL * ((unsigned long long)args->code_capacity + args->part_capacity);
-    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
-                                                     &g_cli_shape_cells);
+    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
+                                                     g_cli_shape_owner);
     if (s_work_state == NULL)
     {
         return 0;
@@ -192,7 +192,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
     unsigned long long from = 0ULL;
     unsigned long long to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = pattern,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), .from_u64s = &from,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES}), .from_u64s = &from,
                .to_u64s = &to);
     // a token takes a byte at the least: the code contains no more tokens than bytes, nor the pattern; each below
     // its most, which an unsigned int stores
@@ -216,11 +216,11 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
                     .language = args->language, .src = src, .size = args->size, .tokens = &s_work_state->code,
                     .holes = NULL))
     {
-        g_cli_cells->persistent_buf_release(s_work_state->matcher.ends, &g_cli_shape_cells);
+        g_cli_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
         s_work_state->matcher.ends = NULL;
         s_work_state->matcher.ends_top = 0u;
         s_work_state->matcher.ends_capacity = 0u;
-        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
+        g_cli_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
         s_work_state = NULL;
         return;
     }
@@ -264,12 +264,12 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         {
             // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at most
             const unsigned long long template_length =
-                cellul.len(&(CatenaFinitaCfg){.src = args->template_text, .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = args->template_text, .cap = CLI_POOL_BYTES});
             const unsigned long long span =
                 (unsigned long long)(s_work_state->code.end[end - 1u] - s_work_state->code.start[at]);
             const unsigned long long with_capacity =
                 template_length + (((template_length / 3ULL) + 1ULL) * span) + 1ULL;
-            char *const with_cell = g_cli_cells->temporary_buf_alloc(with_capacity, &g_cli_shape_cells);
+            char *const with_cell = g_cli_guard->temporary_buf_alloc(with_capacity, g_cli_shape_owner);
             with = mmgr_line_over(with_cell, with_capacity);
             EMBED_CALL(search_fill, ShapeSearchCtx, .template_text = args->template_text, .out = &with);
             found.has_with = mmgr_line_ok(&with);
@@ -277,13 +277,13 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
             found.with_size = with.at;
         }
         EMBED_CALL(args->each, CliShapeEachCfg, .context = args->context, .found = &found);
-        g_cli_cells->persistent_buf_release(with.out, &g_cli_shape_cells);
+        g_cli_guard->persistent_buf_release(with.out, g_cli_shape_owner);
         at = end;
     }
-    g_cli_cells->persistent_buf_release(s_work_state->matcher.ends, &g_cli_shape_cells);
+    g_cli_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
     s_work_state->matcher.ends = NULL;
     s_work_state->matcher.ends_top = 0u;
     s_work_state->matcher.ends_capacity = 0u;
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
     s_work_state = NULL;
 }

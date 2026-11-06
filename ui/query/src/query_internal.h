@@ -8,7 +8,7 @@
 #include "../../../src/cu/includes/file_defs/qry/qry_read.h"
 #include "../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 #include "../../cli/src/command_line/callback_cfg.h"
-#include "../../cli/src/command_line/cells.h"
+#include "../../cli/src/command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "embed_dispatch_layout.h"
 #include "memoria_operor/memoria_operor.h"
@@ -55,8 +55,6 @@ typedef struct QueryMillisecondsCtx QueryMillisecondsCtx;
 typedef struct QueryProcessCtx QueryProcessCtx;
 
 // what the query's modules occupy in the cellblock, their own count, every cell the query takes and gives back counted
-// to it, its report reported as `cli_query` (commands.c)
-extern CellOwner g_query_cells;
 
 // the most files a run reads or leaves, the most settings a context appends, the most words a command takes, and the
 // most runs a folder contains that the query walks

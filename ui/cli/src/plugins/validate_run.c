@@ -69,12 +69,12 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     char runs[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     const char *const first = s_named.word_text[0];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = tool->program, .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = tool->program, .cap = CLI_POOL_BYTES}))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = runs,
                           .src = args->program,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->program,
                          .out = folder) ||
@@ -90,7 +90,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     }
     unsigned int at = 1u;
     while ((at < s_named.count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word_text[at], .other = args->file, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word_text[at], .other = args->file, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
@@ -163,9 +163,9 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
                                        ? run_result->err_size
                                        : 0ULL;
     // the output stored in a cell of its size, the one stored before given back
-    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
     g_cli_validate->output_size = 0ULL;
-    g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ULL, &g_cli_plugins_cells);
+    g_cli_validate->output = g_cli_guard->persistent_buf_alloc(out + err + 2ULL, g_cli_plugins_owner);
     if (g_cli_validate->output == NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
@@ -176,7 +176,7 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
     unsigned long long used = out;
     unsigned long long blank = 0ULL;
     while ((blank < err) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = run_result->err[blank]}) != NULL))
+                                 .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = run_result->err[blank]}) != NULL))
     {
         blank += 1ULL;
     }

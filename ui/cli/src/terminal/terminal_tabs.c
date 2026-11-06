@@ -15,7 +15,7 @@
 // and as the window ends, and read back as the window starts
 #include "terminal_tabs.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/view.h"
 #include "../machine/state.h"
 #include "../plugins/plugins.h"
@@ -215,7 +215,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const file_bytes =
         EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = tab->history_path, .size_pointer = &size,
-                   .owner = &g_cli_terminal_cells);
+                   .owner = g_cli_terminal_owner);
     const unsigned long long read = (file_bytes != NULL) ? size : 0ULL;
     // the history read back from the start of its last TERMINAL_RESTORED lines, a last line with no newline ended
     const int ended = (read == 0ULL) || (file_bytes[read - 1ULL] == (unsigned char)'\n');
@@ -234,10 +234,10 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     const unsigned long long restored = read - from;
     const unsigned int rows = tab->xterm.rows;
     const unsigned long long bytes = restored + 1ULL + rows + 1ULL;
-    char *const text = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_terminal_cells);
+    char *const text = g_cli_guard->persistent_buf_alloc(bytes, g_cli_terminal_owner);
     if (text == NULL)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)file_bytes, (&g_cli_terminal_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)file_bytes, (g_cli_terminal_owner));
         return;
     }
     VerbaLinea out = {text, bytes, 0ULL};
@@ -261,7 +261,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     {
         mmgr_line_ch(&out, '\n');
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)file_bytes, (&g_cli_terminal_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)file_bytes, (g_cli_terminal_owner));
     VerbaLinea key = {tab->key, sizeof(tab->key), 0ULL};
     mmgr_line_put(&key, TERMINAL_KEY_HEAD);
     mmgr_line_decimal(&key, tab->number, 1u);
@@ -271,7 +271,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
                        EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .text = text, .size = out.at,
                                   .key = tab->key, .shape = &shape) &&
                        EMBED_CALL(cli_view_table.open, CliViewCfg, .key = tab->key, .path = "");
-    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
     if (!stored)
     {
         EMBED_CALL(cli_document.release, CliDocumentCfg, .key = tab->key);
@@ -338,7 +338,7 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = tab->key, .first = from.line,
                                   .last = to.line, .size_pointer = &size, .state = state, .capacity = sizeof(state),
-                                  .owner = &g_cli_terminal_cells);
+                                  .owner = g_cli_terminal_owner);
     if (text == NULL)
     {
         return 0;
@@ -374,7 +374,7 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
                                           : 0ULL;
     (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = copied,
                      .text = text + ((start < size) ? start : size));
-    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
     const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = cursor.line, .column = cursor.col};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -464,7 +464,7 @@ EMBED_INLINE int terminal_add(const TerminalCtx *args)
     if (s_terminal.tabs == s_terminal.capacity)
     {
         const unsigned int capacity = (s_terminal.capacity == 0u) ? 4u : (s_terminal.capacity * 2u);
-        TerminalTab **const grown = g_cli_cells->persistent_buf_alloc(capacity * sizeof(*grown), &g_cli_terminal_cells);
+        TerminalTab **const grown = g_cli_guard->persistent_buf_alloc(capacity * sizeof(*grown), g_cli_terminal_owner);
         if (grown == NULL)
         {
             return -1;
@@ -472,12 +472,12 @@ EMBED_INLINE int terminal_add(const TerminalCtx *args)
         if (s_terminal.tab != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_terminal.tab, .bytes = s_terminal.tabs * sizeof(*grown)});
-            g_cli_cells->persistent_buf_release(s_terminal.tab, &g_cli_terminal_cells);
+            g_cli_guard->persistent_buf_release(s_terminal.tab, g_cli_terminal_owner);
         }
         s_terminal.tab = grown;
         s_terminal.capacity = capacity;
     }
-    TerminalTab *const tab = g_cli_cells->persistent_buf_alloc(sizeof(*tab), &g_cli_terminal_cells);
+    TerminalTab *const tab = g_cli_guard->persistent_buf_alloc(sizeof(*tab), g_cli_terminal_owner);
     if (tab == NULL)
     {
         return -1;
@@ -576,9 +576,9 @@ EMBED_INLINE void terminal_wait_free(const TerminalCtx *args)
     }
     if (args->tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        g_cli_cells->persistent_buf_release(args->tab->xterm.cell, &g_cli_terminal_cells);
+        g_cli_guard->persistent_buf_release(args->tab->xterm.cell, g_cli_terminal_owner);
         args->tab->xterm.cell = NULL;
-        g_cli_cells->persistent_buf_release(args->tab, &g_cli_terminal_cells);
+        g_cli_guard->persistent_buf_release(args->tab, g_cli_terminal_owner);
     }
 }
 
@@ -593,9 +593,9 @@ EMBED_INLINE void terminal_close(const TerminalCtx *args)
     EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &tab->shell, .now_ms = cli_clock_milliseconds());
     if (tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        g_cli_cells->persistent_buf_release(tab->xterm.cell, &g_cli_terminal_cells);
+        g_cli_guard->persistent_buf_release(tab->xterm.cell, g_cli_terminal_owner);
         tab->xterm.cell = NULL;
-        g_cli_cells->persistent_buf_release(tab, &g_cli_terminal_cells);
+        g_cli_guard->persistent_buf_release(tab, g_cli_terminal_owner);
     }
     else if (s_terminal.closings < TERMINAL_CLOSING)
     {
@@ -687,7 +687,7 @@ EMBED_INLINE void terminal_send(const TerminalCtx *args)
 EMBED_INLINE void terminal_paste(const TerminalCtx *args)
 {
     const int at = terminal_target();
-    char *const text = (at >= 0) ? g_cli_cells->persistent_buf_alloc(TERMINAL_PASTE_MAX, &g_cli_terminal_cells) : NULL;
+    char *const text = (at >= 0) ? g_cli_guard->persistent_buf_alloc(TERMINAL_PASTE_MAX, g_cli_terminal_owner) : NULL;
     if (text == NULL)
     {
         return;
@@ -720,7 +720,7 @@ EMBED_INLINE void terminal_paste(const TerminalCtx *args)
     {
         EMBED_CALL(terminal_send, TerminalCtx, .bytes = text, .size = line.at);
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
 int cli_terminal_tabs_command(const char *name, const char *const *words, unsigned int count)
@@ -1033,7 +1033,7 @@ EMBED_INLINE void terminal_place_save(void)
         return;
     }
     const unsigned long long bytes = 64ULL + ((unsigned long long)s_terminal.tabs * (CLI_PATH_MAX_LEN + 16ULL));
-    char *const text = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_terminal_cells);
+    char *const text = g_cli_guard->persistent_buf_alloc(bytes, g_cli_terminal_owner);
     if (text == NULL)
     {
         return;
@@ -1064,7 +1064,7 @@ EMBED_INLINE void terminal_place_save(void)
         (void)cli_state_value_save(
             &(CliStateValueCfg){.folder = folder, .key = TERMINAL_PLACE_KEY, .value = text, .err_msg = &err_msg});
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
 // the tab's text as the window ends written as its history's file, from its first line to the main screen's foot, the
@@ -1081,7 +1081,7 @@ EMBED_INLINE void terminal_rows_file(const TerminalCtx *args)
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = tab->key, .first = 0ULL,
                                   .last = xterm->history + xterm->rows - 1ULL, .size_pointer = &size, .state = state,
-                                  .capacity = sizeof(state), .owner = &g_cli_terminal_cells);
+                                  .capacity = sizeof(state), .owner = g_cli_terminal_owner);
     if (text == NULL)
     {
         return;
@@ -1097,7 +1097,7 @@ EMBED_INLINE void terminal_rows_file(const TerminalCtx *args)
         (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = tab->history_path, .bytes = "\n",
                          .size = 1ULL, .fresh = 0);
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
 int cli_terminal_tabs_step(void)
@@ -1137,9 +1137,9 @@ int cli_terminal_tabs_step(void)
         }
         else
         {
-            g_cli_cells->persistent_buf_release(tab->xterm.cell, &g_cli_terminal_cells);
+            g_cli_guard->persistent_buf_release(tab->xterm.cell, g_cli_terminal_owner);
             tab->xterm.cell = NULL;
-            g_cli_cells->persistent_buf_release(tab, &g_cli_terminal_cells);
+            g_cli_guard->persistent_buf_release(tab, g_cli_terminal_owner);
         }
     }
     s_terminal.closings = left;
@@ -1238,7 +1238,7 @@ void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
     {
         return;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     const unsigned long long open =
         EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
@@ -1315,9 +1315,9 @@ void cli_terminal_tabs_end(void)
         if ((s_terminal.tabs == 1u) && (s_terminal.tab[0]->shell.state == CLI_TERMINAL_SHELL_IDLE))
         {
             EMBED_CALL(terminal_unstore, TerminalCtx, .tab = s_terminal.tab[0], .on = 0);
-            g_cli_cells->persistent_buf_release((s_terminal.tab[0])->xterm.cell, &g_cli_terminal_cells);
+            g_cli_guard->persistent_buf_release((s_terminal.tab[0])->xterm.cell, g_cli_terminal_owner);
             (s_terminal.tab[0])->xterm.cell = NULL;
-            g_cli_cells->persistent_buf_release((s_terminal.tab[0]), &g_cli_terminal_cells);
+            g_cli_guard->persistent_buf_release((s_terminal.tab[0]), g_cli_terminal_owner);
             s_terminal.tabs = 0u;
         }
     }
@@ -1328,6 +1328,6 @@ void cli_terminal_tabs_end(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause,
                          .milliseconds_u64 = CLI_TERMINAL_LOOK_MS);
     }
-    g_cli_cells->persistent_buf_release(s_terminal.tab, &g_cli_terminal_cells);
+    g_cli_guard->persistent_buf_release(s_terminal.tab, g_cli_terminal_owner);
     s_terminal = (TerminalModel){.shown = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
 }

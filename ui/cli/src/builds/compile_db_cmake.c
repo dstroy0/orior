@@ -86,7 +86,7 @@ EMBED_INLINE void cli_flag_init(const CompileDbCmakeCtx *args)
     mmgr_line_put(&line, args->text);
     mmgr_line_finish(&line);
     EMBED_CALL(cli_flag_append, CompileDbCmakeCtx, .flag = flag,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = flag, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = flag, .cap = CLI_POOL_BYTES}));
 }
 
 // a string made in the entries tree with every backslash written as a slash
@@ -95,12 +95,12 @@ EMBED_INLINE unsigned int cli_slashed_init(const CompileDbCmakeCtx *args)
     const char *text = args->text;
     char slashed[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
-        .dst = slashed, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = slashed, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = slashed,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
+               .size = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
     return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                       .json = &g_cli_gather.json, .text = slashed,
-                      .length = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}));
+                      .length = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}));
 }
 
 // a fragment of a compile command at `at` of the target's reply decoded into the fragment line, at the bytes it is
@@ -119,7 +119,7 @@ EMBED_INLINE void cli_fragment_flags(const CompileDbCmakeCtx *args)
         return;
     }
     EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = text->out,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = text->out, .cap = CLI_CELLS_POOL}),
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text->out, .cap = CLI_POOL_BYTES}),
                .each = cli_fragment_word, .context = NULL);
 }
 
@@ -191,7 +191,7 @@ EMBED_INLINE unsigned int cli_compiler_get(const CompileDbCmakeCtx *args)
     unsigned int at = 0u;
     while ((at < g_cli_gather.compilers) &&
            (!cellul.eq(&(CatenaFinitaCfg){
-               .src = g_cli_gather.compiler[at].language, .other = args->language, .cap = CLI_CELLS_POOL})))
+               .src = g_cli_gather.compiler[at].language, .other = args->language, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
@@ -255,7 +255,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = file,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -271,7 +271,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = json, .text = text,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
     }
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
@@ -285,7 +285,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
                .value =
                    EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                               .json = json, .text = args->build,
-                              .length = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_CELLS_POOL})));
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
                .name = "file", .value = EMBED_CALL(cli_slashed_init, CompileDbCmakeCtx, .text = file));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
@@ -312,8 +312,8 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
                         .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                          .object = group, .key = "language"),
                         .out = language, .capacity = sizeof(language)) ||
-            ((!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "C", .cap = CLI_CELLS_POOL})) &&
-             (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "CXX", .cap = CLI_CELLS_POOL}))))
+            ((!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "C", .cap = CLI_POOL_BYTES})) &&
+             (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "CXX", .cap = CLI_POOL_BYTES}))))
         {
             continue;
         }
@@ -323,7 +323,7 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
             continue;
         }
         const CliCompilerOf *const one = &g_cli_gather.compiler[compiler];
-        const int msvc = (cellul.eq(&(CatenaFinitaCfg){.src = one->id, .other = "MSVC", .cap = CLI_CELLS_POOL})) ||
+        const int msvc = (cellul.eq(&(CatenaFinitaCfg){.src = one->id, .other = "MSVC", .cap = CLI_POOL_BYTES})) ||
                          EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = one->path);
         EMBED_CALL(cli_group_flags, CompileDbCmakeCtx, .target = args->target, .group = group, .msvc = msvc);
         unsigned long long index =
@@ -368,7 +368,7 @@ EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *a
     const char *named = args->build;
     const unsigned long long named_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->build,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_POOL_BYTES}), .set = "/\\");
     named = (named_end != 0ULL) ? (args->build + named_end) : named;
     const unsigned long long first =
         EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->model, .array = args->configurations);
@@ -380,9 +380,9 @@ EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *a
                               .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->model,
                                                .object = at, .key = "name"),
                               .out = name, .capacity = sizeof(name)) &&
-                   (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) ==
-                    cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
-        same = same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = named, .cap = CLI_CELLS_POOL, .ci = 1});
+                   (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) ==
+                    cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}));
+        same = same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = named, .cap = CLI_POOL_BYTES, .ci = 1});
         if (same)
         {
             return at;

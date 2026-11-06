@@ -37,12 +37,12 @@ int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
     unsigned long long start = 0ULL;
     unsigned long long end = size;
     while ((start < size) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = result_text[start]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = result_text[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = result_text[end - 1ULL]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = result_text[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -79,7 +79,7 @@ int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
     if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder) ||
         !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script,
                     .bytes = g_cli_debug_lldb_script,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_debug_lldb_script, .cap = CLI_CELLS_POOL})))
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_debug_lldb_script, .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, "orior's script for lldb could not be written at ");
         mmgr_line_put(args->err_msg, script);
@@ -162,7 +162,7 @@ EMBED_INLINE int step_send(const DebugStepCtx *args)
         const int answered = EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap,
                                         .command = args->how, .arguments = args_local.out, .length = args_local.at,
                                         .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS, .answer = &answer, .err_msg = err_msg);
-        g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
         return answered;
     }
     unsigned long long seq = 0ULL;
@@ -183,7 +183,7 @@ int cli_debug_step(const CliDebugOutErrMsgIdThreadHowCfg *args)
     int known = 0;
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        known = known || (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = s_hows[at], .cap = CLI_CELLS_POOL}));
+        known = known || (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = s_hows[at], .cap = CLI_POOL_BYTES}));
     }
     if (!known)
     {
@@ -202,7 +202,7 @@ int cli_debug_step(const CliDebugOutErrMsgIdThreadHowCfg *args)
     // a step out of the tree's C into the Python that called it lets the native code run on and stops the Python at
     // the next line it runs
     CliDebugSession *const sibling =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL})) && has_parent
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_POOL_BYTES})) && has_parent
             ? EMBED_CALL(cli_debug_err_msg_id_internal.native_get, CliDebugErrMsgIdCtx, .id = parent)
             : NULL;
     const int across = (sibling != NULL) && (sibling == session);
@@ -239,7 +239,7 @@ int cli_debug_step(const CliDebugOutErrMsgIdThreadHowCfg *args)
     // answers from inside the process, reports the step began; in a session whose process a native session also debugs,
     // the step is sent and not waited on
     CliDebugSession *const native =
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "pause", .cap = CLI_CELLS_POOL}))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "pause", .cap = CLI_POOL_BYTES}))
             ? EMBED_CALL(cli_debug_err_msg_id_internal.native_get, CliDebugErrMsgIdCtx, .id = args->id)
             : NULL;
     const int stepped = EMBED_CALL(step_send, DebugStepCtx, .session = session, .how = args->how,
@@ -298,12 +298,12 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     unsigned long long start = 0ULL;
     unsigned long long end = count.at;
     while ((start < end) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_CELLS_POOL, .byte = count.out[start]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = count.out[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_spaces, .cap = CLI_CELLS_POOL, .byte = count.out[end - 1ULL]}) != NULL))
+                                 .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = count.out[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }

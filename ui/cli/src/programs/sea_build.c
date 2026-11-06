@@ -3,7 +3,7 @@
 // sea_build.c: a script built into a single executable of Node's, by `node --build-sea` from Node 25.5 and by Node's
 // documented steps before it; node's copy written in pieces from its mapping, so node is never read whole
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "sea.h"
 
@@ -46,13 +46,13 @@ typedef struct
 EMBED_INLINE void cli_print(const SeaBuildCtx *args)
 {
     EMBED_CALL(args->sink.print, CliEachLineSizeCfg, .context = args->sink.context, .line = args->text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
 }
 
 // `path` with its file's extension, where it has one, put as `extension` into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void cli_with_extension(const SeaBuildCtx *args)
 {
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long name_at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                   .text = args->path, .at = whole, .set = "/\\");
     // a dot counts past the name's first letter, so that a name that starts with a dot has no extension for it
@@ -73,9 +73,9 @@ EMBED_INLINE void cli_slash(const SeaBuildCtx *args)
     char slashed[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = slashed,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = slashed,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
+               .size = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
     char quoted[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea json = {quoted, sizeof(quoted), 0ULL};
     mmgr_line_ch(&json, '"');
@@ -124,7 +124,7 @@ EMBED_INLINE int cli_node_run(const SeaBuildCtx *args)
         {
             const char *stop = text;
             stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                               .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "\n");
             const unsigned long long length =
                 (unsigned long long)(stop - text) - (((stop > text) && (stop[-1] == '\r')) ? 1ULL : 0ULL);
             EMBED_CALL(args->sink.print, CliEachLineSizeCfg, .context = args->sink.context, .line = text,
@@ -328,7 +328,7 @@ EMBED_INLINE int cli_windows_copy(const SeaBuildCtx *args)
     EMBED_CALL(cli_print, SeaBuildCtx, .sink = args->sink, .text = print_line);
     unsigned long long created_size = 0ULL;
     const unsigned char *const made = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->output,
-                                                 .size_pointer = &created_size, .owner = &g_cli_sea_cells);
+                                                 .size_pointer = &created_size, .owner = g_cli_sea_owner);
     if (made == NULL)
     {
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = args->output, .how = ": it could not be read",
@@ -353,7 +353,7 @@ EMBED_INLINE int cli_windows_copy(const SeaBuildCtx *args)
             EMBED_CALL(cli_fail, SeaBuildCtx, .path = fused, .how = ": it could not be written", .err_msg = err_msg);
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)made, (&g_cli_sea_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)made, (g_cli_sea_owner));
     if (done && !EMBED_CALL(query_from_internal.file_rename, QueryFromCtx, .from = fused, .to = args->output))
     {
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = args->output, .how = ": it could not be replaced",
@@ -370,16 +370,16 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     unsigned long long script_size = 0ULL;
     // the script read as its text, the zero of the slack after it
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->main,
-                                                   .size_pointer = &script_size, .owner = &g_cli_sea_cells);
+                                                   .size_pointer = &script_size, .owner = g_cli_sea_owner);
     if ((mapped == NULL) || (script_size >= CLI_SEA_SCRIPT))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_sea_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_sea_owner));
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = args->main, .how = ": it could not be read",
                           .err_msg = args->err_msg);
     }
     const unsigned int required = EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = (const char *)mapped,
                                              .found = s_requested, .capacity = CLI_SEA_REQUESTED);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_sea_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_sea_owner));
     if (required != 0u)
     {
         mmgr_line_put(args->err_msg, args->main);
@@ -396,15 +396,15 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->made,
                             .src = args->output,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->output, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->output, .cap = CLI_POOL_BYTES}) + 1u});
 #if defined(_WIN32)
     const char *name = args->output;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->output,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->output, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->output, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->output + name_end) : name;
     if ((name[0] != '\0') &&
-        (cellul.chr(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL, .byte = '.'}) == NULL))
+        (cellul.chr(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_POOL_BYTES, .byte = '.'}) == NULL))
     {
         EMBED_CALL(cli_with_extension, SeaBuildCtx, .path = args->output, .extension = "exe", .out = args->made);
     }
@@ -429,9 +429,9 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     EMBED_CALL(cli_with_extension, SeaBuildCtx, .path = args->made, .extension = "sea.json", .out = config);
     memor.cpy(&(MemoriaCfg){.dst = config_slashed,
                             .src = config,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = config, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = config, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = config_slashed,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = config_slashed, .cap = CLI_CELLS_POOL}), .from = '\\',
+               .size = cellul.len(&(CatenaFinitaCfg){.src = config_slashed, .cap = CLI_POOL_BYTES}), .from = '\\',
                .to = '/');
     const int builds_itself = (major > 25ULL) || ((major == 25ULL) && (minor >= 5ULL));
     if (!builds_itself && (major < 20ULL))
@@ -486,7 +486,7 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     }
     unsigned long long data_size = 0ULL;
     const unsigned char *const data = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = blob,
-                                                 .size_pointer = &data_size, .owner = &g_cli_sea_cells);
+                                                 .size_pointer = &data_size, .owner = g_cli_sea_owner);
     if (data == NULL)
     {
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = blob, .how = ": it could not be read",
@@ -502,7 +502,7 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     EMBED_CALL(cli_print, SeaBuildCtx, .sink = args->sink, .text = print_line);
     unsigned long long size = 0ULL;
     const unsigned char *const program = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->node,
-                                                    .size_pointer = &size, .owner = &g_cli_sea_cells);
+                                                    .size_pointer = &size, .owner = g_cli_sea_owner);
     int done = program != NULL;
     if (!done)
     {
@@ -518,8 +518,8 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         done && EMBED_CALL(cli_linux_copy, SeaBuildCtx, .program = program, .size = size, .data = data,
                            .data_size = data_size, .output = args->made, .sink = args->sink, .err_msg = args->err_msg);
 #endif
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)program, (&g_cli_sea_cells));
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)data, (&g_cli_sea_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)program, (g_cli_sea_owner));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)data, (g_cli_sea_owner));
     if (done)
     {
         EMBED_CALL(cli_print, SeaBuildCtx, .sink = args->sink, .text = "turned the fuse to 1");

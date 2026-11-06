@@ -14,7 +14,7 @@ static unsigned int at(const GuiMask *mask, unsigned int x, unsigned int y)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     GuiIcons icons;
     EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
     cli_check(EMBED_CALL(cli_icons.icon_by_name, GuiIconsCfg, .name = "folder") && EMBED_CALL(cli_icons.icon_by_name, GuiIconsCfg, .name = "gear") && !EMBED_CALL(cli_icons.icon_by_name, GuiIconsCfg, .name = "nothing"),
@@ -72,7 +72,7 @@ int main(void)
     {
         if (icons.entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            g_cli_guard->persistent_buf_release(icons.entry[at].mask_bits.cover, g_gui_icons_owner);
             icons.entry[at].mask_bits.cover = NULL;
             icons.entry[at].used = 0;
         }

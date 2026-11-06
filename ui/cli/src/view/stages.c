@@ -86,7 +86,7 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
 {
     GuiAutohide *claim = args->claim;
     const GuiFrame *frame = args->frame;
-    g_cli_cells->persistent_buf_release(args->stages->stage, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->stages->stage, g_gui_owner);
     args->stages->stage = NULL;
     args->stages->count = 0u;
     const unsigned long long claim_end_ms =
@@ -122,7 +122,7 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     // the runs and the titles lie on the stages' alignment, the words being padded up to it
     const unsigned long long word_capacity = (word_bytes + 7ULL) & ~7ULL;
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(stage_bytes + word_capacity + run_bytes + title_bytes, &g_gui_cells);
+        g_cli_guard->persistent_buf_alloc(stage_bytes + word_capacity + run_bytes + title_bytes, g_gui_owner);
     EMBED_CALL(stages_bands_append, StagesCtx, .claim = claim, .panel_bands = &from);
     if (cell == NULL)
     {

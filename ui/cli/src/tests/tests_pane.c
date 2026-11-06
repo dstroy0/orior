@@ -7,8 +7,8 @@
 // never meets rows being rebuilt
 #include "testing.h"
 
-#include "../command_line/cells.h"
 #include "../command_line/command_line.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "cargo_tests.h"
@@ -175,7 +175,7 @@ static void tests_found(const CliTestEachCfg *args)
     }
     const unsigned int id =
         EMBED_CALL(tests_text_append, TestsPaneCtx, .text = test->id,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = test->id, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = test->id, .cap = CLI_POOL_BYTES}));
     const unsigned int label_at = EMBED_CALL(tests_text_append, TestsPaneCtx, .text = label, .length = line.at);
     if ((id == TESTS_TEXT) || (label_at == TESTS_TEXT))
     {
@@ -205,7 +205,7 @@ void cli_tests_pane_read(const CliTestsPaneCfg *args)
     }
     if (s_tests == NULL)
     {
-        s_tests = g_cli_cells->persistent_buf_alloc(sizeof(Tests), &g_cli_tests_pane_cells);
+        s_tests = g_cli_guard->persistent_buf_alloc(sizeof(Tests), g_cli_tests_pane_owner);
         if (s_tests == NULL)
         {
             return;
@@ -503,7 +503,7 @@ EMBED_INLINE unsigned long long tests_integer(const TestsPaneCtx *args)
                                    ? json->text + json->node[member].text
                                    : "";
     return EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ULL,
-                      .size = cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_CELLS_POOL}), .end = NULL);
+                      .size = cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_POOL_BYTES}), .end = NULL);
 }
 
 // a number member of `node` in `json`, written in seconds with a fraction, in milliseconds; 0 where it has none or
@@ -519,7 +519,7 @@ EMBED_INLINE unsigned int tests_milliseconds(const TestsPaneCtx *args)
         return 0u;
     }
     const char *const written = json->text + json->node[member].text;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     unsigned long long milliseconds = 1000ULL * EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = written,
                                                            .at = 0ULL, .size = size, .end = &at);
@@ -559,7 +559,7 @@ EMBED_INLINE unsigned int tests_by_id(const TestsPaneCtx *args)
     for (unsigned int at = 0u; at < tests->tests; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = tests->text + tests->test[at].id, .other = args->text, .cap = CLI_CELLS_POOL}))
+                .src = tests->text + tests->test[at].id, .other = args->text, .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
@@ -707,7 +707,7 @@ EMBED_INLINE void tests_coverage(const TestsPaneCtx *args)
                 const char *const digits = json->text + json->node[item].text;
                 const unsigned long long line = EMBED_CALL(
                     cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ULL,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_CELLS_POOL}), .end = NULL);
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_POOL_BYTES}), .end = NULL);
                 first = (line < first) ? line : first;
             }
             cover->first_missed = (first != ~0ULL) ? first : 0ULL;
@@ -759,7 +759,7 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = args->json, .size = args->size, .nodes_more = 0u,
-                                         .text_more = 0ULL, .err_msg = &ignored, .owner = &g_cli_tests_pane_cells);
+                                         .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_tests_pane_owner);
     unsigned long long length = 0ULL;
     const char *const kind = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = root, .name = "kind",
                                         .file_out = (unsigned int *)&length);
@@ -779,8 +779,7 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
     {
         EMBED_CALL(tests_done, TestsPaneCtx, .json = json, .node = root);
     }
-    g_cli_cells->persistent_buf_release(json->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json->node));
+    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     EMBED_ATOMIC_STORE(&s_changed, 1u);

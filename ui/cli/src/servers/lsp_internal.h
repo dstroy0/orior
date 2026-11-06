@@ -64,7 +64,6 @@ void cli_lsp_end(const CliLspCtx *args);
 // each file a server has open let go, as it is let go; and the cells the files open are allocated in, counted: the
 // table of them, each one's URI while it is open, and the copies one walk over a server's files takes (lsp_files.c)
 void cli_lsp_files_let_go(const CliLspKindCtx *args);
-extern CellOwner g_cli_lsp_files_cells;
 
 struct CliLspCtx
 {

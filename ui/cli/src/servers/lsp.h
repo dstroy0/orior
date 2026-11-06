@@ -134,7 +134,7 @@ void cli_lsp_complaint(const CliLspPathOutCfg *args);
 void cli_lsp_stop(const CliLspContextCfg *args);
 
 // a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and handed
-// over in `answer`, whose message the caller gives back to g_cli_servers_cells, NULL where the request failed; and a
+// over in `answer`, whose message the caller gives back to g_cli_servers_owner, NULL where the request failed; and a
 // notification sent. Each 1, or 0 with why given (lsp.c)
 int cli_lsp_request(const CliLspErrMsgLengthCfg *args);
 int cli_lsp_notify(const CliLspErrMsgLengthCfg *args);
@@ -270,7 +270,7 @@ struct CliLspReaderSizeCfg
 {
     CliLspReader *reader;
     unsigned long long *size;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliLspContextCfg
@@ -283,7 +283,7 @@ struct CliLspContextCfg
 struct CliLspSizeCfg
 {
     unsigned long long *size;
-    CellOwner *owner;
+    const CellOwner *owner;
     CliLsp *lsp;
 };
 

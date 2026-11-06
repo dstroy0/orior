@@ -20,9 +20,9 @@ int cli_toolchains_own(const CliToolchainsErrMsgFolderOnPathCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = program,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    char *cut = full + cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
+    char *cut = full + cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES});
     cut = full + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
                             .at = (unsigned long long)(cut - full), .set = "/\\");
     if (cut == full)
@@ -33,7 +33,7 @@ int cli_toolchains_own(const CliToolchainsErrMsgFolderOnPathCfg *args)
     cut[-1] = '\0';
     memor.cpy(&(MemoriaCfg){.dst = args->folder,
                             .src = full,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}) + 1u});
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folder, .key = key);
     const unsigned int count = cli_toolchains_find_path();
@@ -43,7 +43,7 @@ int cli_toolchains_own(const CliToolchainsErrMsgFolderOnPathCfg *args)
         char saved_path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = g_cli_toolchains_path[at],
                    .key = saved_path);
-        *on_path = cellul.eq(&(CatenaFinitaCfg){.src = saved_path, .other = key, .cap = CLI_CELLS_POOL});
+        *on_path = cellul.eq(&(CatenaFinitaCfg){.src = saved_path, .other = key, .cap = CLI_POOL_BYTES});
     }
     EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = NULL);
     return 1;
@@ -162,7 +162,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
 
 int cli_toolchains_add_to_path(const CliToolchainsErrMsgFolderCfg *args)
 {
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->what, .other = "orior", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->what, .other = "orior", .cap = CLI_POOL_BYTES}))
     {
         int on_path = 0;
         if (!EMBED_CALL(cli_toolchains_err_msg_folder_on_path.own, CliToolchainsErrMsgFolderOnPathCfg,
@@ -204,7 +204,7 @@ int cli_toolchains_add_to_path(const CliToolchainsErrMsgFolderCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->folder,
                           .src = found.folder,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = found.folder, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = found.folder, .cap = CLI_POOL_BYTES}) + 1u});
         EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
     }
     return EMBED_CALL(cli_add_folder, ToolchainsOwnCtx, .folder = args->folder, .err_msg = args->err_msg);

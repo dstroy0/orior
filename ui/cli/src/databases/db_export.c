@@ -84,7 +84,7 @@ EMBED_INLINE void export_csv_value(const DbExportCtx *args)
     for (unsigned long long at = 0ULL; (at < args->value->size) && !quoted; at += 1ULL)
     {
         quoted =
-            (cellul.chr(&(CatenaFinitaCfg){.src = ",\"\n\r", .cap = CLI_CELLS_POOL, .byte = args->value->text[at]}) !=
+            (cellul.chr(&(CatenaFinitaCfg){.src = ",\"\n\r", .cap = CLI_POOL_BYTES, .byte = args->value->text[at]}) !=
              NULL) &&
             (args->value->text[at] != '\0');
     }
@@ -108,7 +108,7 @@ EMBED_INLINE void export_csv_value(const DbExportCtx *args)
 static void export_line(const DbExportCtx *args)
 {
     char piece[CLI_DB_FIELD];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "json", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "json", .cap = CLI_POOL_BYTES}))
     {
         // an object of each column's name and value, the names in order and a name named twice retaining its last value
         EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = "{", .size = 1ULL);
@@ -120,7 +120,7 @@ static void export_line(const DbExportCtx *args)
             mmgr_line_put(&line, (at > 0u) ? "," : "");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
                        .text_bytes = (const unsigned char *)name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
             mmgr_line_ch(&line, ':');
             EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = line.out, .size = line.at);
             if ((column >= args->count) || args->values[column].null)
@@ -129,7 +129,7 @@ static void export_line(const DbExportCtx *args)
                 continue;
             }
             const unsigned long long value_capacity = (args->values[column].size * 6ULL) + CLI_DB_EXPORT_VALUE_MORE;
-            char *const value_cell = g_cli_cells->temporary_buf_alloc(value_capacity, &g_cli_db_cells);
+            char *const value_cell = g_cli_guard->temporary_buf_alloc(value_capacity, g_cli_db_owner);
             VerbaLinea value = mmgr_line_over(value_cell, value_capacity);
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &value,
                        .text_bytes = (const unsigned char *)args->values[column].text,
@@ -137,13 +137,13 @@ static void export_line(const DbExportCtx *args)
             args->export->broke = args->export->broke || !mmgr_line_ok(&value);
             EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = value.out,
                        .size = mmgr_line_ok(&value) ? value.at : 0ULL);
-            g_cli_cells->persistent_buf_release(value.out, &g_cli_db_cells);
+            g_cli_guard->persistent_buf_release(value.out, g_cli_db_owner);
         }
         EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = "}\n", .size = 2ULL);
         return;
     }
     const int tabs =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "tsv", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "tsv", .cap = CLI_POOL_BYTES}));
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const parting = tabs ? "\t" : ",";
@@ -173,7 +173,7 @@ static void export_results_line(const CliEachLineSizeCfg *args)
     // the values read back take no more bytes than the line writes them in, each string's quotes capacity for its
     // terminator
     const unsigned long long capacity = (size < CLI_DB_EXPORT_ROW) ? (size + 1ULL) : CLI_DB_EXPORT_ROW;
-    char *const texts = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_db_cells);
+    char *const texts = g_cli_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
     if (texts == NULL)
     {
         export->broke = 1;
@@ -184,7 +184,7 @@ static void export_results_line(const CliEachLineSizeCfg *args)
     for (unsigned long long at = 1ULL; (at < size) && (count < export->columns);)
     {
         while ((at < size) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " ,", .cap = CLI_CELLS_POOL, .byte = args->line[at]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " ,", .cap = CLI_POOL_BYTES, .byte = args->line[at]}) != NULL))
         {
             at += 1ULL;
         }
@@ -213,7 +213,7 @@ static void export_results_line(const CliEachLineSizeCfg *args)
         {
             text[0] = '\0';
         }
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
         export->values[count] = (CliDbValue){text, length, 0};
         used += length + 1ULL;
         count += 1u;
@@ -221,7 +221,7 @@ static void export_results_line(const CliEachLineSizeCfg *args)
     }
     EMBED_CALL(export_line, DbExportCtx, .export = export, .values = export->values, .count = count);
     export->written += 1ULL;
-    g_cli_cells->persistent_buf_release(texts, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(texts, g_cli_db_owner);
 }
 
 // a row read on from the run written, and counted past those buffered
@@ -270,7 +270,7 @@ EMBED_INLINE void export_order(const DbExportCtx *args)
         }
         if ((at > 0u) && (cellul.eq(&(CatenaFinitaCfg){.src = results->columns[args->export->order[at - 1u]].name,
                                                        .other = results->columns[column].name,
-                                                       .cap = CLI_CELLS_POOL})))
+                                                       .cap = CLI_POOL_BYTES})))
         {
             args->export->order[at - 1u] = column;
             continue;
@@ -301,7 +301,7 @@ int cli_db_export(const CliDbOutCfg *args)
     const unsigned long long values_bytes = columns * sizeof(CliDbValue);
     const unsigned long long order_bytes = columns * sizeof(unsigned int);
     char *const cell =
-        g_cli_cells->temporary_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_CAPACITY, &g_cli_db_cells);
+        g_cli_guard->temporary_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_CAPACITY, g_cli_db_owner);
     if (cell == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -322,13 +322,13 @@ int cli_db_export(const CliDbOutCfg *args)
                                   columns};
     CliDbExport *const export = &results_export;
     EMBED_CALL(export_order, DbExportCtx, .export = export);
-    if (!export->broke && (!cellul.eq(&(CatenaFinitaCfg){.src = args->format, .other = "json", .cap = CLI_CELLS_POOL})))
+    if (!export->broke && (!cellul.eq(&(CatenaFinitaCfg){.src = args->format, .other = "json", .cap = CLI_POOL_BYTES})))
     {
         for (unsigned int at = 0u; at < results->column_count; at += 1u)
         {
             export->values[at] = (CliDbValue){
                 results->columns[at].name,
-                cellul.len(&(CatenaFinitaCfg){.src = results->columns[at].name, .cap = CLI_CELLS_POOL}), 0};
+                cellul.len(&(CatenaFinitaCfg){.src = results->columns[at].name, .cap = CLI_POOL_BYTES}), 0};
         }
         EMBED_CALL(export_line, DbExportCtx, .export = export, .values = export->values,
                    .count = results->column_count);
@@ -357,7 +357,7 @@ int cli_db_export(const CliDbOutCfg *args)
     EMBED_CALL(export_flush, DbExportCtx, .export = export);
     const int broke = export->broke;
     const unsigned long long written = export->written;
-    g_cli_cells->persistent_buf_release(cell, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_db_owner);
     if (!read)
     {
         return 0;
@@ -377,7 +377,7 @@ int cli_db_export(const CliDbOutCfg *args)
     mmgr_line_put(out, ",\"path\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(out, '}');
     return 1;
 }

@@ -16,7 +16,7 @@ int query_base_get(const QueryLoopsErrMsgWordsCfg *args)
         return 1;
     }
     if ((args->count == 2u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "--base", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "--base", .cap = CLI_POOL_BYTES})))
     {
         *base = args->words[1];
         return 1;
@@ -97,7 +97,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
     unsigned long long size = 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = s_other.qry,
                             .src = args->latest,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->latest, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->latest, .cap = CLI_POOL_BYTES}) + 1u});
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other,
                     .name = "questions.txt", .bytes_u8s = &list, .size_pointer = &size))
     {
@@ -108,7 +108,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
     // the names a list writes, two of each line's words with a line ended after each, take less than the line, so a
     // cell of the list's size and the first name's line fits them
     static const char s_first[] = "questions.txt\n";
-    char *const names_text = g_cli_cells->persistent_buf_alloc(size + sizeof(s_first), &g_query_cells);
+    char *const names_text = g_cli_guard->persistent_buf_alloc(size + sizeof(s_first), g_query_owner);
     int whole = names_text != NULL;
     if (whole)
     {
@@ -130,7 +130,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
             mmgr_line_put_most(args->err_msg, carried + 2, transferred_line.at - 2u);
         }
     }
-    g_cli_cells->persistent_buf_release(names_text, &g_query_cells);
+    g_cli_guard->persistent_buf_release(names_text, g_query_owner);
     return whole;
 }
 

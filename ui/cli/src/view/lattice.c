@@ -115,12 +115,12 @@ static void *lattice_taken(void *before, uintptr_t bytes)
 // kept
 static void *lattice_taken(void *before, uintptr_t bytes)
 {
-    void *const taken = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_lattice_cells);
+    void *const taken = g_cli_guard->persistent_buf_alloc(bytes, g_gui_lattice_owner);
     if (taken == NULL)
     {
         return 0;
     }
-    g_cli_cells->persistent_buf_release(before, &g_gui_lattice_cells);
+    g_cli_guard->persistent_buf_release(before, g_gui_lattice_owner);
     return taken;
 }
 
@@ -131,9 +131,9 @@ void lattice_given(uint32_t slot)
         return;
     }
     LatticeSlot *const lattice = &s_lattice_slots[slot];
-    g_cli_cells->persistent_buf_release(lattice->offsets, &g_gui_lattice_cells);
-    g_cli_cells->persistent_buf_release(lattice->dots, &g_gui_lattice_cells);
-    g_cli_cells->persistent_buf_release(lattice->placed, &g_gui_lattice_cells);
+    g_cli_guard->persistent_buf_release(lattice->offsets, g_gui_lattice_owner);
+    g_cli_guard->persistent_buf_release(lattice->dots, g_gui_lattice_owner);
+    g_cli_guard->persistent_buf_release(lattice->placed, g_gui_lattice_owner);
     *lattice = (LatticeSlot){0};
 }
 #endif

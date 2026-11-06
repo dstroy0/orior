@@ -8,7 +8,7 @@
 #define SERVERS_INTERNAL_H
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../comms/container.h"
 #include "../plugins/plugins.h"
 #include "../text/json_tree.h"
@@ -327,12 +327,10 @@ void cli_servers_path_write(const CliServersPathErrMsgCtx *args);
 // file's first in the file first, a file made, moved or removed not among them; and the cells one occupies while it is
 // written (servers_edits.c)
 void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args);
-extern CellOwner g_cli_servers_edits_cells;
 // every file named `name` in the tree at `root`, outside the folders a build writes and at most six folders down,
 // sorted, written as a JSON array into `out`; and the cells a server's start occupies while it starts
 // (servers_launch.c)
 void cli_servers_projects_in(const CliServersRootOutCtx *args);
-extern CellOwner g_cli_servers_launch_cells;
 // a hover's contents as Markdown, from any of the shapes the protocol allows, its letters as they are
 void cli_servers_markdown_get(const CliServersJsonOutCtx *args);
 // a completion item of the server's put among `items`
@@ -479,7 +477,7 @@ void cli_servers_check_open_set(const CliServersUriCtx *args);
 void cli_servers_check_open_clear(void);
 void cli_servers_reread_open(const CliServersServerCommandCtx *args);
 // the tree's files the check was given, by their paths in the tree, each ended by a 0, in a cell of their size counted
-// to g_cli_servers_cells, their size into `size`: the cell, or NULL where the check is off or on another tree or the
+// to g_cli_servers_owner, their size into `size`: the cell, or NULL where the check is off or on another tree or the
 // cell cannot be taken; the files a change on the disk named recorded among the tree's files, those no longer there let
 // go, and where the check's word goes into `emit`: 1, or 0 where the check is off or on another tree; and the files
 // `paths`, `count` of them, each with its server, referenced for it, and its language, queued behind those waiting,
@@ -556,7 +554,7 @@ struct CliServersPathSizeCtx
     unsigned long long params_size;
     const char *all;
     unsigned long long *mapped_size;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliServersPathSizeRootCtx
@@ -905,7 +903,7 @@ struct CliServersJsonOutHelpCtx
 {
     const CliJson *json;
     unsigned int help;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliServersPathLineCtx

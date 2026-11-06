@@ -54,7 +54,7 @@ EMBED_INLINE void cli_script_write(const NotebookWriteCtx *args)
                                           .object = cell, .name = "cell_type"),
                        .length_pointer = NULL);
         const char *const kind = (named != NULL) ? named : "code";
-        const int markdown = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "markdown", .cap = CLI_CELLS_POOL});
+        const int markdown = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "markdown", .cap = CLI_POOL_BYTES});
         mmgr_line_put(args->out, comment);
         mmgr_line_put(args->out, " %%");
         if ((title != NULL) && (title[0] != '\0'))
@@ -62,7 +62,7 @@ EMBED_INLINE void cli_script_write(const NotebookWriteCtx *args)
             mmgr_line_ch(args->out, ' ');
             mmgr_line_put(args->out, title);
         }
-        if (markdown || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "raw", .cap = CLI_CELLS_POOL})))
+        if (markdown || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "raw", .cap = CLI_POOL_BYTES})))
         {
             mmgr_line_put(args->out, " [");
             mmgr_line_put(args->out, kind);
@@ -130,9 +130,9 @@ EMBED_INLINE void cli_output_lines_again(const NotebookWriteCtx *args)
         const char *const name = json->text + json->node[kind].key;
         if ((json->node[kind].kind == CFG_JSON_STRING) &&
             !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = name,
-                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
+                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}),
                         .ending = "json") &&
-            (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "text/", .cap = CLI_CELLS_POOL})))
+            (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "text/", .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = data,
                        .name = name,
@@ -148,7 +148,7 @@ void cli_notebook_write(const CliNotebookPathBookCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->book, .name = "format"),
                    .length_pointer = NULL);
-    if ((format != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = format, .other = "percent", .cap = CLI_CELLS_POOL})))
+    if ((format != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = format, .other = "percent", .cap = CLI_POOL_BYTES})))
     {
         EMBED_CALL(cli_script_write, NotebookWriteCtx, .json = args->json, .path = args->path, .book = args->book,
                    .out = args->out);
@@ -213,7 +213,7 @@ int cli_notebook_without_outputs(const CliNotebookTextCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json, .object = cell, .name = "cell_type"),
                        .length_pointer = NULL);
-        if ((kind != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "code", .cap = CLI_CELLS_POOL})))
+        if ((kind != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "code", .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = cell,
                        .name = "outputs",

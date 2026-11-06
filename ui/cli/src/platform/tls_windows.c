@@ -137,9 +137,9 @@ void cli_tls_close(const CliTlsOutCfg *args)
     {
         mmgr_zero_buf(args->tls->message, args->tls->message_capacity);
     }
-    g_cli_cells->persistent_buf_release(args->tls->sealed, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(args->tls->plain, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(args->tls->message, &g_cli_tls_cells);
+    g_cli_guard->persistent_buf_release(args->tls->sealed, g_cli_tls_owner);
+    g_cli_guard->persistent_buf_release(args->tls->plain, g_cli_tls_owner);
+    g_cli_guard->persistent_buf_release(args->tls->message, g_cli_tls_owner);
     args->tls->sealed = NULL;
     args->tls->plain = NULL;
     args->tls->message = NULL;

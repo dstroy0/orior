@@ -23,7 +23,7 @@ void cli_hit_write(const CliFilesPathCtx *args)
     }
     mmgr_line_put(args->out, args->first ? "{\"path\":" : ",{\"path\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"line\":");
     mmgr_line_decimal(args->out, args->line, 0u);
     mmgr_line_put(args->out, ",\"col\":");
@@ -107,7 +107,7 @@ EMBED_INLINE void cli_git_hits(const FilesFindCtx *args)
     const CliPatterns *patterns = args->patterns;
     VerbaLinea *out = args->out;
     const unsigned long long prefix_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->prefix_read, .cap = CLI_CELLS_POOL});
+        cellul.len(&(CatenaFinitaCfg){.src = args->prefix_read, .cap = CLI_POOL_BYTES});
     const char *at = args->run_result->out;
     const char *const end = args->run_result->out + args->run_result->out_size;
     unsigned int found = 0u;
@@ -232,9 +232,9 @@ int cli_search_by_git(const CliFilesRootCtx *args)
         received = CLI_GIT_SEARCH_FOUND;
     }
     else if (cellul.find(&(CatenaFinitaCfg){.src = run_result->err,
-                                            .cap = CLI_CELLS_POOL,
+                                            .cap = CLI_POOL_BYTES,
                                             .other = "regular expression",
-                                            .other_cap = CLI_CELLS_POOL}) != NULL)
+                                            .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         const char *from = run_result->err;
         const char *to = run_result->err + run_result->err_size;

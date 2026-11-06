@@ -411,7 +411,7 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     {
         const char *const each = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = plan,
                                             .at = plan->services.at[at]);
-        named = named || (cellul.eq(&(CatenaFinitaCfg){.src = each, .other = service, .cap = CLI_CELLS_POOL}));
+        named = named || (cellul.eq(&(CatenaFinitaCfg){.src = each, .other = service, .cap = CLI_POOL_BYTES}));
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word_text = each);
     }
@@ -443,7 +443,7 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     char container[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ULL;
     length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_output, .at = 0ULL,
-                        .size = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL}), .set = "\n");
+                        .size = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_POOL_BYTES}), .set = "\n");
     length = (length < sizeof(container)) ? length : (sizeof(container) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = container, .src = s_output, .bytes = (size_t)length});
     length -= ((length != 0ULL) && (container[length - 1u] == '\r')) ? 1ULL : 0ULL;
@@ -487,7 +487,7 @@ EMBED_INLINE int cli_up_lock(const DevcontainerUpCtx *args)
                .word_text = name);
     if (EMBED_CALL(cli_docker_read, DevcontainerUpCtx, .words = &s_words, .out = s_output))
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = s_output, .other = "true", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = s_output, .other = "true", .cap = CLI_POOL_BYTES}))
         {
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
@@ -517,7 +517,7 @@ EMBED_INLINE int cli_up_lock(const DevcontainerUpCtx *args)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_devcontainer_plan_at.plan_text,
                                                                                    CliDevcontainerPlanAtCfg,
                                                                                    .plan = plan, .at = plan->image),
-                                                                 .cap = CLI_CELLS_POOL}) +
+                                                                 .cap = CLI_POOL_BYTES}) +
                                    1u});
     }
     else

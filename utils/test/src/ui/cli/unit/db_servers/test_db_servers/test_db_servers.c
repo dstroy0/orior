@@ -162,7 +162,7 @@ void test_postgres_reads_a_tables_columns(void)
 {
     static const char *const s_table[3] = {"public", "table", "orior_guard"};
     postgres_connected();
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = children_of(s_table, 3u), .other = "column n integer", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = children_of(s_table, 3u), .other = "column n integer", .cap = CLI_POOL_BYTES}));
 }
 
 void test_an_update_of_every_row_prompts_with_its_count(void)
@@ -252,7 +252,7 @@ void test_mysql_reads_a_tables_columns_and_indexes(void)
     static const char *const s_table[3] = {"orior_schema", "table", "t"};
     mysql_connected();
     const char *const children = children_of(s_table, 3u);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = children, .other = "column id ", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = children, .other = "column id ", .cap = CLI_POOL_BYTES}));
     CLI_TEST_ASSERT_CONTAINS("|column name ", children);
     CLI_TEST_ASSERT_CONTAINS("|index by_name ", children);
     CLI_TEST_ASSERT_CONTAINS("|index PRIMARY ", children);

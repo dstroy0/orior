@@ -49,8 +49,8 @@ static void readers_run(void *context)
             free(capacity);
             continue;
         }
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_checks_cells));
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = g_checks_owner);
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     }
     s_readers.running -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_readers.wake);
@@ -122,7 +122,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
     char under[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = corpus->root, .relative = "ui/cli/src", .joined = under);
     const unsigned long long out_capacity = 1ull << 20u;
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_checks_cells);
+    char *const out_cell = g_cli_guard->temporary_buf_alloc(out_capacity, g_checks_owner);
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
@@ -140,6 +140,6 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         measure.bytes = corpus->whole;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
-    g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(out.out, g_checks_owner);
     return measure;
 }

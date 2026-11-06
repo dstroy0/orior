@@ -13,7 +13,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
 {
     for (unsigned int at = 0u; at < 30u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_CELLS_POOL}) ==
+        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_POOL_BYTES}) ==
              args->size) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = g_cli_gradle_configurations[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
@@ -24,7 +24,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     for (unsigned int at = 0u; at < 12u; at += 1u)
     {
         unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_helpers[at], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_helpers[at], .cap = CLI_POOL_BYTES});
         while ((length >= 2u) && (memor.cmp(&(MemoriaCfg){
                                       .src = g_cli_gradle_helpers[at] + length - 2u, .other = "()", .bytes = 2u}) == 0))
         {
@@ -48,7 +48,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     }
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_suffixes[at], .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_suffixes[at], .cap = CLI_POOL_BYTES});
         if ((args->size > length) && (memor.cmp(&(MemoriaCfg){.src = args->word_text + args->size - length,
                                                               .other = g_cli_gradle_suffixes[at],
                                                               .bytes = length}) == 0))
@@ -70,7 +70,7 @@ typedef struct
 // whether `folder` is `root` or lies inside it
 EMBED_INLINE int gradle_inside(const GradleBuildCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
                     .size = length))
     {
@@ -126,7 +126,7 @@ void cli_gradle_build_root(const CliGradleRootCtx *args)
             EMBED_CALL(gradle_copy, GradleBuildCtx, .from = folder, .out = args->out);
             return;
         }
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->root, .cap = CLI_CELLS_POOL})) ||
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->root, .cap = CLI_POOL_BYTES})) ||
             !EMBED_CALL(gradle_inside, GradleBuildCtx, .root = args->root, .folder = folder) ||
             !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
         {
@@ -158,10 +158,10 @@ static void gradle_catalog_visit(const CliEachNameIsFolderCfg *args)
 {
     const CliGradleGathered *const gathered = args->context;
     CliGradleCatalogs *const catalogs = gathered->catalogs;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (length < 14u) ||
         (!cellul.eq(
-            &(CatenaFinitaCfg){.src = args->name + length - 14u, .other = ".versions.toml", .cap = CLI_CELLS_POOL})) ||
+            &(CatenaFinitaCfg){.src = args->name + length - 14u, .other = ".versions.toml", .cap = CLI_POOL_BYTES})) ||
         (catalogs->count == CLI_GRADLE_CATALOGS) || (length - 14u >= CLI_NAME_MAX_LEN))
     {
         return;

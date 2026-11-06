@@ -8,7 +8,7 @@
 // CLI_SERVERS_QUIET_MAX at most. It is ended with no file closed, so what it published stands. The next slice of a
 // file it was given starts it again, the file opened with its stored slice and the editor's text, the language each
 // sliced file opened as stored by its key
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 // how often the watcher looks, in milliseconds, and the most sliced files whose language is stored
@@ -216,7 +216,7 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
         const int has_sink = g_cli_servers.has_sink;
         sink = g_cli_servers.sink;
         CliServerSpec *const spec =
-            has_sink ? g_cli_cells->temporary_buf_alloc(sizeof(CliServerSpec), &g_cli_servers_cells) : NULL;
+            has_sink ? g_cli_guard->temporary_buf_alloc(sizeof(CliServerSpec), g_cli_servers_owner) : NULL;
         char why[1024];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         server = (spec != NULL) ? EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = root,
@@ -241,8 +241,8 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
             server = NULL;
         }
-        g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
-        g_cli_cells->persistent_buf_release(spec, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+        g_cli_guard->persistent_buf_release(spec, g_cli_servers_owner);
     }
     return server;
 }

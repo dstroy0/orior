@@ -32,7 +32,7 @@ typedef struct
 EMBED_INLINE void cli_print(const ExecutablesSignCtx *args)
 {
     EMBED_CALL(args->sink.print, CliEachLineSizeCfg, .context = args->sink.context, .line = args->text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
 }
 
 // a setting of how the programs a build makes are signed, `signing.<key>` in settings.json in orior's own folder,
@@ -57,7 +57,7 @@ EMBED_INLINE int cli_signing(const ExecutablesSignCtx *args)
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = path,
-                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_programs_cells);
+                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &reason, .owner = g_cli_programs_owner);
     char named[CLI_NAME_MAX_LEN];
     VerbaLinea line = {named, sizeof(named), 0ULL};
     mmgr_line_put(&line, "signing.");
@@ -75,8 +75,7 @@ EMBED_INLINE int cli_signing(const ExecutablesSignCtx *args)
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value,
                    .length = length, .out = out, .capacity = CLI_PATH_MAX_LEN);
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return (value != NULL) && (length != 0ULL);
@@ -104,18 +103,18 @@ EMBED_INLINE void cli_with_extension(const ExecutablesSignCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         (name[0] != '\0')
             ? EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name + 1,
-                         .length_value = cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}),
+                         .length_value = cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_POOL_BYTES}),
                          .byte = '.')
             : NULL;
     VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, args->path,
                     (dot != NULL) ? (unsigned long long)(dot - args->path)
-                                  : cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+                                  : cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&line, '.');
     mmgr_line_put(&line, args->extension);
     mmgr_line_finish(&line);
@@ -165,15 +164,15 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "sha256",
                .displayed_word = "sha256");
     // the certificate's last four letters in lower case, which name a .pfx or .p12 file
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_POOL_BYTES});
     char tail[5] = "";
     for (unsigned long long at = 0ULL; (length >= 4ULL) && (at < 4ULL); at += 1ULL)
     {
         const char one = certificate[length - 4ULL + at];
         tail[at] = ((one >= 'A') && (one <= 'Z')) ? (char)(one + ('a' - 'A')) : one;
     }
-    const int pfx = (cellul.eq(&(CatenaFinitaCfg){.src = tail, .other = ".pfx", .cap = CLI_CELLS_POOL})) ||
-                    (cellul.eq(&(CatenaFinitaCfg){.src = tail, .other = ".p12", .cap = CLI_CELLS_POOL}));
+    const int pfx = (cellul.eq(&(CatenaFinitaCfg){.src = tail, .other = ".pfx", .cap = CLI_POOL_BYTES})) ||
+                    (cellul.eq(&(CatenaFinitaCfg){.src = tail, .other = ".p12", .cap = CLI_POOL_BYTES}));
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = certificate) || pfx)
     {
         EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/f",
@@ -194,7 +193,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     {
         char thumbprint[CLI_PATH_MAX_LEN];
         VerbaLinea printed = {thumbprint, sizeof(thumbprint), 0ULL};
-        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_CELLS_POOL});
+        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_POOL_BYTES});
         for (unsigned long long at = 0ULL; at < whole;)
         {
             const unsigned long long stop =
@@ -341,7 +340,7 @@ void cli_executables_signature_print(const CliExecutablesCfg *args)
         {
             const char *stop = line;
             stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                               .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "\n");
             const char *from = line;
             unsigned long long length = (unsigned long long)(stop - line);
             EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx,

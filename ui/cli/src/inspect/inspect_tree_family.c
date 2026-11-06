@@ -7,7 +7,7 @@
 // to the ancestors a walk of them counts, both given back as the tree changes. A base that adds no attribute a class
 // reads of `self` is not followed
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "inspect_tree_internal.h"
 
 // The names a family sets, each once, in a table sized to the most names one family sets: a bucket's round, and the
@@ -58,8 +58,8 @@ static CliTreeFamilies s_family;
 
 void cli_tree_families_free(void)
 {
-    g_cli_cells->persistent_buf_release(s_family.class_cell, &g_cli_inspect_cells);
-    g_cli_cells->persistent_buf_release(s_family.ancestor_cell, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(s_family.class_cell, g_cli_inspect_owner);
+    g_cli_guard->persistent_buf_release(s_family.ancestor_cell, g_cli_inspect_owner);
     memor.set(&(MemoriaCfg){.dst = &s_family, .val = 0, .bytes = sizeof(s_family)});
 }
 
@@ -105,7 +105,7 @@ EMBED_INLINE int family_bare(const InspectTreeFamilyCtx *args)
 {
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_bare_bases[at], .cap = CLI_CELLS_POOL}) == args->size) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_bare_bases[at], .cap = CLI_POOL_BYTES}) == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_bare_bases[at], .other = args->base, .bytes = (size_t)args->size}) == 0))
         {
             return 1;
@@ -139,7 +139,7 @@ static int family_class_cell(void)
     }
     const unsigned long long words = (11ULL * classes) + g_cli_tree_files + links + 16ULL;
     const unsigned long long bytes = (words * sizeof(unsigned int)) + (4ULL * (classes + 8ULL));
-    unsigned char *at = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_inspect_cells);
+    unsigned char *at = g_cli_guard->persistent_buf_alloc(bytes, g_cli_inspect_owner);
     s_family.class_cell = at;
     if (at == NULL)
     {
@@ -350,7 +350,7 @@ void cli_tree_families(void)
         total = EMBED_CALL(family_ancestors_get, InspectTreeFamilyCtx, .key = key, .used = 0u, .store = 0) + total;
     }
     unsigned int *const ancestors =
-        g_cli_cells->persistent_buf_alloc((2ULL * total + 2ULL) * sizeof(unsigned int), &g_cli_inspect_cells);
+        g_cli_guard->persistent_buf_alloc((2ULL * total + 2ULL) * sizeof(unsigned int), g_cli_inspect_owner);
     s_family.ancestor_cell = ancestors;
     if (ancestors == NULL)
     {
@@ -569,7 +569,7 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
         buckets <<= 1u;
     }
     CliTreeSupplied *const table =
-        s_family.current ? g_cli_cells->temporary_buf_alloc(buckets * sizeof(CliTreeSupplied), &g_cli_inspect_cells)
+        s_family.current ? g_cli_guard->temporary_buf_alloc(buckets * sizeof(CliTreeSupplied), g_cli_inspect_owner)
                          : NULL;
     if (table != NULL)
     {
@@ -594,5 +594,5 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
                        .context = args->context, .path = path, .class_name = class_name);
         }
     }
-    g_cli_cells->persistent_buf_release(table, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(table, g_cli_inspect_owner);
 }

@@ -43,8 +43,8 @@ void test_every_run_line_of_the_manifest_closes_its_placeholders(void)
             TEST_ASSERT_EQUAL_INT_MESSAGE(0, open, text);
         }
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

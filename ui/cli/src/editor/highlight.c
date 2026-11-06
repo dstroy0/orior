@@ -103,12 +103,12 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
 EMBED_INLINE unsigned int cli_name_get(const HighlightCtx *args)
 {
     const char *const named =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "@brackets", .cap = CLI_CELLS_POOL})) ? s_bracket_name
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "@brackets", .cap = CLI_POOL_BYTES})) ? s_bracket_name
                                                                                                         : args->name;
     for (unsigned int at = 0u; at < args->grammar->names; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->grammar->text + args->grammar->name[at], .other = named, .cap = CLI_CELLS_POOL}))
+                .src = args->grammar->text + args->grammar->name[at], .other = named, .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
@@ -120,7 +120,7 @@ EMBED_INLINE unsigned int cli_name_get(const HighlightCtx *args)
     }
     args->grammar->name[args->grammar->names] =
         EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = named,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), .lower = 0);
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}), .lower = 0);
     args->grammar->names += 1u;
     return args->grammar->names - 1u;
 }
@@ -252,7 +252,7 @@ static int cli_token_get(const HighlightCtx *args)
     }
     const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = args->value, .length_pointer = NULL);
-    if ((name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_CELLS_POOL}))
+    if ((name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_POOL_BYTES}))
     {
         *token = EMBED_CALL(cli_brackets_token, HighlightCtx, .grammar = args->grammar, .json = json);
         return 1;
@@ -300,7 +300,7 @@ static int cli_token_get(const HighlightCtx *args)
         const unsigned int key_text =
             (key != NULL)
                 ? EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = key,
-                             .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), .lower = 0)
+                             .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}), .lower = 0)
                 : CLI_HIGHLIGHT_NONE;
         const CliHighlightCase entry = {key_text,
                                         (inner != CLI_HIGHLIGHT_NONE)
@@ -426,7 +426,7 @@ EMBED_INLINE int cli_rule_read(const HighlightCtx *args)
         const char *const name = (included[0] == '@') ? (included + 1) : included;
         s_read->own[*own] =
             EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0) |
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .lower = 0) |
             CLI_INCLUDE_MARK;
         *own += 1u;
         return 1;
@@ -479,7 +479,7 @@ EMBED_INLINE int cli_rule_read(const HighlightCtx *args)
     rule->next =
         (next != NULL)
             ? EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = next,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}), .lower = 0)
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_POOL_BYTES}), .lower = 0)
             : CLI_HIGHLIGHT_NONE;
     s_read->own[*own] = args->grammar->rules;
     *own += 1u;
@@ -511,14 +511,14 @@ static void cli_on_expand(const HighlightCtx *args)
         {
             already =
                 already || (cellul.eq(&(CatenaFinitaCfg){
-                               .src = args->grammar->text + args->seen[each], .other = name, .cap = CLI_CELLS_POOL}));
+                               .src = args->grammar->text + args->seen[each], .other = name, .cap = CLI_POOL_BYTES}));
         }
         unsigned int included = CLI_HIGHLIGHT_NONE;
         for (unsigned int each = 0u; each < args->grammar->states; each += 1u)
         {
             included =
                 (cellul.eq(&(CatenaFinitaCfg){
-                    .src = args->grammar->text + s_read->own_state[each].name, .other = name, .cap = CLI_CELLS_POOL}))
+                    .src = args->grammar->text + s_read->own_state[each].name, .other = name, .cap = CLI_POOL_BYTES}))
                     ? each
                     : included;
         }
@@ -549,7 +549,7 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
         CliHighlightList *const list = &args->grammar->words[args->grammar->word_lists];
         list->name =
             EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0);
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .lower = 0);
         list->first = args->grammar->word_count;
         list->count = 0u;
         for (unsigned int item = json->node[member].first; item != CLI_JSON_NONE; item = json->node[item].next)
@@ -625,7 +625,7 @@ EMBED_INLINE int cli_indent_read(const HighlightCtx *args)
                                              .json_read = json, .node = member, .length_pointer = NULL);
         const unsigned int at =
             EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar, .name = state,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_POOL_BYTES}));
         if ((close != NULL) && (at != CLI_HIGHLIGHT_NONE))
         {
             grammar->state[at].close = EMBED_CALL(cli_name_get, HighlightCtx, .grammar = grammar, .name = close);
@@ -767,7 +767,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         CliHighlightList *const entry = &s_read->own_state[args->grammar_out->states];
         entry->name =
             EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar_out, .text = name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0);
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .lower = 0);
         entry->first = own;
         for (unsigned int rule = args->json->node[state].first; rule != CLI_JSON_NONE;
              rule = args->json->node[rule].next)
@@ -836,14 +836,14 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
     {
         CliHighlightCase *const entry = &args->grammar_out->cases[at];
         const char *const key = (entry->key != CLI_HIGHLIGHT_NONE) ? args->grammar_out->text + entry->key : "";
-        entry->fallback = cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "@default", .cap = CLI_CELLS_POOL});
+        entry->fallback = cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "@default", .cap = CLI_POOL_BYTES});
         entry->list = CLI_HIGHLIGHT_NONE;
         for (unsigned int list = 0u; !entry->fallback && (key[0] == '@') && (list < args->grammar_out->word_lists);
              list += 1u)
         {
             if (cellul.eq(&(CatenaFinitaCfg){.src = args->grammar_out->text + args->grammar_out->words[list].name,
                                              .other = key + 1,
-                                             .cap = CLI_CELLS_POOL}))
+                                             .cap = CLI_POOL_BYTES}))
             {
                 entry->list = list;
                 break;

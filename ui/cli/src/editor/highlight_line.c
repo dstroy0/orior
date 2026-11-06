@@ -174,12 +174,12 @@ EMBED_INLINE void cli_step(const HighlightLineCtx *args)
     {
         return;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->next, .other = "@pop", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->next, .other = "@pop", .cap = CLI_POOL_BYTES}))
     {
         args->coloring->depth -= (args->coloring->depth > 1u) ? 1u : 0u;
         return;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->next, .other = "@popall", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->next, .other = "@popall", .cap = CLI_POOL_BYTES}))
     {
         args->coloring->depth = (args->coloring->depth > 1u) ? 1u : args->coloring->depth;
         return;
@@ -187,15 +187,15 @@ EMBED_INLINE void cli_step(const HighlightLineCtx *args)
     // `@pop@<state>` leaves the state entered last and enters `<state>` in its place
     static const char s_switch[] = "@pop@";
     const int switching =
-        (cellul.len(&(CatenaFinitaCfg){.src = args->next, .cap = CLI_CELLS_POOL}) >= (sizeof(s_switch) - 1u)) &&
+        (cellul.len(&(CatenaFinitaCfg){.src = args->next, .cap = CLI_POOL_BYTES}) >= (sizeof(s_switch) - 1u)) &&
         (memor.cmp(&(MemoriaCfg){.src = args->next, .other = s_switch, .bytes = sizeof(s_switch) - 1u}) == 0);
     args->coloring->depth -= (switching && (args->coloring->depth > 1u)) ? 1u : 0u;
     const char *name = switching ? (args->next + sizeof(s_switch) - 1u) : args->next;
     name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "@");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .set = "@");
     if (args->coloring->depth < CLI_HIGHLIGHT_STACK)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
         memor.cpy(&(MemoriaCfg){.dst = t_work_state->stack[args->coloring->depth], .src = name, .bytes = length + 1u});
         args->coloring->state_at[args->coloring->depth] = EMBED_CALL(
             cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar, .name = name, .length = length);
@@ -435,7 +435,7 @@ static void cli_line(const HighlightLineCtx *args)
 {
     args->coloring->letters =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->line,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_POOL_BYTES}),
                    .letters = t_work_state->letters, .capacity_u64 = t_work_state->most);
     args->coloring->runs = 0u;
     args->coloring->marked = 0u;
@@ -519,7 +519,7 @@ EMBED_INLINE unsigned long long cli_digits_read(const HighlightLineCtx *args)
     unsigned long long value = 0ULL;
     unsigned long long end = 0ULL;
     value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = *from, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}), .end = &end);
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_POOL_BYTES}), .end = &end);
     *from += end;
     return value;
 }
@@ -537,7 +537,7 @@ static void cli_stack(const HighlightLineCtx *args)
     args->coloring->root = EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar,
                                       .name = "root", .length = 4u);
     const char *from = args->state;
-    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '|'});
+    const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .byte = '|'});
     if (bar != NULL)
     {
         args->coloring->statement = EMBED_CALL(cli_digits_read, HighlightLineCtx, .from_letters = &from);
@@ -545,10 +545,10 @@ static void cli_stack(const HighlightLineCtx *args)
     }
     for (;;)
     {
-        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '/'});
+        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .byte = '/'});
         const unsigned long long whole = (slash != NULL)
                                              ? (unsigned long long)(slash - from)
-                                             : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+                                             : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
         // the name to its `:`, where one stands within it
         unsigned long long length = 0ULL;
         length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = length,
@@ -579,7 +579,7 @@ EMBED_INLINE void cli_root(const HighlightLineCtx *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = t_work_state->stack[0],
                             .src = "root",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "root", .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "root", .cap = CLI_POOL_BYTES}) + 1u});
     args->coloring->state_at[0] = args->coloring->root;
     args->coloring->depth = 1u;
 }
@@ -635,7 +635,7 @@ void cli_highlight_lines(const CliHighlightWorkStateCtx *args)
         const char *const name = args->grammar->text + args->grammar->name[at];
         mmgr_line_put(args->out, (at != 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(args->out, "],\"runs\":[");
     // the state each line ends in, as JSON, among the work state's endings

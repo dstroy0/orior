@@ -12,9 +12,9 @@ static unsigned int s_next = 1u;
 // the request and the answer given back once the answer is read, and the lock given with them
 static void cli_jobs_let_go(void)
 {
-    g_cli_cells->persistent_buf_release(s_request.group, &g_cli_ipp_cells);
+    g_cli_guard->persistent_buf_release(s_request.group, g_cli_ipp_owner);
     *(&s_request) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_cells->persistent_buf_release(s_answer.group, &g_cli_ipp_cells);
+    g_cli_guard->persistent_buf_release(s_answer.group, g_cli_ipp_owner);
     *(&s_answer) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
@@ -86,7 +86,7 @@ EMBED_INLINE void cli_operation(const IppJobsCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = user,
                                 .src = "orior",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "orior", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "orior", .cap = CLI_POOL_BYTES}) + 1u});
     }
     EMBED_CALL(cli_ipp_message_code.begin, CliIppMessageCodeCfg, .message = args->request, .code = code,
                .request_id = s_next);
@@ -184,7 +184,7 @@ int cli_ipp_print(const CliIppSizeErrMsgCfg *args)
         EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
                    .value = (int)args->job->copies);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->job->format, .other = "application/pdf", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->job->format, .other = "application/pdf", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "orientation-requested");
         EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_ENUM,
@@ -297,7 +297,7 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
             found = EMBED_CALL(cli_ipp_message_value.value_text, CliIppMessageValueCfg, .message_read = &s_answer,
                                .value_ipp_value_pointer = &s_answer.value[uris->first + each], .out = one->uri,
                                .capacity = sizeof(one->uri)) &&
-                    (cellul.starts(&(CatenaFinitaCfg){.src = one->uri, .other = "ipp://", .cap = CLI_CELLS_POOL}));
+                    (cellul.starts(&(CatenaFinitaCfg){.src = one->uri, .other = "ipp://", .cap = CLI_POOL_BYTES}));
         }
         if (!found && !EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
                                   .name = "printer-uri-supported", .out = one->uri, .capacity = sizeof(one->uri)))

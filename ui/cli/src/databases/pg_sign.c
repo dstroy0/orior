@@ -34,12 +34,12 @@ typedef struct
 // a value of the server's first SCRAM message, `name` with its '=', into `out`: 1, or 0 where it gave none
 EMBED_INLINE int sign_field(const PgSignCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (const char *part = args->server_first; part != NULL;)
     {
-        const char *const comma = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = ','});
+        const char *const comma = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = ','});
         const size_t size = (comma != NULL) ? (size_t)(comma - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if ((size >= length) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = part,
                                            .other_pointer = args->name, .size = length))
         {
@@ -68,7 +68,7 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
         return 0;
     }
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = server_nonce, .other_pointer = args->nonce,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->nonce, .cap = CLI_CELLS_POOL})))
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->nonce, .cap = CLI_POOL_BYTES})))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                    .message = "the server's nonce is not the one requested");
@@ -77,7 +77,7 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
     if (!EMBED_CALL(sign_field, PgSignCtx, .server_first = args->server_first, .name = "s=", .out = salt_text,
                     .capacity = sizeof(salt_text)) ||
         !EMBED_CALL(cli_base64_text.unbase64, CliBase64TextCfg, .text = salt_text,
-                    .length = cellul.len(&(CatenaFinitaCfg){.src = salt_text, .cap = CLI_CELLS_POOL}),
+                    .length = cellul.len(&(CatenaFinitaCfg){.src = salt_text, .cap = CLI_POOL_BYTES}),
                     .out_bytes = salt, .capacity = sizeof(salt), .size_pointer = &salt_size))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = "the server gave no salt");
@@ -87,14 +87,14 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
     int counted = EMBED_CALL(sign_field, PgSignCtx, .server_first = args->server_first,
                              .name = "i=", .out = rounds_text, .capacity = sizeof(rounds_text)) &&
                   (rounds_text[0] != '\0') &&
-                  (cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}) <= 10u);
+                  (cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_POOL_BYTES}) <= 10u);
     counted = counted &&
               (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = rounds_text, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}),
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_POOL_BYTES}),
                           .classes = CLI_TEXT_DIGITS,
-                          .set = "") == cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}));
+                          .set = "") == cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_POOL_BYTES}));
     rounds = counted ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = rounds_text, .at = 0ULL,
-                                  .size = cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}),
+                                  .size = cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_POOL_BYTES}),
                                   .end = NULL)
                      : 0ULL;
     if (!counted || (rounds > 0xffffffffULL))
@@ -113,7 +113,7 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
     char without_proof[CLI_PG_SIGN_TEXT];
     char auth[CLI_PG_SIGN_TEXT * 3u];
     EMBED_CALL(cli_digest_password.pbkdf2_sha256, CliDigestPasswordCfg, .password = args->password,
-               .password_size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+               .password_size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}),
                .salt = salt, .salt_size = salt_size, .rounds = (unsigned int)rounds, .derived = salted);
     EMBED_CALL(cli_digest_key.hmac_sha256_bytes, CliDigestKeyCfg, .key = salted, .key_size = sizeof(salted),
                .message = "Client Key", .message_size = 10ULL, .signed_digest = client_key);
@@ -281,7 +281,7 @@ EMBED_INLINE int sign_scram_first(const PgSignCtx *args)
     mmgr_line_finish(&bare);
     // the mechanism's name and a nul, then the first message's length, big-endian, then the message
     const unsigned long long first =
-        3ULL + cellul.len(&(CatenaFinitaCfg){.src = args->first_bare, .cap = CLI_CELLS_POOL});
+        3ULL + cellul.len(&(CatenaFinitaCfg){.src = args->first_bare, .cap = CLI_POOL_BYTES});
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "SCRAM-SHA-256");
     mmgr_line_ch(&line, '\0');
@@ -321,7 +321,7 @@ EMBED_INLINE int sign_scram_final_sent(const PgSignCtx *args)
         return 0;
     }
     return EMBED_CALL(sign_password, PgSignCtx, .pg = args->pg, .text = client_final,
-                      .size = cellul.len(&(CatenaFinitaCfg){.src = client_final, .cap = CLI_CELLS_POOL}), .nul = 0,
+                      .size = cellul.len(&(CatenaFinitaCfg){.src = client_final, .cap = CLI_POOL_BYTES}), .nul = 0,
                       .failure = args->failure);
 }
 
@@ -339,17 +339,17 @@ EMBED_INLINE int sign_scram_proved(const PgSignCtx *args)
     unsigned long long start = 0ULL;
     unsigned long long end = line.at;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = line.out[start]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = line.out[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = line.out[end - 1u]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = line.out[end - 1u]}) != NULL))
     {
         end -= 1ULL;
     }
     const char *const signature = *args->begun ? args->signature : "";
-    const size_t expected = cellul.len(&(CatenaFinitaCfg){.src = signature, .cap = CLI_CELLS_POOL});
+    const size_t expected = cellul.len(&(CatenaFinitaCfg){.src = signature, .cap = CLI_POOL_BYTES});
     const int proved =
         (end - start == expected + 2u) &&
         (memor.cmp(&(MemoriaCfg){.src = line.out + start, .other = "v=", .bytes = 2u}) == 0) &&
@@ -378,7 +378,7 @@ EMBED_INLINE int sign_answer(const PgSignCtx *args)
     if (code == 3ULL)
     {
         return EMBED_CALL(sign_password, PgSignCtx, .pg = args->pg, .text = args->password,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}),
                           .nul = 1, .failure = args->failure);
     }
     if (code == 5ULL)
@@ -439,7 +439,7 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->pg->cancel.host,
                               .src = args->host,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_POOL_BYTES}) + 1u});
             args->pg->cancel.port = port;
             args->pg->cancel.pid =
                 (args->pg->size >= 4u)
@@ -465,13 +465,13 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
             EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
                        .failure = args->failure);
             if ((cellul.find(&(CatenaFinitaCfg){.src = args->failure->message,
-                                                .cap = CLI_CELLS_POOL,
+                                                .cap = CLI_POOL_BYTES,
                                                 .other = "no encryption",
-                                                .other_cap = CLI_CELLS_POOL}) != NULL) ||
+                                                .other_cap = CLI_POOL_BYTES}) != NULL) ||
                 (cellul.find(&(CatenaFinitaCfg){.src = args->failure->message,
-                                                .cap = CLI_CELLS_POOL,
+                                                .cap = CLI_POOL_BYTES,
                                                 .other = "SSL",
-                                                .other_cap = CLI_CELLS_POOL}) != NULL))
+                                                .other_cap = CLI_POOL_BYTES}) != NULL))
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = args->failure->hint,
@@ -480,7 +480,7 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
                     .bytes = cellul.len(&(CatenaFinitaCfg){
                                  .src = "The server takes only encrypted connections; orior_cli reaches such a server "
                                         "through an ssh tunnel to a machine beside it.",
-                                 .cap = CLI_CELLS_POOL}) +
+                                 .cap = CLI_POOL_BYTES}) +
                              1u});
             }
             return 0;

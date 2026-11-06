@@ -9,7 +9,7 @@
 #include "../command_line/callback_cfg.h"
 
 #include "../code/symbols.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../plugins/plugins.h"
 #include "../text/edits.h"
 #include "../text/json_tree.h"
@@ -18,6 +18,8 @@
 #include "document_internal.h"
 #include "editorconfig.h"
 #include "pages.h"
+#include "view_edits.h"
+#include "vim.h"
 
 #define CLI_VIEW_PAIRS 16u
 #define CLI_VIEW_QUOTES 8u
@@ -324,7 +326,7 @@ EMBED_INLINE void view_steps_cut(const ViewCtx *args)
         {
             CliViewEdit *const after = edit->after;
             args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
-            g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
+            g_cli_guard->persistent_buf_release(edit, g_cli_views_owner);
             edit = after;
         }
     }
@@ -433,7 +435,7 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &why, .owner = &g_cli_views_cells);
+                   .err_msg = &why, .owner = g_cli_views_owner);
     if (root == CLI_JSON_NONE)
     {
         return;
@@ -500,8 +502,7 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     {
         view->indent_after[0] = '\0';
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -514,7 +515,7 @@ EMBED_INLINE void view_language_read(const ViewCtx *args)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int named = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = args->view->path, .id_out = id);
-    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
     if (named)
     {
@@ -535,7 +536,7 @@ int cli_view_open(const CliViewCfg *args)
     }
     if (s_views == NULL)
     {
-        s_views = g_cli_cells->persistent_buf_alloc(CLI_VIEWS * sizeof(*s_views), &g_cli_views_cells);
+        s_views = g_cli_guard->persistent_buf_alloc(CLI_VIEWS * sizeof(*s_views), g_cli_views_owner);
         if (s_views == NULL)
         {
             return 0;
@@ -546,11 +547,11 @@ int cli_view_open(const CliViewCfg *args)
     if (view != NULL)
     {
         EMBED_CALL(view_steps_cut, ViewCtx, .view = view, .from_u32 = 0u);
-        g_cli_cells->persistent_buf_release(view->step, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->fold, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->find_query, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(view->step, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->fold, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->find_query, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->match, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->line_units, g_cli_views_owner);
     }
     else
     {
@@ -598,12 +599,13 @@ void cli_view_close(const CliViewCfg *args)
     }
     if (view != NULL)
     {
+        EMBED_CALL(cli_vim_view.close, CliVimCfg, .key = view->key);
         EMBED_CALL(view_steps_cut, ViewCtx, .view = view, .from_u32 = 0u);
-        g_cli_cells->persistent_buf_release(view->step, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->fold, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->find_query, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(view->step, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->fold, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->find_query, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->match, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(view->line_units, g_cli_views_owner);
         // the views after it move up a place, so the table stands in the order the views were opened; a view's place
         // is far inside what an int counts
         const int closed = (int)(view - s_views);
@@ -883,7 +885,7 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
     if (args->view->folds_capacity == 0u)
     {
         args->view->fold =
-            g_cli_cells->persistent_buf_alloc(CLI_VIEW_FOLDS * sizeof(*args->view->fold), &g_cli_views_cells);
+            g_cli_guard->persistent_buf_alloc(CLI_VIEW_FOLDS * sizeof(*args->view->fold), g_cli_views_owner);
         args->view->folds_capacity = (args->view->fold != NULL) ? CLI_VIEW_FOLDS : 0u;
     }
     if ((args->view->fold == NULL) || (args->view->folds == args->view->folds_capacity))
@@ -978,9 +980,9 @@ EMBED_INLINE int view_units_capacity(const ViewCtx *args)
     }
     // the line's units are read anew into a cell of their count
     const unsigned long long capacity = (args->units_u64 > CLI_VIEW_UNITS_MIN) ? args->units_u64 : CLI_VIEW_UNITS_MIN;
-    g_cli_cells->persistent_buf_release(args->view->line_units, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(args->view->line_units, g_cli_views_owner);
     args->view->line_units =
-        g_cli_cells->persistent_buf_alloc(capacity * sizeof(*args->view->line_units), &g_cli_views_cells);
+        g_cli_guard->persistent_buf_alloc(capacity * sizeof(*args->view->line_units), g_cli_views_owner);
     args->view->units_capacity = (args->view->line_units != NULL) ? capacity : 0ULL;
     return args->view->line_units != NULL;
 }
@@ -1002,10 +1004,10 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
         const char *text = NULL;
         unsigned long long count = 0ULL;
         char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = args->view->key, .from = line,
-                                      .to = line + 1ULL, .line = &text, .count = &count, .owner = &g_cli_views_cells);
+                                      .to = line + 1ULL, .line = &text, .count = &count, .owner = g_cli_views_owner);
         if ((cell != NULL) && (count != 0ULL))
         {
-            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
             if (EMBED_CALL(view_units_capacity, ViewCtx, .view = args->view, .units_u64 = size))
             {
                 args->view->line_length =
@@ -1013,7 +1015,7 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
                                .capacity = args->view->units_capacity);
             }
         }
-        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
         return;
     }
     const CliStoredText *const one =
@@ -1290,8 +1292,8 @@ EMBED_INLINE int view_query_capacity(const ViewCtx *args)
 {
     if (args->view->find_capacity == 0ULL)
     {
-        args->view->find_query = g_cli_cells->persistent_buf_alloc(
-            CLI_VIEW_FIND_UNITS * sizeof(*args->view->find_query), &g_cli_views_cells);
+        args->view->find_query =
+            g_cli_guard->persistent_buf_alloc(CLI_VIEW_FIND_UNITS * sizeof(*args->view->find_query), g_cli_views_owner);
         args->view->find_capacity = (args->view->find_query != NULL) ? CLI_VIEW_FIND_UNITS : 0ULL;
     }
     return (args->view->find_length + args->more) <= args->view->find_capacity;
@@ -1399,7 +1401,7 @@ static void view_search(const ViewCtx *args)
     if (args->view->match == NULL)
     {
         args->view->match =
-            g_cli_cells->persistent_buf_alloc(CLI_VIEW_MATCHES * sizeof(*args->view->match), &g_cli_views_cells);
+            g_cli_guard->persistent_buf_alloc(CLI_VIEW_MATCHES * sizeof(*args->view->match), g_cli_views_owner);
         args->view->match_capacity = (args->view->match != NULL) ? CLI_VIEW_MATCHES : 0ULL;
     }
     args->view->current = -1LL;
@@ -1408,7 +1410,7 @@ static void view_search(const ViewCtx *args)
         return;
     }
     const unsigned long long query_capacity = (args->view->find_length * 4ULL) + 1ULL;
-    char *const query = g_cli_cells->temporary_buf_alloc(query_capacity, &g_cli_views_cells);
+    char *const query = g_cli_guard->temporary_buf_alloc(query_capacity, g_cli_views_owner);
     if (query == NULL)
     {
         return;
@@ -1423,7 +1425,7 @@ static void view_search(const ViewCtx *args)
     if (args->view->paged)
     {
         const unsigned long long capacity = CLI_VIEW_MATCHES * 24ULL;
-        char *const cell = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_views_cells);
+        char *const cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_views_owner);
         if (cell != NULL)
         {
             VerbaLinea out = {cell, capacity, 0ULL};
@@ -1433,7 +1435,7 @@ static void view_search(const ViewCtx *args)
             {
                 EMBED_CALL(view_matches_read, ViewCtx, .view = args->view, .text = cell, .size = out.at);
             }
-            g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+            g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
         }
     }
     else
@@ -1446,7 +1448,7 @@ static void view_search(const ViewCtx *args)
                              .most = CLI_VIEW_MATCHES, .each = view_match_save, .context = args->view, .err_msg = &why);
         }
     }
-    g_cli_cells->persistent_buf_release(query, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(query, g_cli_views_owner);
     view_current_settle(args);
 }
 
@@ -1772,8 +1774,8 @@ EMBED_INLINE CliViewEdit *view_edit_cell(const ViewCtx *args)
 {
     const unsigned long long consumed_capacity = view_span_bytes(args);
     const unsigned long long append_capacity = args->append_bytes + (args->append_spans * consumed_capacity);
-    CliViewEdit *const made = g_cli_cells->persistent_buf_alloc(
-        sizeof(CliViewEdit) + append_capacity + 1ULL + consumed_capacity + 1ULL, &g_cli_views_cells);
+    CliViewEdit *const made = g_cli_guard->persistent_buf_alloc(
+        sizeof(CliViewEdit) + append_capacity + 1ULL + consumed_capacity + 1ULL, g_cli_views_owner);
     if (made == NULL)
     {
         mmgr_line_put(args->err_msg, "the edit's cell could not be taken");
@@ -1801,7 +1803,7 @@ static int view_edit_cell_write(const ViewCtx *args)
     if (!EMBED_CALL(view_write, ViewCtx, .view = args->view, .edits = edits, .counts = counts,
                     .err_msg = args->err_msg))
     {
-        g_cli_cells->persistent_buf_release(args->made, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
         return 0;
     }
     args->made->end = EMBED_CALL(view_position_end, ViewCtx, .from = args->made->from, .text = args->made->put,
@@ -1817,10 +1819,10 @@ static int view_edit_cell_write(const ViewCtx *args)
         if (args->view->step == NULL)
         {
             args->view->step =
-                g_cli_cells->persistent_buf_alloc(CLI_VIEW_STEPS * sizeof(*args->view->step), &g_cli_views_cells);
+                g_cli_guard->persistent_buf_alloc(CLI_VIEW_STEPS * sizeof(*args->view->step), g_cli_views_owner);
             if (args->view->step == NULL)
             {
-                g_cli_cells->persistent_buf_release(args->made, &g_cli_views_cells);
+                g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
                 mmgr_line_put(args->err_msg, "the steps' cell could not be taken");
                 return 0;
             }
@@ -1835,7 +1837,7 @@ static int view_edit_cell_write(const ViewCtx *args)
             {
                 CliViewEdit *const after = edit->after;
                 args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
-                g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
+                g_cli_guard->persistent_buf_release(edit, g_cli_views_owner);
                 edit = after;
             }
             memor.move_down(&(MemoriaCfg){.dst = &args->view->step[0],
@@ -2071,8 +2073,8 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     }
     const unsigned long long length = view_length(args);
     const unsigned long long count = (args->col < length) ? args->col : length;
-    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(
-        sizeof(CliRegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), &g_cli_views_cells);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
+        sizeof(CliRegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), g_cli_views_owner);
     if (cell == NULL)
     {
         return 0;
@@ -2123,7 +2125,7 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
             at += 1ULL;
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
     return matched;
 }
 
@@ -2355,7 +2357,7 @@ EMBED_INLINE int view_letter_wrap(const ViewCtx *args)
     {
         capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ULL) + 1ULL;
     }
-    char *const cell = g_cli_cells->temporary_buf_alloc(capacity + args->length + 8ULL, &g_cli_views_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(capacity + args->length + 8ULL, g_cli_views_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the wrap's cell could not be taken");
@@ -2367,7 +2369,7 @@ EMBED_INLINE int view_letter_wrap(const ViewCtx *args)
     EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &wrapped, .letter = args->letter);
     const int written = EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = args->to, .text = cell,
                                    .length = wrapped.at, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
     if (!written)
     {
         return 0;
@@ -2536,7 +2538,7 @@ static int view_edit_trim(const ViewCtx *args)
     }
     if ((same == shorter) && (args->made->append_length == args->made->consumed_length))
     {
-        g_cli_cells->persistent_buf_release(args->made, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
         return 0;
     }
     args->made->put += head;
@@ -3015,7 +3017,7 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
     }
     if (!any)
     {
-        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(made, g_cli_views_owner);
         return 1;
     }
     const int after = EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
@@ -3420,10 +3422,10 @@ static int view_lines_sort(const ViewCtx *args)
     const unsigned long long table = (((unsigned long long)count + 1ULL) * sizeof(unsigned long long)) +
                                      ((unsigned long long)count * ((2ULL * sizeof(unsigned int)) + 1ULL));
     unsigned long long *const start =
-        (made != NULL) ? g_cli_cells->temporary_buf_alloc(table, &g_cli_views_cells) : NULL;
+        (made != NULL) ? g_cli_guard->temporary_buf_alloc(table, g_cli_views_owner) : NULL;
     if (start == NULL)
     {
-        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(made, g_cli_views_owner);
         return 0;
     }
     unsigned int *const order = (unsigned int *)(start + count + 1u);
@@ -3487,7 +3489,7 @@ static int view_lines_sort(const ViewCtx *args)
         }
     }
     made->append_length = at;
-    g_cli_cells->persistent_buf_release(start, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(start, g_cli_views_owner);
     return EMBED_CALL(view_cell_replace, ViewCtx, .view = args->view, .made = made, .err_msg = args->err_msg);
 }
 
@@ -3685,7 +3687,7 @@ static int view_selection_grow(const ViewCtx *args)
     char *const text = args->view->paged
                            ? NULL
                            : EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->view->key,
-                                        .size_pointer = &size, .owner = &g_cli_views_cells);
+                                        .size_pointer = &size, .owner = g_cli_views_owner);
     if (text == NULL)
     {
         return 1;
@@ -3702,7 +3704,7 @@ static int view_selection_grow(const ViewCtx *args)
         .from_symbol_position = (CliSymbolPosition){(unsigned int)from.line, (unsigned int)from.col},
         .to_symbol_position = (CliSymbolPosition){(unsigned int)to.line, (unsigned int)to.col},
         .each_spanned = view_span_save, .context = &span, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(text, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     if (!read)
     {
         return 0;
@@ -4109,6 +4111,13 @@ EMBED_INLINE int view_move_key(const ViewCtx *args)
 // nothing
 EMBED_INLINE int view_on_key(const ViewCtx *args)
 {
+    // Vim's keys are asked first, while find's bar does not have the keys
+    if (!(args->view->find_open && args->view->find_focus) &&
+        EMBED_CALL(cli_vim_view.key, CliVimCfg, .key = args->view->key, .name = args->supplied,
+                   .err_msg = args->err_msg))
+    {
+        return 1;
+    }
     int mod = 0;
     int shift = 0;
     int alt = 0;
@@ -4238,6 +4247,13 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
 {
     CliView *const view = args->view;
     const CliViewInput *const input = args->input;
+    // Vim's keys are asked first, while find's bar does not have the keys
+    if (!(view->find_open && view->find_focus) &&
+        EMBED_CALL(cli_vim_view.text, CliVimCfg, .key = view->key, .text = input->text, .length = input->length,
+                   .err_msg = args->err_msg))
+    {
+        return 1;
+    }
     const int one = (input->length != 0ULL) && (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg,
                                                            .text = input->text, .size = input->length) == 1ULL);
     const int blank =
@@ -4254,13 +4270,13 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
     if (view->find_open && view->find_focus)
     {
         unsigned short *const units =
-            g_cli_cells->temporary_buf_alloc((input->length + 1ULL) * sizeof(*units), &g_cli_views_cells);
+            g_cli_guard->temporary_buf_alloc((input->length + 1ULL) * sizeof(*units), g_cli_views_owner);
         if (units != NULL)
         {
             EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units,
                        .count = EMBED_CALL(view_units_get, ViewCtx, .text = input->text, .size = input->length,
                                            .units = units, .capacity = input->length + 1ULL));
-            g_cli_cells->persistent_buf_release(units, &g_cli_views_cells);
+            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
         }
         return 1;
     }
@@ -4396,7 +4412,7 @@ EMBED_INLINE int view_pair(const ViewCtx *args)
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = args->view_read->key,
                                   .first = first, .last = last, .size_pointer = &size, .state = state,
-                                  .capacity = sizeof(state), .owner = &g_cli_views_cells);
+                                  .capacity = sizeof(state), .owner = g_cli_views_owner);
     if (text == NULL)
     {
         return 0;
@@ -4409,7 +4425,7 @@ EMBED_INLINE int view_pair(const ViewCtx *args)
                    .at_symbol_position =
                        (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)args->view_read->cursor.col},
                    .pair = found);
-    g_cli_cells->persistent_buf_release(text, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     for (unsigned int at = 0u; paired && (at < 2u); at += 1u)
     {
         pair[at].line = first + found[at].line;
@@ -4457,8 +4473,8 @@ void cli_view_frame_release(CliViewFrame *frame)
 {
     if (frame != NULL)
     {
-        g_cli_cells->persistent_buf_release(frame->runs, &g_cli_views_cells);
-        g_cli_cells->persistent_buf_release(frame, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(frame->runs, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(frame, g_cli_views_owner);
     }
 }
 
@@ -4498,11 +4514,11 @@ EMBED_INLINE void view_frame_paged(const ViewCtx *args)
         unsigned long long count = 0ULL;
         char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = args->key,
                                       .from = displayed->number[at], .to = displayed->number[end] + 1ULL,
-                                      .line = displayed->text + at, .count = &count, .owner = &g_cli_views_cells);
+                                      .line = displayed->text + at, .count = &count, .owner = g_cli_views_owner);
         for (unsigned long long each = at; each <= end; each += 1ULL)
         {
             const char *const row_text = ((cell != NULL) && ((each - at) < count)) ? displayed->text[each] : "";
-            const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = row_text, .cap = CLI_CELLS_POOL});
+            const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = row_text, .cap = CLI_POOL_BYTES});
             // the columns a view shows stand below 2^32
             const unsigned long long cut = EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = row_text,
                                                       .size = whole, .col = (unsigned int)args->width);
@@ -4510,7 +4526,7 @@ EMBED_INLINE void view_frame_paged(const ViewCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = frame->bytes + bytes->at, .src = row_text, .bytes = cut});
             bytes->at += cut;
         }
-        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
         at = end + 1ULL;
     }
 }
@@ -4631,8 +4647,8 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     }
     // the row numbers and texts the folds and a paged text's lines are read through, and the folds seen, while the
     // frame is laid
-    unsigned long long *const number = g_cli_cells->persistent_buf_alloc(
-        rows * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), &g_cli_views_cells);
+    unsigned long long *const number = g_cli_guard->persistent_buf_alloc(
+        rows * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), g_cli_views_owner);
     if (number == NULL)
     {
         return NULL;
@@ -4653,13 +4669,13 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     const unsigned long long matches_most = view->find_open ? view->matches : 0ULL;
     const unsigned long long query_bytes = view->find_open ? ((3ULL * view->find_length) + 1ULL) : 1ULL;
     const unsigned long long text_bytes = (displayed.count + folds.count) * columns * 3ULL;
-    CliViewFrame *const frame = g_cli_cells->persistent_buf_alloc(
+    CliViewFrame *const frame = g_cli_guard->persistent_buf_alloc(
         sizeof(*frame) + (displayed.count * sizeof(CliViewFrameRow)) + (folds.count * sizeof(CliViewFrameFold)) +
             (matches_most * sizeof(*frame->match)) + query_bytes + text_bytes,
-        &g_cli_views_cells);
+        g_cli_views_owner);
     if (frame == NULL)
     {
-        g_cli_cells->persistent_buf_release(number, &g_cli_views_cells);
+        g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
         return NULL;
     }
     memor.set(&(MemoriaCfg){.dst = frame, .val = 0, .bytes = sizeof(*frame)});
@@ -4715,8 +4731,8 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     }
     frame->runs =
         EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = view->key, .number = displayed.number,
-                   .count = displayed.count, .mirrored = 1, .owner = &g_cli_views_cells);
-    g_cli_cells->persistent_buf_release(number, &g_cli_views_cells);
+                   .count = displayed.count, .mirrored = 1, .owner = g_cli_views_owner);
+    g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
     if (frame->runs == NULL)
     {
         cli_view_frame_release(frame);
@@ -4768,12 +4784,12 @@ CliDocumentMap *cli_view_map_alloc(const char *key, unsigned long long first, un
     }
     const unsigned int tab = (view->indent.tabs == 1) ? EMBED_CALL(view_tab, ViewCtx, .view_read = view) : 1u;
     return EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = key, .first = first, .last = last,
-                      .tab = tab, .owner = &g_cli_views_cells);
+                      .tab = tab, .owner = g_cli_views_owner);
 }
 
 void cli_view_map_release(CliDocumentMap *map)
 {
-    g_cli_cells->persistent_buf_release(map, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(map, g_cli_views_owner);
 }
 
 int cli_view_path(const CliViewPathKindCfg *args)
@@ -5007,10 +5023,242 @@ CliDocumentWords *cli_view_words_alloc(const char *key)
     const CliPosition cursor = view->cursor;
     const unsigned long long first = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ULL;
     return EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = key, .first = first,
-                      .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .owner = &g_cli_views_cells);
+                      .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .owner = g_cli_views_owner);
 }
 
 void cli_view_words_release(CliDocumentWords *words)
 {
-    g_cli_cells->persistent_buf_release(words, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(words, g_cli_views_owner);
+}
+
+// the kind of a step of edits the CLI answers while its edits are written, which joins them; the step stands of no
+// kind once they are, so no edit after joins it
+#define CLI_VIEW_KIND_EDITS 5u
+
+int cli_view_edits_apply(const CliViewEditsCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no view is open under the key");
+        return 0;
+    }
+    if (args->count == 0u)
+    {
+        return 1;
+    }
+    EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
+    int written = 1;
+    CliViewStep *step = NULL;
+    for (unsigned int at = args->count; written && (at > 0u); at -= 1u)
+    {
+        const CliEdit *const edit = &args->edit[at - 1u];
+        CliViewEdit *const made =
+            EMBED_CALL(view_edit_cell, ViewCtx, .view = view, .from = edit->from, .to = edit->to,
+                       .append_bytes = edit->length, .append_spans = 0ULL, .err_msg = args->err_msg);
+        if (made == NULL)
+        {
+            written = 0;
+            break;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = made->put, .src = edit->text, .bytes = edit->length});
+        made->put[edit->length] = '\0';
+        made->append_length = edit->length;
+        // the first edit begins a step of its own, and each after it joins that step
+        written =
+            EMBED_CALL(view_edit_cell_write, ViewCtx, .view = view, .made = made,
+                       .kind = (step == NULL) ? CLI_VIEW_KIND_NONE : CLI_VIEW_KIND_EDITS, .err_msg = args->err_msg);
+        if (written && (step == NULL))
+        {
+            step = &view->step[view->steps - 1u];
+            step->kind = CLI_VIEW_KIND_EDITS;
+        }
+    }
+    if (step != NULL)
+    {
+        step->kind = CLI_VIEW_KIND_NONE;
+        EMBED_CALL(view_move, ViewCtx, .view = view, .place = args->edit[0].from, .extend = 0, .saved = 0);
+        step->cursor_after = view->cursor;
+        step->anchor_after = view->anchor;
+    }
+    return written;
+}
+
+unsigned long long cli_view_vim_lines(const CliViewVimCfg *args)
+{
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    return (view != NULL) ? EMBED_CALL(view_lines, ViewCtx, .view_read = view) : 0ULL;
+}
+
+const unsigned short *cli_view_vim_line(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    *args->count = 0ULL;
+    if ((view == NULL) || (args->line >= EMBED_CALL(view_lines, ViewCtx, .view_read = view)))
+    {
+        return NULL;
+    }
+    *args->count = EMBED_CALL(view_length, ViewCtx, .view = view, .line = args->line);
+    return view->line_units;
+}
+
+unsigned int cli_view_vim_rows(const CliViewVimCfg *args)
+{
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    return (view != NULL) ? view->rows : 0u;
+}
+
+unsigned long long cli_view_vim_span_bytes(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    return (view != NULL) ? EMBED_CALL(view_span_bytes, ViewCtx, .view = view, .from = args->from, .to = args->to)
+                          : 0ULL;
+}
+
+void cli_view_vim_span(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view != NULL)
+    {
+        EMBED_CALL(view_span_write, ViewCtx, .view = view, .from = args->from, .to = args->to, .out = args->out);
+    }
+}
+
+int cli_view_vim_edit(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea own = {why, sizeof(why), 0ULL};
+    VerbaLinea *const err_msg = (args->err_msg != NULL) ? args->err_msg : &own;
+    return (view != NULL) &&
+           EMBED_CALL(view_edit, ViewCtx, .view = view, .from = args->from, .to = args->to, .text = args->text,
+                      .length = args->length, .kind = CLI_VIEW_KIND_NONE, .err_msg = err_msg);
+}
+
+int cli_view_vim_indent(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        return 0;
+    }
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea own = {why, sizeof(why), 0ULL};
+    // the selection laid over the lines from the first's start to the last's end, the lines the indentation covers
+    view->anchor = (CliPosition){args->from.line, 0ULL};
+    view->cursor = (CliPosition){args->to.line, EMBED_CALL(view_length, ViewCtx, .view = view, .line = args->to.line)};
+    return EMBED_CALL(view_lines_indent, ViewCtx, .view = view, .deeper = args->deeper,
+                      .err_msg = (args->err_msg != NULL) ? args->err_msg : &own);
+}
+
+void cli_view_vim_place(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        return;
+    }
+    view->cursor = args->cursor;
+    view->anchor = args->anchor;
+    view->goal_saved = 0;
+    EMBED_CALL(view_follow, ViewCtx, .view = view);
+}
+
+int cli_view_vim_step(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        return 0;
+    }
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea own = {why, sizeof(why), 0ULL};
+    VerbaLinea *const err_msg = (args->err_msg != NULL) ? args->err_msg : &own;
+    return args->redo ? EMBED_CALL(view_redone, ViewCtx, .view = view, .err_msg = err_msg)
+                      : EMBED_CALL(view_undone, ViewCtx, .view = view, .err_msg = err_msg);
+}
+
+// the first of the view's matches whose start does not stand before `place`, by halving the matches, which stand in
+// the order of their starts
+EMBED_INLINE unsigned long long view_match_after(const ViewCtx *args)
+{
+    unsigned long long low = 0ULL;
+    unsigned long long high = args->view_read->matches;
+    while (low < high)
+    {
+        const unsigned long long middle = low + ((high - low) / 2ULL);
+        const CliPosition start = {args->view_read->match[middle][0], args->view_read->match[middle][1]};
+        if (EMBED_CALL(view_before, ViewCtx, .one = start, .other = args->place) ||
+            (args->exact && (start.line == args->place.line) && (start.col == args->place.col)))
+        {
+            low = middle + 1ULL;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+int cli_view_vim_find(const CliViewVimCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if ((view == NULL) || (args->length == 0ULL))
+    {
+        return 0;
+    }
+    unsigned short *const units =
+        g_cli_guard->temporary_buf_alloc((args->length + 1ULL) * sizeof(*units), g_cli_views_owner);
+    if (units == NULL)
+    {
+        return 0;
+    }
+    const unsigned long long count = EMBED_CALL(view_units_get, ViewCtx, .text = args->text, .size = args->length,
+                                                .units = units, .capacity = args->length + 1ULL);
+    // the query stands where it is the same, with case, whole words as asked, and a pattern or the text itself
+    const int same =
+        (view->find_query != NULL) && (view->find_length == count) && view->find_case &&
+        (view->find_word == args->word_text) && (!args->word_text || !view->find_regex) &&
+        (memor.cmp(&(MemoriaCfg){.src = view->find_query, .other = units, .bytes = count * sizeof(*units)}) == 0);
+    if (!same)
+    {
+        view->find_length = 0ULL;
+        view->find_at = 0ULL;
+        view->find_case = 1;
+        view->find_word = args->word_text;
+        view->find_regex = !args->word_text;
+        EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units, .count = count);
+        view->find_stale = 1;
+    }
+    g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+    EMBED_CALL(view_search, ViewCtx, .view = view);
+    if (!same && (view->matches == 0ULL) && view->find_regex)
+    {
+        // a text that reads as no pattern, or finds nothing as one, is sought as the text itself
+        view->find_regex = 0;
+        view->find_stale = 1;
+        EMBED_CALL(view_search, ViewCtx, .view = view);
+    }
+    if (view->matches == 0ULL)
+    {
+        return 0;
+    }
+    unsigned long long chosen = 0ULL;
+    if (args->back)
+    {
+        const unsigned long long before =
+            EMBED_CALL(view_match_after, ViewCtx, .view_read = view, .place = args->from, .exact = 0);
+        chosen = (before > 0ULL) ? before - 1ULL : view->matches - 1ULL;
+    }
+    else
+    {
+        const unsigned long long after =
+            EMBED_CALL(view_match_after, ViewCtx, .view_read = view, .place = args->from, .exact = 1);
+        chosen = (after < view->matches) ? after : 0ULL;
+    }
+    // the matches are fewer than CLI_VIEW_MATCHES, which a long long counts
+    view->current = (long long)chosen;
+    *args->place = (CliPosition){view->match[chosen][0], view->match[chosen][1]};
+    return 1;
 }

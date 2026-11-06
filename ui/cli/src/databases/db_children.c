@@ -110,7 +110,7 @@ EMBED_INLINE int children_is(const DbChildrenCtx *args)
 
 EMBED_INLINE int children_equal(const DbChildrenCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long have = children_is(args) ? args->values[args->at].size : 0ULL;
     return (have == size) &&
            ((size == 0u) ||
@@ -131,10 +131,10 @@ EMBED_INLINE void children_word(const DbChildrenCtx *args)
 // whether objects of `kind` contain columns and the rest under them
 EMBED_INLINE int children_has_parts(const DbChildrenCtx *args)
 {
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "table", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "view", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "materialized view", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "foreign table", .cap = CLI_CELLS_POOL}));
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "table", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "view", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "materialized view", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "foreign table", .cap = CLI_POOL_BYTES}));
 }
 
 // a node written: its label, kind, detail, whether it is a leaf, and its path, `count` names
@@ -144,22 +144,22 @@ EMBED_INLINE void children_node(const DbChildrenCtx *args)
     mmgr_line_put(out, (args->children->written > 0u) ? ",{\"label\":" : "{\"label\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->label,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->label, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->label, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"kind\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->kind,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"detail\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->detail_text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->detail_text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->detail_text, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, args->leaf ? ",\"leaf\":true,\"path\":[" : ",\"leaf\":false,\"path\":[");
     for (unsigned int one = 0u; one < args->count; one += 1u)
     {
         mmgr_line_put(out, (one > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                    .text_bytes = (const unsigned char *)args->at_letters[one],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->at_letters[one], .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->at_letters[one], .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(out, "]}");
     args->children->written += 1u;
@@ -241,7 +241,7 @@ static int children_row(const CliDbRowCfg *args)
     }
     // a column: its type, whether it may not be NULL, its default, and what else its database reports of it
     EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = second,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = second, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = second, .cap = CLI_POOL_BYTES}));
     int not_null;
     if (how == CHILDREN_PG_COLUMN)
     {
@@ -521,17 +521,17 @@ static int children_work(const CliEachLinkFailureCfg *args)
     CliDbLevel *const level = (CliDbLevel *)args->context;
     char question[CLI_PATH_MAX_LEN * 8u];
     VerbaLinea query = {question, sizeof(question), 0ULL};
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "postgres", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "postgres", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_postgres, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "mysql", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "mysql", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_mysql, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "sqlite", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_sqlite, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);

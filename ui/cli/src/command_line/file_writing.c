@@ -4,8 +4,8 @@
 // which writes the file beside its place under a name of this process's own, seals it where it is of a kind ksg seals,
 // and puts it in its place once every byte is on the disk, so a write that fails leaves the file it would have
 // replaced as it was; and a file written as pieces in turn the same way
-#include "cells.h"
 #include "cli_internal.h"
+#include "pool.h"
 
 // the most bytes of the name a file is written under beside its place: a dot, this process's id, a dot, a count of
 // its own, and `.writing`

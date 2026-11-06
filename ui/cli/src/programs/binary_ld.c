@@ -21,14 +21,14 @@ typedef struct
 static void cli_included_each(const CliEachNameIsFolderCfg *args)
 {
     CliIncluded *const included = (CliIncluded *)args->context;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    const unsigned long long head = cellul.len(&(CatenaFinitaCfg){.src = included->head, .cap = CLI_CELLS_POOL});
-    const unsigned long long tail = cellul.len(&(CatenaFinitaCfg){.src = included->tail, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const unsigned long long head = cellul.len(&(CatenaFinitaCfg){.src = included->head, .cap = CLI_POOL_BYTES});
+    const unsigned long long tail = cellul.len(&(CatenaFinitaCfg){.src = included->tail, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (included->count >= 64u) || (length < (head + tail)) ||
         (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->name, .other_pointer = included->head,
                      .size = head)) ||
         (!cellul.eq(
-            &(CatenaFinitaCfg){.src = args->name + length - tail, .other = included->tail, .cap = CLI_CELLS_POOL})))
+            &(CatenaFinitaCfg){.src = args->name + length - tail, .other = included->tail, .cap = CLI_POOL_BYTES})))
     {
         return;
     }
@@ -39,12 +39,12 @@ static void cli_included_each(const CliEachNameIsFolderCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = included->names[place],
             .src = included->names[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = included->names[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = included->names[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = included->names[place],
                             .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     included->count += 1u;
 }
 
@@ -75,16 +75,16 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
     {
         char *end = line;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "\n");
         char *const next = (end[0] != '\0') ? (end + 1) : end;
         end[0] = '\0';
-        char *const hash = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '#'});
+        char *const hash = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '#'});
         if (hash != NULL)
         {
             hash[0] = '\0';
         }
         char *from = line;
-        char *to = line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
+        char *to = line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES});
         from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
                            .size = (unsigned long long)(to - from), .set = " \t\r");
         to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
@@ -95,28 +95,28 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
         {
             continue;
         }
-        if (!cellul.starts(&(CatenaFinitaCfg){.src = from, .other = "include", .cap = CLI_CELLS_POOL}))
+        if (!cellul.starts(&(CatenaFinitaCfg){.src = from, .other = "include", .cap = CLI_POOL_BYTES}))
         {
             if (count < CLI_BINARY_LINUX_FOLDERS)
             {
                 memor.cpy(
                     &(MemoriaCfg){.dst = args->folders[count],
                                   .src = from,
-                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
+                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}) + 1u});
                 count += 1u;
             }
             continue;
         }
         from += 7;
         from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = " \t");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}), .set = " \t");
         char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder,
                                 .src = from,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}) + 1u});
         char *const slash = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = folder,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .byte = '/');
         if ((slash == NULL) || (slash[1] == '\0'))
         {
             continue;
@@ -125,8 +125,8 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
         char name[CLI_NAME_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = name,
                                 .src = slash + 1,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = slash + 1, .cap = CLI_CELLS_POOL}) + 1u});
-        char *const star = cellul.chr(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL, .byte = '*'});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = slash + 1, .cap = CLI_POOL_BYTES}) + 1u});
+        char *const star = cellul.chr(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES, .byte = '*'});
         CliIncluded *const included = &s_included[args->depth];
         included->tail = (star != NULL) ? (star + 1) : "";
         if (star != NULL)
@@ -173,7 +173,7 @@ unsigned int cli_binary_linux_folders(const CliBinaryCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = folders[count],
                           .src = s_system[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_system[at], .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_system[at], .cap = CLI_POOL_BYTES}) + 1u});
         count += 1u;
         at += 1u;
     }

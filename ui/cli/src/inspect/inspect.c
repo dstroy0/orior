@@ -19,21 +19,21 @@ const char *cli_inspect_language_get(const CliInspectCfg *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     if ((dot == NULL) || (dot == name))
     {
         return NULL;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".py", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".py", .cap = CLI_POOL_BYTES}))
     {
         return "python";
     }
-    return ((cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".js", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".mjs", .cap = CLI_CELLS_POOL})))
+    return ((cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".js", .cap = CLI_POOL_BYTES})) ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".mjs", .cap = CLI_POOL_BYTES})))
                ? "javascript"
                : NULL;
 }
@@ -210,9 +210,9 @@ unsigned int cli_inspect_name_append(const CliInspectSizeFromCtx *args)
 
 int cli_inspect_facts(const CliInspectFactsLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}));
     if (!python &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
@@ -266,9 +266,9 @@ void cli_parsed_begin(const CliInspectParsedCfg *args)
 
 int cli_inspect_parse(const CliInspectLanguageTextCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}));
     if (!python &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
@@ -290,9 +290,9 @@ int cli_inspect_parse(const CliInspectLanguageTextCfg *args)
 
 int cli_inspect_docstring(const CliInspectLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}));
     if (!python &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, "Write Docstring reads Python and JavaScript.");
         return 0;
@@ -318,9 +318,9 @@ int cli_inspect_docstring(const CliInspectLanguageCfg *args)
 
 int cli_inspect_sort_methods(const CliInspectLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_POOL_BYTES}));
     if (!python &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, "Sort Methods by Name reads Python and JavaScript.");
         return 0;
@@ -376,7 +376,7 @@ void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args)
                .text = args->facts_read->text + found->message.at, .length = found->message.size);
     mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = found->code,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = found->code, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = found->code, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"data\":{\"orior\":[");
     for (unsigned int fix = 0u; fix < found->fixes; fix += 1u)
     {
@@ -405,7 +405,7 @@ void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args)
         mmgr_line_put(args->out, ",\"codeDescription\":{\"href\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                    .text = found->href,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = found->href, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = found->href, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(args->out, '}');
     }
     mmgr_line_ch(args->out, '}');

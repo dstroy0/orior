@@ -4,7 +4,7 @@
 // pass of a node takes the text one way or none, and where such a pass ends; and a match tried at one place
 #include "regexp_match_internal.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 
 typedef struct
 {
@@ -433,7 +433,7 @@ int cli_regexp_match_into(const CliRegexpTextU32sCfg *args)
                    .index = args->regexp->root, .at = args->at, .run = &run, .then = &end);
     if (run.ends_reserved)
     {
-        g_cli_cells->persistent_buf_release(run.ends, &g_cli_text_cells);
+        g_cli_guard->persistent_buf_release(run.ends, g_cli_text_owner);
     }
     if (found)
     {

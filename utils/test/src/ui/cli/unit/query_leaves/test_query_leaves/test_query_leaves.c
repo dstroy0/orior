@@ -32,7 +32,7 @@ static unsigned int lines_led_by(char lead, unsigned int *all)
     {
         count += (line[0] == lead) ? 1u : 0u;
         *all += 1u;
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         line = (end != NULL) ? (end + 1) : (line + CLI_UNITY_LENGTH(line));
     }
     return count;

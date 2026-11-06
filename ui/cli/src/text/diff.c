@@ -7,7 +7,7 @@
 // alike and differ end the run. The edit's capacity, the hashes, the frontier's band and the steps, is one cell sized
 // to the two texts' lines for the one edit, and each round's band is traced in a cell of its own for the walk back;
 // both go as the edit ends. Past CLI_DIFF_MAX_EDITS rounds the texts read as too far apart
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/document.h"
 #include "vector.h"
 
@@ -89,7 +89,7 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     const unsigned long long bytes =
         (8ULL * both) + (8ULL * ((2ULL * most) + 3ULL)) + both + (4ULL * both) + (8ULL * 8ULL);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-    s_diff->cell = g_cli_cells->temporary_buf_alloc(bytes, &g_cli_text_cells);
+    s_diff->cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
     if (s_diff->cell == NULL)
     {
         return 0;
@@ -185,7 +185,7 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     const long long middle = most + 1;
     // every round's frontier, the rounds no more than `most`, in one cell of their squares' bound
     const unsigned long long trace_bytes = (unsigned long long)((most + 1) * (most + 1)) * sizeof(long long);
-    s_diff->trace = g_cli_cells->temporary_buf_alloc(trace_bytes, &g_cli_text_cells);
+    s_diff->trace = g_cli_guard->temporary_buf_alloc(trace_bytes, g_cli_text_owner);
     if (s_diff->trace == NULL)
     {
         return 0;
@@ -325,8 +325,8 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
         line += (at < s_diff->steps) ? 1u : 0u;
         then_line += (at < s_diff->steps) ? 1u : 0u;
     }
-    g_cli_cells->persistent_buf_release(s_diff->trace, &g_cli_text_cells);
-    g_cli_cells->persistent_buf_release(s_diff->cell, &g_cli_text_cells);
+    g_cli_guard->persistent_buf_release(s_diff->trace, g_cli_text_owner);
+    g_cli_guard->persistent_buf_release(s_diff->cell, g_cli_text_owner);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     return found;
 }

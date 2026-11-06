@@ -186,14 +186,14 @@ EMBED_INLINE int report_axioms_listed(const ValidateAxiomsCtx *args)
         unsigned long long start = from;
         unsigned long long length = end - from;
         while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                       .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start]}) != NULL))
+                                       .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = list[start]}) != NULL))
         {
             start += 1ULL;
             length -= 1ULL;
         }
         while ((length > 0ULL) &&
                (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start + length - 1ULL]}) != NULL))
+                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = list[start + length - 1ULL]}) != NULL))
         {
             length -= 1ULL;
         }
@@ -223,8 +223,8 @@ EMBED_INLINE int report_failed(const ValidateAxiomsCtx *args)
     {
         const CliFinding *const found = &g_cli_validate->findings[finding];
         if ((found->severity == 1u) &&
-            ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_CELLS_POOL}))) &&
+            ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_POOL_BYTES}))) &&
             (found->line >= args->line) && (found->line < args->ends))
         {
             return 1;

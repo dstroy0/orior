@@ -74,7 +74,7 @@ static const char *file_text(const char *root, const char *name)
 static int branches_contain(const char *text)
 {
     TEST_ASSERT_TRUE(command_run_result("branches", NULL, 0u));
-    return cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL}) != NULL;
+    return cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES, .other = text, .other_cap = CLI_POOL_BYTES}) != NULL;
 }
 
 // settings sent from here to between, with their three folders under the test's folder
@@ -217,7 +217,7 @@ void test_a_stash_is_listing(void)
     cli_unity_file(s_root, "a.txt", "two\n");
     (void)command_run_result("stash", s_append, 2u);
     TEST_ASSERT_TRUE(command_run_result("stashes", NULL, 0u));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "stash@{0}", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "stash@{0}", .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_stash_popped_restores_the_change_and_leaves_the_list(void)
@@ -250,7 +250,7 @@ void test_a_test_run_with_none_failed_reports_its_counts(void)
     repository_created("at_terminal_tests");
     cli_unity_file(s_root, "test_good.py", s_test_good);
     TEST_ASSERT_TRUE(command_run_result("test-run", s_good, 1u));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "1 passed, 0 failed", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "1 passed, 0 failed", .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_test_run_that_run_result_no_test_fails(void)
@@ -259,7 +259,7 @@ void test_a_test_run_that_run_result_no_test_fails(void)
     repository_created("at_terminal_tests");
     cli_unity_file(s_root, "test_none.py", "x = 1\n");
     TEST_ASSERT_FALSE(command_run_result("test-run", s_none, 1u));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_err_buf, .other = "0 passed, 0 failed", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_err_buf, .other = "0 passed, 0 failed", .cap = CLI_POOL_BYTES}));
 }
 
 void test_settings_sent_are_read_in(void)
@@ -269,7 +269,7 @@ void test_settings_sent_are_read_in(void)
     char between[CLI_PATH_MAX_LEN];
     settings_sent(base, there, between);
     TEST_ASSERT_TRUE(settings_read(there, between));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "Took 1 file", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "Took 1 file", .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_EQUAL_STRING("body { color: red; }\n", file_text(there, "user.css"));
 }
 
@@ -298,7 +298,7 @@ void test_settings_read_in_are_undone(void)
     char id[128] = "";
     settings_sent(base, there, between);
     TEST_ASSERT_TRUE(settings_read(there, between));
-    const char *const undo = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL, .other = "carry-undo ", .other_cap = CLI_CELLS_POOL});
+    const char *const undo = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES, .other = "carry-undo ", .other_cap = CLI_POOL_BYTES});
     TEST_ASSERT_NOT_NULL(undo);
     for (unsigned int at = 0u; (at + 1u < sizeof(id)) && (undo[11u + at] > ' '); at += 1u)
     {

@@ -112,6 +112,147 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
     .curl = cli_requests_curl,
 };
 
+// The Requests view of the Comms pane as the window reads it (requests_pane.c): for the file of requests shown, the
+// answers stored for the request its cursor stands in, read again where the cursor moves into another request. Over
+// the rows the head's choices: Send, which reads Sending and is inert while a send runs, Copy as curl, then No
+// environment and each environment of the file, the one chosen lit. The rows: where the last send was refused, its
+// refusal; the shown answer's status, colored good, moved or failed by its class, with its total time, its size and
+// its redirects, or why it failed; its times; a group row Headers opening to a row each header; a group row Sent
+// opening to what was sent; its body a row a line, laid out where it is JSON, with a row that reads so where it is cut
+// or not text; and with two answers or more a group row Last answers, a row each answer with its box lit where it is
+// checked and the one shown marked, and a Compare row inert unless two are checked, the two compared after it a row a
+// line with a sign: a space for a line both have, a minus for one only the older has, a plus for one only the newer
+// has. With no answer, one row reads so. Every text is a pointer and a length into a cell of the pane's own
+#define CLI_REQUESTS_ROW_REFUSAL 0u
+#define CLI_REQUESTS_ROW_STATUS 1u
+#define CLI_REQUESTS_ROW_TIMES 2u
+#define CLI_REQUESTS_ROW_GROUP 3u
+#define CLI_REQUESTS_ROW_HEADER 4u
+#define CLI_REQUESTS_ROW_SENT 5u
+#define CLI_REQUESTS_ROW_BODY 6u
+#define CLI_REQUESTS_ROW_NOTE 7u
+#define CLI_REQUESTS_ROW_ANSWER 8u
+#define CLI_REQUESTS_ROW_COMPARE 9u
+#define CLI_REQUESTS_ROW_SIGN 10u
+// a group row's group: the headers, what was sent, the last answers
+#define CLI_REQUESTS_GROUP_HEADERS 0u
+#define CLI_REQUESTS_GROUP_SENT 1u
+#define CLI_REQUESTS_GROUP_ANSWERS 2u
+#define CLI_REQUESTS_GROUPS 3u
+// a row's tone: the text's own, an answer of 2xx, of 3xx, one failed or of 4xx and above, and quieter
+#define CLI_REQUESTS_TONE_PLAIN 0u
+#define CLI_REQUESTS_TONE_GOOD 1u
+#define CLI_REQUESTS_TONE_MOVED 2u
+#define CLI_REQUESTS_TONE_FAILED 3u
+#define CLI_REQUESTS_TONE_QUIET 4u
+// the head's choices: Send, Copy as curl, then the environments, No environment first
+#define CLI_REQUESTS_CHOICE_SEND 0u
+#define CLI_REQUESTS_CHOICE_CURL 1u
+#define CLI_REQUESTS_CHOICE_ENV 2u
+// the most answers the view lists and checks, a bit of a word each
+#define CLI_REQUESTS_ANSWERS_MAX 32u
+typedef struct
+{
+    unsigned int kind;
+    unsigned int tone;
+    unsigned int group;
+    unsigned int answer;
+    const char *text;
+    unsigned long long text_length;
+    char sign;
+    int open;
+    int checked;
+    int inert;
+    int shown;
+} CliRequestsRow;
+
+typedef struct CliRequestsPaneCfg CliRequestsPaneCfg;
+// the pane begun, `woken` waking the view's thread as an answer comes in; the request the cursor of the view `key` at
+// `path` stands in at `line`, the shown view's where `key` is NULL, in the tree at `root`, the command line's where it
+// is NULL, sent on a worker of its own and its stored answers read again there: 1 where it started,
+// 0 where a send runs or nothing is to send; whether a send runs; and the answer of a send taken in where one came in,
+// and while `shown` the answers followed to the request the shown view's cursor stands in: 1 where the rows changed
+void cli_requests_pane_begin(const CliRequestsPaneCfg *args);
+int cli_requests_pane_send(const CliRequestsPaneCfg *args);
+int cli_requests_pane_sending(const CliRequestsPaneCfg *args);
+int cli_requests_pane_step(const CliRequestsPaneCfg *args);
+// the answers stored for the request the line `line` of the view `key` at `path` stands in read where its request is
+// another than the one shown, or where `force`, with the file's environments: 1 where the rows changed
+int cli_requests_pane_follow(const CliRequestsPaneCfg *args);
+// the environment chosen, `at` among the head's choices; how many rows there are; the row `at` into `row`: 1, or 0 past
+// the last; the group of the row `at` opened or closed; the answer of the row `at` shown; its box checked, or not
+// where it is; and the two answers checked compared: 1 where they were
+void cli_requests_pane_env(const CliRequestsPaneCfg *args);
+unsigned int cli_requests_pane_rows(const CliRequestsPaneCfg *args);
+int cli_requests_pane_row(const CliRequestsPaneCfg *args);
+void cli_requests_pane_toggle(const CliRequestsPaneCfg *args);
+void cli_requests_pane_show(const CliRequestsPaneCfg *args);
+void cli_requests_pane_check(const CliRequestsPaneCfg *args);
+int cli_requests_pane_compare(const CliRequestsPaneCfg *args);
+// the curl line of the request at `line` of the view `key` at `path`, the shown view's where `key` is NULL as for a
+// send, in the environment chosen written into `out`: 1,
+// or 0 with why written; the same put on the system's clipboard: 1 where it went; how many choices the head has; and
+// the choice `at` into `row`, its text, lit where it is the environment chosen, inert where it can do nothing: 1, or 0
+// past the last
+int cli_requests_pane_curl(const CliRequestsPaneCfg *args);
+int cli_requests_pane_copy(const CliRequestsPaneCfg *args);
+unsigned int cli_requests_pane_choices(const CliRequestsPaneCfg *args);
+int cli_requests_pane_choice(const CliRequestsPaneCfg *args);
+struct CliRequestsPaneCfg
+{
+    void (*woken)(void);
+    const char *root;
+    const char *path;
+    const char *key;
+    unsigned long long line;
+    unsigned int at;
+    CliRequestsRow *row;
+    int shown;
+    int force;
+    unsigned long long now_ms;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*begin)(const CliRequestsPaneCfg *args);
+    int (*send)(const CliRequestsPaneCfg *args);
+    int (*sending)(const CliRequestsPaneCfg *args);
+    int (*step)(const CliRequestsPaneCfg *args);
+    int (*follow)(const CliRequestsPaneCfg *args);
+    void (*env)(const CliRequestsPaneCfg *args);
+    unsigned int (*rows)(const CliRequestsPaneCfg *args);
+    int (*row)(const CliRequestsPaneCfg *args);
+    void (*toggle)(const CliRequestsPaneCfg *args);
+    void (*show)(const CliRequestsPaneCfg *args);
+    void (*check)(const CliRequestsPaneCfg *args);
+    int (*compare)(const CliRequestsPaneCfg *args);
+    int (*curl)(const CliRequestsPaneCfg *args);
+    int (*copy)(const CliRequestsPaneCfg *args);
+    unsigned int (*choices)(const CliRequestsPaneCfg *args);
+    int (*choice)(const CliRequestsPaneCfg *args);
+} CliRequestsPaneNs;
+EMBED_TABLE_LAYOUT(CliRequestsPaneNs, begin, send, sending, step, follow, env, rows, row, toggle, show, check, compare,
+                   curl, copy, choices, choice);
+EMBED_TABLE_STORAGE CliRequestsPaneNs cli_requests_pane EMBED_UNUSED = {
+    .begin = cli_requests_pane_begin,
+    .send = cli_requests_pane_send,
+    .sending = cli_requests_pane_sending,
+    .step = cli_requests_pane_step,
+    .follow = cli_requests_pane_follow,
+    .env = cli_requests_pane_env,
+    .rows = cli_requests_pane_rows,
+    .row = cli_requests_pane_row,
+    .toggle = cli_requests_pane_toggle,
+    .show = cli_requests_pane_show,
+    .check = cli_requests_pane_check,
+    .compare = cli_requests_pane_compare,
+    .curl = cli_requests_pane_curl,
+    .copy = cli_requests_pane_copy,
+    .choices = cli_requests_pane_choices,
+    .choice = cli_requests_pane_choice,
+};
+
 typedef struct
 {
     int (*from_curl)(const CliRequestsCfg *args);

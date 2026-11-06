@@ -177,7 +177,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
         // the folder cl stands in, nvcc's host compiler
         char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}), .byte = '\\');
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\');
         if (slash != NULL)
         {
             *slash = '\0';
@@ -236,9 +236,9 @@ static void query_code_walk(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
     QueryCodesWalk *const walk = (QueryCodesWalk *)args->context;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (length <= 4u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".bin", .cap = CLI_CELLS_POOL})) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".bin", .cap = CLI_POOL_BYTES})) ||
         (walk->codes->count >= walk->codes->capacity))
     {
         return;
@@ -267,7 +267,7 @@ EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
     {
         size += cellul.len(&(CatenaFinitaCfg){.src = args->codes->path[at], .cap = QUERY_PATH_MAX_LEN}) + 1u;
     }
-    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_query_cells);
+    char *const text = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_query_owner);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "the codes the vendor reads could not be stored");
@@ -283,7 +283,7 @@ EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
         mmgr_line_ok(&list) && EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx,
                                           .writer = &args->run->writer, .name = "cubin_listing_codes.txt",
                                           .bytes = text, .size = list.at, .priority = QRY_ORDINARY, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(text, &g_query_cells);
+    g_cli_guard->persistent_buf_release(text, g_query_owner);
     return transferred;
 }
 
@@ -323,17 +323,17 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
         const char *const inner_code = args->codes->path[at];
         const char *name = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = inner_code,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_POOL_BYTES}), .byte = '/');
         name = (name != NULL) ? (name + 1) : inner_code;
         char blob[QUERY_PATH_MAX_LEN];
         char dis[QUERY_PATH_MAX_LEN];
         VerbaLinea blob_line = {blob, sizeof(blob), 0ULL};
-        mmgr_line_put_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) - 4u);
+        mmgr_line_put_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) - 4u);
         mmgr_line_put(&blob_line, ".dis");
         mmgr_line_finish(&blob_line);
         VerbaLinea dis_line = {dis, sizeof(dis), 0ULL};
         mmgr_line_put_most(&dis_line, inner_code,
-                           cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_CELLS_POOL}) - 4u);
+                           cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_POOL_BYTES}) - 4u);
         mmgr_line_put(&dis_line, ".dis");
         mmgr_line_finish(&dis_line);
         if (!EMBED_CALL(query_blob_file, StickCtx, .run = run, .name = blob, .path_read = dis, .err_msg = err_msg))
@@ -355,7 +355,7 @@ int query_listings_read(const QueryLoopsContextFolderCfg *args)
                      EMBED_CALL(query_codes_list, StickCtx, .context = args->context, .run = args->run,
                                 .pattern = args->pattern, .prefix = args->prefix, .architecture = args->architecture,
                                 .codes = &codes, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(codes.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(codes.path, g_query_owner);
     *(&codes) = (QueryPaths){NULL, 0u, 0u};
     return read;
 }
@@ -413,10 +413,10 @@ static void query_engine_clear(const CliEachNameIsFolderCfg *args)
     static const char *const s_kinds[4] = {".sass", ".bin", ".dis", ".registers"};
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     for (unsigned int at = 0u; !args->is_folder && (dot != NULL) && (at < 4u); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = s_kinds[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = s_kinds[at], .cap = CLI_POOL_BYTES}))
         {
             char path[QUERY_PATH_MAX_LEN];
             EMBED_CALL(query_in, StickCtx, .folder = (const char *)args->context, .name = name, .path = path);
@@ -562,16 +562,16 @@ int query_stick_words(const QueryLoopsErrMsgWordsCfg *args)
 {
     if ((args->count == 0u) ||
         ((args->count == 1u) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "vendor", .cap = CLI_CELLS_POOL}))))
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "vendor", .cap = CLI_POOL_BYTES}))))
     {
         return QUERY_STICK_VENDOR;
     }
     if ((args->count == 1u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "engine", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "engine", .cap = CLI_POOL_BYTES})))
     {
         return QUERY_STICK_ENGINE;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_POOL_BYTES}))
     {
         return QUERY_STICK_READ;
     }

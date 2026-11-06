@@ -50,10 +50,10 @@ void cli_temp_folder(const CliFolderCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->folder_out,
                                 .src = ".",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
         return;
     }
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
+    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
     end = (size_t)(3u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = args->folder_out + 3u, .at = end - 3u, .set = "\\/"));
     args->folder_out[end] = '\0';

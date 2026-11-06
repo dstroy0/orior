@@ -90,10 +90,10 @@ EMBED_INLINE int query_on_path_find(const ProgramsCtx *args)
     while (*folder != '\0')
     {
         const char *const end =
-            cellul.chr(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL, .byte = QUERY_PATH_SEPARATOR});
+            cellul.chr(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES, .byte = QUERY_PATH_SEPARATOR});
         const unsigned long long length = (end != NULL)
                                               ? (unsigned long long)(end - folder)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
+                                              : cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
         for (unsigned int at = 0u; (length != 0ULL) && (at < args->count); at += 1u)
         {
             if (EMBED_CALL(query_in_folder, ProgramsCtx, .folder = folder, .folder_length = length,
@@ -113,7 +113,7 @@ static void query_cl_walk(const CliEachNameIsFolderCfg *args);
 EMBED_INLINE void query_cl_enter(const ProgramsCtx *args)
 {
     unsigned int depth = args->depth;
-    const size_t existing = cellul.len(&(CatenaFinitaCfg){.src = args->walk->folder, .cap = CLI_CELLS_POOL});
+    const size_t existing = cellul.len(&(CatenaFinitaCfg){.src = args->walk->folder, .cap = CLI_POOL_BYTES});
     VerbaLinea line = {args->walk->folder, sizeof(args->walk->folder), existing};
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
     mmgr_line_put(&line, args->name);
@@ -153,7 +153,7 @@ static void query_cl_walk(const CliEachNameIsFolderCfg *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = walk->found,
                                     .src = cl,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}) + 1u});
         }
     }
     if (walk->depth == 0u)
@@ -162,7 +162,7 @@ static void query_cl_walk(const CliEachNameIsFolderCfg *args)
     }
     else if (walk->depth == 1u)
     {
-        const size_t existing = cellul.len(&(CatenaFinitaCfg){.src = walk->folder, .cap = CLI_CELLS_POOL});
+        const size_t existing = cellul.len(&(CatenaFinitaCfg){.src = walk->folder, .cap = CLI_POOL_BYTES});
         VerbaLinea line = {walk->folder, sizeof(walk->folder), existing};
         mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
         mmgr_line_put(&line, name);
@@ -192,7 +192,7 @@ EMBED_INLINE int query_cl_install(const ProgramsCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = s_walk.folder,
                           .src = s_bases[base],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_bases[base], .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_bases[base], .cap = CLI_POOL_BYTES}) + 1u});
         s_walk.depth = 0u;
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = s_walk.folder,
                    .each = query_cl_walk, .context_bytess = &s_walk);
@@ -203,7 +203,7 @@ EMBED_INLINE int query_cl_install(const ProgramsCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = s_walk.found,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_walk.found, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_walk.found, .cap = CLI_POOL_BYTES}) + 1u});
     return args->path[0] != '\0';
 }
 
@@ -247,7 +247,7 @@ static int query_on_path_program(const QueryEachRolePathCapacityErrMsgCfg *args)
         {
             const char *const slash =
                 EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = nvcc,
-                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = nvcc, .cap = CLI_CELLS_POOL}),
+                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = nvcc, .cap = CLI_POOL_BYTES}),
                            .byte = QUERY_FOLDER_SEPARATOR);
             const unsigned long long folder = (slash != NULL) ? (unsigned long long)(slash - nvcc) : 0ULL;
             found =

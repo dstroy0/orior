@@ -30,7 +30,7 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -71,7 +71,7 @@ int main(void)
     terminal.view[0] = (CliTerminalView){s_key, 0ull, 40u, 3u, 0u, 0u, 0, 0};
     terminal.frame[0] = cli_view_frame_alloc(s_key);
     terminal.names[0] =
-        EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = s_key, .owner = &g_checks_cells);
+        EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = s_key, .owner = g_checks_owner);
     cli_check((terminal.frame[0] != NULL) && (terminal.names[0] != NULL), "the pane's frame and names are taken");
 
     GuiRaster raster;
@@ -96,8 +96,8 @@ int main(void)
               "the letter after inverse stands on the text's color as its ground");
 
     cli_view_frame_release((CliViewFrame *)terminal.frame[0]);
-    g_cli_cells->persistent_buf_release((void *)terminal.names[0], &g_checks_cells);
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release((void *)terminal.names[0], g_checks_owner);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

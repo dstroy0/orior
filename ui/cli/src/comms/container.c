@@ -15,7 +15,7 @@ CliProcess *cli_processes_alloc(const CliContainerCfg *args)
 {
     unsigned int *count = args->count_pointer;
     CliProcess *const processes =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MAX * sizeof(CliProcess), args->owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MAX * sizeof(CliProcess), args->owner);
     *count = (processes != NULL) ? EMBED_CALL(cli_capacity_processes_internal.processes_list, CliCapacityProcessesCtx,
                                               .processes = processes, .capacity_u32 = CLI_PROCESSES_MAX)
                                  : 0u;

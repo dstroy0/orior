@@ -65,7 +65,7 @@ EMBED_INLINE void match_end_append(const ShapeMatchCtx *args)
                                             ((unsigned long long)args->matcher_out->part_count + 1ULL);
         const unsigned int capacity = (required < CLI_SHAPE_ENDS) ? (unsigned int)required : CLI_SHAPE_ENDS;
         args->matcher_out->ends =
-            g_cli_cells->temporary_buf_alloc(capacity * sizeof(*args->matcher_out->ends), &g_cli_shape_cells);
+            g_cli_guard->temporary_buf_alloc(capacity * sizeof(*args->matcher_out->ends), g_cli_shape_owner);
         args->matcher_out->ends_capacity = (args->matcher_out->ends != NULL) ? capacity : 0u;
     }
     if (args->matcher_out->ends_top < args->matcher_out->ends_capacity)

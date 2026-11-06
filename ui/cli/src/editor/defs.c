@@ -4,7 +4,7 @@
 // reads them
 #include "defs.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
@@ -51,7 +51,7 @@ EMBED_INLINE CliDefsFile cli_map(const DefsCtx *args)
     const char *path = args->path;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_defs_cells);
+                                                  .size_pointer = &size, .owner = g_cli_defs_owner);
     // a file's bytes are read as its text
     return (CliDefsFile){(const char *)bytes, size};
 }
@@ -61,8 +61,8 @@ EMBED_INLINE void cli_unmapped(const DefsCtx *args)
     if (args->file.text != NULL)
     {
         // the text is the bytes the file was mapped as
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->file.text),
-                                            (&g_cli_defs_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->file.text),
+                                            (g_cli_defs_owner));
     }
 }
 

@@ -3,7 +3,7 @@
 // deploy_existing.c: what a place has against what was last sent there and what goes now: the files changed there
 // since they were sent, each shown with its differences where both copies are text, and the files there the tree no
 // longer has; and the record of the hashes last sent to a place written after a send
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -105,8 +105,8 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         return;
     }
     // each line's start and length, the old text's then the new's, in one cell of their count
-    unsigned long long *const counted = g_cli_cells->persistent_buf_alloc(
-        2ULL * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), &g_cli_deploy_cells);
+    unsigned long long *const counted = g_cli_guard->persistent_buf_alloc(
+        2ULL * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), g_cli_deploy_owner);
     if (counted == NULL)
     {
         return;
@@ -146,7 +146,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "+ ", .text = args->new_text + news_lines.start[at],
                    .size = news_lines.size[at]);
     }
-    g_cli_cells->persistent_buf_release(counted, &g_cli_deploy_cells);
+    g_cli_guard->persistent_buf_release(counted, g_cli_deploy_owner);
 }
 
 // the copy of `path` the place at `index` has read as text into a cell of the most that is compared and one byte past
@@ -157,21 +157,21 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     unsigned long long *size = args->size_pointer;
     const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
     const unsigned long long capacity = CLI_DEPLOY_COMPARED + 2ULL;
-    char *const theirs = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
+    char *const theirs = g_cli_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
     VerbaLinea text = mmgr_line_over(theirs, capacity);
     int read = 0;
     if (place->here)
     {
         unsigned long long mapped = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                      .size_pointer = &mapped, .owner = &g_cli_deploy_cells);
+                                                      .size_pointer = &mapped, .owner = g_cli_deploy_owner);
         read = (bytes != NULL) && (mapped <= CLI_DEPLOY_COMPARED);
         if (read)
         {
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
                        .length = mapped);
         }
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
     }
     else
     {
@@ -179,7 +179,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
         VerbaLinea command = {line, sizeof(line), 0ULL};
         mmgr_line_put(&command, "head -c 65537 ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = path,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .out = &command);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .out = &command);
         mmgr_line_finish(&command);
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea none = {why, sizeof(why), 0ULL};
@@ -190,7 +190,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     if (!read || !mmgr_line_ok(&text) || (*size > CLI_DEPLOY_COMPARED) ||
         (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (size_t)*size, .val = 0u}) != NULL))
     {
-        g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
         return NULL;
     }
     return theirs;
@@ -225,7 +225,7 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
     const CliDeployRun *const run = &g_cli_deploy;
     for (unsigned int sent = 0u; (theirs != NULL) && (sent < run->sents); sent += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = run->sent[sent].path, .other = path, .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = run->sent[sent].path, .other = path, .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -235,17 +235,17 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ULL;
         const unsigned char *const ours_index = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                           .size_pointer = &size, .owner = &g_cli_deploy_cells);
+                                                           .size_pointer = &size, .owner = g_cli_deploy_owner);
         if ((ours_index != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                .bytes = (const char *)ours_index, .size = size))
         {
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
                        .new_text = (const char *)ours_index, .new_size = size);
         }
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)ours_index, (&g_cli_deploy_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)ours_index, (g_cli_deploy_owner));
         break;
     }
-    g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);
+    g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
 }
 
 // a file at the place at `index` that the tree no longer has printed, and what becomes of it
@@ -286,20 +286,20 @@ EMBED_INLINE unsigned int existing_list(const DeployStandingCtx *args)
                    (EMBED_CALL(cli_deploy_patterns_internal.left_out_by, CliDeployPatternsCtx, .patterns = run->pattern,
                                .count = run->patterns, .path = there->path) == NULL))
                 : ((last != NULL) &&
-                   !cellul.eq(&(CatenaFinitaCfg){.src = last, .other = there->text, .cap = CLI_CELLS_POOL}) &&
+                   !cellul.eq(&(CatenaFinitaCfg){.src = last, .other = there->text, .cap = CLI_POOL_BYTES}) &&
                    ((ours == NULL) ||
-                    !cellul.eq(&(CatenaFinitaCfg){.src = ours, .other = there->text, .cap = CLI_CELLS_POOL})));
+                    !cellul.eq(&(CatenaFinitaCfg){.src = ours, .other = there->text, .cap = CLI_POOL_BYTES})));
         if (list_entries && (args->list != NULL))
         {
             args->list[count].path = EMBED_CALL(
                 cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool, .text = there->path,
-                .size = cellul.len(&(CatenaFinitaCfg){.src = there->path, .cap = CLI_CELLS_POOL}));
+                .size = cellul.len(&(CatenaFinitaCfg){.src = there->path, .cap = CLI_POOL_BYTES}));
             args->list[count].text =
                 args->deleted
                     ? NULL
                     : EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool,
                                  .text = there->text,
-                                 .size = cellul.len(&(CatenaFinitaCfg){.src = there->text, .cap = CLI_CELLS_POOL}));
+                                 .size = cellul.len(&(CatenaFinitaCfg){.src = there->text, .cap = CLI_POOL_BYTES}));
         }
         count += list_entries ? 1u : 0u;
     }
@@ -357,10 +357,10 @@ EMBED_INLINE void existing_member(const DeployStandingCtx *args)
 {
     mmgr_line_put(args->record, args->first ? "\n  " : ",\n  ");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->record, .text = args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->record, ": ");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->record, .text = args->hash,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->hash, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->hash, .cap = CLI_POOL_BYTES}));
 }
 
 void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
@@ -378,7 +378,7 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     const CliDeployPair *const preserved = args->replace ? NULL : run->changed_list[args->index];
     const unsigned int preserved_count = args->replace ? 0u : run->changed[args->index];
     // the record holds a path and a hash for each file, as a place's hashes do
-    char *const record_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_HASHES, &g_cli_deploy_cells);
+    char *const record_text = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_HASHES, g_cli_deploy_owner);
     VerbaLinea record = mmgr_line_over(record_text, CLI_DEPLOY_HASHES);
     mmgr_line_ch(&record, '{');
     unsigned int sent = 0u;
@@ -413,5 +413,5 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
         (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = record.out,
                          .size = record.at, .fresh = 1);
     }
-    g_cli_cells->persistent_buf_release(record_text, &g_cli_deploy_cells);
+    g_cli_guard->persistent_buf_release(record_text, g_cli_deploy_owner);
 }

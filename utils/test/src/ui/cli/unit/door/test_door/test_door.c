@@ -467,10 +467,10 @@ void test_every_position_is_released_once_its_process_is_removed(void)
 {
     channels_run_result();
     // a place's threads end after its process does; its cell is therefore waited for up to five seconds
-    for (unsigned int waited = 0u; (embed_atomic_usize_load(&g_cli_ipc_cells.in_use) != 0ull) && (waited < 250u); waited += 1u)
+    for (unsigned int waited = 0u; (mmgr_owner_in_use(g_cli_ipc_owner) != 0ull) && (waited < 250u); waited += 1u)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_ipc_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_ipc_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_ipc_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_ipc_owner));
 }

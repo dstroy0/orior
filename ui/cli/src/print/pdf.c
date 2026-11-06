@@ -112,7 +112,7 @@ EMBED_INLINE void cli_text_string(const PdfCtx *args)
     mmgr_line_put(args->out, "<FEFF");
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .letters = s_letters,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .letters = s_letters,
                    .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
@@ -251,19 +251,19 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages laid out
     const unsigned int most = (laid->pages < CLI_PRINT_PAGES) ? laid->pages : CLI_PRINT_PAGES;
     unsigned int *const printed =
-        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(unsigned int), &g_cli_print_cells);
+        g_cli_guard->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(unsigned int), g_cli_print_owner);
     unsigned long long *const offsets =
-        g_cli_cells->temporary_buf_alloc((7ULL + (2ULL * most)) * sizeof(unsigned long long), &g_cli_print_cells);
-    char *const content_cell = g_cli_cells->temporary_buf_alloc(CLI_PDF_CONTENT_CAPACITY, &g_cli_print_cells);
+        g_cli_guard->temporary_buf_alloc((7ULL + (2ULL * most)) * sizeof(unsigned long long), g_cli_print_owner);
+    char *const content_cell = g_cli_guard->temporary_buf_alloc(CLI_PDF_CONTENT_CAPACITY, g_cli_print_owner);
     VerbaLinea content = mmgr_line_over(content_cell, CLI_PDF_CONTENT_CAPACITY);
     const int begun = content.out != NULL;
     *pages = 0ULL;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no capacity to write it in, nothing is written
-        g_cli_cells->persistent_buf_release(printed, &g_cli_print_cells);
-        g_cli_cells->persistent_buf_release(offsets, &g_cli_print_cells);
-        g_cli_cells->persistent_buf_release(content.out, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
+        g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
+        g_cli_guard->persistent_buf_release(content.out, g_cli_print_owner);
         return;
     }
     unsigned int count = 0u;
@@ -342,7 +342,7 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     mmgr_line_decimal(args->out, xref, 1u);
     mmgr_line_put(args->out, "\n%%EOF\n");
     *pages = count;
-    g_cli_cells->persistent_buf_release(printed, &g_cli_print_cells);
-    g_cli_cells->persistent_buf_release(offsets, &g_cli_print_cells);
-    g_cli_cells->persistent_buf_release(content.out, &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
+    g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
+    g_cli_guard->persistent_buf_release(content.out, g_cli_print_owner);
 }

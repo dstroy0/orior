@@ -6,7 +6,7 @@
 // under a key of the tree's own
 #include "view.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
 #include "files.h"
@@ -109,7 +109,7 @@ EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = args->path, .id_out = id);
-    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
     grammar[0] = '\0';
     if (known && !EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar,
@@ -225,7 +225,7 @@ void cli_view_session_save(const char *root)
     // the view shown is among the views
     const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : "";
     bytes += cellul.len(&(CatenaFinitaCfg){.src = shown_path, .cap = CLI_PATH_MAX_LEN});
-    char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_views_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_views_owner);
     if (cell == NULL)
     {
         return;
@@ -250,7 +250,7 @@ void cli_view_session_save(const char *root)
         (void)cli_state_value_save(
             &(CliStateValueCfg){.folder = folder, .key = key, .value = cell, .err_msg = &err_msg});
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
 }
 
 void cli_view_session_restore(const char *root, const CliStateEntries *entries, unsigned int rows, unsigned int columns)
@@ -266,7 +266,7 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = session, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = session, .cap = CLI_POOL_BYTES});
     const unsigned long long shown_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                     .text = session, .at = 0ULL, .size = size, .set = "\n");
     for (unsigned long long at = shown_end + 1ULL; at < size;)

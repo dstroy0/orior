@@ -160,13 +160,13 @@ void test_a_compiler_property_completes_inside_the_properties(void)
 void test_every_xml_files_memory_is_released(void)
 {
     (void)findings_of("/tree", "/tree/pom.xml", s_pom);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_xml_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_xml_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_xml_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_xml_owner));
 }
 
 void test_every_models_memory_is_released(void)
 {
     (void)findings_of("/tree", "/tree/pom.xml", s_pom);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_maven_model_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_maven_model_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_maven_model_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_maven_model_owner));
 }

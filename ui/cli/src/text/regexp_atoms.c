@@ -100,7 +100,7 @@ EMBED_INLINE unsigned int cli_property_named(const RegexpAtomsCtx *args)
     const unsigned int *const letters = args->letter;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        const size_t name_length = cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_CELLS_POOL});
+        const size_t name_length = cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_POOL_BYTES});
         int same = name_length == args->count;
         size_t letter_at = 0u;
         while (same && (letter_at < name_length))

@@ -174,7 +174,7 @@ unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
     static unsigned int s_read[CLI_FUZZY_LETTERS];
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}), .letters = s_read,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}), .letters = s_read,
                    .capacity_u64 = CLI_FUZZY_LETTERS);
     unsigned int requested_count = 0u;
     for (unsigned long long at = 0ULL; (at < count) && (requested_count < args->capacity); at += 1ULL)
@@ -194,7 +194,7 @@ unsigned int cli_files_letters(const CliFilesTextCfg *args)
     // a letter count is below `capacity`, which an unsigned int stores
     const unsigned int count =
         (unsigned int)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text,
-                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}),
+                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}),
                                  .letters = args->displayed, .capacity_u64 = args->capacity);
     for (unsigned int at = 0u; at < count; at += 1u)
     {

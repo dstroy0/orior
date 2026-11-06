@@ -39,7 +39,7 @@ void cli_git_commit_line(const CliGitLengthOutCtx *args)
 void cli_git_failed_after(const CliGitLengthCtx *args)
 {
     const unsigned long long joined_capacity = (args->out_read->at - args->from_u64) + args->length + 2ULL;
-    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_capacity, &g_cli_code_cells);
+    char *const joined_cell = g_cli_guard->temporary_buf_alloc(joined_capacity, g_cli_code_owner);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)
     {
@@ -54,5 +54,5 @@ void cli_git_failed_after(const CliGitLengthCtx *args)
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &start, .to = &stop);
     // the trimmed text's length, a difference of two places in it, `stop` never before `start`
     mmgr_line_put_n(args->err_msg, start, (unsigned long long)(stop - start));
-    g_cli_cells->persistent_buf_release(joined.out, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(joined.out, g_cli_code_owner);
 }

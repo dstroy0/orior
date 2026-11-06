@@ -104,7 +104,7 @@ void test_a_position_counts_its_column_in_utf16(void)
     static unsigned int s_starts[8];
     CliBuildLines lines;
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = s_text, .size = sizeof(s_text) - 1u, .starts = s_starts, .most = 8u, .lines_out = &lines);
-    const char *const z = cellul.chr(&(CatenaFinitaCfg){.src = s_text, .cap = CLI_CELLS_POOL, .byte = 'z'});
+    const char *const z = cellul.chr(&(CatenaFinitaCfg){.src = s_text, .cap = CLI_POOL_BYTES, .byte = 'z'});
     TEST_ASSERT_NOT_NULL(z);
     // `z` lies in the text, past its start
     const unsigned long long at = (unsigned long long)(z - s_text);

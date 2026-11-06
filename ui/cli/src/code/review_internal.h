@@ -81,7 +81,6 @@ typedef struct
 
 // the review read, and the cells the review occupies (review.c)
 extern CliReview g_cli_review;
-extern CellOwner g_cli_review_cells;
 
 // `length` bytes put in the pieces' texts, a 0 after them: their place, 0 where they do not fit, an empty text there
 // (review_compare.c)

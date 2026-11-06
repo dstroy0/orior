@@ -232,9 +232,9 @@ void test_a_merges_memory_is_sized_to_its_notebooks_and_released(void)
     const unsigned int ours = notebook_of(s_ours, 5u);
     const unsigned int theirs = notebook_of(s_theirs, 5u);
     (void)EMBED_CALL(cli_notebook.merge, CliNotebookCfg, .json = &s_json, .base = base, .ours = ours, .theirs = theirs);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_notebook_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_notebook_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(1024ull, embed_atomic_usize_load(&g_cli_notebook_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_notebook_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_notebook_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(1024ull, mmgr_owner_hw(g_cli_notebook_owner));
 }
 
 void test_a_diff_reads_sources_and_outputs(void)

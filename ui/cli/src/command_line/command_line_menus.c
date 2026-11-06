@@ -21,7 +21,7 @@ unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args)
         for (unsigned int group = 0u; group < groups; group += 1u)
         {
             if (cellul.eq(&(CatenaFinitaCfg){
-                    .src = args->catalog->job[at].group, .other = s_groups[group], .cap = CLI_CELLS_POOL}))
+                    .src = args->catalog->job[at].group, .other = s_groups[group], .cap = CLI_POOL_BYTES}))
             {
                 args->list_entries[count] = at;
                 count += 1u;
@@ -48,7 +48,7 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
     {
         EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx, .catalog = catalog,
                    .job = args->list_entries[at], .subject = subject);
-        if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_CELLS_POOL})))
+        if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = subject);
         }
@@ -148,7 +148,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
         {
             EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx,
                        .catalog = catalog, .job = s_list_result[at], .subject = subject);
-            if (cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = name, .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = name, .cap = CLI_POOL_BYTES}))
             {
                 s_list_result[listing_count] = s_list_result[at];
                 listing_count += 1u;

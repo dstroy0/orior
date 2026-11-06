@@ -66,7 +66,7 @@ static const char *fix_applied(const char *text, unsigned int finding)
 // `text` with its first `from` replaced by `to`, into s_requested
 static const char *text_replaced(const char *text, const char *from, const char *to)
 {
-    const char *const at = cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = from, .other_cap = CLI_CELLS_POOL});
+    const char *const at = cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES, .other = from, .other_cap = CLI_POOL_BYTES});
     VerbaLinea out = {s_requested, sizeof(s_requested), 0ull};
     if (at != NULL)
     {
@@ -114,7 +114,7 @@ static unsigned int unreachable_found(unsigned int *unreachable)
     unsigned int count = 0u;
     for (unsigned int at = 0u; (at < s_facts.findings) && (count < 4u); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_facts.finding[at].code, .other = "unreachable", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_facts.finding[at].code, .other = "unreachable", .cap = CLI_POOL_BYTES}))
         {
             unreachable[count] = at;
             count += 1u;

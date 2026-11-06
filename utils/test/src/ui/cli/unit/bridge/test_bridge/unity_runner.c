@@ -80,18 +80,18 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\bridge\\test_bridge\\test_bridge.c");
-  run_test(test_a_pair_reads_its_two_names, "test_a_pair_reads_its_two_names", 71);
-  run_test(test_a_pair_reads_its_verdict, "test_a_pair_reads_its_verdict", 78);
-  run_test(test_every_other_line_under_a_pair_is_a_note, "test_every_other_line_under_a_pair_is_a_note", 85);
-  run_test(test_a_key_with_no_pair_has_none, "test_a_key_with_no_pair_has_none", 94);
-  run_test(test_a_line_under_no_pair_belongs_to_the_key, "test_a_line_under_no_pair_belongs_to_the_key", 102);
-  run_test(test_a_map_names_its_language, "test_a_map_names_its_language", 108);
-  run_test(test_a_name_and_its_key_are_read_separately, "test_a_name_and_its_key_are_read_separately", 113);
-  run_test(test_a_name_stores_its_kind, "test_a_name_stores_its_kind", 118);
-  run_test(test_a_name_stores_what_it_breaks, "test_a_name_stores_what_it_breaks", 124);
-  run_test(test_the_trees_lstar_file_contains_lane_open, "test_the_trees_lstar_file_contains_lane_open", 130);
-  run_test(test_the_trees_cu_map_names_lane_open, "test_the_trees_cu_map_names_lane_open", 136);
-  run_test(test_the_trees_cu_ruleset_writes_lane_open, "test_the_trees_cu_ruleset_writes_lane_open", 148);
+  run_test(test_a_pair_reads_its_two_names, "test_a_pair_reads_its_two_names", 77);
+  run_test(test_a_pair_reads_its_verdict, "test_a_pair_reads_its_verdict", 84);
+  run_test(test_every_other_line_under_a_pair_is_a_note, "test_every_other_line_under_a_pair_is_a_note", 91);
+  run_test(test_a_key_with_no_pair_has_none, "test_a_key_with_no_pair_has_none", 100);
+  run_test(test_a_line_under_no_pair_belongs_to_the_key, "test_a_line_under_no_pair_belongs_to_the_key", 108);
+  run_test(test_a_map_names_its_language, "test_a_map_names_its_language", 114);
+  run_test(test_a_name_and_its_key_are_read_separately, "test_a_name_and_its_key_are_read_separately", 119);
+  run_test(test_a_name_stores_its_kind, "test_a_name_stores_its_kind", 124);
+  run_test(test_a_name_stores_what_it_breaks, "test_a_name_stores_what_it_breaks", 130);
+  run_test(test_the_trees_lstar_file_contains_lane_open, "test_the_trees_lstar_file_contains_lane_open", 136);
+  run_test(test_the_trees_cu_map_names_lane_open, "test_the_trees_cu_map_names_lane_open", 142);
+  run_test(test_the_trees_cu_ruleset_writes_lane_open, "test_the_trees_cu_ruleset_writes_lane_open", 154);
 
   return UNITY_END();
 }

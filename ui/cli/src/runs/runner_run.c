@@ -3,7 +3,7 @@
 // runner_run.c: a job's steps run one after another on a thread of their own, each step's process started, its lines
 // carried and its exit read; the program a build made found, signed and run; and a run stopped with all it started
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../programs/binary.h"
 #include "../programs/executables.h"
 #include "../toolchains/toolchains.h"
@@ -86,7 +86,7 @@ static void cli_run_print(const CliEachLineSizeCfg *args)
 EMBED_INLINE void cli_run_print_text(const RunnerRunCtx *args)
 {
     EMBED_CALL(cli_run_print, CliEachLineSizeCfg, .context = args->run, .line = args->text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
 }
 
 static int cli_find_init(const RunnerRunCtx *args)
@@ -169,7 +169,7 @@ static int cli_step(const RunnerRunCtx *args)
                               NULL,
                               EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &line);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = run->catalog.job[0].opens, .other = "views", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = run->catalog.job[0].opens, .other = "views", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->view_out);
         EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "VIEW_OUT",
@@ -352,8 +352,8 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
                              args->created_text,
                              EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
-    g_cli_cells->persistent_buf_release(run->job_cell, &g_cli_runs_cells);
-    g_cli_cells->persistent_buf_release(run->lines, &g_cli_runs_cells);
+    g_cli_guard->persistent_buf_release(run->job_cell, g_cli_runs_owner);
+    g_cli_guard->persistent_buf_release(run->lines, g_cli_runs_owner);
     run->job_cell = NULL;
     run->lines = NULL;
     run->ended = 1;
@@ -448,7 +448,7 @@ EMBED_INLINE int cli_job_step(const RunnerRunCtx *args)
 // it, else whole
 EMBED_INLINE void cli_created_written(const RunnerRunCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->run->root, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->run->root, .cap = CLI_POOL_BYTES});
     if (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->made->file, .other_pointer = args->run->root,
                    .size = length))
     {
@@ -460,7 +460,7 @@ EMBED_INLINE void cli_created_written(const RunnerRunCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->created_out,
             .src = args->made->file,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->file, .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->file, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 
@@ -477,7 +477,7 @@ void cli_run_steps(void *context)
         CliCommand command;
         char displayed[CLI_COMMAND_TEXT];
     } CliRunCommand;
-    CliRunCommand *const run_command = g_cli_cells->temporary_buf_alloc(sizeof(CliRunCommand), &g_cli_runs_cells);
+    CliRunCommand *const run_command = g_cli_guard->temporary_buf_alloc(sizeof(CliRunCommand), g_cli_runs_owner);
     if (run_command == NULL)
     {
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = "a run's command could not be taken");
@@ -494,8 +494,8 @@ void cli_run_steps(void *context)
     mmgr_line_ch(&named, '-');
     mmgr_line_decimal(&named, run->run, 1u);
     mmgr_line_finish(&named);
-    const int views = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "views", .cap = CLI_CELLS_POOL});
-    const int program = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "program", .cap = CLI_CELLS_POOL});
+    const int views = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "views", .cap = CLI_POOL_BYTES});
+    const int program = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "program", .cap = CLI_POOL_BYTES});
     if (views)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = view_out);
@@ -531,10 +531,10 @@ void cli_run_steps(void *context)
         }
         at += 1u;
     }
-    g_cli_cells->persistent_buf_release(run_command, &g_cli_runs_cells);
+    g_cli_guard->persistent_buf_release(run_command, g_cli_runs_owner);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
         views
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, &g_cli_runs_cells)
+            ? g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
             : NULL;
     const unsigned int pages = (pages_found != NULL)
                                    ? EMBED_CALL(cli_runner_root_internal.run_pages, CliRunnerRootCtx, .root = run->root,
@@ -558,5 +558,5 @@ void cli_run_steps(void *context)
     EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = has_code, .code_value = code,
                .pages_found = (const char (*)[CLI_PATH_MAX_LEN])pages_found, .pages = pages,
                .created_text = has_created ? created_text : NULL);
-    g_cli_cells->persistent_buf_release(pages_found, &g_cli_runs_cells);
+    g_cli_guard->persistent_buf_release(pages_found, g_cli_runs_owner);
 }

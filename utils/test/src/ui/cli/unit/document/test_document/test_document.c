@@ -207,21 +207,21 @@ void test_a_large_text_accepts_letters_one_edit_at_a_time_each_where_its_edit_wr
     unsigned long long after = 0ull;
     unsigned long long temporary = 0ull;
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    char *const text = g_cli_cells->persistent_buf_alloc(size, &g_checks_cells);
+    char *const text = g_cli_guard->persistent_buf_alloc(size, g_checks_owner);
     TEST_ASSERT_NOT_NULL(text);
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
         text[at] = ((at % 13ull) == 12ull) ? '\n' : 'a';
     }
     (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "large", .text = text, .size = size, .shape = &shape);
-    g_cli_cells->persistent_buf_release(text, &g_checks_cells);
-    EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &before, .temporary = &temporary);
+    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    cli_pool_report(&pool, &before, &temporary);
     int edited = 1;
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
         edited = edited && EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "large", .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
     }
-    EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &after, .temporary = &temporary);
+    cli_pool_report(&pool, &after, &temporary);
     TEST_ASSERT_TRUE(edited);
     TEST_ASSERT_EQUAL_UINT64(lines + 1ull, shape.lines);
     TEST_ASSERT_EQUAL_UINT64((lines * 12ull) + 20ull, shape.units);
@@ -393,7 +393,7 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
     unsigned int reserved = 0u;
     while (reserved < DOCUMENT_TAKEN_MOST)
     {
-        s_allocated[reserved] = g_cli_cells->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, &g_checks_cells);
+        s_allocated[reserved] = g_cli_guard->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, g_checks_owner);
         if (s_allocated[reserved] == NULL)
         {
             break;
@@ -403,14 +403,14 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
     if (reserved != 0u)
     {
         reserved -= 1u;
-        g_cli_cells->persistent_buf_release(s_allocated[reserved], &g_checks_cells);
+        g_cli_guard->persistent_buf_release(s_allocated[reserved], g_checks_owner);
     }
     (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "little", .text = "one line\ntwo lines", .size = 18ull, .shape = &shape);
     assert_stored_found("little", "line", "[[0,4,8],[1,4,8]]");
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "little");
     for (unsigned int at = 0u; at < reserved; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_allocated[at], &g_checks_cells);
+        g_cli_guard->persistent_buf_release(s_allocated[at], g_checks_owner);
     }
 }
 

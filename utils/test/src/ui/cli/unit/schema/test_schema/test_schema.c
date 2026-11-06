@@ -108,7 +108,7 @@ static int error_contains(const char *part)
 {
     for (unsigned int at = 0u; at < s_read.errors; at += 1u)
     {
-        if (cellul.find(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = &s_read, .at = s_read.error[at].message_at), .cap = CLI_CELLS_POOL, .other = part, .other_cap = CLI_CELLS_POOL}) != NULL)
+        if (cellul.find(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = &s_read, .at = s_read.error[at].message_at), .cap = CLI_POOL_BYTES, .other = part, .other_cap = CLI_POOL_BYTES}) != NULL)
         {
             return 1;
         }
@@ -133,7 +133,7 @@ void test_json_reads_with_its_faults(void)
     TEST_ASSERT_TRUE(error_contains("No item follows"));
     TEST_ASSERT_TRUE(error_contains("`tru` is no value"));
     TEST_ASSERT_TRUE(error_contains("\"a\" is a key of this object above it"));
-    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(s_read.node, g_cli_schema_owner);
     s_read.node = NULL;
     s_read.member = NULL;
     s_read.pool = NULL;
@@ -150,7 +150,7 @@ void test_json_reads_with_its_positions(void)
     TEST_ASSERT_EQUAL_INT(CLI_SCHEMA_OBJECT, root->kind);
     TEST_ASSERT_EQUAL_UINT(3u, root->count);
     TEST_ASSERT_EQUAL_UINT64(4ull, s_read.member[root->first].from);
-    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(s_read.node, g_cli_schema_owner);
     s_read.node = NULL;
     s_read.member = NULL;
     s_read.pool = NULL;
@@ -175,7 +175,7 @@ void test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell(void)
     TEST_ASSERT_EQUAL_UINT(6001u, s_read.nodes);
     TEST_ASSERT_EQUAL_UINT(3000u, s_read.members);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_read.nodes, s_read.nodes_max);
-    g_cli_cells->persistent_buf_release(s_read.node, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(s_read.node, g_cli_schema_owner);
     s_read.node = NULL;
     s_read.member = NULL;
     s_read.pool = NULL;
@@ -249,7 +249,7 @@ void test_a_schema_not_stored_offers_its_fetch(void)
     TEST_ASSERT_EQUAL_STRING("schema-missing", cli_unity_member_text(missing, "code"));
     const char *const line = cli_unity_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = first_fix(missing), .name = "run"), "line");
     const unsigned long long length = CLI_UNITY_LENGTH(line);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = line, .other = "curl -fsSL --create-dirs -o '", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = line, .other = "curl -fsSL --create-dirs -o '", .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(sizeof(s_end) - 1u, length);
     TEST_ASSERT_EQUAL_STRING(s_end, line + length - (sizeof(s_end) - 1u));
 }
@@ -309,13 +309,13 @@ void test_a_schema_completes_from_its_own_schema(void)
 void test_every_schemas_text_and_tokens_are_released(void)
 {
     (void)file_findings();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_schema_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_schema_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_schema_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_schema_owner));
 }
 
 void test_a_files_findings_and_indexed_lines_are_released(void)
 {
     (void)file_findings();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_build_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_build_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_build_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_build_owner));
 }

@@ -171,8 +171,6 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args);
 int cli_python_workers_start(const CliTestRunsRunCtx *args);
 
 // the outcomes of pytest's report in JUnit's form each reported, and the cells the report's tags and texts occupy
-// (test_reports.c); and the failures of unittest's report each reported (test_unittest_report.c)
-extern CellOwner g_cli_test_report_cells;
 void cli_test_report_emit(const CliTestRunsWorkerCtx *args);
 void cli_test_unittest_failures_emit(const CliTestRunsTextWorkerCtx *args);
 // where `needle` is first found in `length` bytes of `text`, `length` where it is not; a whole text read as a 32-bit

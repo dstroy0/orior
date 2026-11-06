@@ -4,7 +4,7 @@
 // and the files of a folder that travel
 #ifndef CARRY_INTERNAL_H
 #define CARRY_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "carry.h"
 #include "embed_dispatch_layout.h"

@@ -100,7 +100,7 @@ void cli_binary_report_print(const CliBinaryReportCfg *args)
     if (args->report_read->has_glibc)
     {
         const char *const version = (cellul.starts(&(CatenaFinitaCfg){
-                                        .src = args->report_read->glibc, .other = "GLIBC_", .cap = CLI_CELLS_POOL}))
+                                        .src = args->report_read->glibc, .other = "GLIBC_", .cap = CLI_POOL_BYTES}))
                                         ? (args->report_read->glibc + 6)
                                         : args->report_read->glibc;
         EMBED_CALL(cli_report_line_print, BinaryReportCtx, .sink = args->sink, .first = "the program requires glibc ",
@@ -133,8 +133,8 @@ int cli_binary_copy_adjacent(const CliBinaryPathCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = folder,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-    char *cut = folder + cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+    char *cut = folder + cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
     cut = folder + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                               .at = (unsigned long long)(cut - folder), .set = "/\\");
     if (cut == folder)

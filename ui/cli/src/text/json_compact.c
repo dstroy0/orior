@@ -387,7 +387,7 @@ static int cli_compact_value(const JsonCompactCtx *args)
     for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_POOL_BYTES});
         if ((args->read->at + length <= args->read->size) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = args->read->text + args->read->at, .other = words[word_text], .bytes = length}) == 0))

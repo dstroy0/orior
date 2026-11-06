@@ -38,7 +38,7 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &s_capable, .text = capabilities, .size = length, .nodes_more = 0u,
-                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_servers_cells);
+                                         .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_servers_owner);
     return EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_capable, .object = root,
                       .name = name);
 }
@@ -52,8 +52,7 @@ int cli_servers_capable(const CliServersServerCtx *args)
                                     .node = member, .kind = CFG_JSON_NULL) &&
                         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
                                     .node = member, .kind = CFG_JSON_FALSE);
-    g_cli_cells->persistent_buf_release(s_capable.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    g_cli_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
@@ -67,8 +66,7 @@ int cli_servers_capable_true(const CliServersServerCtx *args)
                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                       .json_read = &s_capable, .object = member, .name = args->inner),
                                    .kind = CFG_JSON_TRUE);
-    g_cli_cells->persistent_buf_release(s_capable.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    g_cli_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
@@ -90,10 +88,9 @@ int cli_servers_capable_command(const CliServersServerCommandCtx *args)
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = &s_capable, .node = one, .length_pointer = NULL);
         list_entries =
-            (name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = args->command, .cap = CLI_CELLS_POOL});
+            (name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = args->command, .cap = CLI_POOL_BYTES});
     }
-    g_cli_cells->persistent_buf_release(s_capable.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_capable.node));
+    g_cli_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return list_entries;
@@ -126,7 +123,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
     unsigned long long size = 0ULL;
     char *const branch = (args->key != NULL)
                              ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                          .size_pointer = &size, .owner = &g_cli_servers_cells)
+                                          .size_pointer = &size, .owner = g_cli_servers_owner)
                              : NULL;
     char *const text = (branch != NULL) ? branch
                                         : EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
@@ -141,7 +138,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
                    .to_symbol_position = (CliSymbolPosition){args->to.line, args->to.col},
                    .each_spanned = hints_span_write, .context = &spanned, .err_msg = args->err_msg);
     mmgr_line_ch(args->out, ']');
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     return done;
 }
 

@@ -3,6 +3,7 @@
 // test_shape.c: structural search: an expression placeholder matches a whole call and writes its text back, a name placeholder
 // matches one name, statements match past spaces and comments, and a last expression takes the rest of its statement
 #include "ui/cli/src/code/shape_internal.h"
+#include "ui/cli/src/code/symbols_internal.h"
 #include "ui/cli/src/text/edits.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -60,10 +61,10 @@ void tearDown(void)
 {
     if (s_languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(s_languages->languages.pair, g_cli_plugins_owner);
         *(&s_languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(s_languages, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(s_languages, g_cli_code_owner);
 }
 
 void test_an_expression_placeholder_matches_each_complete_call(void)
@@ -119,7 +120,7 @@ void test_a_string_is_one_token(void)
 void test_a_search_sizes_its_memory_to_its_text_and_releases_it(void)
 {
     (void)matches_of("python", s_total, "a + b", NULL);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_shape_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_shape_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(1ull << 16u, embed_atomic_usize_load(&g_cli_shape_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_shape_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_shape_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(1ull << 16u, mmgr_owner_hw(g_cli_shape_owner));
 }

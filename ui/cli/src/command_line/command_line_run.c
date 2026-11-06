@@ -71,7 +71,7 @@ EMBED_INLINE void run_launch(const CommandLineRunCtx *args)
     args->outcome->used = 0u;
     for (unsigned int at = 0u; (at < args->count) && (at < CLI_LAUNCH_ARGS); at += 1u)
     {
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = arguments[at], .cap = CLI_CELLS_POOL});
+        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = arguments[at], .cap = CLI_POOL_BYTES});
         if (args->outcome->used + size + 1u > CLI_LAUNCH_TEXT)
         {
             break;
@@ -159,7 +159,7 @@ static void run_window(const CommandLineRunCtx *args)
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_OUT_CAPACITY, &g_cli_command_line_cells);
+        char *const out_cell = g_cli_guard->temporary_buf_alloc(CLI_RUN_OUT_CAPACITY, g_cli_command_line_owner);
         VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_CAPACITY);
         err_msg.at = 0ULL;
         const int run_result =
@@ -175,7 +175,7 @@ static void run_window(const CommandLineRunCtx *args)
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.out,
                        .size = out.at);
         }
-        g_cli_cells->persistent_buf_release(out.out, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(out.out, g_cli_command_line_owner);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = run_result ? 0 : CLI_WRONG);
         return;
     }
@@ -196,7 +196,7 @@ static void run_window(const CommandLineRunCtx *args)
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    char *const help_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_HELP_CAPACITY, &g_cli_command_line_cells);
+    char *const help_cell = g_cli_guard->temporary_buf_alloc(CLI_RUN_HELP_CAPACITY, g_cli_command_line_owner);
     VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_CAPACITY);
     EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help);
     const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ULL;
@@ -204,7 +204,7 @@ static void run_help(void)
                .size = (help.out != NULL) ? EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
                                                        .text = help.out, .size = size)
                                           : 0ULL);
-    g_cli_cells->persistent_buf_release(help.out, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(help.out, g_cli_command_line_owner);
 }
 
 // the words run as the menus run them; the words before the menus were the command line's, and each still names what it
@@ -215,9 +215,9 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     const char *const *words = args->words;
     unsigned int count = args->count;
     const char *const first = words[0];
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "list", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "show", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "bridge", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "list", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "show", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "bridge", .cap = CLI_POOL_BYTES})))
     {
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
                    .code = EMBED_CALL(cli_command_line_words_count_internal.console, CliCommandLineWordsCountCtx,
@@ -299,7 +299,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         return;
     }
     char group[1][CLI_LABEL_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "run", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "run", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
                    .code = EMBED_CALL(cli_command_line_words_count_internal.console, CliCommandLineWordsCountCtx,
@@ -337,16 +337,16 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
     const char *const *words = args->words;
     unsigned int count = args->count;
     const char *const first = words[0];
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-h", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--help", .cap = CLI_CELLS_POOL})) ||
-        ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "help", .cap = CLI_CELLS_POOL})) && (count == 1u)))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-h", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--help", .cap = CLI_POOL_BYTES})) ||
+        ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "help", .cap = CLI_POOL_BYTES})) && (count == 1u)))
     {
         run_help();
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
         return 1;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--completions", .cap = CLI_CELLS_POOL})) ||
-        (cellul.starts(&(CatenaFinitaCfg){.src = first, .other = "--completions=", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--completions", .cap = CLI_POOL_BYTES})) ||
+        (cellul.starts(&(CatenaFinitaCfg){.src = first, .other = "--completions=", .cap = CLI_POOL_BYTES})))
     {
         const char *shell;
         if (first[13] == '=')
@@ -377,15 +377,15 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "__words", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "__words", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_command_line_named_internal.next_words, CliCommandLineNamedCtx, .named = named,
                    .menu_word = (count > 1u) ? words[1] : "");
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
         return 1;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--version", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-V", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--version", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-V", .cap = CLI_POOL_BYTES})))
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "orior_cli " CLI_VERSION);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
@@ -408,7 +408,7 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const word_text = args->supplied[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_POOL_BYTES}))
         {
             for (; (at < args->count) && (words < CLI_LAUNCH_ARGS); at += 1u)
             {
@@ -417,7 +417,7 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
             }
             break;
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--root", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--root", .cap = CLI_POOL_BYTES}))
         {
             if (at + 1u >= args->count)
             {
@@ -428,7 +428,7 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
             at += 1u;
             named = args->supplied[at];
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--root=", .cap = CLI_CELLS_POOL}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--root=", .cap = CLI_POOL_BYTES}))
         {
             named = word_text + 7;
         }
@@ -466,7 +466,7 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
     // the first run at a terminal prompts whether errors file on their own, where the installer did not, and a run that
     // answers it itself prompts nothing
     if ((words < 2u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = s_words[1], .other = "auto-report", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = s_words[1], .other = "auto-report", .cap = CLI_POOL_BYTES})))
     {
         cli_report_prompt_once();
     }

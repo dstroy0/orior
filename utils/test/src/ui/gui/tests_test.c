@@ -44,7 +44,7 @@ static int row_is(unsigned int at, unsigned int kind, const char *name, CliTests
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -183,7 +183,7 @@ int main(void)
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 2u,
               "no tree leaves no files, the coverage standing");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

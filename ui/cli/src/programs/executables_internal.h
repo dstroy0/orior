@@ -6,7 +6,7 @@
 #ifndef EXECUTABLES_INTERNAL_H
 #define EXECUTABLES_INTERNAL_H
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "executables.h"
 
@@ -40,9 +40,6 @@ typedef struct CliExecutablesSystemCtx CliExecutablesSystemCtx;
 typedef struct CliExecutablesSpecCtx CliExecutablesSpecCtx;
 typedef struct CliExecutablesTextLengthCtx CliExecutablesTextLengthCtx;
 typedef struct CliExecutablesCtx CliExecutablesCtx;
-
-// the cells the programs' scripts are read in (executables_scan.c)
-extern CellOwner g_cli_executables_cells;
 
 // the kinds of build script read here, and none
 enum
@@ -139,7 +136,7 @@ void cli_uncommented(const CliExecutablesTextCtx *args);
 unsigned int cli_calls(const CliExecutablesCodeCtx *args);
 // a script's text with its comments taken out, in a cell no longer than the text, NULL where the cell is refused; and
 // the calls of `command` in `code` in a cell of their count into `*calls`: their count, 0 and NULL where `code` is
-// NULL, it contains none or the cell is refused. Each cell is given back to g_cli_executables_cells
+// NULL, it contains none or the cell is refused. Each cell is given back to g_cli_executables_owner
 char *cli_uncommented_alloc(const CliExecutablesTextCtx *args);
 unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args);
 void cli_cmake_targets(const CliExecutablesNamesTextCtx *args);
@@ -225,7 +222,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args);
 int cli_meson_artifact(const CliExecutablesNameOutCtx *args);
 
 // the warnings file a PyInstaller build of the spec at `spec` wrote, read into a cell of its size given back to
-// g_cli_executables_cells, NULL where there is none or the cell is refused, with the spec's folder into `folder`,
+// g_cli_executables_owner, NULL where there is none or the cell is refused, with the spec's folder into `folder`,
 // which is sized for CLI_PATH_MAX_LEN; and each module that file imports
 // PyInstaller did not find handed to `each` with the text of the modules that import it, `A (top-level), B (delayed)`
 // (executables_advice.c)
@@ -233,7 +230,7 @@ char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args);
 void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args);
 
 // the text of the file at `path` read whole into `bytes`, sized for `capacity`, ended by a 0: 1, or 0 where it could
-// not be read; and read whole into a cell of its size and a 0 after it, given back to g_cli_executables_cells: the
+// not be read; and read whole into a cell of its size and a 0 after it, given back to g_cli_executables_owner: the
 // cell, or NULL where it could not be read or the cell is refused
 int cli_text_read(const CliExecutablesCapacityCtx *args);
 char *cli_text_alloc(const CliExecutablesWalkCtx *args);

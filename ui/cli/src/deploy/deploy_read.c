@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deploy_read.c: the deployments deploy.json names, read as serde reads them; the places a deployment sends to; and a
 // shell line run at one
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -27,7 +27,7 @@ typedef struct
 EMBED_INLINE CliDeployPage *read_page(const DeployReadCtx *args)
 {
     CliDeployPage *const page =
-        g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + args->capacity, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_alloc(sizeof(CliDeployPage) + args->capacity, g_cli_deploy_owner);
     if (page == NULL)
     {
         args->pool->refused = 1;
@@ -96,8 +96,8 @@ const char *cli_deploy_text_store(const CliDeployPoolCtx *args)
 
 int cli_deploy_order(const CliDeployLeftCtx *args)
 {
-    const size_t left_length = cellul.len(&(CatenaFinitaCfg){.src = args->left, .cap = CLI_CELLS_POOL});
-    const size_t right_length = cellul.len(&(CatenaFinitaCfg){.src = args->right, .cap = CLI_CELLS_POOL});
+    const size_t left_length = cellul.len(&(CatenaFinitaCfg){.src = args->left, .cap = CLI_POOL_BYTES});
+    const size_t right_length = cellul.len(&(CatenaFinitaCfg){.src = args->right, .cap = CLI_POOL_BYTES});
     // the shorter text's terminator is compared too: a text sorts before a longer one that begins with it
     const size_t shorter = (left_length < right_length) ? left_length : right_length;
     const embed_iword order = memor.cmp(&(MemoriaCfg){.src = args->left, .other = args->right, .bytes = shorter + 1u});
@@ -292,14 +292,14 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     unsigned int *count = args->count_pointer;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = "deploy.json", .joined = path);
-    g_cli_cells->persistent_buf_release(
-        args->tree->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = args->tree->json.node));
+    g_cli_guard->persistent_buf_release(args->tree->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->tree->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->tree->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     while (args->tree->pool.page != NULL)
     {
         CliDeployPage *const before = args->tree->pool.page->before;
-        g_cli_cells->persistent_buf_release(args->tree->pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(args->tree->pool.page, g_cli_deploy_owner);
         args->tree->pool.page = before;
     }
     args->tree->pool.refused = 0;
@@ -307,11 +307,11 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     *count = 0u;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_deploy_cells);
+                                                  .size_pointer = &size, .owner = g_cli_deploy_owner);
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -319,8 +319,8 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     const unsigned int top =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &read_err_msg, .owner = &g_cli_deploy_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+                   .err_msg = &read_err_msg, .owner = g_cli_deploy_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
     const CliJson *const json = &args->tree->json;
     if (top == CLI_JSON_NONE)
     {
@@ -390,7 +390,7 @@ EMBED_INLINE int read_white(const DeployReadCtx *args)
 
 int cli_deploy_position(const CliDeployTextCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     unsigned long long start = 0ULL;
     unsigned long long end = 0ULL;
     unsigned int letter = 0u;

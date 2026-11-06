@@ -9,6 +9,7 @@
 #include "../../../query/src/query_internal.h"
 #include "callback_cfg.h"
 #include "embed_dispatch_layout.h"
+#include "embed_turnstile.h"
 #include <stdatomic.h>
 
 typedef struct CliWordsCtx CliWordsCtx;
@@ -213,10 +214,10 @@ void cli_words_append(const CliWordsWordsCtx *args);
 // moves or the wait's time is up. A wait is free to return early, so a waiter tests what it waits for in a loop
 typedef struct
 {
-    _Atomic unsigned int generation;
+    embed_atomic_word generation;
 } CliWake;
 
-#define CLI_WAKE_INIT {0u}
+#define CLI_WAKE_INIT {EMBED_ATOMIC_INIT(0u)}
 
 // A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL
 typedef struct
@@ -643,7 +644,7 @@ struct CliPathCtx
     unsigned long long *size_pointer;
     unsigned long long from;
     unsigned long long count_u64;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliPathFromCtx
@@ -931,7 +932,7 @@ struct CliFileCtx
 
 struct CliOwnerCtx
 {
-    CellOwner *owner;
+    const CellOwner *owner;
     const unsigned char *bytes_bytes_other;
 };
 

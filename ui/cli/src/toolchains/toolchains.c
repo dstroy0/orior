@@ -3,7 +3,7 @@
 // toolchains.c: the manifest read, orior's own and the reader's, a tool's program found in a folder, and the folders a
 // pattern of toolchains.json names
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "toolchains_internal.h"
@@ -48,7 +48,7 @@ EMBED_INLINE int cli_for_here(const ToolchainsCtx *args)
                                       .object = args->tool, .name = "only"),
                    .length_pointer = NULL);
     return (only == NULL) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = only, .other = cli_toolchains_system(), .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = only, .other = cli_toolchains_system(), .cap = CLI_POOL_BYTES}));
 }
 
 unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
@@ -62,12 +62,12 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
     const unsigned char *added_text = NULL;
     if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = path))
     {
-        VerbaLinea line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
-                           CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), 0ULL};
+        VerbaLinea line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}),
+                           CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), 0ULL};
         mmgr_line_put(&line, "/user_toolchains.json");
         added_text = (mmgr_line_finish(&line) != 0ULL)
                          ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                      .size_pointer = &added_size, .owner = &g_cli_toolchains_cells)
+                                      .size_pointer = &added_size, .owner = g_cli_toolchains_owner)
                          : NULL;
     }
     // the tree one cell sized to both texts' tokens and bytes and the array stored, the tokens one cell for the larger
@@ -80,14 +80,14 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                                              1u)
                                           : 0u;
     const unsigned int tokens_max = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
-    CfgJsonToken *const tokens = g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken),
-                                                                  &g_cli_toolchains_cells);
+    CfgJsonToken *const tokens =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_toolchains_owner);
     const int reserved =
         (tokens != NULL) &&
         EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->json_out,
                    .nodes_max = bundled_tokens + added_tokens + 1u + args->nodes_more,
                    .text_max = g_cli_toolchains_json_size + added_size + 1ULL + args->text_more,
-                   .what = "the toolchains' manifest", .owner = &g_cli_toolchains_cells);
+                   .what = "the toolchains' manifest", .owner = g_cli_toolchains_owner);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int bundled =
@@ -105,8 +105,8 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                          .text = (const char *)added_text, .size = added_size, .tokens = tokens,
                          .tokens_max = tokens_max, .err_msg = &err_msg)
             : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_toolchains_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)added_text, (&g_cli_toolchains_cells));
+    g_cli_guard->persistent_buf_release(tokens, g_cli_toolchains_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)added_text, (g_cli_toolchains_owner));
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out, .node = tools,
                     .kind = CFG_JSON_ARRAY))
     {
@@ -154,7 +154,7 @@ unsigned int cli_toolchains_tool(const CliToolchainsJsonManifestCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json_out, .object = tool, .name = "id"),
                        .length_pointer = NULL);
-        if ((named != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->id, .cap = CLI_CELLS_POOL})))
+        if ((named != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->id, .cap = CLI_POOL_BYTES})))
         {
             return tool;
         }
@@ -251,7 +251,7 @@ EMBED_INLINE int cli_expand(const ToolchainsCtx *args)
     {
         const char *mark = rest;
         mark += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = mark, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL}), .set = "%$");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_POOL_BYTES}), .set = "%$");
         mmgr_line_put_n(&line, rest, (unsigned long long)(mark - rest));
         if (mark[0] == '\0')
         {
@@ -262,7 +262,7 @@ EMBED_INLINE int cli_expand(const ToolchainsCtx *args)
         if (mark[0] == '%')
         {
             end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "%");
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "%");
             if (end[0] == '\0')
             {
                 return 0;
@@ -271,7 +271,7 @@ EMBED_INLINE int cli_expand(const ToolchainsCtx *args)
         else
         {
             end += EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}),
                               .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "_");
         }
         char name[CLI_NAME_MAX_LEN];
@@ -294,30 +294,30 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
     char right[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = left,
                             .src = args->pattern,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = right,
                             .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
 #if defined(_WIN32)
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = left,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES}));
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = right,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_POOL_BYTES}));
 #endif
-    if (cellul.chr(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL, .byte = '*'}) == NULL)
+    if (cellul.chr(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES, .byte = '*'}) == NULL)
     {
-        return cellul.eq(&(CatenaFinitaCfg){.src = left, .other = right, .cap = CLI_CELLS_POOL});
+        return cellul.eq(&(CatenaFinitaCfg){.src = left, .other = right, .cap = CLI_POOL_BYTES});
     }
     unsigned long long at = 0ULL;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_POOL_BYTES});
     const char *part = left;
     int first = 1;
     for (;;)
     {
-        const char *const star = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = '*'});
+        const char *const star = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '*'});
         const unsigned long long size = (star != NULL)
                                             ? (unsigned long long)(star - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if (first)
         {
             if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = right, .other_pointer = part,
@@ -331,7 +331,7 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
         else if (star == NULL)
         {
             return (length >= (at + size)) &&
-                   (cellul.eq(&(CatenaFinitaCfg){.src = right + length - size, .other = part, .cap = CLI_CELLS_POOL}));
+                   (cellul.eq(&(CatenaFinitaCfg){.src = right + length - size, .other = part, .cap = CLI_POOL_BYTES}));
         }
         else
         {
@@ -340,7 +340,7 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
             mmgr_line_put_n(&line, part, size);
             mmgr_line_finish(&line);
             const char *const found = cellul.find(&(CatenaFinitaCfg){
-                .src = right + at, .cap = CLI_CELLS_POOL, .other = piece, .other_cap = CLI_CELLS_POOL});
+                .src = right + at, .cap = CLI_POOL_BYTES, .other = piece, .other_cap = CLI_POOL_BYTES});
             if (found == NULL)
             {
                 return 0;
@@ -365,7 +365,7 @@ EMBED_INLINE int cli_natural_digit(const ToolchainsCtx *args)
 EMBED_INLINE const char *cli_natural_run(const ToolchainsCtx *args)
 {
     const char *const text = args->text;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     if (EMBED_CALL(cli_natural_digit, ToolchainsCtx, .text = text))
     {
         return text + EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
@@ -470,12 +470,12 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = matching->names[place],
             .src = matching->names[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = matching->names[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = matching->names[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = matching->names[place],
                             .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
     matching->count += 1u;
 }
 
@@ -495,7 +495,7 @@ EMBED_INLINE int cli_folder_joined(const ToolchainsCtx *args)
 // first, `names` holding them as they are read; how many paths are written, 64 at the most
 EMBED_INLINE unsigned int cli_folders_expanded(const ToolchainsCtx *args)
 {
-    const int pattern = cellul.chr(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL, .byte = '*'}) != NULL;
+    const int pattern = cellul.chr(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES, .byte = '*'}) != NULL;
     unsigned int next = 0u;
     for (unsigned int at = 0u; at < args->found; at += 1u)
     {
@@ -541,7 +541,7 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     {
         const char *end = part;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}), .set = "/\\");
         char piece[CLI_NAME_MAX_LEN];
         VerbaLinea line = {piece, sizeof(piece), 0ULL};
         mmgr_line_put_n(&line, part, (unsigned long long)(end - part));
@@ -556,7 +556,7 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     {
         // the separator after the last part left off
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_POOL_BYTES});
         if ((length > 1u) && ((s_found[now][at][length - 1u] == '/') || (s_found[now][at][length - 1u] == '\\')))
         {
             s_found[now][at][length - 1u] = '\0';
@@ -566,7 +566,7 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = args->folders[count],
                 .src = s_found[now][at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_POOL_BYTES}) + 1u});
             count += 1u;
         }
     }
@@ -577,8 +577,8 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = args->key,
                             .src = args->dir,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->dir, .cap = CLI_CELLS_POOL}) + 1u});
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->dir, .cap = CLI_POOL_BYTES}) + 1u});
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->key, .at = length,
                         .set = "\\/");
     args->key[length] = '\0';

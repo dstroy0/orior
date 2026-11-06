@@ -289,7 +289,7 @@ typedef struct
 EMBED_INLINE int cli_same_name(const FontCtx *args)
 {
     const char *other = args->other;
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_POOL_BYTES, .ci = 1});
 }
 
 static void cli_walk_each(const CliEachNameIsFolderCfg *args)
@@ -319,7 +319,7 @@ static void cli_walk_each(const CliEachNameIsFolderCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = walk->found,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 

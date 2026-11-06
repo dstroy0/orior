@@ -3,8 +3,8 @@
 // ran.c: a program run and what it gave read, its errors on a thread of their own while its output is read, so
 // neither waits on a pipe the other fills; each read a piece at a time into cells of the pieces' own, and once the
 // pipe ends, the pieces joined in one cell the size of what came and given back
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 
 #include <stddef.h>
 
@@ -44,7 +44,7 @@ static CliRunResult s_refused = {s_nothing, 0ULL, s_nothing, 0ULL, 1, -1LL, 0};
 
 CliRunResult *cli_run_result_alloc(void)
 {
-    CliRunResultWorkState *const work_state = g_cli_cells->persistent_buf_alloc(sizeof(*work_state), &g_cli_runs_cells);
+    CliRunResultWorkState *const work_state = g_cli_guard->persistent_buf_alloc(sizeof(*work_state), g_cli_runs_owner);
     if (work_state == NULL)
     {
         return &s_refused;
@@ -75,18 +75,18 @@ void cli_run_result_free(const CliWordsCtx *args)
     {
         if (args->run_result->out != s_nothing)
         {
-            g_cli_cells->persistent_buf_release(args->run_result->out, &g_cli_runs_cells);
+            g_cli_guard->persistent_buf_release(args->run_result->out, g_cli_runs_owner);
         }
         if (args->run_result->err != s_nothing)
         {
-            g_cli_cells->persistent_buf_release(args->run_result->err, &g_cli_runs_cells);
+            g_cli_guard->persistent_buf_release(args->run_result->err, g_cli_runs_owner);
         }
         args->run_result->out = s_nothing;
         args->run_result->err = s_nothing;
         args->run_result->out_size = 0ULL;
         args->run_result->err_size = 0ULL;
-        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result),
-                                            &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result),
+                                            g_cli_runs_owner);
     }
 }
 
@@ -119,7 +119,7 @@ static void cli_pipe_read(const RanCtx *args)
         if ((last == NULL) || (last->size == CLI_RUN_RESULT_PIECE))
         {
             CliRunResultPiece *const piece =
-                g_cli_cells->persistent_buf_alloc(sizeof(CliRunResultPiece) + CLI_RUN_RESULT_PIECE, &g_cli_runs_cells);
+                g_cli_guard->persistent_buf_alloc(sizeof(CliRunResultPiece) + CLI_RUN_RESULT_PIECE, g_cli_runs_owner);
             if (piece == NULL)
             {
                 *whole = 0;
@@ -151,7 +151,7 @@ static void cli_pipe_read(const RanCtx *args)
         last->size += got;
         total += got;
     }
-    char *const joined = (total != 0ULL) ? g_cli_cells->persistent_buf_alloc(total + 1ULL, &g_cli_runs_cells) : NULL;
+    char *const joined = (total != 0ULL) ? g_cli_guard->persistent_buf_alloc(total + 1ULL, g_cli_runs_owner) : NULL;
     *whole = *whole && ((total == 0ULL) || (joined != NULL));
     unsigned long long at = 0ULL;
     for (CliRunResultPiece *piece = first; piece != NULL;)
@@ -162,7 +162,7 @@ static void cli_pipe_read(const RanCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = joined + at, .src = piece->bytes, .bytes = (size_t)piece->size});
             at += piece->size;
         }
-        g_cli_cells->persistent_buf_release(piece, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(piece, g_cli_runs_owner);
         piece = next;
     }
     if (joined != NULL)
@@ -251,11 +251,11 @@ int cli_run_result_within(const CliWordsCtx *args)
     CliRunResultWorkState *const work_state = EMBED_CALL(cli_capacity_get, RanCtx, .run_result = args->run_result);
     if (args->run_result->out != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(args->run_result->out, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(args->run_result->out, g_cli_runs_owner);
     }
     if (args->run_result->err != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(args->run_result->err, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(args->run_result->err, g_cli_runs_owner);
     }
     args->run_result->out = s_nothing;
     args->run_result->err = s_nothing;

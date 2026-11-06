@@ -5,7 +5,7 @@
 // only once every place has it; a place that fails leaves each on the release it had
 #include "../code/git.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -258,7 +258,7 @@ EMBED_INLINE int run_fail(const DeployRunCtx *args)
     // the words before the places, and each place's name and its reason
     const unsigned long long capacity =
         ((unsigned long long)run->positions * (CLI_ERR_MSG_MAX_LEN + (2ULL * CLI_PATH_MAX_LEN) + 8ULL)) + 128ULL;
-    char *const print_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
+    char *const print_text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
     VerbaLinea print_buf = mmgr_line_over(print_text, capacity);
     mmgr_line_put(&print_buf, "no machine was turned to the new release, and each runs the release it had: ");
     for (unsigned int index = 0u; index < run->positions; index += 1u)
@@ -296,7 +296,7 @@ EMBED_INLINE int run_fail(const DeployRunCtx *args)
     {
         EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_buf);
     }
-    g_cli_cells->persistent_buf_release(print_text, &g_cli_deploy_cells);
+    g_cli_guard->persistent_buf_release(print_text, g_cli_deploy_owner);
     mmgr_line_decimal(err_msg, failed, 1u);
     mmgr_line_put(err_msg, " of ");
     mmgr_line_decimal(err_msg, run->positions, 1u);
@@ -364,18 +364,17 @@ static void run_free(void)
     while (run->pool.page != NULL)
     {
         CliDeployPage *const before = run->pool.page->before;
-        g_cli_cells->persistent_buf_release(run->pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(run->pool.page, g_cli_deploy_owner);
         run->pool.page = before;
     }
     run->pool.refused = 0;
-    g_cli_cells->persistent_buf_release(s_tree.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_tree.json.node));
+    g_cli_guard->persistent_buf_release(s_tree.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_tree.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_tree.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     while (s_tree.pool.page != NULL)
     {
         CliDeployPage *const before = s_tree.pool.page->before;
-        g_cli_cells->persistent_buf_release(s_tree.pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(s_tree.pool.page, g_cli_deploy_owner);
         s_tree.pool.page = before;
     }
     s_tree.pool.refused = 0;
@@ -411,7 +410,7 @@ int cli_deploy_run(const CliDeployRootCfg *args)
                           .deployments = &deployments, .count_pointer = &count, .err_msg = args->err_msg);
     unsigned int found = 0u;
     while ((found < count) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = deployments[found].name, .other = args->name, .cap = CLI_CELLS_POOL}))
+           !cellul.eq(&(CatenaFinitaCfg){.src = deployments[found].name, .other = args->name, .cap = CLI_POOL_BYTES}))
     {
         found += 1u;
     }

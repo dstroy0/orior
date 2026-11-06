@@ -44,7 +44,7 @@ static void cli_search_each(const CliEachNameIsFolderCfg *args)
     }
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not_searched[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not_searched[at], .cap = CLI_POOL_BYTES}))
         {
             return;
         }
@@ -73,7 +73,7 @@ static void cli_search_each(const CliEachNameIsFolderCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = search->nested[search->nested_count],
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
         search->nested_count += 1u;
     }
     if (((search->at_depth + 1u) < CLI_GIT_DEPTH) && (search->pending_count < search->pending_capacity))
@@ -81,7 +81,7 @@ static void cli_search_each(const CliEachNameIsFolderCfg *args)
         CliSearchFolder *const pending = &search->pending[search->pending_count];
         memor.cpy(&(MemoriaCfg){.dst = pending->path,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
         pending->depth = search->at_depth + 1u;
         search->pending_count += 1u;
     }
@@ -106,13 +106,13 @@ EMBED_INLINE void cli_repository_append(const GitRepositoriesCtx *args)
     char branch[CLI_NAME_MAX_LEN];
     EMBED_CALL(cli_git_table.name, CliGitCfg, .root = args->folder, .name = name);
     one->path = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = args->relative,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = args->relative, .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = args->relative, .cap = CLI_POOL_BYTES}));
     one->name = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = name,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     one->has_branch = EMBED_CALL(cli_git_table.branch, CliGitCfg, .root = args->folder, .name = branch);
     one->branch = one->has_branch
                       ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = branch,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = CLI_CELLS_POOL}))
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = CLI_POOL_BYTES}))
                       : 0u;
 }
 
@@ -133,8 +133,8 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
     CliSearch search_copy = {0};
     CliSearch *const search = &search_copy;
     const unsigned long long pending_bytes = (unsigned long long)CLI_GIT_PENDING * sizeof(*search->pending);
-    char *const cell = g_cli_cells->temporary_buf_alloc(
-        pending_bytes + ((unsigned long long)CLI_GIT_REPOSITORIES * sizeof(*search->nested)), &g_cli_git_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(
+        pending_bytes + ((unsigned long long)CLI_GIT_REPOSITORIES * sizeof(*search->nested)), g_cli_git_owner);
     if (cell != NULL)
     {
         search->pending = (CliSearchFolder *)(void *)cell;
@@ -144,7 +144,7 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = search->pending[0].path,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
         search->pending[0].depth = 0u;
         search->pending_count = 1u;
     }
@@ -156,7 +156,7 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
                           .src = next->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = next->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = next->path, .cap = CLI_POOL_BYTES}) + 1u});
         search->folder = folder;
         search->at_depth = next->depth;
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
@@ -169,7 +169,7 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = swap_path,
             .src = search->nested[at],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = search->nested[at], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = search->nested[at], .cap = CLI_POOL_BYTES}) + 1u});
         unsigned int place = at;
         while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
                                            .one = search->nested[place - 1u], .other_pointer = swap_path) > 0))
@@ -178,12 +178,12 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
                 .dst = search->nested[place],
                 .src = search->nested[place - 1u],
                 .bytes =
-                    cellul.len(&(CatenaFinitaCfg){.src = search->nested[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+                    cellul.len(&(CatenaFinitaCfg){.src = search->nested[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
             place -= 1u;
         }
         memor.cpy(&(MemoriaCfg){.dst = search->nested[place],
                                 .src = swap_path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = swap_path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = swap_path, .cap = CLI_POOL_BYTES}) + 1u});
     }
     for (unsigned int at = 0u; at < search->nested_count; at += 1u)
     {
@@ -193,5 +193,5 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
         EMBED_CALL(cli_repository_append, GitRepositoriesCtx, .found = args->found_repositories_pointer,
                    .relative = relative, .folder = search->nested[at]);
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_git_owner);
 }

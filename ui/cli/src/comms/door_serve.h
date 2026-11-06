@@ -62,7 +62,6 @@ typedef struct
 
 // the door's container side, and the cells its places and the processes it lists occupy
 extern CliIpcServed g_cli_ipc_served;
-extern CellOwner g_cli_ipc_cells;
 
 // `channel` listened on for the joined process: 1, or 0 with why given; a refusal answered, `size` bytes of why; and an
 // answer of `size` bytes handed to the writer of its end: each 1, or 0 where its end is broken (ipc_serve.c)

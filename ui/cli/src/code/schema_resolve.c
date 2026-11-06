@@ -186,14 +186,14 @@ static void resolve_join(const SchemaResolveCtx *args)
     }
     const int url =
         (cellul.find(&(CatenaFinitaCfg){
-             .src = args->base, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL);
+             .src = args->base, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) != NULL);
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->base,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .byte = '/');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}), .byte = '/');
     const char *const back =
         url ? NULL
             : EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->base,
-                         .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}),
+                         .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}),
                          .byte = '\\');
     const char *const cut = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
     const char *rest = args->target;
@@ -213,7 +213,7 @@ static void resolve_join(const SchemaResolveCtx *args)
         return;
     }
     const unsigned long long whole_base =
-        url ? cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}) : 0u;
+        url ? cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES}) : 0u;
     mmgr_line_put_n(&line, args->base, (cut != NULL) ? (unsigned long long)(cut - args->base) : whole_base);
     unsigned int parts = 0u;
     for (unsigned long long at = 0ULL; at < line.at; at += 1u)
@@ -339,14 +339,14 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        int same = (cellul.len(&(CatenaFinitaCfg){.src = s_known[at][0], .cap = CLI_CELLS_POOL}) ==
-                    cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+        int same = (cellul.len(&(CatenaFinitaCfg){.src = s_known[at][0], .cap = CLI_POOL_BYTES}) ==
+                    cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         same =
-            same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_known[at][0], .cap = CLI_CELLS_POOL, .ci = 1});
+            same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_known[at][0], .cap = CLI_POOL_BYTES, .ci = 1});
         if (same)
         {
             VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};

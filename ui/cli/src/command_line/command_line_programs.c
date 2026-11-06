@@ -87,10 +87,10 @@ EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
     }
     const int replace =
         (args->count > 3u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "replace them", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "replace them", .cap = CLI_POOL_BYTES}));
     const int remove =
         (args->count > 4u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[4], .other = "delete them", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[4], .other = "delete them", .cap = CLI_POOL_BYTES}));
     if (!EMBED_CALL(cli_deploy_root.run, CliDeployRootCfg, .root = s_root, .name = args->words[1], .act = act,
                     .replace = replace, .remove = remove, .print = programs_out, .context = NULL, .err_msg = &err_msg))
     {
@@ -111,7 +111,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
         return CLI_WRONG;
     }
     CliProgramsReadState *const read_state =
-        g_cli_cells->temporary_buf_alloc(sizeof(*read_state), &g_cli_command_line_cells);
+        g_cli_guard->temporary_buf_alloc(sizeof(*read_state), g_cli_command_line_owner);
     if (read_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -129,15 +129,15 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     unsigned int most = 1u;
     most += (unsigned int)EMBED_CALL(
         cli_text_size_byte.count, CliTextSizeByteCfg, .text = read_state->path,
-        .size = cellul.len(&(CatenaFinitaCfg){.src = read_state->path, .cap = CLI_CELLS_POOL}), .byte = between);
+        .size = cellul.len(&(CatenaFinitaCfg){.src = read_state->path, .cap = CLI_POOL_BYTES}), .byte = between);
     char (*const folder)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
     unsigned int folders = 0u;
     for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = between});
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = between});
         const size_t size =
-            (end != NULL) ? (size_t)(end - part) : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+            (end != NULL) ? (size_t)(end - part) : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if ((size > 0u) && (size < CLI_PATH_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = folder[folders], .src = part, .bytes = size});
@@ -150,10 +150,10 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     const int read = EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->words[1],
                                 .orior_path = (const char (*)[CLI_PATH_MAX_LEN])folder, .count = folders,
                                 .report = &read_state->report, .err_msg = &err_msg);
-    g_cli_cells->persistent_buf_release(folder, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(folder, g_cli_command_line_owner);
     if (!read)
     {
-        g_cli_cells->persistent_buf_release(read_state, &g_cli_command_line_cells);
+        g_cli_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
         return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
     const CliBinaryReport *const report = &read_state->report;
@@ -171,7 +171,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     }
     const QuerySink sink = {programs_err, NULL};
     EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = report, .sink = sink);
-    g_cli_cells->persistent_buf_release(read_state, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
     return 0;
 }
 
@@ -186,7 +186,7 @@ EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
         return CLI_WRONG;
     }
     const int module = (args->count > 3u) &&
-                       (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "module", .cap = CLI_CELLS_POOL}));
+                       (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "module", .cap = CLI_POOL_BYTES}));
     char node[CLI_PATH_MAX_LEN];
     char made[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
@@ -209,7 +209,7 @@ EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
 int cli_line_program(const CliCommandLineWordsCtx *args)
 {
     int *code = args->code;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "write-raised", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "write-raised", .cap = CLI_POOL_BYTES}))
     {
         if (args->count < 3u)
         {
@@ -225,18 +225,18 @@ int cli_line_program(const CliCommandLineWordsCtx *args)
                     : EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = 1);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "deploy", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "deploy", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(programs_deploy, CommandLineProgramsCtx, .named = args->named, .words = args->words,
                            .count = args->count);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "libraries", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "libraries", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(programs_libraries, CommandLineProgramsCtx, .words = args->words, .count = args->count);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "sea", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "sea", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(programs_sea, CommandLineProgramsCtx, .words = args->words, .count = args->count);
         return 1;

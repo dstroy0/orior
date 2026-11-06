@@ -4,7 +4,7 @@
 // as a program's input and output are. Each message waits in a cell of its own size: a request the client writes is
 // taken into one as its head gives its length, and a message the adapter sends is framed as the client reads it
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "dap_internal.h"
 
@@ -59,7 +59,7 @@ typedef struct
 EMBED_INLINE CliDapQueued *within_message_alloc(const DapWithinCtx *args)
 {
     unsigned long long size = args->size;
-    CliDapQueued *const message = g_cli_cells->persistent_buf_alloc(sizeof(CliDapQueued) + size, &g_cli_debug_cells);
+    CliDapQueued *const message = g_cli_guard->persistent_buf_alloc(sizeof(CliDapQueued) + size, g_cli_debug_owner);
     if (message != NULL)
     {
         message->next = NULL;
@@ -73,7 +73,7 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
 {
     if (args->queue->closed)
     {
-        g_cli_cells->persistent_buf_release(args->message, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(args->message, g_cli_debug_owner);
         return 0;
     }
     if (args->queue->last != NULL)
@@ -136,7 +136,7 @@ EMBED_INLINE void within_clear(const DapWithinCtx *args)
     while (message != NULL)
     {
         CliDapQueued *const next = message->next;
-        g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(message, g_cli_debug_owner);
         message = next;
     }
     *queue = (CliDapQueue){NULL, NULL, 0};
@@ -168,12 +168,12 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
             unsigned long long at = line + sizeof(s_length) - 1ULL;
             unsigned long long stop = end;
             while ((at < stop) &&
-                   (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = s_head[at]}) != NULL))
+                   (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_POOL_BYTES, .byte = s_head[at]}) != NULL))
             {
                 at += 1ULL;
             }
             while ((stop > at) && (cellul.chr(&(CatenaFinitaCfg){
-                                       .src = " \t\r", .cap = CLI_CELLS_POOL, .byte = s_head[stop - 1ULL]}) != NULL))
+                                       .src = " \t\r", .cap = CLI_POOL_BYTES, .byte = s_head[stop - 1ULL]}) != NULL))
             {
                 stop -= 1ULL;
             }
@@ -202,7 +202,7 @@ static int within_request_complete(void)
     if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = request->bytes, .size = request->size,
                     .out = &checked))
     {
-        g_cli_cells->persistent_buf_release(request, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(request, g_cli_debug_owner);
         return 0;
     }
     return EMBED_CALL(within_queue, DapWithinCtx, .queue = &s_incoming, .message = request);
@@ -270,7 +270,7 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
 {
     if ((s_pending == NULL) || (s_pending_at >= s_pending_head_size + s_pending->size))
     {
-        g_cli_cells->persistent_buf_release(s_pending, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(s_pending, g_cli_debug_owner);
         s_pending = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_outgoing);
         if (s_pending == NULL)
         {
@@ -305,7 +305,7 @@ static void within_serve(void *context)
     {
         const int goes_on = EMBED_CALL(s_serve, CliDapServeCfg, .context = s_serve_context, .dap = dap,
                                        .request = request->bytes, .size = request->size);
-        g_cli_cells->persistent_buf_release(request, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(request, g_cli_debug_owner);
         if (!goes_on)
         {
             break;
@@ -343,9 +343,9 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_incoming);
     EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_outgoing);
     s_head_size = 0ULL;
-    g_cli_cells->persistent_buf_release(s_coming, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(s_coming, g_cli_debug_owner);
     s_coming = NULL;
-    g_cli_cells->persistent_buf_release(s_pending, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(s_pending, g_cli_debug_owner);
     s_pending = NULL;
     s_pending_head_size = 0ULL;
     s_pending_at = 0ULL;

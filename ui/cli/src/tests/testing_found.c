@@ -5,7 +5,7 @@
 // function of the class contains it; a function outside every class is a test where no function contains it. The tree's
 // Python files are its files named as the rules name a test file, outside the folders not searched and inside the
 // rules' folders where they name any, in the order of their paths; its Rust tests follow them
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../inspect/inspect.h"
 #include "../text/json_tree.h"
@@ -107,7 +107,7 @@ EMBED_INLINE void *found_part_alloc(const TestingFoundCtx *args)
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
         (2ULL * counted.functions * sizeof(unsigned int)) + (12ULL * 8ULL);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_tests_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_tests_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -348,7 +348,7 @@ static void found_in(const TestingFoundCtx *args)
     if (!EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = "python", .text = text,
                     .size = size, .facts = &s_work_state->facts))
     {
-        g_cli_cells->persistent_buf_release(part, &g_cli_tests_cells);
+        g_cli_guard->persistent_buf_release(part, g_cli_tests_owner);
         return;
     }
     EMBED_CALL(found_bodies, TestingFoundCtx, .text = text, .size = size);
@@ -383,7 +383,7 @@ static void found_in(const TestingFoundCtx *args)
             EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name), function->from.line};
         EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &test);
     }
-    g_cli_cells->persistent_buf_release(part, &g_cli_tests_cells);
+    g_cli_guard->persistent_buf_release(part, g_cli_tests_owner);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
@@ -391,20 +391,20 @@ static void found_in(const TestingFoundCtx *args)
 EMBED_INLINE int found_search(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
     if ((length < 3u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3u, .other = ".py", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3u, .other = ".py", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
     for (const char *part = args->file; *part != '\0';)
     {
-        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = '/'});
+        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '/'});
         const size_t size = (slash != NULL) ? (size_t)(slash - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         for (unsigned int at = 0u; at < 10u; at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_not_searched[at], .cap = CLI_CELLS_POOL}) == size) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = s_not_searched[at], .cap = CLI_POOL_BYTES}) == size) &&
                 (memor.cmp(&(MemoriaCfg){.src = part, .other = s_not_searched[at], .bytes = size}) == 0))
             {
                 return 0;
@@ -414,11 +414,11 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     }
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->file,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}), .byte = '/');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}), .byte = '/');
     const char *const base = (slash != NULL) ? slash + 1 : args->file;
     if (!EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = rules,
                     .rule = &rules->files, .name = base,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL})))
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
@@ -427,8 +427,8 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     {
         const char *const place = EMBED_CALL(cli_testing_rules_rule.test_rule_value, CliTestingRulesRuleCfg,
                                              .rules_read = rules, .rule = &rules->paths, .at = at);
-        size_t position_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL});
-        inside = (cellul.eq(&(CatenaFinitaCfg){.src = args->file, .other = place, .cap = CLI_CELLS_POOL}));
+        size_t position_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES});
+        inside = (cellul.eq(&(CatenaFinitaCfg){.src = args->file, .other = place, .cap = CLI_POOL_BYTES}));
         position_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = place,
                                            .at = position_size, .set = "/");
         inside =
@@ -459,7 +459,7 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
         {
             continue;
         }
-        unsigned char *const bytes = g_cli_cells->temporary_buf_alloc(size + 1ULL, &g_cli_tests_cells);
+        unsigned char *const bytes = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
         if (bytes == NULL)
         {
             continue;
@@ -472,7 +472,7 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
             EMBED_CALL(found_in, TestingFoundCtx, .file = file, .text = text, .size = read,
                        .rules = &s_work_state->rules, .each = args->each, .context = args->context);
         }
-        g_cli_cells->persistent_buf_release(bytes, &g_cli_tests_cells);
+        g_cli_guard->persistent_buf_release(bytes, g_cli_tests_owner);
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }
@@ -520,10 +520,10 @@ void cli_tests_find(const CliTestingRootCfg *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_cells->persistent_buf_release(s_work_state->cargo.found, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(s_work_state->cargo.found, g_cli_cargo_owner);
     *(&s_work_state->cargo) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     s_work_state = NULL;
 }

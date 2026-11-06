@@ -14,9 +14,6 @@ typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
 // the bytes of each cell a store takes, which fits many lines of the most bytes one takes
 #define CLI_HIT_CELL_BYTES (64ULL * 1024ULL)
 
-// the cells the lines a search finds are stored in, counted, each released as the search ends
-extern CellOwner g_cli_search_cells;
-
 // A line found, stored until the search ends: the line its worker stored after it, the bytes of its text, which stand
 // in the cell directly after it, the line and column, its file's place, and its text's size
 typedef struct CliSearchHit CliSearchHit;

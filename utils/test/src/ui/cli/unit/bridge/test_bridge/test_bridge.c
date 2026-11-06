@@ -23,7 +23,7 @@ static int text_ends(const char *whole, const char *end)
 {
     const unsigned long long size = CLI_UNITY_LENGTH(whole);
     const unsigned long long end_size = CLI_UNITY_LENGTH(end);
-    return (size >= end_size) && cellul.eq(&(CatenaFinitaCfg){.src = whole + size - end_size, .other = end, .cap = CLI_CELLS_POOL});
+    return (size >= end_size) && cellul.eq(&(CatenaFinitaCfg){.src = whole + size - end_size, .other = end, .cap = CLI_POOL_BYTES});
 }
 
 // the sample's first pair
@@ -53,8 +53,8 @@ static unsigned int tree_bridge(void)
     {
         TEST_IGNORE_MESSAGE("no tree is found");
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_bridge.read, CliBridgeCfg, .json = &s_json, .root = root);
@@ -63,13 +63,13 @@ static unsigned int tree_bridge(void)
 void setUp(void)
 {
     cli_unity_begun();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &s_json, .nodes_max = 1024u, .text_max = 1ull << 16u, .what = "a bridge test's tree", .owner = &g_checks_cells));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &s_json, .nodes_max = 1024u, .text_max = 1ull << 16u, .what = "a bridge test's tree", .owner = g_checks_owner));
 }
 
 void tearDown(void)
 {
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -146,7 +146,7 @@ void test_the_trees_cu_map_names_lane_open(void)
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = maps, .index = at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int map = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = maps, .index = at);
-        mapped |= cellul.eq(&(CatenaFinitaCfg){.src = text_of(map, "language"), .other = "cu", .cap = CLI_CELLS_POOL}) && (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = map, .name = "names"), .name = "lane_open") != CLI_JSON_NONE);
+        mapped |= cellul.eq(&(CatenaFinitaCfg){.src = text_of(map, "language"), .other = "cu", .cap = CLI_POOL_BYTES}) && (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = map, .name = "names"), .name = "lane_open") != CLI_JSON_NONE);
     }
     TEST_ASSERT_TRUE(mapped);
 }

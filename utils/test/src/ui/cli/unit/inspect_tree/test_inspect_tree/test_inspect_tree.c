@@ -176,7 +176,7 @@ static int tree_findings_has(const char *required)
 {
     for (unsigned int at = 0u; at < s_findings.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_findings.item[at], .other = required, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_findings.item[at], .other = required, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }

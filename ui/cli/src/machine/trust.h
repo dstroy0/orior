@@ -16,8 +16,8 @@
 // to run no fsmonitor hook. A tree with no code of its own is never prompted about.
 #ifndef TRUST_H
 #define TRUST_H
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTrustFolderCfg CliTrustFolderCfg;
@@ -36,9 +36,6 @@ typedef struct
     unsigned long long size;
     unsigned int count;
 } CliTrustCode;
-
-// the cells the files found to run as code and the files read to find them occupy
-extern CellOwner g_cli_trust_cells;
 
 // the reader's answer for `tree`, the answer stored for the nearest folder that is the tree or contains it: 1 with
 // whether it is trusted into `trusted`, or 0 where no answer is stored

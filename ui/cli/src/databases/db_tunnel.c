@@ -91,7 +91,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
             }
             while ((used > 0u) &&
                    (cellul.chr(&(CatenaFinitaCfg){
-                        .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = errors[used - 1u]}) != NULL))
+                        .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = errors[used - 1u]}) != NULL))
             {
                 used -= 1u;
             }
@@ -103,7 +103,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
             mmgr_line_put(&message, " ended: ");
             unsigned long long start = 0ULL;
             while ((start < used) && (cellul.chr(&(CatenaFinitaCfg){
-                                          .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = errors[start]}) != NULL))
+                                          .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = errors[start]}) != NULL))
             {
                 start += 1u;
             }
@@ -120,7 +120,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
                         .src = "The tunnel signs in with the keys ssh's agent has and the reader's ~/.ssh/config, "
                                "as the terminal's ssh does; a machine that prompts for a password needs a key put on "
                                "it.",
-                        .cap = CLI_CELLS_POOL}) +
+                        .cap = CLI_POOL_BYTES}) +
                     1u});
             return 0;
         }

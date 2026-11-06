@@ -73,11 +73,11 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\settings_chain\\test_settings_chain\\test_settings_chain.c");
-  run_test(test_a_chain_follows_each_file_taken_the_one_taken_first, "test_a_chain_follows_each_file_taken_the_one_taken_first", 31);
-  run_test(test_a_file_taken_twice_is_read_once_and_a_problem, "test_a_file_taken_twice_is_read_once_and_a_problem", 44);
-  run_test(test_a_file_taken_that_is_not_there_is_a_problem, "test_a_file_taken_that_is_not_there_is_a_problem", 54);
-  run_test(test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems, "test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems", 63);
-  run_test(test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem, "test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem", 79);
+  run_test(test_a_chain_follows_each_file_taken_the_one_taken_first, "test_a_chain_follows_each_file_taken_the_one_taken_first", 36);
+  run_test(test_a_file_taken_twice_is_read_once_and_a_problem, "test_a_file_taken_twice_is_read_once_and_a_problem", 49);
+  run_test(test_a_file_taken_that_is_not_there_is_a_problem, "test_a_file_taken_that_is_not_there_is_a_problem", 59);
+  run_test(test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems, "test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems", 68);
+  run_test(test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem, "test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem", 89);
 
   return UNITY_END();
 }

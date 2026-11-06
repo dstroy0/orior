@@ -3,7 +3,7 @@
 // db_history.c: each statement run on a connection recorded in its history, a JSON line each in orior's own folder
 // under databases/, by the account's hash, the newest 1000 of them; the history read back, newest first; and the
 // statements of an editor's text found by their spans, counted in characters as the editor counts them
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/digest.h"
 #include "../text/text.h"
 #include "db_internal.h"
@@ -71,12 +71,12 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     mmgr_line_put(&entry, args->failed ? ",\"failed\":" : ",\"result\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &entry,
                .text_bytes = (const unsigned char *)args->err_text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->err_text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->err_text, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&entry, "}\n");
     // the history's newest lines but one retained, then the entry after them
     unsigned long long history_size = 0ULL;
     const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                    .size_pointer = &history_size, .owner = &g_cli_db_cells);
+                                                    .size_pointer = &history_size, .owner = g_cli_db_owner);
     // each newline before the last line's end starts one more line retained, counted back from the end
     unsigned long long start = 0ULL;
     unsigned long long end =
@@ -104,7 +104,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
                                  .size = 1ULL, .fresh = 0);
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)history, (&g_cli_db_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_db_owner));
     written = written && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
                                     .bytes = entry.out, .size = entry.at, .fresh = 0);
     if (written)
@@ -119,7 +119,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                        .size_pointer = &size, .owner = &g_cli_db_cells)
+                                                        .size_pointer = &size, .owner = g_cli_db_owner)
                                            : NULL;
     mmgr_line_ch(args->out, '[');
     unsigned int written = 0u;
@@ -139,7 +139,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
         }
         end = (start > 0u) ? start - 1u : 0u;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_db_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_db_owner));
     mmgr_line_ch(args->out, ']');
 }
 

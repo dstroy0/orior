@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // archive_path.c: where a path of the tree runs into an archive, and on into one inside it; what a folder within an
 // archive contains; and a file within one read
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "archive_internal.h"
 
@@ -44,7 +44,7 @@ EMBED_INLINE CliByteBuffer *cli_archive_buffers(const ArchivePathCtx *args)
 
 int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
 {
-    g_cli_archive_levels = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_archive_levels), &g_cli_editor_cells);
+    g_cli_archive_levels = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_archive_levels), g_cli_editor_owner);
     if (g_cli_archive_levels == NULL)
     {
         mmgr_line_put(args->err_msg, "the archives a path runs through could not be taken");
@@ -61,10 +61,10 @@ void cli_archive_release(void)
 {
     for (unsigned int at = 0u; at < CLI_ARCHIVE_BUFFERS; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at)->bytes,
-                                            &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at)->bytes,
+                                            g_cli_editor_owner);
     }
-    g_cli_cells->persistent_buf_release(g_cli_archive_levels, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(g_cli_archive_levels, g_cli_editor_owner);
     g_cli_archive_levels = NULL;
 }
 
@@ -81,14 +81,14 @@ int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args)
         mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
         return 0;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(args->need, &g_cli_editor_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(args->need, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, args->what);
         mmgr_line_put(args->err_msg, " could not be taken");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(buffer->bytes, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(buffer->bytes, g_cli_editor_owner);
     buffer->bytes = cell;
     buffer->capacity = args->need;
     return 1;
@@ -106,7 +106,7 @@ void cli_archive_parts_get(const CliArchiveErrMsgCtx *args)
     {
         const char *stop = at;
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "/\\");
         if ((stop > at) && (args->parts->count < CLI_ARCHIVE_PARTS))
         {
             VerbaLinea line = {args->parts->part[args->parts->count], CLI_NAME_MAX_LEN, 0ULL};
@@ -136,7 +136,7 @@ const CliMember *cli_archive_file_by_name(const CliArchiveCtx *args)
         if (!args->members_read->item[at].dir &&
             (cellul.eq(&(CatenaFinitaCfg){.src = args->members_read->text + args->members_read->item[at].name,
                                           .other = args->name,
-                                          .cap = CLI_CELLS_POOL})))
+                                          .cap = CLI_POOL_BYTES})))
         {
             return &args->members_read->item[at];
         }
@@ -157,7 +157,7 @@ int cli_archive_split(const CliArchiveRootCfg *args)
     // the nearest folder up the path that is there
     memor.cpy(&(MemoriaCfg){.dst = args->file,
                             .src = full,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}) + 1u});
     while (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->file) &&
            !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->file))
     {
@@ -168,24 +168,24 @@ int cli_archive_split(const CliArchiveRootCfg *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = args->file,
                                 .src = above,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_POOL_BYTES}) + 1u});
     }
     const char *base;
     if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                    .byte = '/') != NULL)
     {
         base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                           .byte = '/') +
                1;
     }
     else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                         .byte = '\\') != NULL)
     {
         base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                           .byte = '\\') +
                1;
     }
@@ -198,13 +198,13 @@ int cli_archive_split(const CliArchiveRootCfg *args)
     {
         return 0;
     }
-    const char *rest = full + cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL});
+    const char *rest = full + cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
     rest += ((rest[0] == '/') || (rest[0] == '\\')) ? 1 : 0;
     memor.cpy(&(MemoriaCfg){.dst = args->inner,
                             .src = rest,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->inner,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_CELLS_POOL}), .from = '\\',
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_POOL_BYTES}), .from = '\\',
                .to = '/');
     return 1;
 }
@@ -254,7 +254,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
             args->descent->kind = nested;
             memor.cpy(&(MemoriaCfg){.dst = args->descent->name,
                                     .src = path,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
             args->descent->left = cut;
             buffer = 1u - buffer;
             deeper = 1;
@@ -289,7 +289,7 @@ EMBED_INLINE unsigned int cli_hex_store(const ArchivePathCtx *args)
 // a text put in the children's texts: its place
 EMBED_INLINE unsigned int cli_text_store(const ArchivePathCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     if ((args->found->used + length + 1ULL) > CLI_ARCHIVE_NAMES)
     {
         return 0u;
@@ -339,7 +339,7 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
             while (under && (at < depth))
             {
                 under = cellul.eq(&(CatenaFinitaCfg){
-                    .src = own.part[at], .other = parts->part[args->descent->left + at], .cap = CLI_CELLS_POOL});
+                    .src = own.part[at], .other = parts->part[args->descent->left + at], .cap = CLI_POOL_BYTES});
                 at += 1u;
             }
         }
@@ -353,7 +353,7 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
         for (unsigned int at = 0u; (seen == args->found->count) && (at < args->found->count); at += 1u)
         {
             seen = (cellul.eq(&(CatenaFinitaCfg){
-                       .src = args->found->text + args->found->item[at].name, .other = child, .cap = CLI_CELLS_POOL}))
+                       .src = args->found->text + args->found->item[at].name, .other = child, .cap = CLI_POOL_BYTES}))
                        ? at
                        : seen;
         }
@@ -386,7 +386,7 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
         {
             // the name's own bytes past its last slash, or all of them where it ends with one
             const char *const raw = members->text + member->raw;
-            const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = raw, .cap = CLI_CELLS_POOL});
+            const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = raw, .cap = CLI_POOL_BYTES});
             unsigned long long end = length;
             end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = raw, .at = end,
                              .set = "/");
@@ -437,20 +437,20 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
     }
     const char *base;
     if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}),
                    .byte = '/') != NULL)
     {
         base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}),
                           .byte = '/') +
                1;
     }
     else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}),
                         .byte = '\\') != NULL)
     {
         base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}),
                           .byte = '\\') +
                1;
     }
@@ -460,7 +460,7 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
     }
     args->descent->kind = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base);
     args->descent->bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
-                                      .size_pointer = &args->descent->size, .owner = &g_cli_editor_cells);
+                                      .size_pointer = &args->descent->size, .owner = g_cli_editor_owner);
     if (args->descent->bytes == NULL)
     {
         mmgr_line_put(args->err_msg, file);
@@ -469,7 +469,7 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->descent->name,
                             .src = base,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}) + 1u});
     args->descent->left = 0u;
     EMBED_CALL(cli_archive_err_msg_internal.parts_get, CliArchiveErrMsgCtx, .path = inner, .parts = args->parts);
     return 1;
@@ -500,15 +500,15 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = prefix,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_POOL_BYTES});
         length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = prefix, .at = length,
                             .set = "/");
         prefix[length] = '\0';
         EMBED_CALL(cli_children, ArchivePathCtx, .descent = &descent, .parts = &s_parts, .prefix = prefix,
                    .found = args->found);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_editor_owner));
     cli_archive_release();
     return done;
 }
@@ -563,7 +563,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
                               .unpacked_size_value = unpacked, .members_read = &g_cli_archive_levels->members[0],
                               .member = member, .out_buffer_pointer = &g_cli_archive_levels->written[0],
                               .out_size = &data_size, .err_msg = args->err_msg);
-    char *const cell = done ? g_cli_cells->temporary_buf_alloc(data_size + 1ULL, args->owner) : NULL;
+    char *const cell = done ? g_cli_guard->temporary_buf_alloc(data_size + 1ULL, args->owner) : NULL;
     if (cell != NULL)
     {
         // a member unpacked whole, which a size_t counts
@@ -576,7 +576,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     {
         mmgr_line_put(args->err_msg, "the file read out of the archive could not be stored");
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_editor_owner));
     cli_archive_release();
     return cell;
 }

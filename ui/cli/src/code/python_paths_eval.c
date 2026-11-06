@@ -76,7 +76,7 @@ void cli_py_parent(const CliPythonPathsOutCtx *args)
 {
     const unsigned long long last_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     const char *const last = (last_end != 0ULL) ? (args->path + last_end - 1ULL) : NULL;
     if (last == NULL)
     {
@@ -120,7 +120,7 @@ EMBED_INLINE void cli_join(const PythonPathsEvalCtx *args)
         mmgr_line_put(args->out, args->part);
         return;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
     mmgr_line_put(args->out, args->base);
     if (!EMBED_CALL(cli_parts, PythonPathsEvalCtx, .letter = args->base[length - 1ULL]))
     {
@@ -175,7 +175,7 @@ EMBED_INLINE CliValues cli_parents(const PythonPathsEvalCtx *args)
                           .bytes = cellul.len(&(CatenaFinitaCfg){
                                        .src = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx,
                                                          .at = g_cli_py.value[args->values.first + index]),
-                                       .cap = CLI_CELLS_POOL}) +
+                                       .cap = CLI_POOL_BYTES}) +
                                    1u});
         for (long long step = 0LL; step < args->steps; step += 1LL)
         {
@@ -187,12 +187,12 @@ EMBED_INLINE CliValues cli_parents(const PythonPathsEvalCtx *args)
                 .dst = s_at,
                 .src = (length == 0ULL) ? "" : s_up,
                 .bytes =
-                    cellul.len(&(CatenaFinitaCfg){.src = (length == 0ULL) ? "" : s_up, .cap = CLI_CELLS_POOL}) + 1u});
+                    cellul.len(&(CatenaFinitaCfg){.src = (length == 0ULL) ? "" : s_up, .cap = CLI_POOL_BYTES}) + 1u});
         }
         EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                    .text_u32 =
                        EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = s_at,
-                                  .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_POOL_BYTES})));
     }
     return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
 }
@@ -247,7 +247,7 @@ EMBED_INLINE CliValues cli_call(const PythonPathsEvalCtx *args)
                                  .out = &line);
     mmgr_line_finish(&line);
     const char *const name = named ? dotted : "";
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "os.path.dirname", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "os.path.dirname", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(cli_parents, PythonPathsEvalCtx,
                           .values = EMBED_CALL(cli_argument, PythonPathsEvalCtx, .call = args->call, .at = 0u),
@@ -258,11 +258,11 @@ EMBED_INLINE CliValues cli_call(const PythonPathsEvalCtx *args)
     static const char *const s_join[5] = {"os.path.join", "Path", "pathlib.Path", "PurePath", "pathlib.PurePath"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_same[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_same[at], .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(cli_argument, PythonPathsEvalCtx, .call = args->call, .at = 0u);
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_join[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_join[at], .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(cli_joined_all, PythonPathsEvalCtx,
                               .all = EMBED_CALL(cli_argument, PythonPathsEvalCtx, .call = args->call, .at = 0u),
@@ -276,12 +276,12 @@ EMBED_INLINE CliValues cli_call(const PythonPathsEvalCtx *args)
     }
     const char *const method =
         EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = callee->text);
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "resolve", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "absolute", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "resolve", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "absolute", .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = callee->left);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "joinpath", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "joinpath", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(
             cli_joined_all, PythonPathsEvalCtx,
@@ -304,7 +304,7 @@ EMBED_INLINE CliValues cli_index(const PythonPathsEvalCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){
             .src = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = of->text),
             .other = "parents",
-            .cap = CLI_CELLS_POOL})))
+            .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(
             cli_parents, PythonPathsEvalCtx,
@@ -321,14 +321,14 @@ EMBED_INLINE CliValues cli_index(const PythonPathsEvalCtx *args)
         (!cellul.eq(&(CatenaFinitaCfg){
             .src = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = callee->text),
             .other = "rsplit",
-            .cap = CLI_CELLS_POOL})))
+            .cap = CLI_POOL_BYTES})))
     {
         return cli_none();
     }
     const CliValues values =
         EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = callee->left);
     const char *const parting = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = sep->text);
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parting, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parting, .cap = CLI_POOL_BYTES});
     const unsigned int mark = g_cli_py.values;
     for (unsigned int one = 0u; one < values.count; one += 1u)
     {
@@ -338,11 +338,11 @@ EMBED_INLINE CliValues cli_index(const PythonPathsEvalCtx *args)
         for (const char *found =
                  (length != 0ULL)
                      ? cellul.find(&(CatenaFinitaCfg){
-                           .src = text, .cap = CLI_CELLS_POOL, .other = parting, .other_cap = CLI_CELLS_POOL})
+                           .src = text, .cap = CLI_POOL_BYTES, .other = parting, .other_cap = CLI_POOL_BYTES})
                      : NULL;
              found != NULL;
              found = cellul.find(&(CatenaFinitaCfg){
-                 .src = found + 1, .cap = CLI_CELLS_POOL, .other = parting, .other_cap = CLI_CELLS_POOL}))
+                 .src = found + 1, .cap = CLI_POOL_BYTES, .other = parting, .other_cap = CLI_POOL_BYTES}))
         {
             last = found;
         }
@@ -392,12 +392,12 @@ CliValues cli_py_eval(const CliPythonPathsExprCtx *args)
     {
     case CLI_EXPR_NAME: {
         const char *const name = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = one->text);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "__file__", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "__file__", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                        .text_u32 = EMBED_CALL(
                            cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = g_cli_py.file,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_py.file, .cap = CLI_CELLS_POOL})));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_py.file, .cap = CLI_POOL_BYTES})));
             return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
         }
         for (unsigned int at = 0u; at < g_cli_py.names; at += 1u)
@@ -405,7 +405,7 @@ CliValues cli_py_eval(const CliPythonPathsExprCtx *args)
             if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_python_paths_at_internal.py_text,
                                                                CliPythonPathsAtCtx, .at = g_cli_py.name[at].name),
                                              .other = name,
-                                             .cap = CLI_CELLS_POOL}))
+                                             .cap = CLI_POOL_BYTES}))
             {
                 return g_cli_py.name[at].values;
             }
@@ -429,14 +429,14 @@ CliValues cli_py_eval(const CliPythonPathsExprCtx *args)
     }
     case CLI_EXPR_ATTR: {
         const char *const name = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = one->text);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "parent", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "parent", .cap = CLI_POOL_BYTES}))
         {
             return EMBED_CALL(
                 cli_parents, PythonPathsEvalCtx,
                 .values = EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = one->left),
                 .steps = 1LL);
         }
-        return (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "path", .cap = CLI_CELLS_POOL}))
+        return (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "path", .cap = CLI_POOL_BYTES}))
                    ? EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = one->left)
                    : cli_none();
     }
@@ -462,7 +462,7 @@ static CliPyFolders s_folders;
 
 static void cli_folder_each(const CliEachNameIsFolderCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1ULL;
     if (!args->is_folder || (s_folders.count >= CLI_PY_FOLDERS) || ((s_folders.used + length) > CLI_PY_FOLDER_TEXT))
     {
         return;
@@ -514,18 +514,18 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args)
     const unsigned int mark = g_cli_py.values;
     memor.cpy(&(MemoriaCfg){.dst = s_at,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                .text_u32 =
                    EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = s_at,
-                              .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_POOL_BYTES})));
     for (;;)
     {
         VerbaLinea up = {s_up, sizeof(s_up), 0ULL};
         EMBED_CALL(cli_python_paths_out_internal.py_parent, CliPythonPathsOutCtx, .path = s_at, .out = &up);
         const unsigned long long length = up.at;
         mmgr_line_finish(&up);
-        if ((length == 0ULL) || (cellul.eq(&(CatenaFinitaCfg){.src = s_up, .other = s_at, .cap = CLI_CELLS_POOL})))
+        if ((length == 0ULL) || (cellul.eq(&(CatenaFinitaCfg){.src = s_up, .other = s_at, .cap = CLI_POOL_BYTES})))
         {
             return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
         }
@@ -534,6 +534,6 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args)
                                           .text = s_up, .length = length));
         memor.cpy(&(MemoriaCfg){.dst = s_at,
                                 .src = s_up,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_up, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_up, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }

@@ -4,7 +4,7 @@
 // its edits filled in by the server first where it left them out, returned to be written, and its command run, whose
 // edits the server requests on its own; and an action of a plugin's server carried out by that server, a command it
 // does not run itself passed to its plugin. A fix that runs a line in the terminal is the page's to run
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 typedef struct

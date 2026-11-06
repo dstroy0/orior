@@ -3,7 +3,7 @@
 // servers_shapes.c: a server's answer read, and what it reports written in orior's own shapes: a place, a path, a hover
 // as Markdown, a completion as the editor's item, a diagnostic and a location. No request about a place reaches a
 // server given the tree's slices, so a place goes and comes back on the file's own lines
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/measured.h"
 #include "../text/text.h"
 #include "servers_internal.h"
@@ -16,15 +16,15 @@ void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args)
 
 unsigned int cli_servers_read(const CliServersReadStateCtx *args)
 {
-    g_cli_cells->persistent_buf_release(args->read_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                                .cell = args->read_state->json.node));
+    g_cli_guard->persistent_buf_release(args->read_state->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->read_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->read_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                       .json = &args->read_state->json, .text = args->text, .size = args->size, .nodes_more = 0u,
-                      .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_servers_cells);
+                      .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_servers_owner);
 }
 
 unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args)
@@ -32,7 +32,7 @@ unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx, .read_state = args->read_state,
                    .text = args->answer->text, .size = args->answer->size);
-    g_cli_cells->persistent_buf_release(args->answer->message, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(args->answer->message, g_cli_servers_owner);
     args->answer->message = NULL;
     return root;
 }

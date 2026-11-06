@@ -84,7 +84,7 @@ EMBED_INLINE void requests_text(const DebugRequestsCtx *args)
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)((text != NULL) ? text : args->fallback),
                .length = (text != NULL) ? length
-                                        : cellul.len(&(CatenaFinitaCfg){.src = args->fallback, .cap = CLI_CELLS_POOL}));
+                                        : cellul.len(&(CatenaFinitaCfg){.src = args->fallback, .cap = CLI_POOL_BYTES}));
 }
 
 // a signed member of a node written, 0 where it is none
@@ -127,7 +127,7 @@ EMBED_INLINE void requests_path(const DebugRequestsCtx *args)
     }
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}));
 }
 
 // a variable an adapter wrote, its name `name` where that is given
@@ -141,7 +141,7 @@ EMBED_INLINE void requests_variable(const DebugRequestsCtx *args)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                    .text_bytes = (const unsigned char *)name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     }
     else
     {
@@ -211,7 +211,7 @@ int cli_debug_exceptions(const CliDebugJsonCfg *args)
             filter->on =
                 filter->on ||
                 ((named != NULL) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = filter->filter, .cap = CLI_CELLS_POOL})));
+                 (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = filter->filter, .cap = CLI_POOL_BYTES})));
         }
     }
     mmgr_line_put(args->out, "null");
@@ -445,11 +445,11 @@ int cli_debug_evaluate(const CliDebugOutErrMsgCfg *args)
     mmgr_line_put(&answer->args, "{\"expression\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->expression,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->expression, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->expression, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&answer->args, ",\"context\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->context_text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->context_text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->context_text, .cap = CLI_POOL_BYTES}));
     if (args->has_frame)
     {
         mmgr_line_put(&answer->args, ",\"frameId\":");
@@ -480,7 +480,7 @@ int cli_debug_history(const CliDebugOutErrMsgIdCfg *args)
     mmgr_line_put(&answer->args, ",\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&answer->args, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "orior/history", .answer = answer,
                     .err_msg = args->err_msg))
@@ -562,7 +562,7 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     mmgr_line_put(&answer->args, "{\"memoryReference\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->reference_text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&answer->args, ",\"offset\":");
     mmgr_line_decimal_signed(&answer->args, args->offset);
     mmgr_line_put(&answer->args, ",\"count\":");
@@ -592,7 +592,7 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     mmgr_line_put(args->out, ",\"bytes\":[");
     // the bytes read from memory, in a cell of the most the base64 text decodes to
     const unsigned long long most = ((length / 4ULL) + 1ULL) * 3ULL;
-    unsigned char *const decoded = (data != NULL) ? g_cli_cells->temporary_buf_alloc(most, &g_cli_debug_cells) : NULL;
+    unsigned char *const decoded = (data != NULL) ? g_cli_guard->temporary_buf_alloc(most, g_cli_debug_owner) : NULL;
     const unsigned long long bytes = (decoded != NULL)
                                          ? EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = data,
                                                       .size = length, .out_bytes = decoded, .capacity = most)
@@ -602,7 +602,7 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
         mmgr_line_put(args->out, (at > 0ULL) ? "," : "");
         mmgr_line_decimal(args->out, decoded[at], 1u);
     }
-    g_cli_cells->persistent_buf_release(decoded, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(decoded, g_cli_debug_owner);
     mmgr_line_put(args->out, "],\"unreadable\":");
     mmgr_line_decimal(args->out, unreadable, 1u);
     mmgr_line_ch(args->out, '}');
@@ -621,7 +621,7 @@ int cli_debug_instructions(const CliDebugOutErrMsgIdReferenceCfg *args)
     mmgr_line_put(&answer->args, "{\"memoryReference\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->reference_text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&answer->args, ",\"instructionOffset\":");
     mmgr_line_decimal_signed(&answer->args, args->offset);
     mmgr_line_put(&answer->args, ",\"instructionCount\":");

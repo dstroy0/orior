@@ -3,7 +3,7 @@
 // page.c: a listing read, the page it prints on, and the listing laid out in pages, each line with its number and a
 // long line going on under itself
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "print.h"
@@ -32,13 +32,13 @@ void cli_print_alloc(void)
     const unsigned long long piece_bytes = (unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece);
     const unsigned long long letter_bytes = (unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int);
     const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + letter_bytes;
-    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_print_cells);
+    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_print_owner);
     char *const cell = (s_work_state != NULL)
-                           ? g_cli_cells->persistent_buf_alloc(list_bytes + (2ULL * CLI_PRINT_TEXT), &g_cli_print_cells)
+                           ? g_cli_guard->persistent_buf_alloc(list_bytes + (2ULL * CLI_PRINT_TEXT), g_cli_print_owner)
                            : NULL;
     if (cell == NULL)
     {
-        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
         s_work_state = NULL;
         return;
     }
@@ -63,9 +63,9 @@ void cli_print_release(void)
 {
     if (s_work_state != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_work_state->listing.line, &g_cli_print_cells);
+        g_cli_guard->persistent_buf_release(s_work_state->listing.line, g_cli_print_owner);
     }
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
     s_work_state = NULL;
 }
 
@@ -275,7 +275,7 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
 // whether a name is `word` in ASCII's either case
 EMBED_INLINE int cli_by_name(const PageCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->word_text, .cap = CLI_CELLS_POOL, .ci = 1});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->word_text, .cap = CLI_POOL_BYTES, .ci = 1});
 }
 
 void cli_print_size(const CliPrintLayoutWidthCfg *args)
@@ -335,7 +335,7 @@ EMBED_INLINE int cli_parse(const PageCtx *args)
 EMBED_INLINE int cli_parts(const PageCtx *args)
 {
     const char *from = args->layout->pages;
-    const char *to = from + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+    const char *to = from + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_trim, PageCtx, .from = &from, .to = &to);
     if (!args->layout->has_pages || (from == to))
     {

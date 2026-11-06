@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_spawn.c: a run's process started on Windows: its environment block made from this process's and the run's
-// settings, its output and errors piped back apart, and, detached, started suspended with no console, made the head of
-// a job of its own and let run, so ending the job ends every process it starts; or started in a pseudo-console of its
-// own, a terminal's shell, its output read and its keys written through the console's pipes
+// settings, its output and errors piped back apart, and, detached, started with no console inside a job of its own
+// through the job list attribute, so ending the job ends every process it starts; or started in a pseudo-console of
+// its own, a terminal's shell, its output read and its keys written through the console's pipes
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
@@ -51,7 +51,7 @@ EMBED_INLINE void cli_word_quote(const WindowsSpawnCtx *args)
     }
     mmgr_line_ch(args->line, '"');
     unsigned int slashes = 0u;
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ull; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -273,20 +273,56 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
             SetHandleInformation(in_write, HANDLE_FLAG_INHERIT, 0u);
         }
     }
-    STARTUPINFOW startup;
+    // detached, a job which lets nothing break away and ends every process in it as its last handle closes, which
+    // orior's own end closes with it, so a child outlives orior in no outer job; the child is created inside the job,
+    // through the job list attribute, so no instant stands between its creation and its membership in which this
+    // process's end would leave it standing; a job the system refuses leaves the child in none
+    HANDLE job = NULL;
+    if (args->detached)
+    {
+        job = CreateJobObjectW(NULL, NULL);
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
+        memor.set(&(MemoriaCfg){.dst = &limits, .val = 0, .bytes = sizeof(limits)});
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if ((job != NULL) && !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
+        {
+            CloseHandle(job);
+            job = NULL;
+        }
+    }
+    static unsigned long long s_job_attributes[16];
+    SIZE_T attributes_size = 0u;
+    (void)InitializeProcThreadAttributeList(NULL, 1u, 0u, &attributes_size);
+    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)s_job_attributes;
+    const int list_entries = (job != NULL) && (attributes_size <= sizeof(s_job_attributes)) &&
+                             InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributes_size);
+    const int listed = list_entries && UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_JOB_LIST, &job,
+                                                                 sizeof(job), NULL, NULL);
+    STARTUPINFOEXW startup;
     memor.set(&(MemoriaCfg){.dst = &startup, .val = 0, .bytes = sizeof(startup)});
-    startup.cb = sizeof(startup);
-    startup.dwFlags = STARTF_USESTDHANDLES;
-    startup.hStdInput = input;
-    startup.hStdOutput = out_write;
-    startup.hStdError = err_write;
+    startup.StartupInfo.cb = listed ? sizeof(startup) : sizeof(startup.StartupInfo);
+    startup.lpAttributeList = listed ? attributes : NULL;
+    startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    startup.StartupInfo.hStdInput = input;
+    startup.StartupInfo.hStdOutput = out_write;
+    startup.StartupInfo.hStdError = err_write;
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
-    const DWORD flags = CREATE_UNICODE_ENVIRONMENT | cli_spawn_class(args) |
-                        (args->detached ? (CREATE_NO_WINDOW | CREATE_SUSPENDED) : 0u);
+    const DWORD flags = CREATE_UNICODE_ENVIRONMENT | cli_spawn_class(args) | (args->detached ? CREATE_NO_WINDOW : 0u) |
+                        (listed ? EXTENDED_STARTUPINFO_PRESENT : 0u);
     const BOOL made = piped && CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, flags, s_block,
-                                              (args->folder != NULL) ? s_folder : NULL, &startup, &process);
+                                              (args->folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
+    if (list_entries)
+    {
+        DeleteProcThreadAttributeList(attributes);
+    }
+    if ((job != NULL) && (!made || !listed))
+    {
+        // a child the job list did not take: the job stands empty and is closed, and the child is in none
+        CloseHandle(job);
+        job = NULL;
+    }
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         HANDLE closed;
@@ -325,24 +361,7 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
         mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
-    if (args->detached)
-    {
-        // a job which lets nothing break away and ends every process in it as its last handle closes, which orior's own
-        // end closes with it, so a child outlives orior in no outer job; a job the child does not join is closed
-        HANDLE job = CreateJobObjectW(NULL, NULL);
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
-        memor.set(&(MemoriaCfg){.dst = &limits, .val = 0, .bytes = sizeof(limits)});
-        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        if ((job != NULL) &&
-            (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)) ||
-             !AssignProcessToJobObject(job, process.hProcess)))
-        {
-            CloseHandle(job);
-            job = NULL;
-        }
-        args->spawned->group = (unsigned long long)(uintptr_t)job;
-        ResumeThread(process.hThread);
-    }
+    args->spawned->group = (unsigned long long)(uintptr_t)job;
     CloseHandle(process.hThread);
     // a handle is a pointer's width, which an unsigned long long stores
     args->spawned->process = (unsigned long long)(uintptr_t)process.hProcess;

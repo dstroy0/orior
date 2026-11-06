@@ -173,8 +173,8 @@ void test_every_line_after_the_first_is_indented_two_spaces(void)
     EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = s_usage, .width = 40ull, .indent = 2ull, .each = line_recorded, .context = &s_lines);
     for (unsigned int at = 1u; at < s_lines.count; at += 1u)
     {
-        TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines.line[at], .other = "  ", .cap = CLI_CELLS_POOL}));
-        TEST_ASSERT_FALSE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines.line[at], .other = "   ", .cap = CLI_CELLS_POOL}));
+        TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines.line[at], .other = "  ", .cap = CLI_POOL_BYTES}));
+        TEST_ASSERT_FALSE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines.line[at], .other = "   ", .cap = CLI_POOL_BYTES}));
     }
 }
 
@@ -206,7 +206,7 @@ void test_every_line_of_the_help_is_within_its_width(void)
     help_written();
     for (const char *line = s_help; *line != '\0';)
     {
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         // a line end inside the help, at or past the line's start
         const unsigned long long size = (end != NULL) ? (unsigned long long)(end - line) : CLI_UNITY_LENGTH(line);
         TEST_ASSERT_LESS_OR_EQUAL_UINT64(CLI_HELP_WIDTH, EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = line, .size = size));

@@ -127,7 +127,7 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
                                    .object = one, .name = "documentation"),
                .out = &doc);
     const unsigned long long doc_size = mmgr_line_ok(&doc) ? doc.at : 0ULL;
-    CliSignaturePanel *const panel = g_cli_cells->persistent_buf_alloc(
+    CliSignaturePanel *const panel = g_cli_guard->persistent_buf_alloc(
         sizeof(*panel) + (most * sizeof(CliSignatureParameter)) + size + doc_size + 2ULL, args->owner);
     if (panel == NULL)
     {

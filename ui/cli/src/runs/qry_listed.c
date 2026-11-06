@@ -8,8 +8,8 @@
 // record listed by its name and size alone. All of it stands in one cell taken at the first listing
 #include "qry.h"
 
-#include "../command_line/cells.h"
 #include "../command_line/command_line.h"
+#include "../command_line/pool.h"
 #include "../editor/files.h"
 #include "../text/text.h"
 #include "embed_atomic.h"
@@ -374,7 +374,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
     EMBED_CALL(runs_full, QryListedCtx, .root = args->root, .path = args->path, .text = full);
     unsigned long long size = 0ULL;
     const char *const text = (const char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                      .size_pointer = &size, .owner = &g_cli_qry_listing_cells);
+                                                      .size_pointer = &size, .owner = g_cli_qry_listing_owner);
     unsigned int count = 0u;
     for (unsigned long long at = 0ULL; (text != NULL) && (at < size) && (runs->lessons < RUNS_LESSONS);)
     {
@@ -409,7 +409,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_qry_listing_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_qry_listing_owner));
     return count;
 }
 
@@ -749,7 +749,7 @@ EMBED_INLINE Runs *runs_of(const QryListedCtx *args)
 {
     if (s_runs == NULL)
     {
-        s_runs = g_cli_cells->persistent_buf_alloc(sizeof(Runs), &g_cli_qry_listing_cells);
+        s_runs = g_cli_guard->persistent_buf_alloc(sizeof(Runs), g_cli_qry_listing_owner);
         if (s_runs == NULL)
         {
             return NULL;

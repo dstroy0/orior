@@ -3,7 +3,7 @@
 // symbols_heads.c: types and heads read off leaves: a declaration's type from the leaves about its name, whether an
 // argument's type fits a parameter's, and a declaration's head from its own file, each parameter's span and type. No
 // language is read here but by its plugin's grammar
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
@@ -220,10 +220,10 @@ EMBED_INLINE int cli_types_same(const SymbolsHeadsCtx *args)
     {
         left = (unsigned int)EMBED_CALL(
             cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->one, .at = left,
-            .size = left + cellul.len(&(CatenaFinitaCfg){.src = args->one + left, .cap = CLI_CELLS_POOL}), .set = " ");
+            .size = left + cellul.len(&(CatenaFinitaCfg){.src = args->one + left, .cap = CLI_POOL_BYTES}), .set = " ");
         right = (unsigned int)EMBED_CALL(
             cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->other, .at = right,
-            .size = right + cellul.len(&(CatenaFinitaCfg){.src = args->other + right, .cap = CLI_CELLS_POOL}),
+            .size = right + cellul.len(&(CatenaFinitaCfg){.src = args->other + right, .cap = CLI_POOL_BYTES}),
             .set = " ");
         if (args->one[left] != args->other[right])
         {
@@ -490,7 +490,7 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->head->path, .joined = full);
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                  .size_pointer = &size, .owner = &g_cli_code_cells);
+                                                  .size_pointer = &size, .owner = g_cli_code_owner);
     if (bytes == NULL)
     {
         return 0;
@@ -519,11 +519,11 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
                                           .length = args->length, .head = args->head);
     if (counted == args->head->line)
     {
-        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_code_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_code_owner));
     return found;
 }

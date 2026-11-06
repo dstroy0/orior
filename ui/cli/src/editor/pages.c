@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages.c: a file opened paged, its index read behind the page, and its lines read from the disk and from the lines
 // written over it, for the page and for the walk of its colors
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "pages_internal.h"
 
@@ -57,19 +57,19 @@ EMBED_INLINE int pages_cells_alloc(const PagesCtx *args)
     // starts recorded by their lines, size / CLI_PAGE_SPAN by their bytes, and the first
     const unsigned long long starts = (args->size / CLI_PAGE_STEP) + (args->size / CLI_PAGE_SPAN) + 2ULL;
     args->one->index.starts_max = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
-    args->one->index.start = g_cli_cells->persistent_buf_alloc(
-        args->one->index.starts_max * sizeof(args->one->index.start[0]), &g_cli_editor_cells);
-    args->one->index.line = g_cli_cells->persistent_buf_alloc(
-        args->one->index.starts_max * sizeof(args->one->index.line[0]), &g_cli_editor_cells);
+    args->one->index.start = g_cli_guard->persistent_buf_alloc(
+        args->one->index.starts_max * sizeof(args->one->index.start[0]), g_cli_editor_owner);
+    args->one->index.line = g_cli_guard->persistent_buf_alloc(
+        args->one->index.starts_max * sizeof(args->one->index.line[0]), g_cli_editor_owner);
     args->one->piece =
-        g_cli_cells->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(args->one->piece[0]), &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(args->one->piece[0]), g_cli_editor_owner);
     const int reserved =
         (args->one->index.start != NULL) && (args->one->index.line != NULL) && (args->one->piece != NULL);
     if (!reserved)
     {
-        g_cli_cells->persistent_buf_release(args->one->piece, &g_cli_editor_cells);
-        g_cli_cells->persistent_buf_release(args->one->index.start, &g_cli_editor_cells);
-        g_cli_cells->persistent_buf_release(args->one->index.line, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(args->one->piece, g_cli_editor_owner);
+        g_cli_guard->persistent_buf_release(args->one->index.start, g_cli_editor_owner);
+        g_cli_guard->persistent_buf_release(args->one->index.line, g_cli_editor_owner);
         args->one->piece = NULL;
         args->one->index.start = NULL;
         args->one->index.line = NULL;
@@ -95,9 +95,9 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_index_wake);
     }
-    g_cli_cells->persistent_buf_release(args->one->piece, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->index.start, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->index.line, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(args->one->piece, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one->index.start, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one->index.line, g_cli_editor_owner);
     args->one->piece = NULL;
     args->one->index.start = NULL;
     args->one->index.line = NULL;
@@ -105,14 +105,14 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
     {
         (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = args->one->shadow);
     }
-    g_cli_cells->persistent_buf_release(args->one, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(args->one, g_cli_editor_owner);
 }
 
 CliPaged *cli_paged_get(const CliPagesErrMsgCtx *args)
 {
     for (CliPaged *one = g_cli_paged; one != NULL; one = one->next)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             return one;
         }
@@ -156,7 +156,7 @@ static void cli_index_read(void *context)
         unsigned long long len = 0ULL;
         const unsigned char *const chunk =
             EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = index->path, .from = offset,
-                       .count_u64 = CLI_PAGE_CHUNK, .size_pointer = &len, .owner = &g_cli_editor_cells);
+                       .count_u64 = CLI_PAGE_CHUNK, .size_pointer = &len, .owner = g_cli_editor_owner);
         const unsigned long long end = offset + len;
         for (unsigned long long at = offset; (chunk != NULL) && (at < end);)
         {
@@ -182,7 +182,7 @@ static void cli_index_read(void *context)
         }
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ULL);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)chunk, (&g_cli_editor_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)chunk, (g_cli_editor_owner));
         offset += CLI_PAGE_CHUNK;
     }
     index->lines = lines;
@@ -198,11 +198,11 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
         EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = path, .from = 0ULL,
-                   .count_u64 = CLI_PAGE_HEAD, .size_pointer = &size, .owner = &g_cli_editor_cells);
+                   .count_u64 = CLI_PAGE_HEAD, .size_pointer = &size, .owner = g_cli_editor_owner);
     const unsigned char *const newline =
         (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
     const int crlf = (newline != NULL) && (newline > bytes) && (newline[-1] == '\r');
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_editor_owner));
     return crlf ? "\r\n" : "\n";
 }
 
@@ -248,7 +248,7 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     // a text stored under the key already is let go first, its index stopped and its shadow removed
     CliPaged *one = g_cli_paged;
     while ((one != NULL) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_POOL_BYTES})))
     {
         one = one->next;
     }
@@ -256,7 +256,7 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     {
         EMBED_CALL(pages_let_go, PagesCtx, .one = one);
     }
-    one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
+    one = g_cli_guard->persistent_buf_alloc(sizeof(*one), g_cli_editor_owner);
     if (one == NULL)
     {
         mmgr_line_put(args->err_msg, "the paged text's cells could not be taken");
@@ -265,7 +265,7 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     if (!EMBED_CALL(pages_cells_alloc, PagesCtx, .one = one, .size = size))
     {
-        g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
+        g_cli_guard->persistent_buf_release(one, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, "the paged text's cells could not be taken");
         return 0;
     }
@@ -276,13 +276,13 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     one->index.read_state = 1;
     memor.cpy(&(MemoriaCfg){.dst = one->index.path,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = one->key,
                             .src = args->key,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = one->path,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_pages_path_internal.page_adjacent, CliPagesPathCtx, .path = args->path, .ending = CLI_PAGE_SHADOW,
                .adjacent = one->shadow);
     one->size = size;
@@ -408,7 +408,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
         EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->one->path, .from = begin,
-                   .count_u64 = window, .size_pointer = &size, .owner = &g_cli_editor_cells);
+                   .count_u64 = window, .size_pointer = &size, .owner = g_cli_editor_owner);
     if (bytes == NULL)
     {
         mmgr_line_put(args->err_msg, "it could not be read");
@@ -447,7 +447,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
             break;
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_editor_owner));
     while (((lines->count - first) < (args->to - from)) && !lines->full)
     {
         EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
@@ -466,10 +466,10 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(
         cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->one_read->shadow, .from = args->piece->from,
-        .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = &g_cli_editor_cells);
+        .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = g_cli_editor_owner);
     if ((bytes == NULL) || (size < (args->piece->to - args->piece->from)))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_editor_owner));
         mmgr_line_put(args->err_msg, args->one_read->shadow);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
@@ -488,7 +488,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         }
         at = (end < size) ? (end + 1ULL) : size;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_editor_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_editor_owner));
     return 1;
 }
 
@@ -641,7 +641,7 @@ char *cli_pages_lines_alloc(const CliPagesFromCfg *args)
                                 .from = args->from, .to_value = args->to, .lines = &lines, .err_msg = &err_msg) &&
                      !lines.full;
     // each line's bytes and its NUL
-    char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ULL, args->owner) : NULL;
+    char *const text = read ? g_cli_guard->persistent_buf_alloc(lines.used + lines.count + 1ULL, args->owner) : NULL;
     const unsigned long long reserved = (lines.count < required) ? lines.count : required;
     unsigned long long at = 0ULL;
     for (unsigned long long each = 0ULL; (text != NULL) && (each < reserved); each += 1ULL)
@@ -948,7 +948,7 @@ void cli_pages_release(const CliPagesCfg *args)
 {
     CliPaged *one = g_cli_paged;
     while ((one != NULL) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_POOL_BYTES})))
     {
         one = one->next;
     }

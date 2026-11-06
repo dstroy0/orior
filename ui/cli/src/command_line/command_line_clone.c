@@ -24,7 +24,7 @@ static void files_clone_line(const CliEachLineEndedCfg *args)
     displayed->wrote = 1;
     const unsigned long long width =
         EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->line,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_POOL_BYTES}));
     VerbaLinea over = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_ch(&over, '\r');
     mmgr_line_put(&over, args->line);

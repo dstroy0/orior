@@ -66,12 +66,12 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
     unsigned long long size = 0ULL;
     unsigned char *const data =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size)
-            ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_gui_glyphs_cells)
+            ? g_cli_guard->persistent_buf_alloc(size + CLI_FILE_SLACK, g_gui_glyphs_owner)
             : NULL;
     if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = path, .from = 0ULL,
                                       .bytes_bytes = data, .count_u64 = size, .got = &size))
     {
-        g_cli_cells->persistent_buf_release(data, &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_release(data, g_gui_glyphs_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = data + size, .val = 0, .bytes = CLI_FILE_SLACK});
@@ -79,15 +79,15 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
     if (!EMBED_CALL(cli_font_data.read, CliFontDataCfg, .font_out = font, .data = data, .size = size,
                     .ranges = args->ranges))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)data, (&g_gui_glyphs_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)data, (g_gui_glyphs_owner));
         return 0;
     }
     const unsigned long long bytes = (unsigned long long)font->ranges * sizeof(args->ranges[0]);
     unsigned int (*const saved)[3] =
-        g_cli_cells->persistent_buf_alloc((bytes != 0ULL) ? bytes : sizeof(args->ranges[0]), &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_alloc((bytes != 0ULL) ? bytes : sizeof(args->ranges[0]), g_gui_glyphs_owner);
     if (saved == NULL)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)data, (&g_gui_glyphs_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)data, (g_gui_glyphs_owner));
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = saved, .src = args->ranges, .bytes = bytes});
@@ -105,7 +105,7 @@ EMBED_INLINE void glyphs_clear(const GlyphsCtx *args)
         GuiCachedGlyph *const entry = &args->glyphs->entry[at];
         if (entry->used)
         {
-            g_cli_cells->persistent_buf_release(entry->mask_bits.cover, &g_gui_glyphs_cells);
+            g_cli_guard->persistent_buf_release(entry->mask_bits.cover, g_gui_glyphs_owner);
             entry->mask_bits.cover = NULL;
             entry->used = 0;
         }
@@ -121,7 +121,7 @@ EMBED_INLINE void glyphs_cells_clear(const GlyphsCtx *args)
         GuiGlyphCell *const cell = &args->glyphs->cell[at];
         if (cell->used)
         {
-            g_cli_cells->persistent_buf_release(cell->red_blue, &g_gui_glyphs_cells);
+            g_cli_guard->persistent_buf_release(cell->red_blue, g_gui_glyphs_owner);
             cell->red_blue = NULL;
             cell->green = NULL;
             cell->rest = NULL;
@@ -137,16 +137,16 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->glyphs, .val = 0, .bytes = sizeof(*args->glyphs)});
     unsigned int (*const ranges)[3] =
-        g_cli_cells->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
-    args->glyphs->contours = g_cli_cells->persistent_buf_alloc(sizeof(*args->glyphs->contours), &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), g_gui_glyphs_owner);
+    args->glyphs->contours = g_cli_guard->persistent_buf_alloc(sizeof(*args->glyphs->contours), g_gui_glyphs_owner);
     args->glyphs->entry =
-        g_cli_cells->persistent_buf_alloc(GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry), &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_alloc(GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry), g_gui_glyphs_owner);
     args->glyphs->cell =
-        g_cli_cells->persistent_buf_alloc(GUI_CELL_CACHE_ENTRIES * sizeof(*args->glyphs->cell), &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_alloc(GUI_CELL_CACHE_ENTRIES * sizeof(*args->glyphs->cell), g_gui_glyphs_owner);
     if ((ranges == NULL) || (args->glyphs->contours == NULL) || (args->glyphs->entry == NULL) ||
         (args->glyphs->cell == NULL))
     {
-        g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_release(ranges, g_gui_glyphs_owner);
         cli_glyphs.free(args);
         mmgr_line_put(args->err_msg, "the cells the window's glyphs are kept in could not be taken");
         return 0;
@@ -170,7 +170,7 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
                .count = sizeof(s_serif) / sizeof(s_serif[0]), .paths = paths);
     args->glyphs->has[GUI_FACE_TEXT] = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = args->glyphs,
                                                   .face = GUI_FACE_TEXT, .path = paths[0], .ranges = ranges);
-    g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    g_cli_guard->persistent_buf_release(ranges, g_gui_glyphs_owner);
     if (!args->glyphs->has[GUI_FACE_CODE])
     {
         cli_glyphs.free(args);
@@ -192,9 +192,9 @@ void gui_glyphs_free(const GuiGlyphsCfg *args)
     {
         EMBED_CALL(glyphs_cells_clear, GlyphsCtx, .glyphs = args->glyphs);
     }
-    g_cli_cells->persistent_buf_release(args->glyphs->entry, &g_gui_glyphs_cells);
-    g_cli_cells->persistent_buf_release(args->glyphs->cell, &g_gui_glyphs_cells);
-    g_cli_cells->persistent_buf_release(args->glyphs->contours, &g_gui_glyphs_cells);
+    g_cli_guard->persistent_buf_release(args->glyphs->entry, g_gui_glyphs_owner);
+    g_cli_guard->persistent_buf_release(args->glyphs->cell, g_gui_glyphs_owner);
+    g_cli_guard->persistent_buf_release(args->glyphs->contours, g_gui_glyphs_owner);
     args->glyphs->entry = NULL;
     args->glyphs->cell = NULL;
     args->glyphs->contours = NULL;
@@ -202,8 +202,8 @@ void gui_glyphs_free(const GuiGlyphsCfg *args)
     {
         if (args->glyphs->has[face])
         {
-            g_cli_cells->persistent_buf_release(args->glyphs->face[face].range, &g_gui_glyphs_cells);
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[face]), (&g_gui_glyphs_cells));
+            g_cli_guard->persistent_buf_release(args->glyphs->face[face].range, g_gui_glyphs_owner);
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[face]), (g_gui_glyphs_owner));
         }
         args->glyphs->has[face] = 0;
         args->glyphs->data[face] = NULL;
@@ -215,7 +215,7 @@ void gui_glyphs_free(const GuiGlyphsCfg *args)
 EMBED_INLINE int glyphs_family_read(const GlyphsCtx *args)
 {
     unsigned int (*const ranges)[3] =
-        g_cli_cells->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), g_gui_glyphs_owner);
     if (ranges == NULL)
     {
         return 0;
@@ -225,7 +225,7 @@ EMBED_INLINE int glyphs_family_read(const GlyphsCtx *args)
                .paths = paths);
     const int read = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = args->glyphs, .face = args->face,
                                 .path = paths[args->path_at], .ranges = ranges);
-    g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    g_cli_guard->persistent_buf_release(ranges, g_gui_glyphs_owner);
     return read;
 }
 
@@ -247,9 +247,9 @@ void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args)
     EMBED_CALL(glyphs_clear, GlyphsCtx, .glyphs = args->glyphs);
     if (args->glyphs->has[GUI_FACE_HEAD_BOLD])
     {
-        g_cli_cells->persistent_buf_release(args->glyphs->face[GUI_FACE_HEAD_BOLD].range, &g_gui_glyphs_cells);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[GUI_FACE_HEAD_BOLD]),
-                                            (&g_gui_glyphs_cells));
+        g_cli_guard->persistent_buf_release(args->glyphs->face[GUI_FACE_HEAD_BOLD].range, g_gui_glyphs_owner);
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)(args->glyphs->data[GUI_FACE_HEAD_BOLD]),
+                                            (g_gui_glyphs_owner));
     }
     args->glyphs->has[GUI_FACE_HEAD_BOLD] = 0;
     args->glyphs->data[GUI_FACE_HEAD_BOLD] = NULL;
@@ -413,13 +413,13 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
         return 1;
     }
     const unsigned long long capacity = (measured.width * measured.height) + 4ULL;
-    float *const floats = g_cli_cells->temporary_buf_alloc(capacity * sizeof(*floats), &g_gui_glyphs_cells);
+    float *const floats = g_cli_guard->temporary_buf_alloc(capacity * sizeof(*floats), g_gui_glyphs_owner);
     unsigned char *const cover =
-        g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_alloc(measured.width * measured.height, g_gui_glyphs_owner);
     if ((floats == NULL) || (cover == NULL))
     {
-        g_cli_cells->persistent_buf_release(floats, &g_gui_glyphs_cells);
-        g_cli_cells->persistent_buf_release(cover, &g_gui_glyphs_cells);
+        g_cli_guard->persistent_buf_release(floats, g_gui_glyphs_owner);
+        g_cli_guard->persistent_buf_release(cover, g_gui_glyphs_owner);
         return 0;
     }
     CliMask drawn;
@@ -430,7 +430,7 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
     }
-    g_cli_cells->persistent_buf_release(floats, &g_gui_glyphs_cells);
+    g_cli_guard->persistent_buf_release(floats, g_gui_glyphs_owner);
     // a glyph's sides are far inside what an unsigned int represents
     mask_bits->width = (unsigned int)drawn.width;
     mask_bits->height = (unsigned int)drawn.height;
@@ -586,7 +586,7 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     const unsigned long long pixels = (unsigned long long)mask_bits->width * mask_bits->height;
     if (pixels != 0ULL)
     {
-        cell->red_blue = g_cli_cells->persistent_buf_alloc(3ULL * pixels * sizeof(unsigned int), &g_gui_glyphs_cells);
+        cell->red_blue = g_cli_guard->persistent_buf_alloc(3ULL * pixels * sizeof(unsigned int), g_gui_glyphs_owner);
         if (cell->red_blue == NULL)
         {
             return NULL;

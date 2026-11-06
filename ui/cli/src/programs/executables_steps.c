@@ -112,7 +112,7 @@ EMBED_INLINE void cli_script_get(const ExecutablesStepsCtx *args)
 EMBED_INLINE void cli_under_folder(const ExecutablesStepsCtx *args)
 {
     VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(&line, args->folder);
         mmgr_line_ch(&line, '/');
@@ -352,7 +352,7 @@ EMBED_INLINE void cli_go_steps(const ExecutablesStepsCtx *args)
     EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "build");
     char out[CLI_PATH_MAX_LEN];
     VerbaLinea line = {out, sizeof(out), 0ULL};
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-C");
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->folder);

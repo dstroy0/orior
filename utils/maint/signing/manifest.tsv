@@ -3758,7 +3758,6 @@ orior	ui/cli/src/command_line/catalog_read.c	12499	ba5d4d0821a4eb4af1def50c02da2
 orior	ui/cli/src/command_line/catalog_scan.c	15305	1d7d41ff62f995dae2be8e8f3bd568c7d9c09bd4c736088f551ddab1bd86c33c
 orior	ui/cli/src/command_line/cells.c	11049	6e44959b3b881ecadb44d5013d0cc6538a4386ff36b24d7cdf503aae00c75461
 orior	ui/cli/src/command_line/cells.h	3998	add07cce4433981999fe3b2ecddb01f5af48c48fe899823ec32cd77cea79ed09
-orior	ui/cli/src/command_line/cells_owners.h	5333	31a58a085385c76d0e3278b2360abe4f4faac453f0e6eb93b891426f09a715a2
 orior	ui/cli/src/command_line/cli_internal.h	32307	12a52cc53210e39021ea87c95cfd209e8bb4d9e2498b71d35cc690e3f17fd17e
 orior	ui/cli/src/command_line/command_line.c	11661	2cf82a8d642cedcfc5222b143d389fb2b37de25ab1b822c73ebf87251617dc56
 orior	ui/cli/src/command_line/command_line.h	2942	7740cd323b62e29999d219f793334088391b19a081c50e656fee371c1c045a3c

@@ -3,7 +3,7 @@
 // dap.c: a debug adapter connected to: what it writes read on a thread of its own, each response handed to the request
 // waiting on it, each event received and each request of its refused; requests sent and waited on; and the adapter
 // ended
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "dap_internal.h"
 
@@ -87,7 +87,7 @@ EMBED_INLINE int dap_answer(const DapCtx *args)
                 memor.cpy(&(MemoriaCfg){
                     .dst = waiter->error,
                     .src = args->error,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->error, .cap = CLI_CELLS_POOL}) + 1u});
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->error, .cap = CLI_POOL_BYTES}) + 1u});
             }
             else
             {
@@ -159,7 +159,7 @@ EMBED_INLINE int dap_response(const DapCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = error,
             .src = "the adapter refused",
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter refused", .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter refused", .cap = CLI_POOL_BYTES}) + 1u});
     }
     return EMBED_CALL(dap_answer, DapCtx, .dap = args->dap, .seq = seq, .message = NULL, .body = NULL, .length = 0ULL,
                       .error = error);
@@ -206,7 +206,7 @@ static void dap_read(void *context)
     char *message = NULL;
     // each message read into a cell of its length, given back here unless it went with an answer
     while ((message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &dap->reader,
-                                 .size = &size, .owner = &g_cli_debug_cells)) != NULL)
+                                 .size = &size, .owner = g_cli_debug_owner)) != NULL)
     {
         int transferred = 0;
         char kind[32];
@@ -215,7 +215,7 @@ static void dap_read(void *context)
         {
             kind[0] = '\0';
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "event", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "event", .cap = CLI_POOL_BYTES}))
         {
             char event[256] = "";
             if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "event", .out = event,
@@ -229,18 +229,18 @@ static void dap_read(void *context)
                                             .name = "body", .start = &body, .length_pointer = &body_size);
             dap->emit(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ULL);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_POOL_BYTES}))
         {
             transferred = EMBED_CALL(dap_response, DapCtx, .dap = dap, .message = message, .size = size);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "request", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "request", .cap = CLI_POOL_BYTES}))
         {
             refused += 1ULL;
             EMBED_CALL(dap_reject, DapCtx, .dap = dap, .message_read = message, .size = size, .seq = refused);
         }
         if (!transferred)
         {
-            g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
+            g_cli_guard->persistent_buf_release(message, g_cli_debug_owner);
         }
     }
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
@@ -250,7 +250,7 @@ static void dap_read(void *context)
             memor.cpy(&(MemoriaCfg){
                 .dst = dap->waiters[at].error,
                 .src = "the adapter stopped",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter stopped", .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter stopped", .cap = CLI_POOL_BYTES}) + 1u});
             dap->waiters[at].answered = 1;
         }
     }
@@ -267,12 +267,12 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
     unsigned long long start = 0ULL;
     unsigned long long end = args->used;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[start]}) != NULL))
+                                 .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->line[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->line[end - 1ULL]}) != NULL))
+                                 .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->line[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -386,7 +386,7 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         CLI_LSP_RAW("{\"seq\":"),
         {number, number_line.at, 0},
         CLI_LSP_RAW(",\"type\":\"request\",\"command\":\""),
-        {args->command, cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL}), 1},
+        {args->command, cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_POOL_BYTES}), 1},
         CLI_LSP_RAW("\",\"arguments\":"),
         {none ? "{}" : args->arguments, none ? 2ULL : args->length, 0},
         CLI_LSP_RAW("}")};
@@ -460,7 +460,7 @@ void cli_dap_complaint(const CliDapCfg *args)
     unsigned long long end = args->dap->complaint_size;
     while ((end > 0ULL) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->dap->complaint[end - 1ULL]}) != NULL))
+                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->dap->complaint[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -497,9 +497,9 @@ void cli_dap_stop(const CliDapCfg *args)
         args->dap->ends_program ? "{\"terminateDebuggee\":true}" : "{\"terminateDebuggee\":false}";
     (void)EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->dap, .command = "disconnect",
                      .arguments = arguments,
-                     .length = cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), .wait = 3000ULL,
+                     .length = cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_POOL_BYTES}), .wait = 3000ULL,
                      .answer = &answer, .err_msg = &err_buf);
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
     EMBED_CALL(cli_dap_internal.end, CliDapCtx, .dap = args->dap);
 }
@@ -532,7 +532,7 @@ void cli_dap_unref(const CliDapCfg *args)
     // the answers no request took, with no reader left to hand another
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(args->dap->waiters[at].answer.message, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(args->dap->waiters[at].answer.message, g_cli_debug_owner);
         args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->dap->socket);

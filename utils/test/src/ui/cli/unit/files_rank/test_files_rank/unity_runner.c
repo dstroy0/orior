@@ -2,6 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/text/text.h"
 
@@ -14,6 +15,10 @@ extern void test_an_empty_query_matches_with_no_hits(void);
 extern void test_each_score_is_the_palettes_own(void);
 extern void test_a_match_too_torn_is_no_match(void);
 extern void test_a_query_torn_into_too_many_pieces_is_no_match(void);
+extern void test_a_name_as_typed_outranks_one_that_starts_with_it_which_outranks_a_longer_match(void);
+extern void test_a_file_opened_lately_outranks_an_equal_match(void);
+extern void test_with_fuzzy_off_a_path_answers_only_where_it_contains_the_query(void);
+extern void test_with_the_tree_unread_only_the_recent_files_answer_and_reading_is_1(void);
 
 
 /*=======Mock Management=====*/
@@ -75,12 +80,16 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files_rank\\test_files_rank\\test_files_rank.c");
-  run_test(test_a_typed_name_matches_its_letters_in_the_name, "test_a_typed_name_matches_its_letters_in_the_name", 62);
-  run_test(test_a_name_without_the_letters_does_not_match, "test_a_name_without_the_letters_does_not_match", 67);
-  run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 72);
-  run_test(test_each_score_is_the_palettes_own, "test_each_score_is_the_palettes_own", 77);
-  run_test(test_a_match_too_torn_is_no_match, "test_a_match_too_torn_is_no_match", 83);
-  run_test(test_a_query_torn_into_too_many_pieces_is_no_match, "test_a_query_torn_into_too_many_pieces_is_no_match", 88);
+  run_test(test_a_typed_name_matches_its_letters_in_the_name, "test_a_typed_name_matches_its_letters_in_the_name", 63);
+  run_test(test_a_name_without_the_letters_does_not_match, "test_a_name_without_the_letters_does_not_match", 68);
+  run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 73);
+  run_test(test_each_score_is_the_palettes_own, "test_each_score_is_the_palettes_own", 78);
+  run_test(test_a_match_too_torn_is_no_match, "test_a_match_too_torn_is_no_match", 84);
+  run_test(test_a_query_torn_into_too_many_pieces_is_no_match, "test_a_query_torn_into_too_many_pieces_is_no_match", 89);
+  run_test(test_a_name_as_typed_outranks_one_that_starts_with_it_which_outranks_a_longer_match, "test_a_name_as_typed_outranks_one_that_starts_with_it_which_outranks_a_longer_match", 138);
+  run_test(test_a_file_opened_lately_outranks_an_equal_match, "test_a_file_opened_lately_outranks_an_equal_match", 154);
+  run_test(test_with_fuzzy_off_a_path_answers_only_where_it_contains_the_query, "test_with_fuzzy_off_a_path_answers_only_where_it_contains_the_query", 165);
+  run_test(test_with_the_tree_unread_only_the_recent_files_answer_and_reading_is_1, "test_with_the_tree_unread_only_the_recent_files_answer_and_reading_is_1", 175);
 
   return UNITY_END();
 }

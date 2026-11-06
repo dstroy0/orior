@@ -89,12 +89,12 @@ EMBED_INLINE void answer_sent_headers(const RequestsAnswerCtx *args)
         mmgr_line_put(out, (at > 0u) ? ",[" : "[");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
                    .text = args->sent->header_name[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->header_name[at], .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->header_name[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ',');
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
                    .text = args->sent->header_value[at],
                    .length =
-                       cellul.len(&(CatenaFinitaCfg){.src = args->sent->header_value[at], .cap = CLI_CELLS_POOL}));
+                       cellul.len(&(CatenaFinitaCfg){.src = args->sent->header_value[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ']');
     }
     mmgr_line_ch(out, ']');
@@ -142,11 +142,11 @@ void cli_requests_answer_write(const CliRequestsOutCtx *args)
     mmgr_line_put(args->out, ",\"sent\":{\"method\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->sent->method,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->method, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->method, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"url\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->sent->url,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"headers\":");
     EMBED_CALL(answer_sent_headers, RequestsAnswerCtx, .sent = args->sent, .out = args->out);
     mmgr_line_put(args->out, ",\"body\":");
@@ -156,7 +156,7 @@ void cli_requests_answer_write(const CliRequestsOutCtx *args)
     mmgr_line_put(args->out, ",\"url\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->answer->url,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->answer->url, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->answer->url, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"status\":");
     mmgr_line_decimal(args->out, args->answer->status, 1u);
     mmgr_line_put(args->out, ",\"reason\":");
@@ -185,7 +185,7 @@ void cli_requests_answer_write(const CliRequestsOutCtx *args)
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                    .text = args->answer->redirect_url[at],
                    .length =
-                       cellul.len(&(CatenaFinitaCfg){.src = args->answer->redirect_url[at], .cap = CLI_CELLS_POOL}));
+                       cellul.len(&(CatenaFinitaCfg){.src = args->answer->redirect_url[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(args->out, ']');
     }
     mmgr_line_put(args->out, "],\"failed\":");
@@ -193,7 +193,7 @@ void cli_requests_answer_write(const CliRequestsOutCtx *args)
     {
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                    .text = args->answer->failed,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->answer->failed, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->answer->failed, .cap = CLI_POOL_BYTES}));
     }
     else
     {

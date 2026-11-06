@@ -77,8 +77,8 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     const CliProcessesRead *const read_list = (const CliProcessesRead *)args->context;
     unsigned long long pid = 0ULL;
     int number = args->is_folder && (args->name[0] != '\0') &&
-                 (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) <= 10u);
-    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+                 (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) <= 10u);
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     number = number && (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name,
                                    .at = 0ULL, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
     pid = number ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = 0ULL, .size = digits,
@@ -103,7 +103,7 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     }
     unsigned long long end = (unsigned long long)name_size;
     while ((end > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = s_name[end - 1ULL]}) != NULL))
+                                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = s_name[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -166,13 +166,13 @@ void cli_processes_each(const CliContextCtx *args)
         for (unsigned long long at = start; at < end;)
         {
             while ((at < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = run_result->out[at]}) != NULL))
+                                      .src = " \t\r\f\v", .cap = CLI_POOL_BYTES, .byte = run_result->out[at]}) != NULL))
             {
                 at += 1ULL;
             }
             const unsigned long long first = at;
             while ((at < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = run_result->out[at]}) == NULL))
+                                      .src = " \t\r\f\v", .cap = CLI_POOL_BYTES, .byte = run_result->out[at]}) == NULL))
             {
                 at += 1ULL;
             }
@@ -234,17 +234,17 @@ EMBED_INLINE unsigned long long processes_kilobytes(const PosixProcessesCtx *arg
 {
     const char *text = args->text;
     const char *at = cellul.find(
-        &(CatenaFinitaCfg){.src = text, .cap = CLI_PROCESS_TEXT, .other = args->field, .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = text, .cap = CLI_PROCESS_TEXT, .other = args->field, .other_cap = CLI_POOL_BYTES});
     if (at == NULL)
     {
         return 0ULL;
     }
-    at += cellul.len(&(CatenaFinitaCfg){.src = args->field, .cap = CLI_CELLS_POOL});
+    at += cellul.len(&(CatenaFinitaCfg){.src = args->field, .cap = CLI_POOL_BYTES});
     at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                     .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " \t");
+                     .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .set = " \t");
     unsigned long long kilobytes = 0ULL;
     kilobytes = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .end = NULL);
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .end = NULL);
     return kilobytes * 1024ULL;
 }
 
@@ -289,7 +289,7 @@ int cli_process_by_name(const CliCapacityPidCtx *args)
         EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/comm", .out = s_name);
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = s_name, .cap = CLI_PROCESS_TEXT});
     while ((end > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = s_name[end - 1ULL]}) != NULL))
+                                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = s_name[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }

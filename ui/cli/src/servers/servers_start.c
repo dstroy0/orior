@@ -134,11 +134,11 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                             .json_read = json, .node = at, .length_pointer = &size);
         const char *const key = json->text + json->node[at].key;
         if ((text != NULL) && (size < CLI_NAME_MAX_LEN) &&
-            (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) < sizeof(args->spec->id_extension[0])))
+            (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) < sizeof(args->spec->id_extension[0])))
         {
             memor.cpy(&(MemoriaCfg){.dst = args->spec->id_extension[args->spec->ids],
                                     .src = key,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(&(MemoriaCfg){.dst = args->spec->id_name[args->spec->ids], .src = text, .bytes = (size_t)size});
             args->spec->id_name[args->spec->ids][size] = '\0';
             args->spec->ids += 1u;
@@ -183,7 +183,7 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
             const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = &manifest_json, .node = at, .length_pointer = &size);
             found = (text != NULL) &&
-                    (cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_CELLS_POOL}) == size) &&
+                    (cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_POOL_BYTES}) == size) &&
                     (memor.cmp(&(MemoriaCfg){.src = text, .other = args->language, .bytes = (size_t)size}) == 0);
         }
         if (found)
@@ -192,8 +192,8 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
                        .spec = args->spec);
         }
     }
-    g_cli_cells->persistent_buf_release(
-        manifest_json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = manifest_json.node));
+    g_cli_guard->persistent_buf_release(manifest_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -203,13 +203,13 @@ void cli_servers_id_get(const CliServersPathLanguageCtx *args)
 {
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '.');
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '/');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '/');
     const char *const back = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->path,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '\\');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .byte = '\\');
     const int named = (dot != NULL) && ((slash == NULL) || (dot > slash)) && ((back == NULL) || (dot > back));
     char extension[32] = {0};
     if (named)
@@ -221,7 +221,7 @@ void cli_servers_id_get(const CliServersPathLanguageCtx *args)
     for (unsigned int at = 0u; at < args->spec_read->ids; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = args->spec_read->id_extension[at], .other = extension, .cap = CLI_CELLS_POOL}))
+                .src = args->spec_read->id_extension[at], .other = extension, .cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put(&line, args->spec_read->id_name[at]);
             (void)mmgr_line_finish(&line);
@@ -276,7 +276,7 @@ EMBED_INLINE unsigned int start_running(const ServersStartCtx *args)
     {
         if (g_cli_servers.running[at].used &&
             (cellul.eq(&(CatenaFinitaCfg){
-                .src = g_cli_servers.running[at].spec.tool, .other = args->tool, .cap = CLI_CELLS_POOL})))
+                .src = g_cli_servers.running[at].spec.tool, .other = args->tool, .cap = CLI_POOL_BYTES})))
         {
             return at;
         }
@@ -290,7 +290,7 @@ EMBED_INLINE const char *start_fail(const ServersStartCtx *args)
     for (unsigned int at = 0u; at < g_cli_servers.failed; at += 1u)
     {
         if (cellul.eq(
-                &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL}))
+                &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_POOL_BYTES}))
         {
             return g_cli_servers.failed_msg[at];
         }
@@ -304,7 +304,7 @@ EMBED_INLINE void start_failure(const ServersStartCtx *args)
     unsigned int at = 0u;
     while ((at < g_cli_servers.failed) &&
            (!cellul.eq(
-               &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL})))
+               &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
@@ -327,7 +327,7 @@ EMBED_INLINE int start_again(const ServersStartCtx *args)
     unsigned int at = 0u;
     while ((at < g_cli_servers.restarted) &&
            (!cellul.eq(
-               &(CatenaFinitaCfg){.src = g_cli_servers.restart_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL})))
+               &(CatenaFinitaCfg){.src = g_cli_servers.restart_tool[at], .other = args->tool, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
@@ -359,7 +359,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     {
         return NULL;
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.root, .other = root, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.root, .other = root, .cap = CLI_POOL_BYTES}))
     {
         cli_servers_stop_all();
         VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ULL};
@@ -372,7 +372,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     const unsigned int at = EMBED_CALL(start_running, ServersStartCtx, .tool = spec->tool);
     static CliDatabase s_database;
     if ((at < CLI_SERVERS_MAX) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = spec->program, .other = "clangd", .cap = CLI_CELLS_POOL})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = spec->program, .other = "clangd", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = g_cli_servers.running[at].lsp) &&
         EMBED_CALL(cli_compile_db_root_database.refresh, CliCompileDbRootDatabaseCfg, .root = root,
                    .database = &s_database))

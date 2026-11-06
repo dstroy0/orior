@@ -11,7 +11,7 @@
 #include "../code/schema.h"
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 #include "../text/text.h"
@@ -54,7 +54,7 @@ typedef struct
     unsigned long long size;
     unsigned int *at;
     unsigned long long *start;
-    CellOwner *owner;
+    const CellOwner *owner;
 } ServersRequestCtx;
 // `method` sent to `server` about `line`, `col` of `path`, `added` after the place, the answer read into `read_state`:
 // its root, or CLI_JSON_NONE with why given, where `requested` is 0
@@ -99,7 +99,7 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
     {
         const unsigned long long capacity =
             EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &s_quick.json);
-        char *const displayed = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
+        char *const displayed = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
         VerbaLinea markdown = mmgr_line_over(displayed, capacity);
         EMBED_CALL(cli_servers_json_out_internal.markdown_get, CliServersJsonOutCtx, .json = &s_quick.json,
                    .contents = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -114,10 +114,9 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
         {
             mmgr_line_put_n(args->out, displayed, size);
         }
-        g_cli_cells->persistent_buf_release(displayed, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(displayed, g_cli_servers_owner);
     }
-    g_cli_cells->persistent_buf_release(s_quick.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return requested;
@@ -132,9 +131,9 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
     {
         const CliCompletion *const one = &s_items.item[at];
         bytes += (unsigned long long)one->label_size + one->detail_size + one->insert_size + 3ULL +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ULL;
+                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) + 1ULL;
     }
-    CliServerItems *const items = g_cli_cells->persistent_buf_alloc(
+    CliServerItems *const items = g_cli_guard->persistent_buf_alloc(
         sizeof(*items) + (s_items.count * sizeof(CliServerItem)) + bytes, args->owner);
     if (items == NULL)
     {
@@ -160,7 +159,7 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_items.text + one->insert_at, .bytes = one->insert_size});
         text[one->insert_size] = '\0';
         text += one->insert_size + 1ULL;
-        const unsigned long long kind = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) + 1ULL;
+        const unsigned long long kind = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) + 1ULL;
         item->kind = text;
         memor.cpy(&(MemoriaCfg){.dst = text, .src = one->kind, .bytes = kind});
         text += kind;
@@ -178,7 +177,7 @@ static void request_tree_item(const CliDeclaredCfg *args)
     const char *named = "word";
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        named = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = s_kinds[at], .cap = CLI_CELLS_POOL}) ? s_kinds[at]
+        named = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = s_kinds[at], .cap = CLI_POOL_BYTES}) ? s_kinds[at]
                                                                                                         : named;
     }
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = args->name,
@@ -212,7 +211,7 @@ EMBED_INLINE void request_tree_complete(const ServersRequestCtx *args)
                          .size = size, .line = line, .col = col, .each_declared = request_tree_item, .context = NULL,
                          .err_msg = &err_msg);
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
 CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
@@ -247,7 +246,7 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
             EMBED_CALL(cli_schema_line.complete, CliSchemaLineCfg, .path = path, .text = text, .size = size,
                        .line = line, .col = col, .items = &s_items);
         }
-        g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     }
     CliLsp *const server =
         EMBED_CALL(cli_servers_path_lsp_internal.owner_answering, CliServersPathLspCtx, .path = path);
@@ -283,8 +282,7 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
     }
     CliServerItems *const answered =
         requested ? EMBED_CALL(request_items_alloc, ServersRequestCtx, .owner = args->owner) : NULL;
-    g_cli_cells->persistent_buf_release(s_quick.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return answered;
@@ -309,8 +307,7 @@ CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args)
         requested ? EMBED_CALL(cli_servers_json_out_help_internal.signature_get, CliServersJsonOutHelpCtx,
                                .json = &s_quick.json, .help = root, .owner = args->owner)
                   : NULL;
-    g_cli_cells->persistent_buf_release(s_quick.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_quick.json.node));
+    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return panel;

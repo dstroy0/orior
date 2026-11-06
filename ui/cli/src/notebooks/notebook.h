@@ -42,8 +42,6 @@ int cli_notebook_for_diff(const CliNotebookTextCfg *args);
 // outputs go with its source. Cells either side added stand after the cell they follow there. `{"book": ours with no
 // cells, "entries": [{"take": cell} or {"conflict": {"base", "ours", "theirs"}}]}`
 unsigned int cli_notebook_merge(const CliNotebookCfg *args);
-// the cells a merge occupies while it runs, its capacity and the lines of two cells compared (notebook_merge.c)
-extern CellOwner g_cli_notebook_cells;
 
 struct CliNotebookTextCfg
 {

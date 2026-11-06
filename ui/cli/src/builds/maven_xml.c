@@ -60,8 +60,8 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        element_bytes + (2ULL * comment_bytes) + error_bytes + open_bytes + 1ULL, &g_cli_xml_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+        element_bytes + (2ULL * comment_bytes) + error_bytes + open_bytes + 1ULL, g_cli_xml_owner);
     *xml = (CliXml){args->text, args->size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)
     {
@@ -235,9 +235,9 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         if (skip < 4u)
         {
             const unsigned long long open =
-                cellul.len(&(CatenaFinitaCfg){.src = s_skip_open[skip], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = s_skip_open[skip], .cap = CLI_POOL_BYTES});
             const unsigned long long close =
-                cellul.len(&(CatenaFinitaCfg){.src = s_skip_close[skip], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = s_skip_close[skip], .cap = CLI_POOL_BYTES});
             unsigned long long end = 0ULL;
             if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = found + open, .length_value = left - open,
                             .required = s_skip_close[skip], .size = close, .at_pointer = &end))
@@ -343,7 +343,7 @@ unsigned int cli_xml_root(const CliMavenXmlProjectCtx *args)
 int cli_xml_by_name(const CliMavenXmlNameCtx *args)
 {
     const CliXmlElement *const one = &args->xml->element[args->element];
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) == one->to - one->from) &&
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) == one->to - one->from) &&
            (memor.cmp(&(MemoriaCfg){
                 .src = args->xml->text + one->from, .other = args->name, .bytes = (size_t)(one->to - one->from)}) == 0);
 }
@@ -399,7 +399,7 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
         if (entity < 5u)
         {
             mmgr_line_ch(args->out, s_letters[entity]);
-            at += cellul.len(&(CatenaFinitaCfg){.src = s_entities[entity], .cap = CLI_CELLS_POOL});
+            at += cellul.len(&(CatenaFinitaCfg){.src = s_entities[entity], .cap = CLI_POOL_BYTES});
             continue;
         }
         mmgr_line_ch(args->out, raw[at]);

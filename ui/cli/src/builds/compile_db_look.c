@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_look.c: a look for the tree's compilation database: the files it reads, the look cached for two seconds
 // and cached while the files it read stand, and the words clangd starts with for the database found
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -28,7 +28,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = ".clangd", .joined = path);
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_compile_cells);
+                                                  .size_pointer = &size, .owner = g_cli_compile_owner);
     int named = 0;
     for (unsigned long long at = 0ULL; (bytes != NULL) && !named && (at < size);)
     {
@@ -63,7 +63,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
             named = 1;
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_compile_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_compile_owner));
     return named;
 }
 
@@ -84,10 +84,10 @@ EMBED_INLINE int cli_input_append(const CompileDbLookCtx *args)
 void cli_compile_inputs(const CliCompileDbInputsCtx *args)
 {
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
-    g_cli_cells->persistent_buf_release(args->inputs->file, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(args->inputs->file, g_cli_compile_owner);
     *args->inputs = (CliInputs){0, NULL, 0u, 0u};
-    args->inputs->file = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
-                                                          &g_cli_compile_cells);
+    args->inputs->file = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
+                                                          g_cli_compile_owner);
     args->inputs->capacity = (args->inputs->file != NULL) ? CLI_COMPILE_INPUTS : 0u;
     char own[3][CLI_PATH_MAX_LEN];
     unsigned int owner = 0u;
@@ -135,7 +135,7 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
     {
         (void)EMBED_CALL(cli_input_append, CompileDbLookCtx, .inputs = args->inputs, .path = found.path[at]);
     }
-    g_cli_cells->persistent_buf_release(found.path, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(found.path, g_cli_compile_owner);
     *(&found) = (CliFoundFolders){NULL, 0u, 0u};
     // sorted by path, then time
     for (unsigned int at = 1u; (args->inputs->file != NULL) && (at < args->inputs->count); at += 1u)
@@ -146,7 +146,7 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
                ((EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->inputs->file[place - 1u].path,
                             .other_pointer = pivot.path) > 0) ||
                 ((cellul.eq(&(CatenaFinitaCfg){
-                     .src = args->inputs->file[place - 1u].path, .other = pivot.path, .cap = CLI_CELLS_POOL})) &&
+                     .src = args->inputs->file[place - 1u].path, .other = pivot.path, .cap = CLI_POOL_BYTES})) &&
                  (args->inputs->file[place - 1u].time > pivot.time))))
         {
             args->inputs->file[place] = args->inputs->file[place - 1u];
@@ -173,17 +173,17 @@ static CliLookCache s_cache;
 EMBED_INLINE void cli_inputs_save(const CompileDbLookCtx *args)
 {
     CliInputs *saved = args->saved;
-    g_cli_cells->persistent_buf_release(saved->file, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(saved->file, g_cli_compile_owner);
     *saved = (CliInputs){0, NULL, 0u, 0u};
     const unsigned long long bytes = (unsigned long long)args->read_state->count * sizeof(CliStamped);
-    CliStamped *const file = (bytes != 0ULL) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_compile_cells) : NULL;
+    CliStamped *const file = (bytes != 0ULL) ? g_cli_guard->persistent_buf_alloc(bytes, g_cli_compile_owner) : NULL;
     if (file != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = file, .src = args->read_state->file, .bytes = bytes});
     }
     const unsigned int count = (file != NULL) ? args->read_state->count : 0u;
     *saved = (CliInputs){args->read_state->own, file, count, count};
-    g_cli_cells->persistent_buf_release(args->read_state->file, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(args->read_state->file, g_cli_compile_owner);
     *args->read_state = (CliInputs){0, NULL, 0u, 0u};
 }
 
@@ -199,7 +199,7 @@ EMBED_INLINE int cli_same_inputs(const CompileDbLookCtx *args)
     {
         if ((args->one->file[at].time != other->file[at].time) ||
             (!cellul.eq(&(CatenaFinitaCfg){
-                .src = args->one->file[at].path, .other = other->file[at].path, .cap = CLI_CELLS_POOL})))
+                .src = args->one->file[at].path, .other = other->file[at].path, .cap = CLI_POOL_BYTES})))
         {
             return 0;
         }
@@ -211,7 +211,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
 {
     CliDatabase *database = args->database;
     const int same = s_cache.is_cached &&
-                     (cellul.eq(&(CatenaFinitaCfg){.src = s_cache.root, .other = args->root, .cap = CLI_CELLS_POOL}));
+                     (cellul.eq(&(CatenaFinitaCfg){.src = s_cache.root, .other = args->root, .cap = CLI_POOL_BYTES}));
     if (same && ((cli_clock_milliseconds() - s_cache.at) < CLI_COMPILE_LOOKED_FOR))
     {
         *database = s_cache.database;
@@ -222,7 +222,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
                .inputs = &read_state);
     if (same && EMBED_CALL(cli_same_inputs, CompileDbLookCtx, .one = &s_cache.read, .other = &read_state))
     {
-        g_cli_cells->persistent_buf_release(read_state.file, &g_cli_compile_cells);
+        g_cli_guard->persistent_buf_release(read_state.file, g_cli_compile_owner);
         *(&read_state) = (CliInputs){0, NULL, 0u, 0u};
         s_cache.at = cli_clock_milliseconds();
         *database = s_cache.database;
@@ -234,7 +234,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
     s_cache.is_cached = 1;
     memor.cpy(&(MemoriaCfg){.dst = s_cache.root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_cache.at = cli_clock_milliseconds();
     // the files this look read are stored in place of the last look's
     EMBED_CALL(cli_inputs_save, CompileDbLookCtx, .saved = &s_cache.read, .read_state = &read_state);
@@ -247,14 +247,14 @@ int cli_compile_db_is_cl(const CliCompileDbCfg *args)
     const char *name = args->compiler;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->compiler,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->compiler, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->compiler, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->compiler + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     const unsigned long long stem = ((dot != NULL) && (dot != name))
                                         ? (unsigned long long)(dot - name)
-                                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+                                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     return (stem == 2ULL) && ((name[0] | 0x20) == 'c') && ((name[1] | 0x20) == 'l');
 }
 

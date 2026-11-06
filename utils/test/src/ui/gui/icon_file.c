@@ -38,7 +38,7 @@ static unsigned int image_bytes(unsigned int size)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static GuiWindow window;
@@ -107,7 +107,7 @@ int main(void)
         {
             put(file, 0u, 1u);
         }
-        g_cli_cells->persistent_buf_release(icon.pixels, &g_gui_raster_cells);
+        g_cli_guard->persistent_buf_release(icon.pixels, g_gui_raster_owner);
         icon.pixels = NULL;
         icon.width = 0u;
         icon.height = 0u;

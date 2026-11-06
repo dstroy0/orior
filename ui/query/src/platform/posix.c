@@ -129,7 +129,7 @@ int query_environment_set(const QueryNameCtx *args)
 
 int query_environment_read(const QueryNameValueCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (char **entry = environ; (entry != NULL) && (*entry != NULL); entry += 1)
     {
         if (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = *entry, .other_pointer = args->name,
@@ -137,7 +137,7 @@ int query_environment_read(const QueryNameValueCtx *args)
             ((*entry)[length] == '='))
         {
             const char *const value_src = *entry + length + 1;
-            const size_t value_length = cellul.len(&(CatenaFinitaCfg){.src = value_src, .cap = CLI_CELLS_POOL});
+            const size_t value_length = cellul.len(&(CatenaFinitaCfg){.src = value_src, .cap = CLI_POOL_BYTES});
             if ((value_length == 0u) || (value_length >= args->capacity))
             {
                 return 0;
@@ -170,8 +170,8 @@ int query_folder_each(const QueryFolderEachCtx *args)
     }
     for (const struct dirent *entry = readdir(walk); entry != NULL; entry = readdir(walk))
     {
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = ".", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = "..", .cap = CLI_CELLS_POOL})))
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = ".", .cap = CLI_POOL_BYTES})) ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = entry->d_name, .other = "..", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }
@@ -191,7 +191,7 @@ int query_folder_each(const QueryFolderEachCtx *args)
 int query_folder_init(const QueryFolderContextCtx *args)
 {
     char path[QUERY_PATH_MAX_LEN];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES});
     if (length >= sizeof(path))
     {
         return 0;
@@ -356,7 +356,7 @@ int query_path_full(const QueryCapacityPathCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->full,
                                 .src = resolved,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = resolved, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = resolved, .cap = CLI_POOL_BYTES}) + 1u});
         return args->full[0] != '\0';
     }
     // a path not there yet is made full against the folder this process stands in
@@ -365,7 +365,7 @@ int query_path_full(const QueryCapacityPathCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->full,
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         return args->full[0] != '\0';
     }
     char here[PATH_MAX];

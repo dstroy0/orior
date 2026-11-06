@@ -25,7 +25,7 @@ static unsigned long long interface_number(const char *name)
     const unsigned long long length = CLI_UNITY_LENGTH(name);
     for (const char *line = s_header; line[0] != '\0';)
     {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = line, .other = "#define ", .cap = CLI_CELLS_POOL}) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = line + 8, .other_pointer = name, .size = length) && ((line[8u + length] == ' ') || (line[8u + length] == '\t')))
+        if (cellul.starts(&(CatenaFinitaCfg){.src = line, .other = "#define ", .cap = CLI_POOL_BYTES}) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = line + 8, .other_pointer = name, .size = length) && ((line[8u + length] == ' ') || (line[8u + length] == '\t')))
         {
             const char *digit = line + 8u + length;
             while ((digit[0] == ' ') || (digit[0] == '\t'))
@@ -40,7 +40,7 @@ static unsigned long long interface_number(const char *name)
             }
             return value;
         }
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .byte = '\n'});
         line = (end != NULL) ? (end + 1) : (line + CLI_UNITY_LENGTH(line));
     }
     TEST_FAIL_MESSAGE(name);
@@ -53,7 +53,7 @@ static void assert_reaches(const char *pattern)
     const char *const patterns[2] = {pattern, NULL};
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MAX);
     const unsigned int found = EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = s_root, .patterns = patterns, .found = &s_found);
-    g_cli_cells->persistent_buf_release(s_found.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(s_found.path, g_query_owner);
     *(&s_found) = (QueryPaths){NULL, 0u, 0u};
     TEST_ASSERT_GREATER_THAN_UINT_MESSAGE(0u, found, pattern);
 }
@@ -182,16 +182,16 @@ void test_no_two_sources_of_a_tool_share_an_object(void)
         {
             for (unsigned int other = one + 1u; apart && (other < count); other += 1u)
             {
-                apart = !cellul.eq(&(CatenaFinitaCfg){.src = s_named[one], .other = s_named[other], .cap = CLI_CELLS_POOL});
+                apart = !cellul.eq(&(CatenaFinitaCfg){.src = s_named[one], .other = s_named[other], .cap = CLI_POOL_BYTES});
             }
         }
-        g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+        g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
         *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
-        g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+        g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
         *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
-        g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+        g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
         *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
-        g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+        g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
         *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
         TEST_ASSERT_TRUE_MESSAGE(apart, tool->name);
     }
@@ -207,11 +207,11 @@ void test_the_file_definitions_are_what_every_program_links(void)
     {
         const char *const found = s_found.path[at];
         const unsigned long long length = CLI_UNITY_LENGTH(found);
-        kfile_lines = kfile_lines || ((length >= 14ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 14u, .other = "/kfile_lines.c", .cap = CLI_CELLS_POOL}));
-        kdm = kdm || ((length >= 6ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL}));
+        kfile_lines = kfile_lines || ((length >= 14ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 14u, .other = "/kfile_lines.c", .cap = CLI_POOL_BYTES}));
+        kdm = kdm || ((length >= 6ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_POOL_BYTES}));
     }
     const unsigned int capacity = s_found.capacity;
-    g_cli_cells->persistent_buf_release(s_found.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(s_found.path, g_query_owner);
     *(&s_found) = (QueryPaths){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(kfile_lines);
     TEST_ASSERT_TRUE(kdm);
@@ -227,8 +227,8 @@ void test_paths_input_the_compilers_use_forward_slashes(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "src/cu/includes/file_defs/kfile_lines/kfile_lines.c", .joined = source);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/objects", .joined = objects);
     EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = objects, .source_text = source, .object_capacity = object);
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL, .byte = '\\'}));
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = object, .cap = CLI_CELLS_POOL, .byte = '\\'}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = source, .cap = CLI_POOL_BYTES, .byte = '\\'}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = object, .cap = CLI_POOL_BYTES, .byte = '\\'}));
 }
 
 void test_a_missing_binary_is_stale(void)
@@ -292,7 +292,7 @@ void test_a_missing_compiler_is_reported_and_nothing_is_built(void)
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = out);
     TEST_ASSERT_FALSE(EMBED_CALL(query_name_capacity_internal.tool_built_into, QueryNameCapacityCtx, .root = s_root, .programs = &none, .name = "orior_sass_listing_seeds", .out_text = out, .binary = binary, .capacity = sizeof(binary), .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&err_msg));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_error, .other = "the C compiler is not found", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_error, .other = "the C compiler is not found", .cap = CLI_POOL_BYTES}));
     EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "orior_sass_listing_seeds", .binary = name, .capacity = sizeof(name));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out, .relative = name, .joined = path);
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));

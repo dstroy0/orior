@@ -94,21 +94,21 @@ int main(void)
   run_test(test_retention_stores_the_newest, "test_retention_stores_the_newest", 185);
   run_test(test_retention_removes_the_restored, "test_retention_removes_the_restored", 192);
   run_test(test_a_folders_runs_are_counted_to_the_query_while_in_use, "test_a_folders_runs_are_counted_to_the_query_while_in_use", 201);
-  run_test(test_no_crystal_is_found_where_none_is_built, "test_no_crystal_is_found_where_none_is_built", 220);
-  run_test(test_the_crystals_program_is_found_where_it_is_built, "test_the_crystals_program_is_found_where_it_is_built", 228);
-  run_test(test_a_path_is_named_under_the_top_of_the_tree, "test_a_path_is_named_under_the_top_of_the_tree", 245);
-  run_test(test_windows_a_path_on_a_drive_outside_the_tree_is_named_by_its_file, "test_windows_a_path_on_a_drive_outside_the_tree_is_named_by_its_file", 254);
-  run_test(test_posix_a_path_at_the_root_outside_the_tree_is_named_by_its_file, "test_posix_a_path_at_the_root_outside_the_tree_is_named_by_its_file", 265);
-  run_test(test_a_run_starts_its_writer, "test_a_run_starts_its_writer", 276);
-  run_test(test_a_failed_loop_still_stops_its_writer_and_stores_its_run, "test_a_failed_loop_still_stops_its_writer_and_stores_its_run", 287);
-  run_test(test_a_step_joins_a_run_left_open, "test_a_step_joins_a_run_left_open", 298);
-  run_test(test_a_steps_end_leaves_the_writer_running_with_its_line, "test_a_steps_end_leaves_the_writer_running_with_its_line", 311);
-  run_test(test_no_step_joins_a_run_whose_writer_has_stopped, "test_no_step_joins_a_run_whose_writer_has_stopped", 330);
-  run_test(test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere, "test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere", 342);
-  run_test(test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf, "test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf", 380);
-  run_test(test_a_file_written_is_recorded_as_a_leaf, "test_a_file_written_is_recorded_as_a_leaf", 405);
-  run_test(test_a_later_step_reads_the_runs_own_not_the_disks_older_copy, "test_a_later_step_reads_the_runs_own_not_the_disks_older_copy", 428);
-  run_test(test_a_runs_end_releases_the_cells_of_its_leaves, "test_a_runs_end_releases_the_cells_of_its_leaves", 452);
+  run_test(test_no_crystal_is_found_where_none_is_built, "test_no_crystal_is_found_where_none_is_built", 222);
+  run_test(test_the_crystals_program_is_found_where_it_is_built, "test_the_crystals_program_is_found_where_it_is_built", 230);
+  run_test(test_a_path_is_named_under_the_top_of_the_tree, "test_a_path_is_named_under_the_top_of_the_tree", 247);
+  run_test(test_windows_a_path_on_a_drive_outside_the_tree_is_named_by_its_file, "test_windows_a_path_on_a_drive_outside_the_tree_is_named_by_its_file", 256);
+  run_test(test_posix_a_path_at_the_root_outside_the_tree_is_named_by_its_file, "test_posix_a_path_at_the_root_outside_the_tree_is_named_by_its_file", 267);
+  run_test(test_a_run_starts_its_writer, "test_a_run_starts_its_writer", 278);
+  run_test(test_a_failed_loop_still_stops_its_writer_and_stores_its_run, "test_a_failed_loop_still_stops_its_writer_and_stores_its_run", 289);
+  run_test(test_a_step_joins_a_run_left_open, "test_a_step_joins_a_run_left_open", 300);
+  run_test(test_a_steps_end_leaves_the_writer_running_with_its_line, "test_a_steps_end_leaves_the_writer_running_with_its_line", 313);
+  run_test(test_no_step_joins_a_run_whose_writer_has_stopped, "test_no_step_joins_a_run_whose_writer_has_stopped", 332);
+  run_test(test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere, "test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere", 344);
+  run_test(test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf, "test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf", 382);
+  run_test(test_a_file_written_is_recorded_as_a_leaf, "test_a_file_written_is_recorded_as_a_leaf", 407);
+  run_test(test_a_later_step_reads_the_runs_own_not_the_disks_older_copy, "test_a_later_step_reads_the_runs_own_not_the_disks_older_copy", 430);
+  run_test(test_a_runs_end_releases_the_cells_of_its_leaves, "test_a_runs_end_releases_the_cells_of_its_leaves", 454);
 
   return UNITY_END();
 }

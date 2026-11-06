@@ -35,7 +35,7 @@ void cli_folder_get(const CliExecutablesOutCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     }
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = folder,
                .relative_out = args->out);
@@ -43,7 +43,7 @@ void cli_folder_get(const CliExecutablesOutCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->out,
                                 .src = ".",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 
@@ -56,7 +56,7 @@ void cli_build_folder(const CliExecutablesOutCtx *args)
     mmgr_line_put(&line, "build/");
     mmgr_line_put(&line, args->tool);
     mmgr_line_ch(&line, '/');
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(&line, folder);
         mmgr_line_ch(&line, '/');
@@ -115,13 +115,13 @@ typedef struct
 EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
 {
     const char *zig_processor;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "amd64", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "x86_64", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "amd64", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "x86_64", .cap = CLI_POOL_BYTES})))
     {
         zig_processor = "x86_64";
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "arm64", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "aarch64", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "arm64", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "aarch64", .cap = CLI_POOL_BYTES})))
     {
         zig_processor = "aarch64";
     }
@@ -130,16 +130,16 @@ EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
         zig_processor = NULL;
     }
     const char *zig_system;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "linux", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "linux", .cap = CLI_POOL_BYTES}))
     {
         zig_system = "linux-musl";
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "windows", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "windows", .cap = CLI_POOL_BYTES}))
     {
         zig_system = "windows-gnu";
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "darwin", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "macos", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "darwin", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "macos", .cap = CLI_POOL_BYTES})))
     {
         zig_system = "macos";
     }
@@ -180,14 +180,14 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     const int has_zig = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "zig", .name = "zig",
                                    .path = found, .err_msg = &err_msg);
     VerbaLinea quoted = {zig, sizeof(zig), 0ULL};
-    const int spaced = cellul.chr(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL, .byte = ' '}) != NULL;
+    const int spaced = cellul.chr(&(CatenaFinitaCfg){.src = found, .cap = CLI_POOL_BYTES, .byte = ' '}) != NULL;
     mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
     mmgr_line_put(&quoted, has_zig ? found : "");
     mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
     mmgr_line_finish(&quoted);
     char target[CLI_NAME_MAX_LEN];
     char command[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "go", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "go", .cap = CLI_POOL_BYTES}))
     {
         const char *host_system = NULL;
         const char *host_processor = NULL;
@@ -198,13 +198,13 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         const char *const processor = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                                  .values = values, .key = "GOARCH", .fallback = host_processor);
         const int other =
-            (!cellul.eq(&(CatenaFinitaCfg){.src = system, .other = host_system, .cap = CLI_CELLS_POOL})) ||
-            (!cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = host_processor, .cap = CLI_CELLS_POOL}));
+            (!cellul.eq(&(CatenaFinitaCfg){.src = system, .other = host_system, .cap = CLI_POOL_BYTES})) ||
+            (!cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = host_processor, .cap = CLI_POOL_BYTES}));
         if ((cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                                             .values = values, .key = "CGO_ENABLED",
                                                             .fallback = s_as_go_chooses),
                                           .other = "1",
-                                          .cap = CLI_CELLS_POOL})) &&
+                                          .cap = CLI_POOL_BYTES})) &&
             other && has_zig &&
             EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
         {
@@ -217,13 +217,13 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         }
         return;
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "rust", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "rust", .cap = CLI_POOL_BYTES}))
     {
         return;
     }
     const char *const rust = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx, .values = values,
                                         .key = "target", .fallback = s_this_machine);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = rust, .other = s_this_machine, .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = rust, .other = s_this_machine, .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -231,10 +231,10 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     char upper[CLI_NAME_MAX_LEN];
     char lower[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
-        .dst = upper, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = upper, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){
-        .dst = lower, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long upper_size = cellul.len(&(CatenaFinitaCfg){.src = upper, .cap = CLI_CELLS_POOL});
+        .dst = lower, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_POOL_BYTES}) + 1u});
+    const unsigned long long upper_size = cellul.len(&(CatenaFinitaCfg){.src = upper, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = upper, .size = upper_size, .from = '-',
                .to = '_');
     EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = upper, .size = upper_size);
@@ -246,7 +246,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     mmgr_line_put(&named, upper);
     mmgr_line_put(&named, "_LINKER");
     mmgr_line_finish(&named);
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_POOL_BYTES});
     char set[CLI_PATH_MAX_LEN];
 #if defined(__linux__)
     const int on_linux = 1;
@@ -254,7 +254,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     const int on_linux = 0;
 #endif
     if ((length >= 11ULL) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ULL, .other = "-linux-musl", .cap = CLI_CELLS_POOL})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ULL, .other = "-linux-musl", .cap = CLI_POOL_BYTES})) &&
         !on_linux &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = linker, .value_out = set,
                     .capacity = sizeof(set)))
@@ -262,23 +262,23 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = linker, .value = "rust-lld");
     }
     char processor[CLI_NAME_MAX_LEN];
-    const char *const dash = cellul.chr(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL, .byte = '-'});
+    const char *const dash = cellul.chr(&(CatenaFinitaCfg){.src = rust, .cap = CLI_POOL_BYTES, .byte = '-'});
     VerbaLinea part = {processor, sizeof(processor), 0ULL};
     mmgr_line_put_n(&part, rust, (dash != NULL) ? (unsigned long long)(dash - rust) : length);
     mmgr_line_finish(&part);
     const char *system;
     if (cellul.find(&(CatenaFinitaCfg){
-            .src = rust, .cap = CLI_CELLS_POOL, .other = "linux", .other_cap = CLI_CELLS_POOL}) != NULL)
+            .src = rust, .cap = CLI_POOL_BYTES, .other = "linux", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         system = "linux";
     }
     else if (cellul.find(&(CatenaFinitaCfg){
-                 .src = rust, .cap = CLI_CELLS_POOL, .other = "windows-gnu", .other_cap = CLI_CELLS_POOL}) != NULL)
+                 .src = rust, .cap = CLI_POOL_BYTES, .other = "windows-gnu", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         system = "windows";
     }
     else if (cellul.find(&(CatenaFinitaCfg){
-                 .src = rust, .cap = CLI_CELLS_POOL, .other = "apple", .other_cap = CLI_CELLS_POOL}) != NULL)
+                 .src = rust, .cap = CLI_POOL_BYTES, .other = "apple", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         system = "darwin";
     }
@@ -356,7 +356,7 @@ EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
         unsigned int processor_count = 1u;
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
-            if (!cellul.eq(&(CatenaFinitaCfg){.src = systems_all[at], .other = system, .cap = CLI_CELLS_POOL}))
+            if (!cellul.eq(&(CatenaFinitaCfg){.src = systems_all[at], .other = system, .cap = CLI_POOL_BYTES}))
             {
                 systems[system_count] = systems_all[at];
                 system_count += 1u;
@@ -364,7 +364,7 @@ EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
         }
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
-            if (!cellul.eq(&(CatenaFinitaCfg){.src = processors_all[at], .other = processor, .cap = CLI_CELLS_POOL}))
+            if (!cellul.eq(&(CatenaFinitaCfg){.src = processors_all[at], .other = processor, .cap = CLI_POOL_BYTES}))
             {
                 processors[processor_count] = processors_all[at];
                 processor_count += 1u;
@@ -409,7 +409,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
         for (unsigned int other = 0u; other < found.count; other += 1u)
         {
             named += (cellul.eq(
-                         &(CatenaFinitaCfg){.src = found.item[other].name, .other = exe->name, .cap = CLI_CELLS_POOL}))
+                         &(CatenaFinitaCfg){.src = found.item[other].name, .other = exe->name, .cap = CLI_POOL_BYTES}))
                          ? 1u
                          : 0u;
         }
@@ -425,7 +425,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                 base = folder;
                 const unsigned long long base_end = EMBED_CALL(
                     cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
-                    .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                    .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .set = "/\\");
                 base = (base_end != 0ULL) ? (folder + base_end) : base;
             }
             mmgr_line_put(&line, base);
@@ -447,7 +447,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                        .catalog = catalog);
         }
     }
-    g_cli_cells->persistent_buf_release(found.item, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(found.order, &g_cli_executables_cells);
+    g_cli_guard->persistent_buf_release(found.item, g_cli_executables_owner);
+    g_cli_guard->persistent_buf_release(found.order, g_cli_executables_owner);
     *(&found) = (CliExecutables){NULL, 0u, 0u, NULL};
 }

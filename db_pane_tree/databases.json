@@ -1,0 +1,19 @@
+{
+  "connections": [
+    {
+      "name": "lite",
+      "kind": "sqlite",
+      "file": "app.db"
+    },
+    {
+      "name": "broken",
+      "kind": "sqlite",
+      "file": "no/such/folder/app.db"
+    },
+    {
+      "name": "second",
+      "kind": "sqlite",
+      "file": "two.db"
+    }
+  ]
+}

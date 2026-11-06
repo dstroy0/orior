@@ -15,14 +15,14 @@ void query_targets(const QueryPairsWordsCtx *args)
     const QueryContext *context = args->context_read;
     QueryWords *words = args->words;
     char path[QUERY_PATH_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "queue", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "queue", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                    .under = QUERY_PAIRS_STICK "/measuring_stick.tsv", .path_out = path);
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                    .text = path);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "pair", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "pair", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                    .under = QUERY_TABLE "/Lstar.klq", .path_out = path);
@@ -33,14 +33,14 @@ void query_targets(const QueryPairsWordsCtx *args)
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                    .text = path);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "stall", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "stall", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(query_pairs_part_path_internal.part_file, QueryPairsPartPathCtx, .context_read = context,
                    .part = args->mode->part, .extension = ".khw", .path = path);
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                    .text = path);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(query_pairs_part_path_internal.part_file, QueryPairsPartPathCtx, .context_read = context,
                    .part = args->mode->part, .extension = ".kdm", .path = path);
@@ -65,9 +65,9 @@ void query_targets(const QueryPairsWordsCtx *args)
 // opening runs both
 int query_kernel_dispatch(const QueryPairsCtx *args)
 {
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "frame", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "fixed", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "pair", .cap = CLI_CELLS_POOL}));
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "frame", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "fixed", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->mode_text, .other = "pair", .cap = CLI_POOL_BYTES}));
 }
 
 void query_kernel_words(const QueryPairsPartCtx *args)
@@ -157,8 +157,8 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                                 .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ULL;
-    if (whole && (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "frame", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "fixed", .cap = CLI_CELLS_POOL})) &&
+    if (whole && (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "frame", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "fixed", .cap = CLI_POOL_BYTES})) &&
         !EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_run.writer,
                     .name = "host_answers.txt", .bytes_u8s = &bytes, .size_pointer = &size))
     {
@@ -167,7 +167,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     }
     whole = whole && EMBED_CALL(query_pairs_part_context_internal.configs, QueryPairsPartContextCtx, .context = context,
                                 .run_out = &s_run, .part = args->mode->part, .err_msg = err_msg);
-    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_CELLS_POOL})))
+    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_POOL_BYTES})))
     {
         char kdm[QUERY_PATH_MAX_LEN];
         EMBED_CALL(query_pairs_part_path_internal.part_file, QueryPairsPartPathCtx, .context_read = context,
@@ -193,7 +193,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                .word_text = out);
     EMBED_CALL(query_pairs_words_internal.targets, QueryPairsWordsCtx, .context_read = context, .mode = args->mode,
                .words = &s_words);
-    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_CELLS_POOL})))
+    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_POOL_BYTES})))
     {
         // the machine file's forms placed by the vendor's writer, handed to the run for the identity to cost in the
         // part's clock beside the arrangements
@@ -225,7 +225,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
                    ? 1
                    : -1;
     }
-    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "pair", .cap = CLI_CELLS_POOL})) &&
+    if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "pair", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_run.writer, .name = "log",
                    .bytes_u8s = &bytes, .size_pointer = &size))
     {
@@ -257,10 +257,10 @@ static void query_dis_find(const CliEachNameIsFolderCfg *args)
     void *context = args->context;
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->name,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}), .byte = '.');
     *(int *)context =
         *(int *)context || (!args->is_folder && (dot != NULL) &&
-                            (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".dis", .cap = CLI_CELLS_POOL})));
+                            (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".dis", .cap = CLI_POOL_BYTES})));
 }
 
 int query_stick_slice(const QueryPairsContextErrMsgCtx *args)

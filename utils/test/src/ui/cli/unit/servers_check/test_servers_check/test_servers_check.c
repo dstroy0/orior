@@ -24,7 +24,7 @@ static void events_ignored(const CliEachEventJsonSizeCfg *args)
 static unsigned long long check_bytes_in_use(void)
 {
     VerbaLinea out = {s_owners, sizeof(s_owners), 0ull};
-    EMBED_CALL(cli_cells_table.owners_write, CliCellsCfg, .out = &out);
+    cli_pool_owners_write(&out);
     (void)mmgr_line_finish(&out);
     static const char s_named[] = "the tree's check";
     unsigned long long in_use = 0ull;
@@ -90,7 +90,7 @@ void test_every_file_is_listing_in_order(void)
         at += CLI_UNITY_LENGTH(file) + 1ull;
     }
     TEST_ASSERT_EQUAL_UINT(CHECK_FILES, count);
-    g_cli_cells->persistent_buf_release(list_entries, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(list_entries, g_cli_servers_owner);
 }
 
 void test_another_tree_lists_no_files(void)

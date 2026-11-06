@@ -109,7 +109,7 @@ static void jupyter_sign(const JupyterWireCtx *args)
 {
     unsigned char block[64];
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
-    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     if (key_size > sizeof(block))
     {
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->key, .size = key_size,
@@ -158,7 +158,7 @@ EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
 {
     if (args->kernel->shell_queue.out == NULL)
     {
-        char *const queue_cell = g_cli_cells->persistent_buf_alloc(CLI_KERNEL_QUEUE_CAPACITY, &g_cli_notebook_cells);
+        char *const queue_cell = g_cli_guard->persistent_buf_alloc(CLI_KERNEL_QUEUE_CAPACITY, g_cli_notebook_owner);
         args->kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_CAPACITY);
     }
     char named[CLI_KERNEL_ID];
@@ -176,7 +176,7 @@ void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
 {
     if ((args->kernel->shell_flight[0] != '\0') &&
         (cellul.eq(
-            &(CatenaFinitaCfg){.src = args->kernel->shell_flight, .other = args->parent, .cap = CLI_CELLS_POOL})))
+            &(CatenaFinitaCfg){.src = args->kernel->shell_flight, .other = args->parent, .cap = CLI_POOL_BYTES})))
     {
         args->kernel->shell_flight[0] = '\0';
         // the next queued request sent, one the connection refuses passed over for the one after it
@@ -208,16 +208,16 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
     VerbaLinea line = {header, sizeof(header), 0ULL};
     mmgr_line_put(&line, "{\"msg_id\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->id_read,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id_read, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id_read, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&line, ",\"session\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line,
                .text = args->kernel->session,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kernel->session, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kernel->session, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&line, ",\"username\":\"orior\",\"date\":\"");
     EMBED_CALL(cli_jupyter_out_internal.kernel_now_write, CliJupyterOutCtx, .out = &line);
     mmgr_line_put(&line, "\",\"msg_type\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->msg_type,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->msg_type, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->msg_type, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&line, ",\"version\":\"5.3\"}");
     if (!mmgr_line_ok(&line))
     {
@@ -254,7 +254,7 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
         mmgr_line_put(&flight, args->id_read);
         (void)mmgr_line_finish(&flight);
     }
-    g_cli_cells->persistent_buf_release(message, &g_cli_notebook_cells);
+    g_cli_guard->persistent_buf_release(message, g_cli_notebook_owner);
     return sent;
 }
 
@@ -330,7 +330,7 @@ int cli_kernel_message_write(const CliJupyterOutCtx *args)
     mmgr_line_put(args->out, "{\"channel\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->reader->channel,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reader->channel, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reader->channel, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"msg_type\":");
     const int header = EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
                                   .name = "msg_type", .out = args->out, .copy = NULL, .capacity = 0ULL);

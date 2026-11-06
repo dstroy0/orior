@@ -84,7 +84,7 @@ EMBED_INLINE int lex_prefix(const InspectPyLexCtx *args)
     lower[args->end - args->start] = '\0';
     for (unsigned int at = 0u; at < 13u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_prefixes[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_prefixes[at], .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -289,7 +289,7 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
         unsigned int at = 0u;
         while ((op == NULL) && (at < 47u))
         {
-            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_ops[at], .cap = CLI_CELLS_POOL});
+            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_ops[at], .cap = CLI_POOL_BYTES});
             op = ((scan->size - start >= length) &&
                   (memor.cmp(&(MemoriaCfg){.src = scan->src + start, .other = s_ops[at], .bytes = length}) == 0))
                      ? s_ops[at]
@@ -303,7 +303,7 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
     }
     else
     {
-        for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = op, .cap = CLI_CELLS_POOL}); at += 1u)
+        for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = op, .cap = CLI_POOL_BYTES}); at += 1u)
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
@@ -480,7 +480,7 @@ const CliInspectTok *cli_py_tok(const CliInspectPyCfg *args)
 int cli_py_is(const CliInspectPySrcTokCfg *args)
 {
     const char *src = args->src;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     return (args->tok->end - args->tok->start == length) &&
            (memor.cmp(&(MemoriaCfg){.src = src + args->tok->start, .other = args->word_text, .bytes = length}) == 0);
 }

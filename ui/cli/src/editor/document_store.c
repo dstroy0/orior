@@ -4,7 +4,7 @@
 // against the last commit's file, and searched. Each text's lines live in a cell sized to the text with capacity to
 // grow, moved to a larger cell as an edit outgrows it; and the last commit's file in one sized to it. A paged text is a
 // branch too, its lines in the pages and only their states here, carried through each edit the pages write
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "document_internal.h"
 #include "pages.h"
@@ -100,7 +100,7 @@ EMBED_INLINE int stored_capacity_enter(const DocumentStoreCtx *args)
     // each line's start and length, then the two states it is colored from and ends in, its regions and its runs' place
     const unsigned long long bytes = unit_bytes + (2ULL * (unsigned long long)count * sizeof(unsigned long long)) +
                                      (CLI_DOC_LINE_WORDS * (unsigned long long)count * sizeof(unsigned int));
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_editor_owner);
     *lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
     if (cell == NULL)
     {
@@ -120,8 +120,8 @@ EMBED_INLINE int stored_capacity_enter(const DocumentStoreCtx *args)
 EMBED_INLINE void stored_capacity_exit(const DocumentStoreCtx *args)
 {
     CliLines *lines = args->lines;
-    g_cli_cells->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun,
-                                        &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun,
+                                        g_cli_editor_owner);
     *lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
 }
 
@@ -141,7 +141,7 @@ static int stored_states_grow(const DocumentStoreCtx *args)
         // the lines a capacity holds are counted by an unsigned int
         const unsigned int most = (capacity < 0xffffffffULL) ? (unsigned int)capacity : 0xffffffffu;
         unsigned int *const begun =
-            g_cli_cells->persistent_buf_alloc(CLI_DOC_LINE_WORDS * most * sizeof(unsigned int), &g_cli_editor_cells);
+            g_cli_guard->persistent_buf_alloc(CLI_DOC_LINE_WORDS * most * sizeof(unsigned int), g_cli_editor_owner);
         if (begun == NULL)
         {
             return 0;
@@ -205,7 +205,7 @@ CliStoredText *cli_document_on_store(const CliDocumentKeyCtx *args)
 {
     for (CliStoredText *one = s_stored; one != NULL; one = one->next)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             return one;
         }
@@ -222,14 +222,14 @@ EMBED_INLINE CliStoredText *cli_stored_init(const DocumentStoreCtx *args)
     {
         return there;
     }
-    CliStoredText *const one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
+    CliStoredText *const one = g_cli_guard->persistent_buf_alloc(sizeof(*one), g_cli_editor_owner);
     if (one == NULL)
     {
         return NULL;
     }
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     memor.cpy(&(MemoriaCfg){
-        .dst = one->key, .src = key, .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = one->key, .src = key, .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
     one->next = s_stored;
     s_stored = one;
     return one;
@@ -240,11 +240,11 @@ EMBED_INLINE void stored_cells_free(const DocumentStoreCtx *args)
 {
     EMBED_CALL(stored_capacity_exit, DocumentStoreCtx, .lines = &args->one->lines);
     EMBED_CALL(stored_capacity_exit, DocumentStoreCtx, .lines = &args->one->head);
-    g_cli_cells->persistent_buf_release(args->one->state, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->state_index, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->roles, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one->run, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(args->one, &g_cli_editor_cells);
+    g_cli_guard->persistent_buf_release(args->one->state, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one->state_index, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one->roles, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one->run, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(args->one, g_cli_editor_owner);
 }
 
 // a text stored let go: taken off the texts stored, and its cells released, at once where nothing pins it, else as

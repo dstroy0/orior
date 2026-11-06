@@ -33,14 +33,14 @@ typedef struct
 EMBED_INLINE void cli_extension(const NotebookCtx *args)
 {
     char *out = args->out;
-    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     name = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                                    .at = (unsigned long long)(name - args->path), .set = "/\\");
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     out[0] = '\0';
-    if ((dot == NULL) || (cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_CELLS_POOL}) >= 16u))
+    if ((dot == NULL) || (cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_POOL_BYTES}) >= 16u))
     {
         return;
     }
@@ -58,19 +58,19 @@ const char *cli_notebook_comment(const CliNotebookCtx *args)
     EMBED_CALL(cli_extension, NotebookCtx, .path = args->path, .out = extension);
     for (unsigned int at = 0u; at < (sizeof(s_slashes) / sizeof(s_slashes[0])); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_slashes[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_slashes[at], .cap = CLI_POOL_BYTES}))
         {
             return "//";
         }
     }
     for (unsigned int at = 0u; at < (sizeof(s_dashes) / sizeof(s_dashes[0])); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_dashes[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_dashes[at], .cap = CLI_POOL_BYTES}))
         {
             return "--";
         }
     }
-    return (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "m", .cap = CLI_CELLS_POOL})) ? "%" : "#";
+    return (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "m", .cap = CLI_POOL_BYTES})) ? "%" : "#";
 }
 
 EMBED_INLINE int cli_is_space(const NotebookCtx *args)
@@ -98,7 +98,7 @@ EMBED_INLINE const char *cli_on_mark(const NotebookCtx *args)
     {
         from += 1;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->mark, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->mark, .cap = CLI_POOL_BYTES});
     return (((unsigned long long)(args->to - from) >= length) &&
             (memor.cmp(&(MemoriaCfg){.src = from, .other = args->mark, .bytes = length}) == 0))
                ? (from + length)
@@ -109,7 +109,7 @@ int cli_notebook_is(const CliNotebookPathCfg *args)
 {
     char extension[16];
     EMBED_CALL(cli_extension, NotebookCtx, .path = args->path, .out = extension);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "ipynb", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "ipynb", .cap = CLI_POOL_BYTES}))
     {
         return 1;
     }
@@ -136,7 +136,7 @@ int cli_notebook_is(const CliNotebookPathCfg *args)
 
 int cli_notebook_ends(const CliNotebookTextCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_POOL_BYTES});
     return (args->length >= size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->text + args->length - size, .other = args->ending, .bytes = size}) ==
             0);
@@ -265,7 +265,7 @@ EMBED_INLINE void cli_outputs_join(const NotebookCtx *args)
             const char *const name = json->text + json->node[kind].key;
             if ((json->node[kind].kind == CFG_JSON_ARRAY) &&
                 !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = name,
-                            .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}),
                             .ending = "json"))
             {
                 EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = data,
@@ -284,10 +284,10 @@ static void cli_cell_finish(const NotebookCtx *args)
     CliJson *json = args->json;
     unsigned int kind = args->kind;
     const int markdown = cellul.eq(
-        &(CatenaFinitaCfg){.src = json->text + json->node[kind].text, .other = "markdown", .cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = json->text + json->node[kind].text, .other = "markdown", .cap = CLI_POOL_BYTES});
     const unsigned long long start = json->used;
     const unsigned long long comment_length =
-        cellul.len(&(CatenaFinitaCfg){.src = args->comment, .cap = CLI_CELLS_POOL});
+        cellul.len(&(CatenaFinitaCfg){.src = args->comment, .cap = CLI_POOL_BYTES});
     int first = 1;
     const char *at = args->from;
     while (at < args->to)
@@ -385,7 +385,7 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
     }
     const char *const named = (word_text != NULL) ? word_text : "code";
     *kind = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
-                       .text = named, .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
+                       .text = named, .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}));
     const unsigned long long start = json->used;
     EMBED_CALL(cli_piece, NotebookCtx, .json = json, .text = rest,
                .length = (unsigned long long)(((found != NULL) ? found : end) - rest));
@@ -477,15 +477,15 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
     }
     const unsigned int header = EMBED_CALL(cli_pieces_init, NotebookCtx, .json = json, .start = start);
     const char *language;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "//", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "//", .cap = CLI_POOL_BYTES}))
     {
         language = "javascript";
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "%", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "%", .cap = CLI_POOL_BYTES}))
     {
         language = "matlab";
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "--", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "--", .cap = CLI_POOL_BYTES}))
     {
         language = "lua";
     }
@@ -499,7 +499,7 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
                .name = "language",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                    .json = json, .text = language,
-                                   .length = cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_CELLS_POOL})));
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = book,
                .name = "format",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
@@ -517,7 +517,7 @@ unsigned int cli_notebook_read(const CliNotebookPathCfg *args)
 {
     char extension[16];
     EMBED_CALL(cli_extension, NotebookCtx, .path = args->path, .out = extension);
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "ipynb", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "ipynb", .cap = CLI_POOL_BYTES}))
     {
         const unsigned int book = EMBED_CALL(cli_script_read, NotebookCtx, .json = args->json, .path = args->path,
                                              .text = args->text, .size = args->size);

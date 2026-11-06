@@ -7,7 +7,7 @@
 // the same checker over the same file standing in for an earlier one still going; and each checker that reads a tree
 // whole run over the tree
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../plugins/plugins.h"
 #include "../toolchains/checkers.h"
 #include "servers_internal.h"
@@ -99,7 +99,7 @@ static void checkers_file_job(const CliServersJobCfg *args)
     {
         return;
     }
-    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    char *const findings = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_ANSWER, g_cli_servers_owner);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
@@ -114,7 +114,7 @@ static void checkers_file_job(const CliServersJobCfg *args)
         EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.out,
                    .size = found.at, .always = 0, .sink = &one->sink);
     }
-    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(findings, g_cli_servers_owner);
 }
 
 // the tree checked whole by one checker, its findings written into a cell of the most a tree's findings hold and stored
@@ -126,7 +126,7 @@ static void checkers_tree_job(const CliServersJobCfg *args)
     {
         return;
     }
-    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
+    char *const findings = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_FINDINGS, g_cli_servers_owner);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
@@ -137,7 +137,7 @@ static void checkers_tree_job(const CliServersJobCfg *args)
         EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.out,
                    .size = found.at, .always = 0, .sink = &one->sink);
     }
-    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(findings, g_cli_servers_owner);
 }
 
 // a path copied into what is sized for CLI_PATH_MAX_LEN
@@ -161,7 +161,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = (ids != 0u) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                                 .languages_read = &languages, .path = path, .id_out = language);
-    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
     if (!known)
     {
@@ -184,7 +184,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
         const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
         const unsigned long long text_size = has_text ? size : 0ULL;
         char *const job =
-            g_cli_cells->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, &g_cli_servers_cells);
+            g_cli_guard->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, g_cli_servers_owner);
         if (job == NULL)
         {
             continue;

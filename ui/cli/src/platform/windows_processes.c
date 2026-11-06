@@ -4,8 +4,8 @@
 // started with, read from the process where it lets that be read; and a process's memory, its start and its program's
 // name
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -48,7 +48,7 @@ EMBED_INLINE void processes_utf8(const WindowsProcessesCtx *args)
 
 // the line process `pid` was started with, a counted string, its length in bytes first and the address of its text
 // after, the text following in the same capacity, read into a cell of the bytes the system reports it takes: the line
-// as UTF-8 in a cell of its own, given back with g_cli_cells->persistent_buf_release, or NULL where it cannot be read
+// as UTF-8 in a cell of its own, given back with g_cli_guard->persistent_buf_release, or NULL where it cannot be read
 EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
 {
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, args->pid);
@@ -66,7 +66,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
     const ULONG capacity = needed;
     // the capacity taken on a cell's boundary, aligned for the string's header
     unsigned char *const base = ((capacity > 2u * sizeof(void *)) && (capacity < CLI_PROCESS_COMMAND_MAX))
-                                    ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_platform_cells)
+                                    ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_platform_owner)
                                     : NULL;
     if ((base != NULL) && (args->query(process, CLI_PROCESS_COMMAND_LINE, base, capacity, &needed) >= 0))
     {
@@ -81,7 +81,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
-            command = g_cli_cells->persistent_buf_alloc((3ull * length) + 1ull, &g_cli_platform_cells);
+            command = g_cli_guard->persistent_buf_alloc((3ull * length) + 1ull, g_cli_platform_owner);
         }
         if (command != NULL)
         {
@@ -89,7 +89,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
                        .capacity = (int)((3u * length) + 1u));
         }
     }
-    g_cli_cells->persistent_buf_release(base, &g_cli_platform_cells);
+    g_cli_guard->persistent_buf_release(base, g_cli_platform_owner);
     CloseHandle(process);
     return command;
 }
@@ -122,7 +122,7 @@ void cli_processes_each(const CliContextCtx *args)
         EMBED_CALL(args->each_callback, CliEachPidNameCommandCfg, .context = args->context,
                    .pid = (unsigned int)entry.th32ProcessID, .name = s_name,
                    .command = (command != NULL) ? command : "");
-        g_cli_cells->persistent_buf_release(command, &g_cli_platform_cells);
+        g_cli_guard->persistent_buf_release(command, g_cli_platform_owner);
     }
     CloseHandle(snapshot);
 }

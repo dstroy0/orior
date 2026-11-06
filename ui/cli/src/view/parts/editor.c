@@ -7,6 +7,7 @@
 
 #include "../../text/text.h"
 #include "../frame.h"
+#include "gutter.h"
 
 #include <math.h>
 
@@ -359,7 +360,7 @@ GuiColor gui_editor_color(const GuiEditorPaletteCfg *args)
     }
     const char *const text = names->name[args->name];
     return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = text,
-                      .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+                      .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 // one line's text drawn from `x` on the baseline `y`, each letter in its run's color, a tab laid out to its stop
@@ -743,6 +744,9 @@ EMBED_INLINE void editor_row_draw(const EditorCtx *args)
                        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = args->scale),
                    .color = args->palette->number, .clip = args->place);
     }
+    // the text's left is a whole pixel, the gutter's width rounded
+    EMBED_CALL(gui_gutter.mark_draw, GuiGutterCfg, .raster = raster, .palette = args->palette, .line = line,
+               .rect = args->row_rect, .text_x = (int)args->text_x, .scale = args->scale, .clip = args->place);
     EMBED_CALL(editor_line_draw, EditorCtx, .editor = args->editor, .line_line_pointer = stored_line, .at = args->at,
                .raster = raster, .glyphs = args->glyphs, .palette = args->palette, .x = args->text_x, .y = args->y,
                .cell = args->cell, .size = args->size, .clip = args->clip);

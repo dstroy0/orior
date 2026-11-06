@@ -207,9 +207,9 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     }
     // an end's answer, frame and queued bodies stand in one cell, for as long as the end does
     client->answer =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
+        g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
                                               ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
-                                          &g_cli_ipc_cells);
+                                          g_cli_ipc_owner);
     if (client->answer == NULL)
     {
         client->reserved = 0;
@@ -252,7 +252,7 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     if (!joined || !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &client->reader))
     {
         EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &client->end);
-        g_cli_cells->persistent_buf_release(client->answer, &g_cli_ipc_cells);
+        g_cli_guard->persistent_buf_release(client->answer, g_cli_ipc_owner);
         client->answer = NULL;
         client->reserved = 0;
         return NULL;
@@ -282,7 +282,7 @@ void cli_ipc_leave(const CliIpcClientCfg *args)
         }
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->client->end);
-    g_cli_cells->persistent_buf_release(args->client->answer, &g_cli_ipc_cells);
+    g_cli_guard->persistent_buf_release(args->client->answer, g_cli_ipc_owner);
     args->client->answer = NULL;
     args->client->reserved = 0;
 }
@@ -359,10 +359,10 @@ int cli_ipc_next(const CliIpcClientCfg *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->channel_out,
                       .src = entry->channel,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = entry->channel, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = entry->channel, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->from,
                             .src = entry->from,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = entry->from, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = entry->from, .cap = CLI_POOL_BYTES}) + 1u});
     mmgr_line_put_n(args->body_verba_linea_pointer, entry->has_region ? (const char *)entry->region.view : entry->body,
                     entry->size);
     if (entry->has_region)

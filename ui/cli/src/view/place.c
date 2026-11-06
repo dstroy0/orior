@@ -6,8 +6,8 @@
 // larger than its monitor is cut to it
 #include "view.h"
 
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 
 // how much of a window's top edge must stand on a monitor for its place there to stand, in pixels: enough to take it
@@ -143,7 +143,7 @@ int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned 
     }
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_view_cells);
+                                                  .size_pointer = &size, .owner = g_cli_view_owner);
     int found = 0;
     unsigned long long at = 0ULL;
     while ((bytes != NULL) && !found && ((at + sizeof(CliPlaceRecord)) <= size))
@@ -163,7 +163,7 @@ int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned 
             *place = record.place;
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_view_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_view_owner));
     return found && (place->width >= CLI_POSITION_MIN_WIDTH) && (place->height >= CLI_POSITION_MIN_HEIGHT) &&
            EMBED_CALL(place_fit, CliPlaceCtx, .position_out = place, .areas = areas, .count = count);
 }
@@ -179,9 +179,9 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
     }
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_view_cells);
+                                                  .size_pointer = &size, .owner = g_cli_view_owner);
     const unsigned long long most = ((bytes != NULL) ? size : 0ULL) + sizeof(CliPlaceRecord) + key_length;
-    unsigned char *const written = g_cli_cells->persistent_buf_alloc(most, &g_cli_view_cells);
+    unsigned char *const written = g_cli_guard->persistent_buf_alloc(most, g_cli_view_owner);
     if (written != NULL)
     {
         // a key's bytes are below what a record's length counts
@@ -211,7 +211,7 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
         }
         (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                          .bytes = written, .size = used);
-        g_cli_cells->persistent_buf_release(written, &g_cli_view_cells);
+        g_cli_guard->persistent_buf_release(written, g_cli_view_owner);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_view_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_view_owner));
 }

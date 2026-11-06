@@ -5,23 +5,23 @@
 // The cells are the one cellblock's, counted to the files' own mark, which their report writes
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "files_internal.h"
 
 void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args)
 {
-    EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_files_views_cells, .out = args->out);
+    cli_pool_owner_usage_write(g_cli_files_views_owner, args->out);
 }
 
 void *cli_files_cell_alloc(const CliFilesBytesCtx *args)
 {
-    return g_cli_cells->persistent_buf_alloc(args->bytes, &g_cli_files_views_cells);
+    return g_cli_guard->persistent_buf_alloc(args->bytes, g_cli_files_views_owner);
 }
 
 void *cli_files_work_alloc(const CliFilesBytesCtx *args)
 {
-    return g_cli_cells->temporary_buf_alloc(args->bytes, &g_cli_files_views_cells);
+    return g_cli_guard->temporary_buf_alloc(args->bytes, g_cli_files_views_owner);
 }
 
 const char *cli_files_at(const CliFilesCfg *args)
@@ -128,7 +128,7 @@ int cli_files_sort(const CliFilesBytesCtx *args)
         return 0;
     }
     EMBED_CALL(files_merge, FilesCellsCtx, .files = args->files, .reserve = reserve);
-    g_cli_cells->persistent_buf_release(reserve, &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(reserve, g_cli_files_views_owner);
     // each path listed once
     unsigned int sorted_count = 0u;
     for (unsigned int at = 0u; at < args->files->count; at += 1u)
@@ -136,7 +136,7 @@ int cli_files_sort(const CliFilesBytesCtx *args)
         if ((sorted_count == 0u) ||
             (!cellul.eq(&(CatenaFinitaCfg){.src = args->files->text + args->files->start[sorted_count - 1u],
                                            .other = args->files->text + args->files->start[at],
-                                           .cap = CLI_CELLS_POOL})))
+                                           .cap = CLI_POOL_BYTES})))
         {
             args->files->start[sorted_count] = args->files->start[at];
             sorted_count += 1u;
@@ -149,8 +149,8 @@ int cli_files_sort(const CliFilesBytesCtx *args)
 void cli_files_clear(const CliFilesBytesCtx *args)
 {
     CliFiles *files = args->files;
-    g_cli_cells->persistent_buf_release(files->start, &g_cli_files_views_cells);
-    g_cli_cells->persistent_buf_release(files->text, &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(files->start, g_cli_files_views_owner);
+    g_cli_guard->persistent_buf_release(files->text, g_cli_files_views_owner);
     *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
 }
 
@@ -226,7 +226,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
         if (EMBED_CALL(args->filter, CliEachPathCfg, .context = args->context, .path = path))
         {
             (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = files, .path = path,
-                             .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                             .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         }
     }
     *picked = (CliPicked){files, files->count};
@@ -242,6 +242,6 @@ const char *cli_picked_at(const CliFilesPickedIndexCtx *args)
 void cli_picked_let(const CliFilesPickedCtx *args)
 {
     CliPicked *picked = args->picked;
-    g_cli_cells->persistent_buf_release(picked->files, &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(picked->files, g_cli_files_views_owner);
     *picked = (CliPicked){NULL, 0u};
 }

@@ -445,7 +445,7 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
         min_y = (y < min_y) ? y : min_y;
         max_y = (y > max_y) ? y : max_y;
     }
-    unsigned char *const counts = g_cli_cells->temporary_buf_alloc(args->width, &g_gui_icons_cells);
+    unsigned char *const counts = g_cli_guard->temporary_buf_alloc(args->width, g_gui_icons_owner);
     if (counts == NULL)
     {
         return;
@@ -483,7 +483,7 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(counts, &g_gui_icons_cells);
+    g_cli_guard->persistent_buf_release(counts, g_gui_icons_owner);
 }
 
 // a cubic curve drawn from the pen through its control points x1, y1 and x2, y2 to x, y, as lines between points
@@ -619,7 +619,7 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     float *value = args->value;
     const char *text = *at;
     text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = " ,");
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .set = " ,");
     const int negative = *text == '-';
     if ((*text == '-') || (*text == '+'))
     {
@@ -763,7 +763,7 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
     for (;;)
     {
         at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                         .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " ,");
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .set = " ,");
         if (*at == '\0')
         {
             return;
@@ -856,12 +856,12 @@ void gui_icons_init(const GuiIconsCfg *args)
 EMBED_INLINE int icons_draw(const IconsCtx *args)
 {
     const unsigned long long pixels = (unsigned long long)args->size * args->size;
-    float *const floats = g_cli_cells->persistent_buf_alloc(pixels * sizeof(*floats), &g_gui_icons_cells);
-    unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &g_gui_icons_cells);
+    float *const floats = g_cli_guard->persistent_buf_alloc(pixels * sizeof(*floats), g_gui_icons_owner);
+    unsigned char *const cover = g_cli_guard->persistent_buf_alloc(pixels, g_gui_icons_owner);
     if ((floats == NULL) || (cover == NULL))
     {
-        g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
-        g_cli_cells->persistent_buf_release(cover, &g_gui_icons_cells);
+        g_cli_guard->persistent_buf_release(floats, g_gui_icons_owner);
+        g_cli_guard->persistent_buf_release(cover, g_gui_icons_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = floats, .val = 0, .bytes = pixels * sizeof(*floats)});
@@ -917,7 +917,7 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
     }
-    g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
+    g_cli_guard->persistent_buf_release(floats, g_gui_icons_owner);
     args->mask_bits->width = args->size;
     args->mask_bits->height = args->size;
     args->mask_bits->left = 0;
@@ -950,7 +950,7 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
         {
             if (args->icons->entry[at].used)
             {
-                g_cli_cells->persistent_buf_release(args->icons->entry[at].mask_bits.cover, &g_gui_icons_cells);
+                g_cli_guard->persistent_buf_release(args->icons->entry[at].mask_bits.cover, g_gui_icons_owner);
                 args->icons->entry[at].mask_bits.cover = NULL;
                 args->icons->entry[at].used = 0;
             }

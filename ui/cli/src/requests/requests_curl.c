@@ -3,7 +3,7 @@
 // requests_curl.c: the request a curl line sends, written as a request of a file, a line copied for cmd, its lines
 // ending in carets, read as cmd reads it; and the curl line that sends a request, for bash and the shells that read
 // quotes as it does
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/base64.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
@@ -76,7 +76,7 @@ typedef struct
 // whether `size` bytes of `text` are `word`
 EMBED_INLINE int curl_is(const RequestsCurlCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) == args->size) &&
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) == args->size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->text, .other = args->word_text, .bytes = (size_t)args->size}) == 0);
 }
 
@@ -85,7 +85,7 @@ EMBED_INLINE int curl_has(const RequestsCurlCtx *args)
 {
     for (unsigned int at = 0u; at < args->read->headers; at += 1u)
     {
-        if ((args->read->name[at].size == cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_CELLS_POOL})) &&
+        if ((args->read->name[at].size == cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_POOL_BYTES})) &&
             EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
                        .text = args->read->name[at].at, .size = args->read->name[at].size, .needle = args->lower))
         {
@@ -201,7 +201,7 @@ EMBED_INLINE int curl_data_put(const RequestsCurlCtx *args)
     {
         fits = EMBED_CALL(curl_has, RequestsCurlCtx, .read = args->read_out, .lower = json_lower[index]) ||
                EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = json[index],
-                          .name_size = cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_CELLS_POOL}),
+                          .name_size = cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_POOL_BYTES}),
                           .value = "application/json", .value_size = 16u);
         index += 1u;
     }
@@ -422,14 +422,14 @@ EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
     for (;;)
     {
         while ((end > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                  .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[end - 1u]}) != NULL))
+                                  .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 1u]}) != NULL))
         {
             end -= 1u;
         }
         const int dot =
             (end > 0u) && (args->path[end - 1u] == '.') &&
             ((end == 1u) || (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[end - 2u]}) != NULL));
+                                 .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 2u]}) != NULL));
         if (!dot || (end == 1u))
         {
             break;
@@ -438,7 +438,7 @@ EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
     }
     unsigned long long begin = end;
     while ((begin > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[begin - 1u]}) == NULL))
+                                .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[begin - 1u]}) == NULL))
     {
         begin -= 1u;
     }
@@ -587,7 +587,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                .end = &end);
     const char *text = args->line_text + start;
     unsigned long long length = end - start;
-    s_curl = g_cli_cells->persistent_buf_alloc(sizeof(*s_curl), &g_cli_requests_cells);
+    s_curl = g_cli_guard->persistent_buf_alloc(sizeof(*s_curl), g_cli_requests_owner);
     if (s_curl == NULL)
     {
         mmgr_line_put(args->err_msg, "a curl line's reading could not be taken");
@@ -639,7 +639,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
     }
     // a request's headers may carry a secret, and the pool leaves a cell as it is
     mmgr_zero_buf(s_curl, sizeof(*s_curl));
-    g_cli_cells->persistent_buf_release(s_curl, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(s_curl, g_cli_requests_owner);
     s_curl = NULL;
     return read;
 }

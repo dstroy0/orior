@@ -51,7 +51,7 @@ EMBED_INLINE void address_trim(const LinkAddressCtx *args)
     const char *text = args->text;
     unsigned long long *start = args->start;
     unsigned long long *size = args->size;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     unsigned long long begin = 0ULL;
     unsigned int letter = 0u;
     while (begin < length)
@@ -154,7 +154,7 @@ void cli_link_machine(const CliLinkOutCfg *args)
 {
     const char *const at = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->address->name,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->address->name, .cap = CLI_CELLS_POOL}), .byte = '@');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->address->name, .cap = CLI_POOL_BYTES}), .byte = '@');
     mmgr_line_put(args->out, ((args->address->way == CLI_LINK_SSH) && (at != NULL)) ? (at + 1) : args->address->name);
 }
 

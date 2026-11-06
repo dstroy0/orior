@@ -6,8 +6,8 @@
 // line it is read from
 #include "../editor/bridge.h"
 #include "../text/text.h"
-#include "cells.h"
 #include "command_line_internal.h"
+#include "pool.h"
 
 // The command's work state, a cell taken as it starts and given back as it ends: the bridge's tree, in a cell of its
 // own, and a line printed
@@ -105,13 +105,13 @@ EMBED_INLINE void bridge_pair_counts(const CommandLineBridgeCtx *args)
             open += (cellul.eq(&(CatenaFinitaCfg){
                         .src = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = verdict, .name = "word"),
                         .other = "open",
-                        .cap = CLI_CELLS_POOL}))
+                        .cap = CLI_POOL_BYTES}))
                         ? 1u
                         : 0u;
             closed += (cellul.eq(&(CatenaFinitaCfg){
                           .src = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = verdict, .name = "word"),
                           .other = "closed",
-                          .cap = CLI_CELLS_POOL}))
+                          .cap = CLI_POOL_BYTES}))
                           ? 1u
                           : 0u;
         }
@@ -215,8 +215,8 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
         {
             const char *const named = s_work_state->json.text + s_work_state->json.node[entry].key;
             const char *const key = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = entry, .name = "key");
-            if ((!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = name, .cap = CLI_CELLS_POOL})) &&
-                (!cellul.eq(&(CatenaFinitaCfg){.src = named, .other = name, .cap = CLI_CELLS_POOL})))
+            if ((!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = name, .cap = CLI_POOL_BYTES})) &&
+                (!cellul.eq(&(CatenaFinitaCfg){.src = named, .other = name, .cap = CLI_POOL_BYTES})))
             {
                 continue;
             }
@@ -230,7 +230,7 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
             mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = map, .name = "language"));
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, named);
-            if ((key[0] != '\0') && (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = named, .cap = CLI_CELLS_POOL})))
+            if ((key[0] != '\0') && (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = named, .cap = CLI_POOL_BYTES})))
             {
                 mmgr_line_put(&line, " -> ");
                 mmgr_line_put(&line, key);
@@ -283,7 +283,7 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
         const char *const path = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = ruleset, .name = "path");
         const char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
         const char *const file = (slash != NULL) ? slash + 1 : path;
         const unsigned int entries =
             EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
@@ -358,7 +358,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
         {
             const unsigned long long letters =
                 EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
             pad = (letters > pad) ? letters : pad;
             count += 1u;
         }
@@ -380,7 +380,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
         mmgr_line_put(&line, name);
         for (unsigned long long letters =
                  EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
-                            .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                            .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
              letters < pad; letters += 1ULL)
         {
             mmgr_line_ch(&line, ' ');
@@ -394,7 +394,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
 
 int cli_bridge_words(const CliCommandLineWordCtx *args)
 {
-    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_command_line_cells);
+    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -402,11 +402,11 @@ int cli_bridge_words(const CliCommandLineWordCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(bridge_words, CommandLineBridgeCtx, .root = args->root, .word_text = args->word_text);
-    g_cli_cells->persistent_buf_release(
-        s_work_state->json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_work_state->json.node));
+    g_cli_guard->persistent_buf_release(s_work_state->json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }

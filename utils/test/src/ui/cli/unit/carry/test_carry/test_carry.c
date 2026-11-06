@@ -203,7 +203,7 @@ void test_the_settings_that_differ_are_named_and_this_machines_own_are_not(void)
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int place = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at);
-        settings = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(place, "place"), .other = "settings.json", .cap = CLI_CELLS_POOL}) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = place, .name = "settings") : settings;
+        settings = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(place, "place"), .other = "settings.json", .cap = CLI_POOL_BYTES}) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = place, .name = "settings") : settings;
     }
     TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = settings, .kind = CFG_JSON_ARRAY));
     TEST_ASSERT_EQUAL_UINT(3u, s_json->node[settings].count);
@@ -220,7 +220,7 @@ void test_a_file_only_there_is_reported_to_be_there(void)
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int place = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at);
-        how = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(place, "place"), .other = "themes/Night.json", .cap = CLI_CELLS_POOL}) ? cli_unity_member_text(place, "how") : how;
+        how = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(place, "place"), .other = "themes/Night.json", .cap = CLI_POOL_BYTES}) ? cli_unity_member_text(place, "how") : how;
     }
     TEST_ASSERT_EQUAL_STRING("there", how);
 }

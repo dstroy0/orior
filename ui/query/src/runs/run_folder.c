@@ -32,7 +32,7 @@ typedef struct
 // a run's entry `query<n>-<datetime>.qry`, or the folder of its crystal: its number, or 0 where it is no run
 EMBED_INLINE unsigned long long query_run_number(const RunFolderCtx *args)
 {
-    if (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_CELLS_POOL}))
+    if (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_POOL_BYTES}))
     {
         return 0ULL;
     }
@@ -42,10 +42,10 @@ EMBED_INLINE unsigned long long query_run_number(const RunFolderCtx *args)
     {
         return 0ULL;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     const int qry =
         (length > 4u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES}));
     if (qry == args->is_folder)
     {
         return 0ULL;
@@ -125,16 +125,16 @@ int query_runs_alloc(const QueryFolderRunsCtx *args)
     {
         return 1;
     }
-    runs->number = g_cli_cells->persistent_buf_alloc((unsigned long long)counting.count * sizeof(unsigned long long),
-                                                     &g_query_cells);
+    runs->number = g_cli_guard->persistent_buf_alloc((unsigned long long)counting.count * sizeof(unsigned long long),
+                                                     g_query_owner);
     runs->path =
         (runs->number != NULL)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)counting.count * QUERY_PATH_MAX_LEN, &g_query_cells)
+            ? g_cli_guard->persistent_buf_alloc((unsigned long long)counting.count * QUERY_PATH_MAX_LEN, g_query_owner)
             : NULL;
     if (runs->path == NULL)
     {
-        g_cli_cells->persistent_buf_release(runs->number, &g_query_cells);
-        g_cli_cells->persistent_buf_release(runs->path, &g_query_cells);
+        g_cli_guard->persistent_buf_release(runs->number, g_query_owner);
+        g_cli_guard->persistent_buf_release(runs->path, g_query_owner);
         *runs = (QueryRuns){NULL, NULL, 0u};
         return 0;
     }
@@ -196,7 +196,7 @@ void query_by_name(const QueryCapacityPathNameCtx *args)
                                 .full = full_top, .capacity = sizeof(full_top)) &&
                      EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->path,
                                 .full = full_path, .capacity = sizeof(full_path));
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = full_top, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = full_top, .cap = CLI_POOL_BYTES});
     if (both &&
         EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full_path, .other_pointer = full_top,
                    .size = length) &&
@@ -211,23 +211,23 @@ void query_by_name(const QueryCapacityPathNameCtx *args)
     const char *base = args->path;
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     base = (base_end != 0ULL) ? (args->path + base_end) : base;
     memor.cpy(&(MemoriaCfg){.dst = args->name_out,
                             .src = base,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 int query_open(const QueryCapacityQryPathCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_POOL_BYTES});
     if ((length > 4u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->qry_path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->qry_path + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->named,
                           .src = args->qry_path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_POOL_BYTES}) + 1u});
         return args->named[0] != '\0';
     }
     if (args->crystal == NULL)
@@ -238,7 +238,7 @@ int query_open(const QueryCapacityQryPathCtx *args)
     const char *base = args->qry_path;
     const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->qry_path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     base = (base_end != 0ULL) ? (args->qry_path + base_end) : base;
     char restored[QUERY_PATH_MAX_LEN];
     VerbaLinea restored_line = {restored, sizeof(restored), 0ULL};
@@ -308,8 +308,8 @@ void query_runs_prune(const QueryFolderMaxCtx *args)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = runs.path[at]);
     }
-    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
     *(&runs) = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -337,7 +337,7 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
             ((args->own != NULL) &&
              EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = named, .full = named_full,
                         .capacity = sizeof(named_full)) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = named_full, .other = own_full, .cap = CLI_CELLS_POOL}))))
+             (cellul.eq(&(CatenaFinitaCfg){.src = named_full, .other = own_full, .cap = CLI_POOL_BYTES}))))
         {
             continue;
         }
@@ -346,7 +346,7 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
         s_other.member = 0;
         memor.cpy(&(MemoriaCfg){.dst = s_other.qry,
                                 .src = named,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) + 1u});
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ULL;
         if (EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other, .name = name,
@@ -354,12 +354,12 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->found,
                                     .src = named,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) + 1u});
             latest = (args->found[0] != '\0') ? 1 : -1;
         }
     }
-    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
     *(&runs) = (QueryRuns){NULL, NULL, 0u};
     return latest == 1;
 }

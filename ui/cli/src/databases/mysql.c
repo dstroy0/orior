@@ -231,7 +231,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
     if (args->caching)
     {
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->password,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}),
                    .digest = once);
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
                    .digest = twice);
@@ -243,7 +243,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
     else
     {
         EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = args->password,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}),
                    .digest = once);
         EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
                    .digest = twice);

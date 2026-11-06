@@ -122,7 +122,7 @@ static void serve_read(void *context)
     mmgr_line_put(&out, "{\"type\":\"orior\",\"event\":\"recorded\",\"out\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)s_out,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&out, ",\"code\":");
     if (has_code)
     {
@@ -153,7 +153,7 @@ int cli_recording_run(const CliRecordingDapCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = python,
             .src = g_cli_replay->python,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_replay->python, .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_replay->python, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else if (!EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python))
     {
@@ -196,7 +196,7 @@ int cli_recording_run(const CliRecordingDapCtx *args)
     const int supplied =
         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = s_running.in,
                    .bytes = g_cli_recording_shim,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_recording_shim, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_recording_shim, .cap = CLI_POOL_BYTES}));
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &s_running);
     if (!supplied)
     {

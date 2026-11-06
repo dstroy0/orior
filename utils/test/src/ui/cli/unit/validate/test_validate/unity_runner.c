@@ -87,24 +87,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\validate\\test_validate\\test_validate.c");
-  run_test(test_the_lean_tool_reads_its_toolchain, "test_the_lean_tool_reads_its_toolchain", 77);
-  run_test(test_the_lean_tool_reads_its_barriers, "test_the_lean_tool_reads_its_barriers", 82);
-  run_test(test_comments_and_strings_are_not_code, "test_comments_and_strings_are_not_code", 92);
-  run_test(test_flags_find_their_words, "test_flags_find_their_words", 110);
-  run_test(test_each_flag_has_its_position_and_severity, "test_each_flag_has_its_position_and_severity", 125);
-  run_test(test_theorems_alloc_their_namespaces, "test_theorems_alloc_their_namespaces", 134);
-  run_test(test_messages_read_leans_json_each_at_its_position, "test_messages_read_leans_json_each_at_its_position", 147);
-  run_test(test_information_is_a_note, "test_information_is_a_note", 156);
-  run_test(test_a_timeout_is_the_heartbeats_barrier, "test_a_timeout_is_the_heartbeats_barrier", 162);
-  run_test(test_a_stack_overflow_is_the_kernels_recursion_barrier, "test_a_stack_overflow_is_the_kernels_recursion_barrier", 168);
-  run_test(test_a_theorems_axioms_are_read, "test_a_theorems_axioms_are_read", 174);
-  run_test(test_a_theorem_with_no_axioms_is_read, "test_a_theorem_with_no_axioms_is_read", 188);
-  run_test(test_an_instance_timeout_is_its_own_barrier, "test_an_instance_timeout_is_its_own_barrier", 200);
-  run_test(test_a_messages_kind_names_its_barrier, "test_a_messages_kind_names_its_barrier", 209);
-  run_test(test_a_fault_of_the_proof_is_no_barrier, "test_a_fault_of_the_proof_is_no_barrier", 216);
-  run_test(test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms, "test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms", 223);
-  run_test(test_the_copy_reports_what_it_changed, "test_the_copy_reports_what_it_changed", 237);
-  run_test(test_a_limit_of_zero_is_unchanged, "test_a_limit_of_zero_is_unchanged", 248);
+  run_test(test_the_lean_tool_reads_its_toolchain, "test_the_lean_tool_reads_its_toolchain", 87);
+  run_test(test_the_lean_tool_reads_its_barriers, "test_the_lean_tool_reads_its_barriers", 92);
+  run_test(test_comments_and_strings_are_not_code, "test_comments_and_strings_are_not_code", 102);
+  run_test(test_flags_find_their_words, "test_flags_find_their_words", 120);
+  run_test(test_each_flag_has_its_position_and_severity, "test_each_flag_has_its_position_and_severity", 135);
+  run_test(test_theorems_alloc_their_namespaces, "test_theorems_alloc_their_namespaces", 144);
+  run_test(test_messages_read_leans_json_each_at_its_position, "test_messages_read_leans_json_each_at_its_position", 157);
+  run_test(test_information_is_a_note, "test_information_is_a_note", 166);
+  run_test(test_a_timeout_is_the_heartbeats_barrier, "test_a_timeout_is_the_heartbeats_barrier", 172);
+  run_test(test_a_stack_overflow_is_the_kernels_recursion_barrier, "test_a_stack_overflow_is_the_kernels_recursion_barrier", 178);
+  run_test(test_a_theorems_axioms_are_read, "test_a_theorems_axioms_are_read", 184);
+  run_test(test_a_theorem_with_no_axioms_is_read, "test_a_theorem_with_no_axioms_is_read", 198);
+  run_test(test_an_instance_timeout_is_its_own_barrier, "test_an_instance_timeout_is_its_own_barrier", 210);
+  run_test(test_a_messages_kind_names_its_barrier, "test_a_messages_kind_names_its_barrier", 219);
+  run_test(test_a_fault_of_the_proof_is_no_barrier, "test_a_fault_of_the_proof_is_no_barrier", 226);
+  run_test(test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms, "test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms", 233);
+  run_test(test_the_copy_reports_what_it_changed, "test_the_copy_reports_what_it_changed", 247);
+  run_test(test_a_limit_of_zero_is_unchanged, "test_a_limit_of_zero_is_unchanged", 258);
 
   return UNITY_END();
 }

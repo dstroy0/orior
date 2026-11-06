@@ -9,7 +9,7 @@
 // a scale that leaves a size as it is: every scale in the window is a percent
 #define GUI_SCALE_ONE 100
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct GuiRasterWidthXCfg GuiRasterWidthXCfg;

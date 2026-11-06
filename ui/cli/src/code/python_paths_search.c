@@ -3,7 +3,7 @@
 // python_paths_search.c: the tree's Python scripts that touch `sys.path` read, and the folders they name in the tree
 // counted, the most used first, the reading cached for thirty seconds
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -53,9 +53,9 @@ EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
 {
     static const char *const s_not[8] = {"venv",          ".venv",       "env",  "node_modules",
                                          "site-packages", "__pycache__", ".tox", ".nox"};
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
     if ((length < 3ULL) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3ULL, .other = ".py", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3ULL, .other = ".py", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
@@ -70,7 +70,7 @@ EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
         const unsigned long long size = (unsigned long long)(at - part);
         for (unsigned int one = 0u; one < 8u; one += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_not[one], .cap = CLI_CELLS_POOL}) == size) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = s_not[one], .cap = CLI_POOL_BYTES}) == size) &&
                 (memor.cmp(&(MemoriaCfg){.src = part, .other = s_not[one], .bytes = size}) == 0))
             {
                 return 0;
@@ -116,7 +116,7 @@ EMBED_INLINE void cli_on_count(const PythonPathsSearchCtx *args)
 {
     for (unsigned int at = 0u; at < s_search.seens; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_search.seen[at], .other = args->folder, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_search.seen[at], .other = args->folder, .cap = CLI_POOL_BYTES}))
         {
             return;
         }
@@ -126,7 +126,7 @@ EMBED_INLINE void cli_on_count(const PythonPathsSearchCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = s_search.seen[s_search.seens],
                           .src = args->folder,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}) + 1u});
         s_search.seens += 1u;
     }
 }
@@ -139,7 +139,7 @@ static void cli_seen_count(void)
         unsigned int at = 0u;
         while ((at < s_search.counts) &&
                (!cellul.eq(&(CatenaFinitaCfg){
-                   .src = s_search.counted[at].path, .other = s_search.seen[one], .cap = CLI_CELLS_POOL})))
+                   .src = s_search.counted[at].path, .other = s_search.seen[one], .cap = CLI_POOL_BYTES})))
         {
             at += 1u;
         }
@@ -174,7 +174,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
         return;
     }
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                  .size_pointer = &size, .owner = &g_cli_python_cells);
+                                                  .size_pointer = &size, .owner = g_cli_python_owner);
     if (bytes == NULL)
     {
         return;
@@ -194,7 +194,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
             if (full && EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder) &&
                 EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = args->top,
                            .path = folder) &&
-                (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->top, .cap = CLI_CELLS_POOL})))
+                (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->top, .cap = CLI_POOL_BYTES})))
             {
                 EMBED_CALL(cli_on_count, PythonPathsSearchCtx, .folder = folder);
             }
@@ -202,14 +202,14 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
         cli_py_read_state_free();
         cli_seen_count();
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_python_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_python_owner));
 }
 
 unsigned int cli_python_paths(const CliPythonPathsCfg *args)
 {
     const char *root = args->root;
     const int fresh = s_search.has_counts &&
-                      (cellul.eq(&(CatenaFinitaCfg){.src = s_search.root, .other = root, .cap = CLI_CELLS_POOL})) &&
+                      (cellul.eq(&(CatenaFinitaCfg){.src = s_search.root, .other = root, .cap = CLI_POOL_BYTES})) &&
                       ((cli_clock_milliseconds() - s_search.at) < CLI_PY_FRESH_FOR);
     if (!fresh)
     {
@@ -219,7 +219,7 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = top,
                                     .src = root,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES}) + 1u});
         }
         s_search.counts = 0u;
         const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
@@ -250,7 +250,7 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = s_search.root,
                                 .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES}) + 1u});
         s_search.at = cli_clock_milliseconds();
         s_search.has_counts = 1;
     }

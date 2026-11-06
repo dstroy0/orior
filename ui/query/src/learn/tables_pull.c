@@ -217,11 +217,11 @@ int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args)
     {
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_POOL_BYTES}))
     {
         *mode = "class";
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "fields", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "fields", .cap = CLI_POOL_BYTES}))
     {
         *mode = "spans";
     }
@@ -241,16 +241,16 @@ int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args)
         return -1;
     }
     const unsigned int tail = args->count - 2u;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "spans", .cap = CLI_CELLS_POOL})) && (tail != 0u))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "spans", .cap = CLI_POOL_BYTES})) && (tail != 0u))
     {
         mmgr_line_put(args->err_msg, "tables fields takes the architecture alone");
         return -1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "class", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "class", .cap = CLI_POOL_BYTES}))
     {
         const int banked =
             (tail != 0u) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[2], .other = "--bank", .cap = CLI_CELLS_POOL}));
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[2], .other = "--bank", .cap = CLI_POOL_BYTES}));
         unsigned int encodings;
         if (banked && (tail >= 2u))
         {

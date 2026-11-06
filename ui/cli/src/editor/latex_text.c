@@ -52,7 +52,7 @@ typedef struct
 // `length` bytes and `with`, the case of ASCII letters aside
 EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_POOL_BYTES}) != args->length)
     {
         return 0;
     }

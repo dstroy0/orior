@@ -4,7 +4,7 @@
 // that runs it, in the folder the job names, with the variables of the tree's .env
 #include "../code/git.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "executables_internal.h"
@@ -41,7 +41,7 @@ typedef struct
 EMBED_INLINE void cli_print(const ExecutablesCompareCtx *args)
 {
     EMBED_CALL(args->sink.print, CliEachLineSizeCfg, .context = args->sink.context, .line = args->text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
 }
 
 // a range recorded where there is capacity for it
@@ -103,9 +103,9 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     char slug[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = slug,
                             .src = args->id,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size.save, CliTextSizeCfg, .text_out = slug,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = slug, .cap = CLI_CELLS_POOL}),
+               .size = cellul.len(&(CatenaFinitaCfg){.src = slug, .cap = CLI_POOL_BYTES}),
                .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = ".-", .other = '_');
     char folder[CLI_PATH_MAX_LEN];
     char folder_buf[CLI_PATH_MAX_LEN];
@@ -116,20 +116,20 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     mmgr_line_put(&line, slug);
     const char *name;
     if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                    .byte = '/') != NULL)
     {
         name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                           .byte = '/') +
                1;
     }
     else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                         .byte = '\\') != NULL)
     {
         name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                           .byte = '\\') +
                1;
     }
@@ -147,14 +147,14 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     }
     unsigned long long now_size = 0ULL;
     const unsigned char *const now = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
-                                                .size_pointer = &now_size, .owner = &g_cli_executables_cells);
+                                                .size_pointer = &now_size, .owner = g_cli_executables_owner);
     if (now == NULL)
     {
         return;
     }
     unsigned long long old_size = 0ULL;
     const unsigned char *const old = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = allowed,
-                                                .size_pointer = &old_size, .owner = &g_cli_executables_cells);
+                                                .size_pointer = &old_size, .owner = g_cli_executables_owner);
     if (old != NULL)
     {
         char print_buf[CLI_PATH_MAX_LEN * 2u];
@@ -162,8 +162,8 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         char short_commit[16];
         VerbaLinea shortened = {short_commit, sizeof(short_commit), 0ULL};
         mmgr_line_put_n(&shortened, commit,
-                        (cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_CELLS_POOL}) < 10u)
-                            ? cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_CELLS_POOL})
+                        (cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_POOL_BYTES}) < 10u)
+                            ? cellul.len(&(CatenaFinitaCfg){.src = commit, .cap = CLI_POOL_BYTES})
                             : 10u);
         mmgr_line_finish(&shortened);
         CliDifferences found;
@@ -223,7 +223,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         }
         mmgr_line_finish(&print_line);
         EMBED_CALL(cli_print, ExecutablesCompareCtx, .sink = args->sink, .text = print_buf);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)old, (&g_cli_executables_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)old, (g_cli_executables_owner));
     }
     EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = folder);
     if (EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder_buf))
@@ -232,7 +232,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = allowed, .pieces = &piece,
                    .count = 1u);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)now, (&g_cli_executables_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)now, (g_cli_executables_owner));
 }
 
 // each `NAME=value` line of a tree's .env handed to `each`, in order: a leading `export` taken off, a value in quotes
@@ -244,7 +244,7 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
     {
         const char *stop = line;
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
@@ -355,7 +355,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = full,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -395,20 +395,20 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         char config[CLI_PATH_MAX_LEN];
         const char *name;
         if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                        .byte = '/') != NULL)
         {
             name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                               .byte = '/') +
                    1;
         }
         else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                             .byte = '\\') != NULL)
         {
             name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}),
                               .byte = '\\') +
                    1;
         }
@@ -419,13 +419,13 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         const char *const dot =
             (name[0] != '\0')
                 ? EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name + 1,
-                             .length_value = cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}),
+                             .length_value = cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_POOL_BYTES}),
                              .byte = '.')
                 : NULL;
         VerbaLinea named = {config, sizeof(config), 0ULL};
         mmgr_line_put_n(&named, args->file,
                         (dot != NULL) ? (unsigned long long)(dot - args->file)
-                                      : cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
+                                      : cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(&named, ".runtimeconfig.json");
         char dotnet[CLI_PATH_MAX_LEN];
         char dotnet_folder[CLI_PATH_MAX_LEN];
@@ -446,7 +446,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         }
     }
     char relative[CLI_PATH_MAX_LEN];
-    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     const int under =
         EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->file, .other_pointer = args->root,
                    .size = root_length) &&

@@ -25,8 +25,8 @@ void setUp(void)
 
 void tearDown(void)
 {
-    g_cli_cells->persistent_buf_release(s_chain.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_chain.json.node));
+    g_cli_guard->persistent_buf_release(s_chain.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_chain.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_chain.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     s_chain.files = 0u;
@@ -73,8 +73,8 @@ void test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems(void
     TEST_ASSERT_EQUAL_UINT(1u, s_chain.files);
     TEST_ASSERT_EQUAL_UINT(1u, s_chain.problems);
     CLI_TEST_ASSERT_CONTAINS("is not an object of settings", s_chain.problem[0]);
-    g_cli_cells->persistent_buf_release(s_chain.json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_chain.json.node));
+    g_cli_guard->persistent_buf_release(s_chain.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_chain.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_chain.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     s_chain.files = 0u;

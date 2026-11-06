@@ -264,7 +264,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     // a cut is known to the window alone on macOS, whose pasteboard says no cut of files
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_append_script, NULL};
     const unsigned long long input_capacity = 4096u;
-    char *const input_cell = g_cli_cells->temporary_buf_alloc(input_capacity, &g_cli_platform_cells);
+    char *const input_cell = g_cli_guard->temporary_buf_alloc(input_capacity, g_cli_platform_owner);
     VerbaLinea input = mmgr_line_over(input_cell, input_capacity);
     if (input.out == NULL)
     {
@@ -277,7 +277,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     }
     const int put = mmgr_line_ok(&input) && EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words,
                                                        .input = input.out, .size = input.at, .out = NULL);
-    g_cli_cells->persistent_buf_release(input.out, &g_cli_platform_cells);
+    g_cli_guard->persistent_buf_release(input.out, g_cli_platform_owner);
     return put;
 }
 
@@ -294,7 +294,7 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
     *cut = -1;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_held_script, NULL};
     const unsigned long long paths_capacity = 4096u;
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(paths_capacity, &g_cli_platform_cells);
+    char *const paths_cell = g_cli_guard->temporary_buf_alloc(paths_capacity, g_cli_platform_owner);
     VerbaLinea paths = mmgr_line_over(paths_cell, paths_capacity);
     if (paths.out == NULL)
     {
@@ -324,7 +324,7 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(paths.out, &g_cli_platform_cells);
+    g_cli_guard->persistent_buf_release(paths.out, g_cli_platform_owner);
     return count;
 }
 
@@ -537,7 +537,7 @@ EMBED_INLINE int x11_display(const PosixClipboardCtx *args)
     int found = 0;
     const unsigned long long end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = display,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), .set = ":");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_POOL_BYTES}), .set = ":");
     found = end != 0ULL;
     colon = found ? (size_t)(end - 1ULL) : 0u;
     if (!found)
@@ -550,7 +550,7 @@ EMBED_INLINE int x11_display(const PosixClipboardCtx *args)
     *number = 0u;
     // a display's number is no more than an unsigned int stores
     *number = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = display, .at = colon + 1u,
-                                       .size = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}),
+                                       .size = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_POOL_BYTES}),
                                        .end = NULL);
     return 1;
 }
@@ -637,7 +637,7 @@ EMBED_INLINE const unsigned char *x11_authority_field(const PosixClipboardCtx *a
 // whether `length` bytes of `field` are the text `text`
 EMBED_INLINE int x11_field_is(const PosixClipboardCtx *args)
 {
-    const size_t text_length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const size_t text_length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     return (args->length_value == text_length) &&
            ((args->length_value == 0u) ||
             (memor.cmp(&(MemoriaCfg){.src = args->field, .other = args->text, .bytes = args->length_value}) == 0));
@@ -1226,7 +1226,7 @@ static void owner_run(void *context)
     s_owner.owning = 0;
     for (unsigned int place = 0u; place < 3u; place += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        g_cli_guard->persistent_buf_release(s_owner.content[place], g_cli_platform_owner);
         s_owner.content[place] = NULL;
         s_owner.size[place] = 0ULL;
     }
@@ -1239,7 +1239,7 @@ static void owner_run(void *context)
 EMBED_INLINE int owner_content_append(const PosixClipboardCtx *args)
 {
     const char *bytes = args->bytes_text;
-    char *const cell = g_cli_cells->persistent_buf_alloc(args->size + 1ULL, &g_cli_platform_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_platform_owner);
     if (cell == NULL)
     {
         return 0;
@@ -1300,7 +1300,7 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
     for (unsigned int place = 0u; place < 3u; place += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        g_cli_guard->persistent_buf_release(s_owner.content[place], g_cli_platform_owner);
         s_owner.content[place] = NULL;
         s_owner.size[place] = 0ULL;
     }
@@ -1316,9 +1316,9 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     // a path's byte is written as at most 3 in a URI, and each path adds its scheme and a line's end
     const unsigned long long uri_capacity = (unsigned long long)args->count * ((3ULL * CLI_PATH_MAX_LEN) + 16ULL);
     const unsigned long long text_capacity = (unsigned long long)args->count * (CLI_PATH_MAX_LEN + 1ULL);
-    char *const uris_cell = g_cli_cells->temporary_buf_alloc(uri_capacity + 1ULL, &g_cli_platform_cells);
-    char *const copied_cell = g_cli_cells->temporary_buf_alloc(uri_capacity + 8ULL, &g_cli_platform_cells);
-    char *const text_cell = g_cli_cells->temporary_buf_alloc(text_capacity + 1ULL, &g_cli_platform_cells);
+    char *const uris_cell = g_cli_guard->temporary_buf_alloc(uri_capacity + 1ULL, g_cli_platform_owner);
+    char *const copied_cell = g_cli_guard->temporary_buf_alloc(uri_capacity + 8ULL, g_cli_platform_owner);
+    char *const text_cell = g_cli_guard->temporary_buf_alloc(text_capacity + 1ULL, g_cli_platform_owner);
     VerbaLinea uris = mmgr_line_over(uris_cell, uri_capacity + 1ULL);
     VerbaLinea copied = mmgr_line_over(copied_cell, uri_capacity + 8ULL);
     VerbaLinea text = mmgr_line_over(text_cell, text_capacity + 1ULL);
@@ -1334,7 +1334,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     }
     for (unsigned int place = 0u; place < 3u; place += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
+        g_cli_guard->persistent_buf_release(s_owner.content[place], g_cli_platform_owner);
         s_owner.content[place] = NULL;
         s_owner.size[place] = 0ULL;
     }
@@ -1347,9 +1347,9 @@ int cli_clipboard_files_append(const CliCountCtx *args)
                       EMBED_CALL(owner_content_append, PosixClipboardCtx, .place = CLI_X11_OWNER_TEXT,
                                  .bytes_text = text.out, .size = text.at) &&
                       owner_own();
-    g_cli_cells->persistent_buf_release(uris.out, &g_cli_platform_cells);
-    g_cli_cells->persistent_buf_release(copied.out, &g_cli_platform_cells);
-    g_cli_cells->persistent_buf_release(text.out, &g_cli_platform_cells);
+    g_cli_guard->persistent_buf_release(uris.out, g_cli_platform_owner);
+    g_cli_guard->persistent_buf_release(copied.out, g_cli_platform_owner);
+    g_cli_guard->persistent_buf_release(text.out, g_cli_platform_owner);
     return owner;
 }
 
@@ -1387,7 +1387,7 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
         return count;
     }
     const unsigned long long list_capacity = 4096u;
-    char *const list_cell = g_cli_cells->temporary_buf_alloc(list_capacity, &g_cli_platform_cells);
+    char *const list_cell = g_cli_guard->temporary_buf_alloc(list_capacity, g_cli_platform_owner);
     VerbaLinea list = mmgr_line_over(list_cell, list_capacity);
     if (list.out == NULL)
     {
@@ -1414,7 +1414,7 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
         }
     }
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
-    g_cli_cells->persistent_buf_release(list.out, &g_cli_platform_cells);
+    g_cli_guard->persistent_buf_release(list.out, g_cli_platform_owner);
     return count;
 }
 

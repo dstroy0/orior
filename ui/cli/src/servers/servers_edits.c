@@ -3,7 +3,7 @@
 // servers_edits.c: a server's workspace edit written as each file's edits, in a cell counted to the edit's files and
 // edits before they are read. An edit of a file given its server as a slice is an edit of the file its lines came from,
 // and one on a bracket the slice closes is none
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 #include <stdlib.h>
@@ -66,7 +66,7 @@ EMBED_INLINE unsigned int edits_file(const ServersEditsCtx *args)
     unsigned int file = 0u;
     while ((file < args->editing->files) &&
            (!cellul.eq(
-               &(CatenaFinitaCfg){.src = args->editing->edited[file], .other = args->path, .cap = CLI_CELLS_POOL})))
+               &(CatenaFinitaCfg){.src = args->editing->edited[file], .other = args->path, .cap = CLI_POOL_BYTES})))
     {
         file += 1u;
     }
@@ -79,7 +79,7 @@ EMBED_INLINE unsigned int edits_file(const ServersEditsCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->editing->edited[file],
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         args->editing->files += 1u;
     }
     return file;
@@ -245,12 +245,12 @@ static void edits_walk(const ServersEditsCtx *args)
             if (counting)
             {
                 EMBED_CALL(edits_capacity_count, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}),
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}),
                            .edits = change);
                 continue;
             }
             EMBED_CALL(edits_add, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .edits = change);
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}), .edits = change);
         }
     }
 }
@@ -262,8 +262,8 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
     EMBED_CALL(edits_walk, ServersEditsCtx, .editing = &editing, .json = args->json, .edit = edit);
     // the edits, on a boundary of their own, and the paths after them
     const unsigned long long edit_bytes = (unsigned long long)editing.edit_capacity * sizeof(CliServersEdit);
-    char *const cell = g_cli_cells->temporary_buf_alloc(
-        edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ULL, &g_cli_servers_edits_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(
+        edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ULL, g_cli_servers_edits_owner);
     if (cell != NULL)
     {
         editing.edit = (CliServersEdit *)(void *)cell;
@@ -292,5 +292,5 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_cells->persistent_buf_release(cell, &g_cli_servers_edits_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_servers_edits_owner);
 }

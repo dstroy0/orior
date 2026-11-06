@@ -6,9 +6,12 @@
 
 #include "../../command_line/cli_internal.h"
 #include "changes.h"
+#include "comms.h"
+#include "debug.h"
 #include "explorer.h"
 #include "git.h"
 #include "problems.h"
+#include "run.h"
 #include "runs.h"
 #include "search.h"
 #include "structure.h"
@@ -18,6 +21,7 @@
 static const GuiPaneTable *const s_tables[] = {
     &gui_explorer_table, &gui_search_table, &gui_problems_table, &gui_structure_table,
     &gui_changes_table,  &gui_tests_table,  &gui_git_table,      &gui_runs_table,
+    &gui_run_table,      &gui_debug_table,  &gui_comms_table,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)

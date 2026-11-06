@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // checkers_read->c: the findings a checker wrote read as the protocol's diagnostics, by file: a finding a line, or the
 // JSON of ruff, ESLint and ShellCheck
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "checkers_internal.h"
@@ -44,8 +44,8 @@ EMBED_INLINE void cli_key(const CheckersReadCtx *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = args->key_out,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key_out, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key_out, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->key_out, .size = length, .from = '\\',
                .to = '/');
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key_out, .size = length);
@@ -57,7 +57,7 @@ unsigned int cli_checkers_file(const CliCheckersPathCtx *args)
     EMBED_CALL(cli_key, CheckersReadCtx, .path = args->path, .key_out = key);
     for (unsigned int at = 0u; at < args->findings->files; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->findings->key[at], .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->findings->key[at], .other = key, .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
@@ -71,10 +71,10 @@ unsigned int cli_checkers_file(const CliCheckersPathCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->findings->path[args->findings->files],
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){.dst = args->findings->key[args->findings->files],
                                 .src = key,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
         args->findings->files += 1u;
         return args->findings->files - 1u;
     }
@@ -83,11 +83,11 @@ unsigned int cli_checkers_file(const CliCheckersPathCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->findings->path[at],
             .src = args->findings->path[at - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->findings->path[at - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->findings->path[at - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){
             .dst = args->findings->key[at],
             .src = args->findings->key[at - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->findings->key[at - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->findings->key[at - 1u], .cap = CLI_POOL_BYTES}) + 1u});
     }
     for (unsigned int at = 0u; at < args->findings->findings; at += 1u)
     {
@@ -95,10 +95,10 @@ unsigned int cli_checkers_file(const CliCheckersPathCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->findings->path[0],
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->findings->key[0],
                             .src = key,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
     args->findings->files += 1u;
     return 0u;
 }
@@ -109,9 +109,9 @@ unsigned int cli_checkers_file_get(const CliCheckersCtx *args)
     const unsigned long long copied_len = (args->length < CLI_PATH_MAX_LEN) ? args->length : (CLI_PATH_MAX_LEN - 1ULL);
     memor.cpy(&(MemoriaCfg){.dst = supplied, .src = args->name, .bytes = copied_len});
     supplied[copied_len] = '\0';
-    const int input = (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "-", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "<stdin>", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "stdin", .cap = CLI_CELLS_POOL}));
+    const int input = (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "-", .cap = CLI_POOL_BYTES})) ||
+                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "<stdin>", .cap = CLI_POOL_BYTES})) ||
+                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "stdin", .cap = CLI_POOL_BYTES}));
     if (input && (s_read->path != NULL))
     {
         return EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = s_read->findings,
@@ -124,7 +124,7 @@ unsigned int cli_checkers_file_get(const CliCheckersCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = path,
                                 .src = supplied,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -168,7 +168,7 @@ void cli_checkers_finding_append(const CliCheckersFileCtx *args)
                .text_bytes = (const unsigned char *)args->finding->message, .length = args->finding->message_length);
     mmgr_line_put(&out, ",\"source\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &out, .text = s_read->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = s_read->name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = s_read->name, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&out, ",\"code\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->finding->code, .length = args->finding->code_length);
@@ -224,7 +224,7 @@ EMBED_INLINE const char *cli_text(const CheckersReadCtx *args)
                    .length_pointer = length);
     if (text == NULL)
     {
-        *length = cellul.len(&(CatenaFinitaCfg){.src = args->otherwise_text, .cap = CLI_CELLS_POOL});
+        *length = cellul.len(&(CatenaFinitaCfg){.src = args->otherwise_text, .cap = CLI_POOL_BYTES});
     }
     return (text != NULL) ? text : args->otherwise_text;
 }
@@ -237,7 +237,7 @@ EMBED_INLINE unsigned int cli_json_get(const CheckersReadCtx *args)
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_read->json,
                       .text = args->out, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
-                      .owner = &g_cli_toolchains_cells);
+                      .owner = g_cli_toolchains_owner);
 }
 
 // a place in ruff's findings, its row and column counted from one, written counted from zero as `{"line", "col"}`
@@ -408,15 +408,15 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
         const char *const level =
             EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "level", .otherwise_text = "", .length = &length);
         unsigned int severity;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "error", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "error", .cap = CLI_POOL_BYTES}))
         {
             severity = 1u;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "warning", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "warning", .cap = CLI_POOL_BYTES}))
         {
             severity = 2u;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "info", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "info", .cap = CLI_POOL_BYTES}))
         {
             severity = 3u;
         }
@@ -451,7 +451,7 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
             NULL,
             0ULL,
             code,
-            cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}),
+            cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_POOL_BYTES}),
             "[]"};
         finding.message = EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "message", .otherwise_text = "",
                                      .length = &finding.message_length);
@@ -479,15 +479,15 @@ void cli_checkers_read(const CliCheckersNameCtx *args)
     findings->files = 0u;
     findings->findings = 0u;
     findings->used = 0u;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "ruff", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "ruff", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_ruff_read, CheckersReadCtx, .out = args->out, .size = args->out_size);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "eslint", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "eslint", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_eslint_read, CheckersReadCtx, .out = args->out, .size = args->out_size);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "shellcheck", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "shellcheck", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_shellcheck_read, CheckersReadCtx, .out = args->out, .size = args->out_size);
     }
@@ -496,14 +496,13 @@ void cli_checkers_read(const CliCheckersNameCtx *args)
         // what it wrote, then, for a checker that writes its findings a line each, what it printed
         EMBED_CALL(cli_checkers_text_internal.lines_read, CliCheckersTextCtx, .text = args->out,
                    .size = args->out_size);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "lines", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->reads, .other = "lines", .cap = CLI_POOL_BYTES}))
         {
             EMBED_CALL(cli_checkers_text_internal.lines_read, CliCheckersTextCtx, .text = args->err,
                        .size = args->err_size);
         }
     }
-    g_cli_cells->persistent_buf_release(s_read->json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_read->json.node));
+    g_cli_guard->persistent_buf_release(s_read->json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     s_read = NULL;

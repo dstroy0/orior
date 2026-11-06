@@ -5,8 +5,9 @@
 #ifndef COMMS_INTERNAL_H
 #define COMMS_INTERNAL_H
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "comms.h"
+#include "embed_atomic.h"
 
 // the most parts, listeners and channels, and the places each of their tables is first taken with; how many of each
 // channel's last messages are stored, and the bytes past which a body stored among them is given by its size
@@ -15,9 +16,6 @@
 #define CLI_COMMS_CHANNELS 256u
 #define CLI_COMMS_STORED_MAX 20u
 #define CLI_COMMS_STORED_BODY_MAX 2048u
-
-// the cells the comms layer owns: its tables, each part's grants, and each message stored (comms.c)
-extern CellOwner g_cli_comms_cells;
 
 // A part: whether the place is taken, its key, its name, the process it was given, whether the door takes its key
 // from any process, its grants to listen and to send, both in one cell of their count, `listen` its first byte and
@@ -76,7 +74,8 @@ typedef struct
 } CliCommsTraffic;
 
 // The comms layer: its parts, listeners and channels, each table in a cell of `*_capacity` places at their most, and
-// their lock
+// the change stamp, moved on by every register, bind, leave, listen, unlisten, send and transfer, which the view
+// compares with the stamp it last read so that it lists the layer again only where the layer moved
 typedef struct
 {
     CliCommsPart *parts;
@@ -86,6 +85,7 @@ typedef struct
     CliCommsTraffic *traffic;
     unsigned int channels;
     unsigned int channels_capacity;
+    embed_atomic_u32 stamp;
 } CliCommsWorkState;
 
 extern CliCommsWorkState g_cli_comms;

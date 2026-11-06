@@ -7,15 +7,15 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
 {
     unsigned int code = args->code;
     unsigned int request_id = args->request_id;
-    g_cli_cells->persistent_buf_release(args->message->group, &g_cli_ipp_cells);
+    g_cli_guard->persistent_buf_release(args->message->group, g_cli_ipp_owner);
     *args->message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     args->message->code = code;
     args->message->request_id = request_id;
     const unsigned long long group_bytes = (unsigned long long)CLI_IPP_GROUPS * sizeof(CliIppGroup);
     const unsigned long long attribute_bytes = (unsigned long long)CLI_IPP_ATTRIBUTES * sizeof(CliIppAttribute);
     const unsigned long long value_bytes = (unsigned long long)CLI_IPP_VALUES * sizeof(CliIppValue);
-    char *const cell = g_cli_cells->persistent_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES,
-                                                         &g_cli_ipp_cells);
+    char *const cell =
+        g_cli_guard->persistent_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES, g_cli_ipp_owner);
     if (cell == NULL)
     {
         args->message->full = 1;
@@ -95,7 +95,7 @@ EMBED_INLINE void cli_attribute_count(const IppCtx *args)
 void cli_ipp_attribute(const CliIppCfg *args)
 {
     EMBED_CALL(cli_attribute_count, IppCtx, .message = args->message, .name = args->name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
 }
 
 // a value put after the last attribute's
@@ -131,7 +131,7 @@ void cli_ipp_range(const CliIppMessageLowCfg *args)
 
 void cli_ipp_text(const CliIppMessageTagCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     // a text is at most what the encoding's 16 bits count
     const CliIppValue made = {
         CLI_IPP_TEXT,
@@ -369,7 +369,7 @@ const CliIppGroup *cli_ipp_group_get(const CliIppTagCfg *args)
 
 const CliIppAttribute *cli_ipp_get(const CliIppNameCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (unsigned int each = 0u; (args->group != NULL) && (each < args->group->count); each += 1u)
     {
         const CliIppAttribute *const attribute = &args->message_read->attribute[args->group->first + each];

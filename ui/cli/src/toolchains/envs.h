@@ -21,8 +21,6 @@ typedef struct CliEnvsCfg CliEnvsCfg;
 typedef struct CliEnvsOutFolderCfg CliEnvsOutFolderCfg;
 
 // the cells the environments are found and their requirements read through, counted, each given back before the call
-// that took it returns (envs.c)
-extern CellOwner g_cli_envs_cells;
 
 // the environment at `place` in the tree at `root`, of `kind`, made ready to use into `environment`: for Pipenv, the
 // virtual environment Pipenv stores for the folder; for Nix, the folders its development shell puts on the PATH. 1, or

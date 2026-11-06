@@ -119,10 +119,10 @@ EMBED_INLINE int cli_home_ensure(const HomeCtx *args)
     }
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
-        .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
     char *const slash =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = folder,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .byte = '/');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .byte = '/');
     if (slash != NULL)
     {
         *slash = '\0';
@@ -134,7 +134,7 @@ EMBED_INLINE int cli_home_ensure(const HomeCtx *args)
         }
     }
     if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})))
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, path);
         mmgr_line_put(args->err_msg, ": it could not be written");

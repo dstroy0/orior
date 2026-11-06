@@ -178,7 +178,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
             .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = mark_rect, .other = clip),
             .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale),
             .color = EMBED_CALL(suggest_kind_color, SuggestCtx, .palette = palette, .kind = item->kind,
-                                .length = cellul.len(&(CatenaFinitaCfg){.src = item->kind, .cap = CLI_CELLS_POOL})));
+                                .length = cellul.len(&(CatenaFinitaCfg){.src = item->kind, .cap = CLI_POOL_BYTES})));
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){row_rect.x, row_rect.y, list_width - pad_x, row_height}, .other = clip);

@@ -463,7 +463,7 @@ void cli_text_raise(const CliTextSizeFromCfg *args)
 
 unsigned long long cli_text_lowered_into(const CliTextOutCapacityCfg *args)
 {
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long length = (whole < args->capacity) ? whole : (args->capacity - 1ULL);
     memor.cpy(&(MemoriaCfg){.dst = args->out_capacity, .src = args->text, .bytes = (size_t)length});
     args->out_capacity[length] = '\0';
@@ -490,7 +490,7 @@ void cli_text_copied_or(const CliTextOutCfg *args)
     const char *const from = (args->text != NULL) ? args->text : args->otherwise;
     memor.cpy(&(MemoriaCfg){.dst = args->out_capacity,
                             .src = from,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}) + 1u});
 }
 
 void cli_text_save(const CliTextSizeCfg *args)
@@ -544,7 +544,7 @@ int cli_text_ascii(const CliTextSizeByteCfg *args)
 
 unsigned long long cli_text_append_swap(const CliTextFromCfg *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const size_t start = args->out->at;
     const size_t reserved = mmgr_line_put_n(args->out, args->text, (size_t)size);
     if ((args->out->out != NULL) && (reserved != 0u))
@@ -558,7 +558,7 @@ unsigned long long cli_text_append_swap(const CliTextFromCfg *args)
 void cli_text_append_mark(const CliTextSizeSetCfg *args)
 {
     EMBED_CALL(cli_text_size_set.append_marked_n, CliTextSizeSetCfg, .out = args->out, .text = args->text,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}), .set = args->set,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}), .set = args->set,
                .mark = args->mark);
 }
 
@@ -581,7 +581,7 @@ void cli_text_append_marked_n(const CliTextSizeSetCfg *args)
 
 void cli_text_append_double(const CliTextSetCfg *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     while (at < size)
     {
@@ -601,7 +601,7 @@ void cli_text_append_lower(const CliTextOutNameCfg *args)
 {
     const size_t start = args->out->at;
     const size_t reserved = mmgr_line_put_n(args->out, args->text,
-                                            cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+                                            cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
     if ((args->out->out != NULL) && (reserved != 0u))
     {
         EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out->out + start, .size = reserved);
@@ -612,7 +612,7 @@ void cli_text_append_save(const CliTextClassesCfg *args)
 {
     const size_t start = args->out->at;
     const size_t reserved = mmgr_line_put_n(args->out, args->text,
-                                            cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
+                                            cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}));
     if ((args->out->out != NULL) && (reserved != 0u))
     {
         EMBED_CALL(cli_text_size.save, CliTextSizeCfg, .text_out = args->out->out + start, .size = reserved,
@@ -663,7 +663,7 @@ void cli_text_append_unescaped(const CliTextSizeSetCfg *args)
 
 void cli_text_append_replace(const CliTextSetCfg *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     while (at < size)
     {
@@ -680,8 +680,8 @@ void cli_text_append_replace(const CliTextSetCfg *args)
 
 void cli_text_append_fill(const CliTextOutNameCfg *args)
 {
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    const size_t name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    const size_t name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     const char *at = args->text;
     const char *const end = args->text + size;
     while (at < end)
@@ -818,14 +818,14 @@ unsigned long long cli_text_units(const CliTextSizeByteCfg *args)
 
 int cli_text_starts(const CliTextSizePrefixCfg *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_POOL_BYTES});
     return (length <= args->size) &&
            (cellul.diff(&(CatenaFinitaCfg){.src = args->text, .other = args->prefix, .cap = length}) == length);
 }
 
 int cli_text_ends(const CliTextSizeSuffixCfg *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->suffix, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->suffix, .cap = CLI_POOL_BYTES});
     return (length <= args->size) &&
            (cellul.diff(&(CatenaFinitaCfg){
                 .src = args->text + args->size - length, .other = args->suffix, .cap = length}) == length);
@@ -912,7 +912,7 @@ int cli_text_order(const CliTextSizeOneCfg *args)
 {
     const char *other = args->other_pointer;
     // `one` with its terminator: `other` differs from it there at the latest, so the first difference is the order
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL}) + 1u;
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_POOL_BYTES}) + 1u;
     const embed_iword order = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = length});
     return (order > 0) - (order < 0);
 }
@@ -925,7 +925,7 @@ void cli_paths_sort(const CliTextPathsCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = pivot,
                           .src = args->paths[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_POOL_BYTES}) + 1u});
         unsigned int place = at;
         while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->paths[place - 1u],
                                            .other_pointer = pivot) > 0))
@@ -933,12 +933,12 @@ void cli_paths_sort(const CliTextPathsCfg *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = args->paths[place],
                 .src = args->paths[place - 1u],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
             place -= 1u;
         }
         memor.cpy(&(MemoriaCfg){.dst = args->paths[place],
                                 .src = pivot,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = pivot, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = pivot, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 

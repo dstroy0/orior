@@ -3,7 +3,7 @@
 // test_runs.c: a run of a tree's tests: started with its Python's and cargo's processes over the machine's cores,
 // what each process receives reported, and the run ended once its processes are, its coverage and its counts reported
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/cores.h"
 #include "../programs/executables.h"
 #include "test_runs_internal.h"
@@ -41,12 +41,12 @@ const char *cli_test_append(const CliTestRunsRunTextCtx *args)
 void cli_test_outcome_count(const CliTestRunsRunLengthCtx *args)
 {
     args->run->passed +=
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) ? 1ULL : 0ULL;
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_POOL_BYTES})) ? 1ULL : 0ULL;
     args->run->failed +=
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})) ? 1ULL : 0ULL;
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_POOL_BYTES})) ? 1ULL : 0ULL;
     args->run->skipped +=
-        ((!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) &&
-         (!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})))
+        ((!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_POOL_BYTES})) &&
+         (!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_POOL_BYTES})))
             ? 1ULL
             : 0ULL;
 }
@@ -145,10 +145,10 @@ void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
     mmgr_line_put(&out, ",\"outcome\":{\"id\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&out, ",\"outcome\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &out, .text = args->outcome,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->outcome, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->outcome, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&out, ",\"message\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->message, .length = args->message_size);
@@ -161,7 +161,7 @@ void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                    .text_bytes = (const unsigned char *)args->file,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_put(&out, ",\"line\":");
     if (args->line_i64 < 0LL)
@@ -220,7 +220,7 @@ static void test_end(void *context)
     const char *const message = stopped ? "The run was stopped" : run->message;
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)message,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&out, '}');
     EMBED_CALL(run->sink.emit, CliEachJsonSizeCfg, .context = run->sink.context, .json = out.out, .size = out.at);
     if (run->scratch[0] != '\0')
@@ -229,7 +229,7 @@ static void test_end(void *context)
     }
     s_runs[run->place] = NULL;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_runs_wake);
-    g_cli_cells->persistent_buf_release(run, &g_cli_tests_cells);
+    g_cli_guard->persistent_buf_release(run, g_cli_tests_owner);
 }
 
 void cli_test_runs_stop(void)
@@ -264,7 +264,7 @@ static CliTestRun *test_run_alloc(void)
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_runs_wake);
         }
     }
-    run = g_cli_cells->persistent_buf_alloc(sizeof(CliTestRun), &g_cli_tests_cells);
+    run = g_cli_guard->persistent_buf_alloc(sizeof(CliTestRun), g_cli_tests_owner);
     if (run == NULL)
     {
         return NULL;
@@ -376,12 +376,12 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     run->sink = sink;
     memor.cpy(&(MemoriaCfg){.dst = run->root,
                             .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES}) + 1u});
     for (unsigned int at = 0u; at < python_count; at += 1u)
     {
         run->supplied[at] = EMBED_CALL(
             cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run, .text = s_python[at],
-            .length = cellul.len(&(CatenaFinitaCfg){.src = s_python[at], .cap = CLI_CELLS_POOL}));
+            .length = cellul.len(&(CatenaFinitaCfg){.src = s_python[at], .cap = CLI_POOL_BYTES}));
     }
     if (python_count > 0u)
     {

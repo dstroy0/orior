@@ -3,7 +3,7 @@
 // compile_db.c: what a look for the tree's compilation database reads with: a file and when it changed, the folders and
 // files of a name below a build, a CMake reply's newest index, a command line's words, and a JSON file read
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -21,15 +21,15 @@ int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->stamped->path,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 
 void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args)
 {
     CliFoundFolders *found = args->found;
-    char (*const paths)[CLI_PATH_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
-        (unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, &g_cli_compile_cells);
+    char (*const paths)[CLI_PATH_MAX_LEN] =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, g_cli_compile_owner);
     *found = (CliFoundFolders){paths, 0u, (paths != NULL) ? CLI_COMPILE_FOUND : 0u};
 }
 
@@ -74,15 +74,15 @@ typedef struct
 EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
 {
     CliBelow below = {NULL, 0u, CLI_COMPILE_PENDING, NULL, 0u};
-    below.pending = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder),
-                                                     &g_cli_compile_cells);
+    below.pending = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder),
+                                                     g_cli_compile_owner);
     if (below.pending == NULL)
     {
         return;
     }
     memor.cpy(&(MemoriaCfg){.dst = below.pending[0].path,
                             .src = args->top,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->top, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->top, .cap = CLI_POOL_BYTES}) + 1u});
     below.pending[0].depth = 0u;
     below.count = 1u;
     while (below.count > 0u)
@@ -102,7 +102,7 @@ EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_below_each,
                    .context_bytess = &below);
     }
-    g_cli_cells->persistent_buf_release(below.pending, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(below.pending, g_cli_compile_owner);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -121,7 +121,7 @@ EMBED_INLINE void cli_found_append(const CompileDbCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->found->path[args->found->count],
                           .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         args->found->count += 1u;
     }
 }
@@ -133,13 +133,13 @@ static int cli_tail_each(const CliEachFolderDepthCfg *args)
     char next[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = below,
                             .src = args->folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}) + 1u});
     for (unsigned int at = 0u; at < search->count; at += 1u)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = below, .relative = search->tail[at], .joined = next);
         memor.cpy(&(MemoriaCfg){.dst = below,
                                 .src = next,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_POOL_BYTES}) + 1u});
     }
     if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = below))
     {
@@ -190,7 +190,7 @@ static void cli_index_each(const CliEachNameIsFolderCfg *args)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = newest->reply, .relative = args->name, .joined = path);
     if (args->is_folder ||
-        (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_CELLS_POOL})) ||
+        (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_POOL_BYTES})) ||
         !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return;
@@ -200,7 +200,7 @@ static void cli_index_each(const CliEachNameIsFolderCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = newest->index,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
         newest->found = 1;
     }
 }
@@ -287,7 +287,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
 {
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = &size, .owner = &g_cli_compile_cells);
+                                                  .size_pointer = &size, .owner = g_cli_compile_owner);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
@@ -296,7 +296,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                                                .text = (const char *)bytes, .size = size) +
                                     1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), &g_cli_compile_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_compile_owner);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = args->json,
                                        .nodes = tokens_max, .text_u64 = size))
@@ -307,7 +307,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                           .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_max = tokens_max,
                           .err_msg = &unread);
     }
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_compile_cells));
+    g_cli_guard->persistent_buf_release(tokens, g_cli_compile_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_compile_owner));
     return root;
 }

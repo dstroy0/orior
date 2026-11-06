@@ -88,14 +88,14 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
                                 .text = text, .size = size);
     const unsigned long long capacity = g_cli_versions.used + 16ULL + (2ULL * g_cli_versions.items);
-    char *const about_text = read ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_versions_cells) : NULL;
+    char *const about_text = read ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_versions_owner) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
         if (!cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
                                                             CliVersionCatalogCtx, .at = section->name_at),
                                           .other = args->chosen,
-                                          .cap = CLI_CELLS_POOL}))
+                                          .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -113,9 +113,9 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
                        .detail_size = about.at);
         }
     }
-    g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(g_cli_versions_libraries.at, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(about_text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
     g_cli_versions_libraries.at = NULL;
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
@@ -123,8 +123,8 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     g_cli_versions_libraries.most = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
-    g_cli_cells->persistent_buf_release(g_cli_versions_known.text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(g_cli_versions_known.at, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
     g_cli_versions_known.at = NULL;
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
@@ -133,12 +133,12 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;
@@ -181,7 +181,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         {
             EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
                        .token_size = args->at_u64 - start, .value = s_sections[one],
-                       .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_sections[one], .cap = CLI_CELLS_POOL}),
+                       .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_sections[one], .cap = CLI_POOL_BYTES}),
                        .kind = "module", .detail = "section", .detail_size = 7u);
         }
         return;
@@ -279,7 +279,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
                    .token_size = args->at_u64 - start, .value = keys[one],
-                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = keys[one], .cap = CLI_CELLS_POOL}),
+                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = keys[one], .cap = CLI_POOL_BYTES}),
                    .kind = "field", .detail = s_detail, .detail_size = detail.at);
     }
 }

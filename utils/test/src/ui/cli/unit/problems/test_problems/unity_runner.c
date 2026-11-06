@@ -2,7 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/command_line/cli_internal.h"
 #include "ui/cli/src/servers/servers.h"
 

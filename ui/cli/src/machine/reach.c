@@ -4,13 +4,13 @@
 // and a command sent to the window open on a tree, its answer waited for on a channel of the command's own
 #include "reach.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 
 #include "../comms/comms.h"
 #include "../comms/door.h"
 
-#include "../command_line/atomic_threads.h"
 #include "../text/text.h"
+#include "embed_turnstile.h"
 
 // the most windows stored that are read, and how long a command line waits for the window's answer in milliseconds
 #define CLI_REACH_WINDOWS 64u
@@ -139,9 +139,9 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
     CliReachRead *const read = (CliReachRead *)args->context;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (name[0] == '.') || (length < 7u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 7u, .other = ".window", .cap = CLI_CELLS_POOL})) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 7u, .other = ".window", .cap = CLI_POOL_BYTES})) ||
         (read->count == CLI_REACH_WINDOWS))
     {
         return;
@@ -150,7 +150,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
     unsigned long long size = 0ULL;
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = read->folder, .relative = name, .joined = path);
     const char *const bytes = (const char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                       .size_pointer = &size, .owner = &g_cli_machine_cells);
+                                                       .size_pointer = &size, .owner = g_cli_machine_owner);
     if (bytes == NULL)
     {
         return;
@@ -183,7 +183,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
             read->count += ((mmgr_line_finish(&address) != 0ULL) && (mmgr_line_finish(&key) != 0ULL)) ? 1u : 0u;
         }
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_machine_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
 }
 
 // whether two paths name one place, as their parts compare, a separator at the end aside
@@ -191,8 +191,8 @@ EMBED_INLINE int reach_same(const ReachCtx *args)
 {
     const char *one = args->one;
     const char *other = args->other;
-    size_t one_length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
-    size_t other_length = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
+    size_t one_length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
+    size_t other_length = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_POOL_BYTES});
     one_length = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = one + 1u,
                                           .at = one_length - 1u, .set = "/\\"));
     other_length = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
@@ -347,7 +347,7 @@ typedef struct CliReachCommand
     const char *const *word;
     unsigned int words;
     int ran;
-    _Atomic unsigned int done;
+    embed_atomic_word done;
 } CliReachCommand;
 
 // The door: the commands waiting, pushed by the door's threads and taken whole by the window's thread; whether the
@@ -372,8 +372,8 @@ static void reach_refused_all(void)
         // the next read before the done word is set: the command's stack frame ends once its thread wakes
         CliReachCommand *const next = command->next;
         command->ran = 0;
-        atomic_store_explicit(&command->done, 1u, memory_order_release);
-        cli_atomic_wake(&(CliAtomicThreadsCfg){.word = &command->done});
+        embed_atomic_word_store(&command->done, 1u);
+        embed_word_wake(&command->done);
         command = next;
     }
 }
@@ -409,7 +409,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     }
     command.word = word;
     command.ran = 0;
-    atomic_init(&command.done, 0u);
+    embed_atomic_word_store(&command.done, 0u);
     CliReachCommand *head = atomic_load_explicit(&s_door.waiting, memory_order_relaxed);
     // the compare and swap is the push: it fails where another door's thread pushed first, and the link is set again
     do
@@ -427,10 +427,9 @@ static int reach_received(const CliCommsRecvCfg *args)
     {
         woken();
     }
-    while (atomic_load_explicit(&command.done, memory_order_acquire) == 0u)
+    while (embed_atomic_word_load(&command.done) == 0u)
     {
-        (void)cli_atomic_wait(
-            &(CliAtomicThreadsCfg){.word = &command.done, .seen = 0u, .milliseconds_u64 = CLI_ATOMIC_FOREVER});
+        (void)embed_word_wait(&command.done, 0u, EMBED_WAIT_FOREVER);
     }
     return 1;
 }
@@ -442,7 +441,7 @@ int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg)
     atomic_store_explicit(&s_door.waiting, NULL, memory_order_relaxed);
     atomic_store_explicit(&s_door.woken, woken, memory_order_relaxed);
     atomic_store_explicit(&s_door.closed, 0, memory_order_release);
-    s_door.key = g_cli_cells->persistent_buf_alloc(CLI_COMMS_KEY, &g_cli_machine_cells);
+    s_door.key = g_cli_guard->persistent_buf_alloc(CLI_COMMS_KEY, g_cli_machine_owner);
     if (s_door.key == NULL)
     {
         mmgr_line_put(err_msg, "the cells cannot meet the door's key");
@@ -514,8 +513,8 @@ int cli_reach_take(int (*run)(const char *command, const char *const *words, uns
         CliReachCommand *const next = first->next;
         first->ran = run(first->command, first->word, first->words);
         reach_answer(first, first->ran);
-        atomic_store_explicit(&first->done, 1u, memory_order_release);
-        cli_atomic_wake(&(CliAtomicThreadsCfg){.word = &first->done});
+        embed_atomic_word_store(&first->done, 1u);
+        embed_word_wake(&first->done);
         first = next;
     }
     return 1;
@@ -526,6 +525,6 @@ void cli_reach_close(void)
     atomic_store_explicit(&s_door.closed, 1, memory_order_seq_cst);
     reach_refused_all();
     atomic_store_explicit(&s_door.woken, NULL, memory_order_release);
-    g_cli_cells->persistent_buf_release(s_door.key, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(s_door.key, g_cli_machine_owner);
     s_door.key = NULL;
 }

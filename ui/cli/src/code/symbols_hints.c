@@ -6,7 +6,7 @@
 // argument, the leaves between separators at the bracket's depth, is given the name of the parameter at its place,
 // where that parameter has a name the argument is not alone
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/edits.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
@@ -30,11 +30,11 @@ static char *hints_open_text(const CliOpenTextCfg *args)
 {
     unsigned long long *size = args->size;
     const CliHints *const hints = (const CliHints *)args->context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = hints->path, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = hints->path, .cap = CLI_POOL_BYTES}))
     {
         return NULL;
     }
-    char *const open_text = g_cli_cells->persistent_buf_alloc(hints->size + 1ULL, &g_cli_code_cells);
+    char *const open_text = g_cli_guard->persistent_buf_alloc(hints->size + 1ULL, g_cli_code_owner);
     if (open_text != NULL)
     {
         // a text the editor holds fits a size_t
@@ -94,7 +94,7 @@ EMBED_INLINE void hints_arguments(const SymbolsHintsCtx *args)
 {
     const CliLeafRead *read = args->read;
     const unsigned long long label_size =
-        cellul.len(&(CatenaFinitaCfg){.src = args->head->label, .cap = CLI_CELLS_POOL});
+        cellul.len(&(CatenaFinitaCfg){.src = args->head->label, .cap = CLI_POOL_BYTES});
     unsigned int depth = 0u;
     unsigned int argument = 0u;
     unsigned int first = EMBED_CALL(hints_next, SymbolsHintsCtx, .read = read, .leaf = args->open + 1u);
@@ -193,16 +193,16 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
     }
     if (leaved)
     {
-        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
     }
     if (languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return done;
 }

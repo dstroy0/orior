@@ -204,8 +204,8 @@ void test_a_time_with_a_zone_has_its_offset(void)
 {
     query_started();
     page_read();
-    const int plus = cellul.chr(&(CatenaFinitaCfg){.src = s_value[0][3], .cap = CLI_CELLS_POOL, .byte = '+'}) != NULL;
-    const int minus = cellul.chr(&(CatenaFinitaCfg){.src = s_value[0][3], .cap = CLI_CELLS_POOL, .byte = '-'}) != NULL;
+    const int plus = cellul.chr(&(CatenaFinitaCfg){.src = s_value[0][3], .cap = CLI_POOL_BYTES, .byte = '+'}) != NULL;
+    const int minus = cellul.chr(&(CatenaFinitaCfg){.src = s_value[0][3], .cap = CLI_POOL_BYTES, .byte = '-'}) != NULL;
     TEST_ASSERT_TRUE(plus || minus);
 }
 

@@ -128,18 +128,18 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
     {
         return;
     }
-    g_cli_cells->persistent_buf_release(shadow->cover, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(shadow->cover, g_gui_owner);
     shadow->cover = NULL;
     shadow->width = 0u;
     shadow->height = 0u;
     const unsigned long long pixels = (unsigned long long)width * height;
     const unsigned int longer = (width > height) ? width : height;
-    unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &g_gui_cells);
-    unsigned char *const other = g_cli_cells->temporary_buf_alloc(longer, &g_gui_cells);
+    unsigned char *const cover = g_cli_guard->persistent_buf_alloc(pixels, g_gui_owner);
+    unsigned char *const other = g_cli_guard->temporary_buf_alloc(longer, g_gui_owner);
     if ((cover == NULL) || (other == NULL))
     {
-        g_cli_cells->persistent_buf_release(cover, &g_gui_cells);
-        g_cli_cells->persistent_buf_release(other, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(cover, g_gui_owner);
+        g_cli_guard->persistent_buf_release(other, g_gui_owner);
         return;
     }
     const int radius = (int)args->frame->radius;
@@ -183,7 +183,7 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(other, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(other, g_gui_owner);
     *shadow = (GuiMask){width, height, 0, 0, cover};
 }
 

@@ -71,7 +71,7 @@ int query_decode_run(const QueryLoopCfg *args)
             at += length + 1ULL;
         }
     }
-    g_cli_cells->persistent_buf_release(displayed, &g_query_cells);
+    g_cli_guard->persistent_buf_release(displayed, g_query_owner);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg))
     {

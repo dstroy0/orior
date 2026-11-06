@@ -390,7 +390,7 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
     }
     s_spreading.target = s_target;
     s_spreading.target_length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = target,
-                                           .size = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}),
+                                           .size = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_POOL_BYTES}),
                                            .letters = s_target, .capacity_u64 = CLI_PATH_MAX_LEN);
     s_spreading.tried = 0u;
     return EMBED_CALL(cli_spread_match, EditorconfigNamesCtx, .spreading = &s_spreading, .built = 0ULL,

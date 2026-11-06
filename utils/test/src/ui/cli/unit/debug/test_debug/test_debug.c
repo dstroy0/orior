@@ -28,11 +28,11 @@ static unsigned int step_tree_read(const char *text)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    g_cli_cells->persistent_buf_release(s_step_tree.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_step_tree.node));
+    g_cli_guard->persistent_buf_release(s_step_tree.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_step_tree.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_step_tree),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 64u, .text_more = 4096ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 64u, .text_more = 4096ull, .err_msg = &err_msg, .owner = g_checks_owner);
 }
 
 // node `node` of `json` written compact, its keys in order, into s_out
@@ -102,15 +102,15 @@ static void processes_run_result(void)
     {
         return;
     }
-    s_in_use_before = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
+    s_in_use_before = mmgr_owner_in_use(g_cli_debug_processes_owner);
     const unsigned long long began = cli_clock_milliseconds();
     s_child_listing = process_listing(child.id);
     s_list_consumed = cli_clock_milliseconds() - began;
-    s_in_use_after = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
-    s_high_water = embed_atomic_usize_load(&g_cli_debug_processes_cells.hw);
+    s_in_use_after = mmgr_owner_in_use(g_cli_debug_processes_owner);
+    s_high_water = mmgr_owner_hw(g_cli_debug_processes_owner);
     // on Linux a process stands under its parent's line until it has started its program, and has its own an instant after: the list is read again until
     // the child's own line shows
-    for (unsigned int tries = 0u; (!s_child_listing || (cellul.find(&(CatenaFinitaCfg){.src = s_child_line, .cap = CLI_CELLS_POOL, .other = s_expected, .other_cap = CLI_CELLS_POOL}) == NULL)) && (tries < 40u); tries += 1u)
+    for (unsigned int tries = 0u; (!s_child_listing || (cellul.find(&(CatenaFinitaCfg){.src = s_child_line, .cap = CLI_POOL_BYTES, .other = s_expected, .other_cap = CLI_POOL_BYTES}) == NULL)) && (tries < 40u); tries += 1u)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 25u);
         s_child_listing = process_listing(child.id);
@@ -143,15 +143,15 @@ static CliDebugSession *position_planned(void)
 // `place` freed under the debugger's lock
 static void position_freed(CliDebugSession *place)
 {
-    g_cli_cells->persistent_buf_release(place->positioned, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
     place->data = NULL;
     place->data_count = 0u;
     place->data_capacity = 0u;
     place->positioned = NULL;
     place->positioned_count = 0u;
     place->positioned_capacity = 0u;
-    g_cli_cells->persistent_buf_release(place->start.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = place->start.node));
+    g_cli_guard->persistent_buf_release(place->start.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     place->reserved = 0;
@@ -174,7 +174,7 @@ static int tool_has(const CliJson *json, unsigned int manifest, const char *lang
         for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = languages, .index = at) != CLI_JSON_NONE; at += 1u)
         {
             const char *const one = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = languages, .index = at), .length_pointer = NULL);
-            if ((one != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = one, .other = language, .cap = CLI_CELLS_POOL}))
+            if ((one != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = one, .other = language, .cap = CLI_POOL_BYTES}))
             {
                 return 1;
             }
@@ -224,7 +224,7 @@ void test_a_functions_bytecode_is_read_with_its_name_and_lines(void)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = instructions, .index = at);
         const unsigned int line = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "line");
-        found = cellul.starts(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "text"), .other = "BINARY_OP", .cap = CLI_CELLS_POOL}) && (line != CLI_JSON_NONE) && (json->node[line].length == 1ull) && (json->text[json->node[line].text] == '4');
+        found = cellul.starts(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "text"), .other = "BINARY_OP", .cap = CLI_POOL_BYTES}) && (line != CLI_JSON_NONE) && (json->node[line].length == 1ull) && (json->text[json->node[line].text] == '4');
     }
     TEST_ASSERT_TRUE(found);
 }
@@ -370,7 +370,7 @@ void test_a_positions_start_is_a_tree_of_its_own(void)
 {
     CliDebugSession *const place = position_planned();
     TEST_ASSERT_NOT_EQUAL(0u, place->start.nodes_max);
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_in_use(g_cli_debug_owner));
     position_freed(place);
 }
 
@@ -381,7 +381,7 @@ void test_all_of_a_position_is_released_as_it_is_freed(void)
     TEST_ASSERT_FALSE(place->reserved);
     TEST_ASSERT_NULL(place->positioned);
     TEST_ASSERT_EQUAL_UINT(0u, place->start.nodes_max);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_debug_owner));
 }
 
 void test_c_rust_and_python_each_have_a_debugger(void)
@@ -391,8 +391,8 @@ void test_c_rust_and_python_each_have_a_debugger(void)
     const int c_debugger = tool_has(&json, manifest, "c", NULL);
     const int rust_debugger = tool_has(&json, manifest, "rust", NULL);
     const int python_debugger = tool_has(&json, manifest, "python", NULL);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_debugger);
@@ -407,8 +407,8 @@ void test_c_and_rust_have_a_build_and_python_does_not(void)
     const int c_build = tool_has(&json, manifest, NULL, "c.c");
     const int rust_build = tool_has(&json, manifest, NULL, "rust");
     const int python_build = tool_has(&json, manifest, NULL, "python");
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_build);

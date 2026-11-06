@@ -88,24 +88,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cargo_tests\\test_cargo_tests\\test_cargo_tests.c");
-  run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 161);
-  run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 168);
-  run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 175);
-  run_test(test_every_cell_of_the_scan_is_released, "test_every_cell_of_the_scan_is_released", 185);
-  run_test(test_a_packages_targets_and_modules_name_each_test, "test_a_packages_targets_and_modules_name_each_test", 192);
-  run_test(test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets, "test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets", 203);
-  run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 217);
-  run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 226);
-  run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 235);
-  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 243);
-  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 248);
-  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 253);
-  run_test(test_a_passing_result_line, "test_a_passing_result_line", 258);
-  run_test(test_a_failing_result_line, "test_a_failing_result_line", 263);
-  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 268);
-  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 273);
-  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 278);
-  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 289);
+  run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 171);
+  run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 180);
+  run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 189);
+  run_test(test_every_cell_of_the_scan_is_released, "test_every_cell_of_the_scan_is_released", 201);
+  run_test(test_a_packages_targets_and_modules_name_each_test, "test_a_packages_targets_and_modules_name_each_test", 210);
+  run_test(test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets, "test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets", 221);
+  run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 235);
+  run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 252);
+  run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 269);
+  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 285);
+  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 290);
+  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 295);
+  run_test(test_a_passing_result_line, "test_a_passing_result_line", 300);
+  run_test(test_a_failing_result_line, "test_a_failing_result_line", 305);
+  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 310);
+  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 315);
+  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 320);
+  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 331);
 
   return UNITY_END();
 }

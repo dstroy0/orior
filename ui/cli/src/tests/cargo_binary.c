@@ -50,13 +50,13 @@ EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
         {
             continue;
         }
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
         is_lib = is_lib ||
                  ((length >= 3u) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = kind + length - 3u, .other = "lib", .cap = CLI_CELLS_POOL}))) ||
-                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "proc-macro", .cap = CLI_CELLS_POOL}));
-        is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_CELLS_POOL}));
-        is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_CELLS_POOL}));
+                  (cellul.eq(&(CatenaFinitaCfg){.src = kind + length - 3u, .other = "lib", .cap = CLI_POOL_BYTES}))) ||
+                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "proc-macro", .cap = CLI_POOL_BYTES}));
+        is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_POOL_BYTES}));
+        is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_POOL_BYTES}));
     }
     if (args->target->kind == CLI_CARGO_LIB)
     {
@@ -65,10 +65,10 @@ EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
     if (args->target->kind == CLI_CARGO_BIN)
     {
         return is_bin &&
-               (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL}));
+               (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_POOL_BYTES}));
     }
     return is_test &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_POOL_BYTES}));
 }
 
 // the program one line of Cargo's words, `size` bytes of `line`, names for the test into `program`, the line read
@@ -85,7 +85,7 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
         (size <= CLI_CARGO_LINE_TEXT)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                          .text = args->line, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
-                         .owner = &g_cli_tests_cells)
+                         .owner = g_cli_tests_owner)
             : CLI_JSON_NONE;
     const char *const reason =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -110,7 +110,7 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
                    .length_pointer = NULL);
     const int named =
         (reason != NULL) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_CELLS_POOL})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_POOL_BYTES})) &&
         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = test,
                    .kind = CFG_JSON_TRUE) &&
         (executable != NULL) &&
@@ -123,10 +123,9 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->program,
                           .src = executable,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return named;
@@ -230,7 +229,7 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
     for (unsigned int at = 0u; (one == NULL) && (s_binary_tests.found != NULL) && (at < s_binary_tests.count); at += 1u)
     {
         one = (cellul.eq(&(CatenaFinitaCfg){
-                  .src = s_binary_tests.found[at].test.id, .other = args->id, .cap = CLI_CELLS_POOL}))
+                  .src = s_binary_tests.found[at].test.id, .other = args->id, .cap = CLI_POOL_BYTES}))
                   ? &s_binary_tests.found[at]
                   : NULL;
     }
@@ -245,7 +244,7 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
         char folder[CLI_PATH_MAX_LEN];
         VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
         mmgr_line_put_n(&folder_line, one->manifest,
-                        cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_CELLS_POOL}) - 10u);
+                        cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_POOL_BYTES}) - 10u);
         mmgr_line_finish(&folder_line);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = folder, .joined = args->package);
         built = EMBED_CALL(binary_build, CargoBinaryCtx, .root = args->root, .one = one, .package = args->package,
@@ -255,17 +254,17 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->full,
                               .src = one->full,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_POOL_BYTES}) + 1u});
         }
     }
     CliCargoPiece *piece = s_binary_tests.pieces;
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_cells->persistent_buf_release(s_binary_tests.found, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(s_binary_tests.found, g_cli_cargo_owner);
     *(&s_binary_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return built;
 }

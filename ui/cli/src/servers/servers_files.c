@@ -6,7 +6,7 @@
 // tree's check is on, a file the editor closes is checked as the disk stores it before its server lets it go. A file
 // the check open is the editor's once it opens, and a file its server has open already receives the diagnostics it last
 // gave. A server whose spec slices is given the tree's slice for the view in place of each text (servers_slice.c)
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 // the most files the editor has open
@@ -94,7 +94,7 @@ int cli_servers_open(const CliServersRootCfg *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = path, .uri_out = uri);
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
+               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}), .key = key);
     const int check_had = EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
     EMBED_CALL(cli_servers_key_checker_internal.let_go_clear, CliServersKeyCheckerCtx, .key = key);
@@ -181,7 +181,7 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
     EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_parses, .key = key);
     unsigned long long read = 0ULL;
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                   .size_pointer = &read, .owner = &g_cli_servers_cells);
+                                                   .size_pointer = &read, .owner = g_cli_servers_owner);
     const char *const disk = (const char *)mapped;
     const int integer =
         (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = disk, .size = read);
@@ -194,7 +194,7 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
         EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = path, .text = disk, .size = read, .sink = &s_sink);
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)mapped, (&g_cli_servers_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_servers_owner));
     EMBED_CALL(cli_servers_path_lsp_internal.plugins_close, CliServersPathLspCtx, .path = path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a
     // server let go is not started again to close it
@@ -237,7 +237,7 @@ char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args)
         EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key,
                    .adjacent = &adjacent, .size = args->size_pointer);
     char *const reserved =
-        (text != NULL) ? g_cli_cells->persistent_buf_alloc(*args->size_pointer + 1ULL, &g_cli_servers_cells) : NULL;
+        (text != NULL) ? g_cli_guard->persistent_buf_alloc(*args->size_pointer + 1ULL, g_cli_servers_owner) : NULL;
     if (reserved != NULL)
     {
         // a size the store stored fits a size_t

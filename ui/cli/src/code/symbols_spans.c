@@ -414,16 +414,16 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
                    .to = args->size);
     }
     const int refused = (languages != NULL) && read.refused;
-    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
     if (languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     if (refused)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the text's leaves");
@@ -508,15 +508,15 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
         args->pair[1] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = peer,
                                    .byte = read.leaf[peer].from);
     }
-    g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
     if (languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return paired;
 }

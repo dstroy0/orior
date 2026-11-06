@@ -4,7 +4,7 @@
 // read, the nodes and texts one cell, the tokens a cell given back as the read ends
 #include "json_tree.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "text.h"
 
 typedef struct
@@ -14,7 +14,7 @@ typedef struct
     unsigned int nodes_max;
     unsigned long long text_max;
     const char *what;
-    CellOwner *owner;
+    const CellOwner *owner;
     int temporary;
     const char *text;
     unsigned long long size;
@@ -82,8 +82,8 @@ EMBED_INLINE int json_reserved_in(const JsonTakenCtx *args)
     const char *what = args->what;
     const unsigned long long nodes_bytes = (unsigned long long)nodes_max * sizeof(CliJsonNode);
     const unsigned long long bytes = nodes_bytes + text_max + 1ULL;
-    unsigned char *const cell = args->temporary ? g_cli_cells->temporary_buf_alloc(bytes, args->owner)
-                                                : g_cli_cells->persistent_buf_alloc(bytes, args->owner);
+    unsigned char *const cell = args->temporary ? g_cli_guard->temporary_buf_alloc(bytes, args->owner)
+                                                : g_cli_guard->persistent_buf_alloc(bytes, args->owner);
     if (cell != NULL)
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
@@ -139,20 +139,20 @@ EMBED_INLINE unsigned int json_alloc_in(const JsonTakenCtx *args)
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), args->owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), args->owner);
     if ((tokens == NULL) ||
         !EMBED_CALL(json_reserved_in, JsonTakenCtx, .json = json, .nodes_max = tokens_max + args->nodes_more,
                     .text_max = size + args->text_more, .what = "a tree's nodes and texts", .owner = args->owner,
                     .temporary = args->temporary))
     {
-        g_cli_cells->persistent_buf_release(tokens, args->owner);
+        g_cli_guard->persistent_buf_release(tokens, args->owner);
         mmgr_line_put(err_msg, "the cells a tree is read into could not be taken");
         return CLI_JSON_NONE;
     }
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = json, .text = text,
                    .size = size, .tokens = tokens, .tokens_max = tokens_max, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(tokens, args->owner);
+    g_cli_guard->persistent_buf_release(tokens, args->owner);
     return root;
 }
 
@@ -187,7 +187,7 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args)
         // a member's key is stored again where the member is copied
         *text += (one->kind == CFG_JSON_OBJECT)
                      ? (cellul.len(&(CatenaFinitaCfg){.src = args->json_read->text + args->json_read->node[child].key,
-                                                      .cap = CLI_CELLS_POOL}) +
+                                                      .cap = CLI_POOL_BYTES}) +
                         1ULL)
                      : 0ULL;
         EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = args->json_read,
@@ -199,7 +199,7 @@ unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args)
 {
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
-                                                  .size_pointer = &size, .owner = &g_cli_text_cells);
+                                                  .size_pointer = &size, .owner = g_cli_text_owner);
     if (bytes == NULL)
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
@@ -213,6 +213,6 @@ unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = args->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = args->nodes_more,
                    .text_more = args->text_more, .err_msg = args->err_msg, .owner = args->owner);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_text_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_text_owner));
     return root;
 }

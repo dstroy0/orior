@@ -221,7 +221,7 @@ int cli_schema_same(const CliSchemaReadJsonCtx *args)
     for (unsigned int at = args->json->node[args->value].first; at != CLI_JSON_NONE; at = args->json->node[at].next)
     {
         const char *const name = args->json->text + args->json->node[at].key;
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
         const unsigned int member = EMBED_CALL(values_member, SchemaValuesCtx, .read = args->read, .object = args->node,
                                                .key = name, .size = size);
         if ((member == CLI_SCHEMA_NONE) ||
@@ -333,13 +333,13 @@ EMBED_INLINE void values_cut(const SchemaValuesCtx *args)
 
 void cli_schema_show(const CliSchemaJsonValueCtx *args)
 {
-    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_DISPLAYED_CAPACITY, &g_cli_schema_cells);
+    char *const written_cell = g_cli_guard->temporary_buf_alloc(CLI_SCHEMA_DISPLAYED_CAPACITY, g_cli_schema_owner);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_DISPLAYED_CAPACITY);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = args->value,
                .out = &written, .indent = 0u, .sorted = 1);
     EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.out, .size = mmgr_line_ok(&written) ? written.at : 0u,
                .out = args->out);
-    g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(written.out, g_cli_schema_owner);
 }
 
 // the member of the object `node_u32`, `node` in `read`, whose key comes first after the key `text`, or first of all
@@ -438,12 +438,12 @@ static void values_write(const SchemaValuesCtx *args)
 
 void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args)
 {
-    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_DISPLAYED_CAPACITY, &g_cli_schema_cells);
+    char *const written_cell = g_cli_guard->temporary_buf_alloc(CLI_SCHEMA_DISPLAYED_CAPACITY, g_cli_schema_owner);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_DISPLAYED_CAPACITY);
     EMBED_CALL(values_write, SchemaValuesCtx, .read = args->read, .node_u32 = args->node, .out = &written);
     EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.out, .size = mmgr_line_ok(&written) ? written.at : 0u,
                .out = args->out);
-    g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(written.out, g_cli_schema_owner);
 }
 
 void cli_schema_number_show(const CliSchemaOutCtx *args)
@@ -487,8 +487,8 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long capacity = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
-        g_cli_cells->temporary_buf_alloc((capacity + 1ULL) * sizeof(*letters), &g_cli_schema_cells);
-    char *const source = g_cli_cells->persistent_buf_alloc(args->pattern_size + 1ULL, &g_cli_schema_cells);
+        g_cli_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*letters), g_cli_schema_owner);
+    char *const source = g_cli_guard->persistent_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {
@@ -513,7 +513,7 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(source, &g_cli_schema_cells);
-    g_cli_cells->persistent_buf_release(letters, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(source, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(letters, g_cli_schema_owner);
     return found;
 }

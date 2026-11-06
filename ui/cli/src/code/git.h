@@ -12,8 +12,8 @@
 #ifndef GIT_H
 #define GIT_H
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "../machine/state.h"
 #include "embed_dispatch_layout.h"
 
@@ -50,9 +50,6 @@ typedef struct CliGitOutFoundRepositoriesCfg CliGitOutFoundRepositoriesCfg;
 typedef struct CliGitRootFoundStashesCfg CliGitRootFoundStashesCfg;
 typedef struct CliGitOutFoundStashesCfg CliGitOutFoundStashesCfg;
 typedef struct CliGitTextAtCfg CliGitTextAtCfg;
-
-// the cells the lists read from git store their texts in (git_run.c)
-extern CellOwner g_cli_git_cells;
 
 // the repository File, Clone Repository offers first
 #define CLI_GIT_ORIOR "https://github.com/dstroy0/orior.git"

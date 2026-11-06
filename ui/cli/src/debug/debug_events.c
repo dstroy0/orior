@@ -29,15 +29,15 @@ static void step_across_clear(void *context)
     session->users -= 1u;
     if (!session->list_entries && session->adapter_ended && (session->users == 0u))
     {
-        g_cli_cells->persistent_buf_release(session->positioned, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(session->positioned, g_cli_debug_owner);
         session->data = NULL;
         session->data_count = 0u;
         session->data_capacity = 0u;
         session->positioned = NULL;
         session->positioned_count = 0u;
         session->positioned_capacity = 0u;
-        g_cli_cells->persistent_buf_release(
-            session->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = session->start.node));
+        g_cli_guard->persistent_buf_release(session->start.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), session->start.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         session->reserved = 0;
@@ -67,7 +67,7 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
                    .length_pointer = NULL);
     const int watching = args->session->watching;
     if ((args->root == CLI_JSON_NONE) || (reason == NULL) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "breakpoint", .cap = CLI_CELLS_POOL})) || !watching)
+        (!cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "breakpoint", .cap = CLI_POOL_BYTES})) || !watching)
     {
         return 0;
     }
@@ -121,11 +121,10 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->body, .size = size, .nodes_more = CLI_DEBUG_EVENT_MORE_NODES,
-                   .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+                   .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = g_cli_debug_owner);
     const int written = EMBED_CALL(stop_rewritten, DebugEventsCtx, .session = args->session, .json = &json,
                                    .root = root, .out = args->out);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;
@@ -134,12 +133,12 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
 void cli_debug_event(void *context, const char *event, const char *body, unsigned long long size)
 {
     CliDebugSession *const session = (CliDebugSession *)context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "initialized", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "initialized", .cap = CLI_POOL_BYTES}))
     {
         session->initialized = 1;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_debug.wake);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_POOL_BYTES}))
     {
         CliJson json = {0};
         char why[CLI_ERR_MSG_MAX_LEN];
@@ -147,7 +146,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         unsigned long long pid = 0ULL;
         const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                              .json = &json, .text = body, .size = size, .nodes_more = 0u,
-                                             .text_more = 0ULL, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+                                             .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_debug_owner);
         if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                        .json = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -156,12 +155,11 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         {
             session->pid = pid;
         }
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_POOL_BYTES}))
     {
         // a stop ends a step across, and its breakpoints go
         const int clears = session->has_across && !session->clearing;
@@ -179,32 +177,32 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         }
     }
     // a stop rewritten is the body with two members written again, in a cell of the body's size and some over
-    const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
+    const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_POOL_BYTES});
     const unsigned long long rewritten_capacity = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ULL;
     char *const rewritten_cell =
-        stopped ? g_cli_cells->temporary_buf_alloc(rewritten_capacity, &g_cli_debug_cells) : NULL;
+        stopped ? g_cli_guard->temporary_buf_alloc(rewritten_capacity, g_cli_debug_owner) : NULL;
     VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_capacity);
     const int rewritten = stopped && EMBED_CALL(data_stop_rewritten, DebugEventsCtx, .session = session, .body = body,
                                                 .size = size, .out = &rewritten_body);
     EMBED_CALL(session->sink.emit, CliDebugEventCfg, .context = session->sink.context, .session = session->info.id,
                .event = event, .body = rewritten ? rewritten_body.out : body,
                .size = rewritten ? rewritten_body.at : size);
-    g_cli_cells->persistent_buf_release(rewritten_body.out, &g_cli_debug_cells);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
+    g_cli_guard->persistent_buf_release(rewritten_body.out, g_cli_debug_owner);
+    if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_POOL_BYTES}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it
         session->adapter_ended = 1;
         if (!session->list_entries && (session->users == 0u))
         {
-            g_cli_cells->persistent_buf_release(session->positioned, &g_cli_debug_cells);
+            g_cli_guard->persistent_buf_release(session->positioned, g_cli_debug_owner);
             session->data = NULL;
             session->data_count = 0u;
             session->data_capacity = 0u;
             session->positioned = NULL;
             session->positioned_count = 0u;
             session->positioned_capacity = 0u;
-            g_cli_cells->persistent_buf_release(
-                session->start.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = session->start.node));
+            g_cli_guard->persistent_buf_release(session->start.node,
+                                                mmgr_owner_of_buf(cli_pool_series_cellularum(), session->start.node));
             EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
                        .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
             session->reserved = 0;

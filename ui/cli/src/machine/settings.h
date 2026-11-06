@@ -18,7 +18,7 @@
 // `${system}`. A tree's file does not set the settings the reader's alone are
 #ifndef SETTINGS_H
 #define SETTINGS_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "embed_dispatch_layout.h"
 
@@ -28,9 +28,6 @@ typedef struct CliSettingsPathCfg CliSettingsPathCfg;
 typedef struct CliSettingsKeyCfg CliSettingsKeyCfg;
 typedef struct CliSettingsCfg CliSettingsCfg;
 typedef struct CliSettingsOutCfg CliSettingsOutCfg;
-
-// the cells the settings are read and laid in (settings.c)
-extern CellOwner g_cli_settings_cells;
 
 // the tree's settings file, from its top folder; the most files one chain of `allocs` reads; and the most settings one
 // `${setting:name}` reads through

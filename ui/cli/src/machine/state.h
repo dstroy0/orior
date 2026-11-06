@@ -57,7 +57,7 @@ typedef struct
 typedef struct
 {
     const char *folder;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliStateEntriesCfg;
 CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args);
 const char *cli_state_entry_value(const CliStateEntries *entries, const char *key);

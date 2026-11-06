@@ -41,17 +41,17 @@ EMBED_INLINE int cli_count(const CoresCtx *args)
     unsigned int *value = args->value;
     text +=
         EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .set = CLI_TEXT_WHITE);
     unsigned long long count = 0ULL;
     const char *at = text;
     unsigned long long digits_end = 0ULL;
     count = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ULL,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .end = &digits_end);
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}), .end = &digits_end);
     at += digits_end;
     const char *rest = at;
     rest +=
         EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ULL,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES}), .set = CLI_TEXT_WHITE);
     if ((at == text) || (rest[0] != '\0') || (count > 0xffffffffULL))
     {
         return 0;
@@ -68,7 +68,7 @@ unsigned int cli_cores_on_reserve(void)
         const unsigned int reserved = s_reserved;
         return reserved;
     }
-    CliCoresRead *const read = g_cli_cells->temporary_buf_alloc(sizeof(*read), &g_cli_settings_cells);
+    CliCoresRead *const read = g_cli_guard->temporary_buf_alloc(sizeof(*read), g_cli_settings_owner);
     if (read == NULL)
     {
         return CLI_CORES_RESERVED_MIN;
@@ -106,17 +106,17 @@ unsigned int cli_cores_on_reserve(void)
     {
         reserved = CLI_CORES_RESERVED_MIN;
     }
-    g_cli_cells->persistent_buf_release(read->layers.text, &g_cli_settings_cells);
+    g_cli_guard->persistent_buf_release(read->layers.text, g_cli_settings_owner);
     read->layers.text = NULL;
     read->layers.used = 0ULL;
     read->layers.capacity = 0ULL;
-    g_cli_cells->persistent_buf_release(
-        read->reader.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = read->reader.json.node));
+    g_cli_guard->persistent_buf_release(read->reader.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), read->reader.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&read->reader.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     read->reader.files = 0u;
     read->reader.problems = 0u;
-    g_cli_cells->persistent_buf_release(read, &g_cli_settings_cells);
+    g_cli_guard->persistent_buf_release(read, g_cli_settings_owner);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;
     return reserved;

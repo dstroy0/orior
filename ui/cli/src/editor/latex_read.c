@@ -66,11 +66,11 @@ static void latex_slash(const LatexReadCtx *args)
         memor.move_down(&(MemoriaCfg){
             .dst = args->out_capacity,
             .src = args->out_capacity + 2,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity + 2, .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity + 2, .cap = CLI_POOL_BYTES}) + 1u});
     }
 #if defined(_WIN32)
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out_capacity,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity, .cap = CLI_POOL_BYTES}));
 #endif
 }
 
@@ -83,17 +83,17 @@ void cli_tex_names_init(const CliLatexNamesRootCtx *args)
     mmgr_line_put(&line, ".tex");
     mmgr_line_finish(&line);
     EMBED_CALL(latex_slash, LatexReadCtx, .text = named,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), .plain = 1,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}), .plain = 1,
                .out_capacity = args->names_out->job);
     char made[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->dir, .relative = named, .joined = made);
     EMBED_CALL(latex_slash, LatexReadCtx, .text = made,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = made, .cap = CLI_CELLS_POOL}), .plain = 1,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = made, .cap = CLI_POOL_BYTES}), .plain = 1,
                .out_capacity = args->names_out->made);
     EMBED_CALL(latex_slash, LatexReadCtx, .text = args->root,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}), .plain = 1,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}), .plain = 1,
                .out_capacity = args->names_out->root);
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->names_out->root, .cap = CLI_CELLS_POOL});
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->names_out->root, .cap = CLI_POOL_BYTES});
     if (((size == 0u) || (args->names_out->root[size - 1u] != '/')) && (size + 1u < CLI_PATH_MAX_LEN))
     {
         args->names_out->root[size] = '/';
@@ -107,15 +107,15 @@ int cli_tex_names_get(const CliLatexLengthCtx *args)
     char supplied[CLI_PATH_MAX_LEN];
     EMBED_CALL(latex_slash, LatexReadCtx, .text = args->name, .length = args->length, .plain = 1,
                .out_capacity = supplied);
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->job, .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->made, .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->job, .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = args->names->made, .cap = CLI_POOL_BYTES})))
     {
         VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, args->names->path);
         mmgr_line_finish(&line);
         return 1;
     }
-    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = args->names->root, .cap = CLI_CELLS_POOL});
+    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = args->names->root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = supplied, .other_pointer = args->names->root,
                     .size = root))
     {
@@ -125,13 +125,13 @@ int cli_tex_names_get(const CliLatexLengthCtx *args)
     EMBED_CALL(latex_slash, LatexReadCtx, .text = args->name, .length = args->length, .plain = 0,
                .out_capacity = start);
     // the rest is none where the root's length falls past the name or inside one of its letters
-    if ((cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL}) < root) ||
+    if ((cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES}) < root) ||
         (((unsigned char)start[root] & 0xC0u) == 0x80u))
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->file,
                             .src = start + root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = start + root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = start + root, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }

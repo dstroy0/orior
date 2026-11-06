@@ -153,9 +153,9 @@ static int pool_contains(const char *marked)
     unsigned long long pool = 0ull;
     unsigned long long persistent = 0ull;
     unsigned long long temporary = 0ull;
-    EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &persistent, .temporary = &temporary);
-    char *const probe = g_cli_cells->temporary_buf_alloc(64ull, &g_checks_cells);
-    const unsigned long long top = (unsigned long long)g_cli_cells->temporary_buf_mark();
+    cli_pool_report(&pool, &persistent, &temporary);
+    char *const probe = g_cli_guard->temporary_buf_alloc(64ull, g_checks_owner);
+    const unsigned long long top = (unsigned long long)g_cli_guard->temporary_buf_mark();
     // the probe is at the top of the temporary tier, its distance from the pool's start: a page short of each end
     const unsigned char *const start = (const unsigned char *)probe - top + 4096ull;
     const unsigned long long bytes = pool - 8192ull;
@@ -166,7 +166,7 @@ static int pool_contains(const char *marked)
         // a character's bits, as a byte
         holds = (start[at] == (unsigned char)marked[0]) && (memor.cmp(&(MemoriaCfg){.src = start + at, .other = marked, .bytes = (size_t)length}) == 0);
     }
-    g_cli_cells->persistent_buf_release(probe, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(probe, g_checks_owner);
     return holds;
 }
 
@@ -347,7 +347,7 @@ void test_a_transaction_is_open_until_it_is_rolled_back(void)
     lite_ready();
     (void)statement_run(s_lite, "BEGIN", 1, 10ull);
     (void)statement_run(s_lite, "DELETE FROM t WHERE n > 10", 0, 10ull);
-    const int open = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = s_lite), .other = "open", .cap = CLI_CELLS_POOL});
+    const int open = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = s_lite), .other = "open", .cap = CLI_POOL_BYTES});
     (void)statement_run(s_lite, "ROLLBACK", 1, 10ull);
     TEST_ASSERT_TRUE(open);
     TEST_ASSERT_EQUAL_STRING("idle", EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = s_lite));
@@ -422,7 +422,7 @@ void test_a_csv_export_writes_every_row_with_its_head(void)
         lines += (at[0] == '\n') ? 1u : 0u;
     }
     TEST_ASSERT_EQUAL_UINT(1001u, lines);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_csv, .other = "n,name\n1,n1\n", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_csv, .other = "n,name\n1,n1\n", .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_json_export_writes_each_row_an_object_of_its_columns(void)
@@ -436,7 +436,7 @@ void test_a_json_export_writes_each_row_an_object_of_its_columns(void)
     (void)EMBED_CALL(cli_db_out.export, CliDbOutCfg, .open = s_lite, .path = path, .format = "json", .progress = NULL, .context = NULL, .out = &out, .failure = &s_failure);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_lines, sizeof(s_lines) - 1u);
     s_lines[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines, .other = "{\"n\":\"1\",\"name\":\"n1\"}\n", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_lines, .other = "{\"n\":\"1\",\"name\":\"n1\"}\n", .cap = CLI_POOL_BYTES}));
 }
 
 void test_each_statement_is_recorded_in_the_history(void)
@@ -501,6 +501,6 @@ void test_every_connection_closed_is_released(void)
         EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = s_lite);
         s_lite = NULL;
     }
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_db_cells.in_use));
-    TEST_ASSERT_TRUE((embed_atomic_usize_load(&g_cli_db_cells.hw) != 0ull) || !EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_db_owner));
+    TEST_ASSERT_TRUE((mmgr_owner_hw(g_cli_db_owner) != 0ull) || !EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python));
 }

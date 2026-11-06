@@ -173,13 +173,13 @@ void test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each
     TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = "needle", .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     unsigned int hits = 0u;
-    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL, .other = "\"line\"", .other_cap = CLI_CELLS_POOL}); at != NULL; at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_CELLS_POOL, .other = "\"line\"", .other_cap = CLI_CELLS_POOL}))
+    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES, .other = "\"line\"", .other_cap = CLI_POOL_BYTES}); at != NULL; at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_POOL_BYTES, .other = "\"line\"", .other_cap = CLI_POOL_BYTES}))
     {
         hits += 1u;
     }
     TEST_ASSERT_EQUAL_UINT(101u, hits);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
-    TEST_ASSERT_GREATER_THAN_UINT64(64ull * sizeof(CliSearchHit), embed_atomic_usize_load(&g_cli_search_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_search_owner));
+    TEST_ASSERT_GREATER_THAN_UINT64(64ull * sizeof(CliSearchHit), mmgr_owner_hw(g_cli_search_owner));
 }
 
 // the tree `s_root` written with `files` files named f00.txt, f01.txt and on, each of `lines` lines the needle stands in
@@ -210,7 +210,7 @@ static unsigned int needle_lines_found(unsigned int *last)
     (void)mmgr_line_finish(&out);
     unsigned int lines = 0u;
     unsigned int number = 0u;
-    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_found, .cap = CLI_CELLS_POOL, .other = "\"path\":\"f", .other_cap = CLI_CELLS_POOL}); at != NULL; at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_CELLS_POOL, .other = "\"path\":\"f", .other_cap = CLI_CELLS_POOL}))
+    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_found, .cap = CLI_POOL_BYTES, .other = "\"path\":\"f", .other_cap = CLI_POOL_BYTES}); at != NULL; at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_POOL_BYTES, .other = "\"path\":\"f", .other_cap = CLI_POOL_BYTES}))
     {
         const unsigned int read = ((unsigned int)(at[9] - '0') * 10u) + (unsigned int)(at[10] - '0');
         TEST_ASSERT_GREATER_OR_EQUAL_UINT(number, read);
@@ -229,7 +229,7 @@ void test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order
         unsigned int last = 0u;
         TEST_ASSERT_EQUAL_UINT(64u * 16u, needle_lines_found(&last));
         TEST_ASSERT_EQUAL_UINT(63u, last);
-        TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
+        TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_search_owner));
     }
 }
 
@@ -241,7 +241,7 @@ void test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_o
         unsigned int last = 0u;
         TEST_ASSERT_EQUAL_UINT(CLI_HITS_MAX, needle_lines_found(&last));
         TEST_ASSERT_EQUAL_UINT((CLI_HITS_MAX - 1u) / 64u, last);
-        TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
+        TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_search_owner));
     }
 }
 
@@ -295,7 +295,7 @@ void test_a_file_under_a_folder_git_ignores_is_not_tracked(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = s_root, .path = "out/deep/x.o"));
 }
 
-void test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock(void)
+void test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum(void)
 {
     char tree[CLI_PATH_MAX_LEN];
     char report[256];
@@ -304,7 +304,7 @@ void test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock(v
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = tree));
     EMBED_CALL(cli_files_root_out_dir.cells_usage_write, CliFilesRootOutDirCfg, .out = &report_line);
     (void)mmgr_line_finish(&report_line);
-    const char *const mark = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_CELLS_POOL, .byte = ' '});
+    const char *const mark = cellul.chr(&(CatenaFinitaCfg){.src = report, .cap = CLI_POOL_BYTES, .byte = ' '});
     TEST_ASSERT_NOT_NULL_MESSAGE(mark, report);
     TEST_ASSERT_NOT_EQUAL_MESSAGE('0', mark[1], report);
 }

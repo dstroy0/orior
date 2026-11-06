@@ -44,7 +44,7 @@ CliSpan cli_purpose_trim(const CliPurposeLinesSpanCfg *args)
 
 int cli_purpose_starts(const CliPurposeLinesSpanCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     return (args->span.length >= length) &&
            (memor.cmp(&(MemoriaCfg){.src = args->span.at, .other = args->text, .bytes = length}) == 0);
 }
@@ -55,7 +55,7 @@ int cli_purpose_license(const CliPurposeLinesCfg *args)
     for (unsigned int word_text = 0u; word_text < 2u; word_text += 1u)
     {
         const unsigned long long size =
-            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_POOL_BYTES});
         for (unsigned long long at = 0ULL; (at + size) <= args->length; at += 1ULL)
         {
             if (cellul.starts(
@@ -76,7 +76,7 @@ void cli_purpose_uncommented(const CliPurposeLinesCountCfg *args)
             EMBED_CALL(cli_purpose_lines_span.purpose_trimmed_start, CliPurposeLinesSpanCfg, .span = args->lines[at]);
         if (EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg, .span = rest, .text = args->mark))
         {
-            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->mark, .cap = CLI_CELLS_POOL});
+            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->mark, .cap = CLI_POOL_BYTES});
             rest = (CliSpan){rest.at + size, rest.length - size};
         }
         const unsigned long long marks = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,

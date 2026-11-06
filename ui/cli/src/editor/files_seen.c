@@ -5,7 +5,7 @@
 // temporary tier
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/trust.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -44,7 +44,7 @@ typedef struct
 // `path` copied into a cell of its own, put among the folders still to look in
 EMBED_INLINE void walk_pending(const FilesSeenCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     char *const cell = (args->walk->pending_count < CLI_WALK_PENDING)
                            ? EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = length + 1ULL)
                            : NULL;
@@ -71,8 +71,8 @@ static void walk_each(const CliEachNameIsFolderCfg *args)
     if (args->is_folder)
     {
         const int skipped =
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_skipped[0], .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_skipped[1], .cap = CLI_CELLS_POOL}));
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_skipped[0], .cap = CLI_POOL_BYTES})) ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_skipped[1], .cap = CLI_POOL_BYTES}));
         if (!skipped)
         {
             EMBED_CALL(walk_pending, FilesSeenCtx, .walk = walk, .path = path);
@@ -83,7 +83,7 @@ static void walk_each(const CliEachNameIsFolderCfg *args)
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = walk->root, .path = path,
                .relative_out = relative);
     EMBED_CALL(walk->each, CliEachPathLengthCfg, .context = walk->context, .path = relative,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_POOL_BYTES}));
 }
 
 // the files under the folder `from` walked, each path from `root` handed to `each`
@@ -108,9 +108,9 @@ EMBED_INLINE void walked_from(const FilesSeenCtx *args)
         walk.folder = folder;
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = walk_each,
                    .context_bytess = &walk);
-        g_cli_cells->persistent_buf_release(folder, &g_cli_files_views_cells);
+        g_cli_guard->persistent_buf_release(folder, g_cli_files_views_owner);
     }
-    g_cli_cells->persistent_buf_release(walk.pending, &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(walk.pending, g_cli_files_views_owner);
 }
 
 void cli_files_walk(const CliFilesRootEachContextCfg *args)
@@ -165,7 +165,7 @@ static int git_list(const FilesSeenCtx *args)
     const char *const end = run_result->out + run_result->out_size;
     for (const char *path = run_result->out; path < end;)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         if (length != 0ULL)
         {
             EMBED_CALL(args->each, CliEachPathLengthCfg, .context = args->context, .path = path, .length = length);
@@ -216,7 +216,7 @@ int cli_files_folder_list(const CliFilesRootEachCfg *args)
 
 int cli_files_path_skip(const CliFilesGitCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     for (unsigned long long from = 0ULL; from < length;)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -242,7 +242,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
     unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_CELLS_POOL}) + 1ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_POOL_BYTES}) + 1ULL;
     }
     char *const input = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = bytes + 1ULL);
     if (input == NULL)
@@ -253,7 +253,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_CELLS_POOL}) + 1ULL;
+            cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_POOL_BYTES}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = input + used, .src = args->paths[at], .bytes = (size_t)length});
         used += length;
     }
@@ -277,15 +277,15 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
         const char *const end = run_result->out + run_result->out_size;
         for (unsigned int at = 0u; (at < args->count) && (answer < end); at += 1u)
         {
-            if (cellul.eq(&(CatenaFinitaCfg){.src = answer, .other = args->paths[at], .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){.src = answer, .other = args->paths[at], .cap = CLI_POOL_BYTES}))
             {
                 args->ignored[at] = 1u;
-                answer += cellul.len(&(CatenaFinitaCfg){.src = answer, .cap = CLI_CELLS_POOL}) + 1u;
+                answer += cellul.len(&(CatenaFinitaCfg){.src = answer, .cap = CLI_POOL_BYTES}) + 1u;
             }
         }
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-    g_cli_cells->persistent_buf_release(input, &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(input, g_cli_files_views_owner);
 }
 
 const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
@@ -310,7 +310,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
     while (EMBED_CALL(cli_symbols_at.tree_next_file, CliSymbolsAtCfg, .at = &at, .path_out = path))
     {
         (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = files, .path = path,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
     }
     (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = files);
     return files;
@@ -319,7 +319,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 void cli_files_let(const CliFilesCfg *args)
 {
     // the cell is given back as it was taken; const is the reader's view of it
-    g_cli_cells->persistent_buf_release(((void *)(uintptr_t)args->files), &g_cli_files_views_cells);
+    g_cli_guard->persistent_buf_release(((void *)(uintptr_t)args->files), g_cli_files_views_owner);
 }
 
 // where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot
@@ -352,7 +352,7 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         unsigned long long ending = 0ULL;
         const unsigned long long name =
             EMBED_CALL(seen_name, FilesSeenCtx, .path = path, .length = length, .ending = &ending);
@@ -372,7 +372,7 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         unsigned long long ending = 0ULL;
         const unsigned long long name =
             EMBED_CALL(seen_name, FilesSeenCtx, .path = path, .length = length, .ending = &ending);
@@ -401,7 +401,7 @@ void cli_files_warm(const CliFilesRootPathsCfg *args)
     static CliThread s_warmer;
     memor.cpy(&(MemoriaCfg){.dst = s_root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_warmer = (CliThread){seen_warm, s_root, CLI_PRIORITY_IDLE};
     EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_warmer);
 }

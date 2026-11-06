@@ -42,7 +42,7 @@ static int words_pair(const char *first, const char *second)
 {
     for (unsigned int at = 0u; at + 1u < s_words.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = first, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at + 1u], .other = second, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = first, .cap = CLI_POOL_BYTES}) && cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at + 1u], .other = second, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -69,7 +69,7 @@ static int same_path(const char *one, const char *other)
 static const char *with_base(const char *text)
 {
     VerbaLinea line = {s_named, sizeof(s_named), 0ull};
-    const char *const mark = cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = "{name}", .other_cap = CLI_CELLS_POOL});
+    const char *const mark = cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES, .other = "{name}", .other_cap = CLI_POOL_BYTES});
     // the mark lies in the text, at or past its start
     mmgr_line_put_n(&line, text, (mark != NULL) ? (unsigned long long)(mark - text) : CLI_UNITY_LENGTH(text));
     if (mark != NULL)
@@ -169,7 +169,7 @@ void test_the_descriptions_own_run_arguments_are_used(void)
     int ptrace = 0;
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
-        ptrace |= cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = "--cap-add=SYS_PTRACE", .cap = CLI_CELLS_POOL});
+        ptrace |= cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = "--cap-add=SYS_PTRACE", .cap = CLI_POOL_BYTES});
     }
     TEST_ASSERT_TRUE(ptrace);
 }
@@ -298,7 +298,7 @@ void test_a_description_with_nothing_to_build_reports_it(void)
 void test_a_description_uses_memory_sized_to_it_and_releases_it(void)
 {
     image_planned();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_devcontainer_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_devcontainer_cells.hw));
-    TEST_ASSERT_LESS_THAN_UINT64(65536ull, embed_atomic_usize_load(&g_cli_devcontainer_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_devcontainer_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_devcontainer_owner));
+    TEST_ASSERT_LESS_THAN_UINT64(65536ull, mmgr_owner_hw(g_cli_devcontainer_owner));
 }

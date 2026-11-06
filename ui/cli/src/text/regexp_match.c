@@ -7,7 +7,7 @@
 // they outgrow it and then in a cell twice as large each time they fill theirs, given back as the match ends
 #include "regexp_match_internal.h"
 
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 
 typedef struct
 {
@@ -34,7 +34,7 @@ EMBED_INLINE int match_end_capacity(const RegexpMatchCtx *args)
     unsigned int *const cell =
         args->run->ends_reserved
             ? NULL
-            : g_cli_cells->temporary_buf_alloc(CLI_REGEXP_ENDS_MAX * sizeof(unsigned int), &g_cli_text_cells);
+            : g_cli_guard->temporary_buf_alloc(CLI_REGEXP_ENDS_MAX * sizeof(unsigned int), g_cli_text_owner);
     if (cell == NULL)
     {
         return 0;

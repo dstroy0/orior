@@ -3,7 +3,7 @@
 // git_run.c: git started at a tree with the words trust gives, its errors read on a thread of their own and its input
 // written on another while its output is read, so none of the three waits on a pipe the others fill; what it gave
 // stored in a work state of the run's own, a cell taken for it
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../machine/trust.h"
 #include "git_internal.h"
 
@@ -35,8 +35,8 @@ static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 
 void cli_git_text_begin(const CliGitTextCfg *args)
 {
-    args->text->bytes = args->text->standing ? g_cli_cells->persistent_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells)
-                                             : g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
+    args->text->bytes = args->text->standing ? g_cli_guard->persistent_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner)
+                                             : g_cli_guard->temporary_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner);
     args->text->capacity = 0ULL;
     args->text->used = 0ULL;
     args->text->full = 0;
@@ -72,7 +72,7 @@ const char *cli_git_text_get(const CliGitTextAtCfg *args)
 CliGitResult *cli_git_alloc(void)
 {
     CliGitWorkState *const work_state =
-        g_cli_cells->persistent_buf_alloc(sizeof(*work_state) + CLI_GIT_OUT, &g_cli_git_cells);
+        g_cli_guard->persistent_buf_alloc(sizeof(*work_state) + CLI_GIT_OUT, g_cli_git_owner);
     if (work_state == NULL)
     {
         return &s_refused;
@@ -101,8 +101,8 @@ void cli_git_free(const CliGitResultCtx *args)
 {
     if (args->result != &s_refused)
     {
-        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result),
-                                            &g_cli_git_cells);
+        g_cli_guard->persistent_buf_release(EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result),
+                                            g_cli_git_owner);
     }
 }
 
@@ -286,7 +286,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
     }
     // what it wrote and reported joined, in a cell of their size
     const unsigned long long joined_capacity = result->out_size + result->err_size + 1ULL;
-    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_capacity, &g_cli_git_cells);
+    char *const joined_cell = g_cli_guard->temporary_buf_alloc(joined_capacity, g_cli_git_owner);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)
     {
@@ -314,7 +314,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
     {
         mmgr_line_put_n(args->err_msg, from, (unsigned long long)(to - from));
     }
-    g_cli_cells->persistent_buf_release(joined.out, &g_cli_git_cells);
+    g_cli_guard->persistent_buf_release(joined.out, g_cli_git_owner);
     EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return ok;
 }
@@ -333,9 +333,9 @@ int cli_git_is_id(const CliGitCtx *args)
         return 0;
     }
     if (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->id, .at = 0ULL,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}),
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}),
                    .classes = CLI_TEXT_DIGITS,
-                   .set = "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}))
+                   .set = "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}))
     {
         return 0;
     }
@@ -355,13 +355,13 @@ int cli_git_adjacent(const CliGitRootErrMsgCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->folder,
                           .src = args->root,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     while (!EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->folder) &&
            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
                       .size = root_length) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = args->root, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = args->root, .cap = CLI_POOL_BYTES})))
     {
         char above[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->folder, .out = above))
@@ -369,11 +369,11 @@ int cli_git_adjacent(const CliGitRootErrMsgCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = above,
                               .src = args->root,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
         }
         memor.cpy(&(MemoriaCfg){.dst = args->folder,
                                 .src = above,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_POOL_BYTES}) + 1u});
     }
     char relative[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->folder, .path = full,

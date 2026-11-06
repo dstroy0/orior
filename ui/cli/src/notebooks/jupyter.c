@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter.c: a kernel started with a connection file of orior's, its sockets connected while it starts, its readers
 // on threads of their own, and the kernel referenced while it is used and let go with its last reference
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "jupyter_internal.h"
 
 #include "../text/reply.h"
@@ -64,8 +64,8 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->control);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->iopub);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &kernel->spawned);
-    g_cli_cells->persistent_buf_release(kernel->shell_queue.out, &g_cli_notebook_cells);
-    g_cli_cells->persistent_buf_release(kernel, &g_cli_notebook_cells);
+    g_cli_guard->persistent_buf_release(kernel->shell_queue.out, g_cli_notebook_owner);
+    g_cli_guard->persistent_buf_release(kernel, g_cli_notebook_owner);
 }
 
 void cli_jupyter_ref(const CliJupyterErrMsgKernelFileCfg *args)
@@ -87,10 +87,10 @@ void cli_jupyter_free(const CliJupyterErrMsgKernelFileCfg *args)
 static CliKernel *jupyter_position_alloc(void)
 {
     // a kernel's buffers stand in its cell, after it
-    CliKernel *const kernel = g_cli_cells->persistent_buf_alloc(
+    CliKernel *const kernel = g_cli_guard->persistent_buf_alloc(
         sizeof(*kernel) + (unsigned long long)CLI_KERNEL_CONTENT + (3ULL * CLI_KERNEL_REPLY_CAPACITY) +
             CLI_KERNEL_IOPUB_CAPACITY + (2ULL * CLI_KERNEL_LINE * 8ULL),
-        &g_cli_notebook_cells);
+        g_cli_notebook_owner);
     if (kernel == NULL)
     {
         return NULL;
@@ -230,7 +230,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     const char *const kernel_name =
         EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->name);
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = kernel_name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = kernel_name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = kernel_name, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&line, '}');
     if (!mmgr_line_ok(&line) || !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                             .path = kernel->connection, .bytes = info, .size = line.at))
@@ -415,8 +415,8 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
                     .err_msg = args->err_msg))
     {
         EMBED_CALL(cli_jupyter_at_internal.kernel_forgotten, CliJupyterAtCtx, .kernel = kernel);
-        g_cli_cells->persistent_buf_release(kernel->shell_queue.out, &g_cli_notebook_cells);
-        g_cli_cells->persistent_buf_release(kernel, &g_cli_notebook_cells);
+        g_cli_guard->persistent_buf_release(kernel->shell_queue.out, g_cli_notebook_owner);
+        g_cli_guard->persistent_buf_release(kernel, g_cli_notebook_owner);
         return NULL;
     }
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_START;

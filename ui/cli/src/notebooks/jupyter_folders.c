@@ -64,7 +64,7 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
     {
         return 0;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
     size_t start = length;
     start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder, .at = start,
                                .set = "/\\");
@@ -77,8 +77,8 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
     }
     name[(size < sizeof(name) - 1u) ? size : sizeof(name) - 1u] = '\0';
     const int up = (size < sizeof(name) - 1u) &&
-                   ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "bin", .cap = CLI_CELLS_POOL})) ||
-                    (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "scripts", .cap = CLI_CELLS_POOL})));
+                   ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "bin", .cap = CLI_POOL_BYTES})) ||
+                    (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "scripts", .cap = CLI_POOL_BYTES})));
     memor.cpy(&(MemoriaCfg){.dst = args->prefix, .src = up ? above : folder, .bytes = CLI_PATH_MAX_LEN});
     return 1;
 }
@@ -145,7 +145,7 @@ unsigned int cli_kernel_pythons(const CliJupyterPythonsCtx *args)
     if (EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "python", .name = "python",
                    .path = python, .err_msg = &err_msg) &&
         ((count == 0u) ||
-         (!cellul.eq(&(CatenaFinitaCfg){.src = args->pythons[0], .other = python, .cap = CLI_CELLS_POOL}))))
+         (!cellul.eq(&(CatenaFinitaCfg){.src = args->pythons[0], .other = python, .cap = CLI_POOL_BYTES}))))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->pythons[count], .src = python, .bytes = CLI_PATH_MAX_LEN});
         count += 1u;

@@ -72,11 +72,11 @@ static int jobs_program(const QueryEachRolePathCapacityErrMsgCfg *args)
     default:
         break;
     }
-    if (chosen && (cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) < args->capacity))
+    if (chosen && (cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_POOL_BYTES}) < args->capacity))
     {
         memor.cpy(&(MemoriaCfg){.dst = path,
                                 .src = found,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_POOL_BYTES}) + 1u});
         return 1;
     }
     const QueryPrograms on_path = query_on_path();

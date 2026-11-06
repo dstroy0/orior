@@ -3,7 +3,7 @@
 // settings.c: a settings file's own keys, the settings a tree's file does not set, `${name}` read, and a chain of
 // files each taking the next, read and written as the window reads it
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../deploy/devcontainer.h"
 #include "../text/text.h"
 #include "settings_internal.h"
@@ -58,7 +58,7 @@ int cli_settings_kind_get(const CliSettingsKeyCtx *args)
 {
     const char **kind = args->kind;
     unsigned long long *length = args->length_pointer;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     if ((size < 3ULL) || (args->key[0] != '[') || (args->key[size - 1ULL] != ']'))
     {
         return 0;
@@ -72,14 +72,14 @@ int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
 {
     const char *kind = NULL;
     unsigned long long length = 0ULL;
-    int found = (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_allocs, .cap = CLI_CELLS_POOL})) ||
-                (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine, .cap = CLI_CELLS_POOL})) ||
+    int found = (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_allocs, .cap = CLI_POOL_BYTES})) ||
+                (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine, .cap = CLI_POOL_BYTES})) ||
                 EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = args->key, .kind = &kind,
                            .length_pointer = &length);
     unsigned int at = 0u;
     while (!found && (at < 3u))
     {
-        found = cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_systems[at], .cap = CLI_CELLS_POOL});
+        found = cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_systems[at], .cap = CLI_POOL_BYTES});
         at += 1u;
     }
     return found;
@@ -90,8 +90,8 @@ int cli_settings_tree_scope(const CliSettingsKeyCtx *args)
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL});
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL})) ||
+            cellul.len(&(CatenaFinitaCfg){.src = s_tree_scoped_keys[at], .cap = CLI_POOL_BYTES});
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_tree_scoped_keys[at], .cap = CLI_POOL_BYTES})) ||
             ((s_tree_scoped_keys[at][length - 1ULL] == '.') &&
              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->key,
                         .other_pointer = s_tree_scoped_keys[at], .size = length)))
@@ -184,12 +184,12 @@ static void cli_tidy(const SettingsCtx *args)
     {
         const char *stop = at;
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_POOL_BYTES}), .set = "/\\");
         const unsigned long long length = (unsigned long long)(stop - at);
         const int here = (length == 1ULL) && (at[0] == '.');
         const int up = (length == 2ULL) && (at[0] == '.') && (at[1] == '.');
         if (up && (count > 0u) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = parts[count - 1u], .other = "..", .cap = CLI_CELLS_POOL})))
+            (!cellul.eq(&(CatenaFinitaCfg){.src = parts[count - 1u], .other = "..", .cap = CLI_POOL_BYTES})))
         {
             count -= 1u;
         }
@@ -256,7 +256,7 @@ EMBED_INLINE void cli_show(const SettingsCtx *args)
 {
     char *out = args->out;
     const unsigned long long length =
-        (args->root != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) : 0ULL;
+        (args->root != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) : 0ULL;
     const int under = (args->root != NULL) &&
                       EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path,
                                  .other_pointer = args->root, .size = length) &&
@@ -294,12 +294,12 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         return;
     }
     CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), g_cli_settings_owner);
     if ((tokens == NULL) || !EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                         .json = &args->chain->json, .nodes_max = nodes, .text_max = text,
-                                        .what = "a chain of settings files", .owner = &g_cli_settings_cells))
+                                        .what = "a chain of settings files", .owner = g_cli_settings_owner))
     {
-        g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
+        g_cli_guard->persistent_buf_release(tokens, g_cli_settings_owner);
         EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = args->walk->file[0].named,
                    .detail = ": the cells its chain is read into could not be taken");
         return;
@@ -319,11 +319,11 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = args->chain->file[args->chain->files],
                           .src = file->named,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = file->named, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = file->named, .cap = CLI_POOL_BYTES}) + 1u});
         args->chain->values[args->chain->files] = values;
         args->chain->files += 1u;
     }
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
+    g_cli_guard->persistent_buf_release(tokens, g_cli_settings_owner);
 }
 
 // whether the file at the whole `path` is among those the `walk` has walked
@@ -332,7 +332,7 @@ EMBED_INLINE int cli_walked_twice(const SettingsCtx *args)
     int twice = 0;
     for (unsigned int at = 0u; !twice && (at < args->walk->count); at += 1u)
     {
-        twice = cellul.eq(&(CatenaFinitaCfg){.src = args->walk->seen[at], .other = args->path, .cap = CLI_CELLS_POOL});
+        twice = cellul.eq(&(CatenaFinitaCfg){.src = args->walk->seen[at], .other = args->path, .cap = CLI_POOL_BYTES});
     }
     return twice;
 }
@@ -383,7 +383,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = next,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_POOL_BYTES}) + 1u});
     }
     if (EMBED_CALL(cli_walked_twice, SettingsCtx, .walk = walk, .path = full))
     {
@@ -393,13 +393,13 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = walk->seen[walk->count],
                             .src = full,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}) + 1u});
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = next,
-                                                  .size_pointer = &size, .owner = &g_cli_settings_cells);
+                                                  .size_pointer = &size, .owner = g_cli_settings_owner);
     if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_settings_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_settings_owner));
         const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
         if (!*args->first || is_file)
         {
@@ -410,12 +410,12 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     }
     *args->first = 0;
     // a file's text with its comments taken out is no longer than the file
-    char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_settings_cells);
+    char *const plain_text = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_settings_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     // the file's bytes are its text
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_settings_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_settings_owner));
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     CliJson own;
@@ -424,7 +424,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     const unsigned int values =
         mmgr_line_ok(&plain) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                           .json = &own, .text = plain_text, .size = plain.at, .nodes_more = 0u,
-                                          .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_settings_cells)
+                                          .text_more = 0ULL, .err_msg = &reason, .owner = g_cli_settings_owner)
                              : CLI_JSON_NONE;
     if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                                  .json_read = &own, .node = values, .kind = CFG_JSON_OBJECT))
@@ -437,17 +437,16 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
         mmgr_line_finish(&msg);
         EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
                    .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
-        g_cli_cells->persistent_buf_release(own.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = own.node));
+        g_cli_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), own.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
+        g_cli_guard->persistent_buf_release(plain_text, g_cli_settings_owner);
         return 0;
     }
     CliChainFile *const walked = &walk->file[walk->count];
     memor.cpy(&(MemoriaCfg){.dst = walked->named,
                             .src = named,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) + 1u});
     walked->plain = plain_text;
     walked->size = plain.at;
     walked->nodes =
@@ -468,8 +467,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     {
         EMBED_CALL(cli_takes_followed, SettingsCtx, .text = reserved, .length = length, .path = next, .out = next);
     }
-    g_cli_cells->persistent_buf_release(own.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = own.node));
+    g_cli_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), own.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return reserved != NULL;
@@ -481,7 +479,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->chain->files = 0u;
     args->chain->problems = 0u;
-    CliChainWalk *const walk = g_cli_cells->temporary_buf_alloc(sizeof(*walk), &g_cli_settings_cells);
+    CliChainWalk *const walk = g_cli_guard->temporary_buf_alloc(sizeof(*walk), g_cli_settings_owner);
     if (walk == NULL)
     {
         return;
@@ -499,9 +497,9 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
     EMBED_CALL(cli_chain_read, SettingsCtx, .chain = args->chain, .walk = walk);
     for (unsigned int at = 0u; at < walk->count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(walk->file[at].plain, &g_cli_settings_cells);
+        g_cli_guard->persistent_buf_release(walk->file[at].plain, g_cli_settings_owner);
     }
-    g_cli_cells->persistent_buf_release(walk, &g_cli_settings_cells);
+    g_cli_guard->persistent_buf_release(walk, g_cli_settings_owner);
     // the files in the order they are taken, the one taken first
     for (unsigned int at = 0u; at < (args->chain->files / 2u); at += 1u)
     {
@@ -510,15 +508,15 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = saved_path,
             .src = args->chain->file[at],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->chain->file[at], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->chain->file[at], .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(&(MemoriaCfg){
             .dst = args->chain->file[at],
             .src = args->chain->file[other],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->chain->file[other], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->chain->file[other], .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(
             &(MemoriaCfg){.dst = args->chain->file[other],
                           .src = saved_path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = saved_path, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = saved_path, .cap = CLI_POOL_BYTES}) + 1u});
         const unsigned int values = args->chain->values[at];
         args->chain->values[at] = args->chain->values[other];
         args->chain->values[other] = values;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // machine_transfer_alloc.c: what is carried here compared with orior's own folder, taken in as the reader chooses with
 // each file it writes over saved, and a taking undone
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "carry_internal.h"
 
@@ -68,7 +68,7 @@ EMBED_INLINE void cli_keys_get(const CarryTakeCtx *args)
                 at += 1u;
             }
             if (((at < s_alloc.keys) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = s_alloc.key[at], .other = key, .cap = CLI_CELLS_POOL}))) ||
+                 (cellul.eq(&(CatenaFinitaCfg){.src = s_alloc.key[at], .other = key, .cap = CLI_POOL_BYTES}))) ||
                 EMBED_CALL(cli_machine_transfer_internal.machine, CliMachineTransferCtx, .key = key) ||
                 (s_alloc.keys >= CLI_MACHINE_TRANSFER_KEYS))
             {
@@ -91,7 +91,7 @@ EMBED_INLINE void cli_value_write(const CarryTakeCtx *args)
     const unsigned long long line_capacity = EMBED_CALL(cli_json_tree_node_out.json_write_capacity,
                                                         CliJsonTreeNodeOutCfg, .json_read = &s_alloc.work_state.json);
     char *const line_cell =
-        (args->value != CLI_JSON_NONE) ? g_cli_cells->temporary_buf_alloc(line_capacity, &g_cli_machine_cells) : NULL;
+        (args->value != CLI_JSON_NONE) ? g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner) : NULL;
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     if (line_cell == NULL)
     {
@@ -102,7 +102,7 @@ EMBED_INLINE void cli_value_write(const CarryTakeCtx *args)
                .node = args->value, .out = &line, .indent = 0u, .sorted = 0);
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = line.out,
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
-    g_cli_cells->persistent_buf_release(line.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
@@ -158,7 +158,7 @@ EMBED_INLINE int cli_settings_differ(const CarryTakeCtx *args)
         }
         mmgr_line_put(out, (written != 0u) ? ",{\"key\":" : "{\"key\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = s_alloc.key[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_alloc.key[at], .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_alloc.key[at], .cap = CLI_POOL_BYTES}));
         mmgr_line_put(out, ",\"here\":");
         EMBED_CALL(cli_value_write, CarryTakeCtx, .out = out, .value = here);
         mmgr_line_put(out, ",\"there\":");
@@ -172,7 +172,7 @@ EMBED_INLINE int cli_settings_differ(const CarryTakeCtx *args)
 void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
 {
     char *const settings_cell =
-        g_cli_cells->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, &g_cli_machine_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, g_cli_machine_owner);
     VerbaLinea settings = mmgr_line_over(settings_cell, CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY);
     if (settings.out == NULL)
     {
@@ -228,7 +228,7 @@ void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
         theirs_at += (order >= 0) ? 1u : 0u;
         const char *how = NULL;
         settings.at = 0ULL;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_POOL_BYTES}))
         {
             how = EMBED_CALL(cli_settings_differ, CarryTakeCtx, .there = args->there, .ours_at = ours_index,
                              .theirs_at = theirs, .out = &settings)
@@ -257,7 +257,7 @@ void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
         }
         mmgr_line_put(args->out, (written != 0u) ? ",{\"place\":" : "{\"place\":");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = place,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"how\":\"");
         mmgr_line_put(args->out, how);
         mmgr_line_put(args->out, "\",\"settings\":[");
@@ -268,12 +268,11 @@ void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
     mmgr_line_ch(args->out, ']');
     EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
                CliMachineTransferTransferredPositionCtx, .transferred_out = &s_alloc.here);
-    g_cli_cells->persistent_buf_release(
-        s_alloc.work_state.json.node,
-        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_alloc.work_state.json.node));
+    g_cli_guard->persistent_buf_release(s_alloc.work_state.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_alloc.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(settings.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(settings.out, g_cli_machine_owner);
 }
 
 // the text of the file at `path` written whole at `to`, the folder above it made: 1, or 0 with why given
@@ -356,7 +355,7 @@ EMBED_INLINE int cli_position_alloc(const CarryTakeCtx *args)
 {
     const char *place = args->place;
     char *const settings_cell =
-        g_cli_cells->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, &g_cli_machine_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, g_cli_machine_owner);
     VerbaLinea settings = mmgr_line_over(settings_cell, CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY);
     if (settings.out == NULL)
     {
@@ -367,11 +366,11 @@ EMBED_INLINE int cli_position_alloc(const CarryTakeCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->home, .relative = place, .joined = path);
     unsigned long long before_size = 0ULL;
     const unsigned char *const before = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path,
-                                                   .size_pointer = &before_size, .owner = &g_cli_machine_cells);
+                                                   .size_pointer = &before_size, .owner = g_cli_machine_owner);
     const char *text = NULL;
     unsigned long long size = 0ULL;
     int reserved = 1;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_POOL_BYTES}))
     {
         reserved = EMBED_CALL(cli_settings_alloc, CarryTakeCtx, .before = (before != NULL) ? (const char *)before : "",
                               .before_size = before_size, .there = args->there, .keys = args->keys,
@@ -404,7 +403,7 @@ EMBED_INLINE int cli_position_alloc(const CarryTakeCtx *args)
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
     // copy already
     const unsigned int existed = (before != NULL) ? 1u : 0u;
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)before, (&g_cli_machine_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)before, (g_cli_machine_owner));
     if (reserved && (text != NULL))
     {
         reserved =
@@ -417,14 +416,14 @@ EMBED_INLINE int cli_position_alloc(const CarryTakeCtx *args)
         s_alloc.allocating.existed[s_alloc.allocating.files] = (unsigned char)((existed != 0u) ? 1u : 0u);
         s_alloc.allocating.files += 1u;
     }
-    g_cli_cells->persistent_buf_release(settings.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(settings.out, g_cli_machine_owner);
     return reserved;
 }
 
 int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args)
 {
     char *const written_cell =
-        g_cli_cells->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, &g_cli_machine_cells);
+        g_cli_guard->temporary_buf_alloc(CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY, g_cli_machine_owner);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_MACHINE_TRANSFER_WRITTEN_CAPACITY);
     if (written.out == NULL)
     {
@@ -434,11 +433,11 @@ int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args)
     EMBED_CALL(cli_machine_transfer_capacity_object_internal.capacity_begin, CliMachineTransferWorkStateObjectCtx,
                .work_state = &s_alloc.work_state);
     CliAllocating *const allocating = &s_alloc.allocating;
-    allocating->place = g_cli_cells->persistent_buf_alloc(CLI_ALLOCATING_BYTES, &g_cli_machine_cells);
+    allocating->place = g_cli_guard->persistent_buf_alloc(CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (allocating->place == NULL)
     {
         mmgr_line_put(args->err_msg, "a taking written could not be given a cell");
-        g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
+        g_cli_guard->persistent_buf_release(written.out, g_cli_machine_owner);
         return 0;
     }
     allocating->existed = (unsigned char *)(void *)(allocating->place + CLI_ALLOCATING_FILES);
@@ -448,7 +447,7 @@ int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args)
     mmgr_line_finish(&id);
     memor.cpy(&(MemoriaCfg){.dst = allocating->from,
                             .src = args->from,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_POOL_BYTES}) + 1u});
     allocating->files = 0u;
     char carried[CLI_PATH_MAX_LEN];
     char backup_dir[CLI_PATH_MAX_LEN];
@@ -478,13 +477,12 @@ int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args)
         EMBED_CALL(cli_machine_transfer_out_internal.allocating_write, CliMachineTransferOutCtx,
                    .allocating = allocating, .pretty = 0, .out = args->out);
     }
-    g_cli_cells->persistent_buf_release(
-        s_alloc.work_state.json.node,
-        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_alloc.work_state.json.node));
+    g_cli_guard->persistent_buf_release(s_alloc.work_state.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_alloc.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release(allocating->place, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(allocating->place, g_cli_machine_owner);
     allocating->place = NULL;
-    g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
+    g_cli_guard->persistent_buf_release(written.out, g_cli_machine_owner);
     return reserved;
 }

@@ -71,7 +71,7 @@ EMBED_INLINE int cli_tree_above(const RootCtx *args)
         char *slash = NULL;
         const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
-                       .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .set = "/\\");
         slash = (slash_end != 0ULL) ? (folder + (slash_end - 1ULL)) : slash;
         // a root, `C:\` or `/`, stands where no separator is left past its first
         if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
@@ -113,7 +113,7 @@ int cli_tree_on_find(const CliTreeCtx *args)
         char *slash = NULL;
         const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = program,
-                       .at = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .at = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_POOL_BYTES}), .set = "/\\");
         slash = (slash_end != 0ULL) ? (program + (slash_end - 1ULL)) : slash;
         if (slash != NULL)
         {
@@ -138,12 +138,12 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
     }
     for (unsigned int at = 0u; at < s_mounts; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_mount_path[at], .other = full, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_mount_path[at], .other = full, .cap = CLI_POOL_BYTES}))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = args->name_out,
                 .src = s_mount_name[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_POOL_BYTES}) + 1u});
             return args->name_out[0] != '\0';
         }
     }
@@ -153,7 +153,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
         return 0;
     }
     // the last part of the path, each separator in it made `_`
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES});
     const unsigned long long saved =
         ((whole != 0ULL) && ((full[whole - 1ULL] == '/') || (full[whole - 1ULL] == '\\'))) ? (whole - 1ULL) : whole;
     const char *const base = full + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
@@ -166,7 +166,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = stem,
                                 .src = "folder",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "folder", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "folder", .cap = CLI_POOL_BYTES}) + 1u});
     }
     VerbaLinea name_line = {args->name_out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&name_line, stem);
@@ -179,7 +179,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
             while (!reserved && (at < s_mounts))
             {
                 reserved = cellul.eq(
-                    &(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_CELLS_POOL});
+                    &(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_POOL_BYTES});
                 at += 1u;
             }
         }
@@ -205,7 +205,7 @@ void cli_unmount(const CliErrMsgNameCtx *args)
     unsigned int remaining = 0u;
     for (unsigned int at = 0u; at < s_mounts; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name, .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             memor.move_down(
                 &(MemoriaCfg){.dst = s_mount_name[remaining], .src = s_mount_name[at], .bytes = CLI_NAME_MAX_LEN});
@@ -240,15 +240,15 @@ int cli_inside(const CliRootCtx *args)
     if (args->relative[0] == '@')
     {
         const char *const slash =
-            cellul.chr(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_CELLS_POOL, .byte = '/'});
+            cellul.chr(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES, .byte = '/'});
         const size_t length = (slash != NULL)
                                   ? (size_t)(slash - args->relative - 1)
-                                  : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_CELLS_POOL});
+                                  : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES});
         int found = 0;
         unsigned int at = 0u;
         while (!found && (at < s_mounts))
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_CELLS_POOL}) == length) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_POOL_BYTES}) == length) &&
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_mount_name[at],
                            .other_pointer = args->relative + 1, .size = length))
             {
@@ -317,7 +317,7 @@ void cli_full(const CliRootCtx *args)
 // 1 where `path` is `base` or stands under it
 EMBED_INLINE int cli_starts_with(const RootCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path, .other_pointer = args->base,
                       .size = length) &&
            ((args->path[length] == '\0') || (args->path[length] == '/') || (args->path[length] == '\\'));
@@ -334,7 +334,7 @@ void cli_relative(const CliPathRootCtx *args)
         size_t longest = 0u;
         for (unsigned int at = 0u; at < s_mounts; at += 1u)
         {
-            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_mount_path[at], .cap = CLI_CELLS_POOL});
+            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_mount_path[at], .cap = CLI_POOL_BYTES});
             if (EMBED_CALL(cli_starts_with, RootCtx, .path = args->path, .base = s_mount_path[at]) &&
                 (length >= longest))
             {
@@ -360,7 +360,7 @@ void cli_relative(const CliPathRootCtx *args)
     }
     else
     {
-        rest = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+        rest = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
         rest += ((*rest == '/') || (*rest == '\\')) ? 1 : 0;
     }
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
@@ -369,7 +369,7 @@ void cli_relative(const CliPathRootCtx *args)
 
 int cli_path_parent(const CliPathOutKindCtx *args)
 {
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long root = ((length >= 2ULL) && (args->path[1] == ':')) ? 3ULL : 1ULL;
     length = (root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path + root,
                                 .at = length - root, .set = "/\\"));

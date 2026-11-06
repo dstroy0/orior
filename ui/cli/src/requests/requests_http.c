@@ -4,7 +4,7 @@
 // answer read whole: each answer of 1xx but 101 passed over, a chunked body, one of a length and one read to the
 // connection's end, the most of it CLI_REQUESTS_BODY and the rest cut; gzip and deflate undone; and how long each
 // part took
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../comms/tls.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"

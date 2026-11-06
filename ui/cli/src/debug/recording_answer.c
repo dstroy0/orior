@@ -61,7 +61,7 @@ EMBED_INLINE void answer_threads(const RecordingAnswerCtx *args)
         mmgr_line_put(args->body, ",\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                    .text_bytes = (const unsigned char *)name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(args->body, '}');
     }
     mmgr_line_put(args->body, "]}");
@@ -121,22 +121,22 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
     CliRecordedValue *values = NULL;
     const unsigned int count =
         EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = (unsigned int)serial,
-                   .at = g_cli_replay->at, .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
+                   .at = g_cli_replay->at, .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
     mmgr_line_put(args->body, "{\"variables\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mmgr_line_put(args->body, (at > 0u) ? ",{\"name\":" : "{\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                    .text_bytes = (const unsigned char *)values[at].name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->body, ",\"value\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                    .text_bytes = (const unsigned char *)values[at].value,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->body, ",\"type\":\"\",\"variablesReference\":0}");
     }
     mmgr_line_put(args->body, "]}");
-    g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
 }
 
 // a name looked up in the frame, then in each module's frame standing, one whose caller is none
@@ -169,22 +169,22 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
         CliRecordedValue *values = NULL;
         const unsigned int value_count =
             EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = one, .at = g_cli_replay->at,
-                       .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
+                       .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = g_cli_debug_owner);
         for (unsigned int at = 0u; at < value_count; at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}) == length) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_POOL_BYTES}) == length) &&
                 (memor.cmp(&(MemoriaCfg){.src = values[at].name, .other = name, .bytes = length}) == 0))
             {
                 mmgr_line_put(args->body, "{\"result\":");
                 EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                            .text_bytes = (const unsigned char *)values[at].value,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_POOL_BYTES}));
                 mmgr_line_put(args->body, ",\"type\":\"\",\"variablesReference\":0}");
-                g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
+                g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
                 return 1;
             }
         }
-        g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
     }
     mmgr_line_put(args->err_msg, "a recorded run reads the names its frames contained, and ");
     mmgr_line_put_n(args->err_msg, name, length);
@@ -206,11 +206,11 @@ EMBED_INLINE int answer_exception(const RecordingAnswerCtx *args)
             mmgr_line_put(args->body, "{\"exceptionId\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                        .text_bytes = (const unsigned char *)kind,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->body, ",\"description\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                        .text_bytes = (const unsigned char *)message,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->body, ",\"breakMode\":\"always\"}");
             return 1;
         }
@@ -257,13 +257,13 @@ static void answer_change(const CliEachStepLineValueCfg *args)
     mmgr_line_put(history->body, ",\"path\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = history->body,
                .text_bytes = (const unsigned char *)history->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = history->path, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = history->path, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(history->body, ",\"value\":");
     if (args->value != NULL)
     {
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = history->body,
                    .text_bytes = (const unsigned char *)args->value,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}));
     }
     else
     {
@@ -304,19 +304,19 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
 {
     const int ready = (g_cli_replay->recording.step_count > 0u);
     const int moves =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "continue", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "next", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepIn", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepOut", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepBack", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "reverseContinue", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "continue", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "next", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepIn", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepOut", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stepBack", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "reverseContinue", .cap = CLI_POOL_BYTES}));
     unsigned long long step = 0ULL;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "threads", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "threads", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(answer_threads, RecordingAnswerCtx, .body = args->body);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "pause", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "pause", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->body, "null");
         return 1;
@@ -326,13 +326,13 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
         mmgr_line_put(args->err_msg, "the run is still being recorded");
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stackTrace", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stackTrace", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(answer_stack, RecordingAnswerCtx, .json = args->json, .arguments = args->arguments,
                    .body = args->body);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "scopes", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "scopes", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->body,
                       "{\"scopes\":[{\"name\":\"Locals\",\"presentationHint\":\"locals\",\"variablesReference\":");
@@ -345,18 +345,18 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
         mmgr_line_put(args->body, ",\"expensive\":false}]}");
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "variables", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "variables", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(answer_variables, RecordingAnswerCtx, .json = args->json, .arguments = args->arguments,
                    .body = args->body);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "evaluate", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "evaluate", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(answer_evaluate, RecordingAnswerCtx, .json = args->json, .arguments = args->arguments,
                           .body = args->body, .err_msg = args->err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "exceptionInfo", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "exceptionInfo", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(answer_exception, RecordingAnswerCtx, .body = args->body, .err_msg = args->err_msg);
     }
@@ -365,13 +365,13 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
         EMBED_CALL(answer_move, RecordingAnswerCtx, .dap = args->dap, .command = args->command, .body = args->body);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "orior/history", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "orior/history", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(answer_history, RecordingAnswerCtx, .json = args->json, .arguments = args->arguments,
                    .body = args->body);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "orior/goto", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "orior/goto", .cap = CLI_POOL_BYTES}))
     {
         if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = args->json,
                         .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,

@@ -232,6 +232,24 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     // the map stands whole from its column's left, the claim closing the column sliding it out past the editor's edge
     args->frame->map_whole =
         (GuiRect){args->frame->map.x, args->frame->map.y, (map_whole > map) ? map_whole : map, args->frame->map.height};
+    // the preview beside the text takes the editor's right half, and alone the editor's rectangle, the editor left none
+    // of its width at its left edge; off, it has no rectangle
+    const GuiRect editor = args->frame->editor;
+    const int half = editor.width / 2;
+    if (args->frame->preview_mode == GUI_FRAME_PREVIEW_BESIDE)
+    {
+        args->frame->preview = (GuiRect){editor.x + editor.width - half, editor.y, half, editor.height};
+        args->frame->editor.width = editor.width - half;
+    }
+    else if (args->frame->preview_mode == GUI_FRAME_PREVIEW_ALONE)
+    {
+        args->frame->preview = editor;
+        args->frame->editor.width = 0;
+    }
+    else
+    {
+        args->frame->preview = (GuiRect){editor.x + editor.width, editor.y, 0, 0};
+    }
 }
 
 // every part laid out for the frame's size, scale, side and claim
@@ -448,6 +466,12 @@ void gui_frame_terminal(const GuiFrameDisplayedCfg *args)
 {
     args->frame->terminal_height = args->height;
     args->frame->terminal_away = args->away;
+    EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
+}
+
+void gui_frame_preview(const GuiFrameDisplayedCfg *args)
+{
+    args->frame->preview_mode = args->displayed;
     EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
 }
 

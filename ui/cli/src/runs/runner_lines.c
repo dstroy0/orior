@@ -3,7 +3,7 @@
 // runner_lines.c: a run's output and errors carried line by line as they come, each printed and stored, and the pages a
 // job wrote found
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "runner_internal.h"
 
 #include "../text/text.h"
@@ -27,7 +27,7 @@ void cli_run_line(const CliRunnerRunStreamCtx *args)
     const char *text = args->text;
     const double ms = EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = args->run);
     EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = args->run->lines, .text = text,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
     if (!args->run->has_first)
     {
         args->run->first = ms;
@@ -101,7 +101,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
                         .set = "\n\r");
     const unsigned long long capacity = (3ULL * length) + 1ULL;
-    char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_runs_cells);
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_runs_owner);
     if (text == NULL)
     {
         return;
@@ -124,7 +124,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     mmgr_line_finish(&line);
     EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = args->transport->run,
                .stream = args->transport->stream, .text = text);
-    g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_runs_owner);
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered or no buffer
@@ -204,8 +204,8 @@ void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
     // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
     CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ULL};
     CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ULL};
-    out_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
-    err_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
+    out_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
+    err_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
     CliTransport *const out = &out_transport;
     CliTransport *const err = &err_transport;
     CliThread errors = {cli_errors_machine_transfer, err};
@@ -219,8 +219,8 @@ void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_transferred_wake);
     }
-    g_cli_cells->persistent_buf_release(out_transport.pending, &g_cli_runs_cells);
-    g_cli_cells->persistent_buf_release(err_transport.pending, &g_cli_runs_cells);
+    g_cli_guard->persistent_buf_release(out_transport.pending, g_cli_runs_owner);
+    g_cli_guard->persistent_buf_release(err_transport.pending, g_cli_runs_owner);
 }
 
 // a path put among the pages where it is in the tree, by its path there, once
@@ -237,7 +237,7 @@ static void cli_page_append(const RunnerLinesCtx *args)
     {
         return;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full, .other_pointer = root, .size = length) ||
         ((full[length] != '/') && (full[length] != '\\') && (full[length] != '\0')))
     {
@@ -247,7 +247,7 @@ static void cli_page_append(const RunnerLinesCtx *args)
     unsigned int place = *count;
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->views[at], .other = relative, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->views[at], .other = relative, .cap = CLI_POOL_BYTES}))
         {
             return;
         }
@@ -262,12 +262,12 @@ static void cli_page_append(const RunnerLinesCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->views[place],
             .src = args->views[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->views[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->views[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->views[place],
                             .src = relative,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_POOL_BYTES}) + 1u});
     *count += 1u;
 }
 
@@ -285,9 +285,9 @@ static void cli_page_each(const CliEachNameIsFolderCfg *args)
     const CliPageWalk *const walk = (const CliPageWalk *)args->context;
     const char *const dot = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->name,
-        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .byte = '.');
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}), .byte = '.');
     if (!args->is_folder && (dot != NULL) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".html", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".html", .cap = CLI_POOL_BYTES})))
     {
         char path[CLI_PATH_MAX_LEN];
         VerbaLinea line = {path, sizeof(path), 0ULL};
@@ -318,22 +318,22 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
         while (at[0] != '\0')
         {
             at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
-                             .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
+                             .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}),
                              .set = CLI_TEXT_WHITE);
             const char *end = at;
             end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}),
                               .set = CLI_TEXT_WHITE);
             // the word trimmed of the quotes, commas and colons about it
             const char *from = at;
             const char *to = end;
             while ((from < to) &&
-                   (cellul.chr(&(CatenaFinitaCfg){.src = "\"',:", .cap = CLI_CELLS_POOL, .byte = from[0]}) != NULL))
+                   (cellul.chr(&(CatenaFinitaCfg){.src = "\"',:", .cap = CLI_POOL_BYTES, .byte = from[0]}) != NULL))
             {
                 from += 1;
             }
             while ((to > from) &&
-                   (cellul.chr(&(CatenaFinitaCfg){.src = "\"',:", .cap = CLI_CELLS_POOL, .byte = to[-1]}) != NULL))
+                   (cellul.chr(&(CatenaFinitaCfg){.src = "\"',:", .cap = CLI_POOL_BYTES, .byte = to[-1]}) != NULL))
             {
                 to -= 1;
             }
@@ -357,7 +357,7 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
                 memor.cpy(&(MemoriaCfg){
                     .dst = path,
                     .src = word_text,
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}) + 1u});
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES}) + 1u});
             }
             else
             {

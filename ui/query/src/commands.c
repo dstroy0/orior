@@ -15,7 +15,7 @@ static char s_console[QRY_NAME_MAX_LEN + 1u];
 
 void query_print(const QueryTextCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     EMBED_CALL(args->context->sink.print, CliEachLineSizeCfg, .context = args->context->sink.context,
                .line = args->text, .size = length);
     // the line handed to the run this process is a member of, as it is given; nothing where it is a member of none
@@ -150,7 +150,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     }
     // the output read to its end into a cell of the most it holds; what it writes past that is read and let go, for the
     // program to run to its end, and the output refused
-    char *const output = g_cli_cells->temporary_buf_alloc(QUERY_OUTPUT_MAX, &g_query_cells);
+    char *const output = g_cli_guard->temporary_buf_alloc(QUERY_OUTPUT_MAX, g_query_owner);
     const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ULL : 0ULL;
     unsigned long long used = 0ULL;
     int whole = (output != NULL);
@@ -173,7 +173,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     *code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
     if (!whole)
     {
-        g_cli_cells->persistent_buf_release(output, &g_query_cells);
+        g_cli_guard->persistent_buf_release(output, g_query_owner);
         mmgr_line_put(err_msg, words[0]);
         mmgr_line_put(err_msg, ": its output could not be stored");
         return 0;
@@ -181,7 +181,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     const int appended =
         EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx, .writer = &args->run->writer,
                    .name = name, .bytes = output, .size = used, .priority = QRY_ORDINARY, .err_msg = err_msg);
-    g_cli_cells->persistent_buf_release(output, &g_query_cells);
+    g_cli_guard->persistent_buf_release(output, g_query_owner);
     return appended;
 }
 
@@ -203,7 +203,7 @@ int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args)
     *supplied = 0;
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words_read[at], .other = "--leave", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words_read[at], .other = "--leave", .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -213,15 +213,15 @@ int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args)
             return 0;
         }
         const char *const word_text = args->words_read[at + 1u];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_POOL_BYTES}))
         {
             *leave = QUERY_LEAVE_ALL;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_POOL_BYTES}))
         {
             *leave = QUERY_LEAVE_NONE;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "prompt", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "prompt", .cap = CLI_POOL_BYTES}))
         {
             *leave = QUERY_LEAVE_PROMPT;
         }

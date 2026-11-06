@@ -25,7 +25,7 @@ static void comms_tables_init(void)
     {
         return;
     }
-    CliCommsTables *const tables = g_cli_cells->persistent_buf_alloc(sizeof(*tables), &g_cli_comms_cells);
+    CliCommsTables *const tables = g_cli_guard->persistent_buf_alloc(sizeof(*tables), g_cli_comms_owner);
     if (tables == NULL)
     {
         return;
@@ -59,7 +59,7 @@ EMBED_INLINE unsigned int comms_part_get(const CommsCtx *args)
     {
         if (g_cli_comms.parts[at].reserved &&
             (cellul.eq(
-                &(CatenaFinitaCfg){.src = g_cli_comms.parts[at].key, .other = args->key, .cap = CLI_CELLS_POOL})))
+                &(CatenaFinitaCfg){.src = g_cli_comms.parts[at].key, .other = args->key, .cap = CLI_POOL_BYTES})))
         {
             return at;
         }
@@ -102,7 +102,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
     const unsigned int grants = listens + send_grants;
     char (*const granted)[CLI_NAME_MAX_LEN] =
         ((part != NULL) && (grants != 0u))
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)grants * CLI_NAME_MAX_LEN, &g_cli_comms_cells)
+            ? g_cli_guard->persistent_buf_alloc((unsigned long long)grants * CLI_NAME_MAX_LEN, g_cli_comms_owner)
             : NULL;
     if ((part == NULL) || ((grants != 0u) && (granted == NULL)))
     {
@@ -115,10 +115,10 @@ int cli_comms_register(const CliCommsNameCfg *args)
     part->send_grant = (granted != NULL) ? (granted + listens) : NULL;
     memor.cpy(&(MemoriaCfg){.dst = part->key,
                             .src = args->key_out,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key_out, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key_out, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = part->name,
                             .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
     part->has_process = has_process;
     part->process = process;
     for (unsigned int at = 0u; at < listens; at += 1u)
@@ -126,17 +126,18 @@ int cli_comms_register(const CliCommsNameCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = part->listen[at],
                           .src = listen[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = listen[at], .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = listen[at], .cap = CLI_POOL_BYTES}) + 1u});
     }
     for (unsigned int at = 0u; at < send_grants; at += 1u)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = part->send_grant[at],
                           .src = send_grant[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = send_grant[at], .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = send_grant[at], .cap = CLI_POOL_BYTES}) + 1u});
     }
     part->listens = listens;
     part->send_grants = send_grants;
+    (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     return 1;
 }
 
@@ -219,6 +220,7 @@ void cli_comms_bind(const CliCommsProcessCfg *args)
     {
         g_cli_comms.parts[at].has_process = 1;
         g_cli_comms.parts[at].process = process;
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     }
 }
 
@@ -228,7 +230,7 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
     if (at < CLI_COMMS_PARTS)
     {
         g_cli_comms.parts[at].reserved = 0;
-        g_cli_cells->persistent_buf_release(g_cli_comms.parts[at].listen, &g_cli_comms_cells);
+        g_cli_guard->persistent_buf_release(g_cli_comms.parts[at].listen, g_cli_comms_owner);
         g_cli_comms.parts[at].listen = NULL;
         g_cli_comms.parts[at].send_grant = NULL;
         for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
@@ -236,6 +238,7 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
             CliCommsListener *const listener = &g_cli_comms.listeners[one];
             listener->reserved = (listener->reserved && (listener->part == at)) ? 0 : listener->reserved;
         }
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     }
 }
 
@@ -256,7 +259,7 @@ int cli_comms_name_get(const CliCommsKeyCfg *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->name_out,
             .src = g_cli_comms.parts[at].name,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_comms.parts[at].name, .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_comms.parts[at].name, .cap = CLI_POOL_BYTES}) + 1u});
     }
     return at < CLI_COMMS_PARTS;
 }
@@ -298,8 +301,9 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = place->pattern,
                           .src = args->channel,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
         *listener = vacant;
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
         return 1;
     }
     mmgr_line_put(args->err_msg, "the comms layer has as many listeners as it can");
@@ -311,6 +315,7 @@ void cli_comms_unlisten(const CliCommsListenerCfg *args)
     if (args->listener_value < g_cli_comms.listeners_capacity)
     {
         g_cli_comms.listeners[args->listener_value].reserved = 0;
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     }
 }
 
@@ -320,7 +325,7 @@ EMBED_INLINE CliCommsTraffic *comms_traffic_get(const CommsCtx *args)
     for (unsigned int at = 0u; at < g_cli_comms.channels; at += 1u)
     {
         if (cellul.eq(
-                &(CatenaFinitaCfg){.src = g_cli_comms.traffic[at].name, .other = args->channel, .cap = CLI_CELLS_POOL}))
+                &(CatenaFinitaCfg){.src = g_cli_comms.traffic[at].name, .other = args->channel, .cap = CLI_POOL_BYTES}))
         {
             return &g_cli_comms.traffic[at];
         }
@@ -335,7 +340,7 @@ EMBED_INLINE CliCommsTraffic *comms_traffic_get(const CommsCtx *args)
     memor.set(&(MemoriaCfg){.dst = made, .val = 0, .bytes = sizeof(*made)});
     memor.cpy(&(MemoriaCfg){.dst = made->name,
                             .src = args->channel,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
     return made;
 }
 
@@ -354,13 +359,13 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     const int whole = size < CLI_COMMS_STORED_BODY_MAX;
     const char *const stored = whole ? body : sized;
     const unsigned long long stored_size = whole ? size : sized_line.at;
-    const unsigned long long from_size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u;
+    const unsigned long long from_size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}) + 1u;
     const unsigned long long need = from_size + stored_size;
     const unsigned int place = (args->traffic->first + args->traffic->count) % CLI_COMMS_STORED_MAX;
     CliCommsStoredMsg *const stored_msg = &args->traffic->last[place];
     const int full = args->traffic->count == CLI_COMMS_STORED_MAX;
     const int fits = full && (need <= stored_msg->capacity);
-    char *const cell = fits ? stored_msg->from : g_cli_cells->persistent_buf_alloc(need, &g_cli_comms_cells);
+    char *const cell = fits ? stored_msg->from : g_cli_guard->persistent_buf_alloc(need, g_cli_comms_owner);
     if (cell == NULL)
     {
         return;
@@ -375,7 +380,7 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     }
     if (full && !fits)
     {
-        g_cli_cells->persistent_buf_release(stored_msg->from, &g_cli_comms_cells);
+        g_cli_guard->persistent_buf_release(stored_msg->from, g_cli_comms_owner);
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = from, .bytes = (size_t)from_size});
     memor.cpy(&(MemoriaCfg){.dst = cell + from_size, .src = stored, .bytes = (size_t)stored_size});
@@ -402,7 +407,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     char name[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = name,
                             .src = part->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = part->name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = part->name, .cap = CLI_POOL_BYTES}) + 1u});
     int granted = 0;
     for (unsigned int grant = 0u; (grant < part->send_grants) && !granted; grant += 1u)
     {
@@ -420,6 +425,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         mmgr_line_put(args->err_msg, name);
         mmgr_line_put(args->err_msg, " may not send on ");
         mmgr_line_put(args->err_msg, args->channel);
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
         return 0;
     }
     part->sent_count += 1ULL;
@@ -429,6 +435,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         traffic->bytes += args->size;
         EMBED_CALL(comms_store, CommsCtx, .traffic = traffic, .from = name, .body = args->body, .size = args->size);
     }
+    (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     unsigned long long count = 0ULL;
     unsigned int calls = 0u;
     for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
@@ -470,5 +477,6 @@ void cli_comms_transfer(const CliCommsChannelBytesCfg *args)
     if (traffic != NULL)
     {
         traffic->transferred += args->bytes;
+        (void)EMBED_ATOMIC_ADD_32(&g_cli_comms.stamp, 1u);
     }
 }

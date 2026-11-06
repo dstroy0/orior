@@ -4,7 +4,7 @@
 // thread's next step, worst first with each message's first line; a file's next report replaces it at the end; a report
 // with none takes the file out; a press closes a file's rows; and threads publishing while a reader steps and reads
 // every row leave the table with each file's last report
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/command_line/cli_internal.h"
 #include "ui/cli/src/servers/servers.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -36,8 +36,8 @@ static CliServerReport *report_laid(const char *path, unsigned int count, const 
 {
     const size_t path_bytes = strlen(path) + 1u;
     const size_t message_bytes = strlen(message) + 1u;
-    CliServerReport *const report = g_cli_cells->persistent_buf_alloc(
-        sizeof(*report) + (count * sizeof(CliServerDiagnostic)) + path_bytes + message_bytes, &g_cli_servers_cells);
+    CliServerReport *const report = g_cli_guard->persistent_buf_alloc(
+        sizeof(*report) + (count * sizeof(CliServerDiagnostic)) + path_bytes + message_bytes, g_cli_servers_owner);
     if (report == NULL)
     {
         return NULL;

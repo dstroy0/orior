@@ -289,8 +289,8 @@ void test_each_script_is_read_in_cells_released_after_it(void)
 {
     int module = 0;
     EMBED_CALL(cli_executables_names_text_module_internal.npm_bins, CliExecutablesNamesTextModuleCtx, .text = "{\"name\":\"lib\"}", .names = &s_names, .module = &module);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_executables_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_executables_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_executables_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_executables_owner));
 }
 
 void test_go_lists_its_main_packages_by_folder(void)
@@ -398,8 +398,8 @@ void test_each_builds_trace_is_verbose_by_default(void)
         int traced = 0;
         for (unsigned int param = job->param_first; param < (job->param_first + job->params); param += 1u)
         {
-            const int names_trace = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.param[param].key), .other = CLI_TRACE, .cap = CLI_CELLS_POOL});
-            const int verbose = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.param[param].fallback), .other = CLI_TRACE_VERBOSE, .cap = CLI_CELLS_POOL});
+            const int names_trace = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.param[param].key), .other = CLI_TRACE, .cap = CLI_POOL_BYTES});
+            const int verbose = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.param[param].fallback), .other = CLI_TRACE_VERBOSE, .cap = CLI_POOL_BYTES});
             traced = traced || (names_trace && verbose);
         }
         TEST_ASSERT_TRUE(traced);

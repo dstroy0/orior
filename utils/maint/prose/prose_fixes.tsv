@@ -4015,3 +4015,7 @@ src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	is what a part with fe
 src/cu/includes/mmgr/tools/dev_env/nsconv.py	Comment and literal bytes are text, not	Comment and literal bytes are plain text
 src/cu/includes/mmgr/tools/dev_env/nsconv.py	statement separator, which is	statement separator, and for that reason
 src/cu/includes/mmgr/tools/dev_env/nsconv.py	why this steps over literals	this steps over literals
+utils/test/harness_cu.py	no C caller could spell	no C caller could write
+utils/test/harness_cu.py	checks, so one include path serves them all	checks, and one include path serves them all
+utils/test/src/ui/cli/unit/db_grid/test_db_grid/test_db_grid.c	inside the stretch reads nothing more	inside the stretch reads nothing
+utils/test/src/ui/gui/comms_test.c	over the ground, so each is told	over the ground, and each is told

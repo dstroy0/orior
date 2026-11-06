@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // statusbar.c: the status bar's items stand from its right end, the lock first, then the editor's line, Focus and the
-// memory reading, each a gap apart, and the crumbs from its left, the folders in the bar's text, the file in its bright
-// text and the marks between them in the path's, the notice a gap after them with Silence beside it. One pass lays the
-// bar out and draws it, or with no raster lays it out alone, so a press finds what the drawing showed
+// memory reading, each a gap apart, and the crumbs from its left as the crumbs part lays them, the notice a gap after
+// them with Silence beside it. One pass lays the bar out and draws it, or with no raster lays it out alone, so a press
+// finds what the drawing showed
 #include "statusbar.h"
 #include "../../text/text.h"
 #include "../view.h"
+#include "crumbs.h"
 
-// the crumbs' mark between a folder and what it holds, the ellipsis a notice cut short ends in, Silence and Focus
-static const char s_crumb_mark[] = "\xe2\x80\xba";
+// the ellipsis a notice cut short ends in, Silence and Focus
 static const char s_ellipsis[] = "\xe2\x80\xa6";
 static const char s_silence[] = "Silence";
 static const char s_focus[] = "Focus";
@@ -128,7 +128,7 @@ EMBED_INLINE float statusbar_item_draw(const StatusbarCtx *args)
 // fit with the ellipsis after them, which `length_out` then counts and 1 returns; 0 where the whole fits
 EMBED_INLINE int statusbar_fitted(const StatusbarCtx *args)
 {
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     *args->length_out = whole;
     if (EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs, .face = GUI_FACE_HEAD,
                    .size = args->size, .text = args->text, .length = whole) <= args->most)
@@ -295,34 +295,13 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
         (int)((((long long)(GUI_FIXED_ONE - args->frame->claim.claim) * (long long)args->frame->strip.width) +
                (GUI_FIXED_ONE / 2)) /
               GUI_FIXED_ONE);
-    float x = (float)(args->frame->status.x + strip_capacity +
-                      EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
-    const float crumb_gap =
-        (float)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_CRUMB_GAP, .scale = scale);
-    const char *at = args->status->path;
-    while (*at != '\0')
-    {
-        unsigned long long length = 0ULL;
-        length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = length,
-                            .size = length + cellul.len(&(CatenaFinitaCfg){.src = at + length, .cap = CLI_CELLS_POOL}),
-                            .set = "/\\");
-        const int last = at[length] == '\0';
-        x = EMBED_CALL(statusbar_text, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size, .x = x,
-                       .baseline = baseline, .text = at, .length = length,
-                       .color = last ? args->palette->bar_bright : args->palette->status_text, .clip = capacity);
-        if (last)
-        {
-            // the notice stands a gap after the crumbs
-            x += (float)gap;
-            break;
-        }
-        x += crumb_gap;
-        x = EMBED_CALL(statusbar_text, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size, .x = x,
-                       .baseline = baseline, .text = s_crumb_mark, .length = sizeof(s_crumb_mark) - 1u,
-                       .color = args->palette->bar_path, .clip = capacity) +
-            crumb_gap;
-        at += length + 1ULL;
-    }
+    const float crumbs_x =
+        (float)(args->frame->status.x + strip_capacity +
+                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
+    // the crumbs as the crumbs part lays them, the notice a gap after them where any stands
+    float x = EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = raster, .glyphs = glyphs, .palette = args->palette,
+                         .size = size, .x_f32 = crumbs_x, .baseline = baseline, .clip = capacity, .scale = scale);
+    x += (EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) != 0u) ? (float)gap : 0.0f;
     // the notice's first line, as much as half the window's width and the width before the items, the ellipsis ending
     // what does not fit, a failure's in the fail color, and Silence beside it, quieter
     if ((args->status->notice == NULL) || (args->status->notice[0] == '\0'))

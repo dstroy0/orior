@@ -4,7 +4,7 @@
 // the text and what it is, read off its token's name's segments alone. No language is read here but by its plugin's
 // grammar
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
@@ -65,7 +65,7 @@ typedef struct
 // whether the segment of `name` from `from`, `length` bytes, is `segment`
 EMBED_INLINE int cli_leaf_segment_is(const SymbolsLeavesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->segment, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->segment, .cap = CLI_POOL_BYTES});
     return (args->length == size) &&
            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->name + args->from,
                       .other_pointer = args->segment, .size = size);
@@ -95,7 +95,7 @@ EMBED_INLINE unsigned char cli_leaf_operation(const SymbolsLeavesCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DOES_COUNT; at += 1u)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_operations[at], .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_operations[at], .cap = CLI_POOL_BYTES});
         if ((args->length == size) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->name + args->from,
                        .other_pointer = s_operations[at], .size = size))
@@ -134,7 +134,7 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
     args->leaf->base = 10u;
     args->leaf->does = 0u;
     int operating = 0;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (length == 0ULL)
     {
         args->leaf->is = CLI_LEAF_BLANK;
@@ -239,7 +239,7 @@ EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
     const unsigned long long required = args->read->size + CLI_LEAVES_MARKS;
     const unsigned int capacity = (required < CLI_LEAVES_MAX) ? (unsigned int)required : CLI_LEAVES_MAX;
     args->read->leaf =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), &g_cli_leaves_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), g_cli_leaves_owner);
     args->read->capacity = (args->read->leaf != NULL) ? capacity : 0u;
     return args->read->leaf != NULL;
 }
@@ -256,7 +256,7 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
     }
     // the line stands in the copy at or past its first byte
     const unsigned long long start = (unsigned long long)(line - read->first);
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES});
     unsigned long long byte = 0ULL;
     unsigned int at = 0u;
     for (unsigned int run = 0u; !read->refused && (run < args->leaves->runs); run += 1u)

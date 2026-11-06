@@ -189,10 +189,10 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
             continue;
         }
         any = 1;
-        fits |= ((cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}) == size) &&
+        fits |= ((cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
                  (memor.cmp(&(MemoriaCfg){.src = allowed, .other = kind, .bytes = (size_t)size}) == 0)) ||
                 ((size == 6u) && (memor.cmp(&(MemoriaCfg){.src = allowed, .other = "number", .bytes = 6u}) == 0) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "integer", .cap = CLI_CELLS_POOL})));
+                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "integer", .cap = CLI_POOL_BYTES})));
     }
     if (!any || fits)
     {
@@ -202,7 +202,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_put(&msg, "A value of type ");
     EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = kind,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}), .out = &msg);
+               .size = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}), .out = &msg);
     mmgr_line_put(&msg, " stands here, where the schema requires ");
     int first_listing = 1;
     for (unsigned int one = first; one != CLI_JSON_NONE;
@@ -392,7 +392,7 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
         if (found != CLI_SCHEMA_NONE)
         {
             const unsigned int before = s_bases_used;
-            s_bases_used += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = doc, .cap = CLI_CELLS_POOL}) + 1u;
+            s_bases_used += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = doc, .cap = CLI_POOL_BYTES}) + 1u;
             EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
                        .schema = found, .base = doc, .key_schema_key = args->key_schema_key, .depth = args->depth + 1u);
             s_bases_used = before;

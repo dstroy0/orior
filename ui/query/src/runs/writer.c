@@ -81,7 +81,7 @@ EMBED_INLINE int query_writer_member_now(const WriterCtx *args)
 {
     const char *const path = qry_member_path();
     return (path != NULL) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = args->writer->qry, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = args->writer->qry, .cap = CLI_POOL_BYTES}));
 }
 
 int query_writer_is_member(const QueryCountNameCtx *args)

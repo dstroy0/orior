@@ -168,7 +168,7 @@ EMBED_INLINE int lite_shim(const DbLiteCtx *args)
             EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder) &&
             EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                        .bytes = g_cli_db_lite_shim,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_db_lite_shim, .cap = CLI_CELLS_POOL}));
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_db_lite_shim, .cap = CLI_POOL_BYTES}));
     }
     const int written = s_written;
     return written;
@@ -186,7 +186,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
             .dst = args->failure->hint,
             .src = "File, Toolchains finds Python, or takes its folder.",
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "File, Toolchains finds Python, or takes its folder.",
-                                                   .cap = CLI_CELLS_POOL}) +
+                                                   .cap = CLI_POOL_BYTES}) +
                      1u});
         return NULL;
     }
@@ -204,7 +204,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     }
     if (entry_at < CLI_DB_LITES)
     {
-        lite = g_cli_cells->persistent_buf_alloc(sizeof(CliDbLite), &g_cli_db_cells);
+        lite = g_cli_guard->persistent_buf_alloc(sizeof(CliDbLite), g_cli_db_owner);
         s_lites[entry_at] = lite;
     }
     if (lite == NULL)
@@ -235,7 +235,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = message);
         s_lites[entry_at] = NULL;
-        g_cli_cells->persistent_buf_release(lite, &g_cli_db_cells);
+        g_cli_guard->persistent_buf_release(lite, g_cli_db_owner);
         return NULL;
     }
     char request[CLI_PATH_MAX_LEN * 2u];
@@ -243,7 +243,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     mmgr_line_put(&query, "{\"open\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &query,
                .text_bytes = (const unsigned char *)args->file,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(&query, args->read_only ? ",\"readonly\":true}" : ",\"readonly\":false}");
     unsigned long long start = 0ULL;
     unsigned long long length = 0ULL;
@@ -272,7 +272,7 @@ void cli_db_lite_close(const CliDbErrMsgCtx *args)
     {
         s_lites[entry_at] = (s_lites[entry_at] == args->lite) ? NULL : s_lites[entry_at];
     }
-    g_cli_cells->persistent_buf_release(args->lite, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(args->lite, g_cli_db_owner);
 }
 
 int cli_db_lite_interrupt(const CliDbErrMsgCtx *args)
@@ -331,7 +331,7 @@ EMBED_INLINE unsigned long long lite_value_end(const DbLiteCtx *args)
         }
         else if ((depth == 0u) &&
                  ((one == ',') ||
-                  (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = one}) != NULL)))
+                  (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_POOL_BYTES, .byte = one}) != NULL)))
         {
             return at;
         }
@@ -349,7 +349,7 @@ EMBED_INLINE void lite_items(const DbLiteCtx *args)
     for (at += 1ULL; at < args->length_value;)
     {
         while ((at < args->length_value) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n,", .cap = CLI_CELLS_POOL, .byte = text[at]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n,", .cap = CLI_POOL_BYTES, .byte = text[at]}) != NULL))
         {
             at += 1ULL;
         }
@@ -395,7 +395,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     // line SQLite's process reads
     const unsigned long long quoted = (6ULL * args->size) + 16ULL;
     const unsigned long long capacity = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
-    char *const request = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_db_cells);
+    char *const request = g_cli_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
     VerbaLinea query = mmgr_line_over(request, capacity);
     mmgr_line_put(&query, "{\"start\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &query,
@@ -404,7 +404,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     const int fits = mmgr_line_ok(&query);
     const int answered = fits && EMBED_CALL(lite_query, DbLiteCtx, .lite = args->lite, .request = query.out,
                                             .size = query.at, .failure = args->failure);
-    g_cli_cells->persistent_buf_release(request, &g_cli_db_cells);
+    g_cli_guard->persistent_buf_release(request, g_cli_db_owner);
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
@@ -476,7 +476,7 @@ static void lite_value(const CliEachItemSizeCfg *args)
         *value = (CliDbValue){"", 0ULL, 0};
         return;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     *value = (CliDbValue){text, length, 0};
     read->used += length + 1ULL;
 }

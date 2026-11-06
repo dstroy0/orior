@@ -187,13 +187,13 @@ EMBED_INLINE int query_offline_files(const LearnStepsCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->machine,
                       .src = files->machine,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->machine, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->machine, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->costs,
                             .src = files->costs,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->costs, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->costs, .cap = CLI_POOL_BYTES}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = args->record,
                             .src = files->record,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->record, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->record, .cap = CLI_POOL_BYTES}) + 1u});
     if (args->step->kind != QUERY_LEARN_ROUNDS)
     {
         EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.khw",

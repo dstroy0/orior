@@ -21,9 +21,6 @@ typedef struct CliTlsDataCfg CliTlsDataCfg;
 // A TLS session over a socket: what is written to it goes out sealed, and each read opens what came
 typedef struct CliTls CliTls;
 
-// the cells the sessions occupy while open, counted (tls.c)
-extern CellOwner g_cli_tls_cells;
-
 // `size` bytes of `data` written sealed: the bytes taken, which may be fewer, or CLI_SOCKET_FAILED with why given
 long long cli_tls_write(const CliTlsDataCfg *args);
 // `size` bytes written sealed whole: 1, or 0 with why given

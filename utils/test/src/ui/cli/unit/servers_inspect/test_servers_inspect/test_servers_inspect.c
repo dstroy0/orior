@@ -32,7 +32,7 @@ static void diagnostics_recorded(const CliServerDiagnosticsCfg *args)
         name = ((*at == '/') || (*at == '\\')) ? at + 1u : name;
     }
     unsigned int file = 0u;
-    while ((file < s_diagnostics.files) && !cellul.eq(&(CatenaFinitaCfg){.src = s_diagnostics.name[file], .other = name, .cap = CLI_CELLS_POOL}))
+    while ((file < s_diagnostics.files) && !cellul.eq(&(CatenaFinitaCfg){.src = s_diagnostics.name[file], .other = name, .cap = CLI_POOL_BYTES}))
     {
         file += 1u;
     }
@@ -54,7 +54,7 @@ static int findings_of(const char *name)
     int count = -1;
     for (unsigned int file = 0u; file < s_diagnostics.files; file += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_diagnostics.name[file], .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_diagnostics.name[file], .other = name, .cap = CLI_POOL_BYTES}))
         {
             // a file's findings are far below an int's range
             count = (int)s_diagnostics.count[file];

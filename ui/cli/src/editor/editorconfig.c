@@ -59,7 +59,7 @@ EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
 // whether the bytes from `from` up to `to` are `word`, the ASCII letters of either case the same
 EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     if ((unsigned long long)(args->to - args->from) != length)
     {
         return 0;
@@ -208,7 +208,7 @@ EMBED_INLINE int cli_value_number(const EditorconfigCtx *args)
         return 0;
     }
     unsigned long long size = 0ULL;
-    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL});
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES});
     if (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL, .size = digits,
                    .classes = CLI_TEXT_DIGITS, .set = "") != digits)
     {
@@ -245,7 +245,7 @@ EMBED_INLINE unsigned long long cli_editorconfig_read(const EditorconfigCtx *arg
 EMBED_INLINE unsigned int cli_folders_found(const EditorconfigCtx *args)
 {
     unsigned int folders = 0u;
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     int going = 1;
     while (going && (folders < CLI_EDITORCONFIG_FOLDERS))
     {
@@ -294,9 +294,9 @@ EMBED_INLINE void cli_folders_read(const EditorconfigCtx *args)
         char relative[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = relative,
                                 .src = inside,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inside, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = inside, .cap = CLI_POOL_BYTES}) + 1u});
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = relative,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_POOL_BYTES}), .from = '\\',
                    .to = '/');
         const int separated =
             (folder != 0ULL) && EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder - 1u]);
@@ -320,11 +320,11 @@ EMBED_INLINE void cli_indent_set(const EditorconfigCtx *args)
     {
         args->indent->tabs = -1;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->style->text, .other = "tab", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->style->text, .other = "tab", .cap = CLI_POOL_BYTES}))
     {
         args->indent->tabs = 1;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->style->text, .other = "space", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->style->text, .other = "space", .cap = CLI_POOL_BYTES}))
     {
         args->indent->tabs = 0;
     }
@@ -342,7 +342,7 @@ EMBED_INLINE void cli_indent_set(const EditorconfigCtx *args)
         args->indent->size = tab_width;
     }
     else if (((args->size_value->set != 1) ||
-              !cellul.eq(&(CatenaFinitaCfg){.src = args->size_value->text, .other = "tab", .cap = CLI_CELLS_POOL})) &&
+              !cellul.eq(&(CatenaFinitaCfg){.src = args->size_value->text, .other = "tab", .cap = CLI_POOL_BYTES})) &&
              EMBED_CALL(cli_value_number, EditorconfigCtx, .value_read = args->size_value, .number = &number))
     {
         args->indent->sized = 1;
@@ -362,7 +362,7 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
     CliValue style = {{0}, 0};
     CliValue size_value = {{0}, 0};
     CliValue width = {{0}, 0};
-    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     while ((name > args->path) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = name[-1]))
     {
         name -= 1;

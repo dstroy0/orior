@@ -43,7 +43,7 @@ typedef struct
 EMBED_INLINE const CliSocket *jupyter_socket_get(const JupyterRequestsCtx *args)
 {
     const int control =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->channel, .other = "control", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->channel, .other = "control", .cap = CLI_POOL_BYTES}));
     return control ? &args->kernel->control : &args->kernel->shell;
 }
 
@@ -143,7 +143,7 @@ int cli_jupyter_interrupt(const CliJupyterErrMsgKernelFileCfg *args)
             &(CatenaFinitaCfg){.src = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                                  .spec = &args->kernel->spec, .at = args->kernel->spec.interrupt_mode),
                                .other = "message",
-                               .cap = CLI_CELLS_POOL}))
+                               .cap = CLI_POOL_BYTES}))
     {
         char answer[65536];
         VerbaLinea reply = {answer, sizeof(answer), 0ULL};

@@ -105,8 +105,8 @@ void test_the_files_are_transferred_with_forward_slashes(void)
 {
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = "D:/top/tree", .part = "sm_86", .files = &s_files);
     const unsigned long long length = CLI_UNITY_LENGTH(s_files.costs);
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_files.costs, .cap = CLI_CELLS_POOL, .byte = '\\'}));
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_files.layout, .cap = CLI_CELLS_POOL, .byte = '\\'}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_files.costs, .cap = CLI_POOL_BYTES, .byte = '\\'}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_files.layout, .cap = CLI_POOL_BYTES, .byte = '\\'}));
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(16ull, length);
     TEST_ASSERT_EQUAL_STRING("/table/sm_86.ksc", s_files.costs + length - 16u);
 }
@@ -249,8 +249,8 @@ void test_the_sticks_path_is_not_a_cygwin_path_and_uses_forward_slashes(void)
 {
     stick_paths_read();
     CLI_TEST_ASSERT_NOT_CONTAINS("\\\\?\\", s_paths.cu);
-    TEST_ASSERT_FALSE(cellul.starts(&(CatenaFinitaCfg){.src = s_paths.cu, .other = "/c/", .cap = CLI_CELLS_POOL}));
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_paths.cu, .cap = CLI_CELLS_POOL, .byte = '\\'}));
+    TEST_ASSERT_FALSE(cellul.starts(&(CatenaFinitaCfg){.src = s_paths.cu, .other = "/c/", .cap = CLI_POOL_BYTES}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = s_paths.cu, .cap = CLI_POOL_BYTES, .byte = '\\'}));
 }
 
 void test_windows_the_sticks_path_has_its_drive(void)

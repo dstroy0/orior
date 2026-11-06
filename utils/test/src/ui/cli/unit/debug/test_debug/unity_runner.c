@@ -91,26 +91,26 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\debug\\test_debug\\test_debug.c");
-  run_test(test_a_functions_bytecode_is_read_with_its_name_and_lines, "test_a_functions_bytecode_is_read_with_its_name_and_lines", 181);
-  run_test(test_the_machines_processes_are_listing_with_the_lines_they_started_with, "test_the_machines_processes_are_listing_with_the_lines_they_started_with", 218);
-  run_test(test_this_process_is_not_listing, "test_this_process_is_not_listing", 226);
-  run_test(test_the_processes_are_listing_in_their_own_cells_released_once_written, "test_the_processes_are_listing_in_their_own_cells_released_once_written", 232);
-  run_test(test_the_list_is_quick_enough_for_a_picker, "test_the_list_is_quick_enough_for_a_picker", 239);
-  run_test(test_launch_arguments_read_the_program_and_the_folder, "test_launch_arguments_read_the_program_and_the_folder", 245);
-  run_test(test_a_number_filled_in_is_a_number, "test_a_number_filled_in_is_a_number", 257);
-  run_test(test_a_frame_counts_its_line_from_zero, "test_a_frame_counts_its_line_from_zero", 269);
-  run_test(test_breakpoints_machine_transfer_their_conditions_counts_and_messages, "test_breakpoints_machine_transfer_their_conditions_counts_and_messages", 280);
-  run_test(test_a_session_accepts_the_files_of_its_language, "test_a_session_accepts_the_files_of_its_language", 293);
-  run_test(test_memory_comes_as_base64, "test_memory_comes_as_base64", 301);
-  run_test(test_every_byte_of_memory_comes_through_base64, "test_every_byte_of_memory_comes_through_base64", 308);
-  run_test(test_debugpy_steps_only_in_the_users_code, "test_debugpy_steps_only_in_the_users_code", 316);
-  run_test(test_debugpy_skips_a_module_or_a_path, "test_debugpy_skips_a_module_or_a_path", 326);
-  run_test(test_lldb_avoids_the_patterns_it_is_sent, "test_lldb_avoids_the_patterns_it_is_sent", 336);
-  run_test(test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts, "test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts", 346);
-  run_test(test_a_positions_start_is_a_tree_of_its_own, "test_a_positions_start_is_a_tree_of_its_own", 355);
-  run_test(test_all_of_a_position_is_released_as_it_is_freed, "test_all_of_a_position_is_released_as_it_is_freed", 363);
-  run_test(test_c_rust_and_python_each_have_a_debugger, "test_c_rust_and_python_each_have_a_debugger", 373);
-  run_test(test_c_and_rust_have_a_build_and_python_does_not, "test_c_and_rust_have_a_build_and_python_does_not", 386);
+  run_test(test_a_functions_bytecode_is_read_with_its_name_and_lines, "test_a_functions_bytecode_is_read_with_its_name_and_lines", 195);
+  run_test(test_the_machines_processes_are_listing_with_the_lines_they_started_with, "test_the_machines_processes_are_listing_with_the_lines_they_started_with", 232);
+  run_test(test_this_process_is_not_listing, "test_this_process_is_not_listing", 240);
+  run_test(test_the_processes_are_listing_in_their_own_cells_released_once_written, "test_the_processes_are_listing_in_their_own_cells_released_once_written", 246);
+  run_test(test_the_list_is_quick_enough_for_a_picker, "test_the_list_is_quick_enough_for_a_picker", 253);
+  run_test(test_launch_arguments_read_the_program_and_the_folder, "test_launch_arguments_read_the_program_and_the_folder", 259);
+  run_test(test_a_number_filled_in_is_a_number, "test_a_number_filled_in_is_a_number", 271);
+  run_test(test_a_frame_counts_its_line_from_zero, "test_a_frame_counts_its_line_from_zero", 283);
+  run_test(test_breakpoints_machine_transfer_their_conditions_counts_and_messages, "test_breakpoints_machine_transfer_their_conditions_counts_and_messages", 294);
+  run_test(test_a_session_accepts_the_files_of_its_language, "test_a_session_accepts_the_files_of_its_language", 307);
+  run_test(test_memory_comes_as_base64, "test_memory_comes_as_base64", 315);
+  run_test(test_every_byte_of_memory_comes_through_base64, "test_every_byte_of_memory_comes_through_base64", 322);
+  run_test(test_debugpy_steps_only_in_the_users_code, "test_debugpy_steps_only_in_the_users_code", 330);
+  run_test(test_debugpy_skips_a_module_or_a_path, "test_debugpy_skips_a_module_or_a_path", 340);
+  run_test(test_lldb_avoids_the_patterns_it_is_sent, "test_lldb_avoids_the_patterns_it_is_sent", 350);
+  run_test(test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts, "test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts", 360);
+  run_test(test_a_positions_start_is_a_tree_of_its_own, "test_a_positions_start_is_a_tree_of_its_own", 369);
+  run_test(test_all_of_a_position_is_released_as_it_is_freed, "test_all_of_a_position_is_released_as_it_is_freed", 377);
+  run_test(test_c_rust_and_python_each_have_a_debugger, "test_c_rust_and_python_each_have_a_debugger", 387);
+  run_test(test_c_and_rust_have_a_build_and_python_does_not, "test_c_and_rust_have_a_build_and_python_does_not", 403);
 
   return UNITY_END();
 }

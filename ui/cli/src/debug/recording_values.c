@@ -59,7 +59,7 @@ typedef struct
     CliRecordedValue *values;
     unsigned int capacity;
     unsigned int count;
-    CellOwner *owner;
+    const CellOwner *owner;
 } CliRecordedValues;
 
 // a change applied to the values stored: the name's value taken out, and its new one put after the rest where it has
@@ -71,7 +71,7 @@ static void read_value_append(const CliEachNameValueCfg *args)
     for (unsigned int at = 0u; at < recorded->count; at += 1u)
     {
         if (!cellul.eq(
-                &(CatenaFinitaCfg){.src = recorded->values[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
+                &(CatenaFinitaCfg){.src = recorded->values[at].name, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             recorded->values[count] = recorded->values[at];
             count += 1u;
@@ -84,11 +84,11 @@ static void read_value_append(const CliEachNameValueCfg *args)
         memor.cpy(
             &(MemoriaCfg){.dst = put->name,
                           .src = args->name,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
         memor.cpy(
             &(MemoriaCfg){.dst = put->value,
                           .src = args->value,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}) + 1u});
         put->has = 1;
         recorded->count += 1u;
     }
@@ -104,7 +104,7 @@ unsigned int cli_recording_values(const CliRecordingAtCtx *args)
         return 0u;
     }
     CliRecordedValue *const cell =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliRecordedValue), args->owner);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliRecordedValue), args->owner);
     CliRecordedValues recorded = {cell, (cell != NULL) ? args->most : 0u, 0u, args->owner};
     const CliRecordedFrame *const frame = &recording->frames[args->serial];
     for (unsigned int index = 0u; (index < frame->count) && (recording->by_frame[frame->first + index] <= args->at);
@@ -167,7 +167,7 @@ static void read_on_find(const CliEachNameValueCfg *args)
 {
     CliRecordedNeedle *const needle = (CliRecordedNeedle *)args->context;
     if (!needle->found &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = needle->name, .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = needle->name, .cap = CLI_POOL_BYTES})))
     {
         needle->found = 1;
         needle->has = (args->value != NULL);

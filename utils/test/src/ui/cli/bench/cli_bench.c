@@ -77,8 +77,8 @@ static void each_read(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)again, (&g_checks_cells));
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &read, .owner = g_checks_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)again, (g_checks_owner));
 }
 
 static void each_utf8(const BenchEachCfg *args)
@@ -89,8 +89,8 @@ static void each_utf8(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)again, (&g_checks_cells));
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = g_checks_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)again, (g_checks_owner));
 }
 
 static void each_units(const BenchEachCfg *args)
@@ -141,7 +141,7 @@ static void each_sift(const BenchEachCfg *args)
 // counted once as a text stored in lines stores it. The rows "sift whole" and "sift stored"
 static void bench_sift_file(unsigned long long whole)
 {
-    unsigned char *const text = g_cli_cells->persistent_buf_alloc(whole + 1ull, &g_checks_cells);
+    unsigned char *const text = g_cli_guard->persistent_buf_alloc(whole + 1ull, g_checks_owner);
     if (text == NULL)
     {
         return;
@@ -172,7 +172,7 @@ static void bench_sift_file(unsigned long long whole)
         consumed = cli_clock_microseconds() - began;
         stored.min = (consumed < stored.min) ? consumed : stored.min;
     }
-    g_cli_cells->persistent_buf_release(text, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(text, g_checks_owner);
     bench_row("sift whole", counted);
     bench_row("sift stored", stored);
 }
@@ -266,16 +266,16 @@ BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int
     (void)repeat;
     BenchColoring coloring = {
         key,
-        g_cli_cells->persistent_buf_alloc(largest + 1ull, &g_checks_cells),
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(const char *), &g_checks_cells),
+        g_cli_guard->persistent_buf_alloc(largest + 1ull, g_checks_owner),
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(const char *), g_checks_owner),
         {NULL, 0ull, 0ull},
         0ull};
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(1ull << 22u, &g_checks_cells);
+    char *const out_cell = g_cli_guard->temporary_buf_alloc(1ull << 22u, g_checks_owner);
     coloring.out = mmgr_line_over(out_cell, 1ull << 22u);
     const BenchMeasure measure = bench_pass(each_color, &coloring);
-    g_cli_cells->persistent_buf_release(coloring.out.out, &g_checks_cells);
-    g_cli_cells->persistent_buf_release(coloring.copy, &g_checks_cells);
-    g_cli_cells->persistent_buf_release(coloring.lines, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(coloring.out.out, g_checks_owner);
+    g_cli_guard->persistent_buf_release(coloring.copy, g_checks_owner);
+    g_cli_guard->persistent_buf_release(coloring.lines, g_checks_owner);
     return measure;
 }
 
@@ -283,14 +283,14 @@ BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int
 static int bench_corpus(const char *list)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = list, .size_pointer = &size, .owner = &g_checks_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = list, .size_pointer = &size, .owner = g_checks_owner);
     if (text == NULL)
     {
         fprintf(stderr, "the corpus list %s was not read\n", list);
         return 0;
     }
-    s_paths = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FILES * CLI_PATH_MAX_LEN, &g_checks_cells);
-    s_corpus = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FILES * sizeof(BenchFile), &g_checks_cells);
+    s_paths = g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FILES * CLI_PATH_MAX_LEN, g_checks_owner);
+    s_corpus = g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FILES * sizeof(BenchFile), g_checks_owner);
     unsigned long long start = 0ull;
     for (unsigned long long at = 0ull; (at <= size) && (s_count < BENCH_FILES); at += 1ull)
     {
@@ -304,12 +304,12 @@ static int bench_corpus(const char *list)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_paths[s_count], .src = text + start, .bytes = end - start});
             s_paths[s_count][end - start] = '\0';
-            s_corpus[s_count].bytes = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_paths[s_count], .size_pointer = &s_corpus[s_count].size, .owner = &g_checks_cells);
+            s_corpus[s_count].bytes = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_paths[s_count], .size_pointer = &s_corpus[s_count].size, .owner = g_checks_owner);
             s_count += 1u;
         }
         start = at + 1ull;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
     return s_count > 0u;
 }
 
@@ -319,7 +319,7 @@ static int bench_grammar_cached(void)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "ui/plugins/c/plugin.json", .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
     if (text == NULL)
     {
         return 0;
@@ -327,14 +327,14 @@ static int bench_grammar_cached(void)
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
     const int cached = (root != CLI_JSON_NONE) &&
                        EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-c", .json = &json, .def = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = root, .name = "grammar"), .err_msg = &err_msg);
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
     return cached;
 }
 
@@ -357,7 +357,7 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
             char path[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
             if (text == NULL)
             {
                 continue;
@@ -369,7 +369,7 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
             }
             consumed += cli_clock_microseconds() - began;
             bytes += 200ull * size;
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
         }
         measure.bytes = bytes;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
@@ -391,13 +391,13 @@ static BenchMeasure bench_json(BenchMeasure *write)
             char path[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
             if (text == NULL)
             {
                 continue;
             }
             const unsigned long long out_capacity = size + 1024ull;
-            char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_checks_cells);
+            char *const out_cell = g_cli_guard->temporary_buf_alloc(out_capacity, g_checks_owner);
             VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
             char why[CLI_ERR_MSG_MAX_LEN];
             VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -406,20 +406,20 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 CliJson json;
                 const unsigned long long began = cli_clock_microseconds();
                 const unsigned int root =
-                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
                 const unsigned long long read = cli_clock_microseconds();
                 out.at = 0ull;
                 EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &out, .indent = 0u, .sorted = 0);
                 consumed_write += cli_clock_microseconds() - read;
                 consumed += read - began;
-                g_cli_cells->persistent_buf_release(json.node,
-                                                    EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+                g_cli_guard->persistent_buf_release(json.node,
+                                                    mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
                 EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                            .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
                 bytes += size;
             }
-            g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_checks_cells));
+            g_cli_guard->persistent_buf_release(out.out, g_checks_owner);
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
         }
         measure.bytes = bytes;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
@@ -434,7 +434,7 @@ static BenchMeasure bench_sorted(void)
 {
     BenchMeasure measure = {0ull, ~0ull};
     char (*const copy)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)s_count * CLI_PATH_MAX_LEN, &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)s_count * CLI_PATH_MAX_LEN, g_checks_owner);
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
         memor.cpy(&(MemoriaCfg){.dst = copy, .src = s_paths, .bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN});
@@ -444,7 +444,7 @@ static BenchMeasure bench_sorted(void)
         measure.bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
-    g_cli_cells->persistent_buf_release(copy, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(copy, g_checks_owner);
     return measure;
 }
 
@@ -459,8 +459,8 @@ static BenchMeasure bench_cells(void)
         const unsigned long long began = cli_clock_microseconds();
         for (unsigned int turn = 0u; turn < BENCH_CELL_TURNS; turn += 1u)
         {
-            void *const cell = g_cli_cells->persistent_buf_alloc(4096ull, &g_checks_cells);
-            g_cli_cells->persistent_buf_release(cell, &g_checks_cells);
+            void *const cell = g_cli_guard->persistent_buf_alloc(4096ull, g_checks_owner);
+            g_cli_guard->persistent_buf_release(cell, g_checks_owner);
         }
         const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = (unsigned long long)BENCH_CELL_TURNS * 4096ull;
@@ -471,7 +471,7 @@ static BenchMeasure bench_cells(void)
 
 int main(int argc, char **argv)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     if (argc < 3)
     {
         fprintf(stderr, "cli_bench <corpus list> <tree> [repeat]\n");
@@ -481,7 +481,7 @@ int main(int argc, char **argv)
     s_repeat = (s_repeat == 0u) ? 1u : s_repeat;
     memor.cpy(&(MemoriaCfg){.dst = s_root,
                             .src = argv[2],
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = argv[2], .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = argv[2], .cap = CLI_POOL_BYTES}) + 1u});
     if (!bench_corpus(argv[1]))
     {
         return 1;
@@ -499,14 +499,14 @@ int main(int argc, char **argv)
     unsigned long long sum = 0ull;
     bench_row("units", bench_pass(each_units, &sum));
     unsigned int *const letters =
-        g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
     bench_row("letters", bench_pass(each_letters, letters));
-    g_cli_cells->persistent_buf_release(letters, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(letters, g_checks_owner);
     // each byte that starts no letter written as U+FFFD's three bytes at the most
-    char *const lossy_cell = g_cli_cells->persistent_buf_alloc((3ull * largest) + 1ull, &g_checks_cells);
+    char *const lossy_cell = g_cli_guard->persistent_buf_alloc((3ull * largest) + 1ull, g_checks_owner);
     VerbaLinea lossy = {lossy_cell, (3ull * largest) + 1ull, 0ull};
     bench_row("lossy", bench_pass(each_lossy, &lossy));
-    g_cli_cells->persistent_buf_release(lossy_cell, &g_checks_cells);
+    g_cli_guard->persistent_buf_release(lossy_cell, g_checks_owner);
     sum = 0ull;
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;
@@ -514,17 +514,17 @@ int main(int argc, char **argv)
     bench_sift_file(whole);
     bench_row("facts", bench_pass(each_facts, NULL));
     cli_inspect_tree_clear();
-    s_runs = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), &g_checks_cells);
+    s_runs = g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), g_checks_owner);
     s_line_first =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), g_checks_owner);
     s_line_runs =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), g_checks_owner);
     s_fold_first =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), g_checks_owner);
     s_fold_last =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), g_checks_owner);
     s_ranges =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_RANGES * sizeof(CliInspectSpan), &g_checks_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_RANGES * sizeof(CliInspectSpan), g_checks_owner);
     sum = 0ull;
     bench_row("parse", bench_pass(each_parse, &sum));
     sum = 0ull;

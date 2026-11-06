@@ -64,7 +64,7 @@ static unsigned long long list_written(unsigned char *out, int high, const char 
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     static unsigned char s_list[128];
     int enabled = -1;
     const unsigned long long off = list_written(s_list, 0, "Gtk/EnableAnimations", 20u, 0u);

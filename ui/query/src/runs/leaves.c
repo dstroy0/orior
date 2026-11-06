@@ -61,23 +61,23 @@ static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
         const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = word_text, .set = " \t");
         if (((length == 1u) && (word_text[0] == 'y')) ||
             ((length == 3u) &&
-             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "yes", .cap = CLI_CELLS_POOL}))))
+             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "yes", .cap = CLI_POOL_BYTES}))))
         {
             return QUERY_ANSWER_YES;
         }
         if (((length == 1u) && (word_text[0] == 'n')) ||
             ((length == 2u) &&
-             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "no", .cap = CLI_CELLS_POOL}))))
+             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "no", .cap = CLI_POOL_BYTES}))))
         {
             return QUERY_ANSWER_NO;
         }
         if ((length == 3u) &&
-            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_CELLS_POOL})))
+            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_POOL_BYTES})))
         {
             return QUERY_ANSWER_ALL;
         }
         if ((length == 4u) &&
-            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_CELLS_POOL})))
+            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_POOL_BYTES})))
         {
             return QUERY_ANSWER_NONE;
         }
@@ -167,7 +167,7 @@ EMBED_INLINE int query_line_same(const LeavesCtx *args)
 EMBED_INLINE void *query_diff_part(const LeavesCtx *args)
 {
     size_t size = args->size_size;
-    return (args->count > 0ULL) ? g_cli_cells->persistent_buf_alloc(args->count * size, &g_query_cells) : NULL;
+    return (args->count > 0ULL) ? g_cli_guard->persistent_buf_alloc(args->count * size, g_query_owner) : NULL;
 }
 
 // the lines of `before` and `after` counted, then cut into cells of their counts, with the reach over every diagonal
@@ -371,16 +371,16 @@ void query_leaf_show(const QueryPathTreeCtx *args)
     const char *name = args->path;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     int is_text = 0;
     for (unsigned int at = 0u; (dot != NULL) && (s_text[at] != NULL); at += 1u)
     {
         is_text =
-            is_text || (cellul.eq(&(CatenaFinitaCfg){.src = dot + 1, .other = s_text[at], .cap = CLI_CELLS_POOL}));
+            is_text || (cellul.eq(&(CatenaFinitaCfg){.src = dot + 1, .other = s_text[at], .cap = CLI_POOL_BYTES}));
     }
     if (is_text)
     {
@@ -394,27 +394,27 @@ void query_leaf_show(const QueryPathTreeCtx *args)
             mmgr_line_put(args->displayed, name);
             mmgr_line_ch(args->displayed, ':');
             EMBED_CALL(query_render, LeavesCtx, .diff_read = &diff, .changes = changes, .displayed = args->displayed);
-            g_cli_cells->persistent_buf_release((void *)diff.before, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.before_length, &g_query_cells);
-            g_cli_cells->persistent_buf_release((void *)diff.after, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.after_length, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.reach, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.band, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.change, &g_query_cells);
-            g_cli_cells->persistent_buf_release((void *)diff.change_line, &g_query_cells);
-            g_cli_cells->persistent_buf_release(diff.change_length, &g_query_cells);
+            g_cli_guard->persistent_buf_release((void *)diff.before, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.before_length, g_query_owner);
+            g_cli_guard->persistent_buf_release((void *)diff.after, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.after_length, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.reach, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.band, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
+            g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
+            g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
             memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
             return;
         }
-        g_cli_cells->persistent_buf_release((void *)diff.before, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.before_length, &g_query_cells);
-        g_cli_cells->persistent_buf_release((void *)diff.after, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.after_length, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.reach, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.band, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.change, &g_query_cells);
-        g_cli_cells->persistent_buf_release((void *)diff.change_line, &g_query_cells);
-        g_cli_cells->persistent_buf_release(diff.change_length, &g_query_cells);
+        g_cli_guard->persistent_buf_release((void *)diff.before, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.before_length, g_query_owner);
+        g_cli_guard->persistent_buf_release((void *)diff.after, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.after_length, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.reach, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.band, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
+        g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
+        g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
         memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
     }
     mmgr_line_put(args->displayed, name);
@@ -448,7 +448,7 @@ EMBED_INLINE int query_named_before(const LeavesCtx *args)
         if (cellul.eq(&(CatenaFinitaCfg){
                 .src = EMBED_CALL(query_run_path, LeavesCtx, .run_read = args->run_read, .at = before),
                 .other = path,
-                .cap = CLI_CELLS_POOL}))
+                .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -464,7 +464,7 @@ EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
     const unsigned long long required =
         ((args->before_size + args->after_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ULL;
     const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
-    char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_query_cells);
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_query_owner);
     VerbaLinea displayed = mmgr_line_over(text, capacity);
     EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = args->what,
                .tree = (args->before != NULL) ? args->before : (const unsigned char *)"",
@@ -474,7 +474,7 @@ EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
     }
-    g_cli_cells->persistent_buf_release(text, &g_query_cells);
+    g_cli_guard->persistent_buf_release(text, g_query_owner);
 }
 
 // the answer for the file `what`: yes where every file is left, no where none is, else the `prompter`'s

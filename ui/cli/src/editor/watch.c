@@ -4,7 +4,7 @@
 // takes them, less those the watching's patterns hide
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/patterns.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -84,12 +84,12 @@ EMBED_INLINE int cli_change_append(const WatchCtx *args)
     {
         return 0;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1ULL;
     if (args->changes->text == NULL)
     {
-        args->changes->text = g_cli_cells->persistent_buf_alloc(CLI_WATCH_TEXT_CAPACITY, &g_cli_watch_cells);
+        args->changes->text = g_cli_guard->persistent_buf_alloc(CLI_WATCH_TEXT_CAPACITY, g_cli_watch_owner);
         args->changes->change =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliChange), &g_cli_watch_cells);
+            g_cli_guard->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliChange), g_cli_watch_owner);
         args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_CAPACITY : 0ULL;
         args->changes->change_bytes =
             (args->changes->change != NULL) ? ((unsigned long long)args->most * sizeof(CliChange)) : 0ULL;
@@ -175,7 +175,7 @@ static int cli_gather(const WatchCtx *args)
     int relist = args->batch->lost;
     // the paths that came and went, to be mirrored to their closest parents as the round ends
     const char **const moved =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), &g_cli_watch_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), g_cli_watch_owner);
     unsigned int moves = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -188,18 +188,18 @@ static int cli_gather(const WatchCtx *args)
             git = 1;
             continue;
         }
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git", .cap = CLI_CELLS_POOL})) ||
-            (cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ".git/", .cap = CLI_CELLS_POOL})))
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git", .cap = CLI_POOL_BYTES})) ||
+            (cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ".git/", .cap = CLI_POOL_BYTES})))
         {
-            git = git || (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_CELLS_POOL})) ||
-                  (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/HEAD", .cap = CLI_CELLS_POOL})) ||
-                  (cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ".git/refs/", .cap = CLI_CELLS_POOL}));
+            git = git || (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_POOL_BYTES})) ||
+                  (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/HEAD", .cap = CLI_POOL_BYTES})) ||
+                  (cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ".git/refs/", .cap = CLI_POOL_BYTES}));
             relist = relist ||
-                     (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_CELLS_POOL})) ||
-                     (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/info/exclude", .cap = CLI_CELLS_POOL}));
+                     (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_POOL_BYTES})) ||
+                     (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/info/exclude", .cap = CLI_POOL_BYTES}));
             continue;
         }
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         relist = relist || ((length >= 10ULL) &&
                             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = path + length - 10ULL,
                                        .other_pointer = ".gitignore", .size = 10ULL) &&
@@ -224,25 +224,25 @@ static int cli_gather(const WatchCtx *args)
         {
             const char *const slash = EMBED_CALL(
                 cli_text_byte.last, CliTextByteCfg, .text = path,
-                .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
+                .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
             // the slash lies in the path, at or past its start
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
                        .path = path, .length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL);
             if ((kind == CLI_CHANGE_ADDED) && !dir)
             {
                 EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->written,
-                           .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                           .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
             }
         }
         else if (dir)
         {
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
-                       .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                       .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         }
         else
         {
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->written,
-                       .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                       .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         }
     }
     // a change joins or leaves the one branch it names; the tree is listed again only where the rules of the listing
@@ -255,7 +255,7 @@ static int cli_gather(const WatchCtx *args)
     {
         EMBED_CALL(cli_symbols_root.tree_mirror, CliSymbolsRootCfg, .root = root, .paths = moved, .count = moves);
     }
-    g_cli_cells->persistent_buf_release((void *)moved, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release((void *)moved, g_cli_watch_owner);
     args->batch->lost = args->batch->lost ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->folders) ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->written);
@@ -269,7 +269,7 @@ static void cli_batch(void *context)
     (void)context;
     // the bundle a cell for as long as the batcher runs, past any one call; with no capacity for it the batcher ends at
     // once
-    CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    CliBatch *const batch = g_cli_guard->persistent_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
     if (batch != NULL)
     {
         batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
@@ -331,18 +331,18 @@ static void cli_batch(void *context)
             continue;
         }
     }
-    g_cli_cells->persistent_buf_release(s_watching.waiting.change, &g_cli_watch_cells);
-    g_cli_cells->persistent_buf_release(s_watching.waiting.text, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release(s_watching.waiting.change, g_cli_watch_owner);
+    g_cli_guard->persistent_buf_release(s_watching.waiting.text, g_cli_watch_owner);
     *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     s_watching.ended += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     if (batch != NULL)
     {
-        g_cli_cells->persistent_buf_release(batch->changes.change, &g_cli_watch_cells);
-        g_cli_cells->persistent_buf_release(batch->changes.text, &g_cli_watch_cells);
+        g_cli_guard->persistent_buf_release(batch->changes.change, g_cli_watch_owner);
+        g_cli_guard->persistent_buf_release(batch->changes.text, g_cli_watch_owner);
         *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     }
-    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
 }
 
 void cli_watch_stop(void)
@@ -369,11 +369,11 @@ void cli_watch_start(const CliWatchCfg *args)
     cli_watch_stop();
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_watching.take = take;
     s_watching.context = context;
-    g_cli_cells->persistent_buf_release(s_watching.waiting.change, &g_cli_watch_cells);
-    g_cli_cells->persistent_buf_release(s_watching.waiting.text, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release(s_watching.waiting.change, g_cli_watch_owner);
+    g_cli_guard->persistent_buf_release(s_watching.waiting.text, g_cli_watch_owner);
     *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     s_watching.overflowed = 0;
     s_watching.stop = 0;
@@ -405,8 +405,8 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = args->root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
-    CliBatch *const batch = g_cli_cells->temporary_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
+    CliBatch *const batch = g_cli_guard->temporary_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
     if (batch == NULL)
     {
         return 0;
@@ -427,9 +427,9 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     }
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
-    g_cli_cells->persistent_buf_release(batch->changes.change, &g_cli_watch_cells);
-    g_cli_cells->persistent_buf_release(batch->changes.text, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release(batch->changes.change, g_cli_watch_owner);
+    g_cli_guard->persistent_buf_release(batch->changes.text, g_cli_watch_owner);
     *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
-    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
+    g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
     return any;
 }

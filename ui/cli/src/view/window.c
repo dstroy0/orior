@@ -7,21 +7,36 @@
 // the editor takes the keys, the settings it draws with and the rows' scroll offsets and the marks the pointer leaves
 // on them
 #include "window.h"
+#include "../code/crumbs.h"
+#include "../code/diff_view.h"
 #include "../code/git.h"
 #include "../command_line/callback_cfg.h"
 
-#include "../command_line/cells.h"
 #include "../command_line/command_line.h"
+#include "../command_line/pool.h"
+#include "../comms/comms.h"
+#include "../debug/debug_pane.h"
 #include "../editor/files.h"
+#include "../editor/hunks.h"
+#include "../editor/view_edits.h"
 #include "../machine/reach.h"
 #include "../machine/report.h"
 #include "../machine/state.h"
+#include "../preview/preview.h"
+#include "../runs/job_runs.h"
 #include "../runs/qry.h"
 #include "../tests/testing.h"
 #include "../text/text.h"
+#include "parts/change_peek.h"
 #include "parts/changes.h"
 #include "parts/chrome.h"
+#include "parts/comms.h"
+#include "parts/crumbs.h"
+#include "parts/diffview.h"
 #include "parts/git.h"
+#include "parts/gutter.h"
+#include "parts/preview.h"
+#include "parts/run.h"
 #include "parts/runs.h"
 
 // orior's repository, a press on the name opening it; the keys of orior's folder the settings, the session's wordmark
@@ -73,13 +88,20 @@ static const char *const s_own_commands[] = {"exit",
                                              "tab-close-others",
                                              "commit-files",
                                              "commit-copy-id",
-                                             "commit-copy-message"};
+                                             "commit-copy-message",
+                                             "symbol-go",
+                                             "breadcrumbs",
+                                             "change-peek",
+                                             "next-change",
+                                             "previous-change"};
 
 // the window, which the menus' answers and the walk's threads reach; and whether the walk colored a line since the
 // window last took the frame, set on the walk's threads, and what wakes the view's thread
 static GuiWindow *s_window;
 static embed_atomic_u32 s_colored;
 static void (*s_woken)(void);
+// the view standing over the editor in its place, none while its table is NULL
+static GuiWork s_work;
 
 int gui_window_begin(const GuiWindowWokenCfg *args)
 {
@@ -159,17 +181,17 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_files_explorer_end();
     // the notices read the entries in place, so they let go before the entries do
     cli_notices_end();
-    g_cli_cells->persistent_buf_release(window->entries, &g_cli_view_cells);
+    g_cli_guard->persistent_buf_release(window->entries, g_cli_view_owner);
     window->entries = NULL;
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release((CliViewFrame *)window->editor.frame);
-    g_cli_cells->persistent_buf_release((void *)window->editor.names, &g_cli_view_cells);
+    g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
     cli_view_map_release((CliDocumentMap *)window->minimap.lines);
     cli_view_frame_release((CliViewFrame *)window->terminal.frame[0]);
     cli_view_frame_release((CliViewFrame *)window->terminal.frame[1]);
-    g_cli_cells->persistent_buf_release((void *)window->terminal.names[0], &g_cli_view_cells);
-    g_cli_cells->persistent_buf_release((void *)window->terminal.names[1], &g_cli_view_cells);
+    g_cli_guard->persistent_buf_release((void *)window->terminal.names[0], g_cli_view_owner);
+    g_cli_guard->persistent_buf_release((void *)window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
     window->editor.names = NULL;
     window->minimap.lines = NULL;
@@ -186,46 +208,46 @@ void gui_window_end(const GuiWindowCfg *args)
     {
         if (args->window->icons.entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(args->window->icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            g_cli_guard->persistent_buf_release(args->window->icons.entry[at].mask_bits.cover, g_gui_icons_owner);
             args->window->icons.entry[at].mask_bits.cover = NULL;
             args->window->icons.entry[at].used = 0;
         }
     }
     args->window->icons.count = 0u;
-    g_cli_cells->persistent_buf_release(args->window->wordmark.flight_first, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->wordmark.flight_first, g_gui_owner);
     args->window->wordmark.flight_first = NULL;
     args->window->wordmark.flight_span = NULL;
     args->window->wordmark.flight_cover = NULL;
-    g_cli_cells->persistent_buf_release(args->window->wordmark.row_sum, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->wordmark.row_sum, g_gui_owner);
     args->window->wordmark.row_sum = NULL;
     args->window->wordmark.text_color = NULL;
     args->window->wordmark.row = NULL;
     args->window->wordmark.name.cover = NULL;
-    g_cli_cells->persistent_buf_release((&args->window->wordmark.under)->pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release((&args->window->wordmark.under)->pixels, g_gui_raster_owner);
     (&args->window->wordmark.under)->pixels = NULL;
     (&args->window->wordmark.under)->width = 0u;
     (&args->window->wordmark.under)->height = 0u;
     args->window->wordmark.created_em = 0u;
     args->window->wordmark.laid_width = 0u;
-    g_cli_cells->persistent_buf_release(args->window->busy.cell, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->busy.cell, g_gui_owner);
     args->window->busy.cell = NULL;
     args->window->busy.cell_bytes = 0ULL;
     args->window->busy.under_saved = 0;
     args->window->busy.displayed = 0;
-    g_cli_cells->persistent_buf_release(args->window->controls_shadow.cover, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->controls_shadow.cover, g_gui_owner);
     args->window->controls_shadow.cover = NULL;
     args->window->controls_shadow.width = 0u;
     args->window->controls_shadow.height = 0u;
     EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &args->window->background_fill);
-    g_cli_cells->persistent_buf_release(args->window->stages.stage, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->stages.stage, g_gui_owner);
     args->window->stages.stage = NULL;
     args->window->stages.count = 0u;
     args->window->stage = NULL;
-    g_cli_cells->persistent_buf_release(args->window->preferences_raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(args->window->preferences_raster.pixels, g_gui_raster_owner);
     args->window->preferences_raster.pixels = NULL;
     args->window->preferences_raster.width = 0u;
     args->window->preferences_raster.height = 0u;
-    g_cli_cells->persistent_buf_release(args->window->base.tile_red_blue, &g_gui_base_cells);
+    g_cli_guard->persistent_buf_release(args->window->base.tile_red_blue, g_gui_base_owner);
     args->window->base.tile_red_blue = NULL;
     args->window->base.tile_green = NULL;
     args->window->base.tile_remainder = NULL;
@@ -358,9 +380,9 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
         const char *const key = shown ? terminal->view[view].key : NULL;
         cli_view_frame_release((CliViewFrame *)terminal->frame[view]);
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
-        g_cli_cells->persistent_buf_release((void *)terminal->names[view], &g_cli_view_cells);
+        g_cli_guard->persistent_buf_release((void *)terminal->names[view], g_cli_view_owner);
         terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
-                                                           .key = key, .owner = &g_cli_view_cells)
+                                                           .key = key, .owner = g_cli_view_owner)
                                               : NULL;
     }
     args->window->pending = 1;
@@ -411,6 +433,21 @@ EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
                    .root = cli_command_line_root(), .key = (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL,
                    .path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL);
     }
+    // the view shown or saved: its changes against the last commit, which the gutter marks, and its crumbs at the
+    // cursor
+    if ((args->event == GUI_PANE_VIEW) || (args->event == GUI_PANE_SAVED))
+    {
+        // the view shown is among the views
+        const char *const key = (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL;
+        const char *const path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL;
+        CliPosition cursor = {0ULL, 0ULL};
+        if (key != NULL)
+        {
+            (void)cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = NULL});
+        }
+        EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = key, .path = path, .root = cli_command_line_root());
+        EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = key, .path = path, .line = cursor.line);
+    }
 }
 
 // every view with changes not saved saved, as a pane's action asks before it runs the tree's code
@@ -442,9 +479,9 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     }
     cli_view_frame_release((CliViewFrame *)window->editor.frame);
     window->editor.frame = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
-    g_cli_cells->persistent_buf_release((void *)window->editor.names, &g_cli_view_cells);
+    g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
     window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
-                                                      .owner = &g_cli_view_cells)
+                                                      .owner = g_cli_view_owner)
                                          : NULL;
     if (args->edited || (window->minimap.lines == NULL) || (key == NULL))
     {
@@ -562,7 +599,7 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
     // and no stage left standing
     args->window->stage = NULL;
     args->window->stages_stale = 0;
-    g_cli_cells->persistent_buf_release(args->window->stages.stage, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(args->window->stages.stage, g_gui_owner);
     args->window->stages.stage = NULL;
     args->window->stages.count = 0u;
     args->window->frame.side_displayed = EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &args->window->sides,
@@ -1025,6 +1062,11 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
                                        .table_read = &gui_runs_table)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
         EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
+        EMBED_CALL(cli_preview.deadline_ms, CliPreviewCfg, .now_ms = now_ms),
+        EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg,
+                   .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                       .table_read = &gui_comms_table)),
+        EMBED_CALL(cli_debug_pane_view.deadline_ms, CliDebugPaneViewCfg, .now_ms = now_ms),
     };
     unsigned long long earliest = 0ULL;
     for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
@@ -1712,6 +1754,10 @@ static int window_item_checked(const CliItem *item)
     {
         return EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u);
     }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = CLI_CRUMBS_KEY))
+    {
+        return EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u);
+    }
     return cli_terminal_tabs_checked(checks);
 }
 
@@ -1735,7 +1781,7 @@ EMBED_INLINE unsigned int window_tab_at(const GuiWindowCtx *args)
 EMBED_INLINE void window_clipboard_put(const GuiWindowCtx *args)
 {
     (void)cli_clipboard_text_write(&(CliSizeTextCtx){
-        .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .text = args->name});
+        .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}), .text = args->name});
 }
 
 // the commands the parts' menus run with their rows' `words`, `count` of them: a path opened, a folder of the tree
@@ -1814,6 +1860,87 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
         return 1;
     }
     return 0;
+}
+
+// a Comms command run by the CLI: the Comms pane shown in the panel at the foot where the command shows a view of it,
+// the text it answers put on the clipboard and the file it answers opened: 1, or 0 where `name` is no Comms command
+EMBED_INLINE int window_comms_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char clipboard_text[GUI_WINDOW_MESSAGE_MAX];
+    char open_text[CLI_PATH_MAX_LEN];
+    VerbaLinea clipboard = {clipboard_text, sizeof(clipboard_text), 0ULL};
+    VerbaLinea open_out = {open_text, sizeof(open_text), 0ULL};
+    int shown = 0;
+    if (!EMBED_CALL(cli_comms_command.run, CliCommsCommandCfg, .name = args->name, .words = args->words,
+                    .count = args->count, .clipboard = &clipboard, .open_out = &open_out, .shown_out = &shown))
+    {
+        return 0;
+    }
+    for (unsigned int at = 0u; shown && (at < g_cli_tools_count); at += 1u)
+    {
+        // the tools are fewer than an int counts
+        if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "comms", .cap = 16ULL}) &&
+            (window->strip.foot != (int)at))
+        {
+            EMBED_CALL(window_tool_toggle, GuiWindowCtx, .window = window, .at = at);
+        }
+    }
+    if (mmgr_line_finish(&clipboard) != 0ULL)
+    {
+        EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = clipboard_text);
+    }
+    if (mmgr_line_finish(&open_out) != 0ULL)
+    {
+        EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = open_text, .place = NULL);
+    }
+    window->pending = 1;
+    return 1;
+}
+
+// the commands of the view's changes and its crumbs: a declaration's line gone to, its word the line; the crumbs shown
+// or not by their word `on` or `off`, else turned; the change at the cursor's line shown; and the cursor put on the
+// change after or before it: 1, or 0 where `name` is none of them
+EMBED_INLINE int window_widgets_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    const char *const first = (args->count != 0u) ? args->words[0] : "";
+    const unsigned long long line = (window->editor.frame != NULL) ? window->editor.frame->cursor.line : 0ULL;
+    const int next = EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "next-change");
+    CliPosition place = {0ULL, 0ULL};
+    int placed = 0;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "symbol-go"))
+    {
+        placed = EMBED_CALL(cli_crumbs.go, CliCrumbsCfg, .text = first, .place_out = &place);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "breadcrumbs"))
+    {
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = first, .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = first, .key = "off");
+        EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg,
+                   .on = on || (!off && !EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u)));
+        EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "change-peek"))
+    {
+        (void)EMBED_CALL(cli_hunks.show, CliHunksCfg, .line = line);
+    }
+    else if (next || EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "previous-change"))
+    {
+        placed = EMBED_CALL(cli_hunks.step, CliHunksCfg, .line = line, .by = next ? 1 : -1, .line_out = &place.line);
+    }
+    else
+    {
+        return 0;
+    }
+    if (placed)
+    {
+        const CliViewInput positioned = {.kind = CLI_VIEW_POSITION, .row = place.line, .column = place.col};
+        EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
+        EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &positioned, .edited = 0);
+    }
+    return 1;
 }
 
 // the command `name` run with its `count` `words`, its keys `value`, whoever asked for it
@@ -1898,7 +2025,46 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
                    .now_ms = cli_clock_milliseconds());
         window->pending = 1;
     }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "show-changes"))
+    {
+        // the file's changes against the last commit side by side over the editor, the shown view's without a word
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        if (EMBED_CALL(cli_diff_view_source_err_msg.open, CliDiffViewSourceErrMsgCfg, .root = cli_command_line_root(),
+                       .source = CLI_DIFF_VIEW_HEAD, .path = (args->count != 0u) ? args->words[0] : NULL,
+                       .err_msg = &err_msg))
+        {
+            EMBED_CALL(gui_work.open, GuiWorkCfg, .work = &s_work, .table = &gui_diffview_table,
+                       .frame = &window->frame);
+        }
+        else if (mmgr_line_finish(&err_msg) != 0ULL)
+        {
+            cli_notice_post(why, 1);
+        }
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_comms_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
+                        .count = args->count))
+    {
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preview") ||
+             EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preview-alone"))
+    {
+        // the mode its word reads, else the command's own turned on or off; the step lays the frame for it
+        EMBED_CALL(cli_preview.mode_set, CliPreviewCfg,
+                   .mode = EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preview-alone")
+                               ? CLI_PREVIEW_ALONE
+                               : CLI_PREVIEW_BESIDE,
+                   .word = (args->count != 0u) ? args->words[0] : NULL);
+        window->pending = 1;
+    }
     else if (EMBED_CALL(window_words_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
+                        .count = args->count))
+    {
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_widgets_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
                         .count = args->count))
     {
         window->pending = 1;
@@ -2010,6 +2176,13 @@ static void window_key_take(const GuiWindowCtx *args)
     {
         return;
     }
+    // the view over the editor takes its keys, Escape closing it
+    if (EMBED_CALL(gui_work.key, GuiWorkCfg, .work = &s_work, .frame = &window->frame, .glyphs = &window->glyphs,
+                   .name = name))
+    {
+        window->pending = 1;
+        return;
+    }
     // the shown pane's field, the side's or the foot's, takes the key while it has the keys
     if (EMBED_CALL(gui_pane.key, GuiPaneCfg,
                    .table = EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
@@ -2036,6 +2209,12 @@ static void window_key_take(const GuiWindowCtx *args)
     {
         // the tool is among the tools
         EMBED_CALL(window_tool_toggle, GuiWindowCtx, .window = window, .at = (unsigned int)tool);
+        return;
+    }
+    // the change peek takes Escape while it stands, ahead of the panels
+    if (EMBED_CALL(cli_hunks.key, CliHunksCfg, .name = name))
+    {
+        window->pending = 1;
         return;
     }
     if (cli_servers_panels_key(name))
@@ -2072,7 +2251,7 @@ EMBED_INLINE void window_wordmark_read(const GuiWindowCtx *args)
     int same = 0;
     if (saved != NULL)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_POOL_BYTES});
         unsigned long long end = 0ULL;
         const unsigned long long then =
             EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = saved, .at = 0ULL, .size = size, .end = &end);
@@ -2135,7 +2314,7 @@ void gui_window_start(const GuiWindowCfg *args)
     // the entries stand until the window ends, read in place by the modules that restore from them
     CliStateEntries *const entries =
         EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
-            ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_cli_view_cells})
+            ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner})
             : NULL;
     window->entries = entries;
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = args->woken, .entries = entries);
@@ -2143,6 +2322,12 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_git_log.begin, CliGitLogCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_changes.begin, CliGitChangesCfg, .woken = args->woken);
+    EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = entries);
+    EMBED_CALL(cli_crumbs.begin, CliCrumbsCfg, .entries = entries);
+    EMBED_CALL(cli_job_runs_woken.begin, CliJobRunsWokenCfg, .woken = args->woken);
+    EMBED_CALL(cli_debug_pane_view.begin, CliDebugPaneViewCfg, .root = root, .woken = args->woken);
+    EMBED_CALL(cli_comms_pane.begin, CliCommsPaneCfg, .woken = args->woken);
+    EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = entries);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(entries);
@@ -2227,6 +2412,50 @@ void gui_window_step(const GuiWindowCfg *args)
                                  .on = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
                                                   .table_read = &gui_changes_table)) ||
                       window->pending;
+    // what the jobs' runs reported on their threads taken into the Run pane's rows, the pane in the foot following its
+    // last row
+    if (EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL))
+    {
+        if (EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = window) == &gui_run_table)
+        {
+            EMBED_CALL(gui_run_pane.follow, GuiPaneCfg, .table = &gui_run_table,
+                       .pane = EMBED_CALL(window_foot_pane, GuiWindowCtx, .window = window), .frame = &window->frame);
+        }
+        window->pending = 1;
+    }
+    // the Debug pane's events read as its sessions' adapters report them
+    window->pending =
+        EMBED_CALL(cli_debug_pane_view.step, CliDebugPaneViewCfg, .root = cli_command_line_root(), .now_ms = now_ms) ||
+        window->pending;
+    // the Comms pane listed again as the comms layer moves while in sight, and a send's answer taken in
+    window->pending =
+        EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
+                   .shown = EMBED_CALL(window_table_shown, GuiWindowCtx, .window_read = window,
+                                       .table_read = &gui_comms_table)) ||
+        window->pending;
+    // the preview's rectangle laid again where its mode moved, the editor's size handed on, and its items stepped for
+    // the view shown in it, drawn anew where they moved
+    {
+        // a mode is one of three
+        const int preview_mode = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms);
+        if (preview_mode != window->frame.preview_mode)
+        {
+            EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &window->frame,
+                       .displayed = preview_mode);
+            if (window->stage != NULL)
+            {
+                window->stages_stale = 1;
+                EMBED_CALL(window_autohide_layout, GuiWindowCtx, .window = window);
+            }
+            EMBED_CALL(window_view_resize, GuiWindowCtx, .window = window);
+            window->pending = 1;
+        }
+        window->pending =
+            EMBED_CALL(cli_preview.step, CliPreviewCfg, .key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u),
+                       .now_ms = now_ms, .width_px = window->frame.preview.width,
+                       .height_px = window->frame.preview.height, .scale = window->frame.scale) ||
+            window->pending;
+    }
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;
@@ -2323,21 +2552,33 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     GuiRaster *const raster = args->window->raster;
     EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .raster = raster, .glyphs = &args->window->glyphs,
                .palette = palette, .frame = frame);
-    EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &args->window->editor,
-               .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .place = frame->editor,
-               .scale = frame->scale);
-    // the shown file's diagnostics underlined on the rows drawn
-    const unsigned int code_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                            .pixels = GUI_CODE_SIZE, .scale = frame->scale);
-    EMBED_CALL(gui_problems_path_raster.underlined, GuiProblemsPathRasterCfg, .editor = &args->window->editor,
-               .raster = raster, .palette = palette, .place = frame->editor,
-               .cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &args->window->glyphs,
-                                  .size = code_size),
-               .scale = frame->scale);
-    EMBED_CALL(gui_minimap_position.draw, GuiMinimapPositionCfg, .map = &args->window->minimap, .raster = raster,
-               .palette = palette, .editor = &args->window->editor, .place = frame->map_whole, .clip = frame->map,
-               .scale = frame->scale,
-               .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = args->window));
+    // the view over the editor drawn in its place, else the editor, the shown file's diagnostics underlined on the rows
+    // drawn and the map beside it
+    if (EMBED_CALL(gui_work.is_open, GuiWorkCfg, .work_read = &s_work))
+    {
+        EMBED_CALL(gui_work.draw, GuiWorkCfg, .work_read = &s_work, .frame = frame, .raster = raster,
+                   .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette);
+    }
+    else
+    {
+        EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &args->window->editor,
+                   .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .place = frame->editor,
+                   .scale = frame->scale);
+        const unsigned int code_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                                .pixels = GUI_CODE_SIZE, .scale = frame->scale);
+        EMBED_CALL(gui_problems_path_raster.underlined, GuiProblemsPathRasterCfg, .editor = &args->window->editor,
+                   .raster = raster, .palette = palette, .place = frame->editor,
+                   .cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg,
+                                      .glyphs = &args->window->glyphs, .size = code_size),
+                   .scale = frame->scale);
+        EMBED_CALL(gui_minimap_position.draw, GuiMinimapPositionCfg, .map = &args->window->minimap, .raster = raster,
+                   .palette = palette, .editor = &args->window->editor, .place = frame->map_whole, .clip = frame->map,
+                   .scale = frame->scale,
+                   .on_screen = EMBED_CALL(window_on_screen, GuiWindowCtx, .window_read = args->window));
+    }
+    // the preview beside the text or over the editor's rectangle, as its mode lays the frame
+    EMBED_CALL(gui_preview.draw, GuiPreviewCfg, .raster = raster, .glyphs = &args->window->glyphs, .palette = palette,
+               .frame = frame);
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->side) &&
         (args->window->strip.displayed >= 0))
     {
@@ -2375,6 +2616,17 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     {
         EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &args->window->terminal, .frame = &arriving,
                    .glyphs = &args->window->glyphs, .raster = raster, .palette = palette);
+    }
+    // the change peek over the editor, under the lines of the change the CLI shows
+    {
+        const unsigned int peek_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                                .pixels = GUI_CODE_SIZE, .scale = frame->scale);
+        EMBED_CALL(gui_change_peek.draw, GuiChangePeekCfg, .raster = raster, .glyphs = &args->window->glyphs,
+                   .icons = &args->window->icons, .palette = palette, .editor_read = &args->window->editor,
+                   .place = frame->editor, .bounds = frame->inside,
+                   .cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg,
+                                      .glyphs = &args->window->glyphs, .size = peek_size),
+                   .scale = frame->scale);
     }
     window_panels_draw(args);
 }
@@ -2591,6 +2843,11 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
         input->hit = CLI_HIT_SIGNATURE_BOX;
         return;
     }
+    if (EMBED_CALL(gui_change_peek.hit, GuiChangePeekCfg, .x = x, .y = y, .action_out = &input->index))
+    {
+        input->hit = CLI_HIT_CHANGE_PEEK;
+        return;
+    }
     input->hit =
         EMBED_CALL(gui_menubar_x.hit, GuiMenubarXCfg, .menubar_read = &window->menubar, .scale = window->frame.scale,
                    .x = x, .y = y, .level = &input->level, .index = &input->index);
@@ -2623,6 +2880,12 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
         input->hit =
             EMBED_CALL(gui_statusbar_x.hit, GuiStatusbarXCfg, .status = &status, .glyphs = (GuiGlyphs *)&window->glyphs,
                        .icons = (GuiIcons *)&window->icons, .frame = &window->frame, .x = x, .y = y);
+        // a crumb as the bar laid it, off the bar's own items
+        if ((input->hit == CLI_HIT_NONE) &&
+            EMBED_CALL(gui_crumbs.hit, GuiCrumbsCfg, .x = x, .y = y, .index_out = &input->index))
+        {
+            input->hit = CLI_HIT_STATUS_CRUMB;
+        }
         return;
     }
     // the panel at the foot takes every press on it: the footer tool's pane head's action or row where one stands in
@@ -2678,6 +2941,20 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
                    .frame = &window->frame, .x = x, .y = y, .at_pointer = &input->index, .closing = &closing))
     {
         input->hit = closing ? CLI_HIT_TAB_CLOSE : CLI_HIT_TAB;
+        return;
+    }
+    // the view over the editor takes every pixel of the editor and the map while it stands there
+    const unsigned int work = EMBED_CALL(gui_work.hit, GuiWorkCfg, .work_read = &s_work, .frame = &window->frame,
+                                         .glyphs = (GuiGlyphs *)&window->glyphs, .x = x, .y = y);
+    if (work != GUI_WORK_OUTSIDE)
+    {
+        input->hit = CLI_HIT_WORK;
+        input->index = work;
+        return;
+    }
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.preview, .x = x, .y = y))
+    {
+        input->hit = CLI_HIT_PREVIEW;
         return;
     }
     if (window->editor.frame == NULL)
@@ -2741,6 +3018,72 @@ EMBED_INLINE void window_view_scroll(const GuiWindowCtx *args)
     EMBED_CALL(window_view_input, GuiWindowCtx, .window = args->window, .view_input = &scrolled, .edited = 0);
 }
 
+// the control `at` of the change peek pressed: revert writes the CLI's edits into the view shown as one step and
+// closes the peek, the change before or after is shown with the cursor on its first line, and close closes it; a press
+// on the box off its controls does nothing
+EMBED_INLINE void window_change_peek_pressed(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    window->pending = 1;
+    if ((args->at == GUI_CHANGE_PEEK_REVERT) && (key != NULL))
+    {
+        CliEdit edit;
+        unsigned int count = 0u;
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        const int reverted =
+            EMBED_CALL(cli_hunks.revert, CliHunksCfg, .edit_out = &edit, .edit_count = &count, .err_msg = &err_msg) &&
+            EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = key, .edit = &edit, .count = count,
+                       .err_msg = &err_msg);
+        if (!reverted && (mmgr_line_finish(&err_msg) != 0ULL))
+        {
+            cli_notice_post(why, 1);
+        }
+        EMBED_CALL(cli_hunks.close, CliHunksCfg, .at = 0u);
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
+        return;
+    }
+    if ((args->at == GUI_CHANGE_PEEK_PREVIOUS) || (args->at == GUI_CHANGE_PEEK_NEXT))
+    {
+        unsigned long long line = 0ULL;
+        if (EMBED_CALL(cli_hunks.step, CliHunksCfg, .by = (args->at == GUI_CHANGE_PEEK_NEXT) ? 1 : -1,
+                       .line_out = &line))
+        {
+            const CliViewInput positioned = {.kind = CLI_VIEW_POSITION, .row = line, .column = 0ULL};
+            EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &positioned, .edited = 0);
+        }
+        return;
+    }
+    if (args->at == GUI_CHANGE_PEEK_CLOSE)
+    {
+        EMBED_CALL(cli_hunks.close, CliHunksCfg, .at = 0u);
+    }
+}
+
+// a press on the gutter's row `hit` at its marks' column: the change of the row's line shown: 1, or 0 where the press
+// stands off the column or the line stands in no change
+EMBED_INLINE int window_change_mark_pressed(const GuiWindowCtx *args)
+{
+    const GuiWindow *const window = args->window_read;
+    const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = GUI_CODE_SIZE, .scale = window->frame.scale);
+    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg,
+                                  .glyphs = (GuiGlyphs *)&window->glyphs, .size = size);
+    const int text_x =
+        window->frame.editor.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                            .editor_read = &window->editor, .cell = cell, .scale = window->frame.scale);
+    unsigned long long line = 0ULL;
+    unsigned long long col = 0ULL;
+    return (key != NULL) &&
+           EMBED_CALL(gui_gutter.mark_hit, GuiGutterCfg, .x = args->hit->x, .text_x = text_x,
+                      .scale = window->frame.scale) &&
+           EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = key, .row = args->hit->row, .column = 0ULL,
+                      .line = &line, .col = &col) &&
+           EMBED_CALL(cli_hunks.show, CliHunksCfg, .line = line);
+}
+
 // a press, on what the window's layout found under it at `hit`, `on` where Shift is down: the menus', the panels', the
 // status bar's, the terminal's, and else the part's it stands on
 EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
@@ -2780,6 +3123,20 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     case CLI_HIT_STATUS_FOCUS:
         cli_notices_press(CLI_NOTICES_PRESS_NOTICE + (hit->hit - CLI_HIT_STATUS_NOTICE));
         window->pending = 1;
+        return;
+    case CLI_HIT_CHANGE_PEEK:
+        EMBED_CALL(window_change_peek_pressed, GuiWindowCtx, .window = window, .at = hit->index);
+        return;
+    case CLI_HIT_STATUS_CRUMB:
+        // what stands beside the crumb opened as a menu at the crumb
+        if (EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = hit->index, .root = cli_command_line_root()))
+        {
+            const GuiRect crumb = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = hit->index);
+            unsigned int count = 0u;
+            const CliItem *const rows = cli_menus_own_rows(&count);
+            cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, crumb.x, crumb.y);
+            EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        }
         return;
     default:
         break;
@@ -2851,12 +3208,43 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     case CLI_HIT_TAB_CLOSE:
         EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = hit->index);
         break;
+    case CLI_HIT_WORK:
+        (void)EMBED_CALL(gui_work.press, GuiWorkCfg, .work = &s_work, .frame = &window->frame,
+                         .glyphs = &window->glyphs, .index = hit->index, .x = hit->x, .y = hit->y);
+        window->pending = 1;
+        break;
+    case CLI_HIT_PREVIEW: {
+        // a link pressed: a file of the tree opened, or a place of the preview already scrolled to, the view it led
+        // taken anew
+        CliPreviewOpen open;
+        const unsigned int target = EMBED_CALL(gui_preview.press, GuiPreviewCfg, .frame = &window->frame, .x = hit->x,
+                                               .y = hit->y, .open_out = &open);
+        if (target == CLI_PREVIEW_OPEN_FILE)
+        {
+            const CliPosition place = {open.line, 0ULL};
+            EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = open.path,
+                       .place = open.placed ? &place : NULL);
+        }
+        else if (target == CLI_PREVIEW_OPEN_PLACE)
+        {
+            EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 0);
+        }
+        window->pending = 1;
+        break;
+    }
     case CLI_HIT_MAP:
         EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = (GuiWindowHit *)hit);
         break;
     case CLI_HIT_EDITOR:
     case CLI_HIT_GUTTER: {
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
+        // a press on a row's change mark shows its change
+        if ((hit->hit == CLI_HIT_GUTTER) &&
+            EMBED_CALL(window_change_mark_pressed, GuiWindowCtx, .window_read = window, .hit = (GuiWindowHit *)hit))
+        {
+            window->pending = 1;
+            break;
+        }
         const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
                                       .pointer = CLI_VIEW_POINTER_DOWN,
                                       .row = hit->row,
@@ -2930,12 +3318,34 @@ static void window_wheel(const GuiInputHandlerCfg *args)
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
         return;
     }
+    // over the preview, its items, the view beside them led along and taken anew
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.preview, .x = args->input->x,
+                   .y = args->input->y))
+    {
+        if (EMBED_CALL(gui_preview.wheel, GuiPreviewCfg, .frame = &window->frame, .rows = args->input->rows))
+        {
+            EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 0);
+        }
+        return;
+    }
+    // over the view that stands over the editor, its rows
+    if (EMBED_CALL(gui_work.wheel, GuiWorkCfg, .work = &s_work, .frame = &window->frame, .glyphs = &window->glyphs,
+                   .x = args->input->x, .y = args->input->y, .rows = args->input->rows))
+    {
+        window->pending = 1;
+        return;
+    }
     const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
     if ((key != NULL) && (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.editor,
                                      .x = args->input->x, .y = args->input->y) ||
                           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.map,
                                      .x = args->input->x, .y = args->input->y)))
     {
+        // a change shown within its settle time stands against the wheel, the text staying under it
+        if (!EMBED_CALL(cli_hunks.settled, CliHunksCfg, .at = 0u))
+        {
+            return;
+        }
         EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
         const CliViewInput wheeled = {
             .kind = CLI_VIEW_WHEEL, .wheel_rows = args->input->rows, .top = CLI_VIEW_WHEEL_UNBOUND};
@@ -3337,6 +3747,11 @@ static void window_menu(const GuiInputHandlerCfg *args)
     {
         built = EMBED_CALL(window_editor_menu, GuiWindowCtx, .window_read = window);
     }
+    else if (asked.hit == CLI_HIT_WORK)
+    {
+        built = EMBED_CALL(gui_work.menu, GuiWorkCfg, .work_read = &s_work, .frame = &window->frame,
+                           .glyphs = &window->glyphs, .index = asked.index, .x = x, .y = y);
+    }
     else if ((asked.hit == CLI_HIT_PANE_ROW) || (asked.hit == CLI_HIT_PANE_ACTION) ||
              ((asked.hit == CLI_HIT_NONE) &&
               EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y)))
@@ -3375,6 +3790,13 @@ static void window_text(const GuiInputHandlerCfg *args)
     if (cli_terminal_tabs_text(args->input->text, args->input->size))
     {
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
+        return;
+    }
+    // the view over the editor takes the text while it stands there
+    if (EMBED_CALL(gui_work.text, GuiWorkCfg, .work = &s_work, .frame = &window->frame, .glyphs = &window->glyphs,
+                   .text = args->input->text, .length = args->input->size))
+    {
+        window->pending = 1;
         return;
     }
     // the shown pane's field, the side's or the foot's, takes the text while it has the keys

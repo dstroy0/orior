@@ -303,7 +303,7 @@ typedef struct
     const char *path;
     unsigned int line;
     unsigned int col;
-    CellOwner *owner;
+    const CellOwner *owner;
     VerbaLinea *err_msg;
 } CliServersAskCfg;
 CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args);

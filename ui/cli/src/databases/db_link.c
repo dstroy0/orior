@@ -31,9 +31,9 @@ int cli_db_link_open(const CliDbLinkCtx *args)
 {
     const int read_only =
         args->config->matters &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->config->guard, .other = "read-only", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->config->guard, .other = "read-only", .cap = CLI_POOL_BYTES}));
     memor.set(&(MemoriaCfg){.dst = args->link, .val = 0, .bytes = sizeof(*args->link)});
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "postgres", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "postgres", .cap = CLI_POOL_BYTES}))
     {
         static const char s_read_only[] = "SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY";
         const char *const database = (args->config->database[0] != '\0') ? args->config->database : args->config->user;
@@ -55,7 +55,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
         }
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "mysql", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "mysql", .cap = CLI_POOL_BYTES}))
     {
         static const char s_read_only[] = "SET SESSION TRANSACTION READ ONLY";
         args->link->my = EMBED_CALL(cli_mysql_host.connect, CliMysqlHostCfg, .host = args->host, .port = args->port,
@@ -76,7 +76,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
         }
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "sqlite", .cap = CLI_POOL_BYTES}))
     {
         char file[CLI_PATH_MAX_LEN];
         if (EMBED_CALL(link_path_is_absolute, DbLinkCtx, .path = args->config->file))
@@ -84,7 +84,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = file,
                 .src = args->config->file,
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->config->file, .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->config->file, .cap = CLI_POOL_BYTES}) + 1u});
         }
         else
         {

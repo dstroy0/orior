@@ -82,8 +82,8 @@ int main(void)
   run_test(test_a_folder_contains_itself_and_what_is_under_it, "test_a_folder_contains_itself_and_what_is_under_it", 60);
   run_test(test_a_folder_does_not_contain_a_sibling_sharing_its_prefix, "test_a_folder_does_not_contain_a_sibling_sharing_its_prefix", 66);
   run_test(test_the_code_a_tree_runs_is_found_and_released, "test_the_code_a_tree_runs_is_found_and_released", 71);
-  run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 86);
-  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 91);
+  run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 87);
+  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 92);
 
   return UNITY_END();
 }

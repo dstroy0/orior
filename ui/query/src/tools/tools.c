@@ -17,10 +17,10 @@ QueryPaths g_query_objects;
 
 int query_paths_alloc(const QueryPathsCtx *args)
 {
-    g_cli_cells->persistent_buf_release(args->paths->path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(args->paths->path, g_query_owner);
     *args->paths = (QueryPaths){NULL, 0u, 0u};
     args->paths->path =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)args->count * QUERY_PATH_MAX_LEN, &g_query_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)args->count * QUERY_PATH_MAX_LEN, g_query_owner);
     args->paths->capacity = (args->paths->path != NULL) ? args->count : 0u;
     return args->paths->path != NULL;
 }
@@ -49,8 +49,8 @@ typedef struct
 // the base name `name` ends in `.extension`
 EMBED_INLINE int query_extension_is(const ToolsCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    const size_t required = cellul.len(&(CatenaFinitaCfg){.src = args->extension, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const size_t required = cellul.len(&(CatenaFinitaCfg){.src = args->extension, .cap = CLI_POOL_BYTES});
     return (length > (required + 1u)) && (args->name[length - required - 1u] == '.') &&
            cellul.eq(&(CatenaFinitaCfg){
                .src = args->name + length - required, .other = args->extension, .cap = required + 1u});
@@ -110,7 +110,7 @@ unsigned int query_sources(const QueryToolsRootCtx *args)
         const char *const pattern = args->patterns[at];
         const char *const slash = EMBED_CALL(
             cli_text_byte.last, CliTextByteCfg, .text = pattern,
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), .byte = '/');
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_POOL_BYTES}), .byte = '/');
         if ((slash != NULL) && (slash[1] == '*') && (slash[2] == '.'))
         {
             char folder[QUERY_PATH_MAX_LEN];
@@ -148,7 +148,7 @@ const QueryTool *query_tool_by_name(const QueryToolsCtx *args)
 {
     for (const QueryTool *tool = g_query_tools; tool->name != NULL; tool += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = args->name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             return tool;
         }
@@ -190,13 +190,13 @@ void query_every_source(const QueryToolsRootToolCCtx *args)
     unsigned int *c = args->c;
     unsigned int *cxx = args->cxx;
     unsigned int *tools = args->tools;
-    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
     *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
     *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
     *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
     *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_c_sources,
                      .count = QUERY_SOURCES_MAX);
@@ -361,13 +361,13 @@ int query_stale(const QueryToolsRootToolCtx *args)
         newest = (seconds > newest) ? seconds : newest;
         list += 1u;
     }
-    g_cli_cells->persistent_buf_release(g_query_c_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
     *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_cxx_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
     *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_tool_sources.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
     *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
-    g_cli_cells->persistent_buf_release(g_query_objects.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
     *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
     return stale || (newest > built);
 }

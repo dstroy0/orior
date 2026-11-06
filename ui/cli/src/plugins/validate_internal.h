@@ -4,7 +4,7 @@
 // validation reads into under its lock, and the code, the prover's messages and the findings
 #ifndef VALIDATE_INTERNAL_H
 #define VALIDATE_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "embed_dispatch_layout.h"

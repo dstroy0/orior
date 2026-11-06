@@ -3,7 +3,7 @@
 // deploy_walk.c: the folder a deployment sends walked: each file it sends with its mode and the hash of its bytes,
 // and each file and folder its patterns leave out with the pattern that leaves it out, each list sorted by path
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/digest.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -124,7 +124,7 @@ static void walk_entry(const CliEachNameIsFolderCfg *args)
         mmgr_line_finish(&full_line);
         sent->sent.path =
             EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool, .text = path,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         sent->sent.mode =
             EMBED_CALL(cli_deploy_in_tree_internal.mode, CliDeployInTreeCtx, .in_tree = in_tree, .full = full);
         sent->sent.hash[0] = '\0';
@@ -153,7 +153,7 @@ EMBED_INLINE void walk_from(const DeployWalkCtx *args)
         size_t length = 0u;
         length = (size_t)EMBED_CALL(
             cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = part, .at = length,
-            .size = length + cellul.len(&(CatenaFinitaCfg){.src = part + length, .cap = CLI_CELLS_POOL}), .set = "/\\");
+            .size = length + cellul.len(&(CatenaFinitaCfg){.src = part + length, .cap = CLI_POOL_BYTES}), .set = "/\\");
         if ((length > 0u) && !((length == 1u) && (part[0] == '.')))
         {
             mmgr_line_put(&line, (line.at > 0u) ? "/" : "");
@@ -201,7 +201,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
     while (s_pool.page != NULL)
     {
         CliDeployPage *const before = s_pool.page->before;
-        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
         s_pool.page = before;
     }
     s_pool.refused = 0;
@@ -211,7 +211,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
     for (unsigned int at = 0u; (s_folder_patterns != NULL) && (at < run->patterns); at += 1u)
     {
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = run->pattern[at], .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = run->pattern[at], .cap = CLI_POOL_BYTES});
         if ((length > 0u) && (run->pattern[at][length - 1u] == '/'))
         {
             s_folder_patterns[s_folder_pattern_count] = run->pattern[at];
@@ -266,7 +266,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
     while (s_pool.page != NULL)
     {
         CliDeployPage *const before = s_pool.page->before;
-        g_cli_cells->persistent_buf_release(s_pool.page, &g_cli_deploy_cells);
+        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
         s_pool.page = before;
     }
     s_pool.refused = 0;
@@ -291,14 +291,14 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         unsigned long long size = 0ULL;
         const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                                ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                            .size_pointer = &size, .owner = &g_cli_deploy_cells)
+                                                            .size_pointer = &size, .owner = g_cli_deploy_owner)
                                                : NULL;
         if (bytes != NULL)
         {
             VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ULL};
             EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &hash);
             mmgr_line_finish(&hash);
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
         }
     }
     return 1;

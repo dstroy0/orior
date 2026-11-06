@@ -3,7 +3,7 @@
 // recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises, and
 // what the replay requests of it: a frame's last step, its names' values at a step, the frames standing at a step, and
 // a name's history through the run
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "recording_internal.h"
 
@@ -89,7 +89,7 @@ EMBED_INLINE void read_on_count(const RecordingReadCtx *args)
         for (unsigned int kind = 0u; kind < 5u; kind += 1u)
         {
             const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_kinds[kind], .cap = CLI_CELLS_POOL});
+                cellul.len(&(CatenaFinitaCfg){.src = s_kinds[kind], .cap = CLI_POOL_BYTES});
             if ((end - at < length) ||
                 (memor.cmp(&(MemoriaCfg){.src = text + at, .other = s_kinds[kind], .bytes = (size_t)length}) != 0))
             {
@@ -130,7 +130,7 @@ EMBED_INLINE int read_work_state_alloc(const RecordingReadCtx *args)
         ((unsigned long long)counts.files * sizeof(unsigned int)) +
         ((unsigned long long)counts.threads * (sizeof(unsigned long long) + sizeof(unsigned int))) +
         ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + args->size + 1ULL + (8ULL * 8ULL);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_debug_cells);
+    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_debug_owner);
     if (cell == NULL)
     {
         return 0;
@@ -174,8 +174,7 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
     const CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long end =
         EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = recording->text, .at = at, .size = recording->size).stop;
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -184,7 +183,7 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
         (end - at <= CLI_RECORDING_LINE_TEXT)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
                          .text = recording->text + at, .size = end - at, .nodes_more = 0u, .text_more = 0ULL,
-                         .err_msg = &unread, .owner = &g_cli_debug_cells)
+                         .err_msg = &unread, .owner = g_cli_debug_owner)
             : CLI_JSON_NONE;
     return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = root,
                       .kind = CFG_JSON_ARRAY)
@@ -256,7 +255,7 @@ EMBED_INLINE int read_kind(const RecordingReadCtx *args)
                                       .json_read = &s_json, .array = args->record, .index = 0u),
                    .length_pointer = NULL);
     return (text != NULL) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word_text, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word_text, .cap = CLI_POOL_BYTES}));
 }
 
 // a call read: the frame stored by its number, its thread's stack grown by it where it is not its top
@@ -287,8 +286,8 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
     }
     if (!s_has_stack[thread])
     {
-        s_stacks[thread] = g_cli_cells->persistent_buf_alloc(
-            (unsigned long long)CLI_RECORDING_DEPTH * sizeof(unsigned int), &g_cli_debug_cells);
+        s_stacks[thread] = g_cli_guard->persistent_buf_alloc(
+            (unsigned long long)CLI_RECORDING_DEPTH * sizeof(unsigned int), g_cli_debug_owner);
         s_capacities[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
         s_has_stack[thread] = 1;
     }
@@ -389,10 +388,10 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
         const CliRecordedRaise *const last = &recording->raised[recording->raised_count - 1u];
         const unsigned int here = (step < recording->step_count) ? recording->steps[step].depth : 0u;
         if ((cellul.eq(&(CatenaFinitaCfg){
-                .src = recording->names + last->kind, .other = recording->names + kind, .cap = CLI_CELLS_POOL})) &&
+                .src = recording->names + last->kind, .other = recording->names + kind, .cap = CLI_POOL_BYTES})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = recording->names + last->message,
                                           .other = recording->names + message,
-                                          .cap = CLI_CELLS_POOL})) &&
+                                          .cap = CLI_POOL_BYTES})) &&
             (last->step < recording->step_count) && (recording->steps[last->step].depth > here))
         {
             return;
@@ -411,15 +410,14 @@ void cli_recording_let_go(void)
     {
         return;
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliRecording *const recording = &g_cli_replay->recording;
     if (recording->text != NULL)
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)recording->text),
-                                            (&g_cli_debug_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)recording->text),
+                                            (g_cli_debug_owner));
         recording->text = NULL;
     }
     if (recording->path[0] != '\0')
@@ -428,7 +426,7 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ULL;
-    g_cli_cells->persistent_buf_release(recording->capacity, &g_cli_debug_cells);
+    g_cli_guard->persistent_buf_release(recording->capacity, g_cli_debug_owner);
     recording->capacity = NULL;
     recording->steps = NULL;
     recording->step_count = 0u;
@@ -533,7 +531,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     cli_recording_let_go();
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(s_stacks[thread], g_cli_debug_owner);
         s_stacks[thread] = NULL;
         s_capacities[thread] = 0u;
         s_depths[thread] = 0u;
@@ -541,17 +539,17 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = recording->path,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
     // the recording's file saved as long as it is replayed, in a persistent cell of its size and the slack
     unsigned long long size = 0ULL;
     unsigned char *bytes =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
-            ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_debug_cells)
+            ? g_cli_guard->persistent_buf_alloc(size + CLI_FILE_SLACK, g_cli_debug_owner)
             : NULL;
     if ((bytes != NULL) && !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = args->path,
                                        .from = 0ULL, .bytes_bytes = bytes, .count_u64 = size, .got = &size))
     {
-        g_cli_cells->persistent_buf_release(bytes, &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(bytes, g_cli_debug_owner);
         bytes = NULL;
     }
     recording->text = (const char *)bytes;
@@ -580,13 +578,12 @@ void cli_recording_read(const CliRecordingPathCtx *args)
         }
         at = next;
     }
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
+        g_cli_guard->persistent_buf_release(s_stacks[thread], g_cli_debug_owner);
         s_stacks[thread] = NULL;
         s_capacities[thread] = 0u;
         s_depths[thread] = 0u;

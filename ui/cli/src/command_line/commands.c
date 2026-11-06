@@ -10,7 +10,7 @@
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
-#include "cells.h"
+#include "pool.h"
 
 // the list as it is built in, with a zero after it, read where it lies; its tokens, a cell of their count for as long
 // as the program runs; and each string token's text, read once, in one cell for as long as the program runs
@@ -35,8 +35,8 @@ int cli_commands_read(const CliCommandsCfg *args)
     const unsigned int tokens =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_text, .size = s_size) + 1u;
     s_tokens = (s_tokens != NULL) ? s_tokens
-                                  : g_cli_cells->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens),
-                                                                      &g_cli_command_line_cells);
+                                  : g_cli_guard->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens),
+                                                                      g_cli_command_line_owner);
     if (s_tokens == NULL)
     {
         mmgr_line_put(args->err_msg, "commands.json: the cells cannot meet its tokens");
@@ -53,8 +53,8 @@ int cli_commands_read(const CliCommandsCfg *args)
         return 0;
     }
     s_count = parse.tokens;
-    s_string = g_cli_cells->persistent_buf_alloc(((unsigned long long)s_count * sizeof(*s_string)) + s_size + s_count,
-                                                 &g_cli_command_line_cells);
+    s_string = g_cli_guard->persistent_buf_alloc(((unsigned long long)s_count * sizeof(*s_string)) + s_size + s_count,
+                                                 g_cli_command_line_owner);
     if (s_string == NULL)
     {
         mmgr_line_put(args->err_msg, "commands.json: the cells cannot meet its texts");
@@ -134,7 +134,7 @@ void cli_menu_word(const CliCommandsMenuWordCfg *args)
     EMBED_CALL(cli_commands_menu_title.menu_title, CliCommandsMenuTitleCfg, .menu = args->menu,
                .title = args->word_out);
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->word_out,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->word_out, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->word_out, .cap = CLI_POOL_BYTES}));
 }
 
 void cli_menu_split(const CliCommandsMenuSplitCfg *args)
@@ -205,7 +205,7 @@ static int cli_flat_find(const CommandsCtx *args)
             if ((command != 0u) && cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_member_string, CommandsCtx,
                                                                                   .object = at, .name = "command"),
                                                                 .other = args->word_text,
-                                                                .cap = CLI_CELLS_POOL}))
+                                                                .cap = CLI_POOL_BYTES}))
             {
                 EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
                 return 1;
@@ -314,7 +314,7 @@ unsigned int cli_item_words_need(const CliCommandsItemCfg *args)
 {
     unsigned int needed = 0u;
     unsigned int depth = 0u;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->item_read->args, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->item_read->args, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                             .text = args->item_read->args, .at = 0ULL, .size = size, .set = "[]<");
          at < size; at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -335,7 +335,7 @@ int cli_menu_by_name(const CliCommandsWordCfg *args)
     {
         char named[CLI_LABEL_MAX_LEN];
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = at, .word_out = named);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word_text, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word_text, .cap = CLI_POOL_BYTES}))
         {
             *menu = at;
             return 1;

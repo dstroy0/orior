@@ -33,7 +33,6 @@ typedef struct
 int cli_plan_description_read(const CliDevcontainerCtx *args);
 void cli_plan_description_free(void);
 int cli_plan_overflow(void);
-extern CellOwner g_cli_devcontainer_cells;
 // the string at token `value` decoded into `out`, sized for CLI_STRING_MAX_LEN: 1, or 0 where it is no string; the
 // member `name` of the description, and of the object at token `object` where it is a member found, 0 where none
 int cli_plan_string(const CliDevcontainerValueOutCtx *args);

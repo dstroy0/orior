@@ -121,7 +121,7 @@ EMBED_INLINE unsigned long long read_stop(const SchemaReadCtx *args)
     unsigned long long end = args->reader_read->at;
     while ((end < size) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = args->stops, .cap = CLI_CELLS_POOL, .byte = args->reader_read->read->text[end]}) == NULL))
+                .src = args->stops, .cap = CLI_POOL_BYTES, .byte = args->reader_read->read->text[end]}) == NULL))
     {
         end += 1u;
     }
@@ -552,7 +552,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    g_cli_cells->persistent_buf_release(args->read_out->node, &g_cli_schema_cells);
+    g_cli_guard->persistent_buf_release(args->read_out->node, g_cli_schema_owner);
     args->read_out->node = NULL;
     args->read_out->member = NULL;
     args->read_out->pool = NULL;
@@ -571,7 +571,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     const unsigned long long node_bytes = (unsigned long long)args->read_out->nodes_max * sizeof(CliSchemaNode);
     const unsigned long long member_bytes = (unsigned long long)args->read_out->members_max * sizeof(CliSchemaMember);
     char *const cell =
-        g_cli_cells->temporary_buf_alloc(node_bytes + member_bytes + args->read_out->pool_max, &g_cli_schema_cells);
+        g_cli_guard->temporary_buf_alloc(node_bytes + member_bytes + args->read_out->pool_max, g_cli_schema_owner);
     args->read_out->node = (CliSchemaNode *)(void *)cell;
     args->read_out->member = NULL;
     args->read_out->pool = NULL;

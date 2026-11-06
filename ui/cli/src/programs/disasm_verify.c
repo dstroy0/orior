@@ -8,8 +8,8 @@
 // under build/harness/disasm_verify/<module> of the tree: the IR, the symbols, the two disassemblies and Ghidra's
 // project, which is deleted once read
 #include "disasm_verify.h"
-#include "../command_line/cells.h"
 #include "../command_line/command_line_internal.h"
+#include "../command_line/pool.h"
 #include "../runs/runner.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
@@ -126,7 +126,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
     }
     unsigned long long size = 0ULL;
     const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                 .size_pointer = &size, .owner = &g_cli_programs_cells);
+                                                 .size_pointer = &size, .owner = g_cli_programs_owner);
     if (text == NULL)
     {
         return 0;
@@ -157,7 +157,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)text, (&g_cli_programs_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_cli_programs_owner));
     return found;
 }
 
@@ -445,12 +445,12 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                          .symbols = s_symbols, .count = functions, .into = ghidra_text, .size_pointer = &ghidra_size,
                          .err_msg = &err_msg)
             : NULL;
-    CliDisasmReadState one = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
-                                                                &g_cli_programs_cells),
-                              0u, 0};
-    CliDisasmReadState other = {g_cli_cells->persistent_buf_alloc(
-                                    CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), &g_cli_programs_cells),
-                                0u, 0};
+    CliDisasmReadState one = {
+        g_cli_guard->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+        0u, 0};
+    CliDisasmReadState other = {
+        g_cli_guard->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+        0u, 0};
     int code = CLI_NO_CODE;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
@@ -465,9 +465,9 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                        .objdump_text = disassembled->out, .objdump_size = disassembled->out_size,
                        .ghidra_text = (const char *)ghidra, .ghidra_size = ghidra_size, .one = &one, .other = &other);
     }
-    g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
-    g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)ghidra, (&g_cli_programs_cells));
+    g_cli_guard->persistent_buf_release(one.instruction, g_cli_programs_owner);
+    g_cli_guard->persistent_buf_release(other.instruction, g_cli_programs_owner);
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)ghidra, (g_cli_programs_owner));
     if (disassembled != NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);

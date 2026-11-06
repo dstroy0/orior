@@ -184,7 +184,7 @@ typedef struct
     unsigned int used;
     unsigned int text_max;
     int full;
-    CellOwner *cells;
+    const CellOwner *cells;
 } CliCatalog;
 
 // The values a job is run with, by param: each key, and its values, `count` of the list from `first`, all texts in the
@@ -341,7 +341,7 @@ struct CliCatalogIndexCfg
 struct CliCatalogCellsCfg
 {
     CliCatalog *catalog;
-    CellOwner *cells;
+    const CellOwner *cells;
     unsigned int jobs_max;
 };
 

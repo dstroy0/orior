@@ -79,7 +79,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
     }
     // the rates sorted in a cell of their count
     double *const sorted =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)args->count * sizeof(double), &g_query_cells);
+        g_cli_guard->persistent_buf_alloc((unsigned long long)args->count * sizeof(double), g_query_owner);
     if (sorted == NULL)
     {
         return;
@@ -95,7 +95,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
         sorted[place] = args->rates[at];
     }
     const double median = sorted[((args->count + 1u) / 2u) - 1u];
-    g_cli_cells->persistent_buf_release(sorted, &g_query_cells);
+    g_cli_guard->persistent_buf_release(sorted, g_query_owner);
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "  ");
@@ -139,8 +139,8 @@ static void query_folder_walk(const CliEachNameIsFolderCfg *args)
     QueryFoldersLevel *const level = (QueryFoldersLevel *)args->context;
     if (args->is_folder)
     {
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ".git", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "restored", .cap = CLI_CELLS_POOL})))
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ".git", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "restored", .cap = CLI_POOL_BYTES})))
         {
             char path[QUERY_PATH_MAX_LEN];
             VerbaLinea line = {path, sizeof(path), 0ULL};
@@ -154,14 +154,14 @@ static void query_folder_walk(const CliEachNameIsFolderCfg *args)
         }
         return;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     level->has_run =
         level->has_run ||
-        ((cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_CELLS_POOL})) &&
+        ((cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_POOL_BYTES})) &&
          (length > 9u) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})) &&
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})) &&
          (args->name[5] >= '0') && (args->name[5] <= '9') &&
-         (cellul.chr(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL, .byte = '-'}) != NULL));
+         (cellul.chr(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES, .byte = '-'}) != NULL));
 }
 
 // the folder `folder` and every folder under it walked, each that contains a run counted or stored in its sorted place
@@ -193,7 +193,7 @@ EMBED_INLINE void query_folder_level(const RetentionCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->all->found[at],
                             .src = args->folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}) + 1u});
     args->all->founds += 1u;
 }
 
@@ -215,7 +215,7 @@ void query_writer_get(const QueryRetentionOwnCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = writer->qry,
                                 .src = args->qry,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->qry, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->qry, .cap = CLI_POOL_BYTES}) + 1u});
     }
 }
 
@@ -231,18 +231,18 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
                      .runs = &list_entries);
     const unsigned int runs = list_entries.count;
     char (*const names)[QUERY_PATH_MAX_LEN] =
-        (runs > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)runs * QUERY_PATH_MAX_LEN, &g_query_cells)
+        (runs > 0u) ? g_cli_guard->persistent_buf_alloc((unsigned long long)runs * QUERY_PATH_MAX_LEN, g_query_owner)
                     : NULL;
     double *const rates_of =
-        (names != NULL) ? g_cli_cells->persistent_buf_alloc((unsigned long long)runs * sizeof(double), &g_query_cells)
+        (names != NULL) ? g_cli_guard->persistent_buf_alloc((unsigned long long)runs * sizeof(double), g_query_owner)
                         : NULL;
     unsigned int rates = 0u;
     for (unsigned int at = 0u; (rates_of != NULL) && (at < runs); at += 1u)
     {
         const char *const path = list_entries.path[at];
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         if ((length < 4u) ||
-            (!cellul.eq(&(CatenaFinitaCfg){.src = path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
+            (!cellul.eq(&(CatenaFinitaCfg){.src = path + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }
@@ -261,9 +261,9 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
         }
         const char *const name =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/')
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/')
                 ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}),
                               .byte = '/') +
                    1)
                 : path;
@@ -289,17 +289,17 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
         EMBED_CALL(query_retention_print, RetentionCtx, .context = args->context, .line = &line);
         memor.cpy(&(MemoriaCfg){.dst = names[rates],
                                 .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
         rates_of[rates] =
             EMBED_CALL(query_retention_internal.account_rate, QueryRetentionCtx, .account_read = &account);
         rates += 1u;
     }
     EMBED_CALL(query_retention_context_folder_internal.median_print, QueryRetentionContextFolderCtx,
                .context = args->context, .folder = args->displayed, .names = names, .rates = rates_of, .count = rates);
-    g_cli_cells->persistent_buf_release(rates_of, &g_query_cells);
-    g_cli_cells->persistent_buf_release(names, &g_query_cells);
-    g_cli_cells->persistent_buf_release(list_entries.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(list_entries.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(rates_of, g_query_owner);
+    g_cli_guard->persistent_buf_release(names, g_query_owner);
+    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
     *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -321,21 +321,21 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
         .dst = newest_path,
         .src = (list_entries.count != 0u) ? list_entries.path[0] : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (list_entries.count != 0u) ? list_entries.path[0] : "",
-                                               .cap = CLI_CELLS_POOL}) +
+                                               .cap = CLI_POOL_BYTES}) +
                  1u});
-    g_cli_cells->persistent_buf_release(list_entries.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(list_entries.path, &g_query_cells);
+    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
     *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     if (newest_path[0] != '\0')
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = newest_path, .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = newest_path, .cap = CLI_POOL_BYTES});
         QueryWriter newest;
         EMBED_CALL(query_retention_own_internal.writer_get, QueryRetentionOwnCtx, .own = args->own, .qry = newest_path,
                    .writer = &newest);
         if ((length > 4u) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = newest_path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = newest_path + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})) &&
             EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &newest))
         {
             mmgr_line_put(&line, "  ");
@@ -421,7 +421,7 @@ int query_retention_run(const QueryLoopCfg *args)
                    .root = context->root, .found = NULL, .capacity = 0u);
     char (*const folders_found)[QUERY_PATH_MAX_LEN] =
         (counted > 0u)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)counted * QUERY_PATH_MAX_LEN, &g_query_cells)
+            ? g_cli_guard->persistent_buf_alloc((unsigned long long)counted * QUERY_PATH_MAX_LEN, g_query_owner)
             : NULL;
     const unsigned int folders =
         (folders_found != NULL)
@@ -434,7 +434,7 @@ int query_retention_run(const QueryLoopCfg *args)
                    .folder = folders_found[at], .crystal = built ? s_crystal : NULL, .most = query_retain_max(),
                    .own = &s_own.writer);
     }
-    g_cli_cells->persistent_buf_release(folders_found, &g_query_cells);
+    g_cli_guard->persistent_buf_release(folders_found, g_query_owner);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_own,
                     .err_msg = err_msg))
     {

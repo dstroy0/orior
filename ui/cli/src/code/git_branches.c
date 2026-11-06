@@ -96,7 +96,7 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
         mmgr_line_put(args->err_msg, " is no branch's name");
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "create", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "create", .cap = CLI_POOL_BYTES}))
     {
         const char *const check[3] = {"check-ref-format", "--branch", args->name_read};
         const char *const arguments[3] = {"switch", "-c", args->name_read};
@@ -105,7 +105,7 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
                EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->root,
                           .request = arguments, .count = 3u, .out = args->out, .err_msg = args->err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "switch", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "switch", .cap = CLI_POOL_BYTES}))
     {
         char remote_ref[CLI_PATH_MAX_LEN];
         VerbaLinea line = {remote_ref, sizeof(remote_ref), 0ULL};
@@ -124,7 +124,7 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
                       : EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->root,
                                    .request = plain, .count = 2u, .out = args->out, .err_msg = args->err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "rename", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "rename", .cap = CLI_POOL_BYTES}))
     {
         const char *const check[3] = {"check-ref-format", "--branch", args->to};
         const char *const arguments[4] = {"branch", "-m", args->name_read, args->to};
@@ -138,7 +138,7 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
         {"branch", "-d"}, {"branch", "-D"}, {"merge", "--no-edit"}, {"rebase", NULL}};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = s_acts[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = s_acts[at], .cap = CLI_POOL_BYTES}))
         {
             const char *const arguments[3] = {
                 s_words[at][0], (s_words[at][1] != NULL) ? s_words[at][1] : args->name_read, args->name_read};
@@ -200,8 +200,8 @@ void cli_git_stashes(const CliGitRootFoundStashesCfg *args)
 
 int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
 {
-    int named = cellul.starts(&(CatenaFinitaCfg){.src = args->name_read, .other = "stash@{", .cap = CLI_CELLS_POOL});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL});
+    int named = cellul.starts(&(CatenaFinitaCfg){.src = args->name_read, .other = "stash@{", .cap = CLI_POOL_BYTES});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_POOL_BYTES});
     named = named && (length > 8ULL) && (args->name_read[length - 1ULL] == '}');
     unsigned long long at = 7ULL;
     while (named && (at < (length - 1ULL)))
@@ -209,16 +209,16 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
         named = (args->name_read[at] >= '0') && (args->name_read[at] <= '9');
         at += 1ULL;
     }
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_CELLS_POOL})) && !named)
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_POOL_BYTES})) && !named)
     {
         mmgr_line_put(args->err_msg, args->name_read);
         mmgr_line_put(args->err_msg, " is no stash's name");
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_POOL_BYTES}))
     {
         const char *from = args->message;
-        const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_CELLS_POOL});
+        const char *to = args->message + cellul.len(&(CatenaFinitaCfg){.src = args->message, .cap = CLI_POOL_BYTES});
         EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
         char trimmed[CLI_GIT_OUTPUT_MAX_LEN];
         VerbaLinea line = {trimmed, sizeof(trimmed), 0ULL};
@@ -229,9 +229,9 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
                           .request = arguments, .count = (from == to) ? 3u : 5u, .out = args->out,
                           .err_msg = args->err_msg);
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "apply", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "pop", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "drop", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "apply", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "pop", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "drop", .cap = CLI_POOL_BYTES})))
     {
         const char *const arguments[3] = {"stash", args->act, args->name_read};
         return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->root,

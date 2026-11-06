@@ -53,8 +53,8 @@ EMBED_INLINE void cli_same(const CompileDbProgramCtx *args)
 {
     memor.cpy(&(MemoriaCfg){.dst = args->out,
                             .src = args->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_CELLS_POOL});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out, .size = length, .from = '\\',
                .to = '/');
 #if defined(_WIN32)
@@ -75,11 +75,11 @@ EMBED_INLINE int cli_one_get(const CompileDbProgramCtx *args)
     const char *other = args->other;
     char lower[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
-        .dst = lower, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+        .dst = lower, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = lower,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL}));
-    return (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = args->one, .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = other, .cap = CLI_CELLS_POOL}));
+               .size = cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_POOL_BYTES}));
+    return (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = args->one, .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = other, .cap = CLI_POOL_BYTES}));
 }
 
 // a program found retained where it ranks as high as the best yet: with debugging information first, then the later
@@ -146,7 +146,7 @@ EMBED_INLINE int cli_source_want(const CompileDbProgramCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->source, .relative = path, .joined = full);
     }
     EMBED_CALL(cli_same, CompileDbProgramCtx, .path = full, .out = compared);
-    return cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL});
+    return cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_POOL_BYTES});
 }
 
 // the first artifact of the target that is a program, not its symbols or import library, into `program`: 1, or 0
@@ -166,13 +166,13 @@ EMBED_INLINE int cli_target_program(const CompileDbProgramCtx *args)
             continue;
         }
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = args->program_capacity, .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = args->program_capacity, .cap = CLI_POOL_BYTES});
         const int skipped =
             (length >= 4ULL) &&
             ((cellul.eq(&(CatenaFinitaCfg){
-                 .src = args->program_capacity + length - 4ULL, .other = ".pdb", .cap = CLI_CELLS_POOL})) ||
+                 .src = args->program_capacity + length - 4ULL, .other = ".pdb", .cap = CLI_POOL_BYTES})) ||
              (cellul.eq(&(CatenaFinitaCfg){
-                 .src = args->program_capacity + length - 4ULL, .other = ".lib", .cap = CLI_CELLS_POOL})));
+                 .src = args->program_capacity + length - 4ULL, .other = ".lib", .cap = CLI_POOL_BYTES})));
         if (!skipped)
         {
             return 1;
@@ -194,7 +194,7 @@ EMBED_INLINE void cli_chain_compiler(const CompileDbProgramCtx *args)
                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->chains_file,
                                         .object = at, .key = "language"),
                        .out = chain_language, .capacity = sizeof(chain_language)) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = chain_language, .other = args->language, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = chain_language, .other = args->language, .cap = CLI_POOL_BYTES})))
         {
             (void)EMBED_CALL(
                 cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->chains_file,
@@ -332,7 +332,7 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
         const char *named = build;
         const unsigned long long named_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
-                       .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_POOL_BYTES}), .set = "/\\");
         named = (named_end != 0ULL) ? (build + named_end) : named;
         const unsigned long long configurations =
             EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
@@ -388,24 +388,24 @@ EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args
     const char *name = args->compiler_read;
     const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = name,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (name + name_end) : name;
     EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = stem, .size = sizeof(stem), .text = name);
     char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), .byte = '.');
     if ((dot != NULL) && (dot != stem))
     {
         dot[0] = '\0';
     }
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = stem,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}));
-    if (cellul.eq(&(CatenaFinitaCfg){.src = stem, .other = "cl", .cap = CLI_CELLS_POOL}))
+               .size = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}));
+    if (cellul.eq(&(CatenaFinitaCfg){.src = stem, .other = "cl", .cap = CLI_POOL_BYTES}))
     {
         return "MSVC";
     }
     return (cellul.find(&(CatenaFinitaCfg){
-                .src = stem, .cap = CLI_CELLS_POOL, .other = "clang", .other_cap = CLI_CELLS_POOL}) != NULL)
+                .src = stem, .cap = CLI_POOL_BYTES, .other = "clang", .other_cap = CLI_POOL_BYTES}) != NULL)
                ? "Clang"
                : "GNU";
 }
@@ -425,7 +425,7 @@ EMBED_INLINE int cli_sources_required(const CompileDbProgramCtx *args)
             continue;
         }
         EMBED_CALL(cli_same, CompileDbProgramCtx, .path = path, .out = compared);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -452,7 +452,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
     const char *config = build;
     const unsigned long long config_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_POOL_BYTES}), .set = "/\\");
     config = (config_end != 0ULL) ? (build + config_end) : config;
     for (unsigned long long target = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &reply,
                                                 .array = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply));
@@ -548,7 +548,7 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
     {
         *program = s_search.best;
     }
-    g_cli_cells->persistent_buf_release(s_search.folders.path, &g_cli_compile_cells);
+    g_cli_guard->persistent_buf_release(s_search.folders.path, g_cli_compile_owner);
     *(&s_search.folders) = (CliFoundFolders){NULL, 0u, 0u};
     return found;
 }

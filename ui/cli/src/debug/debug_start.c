@@ -44,7 +44,7 @@ EMBED_INLINE int start_field(const DebugStartCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->out,
                             .src = text,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 
@@ -60,7 +60,7 @@ EMBED_INLINE int start_parent_language(const DebugStartCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = args->language,
                 .src = session->info.language,
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = session->info.language, .cap = CLI_CELLS_POOL}) + 1u});
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = session->info.language, .cap = CLI_POOL_BYTES}) + 1u});
             found = 1;
         }
     }
@@ -78,8 +78,8 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     char path[CLI_PATH_MAX_LEN];
     unsigned long long parent = 0ULL;
     args->plan->has_created = 0;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_POOL_BYTES})))
     {
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "language",
                         .out = args->plan->language, .capacity = sizeof(args->plan->language), .err_msg = err_msg))
@@ -87,7 +87,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
             return 0;
         }
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_POOL_BYTES}))
     {
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "id",
                         .out = args->plan->id, .capacity = sizeof(args->plan->id), .err_msg = err_msg))
@@ -102,10 +102,10 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
                          .src = EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = args->plan->id)
                                     ? "rust"
                                     : "python",
-                         .cap = CLI_CELLS_POOL}) +
+                         .cap = CLI_POOL_BYTES}) +
                      1u});
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_POOL_BYTES}))
     {
         if (!EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                         .json = json,
@@ -122,12 +122,12 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
             return 0;
         }
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "address", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "address", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_POOL_BYTES})))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->plan->language,
                                 .src = "python",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -137,9 +137,9 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
         return 0;
     }
     args->plan->recording =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_CELLS_POOL}));
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "c", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_POOL_BYTES}));
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_POOL_BYTES})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "c", .cap = CLI_POOL_BYTES})))
     {
         char full[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
@@ -166,7 +166,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
         memor.cpy(&(MemoriaCfg){
             .dst = args->plan->tool,
             .src = "orior's recorder",
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "orior's recorder", .cap = CLI_CELLS_POOL}) + 1u});
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "orior's recorder", .cap = CLI_POOL_BYTES}) + 1u});
         args->plan->tool_id[0] = '\0';
         args->plan->program[0] = '\0';
         return 1;
@@ -176,7 +176,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     {
         ahead = "";
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_POOL_BYTES}))
     {
         ahead = "gcc";
     }
@@ -231,7 +231,7 @@ EMBED_INLINE int start_file(const DebugStartCtx *args)
                    .names = names, .withs = withs, .count = 3u, .numbered = 0);
     memor.cpy(&(MemoriaCfg){.dst = args->plan->name,
                             .src = path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 }
 
@@ -248,7 +248,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = args->plan->name,
                       .src = args->plan->id,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->id, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->id, .cap = CLI_POOL_BYTES}) + 1u});
     if (EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = args->plan->id))
     {
         char program[CLI_PATH_MAX_LEN];
@@ -278,7 +278,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
                 cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = args_local,
                 .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                     .json = to, .text = words[at],
-                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
+                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_POOL_BYTES})));
         }
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "args", .value = args_local);
@@ -286,7 +286,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
                    .object = args->plan->arguments, .name = "cwd",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = to, .text = folder,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES})));
         return 1;
     }
     const char *const names[3] = {"program", "path", "root"};
@@ -306,7 +306,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
                 cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = args_local,
                 .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                     .json = to, .text = words[at],
-                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
+                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_POOL_BYTES})));
         }
         EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "program");
@@ -323,7 +323,7 @@ EMBED_INLINE int start_test(const DebugStartCtx *args)
                        .value =
                            EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                       .json = to, .text = python,
-                                      .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
+                                      .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_POOL_BYTES})));
         }
     }
     return 1;
@@ -383,7 +383,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
     const CliJson *json = args->json;
     CliJson *const to = &args->place->start;
     args->plan->request = "attach";
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_POOL_BYTES}))
     {
         const unsigned int config = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = json, .object = args->start, .name = "config");
@@ -445,7 +445,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
                                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                               .json_read = json, .object = connect, .name = "host"),
                                            .fallback = "127.0.0.1"),
-                         .cap = CLI_CELLS_POOL}) +
+                         .cap = CLI_POOL_BYTES}) +
                      1u});
         args->plan->ends_program = 1;
         return 1;
@@ -476,7 +476,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
         cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = connect, .name = "host",
         .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = to,
                             .text = args->plan->host,
-                            .length = cellul.len(&(CatenaFinitaCfg){.src = args->plan->host, .cap = CLI_CELLS_POOL})));
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = args->plan->host, .cap = CLI_POOL_BYTES})));
     char number[32];
     VerbaLinea port_line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&port_line, port, 1u);
@@ -503,12 +503,12 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
                    .value =
                        EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                   .json = to, .text = args->root,
-                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL})));
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES})));
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = mapping,
                    .name = "remoteRoot",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = to, .text = remote,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_POOL_BYTES})));
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = mappings,
                    .value = mapping);
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
@@ -528,13 +528,12 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     CliJson *const to = &args->place->start;
     // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
-    g_cli_cells->persistent_buf_release(to->node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = to->node));
+    g_cli_guard->persistent_buf_release(to->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), to->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = to, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = to,
                     .nodes_max = CLI_DEBUG_START_NODES, .text_max = CLI_DEBUG_START_TEXT,
-                    .what = "the tree a debug session starts with", .owner = &g_cli_debug_cells))
+                    .what = "the tree a debug session starts with", .owner = g_cli_debug_owner))
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the tree a debug session starts with");
         return 0;
@@ -548,17 +547,17 @@ int cli_debug_plan(const CliDebugStartCfg *args)
         return 0;
     }
     int made = 0;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_POOL_BYTES}))
     {
         made = EMBED_CALL(start_file, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
                           .start = args->start, .plan = args->plan, .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_POOL_BYTES}))
     {
         made = EMBED_CALL(start_test, DebugStartCtx, .place = args->place, .root = args->root, .plan = args->plan,
                           .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_POOL_BYTES}))
     {
         made = EMBED_CALL(start_process, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
                           .start = args->start, .plan = args->plan, .err_msg = args->err_msg);
@@ -580,15 +579,15 @@ int cli_debug_plan(const CliDebugStartCfg *args)
                    .object = args->plan->arguments, .name = "program",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = to, .text = full,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES})));
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
                    .object = args->plan->arguments, .name = "python",
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = to, .text = python,
-                                       .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_POOL_BYTES})));
         memor.cpy(&(MemoriaCfg){.dst = args->plan->name,
                                 .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
     }
     else
     {
@@ -600,9 +599,9 @@ int cli_debug_plan(const CliDebugStartCfg *args)
         return 0;
     }
     const int launch =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->request, .other = "launch", .cap = CLI_CELLS_POOL}));
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->request, .other = "launch", .cap = CLI_POOL_BYTES}));
     if (launch &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "python", .cap = CLI_CELLS_POOL})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "python", .cap = CLI_POOL_BYTES})) &&
         !args->plan->recording &&
         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = to,
                    .node = args->plan->arguments, .kind = CFG_JSON_OBJECT))
@@ -613,7 +612,7 @@ int cli_debug_plan(const CliDebugStartCfg *args)
                    .value =
                        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_TRUE));
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_debug_json_language_internal.step_arguments, CliDebugJsonLanguageCtx,
                    .language = args->plan->language, .json = json,

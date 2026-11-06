@@ -179,7 +179,7 @@ void test_the_next_run_is_numbered_after_the_newest(void)
     char next[QUERY_PATH_MAX_LEN];
     runs_numbered(folder);
     EMBED_CALL(query_folder_capacity_internal.next_name, QueryFolderCapacityCtx, .folder = folder, .name_out = next, .capacity = sizeof(next));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = next, .other = "query13-", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = next, .other = "query13-", .cap = CLI_POOL_BYTES}));
 }
 
 void test_retention_stores_the_newest(void)
@@ -205,18 +205,18 @@ void test_a_folders_runs_are_counted_to_the_query_while_in_use(void)
     folder_emptied("build/query_test/cells", folder);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "query1-20260101T000000.qry", .joined = path);
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull);
-    const unsigned long long before = embed_atomic_usize_load(&g_query_cells.in_use);
+    const unsigned long long before = mmgr_owner_in_use(g_query_owner);
     QueryRuns runs;
     const int list_entries = EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
-    const unsigned long long in_use_during = embed_atomic_usize_load(&g_query_cells.in_use);
-    g_cli_cells->persistent_buf_release(runs.number, &g_query_cells);
-    g_cli_cells->persistent_buf_release(runs.path, &g_query_cells);
+    const unsigned long long in_use_during = mmgr_owner_in_use(g_query_owner);
+    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
     *(&runs) = (QueryRuns){NULL, NULL, 0u};
     TEST_ASSERT_TRUE(list_entries);
     TEST_ASSERT_EQUAL_UINT(0u, runs.count);
     TEST_ASSERT_GREATER_THAN_UINT64(before, in_use_during);
-    TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_query_cells.in_use));
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT64(in_use_during, embed_atomic_usize_load(&g_query_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_query_owner));
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT64(in_use_during, mmgr_owner_hw(g_query_owner));
 }
 
 void test_no_crystal_is_found_where_none_is_built(void)
@@ -303,7 +303,7 @@ void test_a_step_joins_a_run_left_open(void)
     compiler_required();
     step_joined(folder);
     const int joined = s_step.joined;
-    const int same_qry = cellul.eq(&(CatenaFinitaCfg){.src = s_step.writer.qry, .other = s_run.writer.qry, .cap = CLI_CELLS_POOL});
+    const int same_qry = cellul.eq(&(CatenaFinitaCfg){.src = s_step.writer.qry, .other = s_run.writer.qry, .cap = CLI_POOL_BYTES});
     run_stopped(&s_step);
     run_stopped(&s_run);
     TEST_ASSERT_TRUE(joined);
@@ -396,7 +396,7 @@ void test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf(void)
     const int was_read = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = read, .count = 2u, .err_msg = &err_msg);
     const int written = latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms\n");
     const unsigned int count = s_run.read.count;
-    const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.read.path[0], .other = file, .cap = CLI_CELLS_POOL});
+    const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.read.path[0], .other = file, .cap = CLI_POOL_BYTES});
     run_ended(&s_run);
     TEST_ASSERT_TRUE(was_read);
     TEST_ASSERT_TRUE(written);
@@ -417,7 +417,7 @@ void test_a_file_written_is_recorded_as_a_leaf(void)
     const char *const lefts[2] = {file, left};
     EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = lefts, .count = 2u);
     const unsigned int count = s_run.left.count;
-    const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_CELLS_POOL});
+    const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_POOL_BYTES});
     const unsigned int read_capacity = s_run.read.capacity;
     const unsigned int left_capacity = s_run.left.capacity;
     run_ended(&s_run);
@@ -458,7 +458,7 @@ void test_a_runs_end_releases_the_cells_of_its_leaves(void)
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     compiler_required();
-    const unsigned long long before = embed_atomic_usize_load(&g_query_cells.in_use);
+    const unsigned long long before = mmgr_owner_in_use(g_query_owner);
     folder_emptied("build/query_test/read", base);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "sm_86.khw", .joined = file);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = "forms\n", .size = 6ull));
@@ -468,5 +468,5 @@ void test_a_runs_end_releases_the_cells_of_its_leaves(void)
     run_ended(&s_run);
     TEST_ASSERT_NULL(s_run.read.path);
     TEST_ASSERT_NULL(s_run.left.path);
-    TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_query_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_query_owner));
 }

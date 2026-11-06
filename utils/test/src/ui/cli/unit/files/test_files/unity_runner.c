@@ -22,7 +22,7 @@ extern void test_a_file_git_would_track_is_tracked(void);
 extern void test_a_file_in_a_folder_created_since_is_tracked(void);
 extern void test_a_file_a_folder_further_down_is_tracked(void);
 extern void test_a_file_under_a_folder_git_ignores_is_not_tracked(void);
-extern void test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock(void);
+extern void test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum(void);
 
 
 /*=======Mock Management=====*/
@@ -94,7 +94,7 @@ int main(void)
   run_test(test_a_file_in_a_folder_created_since_is_tracked, "test_a_file_in_a_folder_created_since_is_tracked", 280);
   run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 286);
   run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked, "test_a_file_under_a_folder_git_ignores_is_not_tracked", 292);
-  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock, "test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock", 298);
+  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum, "test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum", 298);
 
   return UNITY_END();
 }

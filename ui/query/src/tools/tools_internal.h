@@ -53,6 +53,8 @@ extern const char *const g_query_file_defs_headers[];
 extern const char *const g_query_mmgr[];
 extern const char *const g_query_mmgr_includes[];
 extern const char *const g_query_mmgr_settings[];
+// the words every program's link ends with, after the tool's own
+extern const char *const g_query_mmgr_link[];
 // every tool, the last one's name NULL
 extern const QueryTool g_query_tools[];
 

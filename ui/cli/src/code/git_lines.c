@@ -83,7 +83,7 @@ EMBED_INLINE void cli_line_blamed(const GitLinesCtx *args)
                                           .at = found->commit[at].id);
         nonzero =
             id[EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = id, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), .set = "0")] !=
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}), .set = "0")] !=
             '\0';
     }
     if (found->lines < CLI_GIT_LINES)
@@ -131,7 +131,7 @@ EMBED_INLINE unsigned int cli_commit_placed(const GitLinesCtx *args)
 // whether the `key_length` bytes of `key` are `word`
 EMBED_INLINE int cli_key_is(const GitLinesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     return (args->key_length == size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->key, .other = args->word_text, .bytes = size}) == 0);
 }
@@ -234,8 +234,8 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
 // whether `text` ends with `tail`
 EMBED_INLINE int cli_ends_with(const GitLinesCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->tail, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->tail, .cap = CLI_POOL_BYTES});
     return (length >= size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->text + length - size, .other = args->tail, .bytes = size}) == 0);
 }
@@ -277,19 +277,19 @@ int cli_git_line_history(const CliGitLengthCfg *args)
     if (EMBED_CALL(cli_ends_with, GitLinesCtx, .text = from_tree, .tail = from_repo))
     {
         under.add = from_tree;
-        under.add_length = cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_CELLS_POOL}) -
-                           cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_CELLS_POOL});
+        under.add_length = cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_POOL_BYTES}) -
+                           cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES});
     }
     else if (EMBED_CALL(cli_ends_with, GitLinesCtx, .text = from_repo, .tail = from_tree))
     {
         under.strip = from_repo;
-        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_CELLS_POOL}) -
-                             cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_CELLS_POOL});
+        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES}) -
+                             cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_POOL_BYTES});
     }
     else
     {
         under.strip = from_repo;
-        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_CELLS_POOL});
+        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES});
     }
     const char *const arguments[6] = {"blame", "--porcelain", "--contents", "-", "--", displayed};
     char why[CLI_NAME_MAX_LEN];

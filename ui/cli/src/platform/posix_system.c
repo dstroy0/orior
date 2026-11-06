@@ -116,7 +116,7 @@ void cli_temp_folder(const CliFolderCtx *args)
         }
         return;
     }
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
+    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
     end = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = args->folder_out + 1u, .at = end - 1u, .set = "/"));
     args->folder_out[end] = '\0';
@@ -200,10 +200,10 @@ unsigned long long cli_booted_seconds(void)
     static char s_stat[CLI_SYSTEM_STAT_MAX];
     (void)EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/stat", .out = s_stat, .capacity = sizeof(s_stat));
     const char *at = cellul.find(
-        &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_POOL_BYTES});
     unsigned long long seconds = 0ULL;
     seconds = (at != NULL) ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at + 7, .at = 0ULL,
-                                        .size = cellul.len(&(CatenaFinitaCfg){.src = at + 7, .cap = CLI_CELLS_POOL}),
+                                        .size = cellul.len(&(CatenaFinitaCfg){.src = at + 7, .cap = CLI_POOL_BYTES}),
                                         .end = NULL)
                            : 0ULL;
     return seconds;
@@ -219,7 +219,7 @@ void cli_logon_by_name(const CliCapacityLogonCtx *args)
                         .set = "\n ");
     session[length] = '\0';
     const int saved =
-        (length > 0ULL) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
+        (length > 0ULL) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_POOL_BYTES});
     VerbaLinea named = {args->logon, args->capacity_bytes, 0ULL};
     if (saved)
     {

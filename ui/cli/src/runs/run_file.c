@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_file.c: the shell line that runs one file with its language's toolchain, its names filled in
 #include "run_file.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
@@ -32,7 +32,7 @@ typedef struct
 void cli_run_file_quote(const CliRunFileCfg *args)
 {
     mmgr_line_ch(args->out, '\'');
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -82,17 +82,17 @@ EMBED_INLINE const char *cli_name_split(const RunFileCtx *args)
     const char *start = args->path;
     const unsigned long long start_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
-                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     start = (start_end != 0ULL) ? (args->path + start_end) : start;
     *name = start;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = start,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL}), .byte = '.');
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES}), .byte = '.');
     const int split = (dot != NULL) && (dot != start) &&
-                      (!cellul.eq(&(CatenaFinitaCfg){.src = start, .other = "..", .cap = CLI_CELLS_POOL}));
+                      (!cellul.eq(&(CatenaFinitaCfg){.src = start, .other = "..", .cap = CLI_POOL_BYTES}));
     // the dot lies in the name, at or past its start
     *stem =
-        split ? (unsigned long long)(dot - start) : cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL});
+        split ? (unsigned long long)(dot - start) : cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES});
     return split ? (dot + 1) : NULL;
 }
 
@@ -111,7 +111,7 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
     memor.cpy(
         &(MemoriaCfg){.dst = keys[1],
                       .src = args->language,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_CELLS_POOL}) + 1u});
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_POOL_BYTES}) + 1u});
     unsigned int count = 0u;
     for (unsigned int key = 0u; key < 2u; key += 1u)
     {
@@ -149,16 +149,16 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
     const unsigned long long copied_len = (args->length < sizeof(key)) ? args->length : (sizeof(key) - 1ULL);
     memor.cpy(&(MemoriaCfg){.dst = key, .src = args->name_value, .bytes = copied_len});
     key[copied_len] = '\0';
-    if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "file", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "file", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line, .path = args->filling->path);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_POOL_BYTES}))
     {
         (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = args->line, .text = args->filling->path,
                          .from = '\\', .to = '/');
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "dir", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "dir", .cap = CLI_POOL_BYTES}))
     {
         char parent[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line,
@@ -167,11 +167,11 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
                                ? parent
                                : args->filling->root);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "stem", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "stem", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put_n(args->line, args->filling->name, args->filling->stem);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "out", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "out", .cap = CLI_POOL_BYTES}))
     {
         char made[CLI_PATH_MAX_LEN];
         VerbaLinea folder = {made, sizeof(made), 0ULL};
@@ -194,7 +194,7 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
         mmgr_line_finish(&file);
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line, .path = out);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "program", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "program", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line, .path = args->filling->program);
     }
@@ -221,12 +221,12 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
 EMBED_INLINE int cli_template_fill(const RunFileCtx *args)
 {
     const char *rest = args->template;
-    for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '{'});
-         open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '{'}))
+    for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '{'});
+         open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '{'}))
     {
         // the open brace lies in the rest, at or past its start
         mmgr_line_put_n(args->line, rest, (unsigned long long)(open - rest));
-        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_CELLS_POOL, .byte = '}'});
+        const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_POOL_BYTES, .byte = '}'});
         if (close == NULL)
         {
             mmgr_line_put(args->err_msg, args->filling->tool_name);
@@ -315,7 +315,7 @@ EMBED_INLINE int run_file_find(const RunFileCtx *args)
     EMBED_CALL(cli_json_tree_out.json_quoting_end, CliJsonTreeOutCfg, .quoting = &quoting, .line = &run);
     mmgr_line_put(out, ",\"tool\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = filling.tool_name,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = filling.tool_name, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = filling.tool_name, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(out, '}');
     return 1;
 }
@@ -342,15 +342,14 @@ int cli_run_file_line(const CliRunFileCfg *args)
     else
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_runs_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_runs_owner);
         done = EMBED_CALL(run_file_find, RunFileCtx, .root = args->root, .path = args->path, .language = args->language,
                           .json = &json, .ways = ways, .named_u32 = named,
                           .folders = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .out = args->out,
                           .err_msg = args->err_msg);
-        g_cli_cells->persistent_buf_release(folders, &g_cli_runs_cells);
+        g_cli_guard->persistent_buf_release(folders, g_cli_runs_owner);
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;

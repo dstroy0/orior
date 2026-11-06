@@ -28,7 +28,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         if (!cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
                                                             CliVersionCatalogCtx, .at = section->name_at),
                                           .other = args->name,
-                                          .cap = CLI_CELLS_POOL}))
+                                          .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -42,13 +42,13 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
     args->names_out->most = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
     args->names_out->capacity =
         (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
-    args->names_out->at = g_cli_cells->persistent_buf_alloc(
-        2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int), &g_cli_versions_cells);
-    args->names_out->text = g_cli_cells->persistent_buf_alloc(args->names_out->capacity, &g_cli_versions_cells);
+    args->names_out->at = g_cli_guard->persistent_buf_alloc(
+        2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int), g_cli_versions_owner);
+    args->names_out->text = g_cli_guard->persistent_buf_alloc(args->names_out->capacity, g_cli_versions_owner);
     if ((args->names_out->at == NULL) || (args->names_out->text == NULL))
     {
-        g_cli_cells->persistent_buf_release(args->names_out->text, &g_cli_versions_cells);
-        g_cli_cells->persistent_buf_release(args->names_out->at, &g_cli_versions_cells);
+        g_cli_guard->persistent_buf_release(args->names_out->text, g_cli_versions_owner);
+        g_cli_guard->persistent_buf_release(args->names_out->at, g_cli_versions_owner);
         args->names_out->at = NULL;
         args->names_out->size = NULL;
         args->names_out->text = NULL;
@@ -63,7 +63,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         if (!cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
                                                             CliVersionCatalogCtx, .at = section->name_at),
                                           .other = args->name,
-                                          .cap = CLI_CELLS_POOL}))
+                                          .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -130,7 +130,7 @@ EMBED_INLINE void check_update(const VersionCatalogCheckCtx *args)
     mmgr_line_put(&command, " --refresh-dependencies dependencies");
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
                .title = &title, .folder = args->check->folder,
-               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->folder, .cap = CLI_CELLS_POOL}),
+               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->folder, .cap = CLI_POOL_BYTES}),
                .line_text = line, .line_size = command.at);
 }
 
@@ -180,7 +180,7 @@ void cli_versions_adjacent(const CliVersionCatalogSizeCtx *args)
     {
         EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                    .one = args->known[at],
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->known[at], .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->known[at], .cap = CLI_POOL_BYTES}));
     }
     for (unsigned int at = 0u; (args->names != NULL) && (at < args->names->count); at += 1u)
     {
@@ -244,7 +244,7 @@ void cli_versions_keys(const CliVersionCatalogCheckCtx *args)
         for (unsigned int one = 0u; one < args->count; one += 1u)
         {
             found |=
-                (cellul.len(&(CatenaFinitaCfg){.src = args->known[one], .cap = CLI_CELLS_POOL}) == field->key_size) &&
+                (cellul.len(&(CatenaFinitaCfg){.src = args->known[one], .cap = CLI_POOL_BYTES}) == field->key_size) &&
                 (memor.cmp(&(MemoriaCfg){.src = args->known[one],
                                          .other = EMBED_CALL(cli_version_catalog_internal.versions_text,
                                                              CliVersionCatalogCtx, .at = field->key_at),
@@ -295,12 +295,12 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
         const char *const key =
             EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = field->key_at);
         const CliVersionsField *named = NULL;
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version.ref", .cap = CLI_CELLS_POOL})) &&
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version.ref", .cap = CLI_POOL_BYTES})) &&
             (field->shape == CLI_VERSIONS_TEXT))
         {
             named = field;
         }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version", .cap = CLI_CELLS_POOL})) &&
+        else if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version", .cap = CLI_POOL_BYTES})) &&
                  (field->shape == CLI_VERSIONS_TABLE))
         {
             const unsigned int inner = EMBED_CALL(cli_version_catalog_first_internal.versions_get,
@@ -309,7 +309,7 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
                         ? &g_cli_versions.field[inner]
                         : NULL;
         }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version", .cap = CLI_CELLS_POOL})) &&
+        else if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "version", .cap = CLI_POOL_BYTES})) &&
                  (field->shape == CLI_VERSIONS_TEXT) &&
                  EMBED_CALL(cli_builds_size_version.build_snapshot, CliBuildsSizeVersionCfg,
                             .version = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,

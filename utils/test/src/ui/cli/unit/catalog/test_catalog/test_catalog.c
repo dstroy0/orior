@@ -33,7 +33,7 @@ static const CliParam *param_of(unsigned int job, const char *key)
     for (unsigned int at = 0u; at < one->params; at += 1u)
     {
         const CliParam *const param = &s_catalog.param[one->param_first + at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = param->key), .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = param->key), .other = key, .cap = CLI_POOL_BYTES}))
         {
             return param;
         }
@@ -174,7 +174,7 @@ void test_the_tree_has_a_job_of_every_group(void)
         int found = 0;
         for (unsigned int at = 0u; !found && (at < s_catalog.jobs); at += 1u)
         {
-            found = cellul.eq(&(CatenaFinitaCfg){.src = s_catalog.job[at].group, .other = s_groups[group], .cap = CLI_CELLS_POOL});
+            found = cellul.eq(&(CatenaFinitaCfg){.src = s_catalog.job[at].group, .other = s_groups[group], .cap = CLI_POOL_BYTES});
         }
         TEST_ASSERT_TRUE_MESSAGE(found, s_groups[group]);
     }
@@ -182,11 +182,9 @@ void test_the_tree_has_a_job_of_every_group(void)
 
 void test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size(void)
 {
-    static CellOwner s_grown_cells = MMGR_CELL_OWNER("catalog_test_grown");
     tree_read();
-    (void)mmgr_owner_register(&s_grown_cells);
     CliCatalog grown;
-    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &grown, .cells = &s_grown_cells, .jobs_max = 2048u);
+    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &grown, .cells = g_checks_grown_owner, .jobs_max = 2048u);
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = s_root, .catalog = &grown);
     TEST_ASSERT_FALSE(grown.full);
     TEST_ASSERT_EQUAL_UINT(s_catalog.jobs, grown.jobs);
@@ -196,16 +194,16 @@ void test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size(void)
     TEST_ASSERT_EQUAL_UINT(s_catalog.lists, grown.lists);
     TEST_ASSERT_EQUAL_UINT64(s_catalog.used, grown.used);
     TEST_ASSERT_EQUAL_MEMORY(s_catalog.text, grown.text, grown.used);
-    TEST_ASSERT_GREATER_THAN_UINT64(0ull, embed_atomic_usize_load(&s_grown_cells.in_use));
-    CellOwner *const cells = grown.cells;
+    TEST_ASSERT_GREATER_THAN_UINT64(0ull, mmgr_owner_in_use(g_checks_grown_owner));
+    const CellOwner *const cells = grown.cells;
     if (cells != NULL)
     {
-        g_cli_cells->persistent_buf_release(grown.job, cells);
+        g_cli_guard->persistent_buf_release(grown.job, cells);
     }
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = (&grown), .jobs = NULL, .jobs_max = 0u,
                .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,
                .lists = NULL, .lists_max = 0u, .text_out = NULL, .text_max = 0u);
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&s_grown_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_grown_owner));
 }
 
 void test_a_drivers_parts_are_read_from_its_usage(void)
@@ -218,7 +216,7 @@ void test_a_drivers_parts_are_read_from_its_usage(void)
     int track = 0;
     for (unsigned int at = 0u; at < parts->choices; at += 1u)
     {
-        track |= cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.list[parts->first + at]), .other = "track", .cap = CLI_CELLS_POOL});
+        track |= cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &s_catalog, .text_u32 = s_catalog.list[parts->first + at]), .other = "track", .cap = CLI_POOL_BYTES});
     }
     TEST_ASSERT_TRUE(track);
 }
@@ -226,6 +224,6 @@ void test_a_drivers_parts_are_read_from_its_usage(void)
 void test_the_catalogs_memory_is_released_as_the_tree_is_read(void)
 {
     tree_read();
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_catalog_cells.in_use));
-    TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_catalog_cells.hw));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_catalog_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_catalog_owner));
 }

@@ -51,7 +51,7 @@ EMBED_INLINE int parse_blank(const RequestsParseCtx *args)
 // whether `size` bytes from `start` begin with `prefix`
 EMBED_INLINE int parse_begins(const RequestsParseCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_POOL_BYTES});
     return (args->end - args->start >= size) &&
            (memor.cmp(&(MemoriaCfg){.src = args->text + args->start, .other = args->prefix, .bytes = (size_t)size}) ==
             0);
@@ -474,7 +474,7 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
     }
     parts = (parts < CLI_REQUESTS_MAX) ? parts : CLI_REQUESTS_MAX;
     args->parsed->requests =
-        g_cli_cells->persistent_buf_alloc((parts + 1ULL) * sizeof(*args->parsed->requests), &g_cli_requests_cells);
+        g_cli_guard->persistent_buf_alloc((parts + 1ULL) * sizeof(*args->parsed->requests), g_cli_requests_owner);
     if (args->parsed->requests == NULL)
     {
         args->parsed->full = 1;
@@ -512,8 +512,8 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
 int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args)
 {
     const char *text = args->text;
-    g_cli_cells->persistent_buf_release(args->parsed->requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(args->parsed->text, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(args->parsed->requests, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(args->parsed->text, g_cli_requests_owner);
     args->parsed->requests = NULL;
     args->parsed->requests_capacity = 0u;
     args->parsed->text = NULL;
@@ -525,19 +525,18 @@ int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args)
     const unsigned long long lines = EMBED_CALL(parse_lines_count, RequestsParseCtx, .text = text, .size = args->size);
     const unsigned long long pool = (2ULL * args->size) + CLI_REQUESTS_POOL_MORE;
     args->parsed->text_capacity = (pool < CLI_REQUESTS_TEXT) ? pool : CLI_REQUESTS_TEXT;
-    args->parsed->text = g_cli_cells->persistent_buf_alloc(args->parsed->text_capacity, &g_cli_requests_cells);
-    s_line_start =
-        (args->parsed->text != NULL)
-            ? g_cli_cells->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_start), &g_cli_requests_cells)
-            : NULL;
+    args->parsed->text = g_cli_guard->persistent_buf_alloc(args->parsed->text_capacity, g_cli_requests_owner);
+    s_line_start = (args->parsed->text != NULL)
+                       ? g_cli_guard->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_start), g_cli_requests_owner)
+                       : NULL;
     s_line_end = (s_line_start != NULL)
-                     ? g_cli_cells->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_end), &g_cli_requests_cells)
+                     ? g_cli_guard->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_end), g_cli_requests_owner)
                      : NULL;
     const int read = (s_line_end != NULL) &&
                      EMBED_CALL(parse_read, RequestsParseCtx, .text = text, .size = args->size, .parsed = args->parsed);
     args->parsed->full = args->parsed->full || (s_line_end == NULL);
-    g_cli_cells->persistent_buf_release(s_line_end, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(s_line_start, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(s_line_end, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(s_line_start, g_cli_requests_owner);
     s_line_end = NULL;
     s_line_start = NULL;
     return read;

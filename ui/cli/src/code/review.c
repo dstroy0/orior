@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // review.c: a change read file by file, its texts before and now, its pieces grouped by the calls between them, and
 // the review written as the window reads it
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "git.h"
 #include "review_internal.h"

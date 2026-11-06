@@ -3,7 +3,8 @@
 // frame_test.c: the frame's check: the parts laid out for a window's size stand where the page stands them, the bar
 // across the top, the status bar across the foot, the strip down the left, the frame's gap down the right, the work
 // between them with the tabs row at its head, the map's column at its right and the editor filling the rest, each
-// scaled with the system's scale
+// scaled with the system's scale; and the preview taking the editor's right half beside the text or its whole
+// rectangle alone
 #include "../../../../../ui/cli/src/view/frame.h"
 #include "../cli/cli_check.h"
 
@@ -55,6 +56,29 @@ int main(void)
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the side taken away gives the tabs row its capacity back");
+
+    // the preview: none while off, the editor's right half beside the text, the editor's whole rectangle alone
+    const GuiRect whole = frame.editor;
+    cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.preview),
+              "no preview stands while it is off");
+    EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_BESIDE);
+    cli_check(same(frame.editor, whole.x, whole.y, whole.width - (whole.width / 2), whole.height) &&
+                  same(frame.preview, whole.x + whole.width - (whole.width / 2), whole.y, whole.width / 2, whole.height),
+              "beside the text the preview takes the editor's right half and the editor keeps the left");
+    cli_check(same(frame.map, 1440 - 12 - 2 - 84, 41 + 2 + 31, 84, whole.height), "the map's column stays at the right");
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
+    cli_check((frame.preview.x + frame.preview.width == whole.x + whole.width) && (frame.editor.x == 44 + 1 + 304) &&
+                  (frame.preview.x == frame.editor.x + frame.editor.width),
+              "a side shown lays the preview again beside the narrower editor");
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
+    EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_ALONE);
+    cli_check(same(frame.preview, whole.x, whole.y, whole.width, whole.height) && (frame.editor.width == 0) &&
+                  (frame.editor.height == whole.height),
+              "alone the preview fills the editor's rectangle and the editor is left no width");
+    EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_OFF);
+    cli_check(same(frame.editor, whole.x, whole.y, whole.width, whole.height) &&
+                  EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.preview),
+              "off again, the editor has its rectangle back");
 
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240);
     cli_check(same(frame.terminal_drawn, frame.terminal.x, frame.terminal.y, frame.terminal.width, frame.terminal.height) &&

@@ -30,7 +30,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     {
         known =
             known ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_letters[0], .other = s_modes[at], .cap = CLI_CELLS_POOL}));
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_letters[0], .other = s_modes[at], .cap = CLI_POOL_BYTES}));
     }
     if (!known)
     {
@@ -42,19 +42,19 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     {
         const char *const word_text = args->words_letters[at];
         const char **field;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_POOL_BYTES}))
         {
             field = &mode->part;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--to", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--to", .cap = CLI_POOL_BYTES}))
         {
             field = &mode->to;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--seed", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--seed", .cap = CLI_POOL_BYTES}))
         {
             field = &mode->seed;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--trace", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--trace", .cap = CLI_POOL_BYTES}))
         {
             field = &mode->trace;
         }
@@ -62,7 +62,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
         {
             field = NULL;
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--dry", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--dry", .cap = CLI_POOL_BYTES}))
         {
             mode->dry = 1;
         }
@@ -83,7 +83,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
             mode->word_count += 1u;
         }
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = mode->to, .other = "sass", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = mode->to, .other = "sass", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
         mmgr_line_put(args->err_msg, mode->to);
@@ -95,7 +95,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
 void query_part_read(const QueryPairsPartNameCtx *args)
 {
     VerbaLinea line = {args->name, args->capacity, 0ULL};
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -328,7 +328,7 @@ EMBED_INLINE int query_identity_writer(const PairsCtx *args)
     unsigned int at = 0u;
     for (unsigned int field = 0u; field < 4u; field += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->fields[field], .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->fields[field], .cap = CLI_POOL_BYTES});
         if (length >= s_capacities[field])
         {
             mmgr_line_put(args->err_msg, args->fields[field]);
@@ -441,13 +441,13 @@ static int query_pairs_mode_run(const PairsCtx *args)
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = folder, .text = mode->trace,
                .otherwise = QUERY_PAIRS_FOLDER);
     int code = -1;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "text_identity", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "text_identity", .cap = CLI_POOL_BYTES}))
     {
         code =
             EMBED_CALL(query_pairs_context_err_msg_internal.text_identity, QueryPairsContextErrMsgCtx,
                        .context = context, .mode = mode, .identity = s_identity, .folder = folder, .err_msg = err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "stick", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "stick", .cap = CLI_POOL_BYTES}))
     {
         code =
             EMBED_CALL(query_pairs_context_err_msg_internal.stick_slice, QueryPairsContextErrMsgCtx, .context = context,
@@ -477,7 +477,7 @@ int query_pairs_pair(const QueryLoopsContextErrMsgPartCfg *args)
     mode.dry = dry;
     mode.seed = seed;
     mode.trace = trace;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = to, .other = "sass", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = to, .other = "sass", .cap = CLI_POOL_BYTES}))
     {
         mmgr_line_put(args->err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
         mmgr_line_put(args->err_msg, to);

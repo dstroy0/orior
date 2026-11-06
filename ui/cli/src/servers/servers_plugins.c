@@ -156,7 +156,7 @@ int cli_servers_plugin_request(const CliServersErrMsgCfg *args)
     {
         (void)mmgr_line_put_n(args->result, answer.text, answer.size);
     }
-    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     return done;
 }
 

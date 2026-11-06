@@ -30,7 +30,7 @@ static float off(float one, float other)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -135,7 +135,7 @@ int main(void)
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "\xc3\xa9", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(painted(&raster, (GuiRect){2, 2, (int)advance, 16}, black), "a letter of two bytes draws one glyph");
 
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

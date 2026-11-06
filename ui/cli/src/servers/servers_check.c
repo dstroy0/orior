@@ -6,7 +6,7 @@
 // runs it. CHECKING threads, started once, take the files waiting in turn, and the check is notified how far it has
 // gone as each is done
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "servers_internal.h"
 
 // the most languages one batch of files is of
@@ -218,10 +218,10 @@ void cli_servers_check_let_go(void)
     s_queue.files_used = 0ULL;
     s_queue.total = 0ULL;
     s_queue.done = 0ULL;
-    g_cli_cells->persistent_buf_release(s_queue.files, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(s_queue.file_at, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(s_queue.waiting, &g_cli_servers_check_work_state_cells);
-    g_cli_cells->persistent_buf_release(s_queue.capacity, &g_cli_servers_check_work_state_cells);
+    g_cli_guard->persistent_buf_release(s_queue.files, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(s_queue.file_at, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(s_queue.waiting, g_cli_servers_check_work_state_owner);
+    g_cli_guard->persistent_buf_release(s_queue.capacity, g_cli_servers_check_work_state_owner);
     s_queue.files = NULL;
     s_queue.file_at = NULL;
     s_queue.waiting = NULL;
@@ -233,14 +233,14 @@ char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     const int on = s_queue.on && (s_queue.files != NULL) &&
-                   (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_CELLS_POOL}));
+                   (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_POOL_BYTES}));
     // the queue's bytes hold every path it lists, each ended by a 0
-    char *const files = on ? g_cli_cells->temporary_buf_alloc(s_queue.files_used + 1ULL, &g_cli_servers_cells) : NULL;
+    char *const files = on ? g_cli_guard->temporary_buf_alloc(s_queue.files_used + 1ULL, g_cli_servers_owner) : NULL;
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (files != NULL) && (at < s_queue.file_count); at += 1u)
     {
         const char *const file = s_queue.files + s_queue.file_at[at];
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ULL;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = files + used, .src = file, .bytes = (size_t)length});
         used += length;
     }
@@ -252,7 +252,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
 {
     CliServersSink *sink = args->sink_out;
     const int on = s_queue.on && s_queue.has_sink && (s_queue.files != NULL) &&
-                   (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_CELLS_POOL}));
+                   (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_POOL_BYTES}));
     if (on)
     {
         for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -261,7 +261,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
             while ((remaining < s_queue.file_count) &&
                    (!cellul.eq(&(CatenaFinitaCfg){.src = s_queue.files + s_queue.file_at[remaining],
                                                   .other = args->files[at],
-                                                  .cap = CLI_CELLS_POOL})))
+                                                  .cap = CLI_POOL_BYTES})))
             {
                 remaining += 1u;
             }
@@ -281,7 +281,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
             if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
             {
                 const size_t size =
-                    cellul.len(&(CatenaFinitaCfg){.src = s_queue.files + s_queue.file_at[at], .cap = CLI_CELLS_POOL}) +
+                    cellul.len(&(CatenaFinitaCfg){.src = s_queue.files + s_queue.file_at[at], .cap = CLI_POOL_BYTES}) +
                     1u;
                 memor.move_down(&(MemoriaCfg){
                     .dst = s_queue.files + used, .src = s_queue.files + s_queue.file_at[at], .bytes = size});
@@ -309,7 +309,7 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
                                                      CliServersQueueAtCtx, .queue_read = &s_queue, .at = one)
                                               ->path,
                 .other = args->paths[at],
-                .cap = CLI_CELLS_POOL}));
+                .cap = CLI_POOL_BYTES}));
         }
         if (!queued && EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,
                                   .path = args->paths[at], .waiting = &args->waiting[at], .front = 0))

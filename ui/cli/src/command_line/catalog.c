@@ -62,7 +62,7 @@ void cli_catalog_alloc(const CliCatalogCellsCfg *args)
     const unsigned long long step_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(CliStep);
     const unsigned long long arg_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(CliArg);
     const unsigned long long list_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(unsigned int);
-    char *const cell = g_cli_cells->persistent_buf_alloc(
+    char *const cell = g_cli_guard->persistent_buf_alloc(
         job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes + CLI_CATALOG_TEXT_MAX, cells);
     args->catalog->cells = cells;
     args->catalog->full = cell == NULL;
@@ -93,7 +93,7 @@ unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args)
     {
         return CLI_CATALOG_NONE;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
     if ((args->catalog->used + size) > args->catalog->text_max)
     {
         args->catalog->full = 1;
@@ -195,7 +195,7 @@ void cli_catalog_choice(const CliCatalogChoiceCfg *args)
     const unsigned int text = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg,
                                          .catalog = args->catalog, .text = args->choice);
     if ((param->choices == 0u) &&
-        (cellul.starts(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_CELLS_POOL})))
+        (cellul.starts(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_POOL_BYTES})))
     {
         param->fallback = text;
     }
@@ -281,7 +281,7 @@ unsigned int cli_catalog_find(const CliCatalogIdCfg *args)
                                                            .catalog_read = args->catalog_read,
                                                            .text_u32 = args->catalog_read->job[at].id),
                                          .other = args->id,
-                                         .cap = CLI_CELLS_POOL}))
+                                         .cap = CLI_POOL_BYTES}))
         {
             return at;
         }
@@ -362,7 +362,7 @@ EMBED_INLINE unsigned long long cli_stored_size(const CatalogCtx *args)
                ? 0ULL
                : (cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                                   .catalog_read = args->from, .text_u32 = text),
-                                                .cap = CLI_CELLS_POOL}) +
+                                                .cap = CLI_POOL_BYTES}) +
                   1ULL);
 }
 
@@ -422,11 +422,11 @@ void cli_values_append(const CliCatalogKeyValuesCfg *args)
     unsigned int at = 0u;
     while (
         (at < args->values_out->keys) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->values_out->key[at], .other = args->key, .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->values_out->key[at], .other = args->key, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}) + 1ULL;
     if (((at == args->values_out->keys) && (args->values_out->keys >= CLI_VALUES_KEYS)) ||
         (args->values_out->items >= CLI_VALUES_ITEMS) || ((args->values_out->used + size) > CLI_VALUES_TEXT))
     {
@@ -436,7 +436,7 @@ void cli_values_append(const CliCatalogKeyValuesCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->values_out->key[at],
                                 .src = args->key,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) + 1u});
         args->values_out->first[at] = args->values_out->items;
         args->values_out->count[at] = 0u;
         args->values_out->keys += 1u;
@@ -464,7 +464,7 @@ const unsigned int *cli_values_get(const CliCatalogKeyCfg *args)
     unsigned int *count = args->count;
     for (unsigned int at = 0u; at < args->values->keys; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->values->key[at], .other = args->key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->values->key[at], .other = args->key, .cap = CLI_POOL_BYTES}))
         {
             *count = args->values->count[at];
             return args->values->item + args->values->first[at];

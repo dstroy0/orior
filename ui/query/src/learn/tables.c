@@ -101,7 +101,7 @@ unsigned int query_architectures_get(const QueryTablesCtx *args)
 // `path` under the tree as the container sees it, the tree mounted at /tree, into `inside`
 void query_in_container(const QueryTablesRootCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     const char *under = (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path_read,
                                     .other_pointer = args->root, .size = length) &&
                          ((args->path_read[length] == '/') || (args->path_read[length] == '\\')))
@@ -137,7 +137,7 @@ unsigned int query_architectures(const QueryTablesErrMsgCtx *args)
             memor.cpy(
                 &(MemoriaCfg){.dst = args->arches[arch_count],
                               .src = words[at],
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) + 1u});
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_POOL_BYTES}) + 1u});
             arch_count += (args->arches[arch_count][0] != '\0') ? 1u : 0u;
         }
         return arch_count;

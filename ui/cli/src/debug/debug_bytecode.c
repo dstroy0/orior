@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_bytecode.c: the bytecode of the function of a Python file that contains a line, as the tree's Python compiles
 // it, read by a shim given to that Python as its input: the file, then the line, counted from 1, its words
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../tests/test_runs.h"
 #include "../text/text.h"
 #include "debug_internal.h"
@@ -44,13 +44,13 @@ EMBED_INLINE void bytecode_fail(const DebugBytecodeCtx *args)
     unsigned long long end = args->run_result->err_size;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[start]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->run_result->err[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[end - 1ULL]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = args->run_result->err[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -93,12 +93,12 @@ EMBED_INLINE void bytecode_instruction(const DebugBytecodeCtx *args)
     unsigned long long start = 0ULL;
     unsigned long long end = joined.at;
     while ((start < end) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = text[start]}) != NULL))
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = text[start]}) != NULL))
     {
         start += 1ULL;
     }
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = text[end - 1ULL]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_POOL_BYTES, .byte = text[end - 1ULL]}) != NULL))
     {
         end -= 1ULL;
     }
@@ -173,12 +173,11 @@ int cli_debug_bytecode(const CliDebugRootOutCfg *args)
     const unsigned int value =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = args->err_msg, .owner = &g_cli_debug_cells);
+                   .err_msg = args->err_msg, .owner = g_cli_debug_owner);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (value == CLI_JSON_NONE)
     {
-        g_cli_cells->persistent_buf_release(json.node,
-                                            EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -206,8 +205,7 @@ int cli_debug_bytecode(const CliDebugRootOutCfg *args)
                    .out = args->out);
     }
     mmgr_line_put(args->out, "]]");
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;

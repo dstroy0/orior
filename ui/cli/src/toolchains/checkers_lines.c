@@ -97,7 +97,7 @@ EMBED_INLINE unsigned int cli_severity_get(const CheckersLinesCtx *args)
     static const unsigned int s_severity[4] = {1u, 2u, 3u, 3u};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_words[at], .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_words[at], .cap = CLI_POOL_BYTES});
         if ((args->finding->message_length >= size) &&
             (memor.cmp(&(MemoriaCfg){.src = args->finding->message, .other = s_words[at], .bytes = size}) == 0))
         {

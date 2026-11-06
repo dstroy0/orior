@@ -93,7 +93,7 @@ void test_the_pairs_targets_are_the_bridge_and_the_machine_file(void)
 
 void test_targets_use_forward_slashes_on_every_platform(void)
 {
-    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = targets_of("pair", NULL, 0u), .cap = CLI_CELLS_POOL, .byte = '\\'}));
+    TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = targets_of("pair", NULL, 0u), .cap = CLI_POOL_BYTES, .byte = '\\'}));
 }
 
 void test_the_stalls_target_is_the_machine_file(void)

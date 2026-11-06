@@ -3,7 +3,7 @@
 // compile_db_gather.c: the database gathered from the tree's builds: each CMake build's entries from its file API
 // reply, and each Meson build's compile_commands.json, written together where they changed, and read for the
 // compilers they name
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -14,20 +14,20 @@ static int gather_cells_alloc(void)
     const int entries =
         EMBED_CALL(cli_json_tree_nodes_max.json_reserved_temporary, CliJsonTreeNodesMaxCfg, .json = &g_cli_gather.json,
                    .nodes_max = CLI_GATHER_NODES_CAPACITY, .text_max = CLI_GATHER_TEXT_CAPACITY,
-                   .what = "the compile entries gathered", .owner = &g_cli_build_cells);
-    char *const flags_cell = g_cli_cells->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, &g_cli_build_cells);
-    char *const fragment_cell = g_cli_cells->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, &g_cli_build_cells);
+                   .what = "the compile entries gathered", .owner = g_cli_build_owner);
+    char *const flags_cell = g_cli_guard->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, g_cli_build_owner);
+    char *const fragment_cell = g_cli_guard->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, g_cli_build_owner);
     g_cli_gather.flags_text = mmgr_line_over(flags_cell, CLI_GATHER_FLAGS_CAPACITY);
     g_cli_gather.fragment_text = mmgr_line_over(fragment_cell, CLI_GATHER_FLAGS_CAPACITY);
     const int reserved = entries && (flags_cell != NULL) && (fragment_cell != NULL);
     if (!reserved)
     {
-        g_cli_cells->persistent_buf_release(g_cli_gather.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                               .cell = g_cli_gather.json.node));
+        g_cli_guard->persistent_buf_release(g_cli_gather.json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_gather.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
-        g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
+        g_cli_guard->persistent_buf_release(g_cli_gather.flags_text.out, g_cli_build_owner);
+        g_cli_guard->persistent_buf_release(g_cli_gather.fragment_text.out, g_cli_build_owner);
         g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
         g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
     }
@@ -91,7 +91,7 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
             continue;
         }
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = compiler,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}), .from = '\\',
                    .to = '/');
         // the compilers stored in order, each once
         unsigned int place = 0u;
@@ -103,7 +103,7 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
         }
         if (((place < args->database->compilers) &&
              (cellul.eq(&(CatenaFinitaCfg){
-                 .src = args->database->compiler[place], .other = compiler, .cap = CLI_CELLS_POOL}))) ||
+                 .src = args->database->compiler[place], .other = compiler, .cap = CLI_POOL_BYTES}))) ||
             (args->database->compilers >= CLI_COMPILERS))
         {
             continue;
@@ -113,12 +113,12 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->database->compiler[move],
                                     .src = args->database->compiler[move - 1u],
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->database->compiler[move - 1u],
-                                                                           .cap = CLI_CELLS_POOL}) +
+                                                                           .cap = CLI_POOL_BYTES}) +
                                              1u});
         }
         memor.cpy(&(MemoriaCfg){.dst = args->database->compiler[place],
                                 .src = compiler,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_CELLS_POOL}) + 1u});
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}) + 1u});
         args->database->compilers += 1u;
         args->database->msvc =
             args->database->msvc || EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = compiler);
@@ -133,7 +133,7 @@ EMBED_INLINE void cli_project_append(const CompileDbGatherCtx *args)
     unsigned int at = 0u;
     while ((at < g_cli_gather.projects) &&
            (!cellul.eq(&(CatenaFinitaCfg){
-               .src = g_cli_gather.project[at].project, .other = args->project, .cap = CLI_CELLS_POOL})))
+               .src = g_cli_gather.project[at].project, .other = args->project, .cap = CLI_POOL_BYTES})))
     {
         at += 1u;
     }
@@ -142,7 +142,7 @@ EMBED_INLINE void cli_project_append(const CompileDbGatherCtx *args)
         memor.cpy(
             &(MemoriaCfg){.dst = g_cli_gather.project[at].project,
                           .src = args->project,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->project, .cap = CLI_CELLS_POOL}) + 1u});
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->project, .cap = CLI_POOL_BYTES}) + 1u});
         g_cli_gather.project[at].time = time;
         g_cli_gather.project[at].entries = entries;
         g_cli_gather.projects += 1u;
@@ -161,7 +161,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
     const unsigned long long out_capacity =
         EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg, .json_read = &g_cli_gather.json,
                    .indent = 2u);
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_cli_build_cells);
+    char *const out_cell = g_cli_guard->temporary_buf_alloc(out_capacity, g_cli_build_owner);
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     if (out.out == NULL)
     {
@@ -173,10 +173,10 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
     {
         unsigned long long size = 0ULL;
         const unsigned char *const there = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
-                                                      .size_pointer = &size, .owner = &g_cli_build_cells);
+                                                      .size_pointer = &size, .owner = g_cli_build_owner);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)there, (&g_cli_build_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)there, (g_cli_build_owner));
         char folder[CLI_PATH_MAX_LEN];
         if (!same && EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
         {
@@ -185,7 +185,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                        .size = out.at);
         }
     }
-    g_cli_cells->persistent_buf_release(out.out, &g_cli_build_cells);
+    g_cli_guard->persistent_buf_release(out.out, g_cli_build_owner);
 }
 
 // the gathering itself, its cells taken: the database's compilers and folder
@@ -197,12 +197,12 @@ void cli_compile_gather(const CliCompileDbRootCtx *args)
     {
         EMBED_CALL(gather_reserve, CompileDbGatherCtx, .root = args->root, .inputs = args->inputs_read,
                    .database = args->database);
-        g_cli_cells->persistent_buf_release(g_cli_gather.json.node, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg,
-                                                                               .cell = g_cli_gather.json.node));
+        g_cli_guard->persistent_buf_release(g_cli_gather.json.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_gather.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
-        g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
+        g_cli_guard->persistent_buf_release(g_cli_gather.flags_text.out, g_cli_build_owner);
+        g_cli_guard->persistent_buf_release(g_cli_gather.fragment_text.out, g_cli_build_owner);
         g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
         g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
     }
@@ -234,11 +234,11 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)
         const char *name = file->path;
         const unsigned long long name_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = file->path,
-                       .at = cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+                       .at = cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
         name = (name_end != 0ULL) ? (file->path + name_end) : name;
         char project[CLI_PATH_MAX_LEN] = "";
         unsigned int entries = CLI_JSON_NONE;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_POOL_BYTES}))
         {
             char folder[CLI_PATH_MAX_LEN];
             entries = EMBED_CALL(cli_compile_db_path_internal.compile_json_read, CliCompileDbPathCtx, .json = json,

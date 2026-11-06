@@ -3,7 +3,7 @@
 // requests_ready.c: the request at a line of a file of requests made ready to go: its address, headers and body
 // filled with the variables of the file over those of the environment chosen, an address with no scheme sent over
 // http, and a body named by `< path` read from beside the file
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
@@ -79,7 +79,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     unsigned long long length = 0ULL;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ULL)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = adjacent,
-                                                        .size_pointer = &length, .owner = &g_cli_requests_cells)
+                                                        .size_pointer = &length, .owner = g_cli_requests_owner)
                                            : NULL;
     const int whole = (bytes != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                     .bytes = (const char *)bytes, .size = length);
@@ -92,7 +92,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         *size = length;
     }
-    g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_requests_cells));
+    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
     if (!whole)
     {
         mmgr_line_put(err_msg, args->name);
@@ -145,16 +145,16 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
                             .src = args->parsed->text + args->request->method.at,
                             .bytes = (size_t)args->request->method.size + 1u});
     if (cellul.find(&(CatenaFinitaCfg){
-            .src = args->sent->url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) == NULL)
+            .src = args->sent->url, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) == NULL)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_POOL_BYTES});
         // a program on this machine is reached in the clear, and any other over TLS
         const int here =
-            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "localhost", .cap = CLI_CELLS_POOL}) ||
-            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "127.", .cap = CLI_CELLS_POOL}) ||
-            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "[::1]", .cap = CLI_CELLS_POOL});
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "localhost", .cap = CLI_POOL_BYTES}) ||
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "127.", .cap = CLI_POOL_BYTES}) ||
+            cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "[::1]", .cap = CLI_POOL_BYTES});
         const char *const scheme = here ? "http://" : "https://"; // NOSONAR
-        const size_t scheme_size = cellul.len(&(CatenaFinitaCfg){.src = scheme, .cap = CLI_CELLS_POOL});
+        const size_t scheme_size = cellul.len(&(CatenaFinitaCfg){.src = scheme, .cap = CLI_POOL_BYTES});
         if (length + scheme_size + 1u > sizeof(args->sent->url))
         {
             EMBED_CALL(ready_full_err, RequestsReadyCtx, .err_msg = err_msg);
@@ -226,7 +226,7 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         ready = EMBED_CALL(ready_init, RequestsReadyCtx, .root = args->root, .path = args->path, .parsed = parsed,
                            .request = request, .env = args->env, .sent = args->sent_out, .body = args->body,
                            .err_msg = args->err_msg);
-        g_cli_cells->persistent_buf_release(s_values.text, &g_cli_requests_cells);
+        g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
         s_values.text = NULL;
         s_values.capacity = 0ULL;
         s_values.used = 0ULL;
@@ -238,8 +238,8 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         }
     }
     // what is sent was copied out of the file read, so the file read is given back here
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(g_cli_requests_parsed.text, &g_cli_requests_cells);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.requests, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.text, g_cli_requests_owner);
     g_cli_requests_parsed.requests = NULL;
     g_cli_requests_parsed.requests_capacity = 0u;
     g_cli_requests_parsed.text = NULL;

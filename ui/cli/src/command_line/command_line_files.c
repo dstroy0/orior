@@ -12,8 +12,8 @@
 #include "../text/text.h"
 #include "../toolchains/format.h"
 #include "../toolchains/toolchains.h"
-#include "cells.h"
 #include "command_line_internal.h"
+#include "pool.h"
 
 #include <stdlib.h>
 
@@ -35,7 +35,7 @@ static CliFilesWorkState *s_work_state;
 // the command's work state taken: 1, or 0 reported on the errors
 static int files_work_state_init(void)
 {
-    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_command_line_cells);
+    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "a command on files could not be taken");
@@ -99,7 +99,7 @@ EMBED_INLINE void files_full(const CommandLineFilesCtx *args)
     if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->word_text, .full = full,
                     .capacity = CLI_PATH_MAX_LEN))
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
         const unsigned long long copied_len = (size < CLI_PATH_MAX_LEN) ? size : CLI_PATH_MAX_LEN - 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = full, .src = args->word_text, .bytes = copied_len});
         full[copied_len] = '\0';
@@ -282,10 +282,10 @@ EMBED_INLINE void files_message_print(const CommandLineFilesCtx *args)
     int head = 1;
     for (;;)
     {
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES, .byte = '\n'});
         const unsigned long long size = (end != NULL)
                                             ? (unsigned long long)(end - rest)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
+                                            : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_POOL_BYTES});
         unsigned long long from = 0ULL;
         unsigned long long to = 0ULL;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = rest, .size = size,
@@ -385,12 +385,12 @@ EMBED_INLINE int files_words(const CommandLineFilesCtx *args)
     *flagged = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = args->flag, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = args->flag, .cap = CLI_POOL_BYTES}))
         {
             *flagged = 1;
             continue;
         }
-        if (cellul.starts(&(CatenaFinitaCfg){.src = args->words[at], .other = "--", .cap = CLI_CELLS_POOL}))
+        if (cellul.starts(&(CatenaFinitaCfg){.src = args->words[at], .other = "--", .cap = CLI_POOL_BYTES}))
         {
             return 0;
         }
@@ -414,7 +414,7 @@ EMBED_INLINE int files_validate(const CommandLineFilesCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const file = args->words[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--json", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--json", .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -542,7 +542,7 @@ EMBED_INLINE int files_format(const CommandLineFilesCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const file = args->words[at];
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--check", .cap = CLI_CELLS_POOL}) &&
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--check", .cap = CLI_POOL_BYTES}) &&
             (EMBED_CALL(files_format_file, CommandLineFilesCtx, .file = file, .check = check) != 0))
         {
             code = CLI_NO_CODE;
@@ -559,7 +559,7 @@ int cli_run_file_words(const CliCommandLineWordsCountCtx *args)
     }
     const int code = EMBED_CALL(files_run_words, CommandLineFilesCtx, .named = args->named, .words = args->words,
                                 .count = args->count);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }
@@ -571,7 +571,7 @@ int cli_validate_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_validate, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }
@@ -583,7 +583,7 @@ int cli_format_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_format, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
+    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }

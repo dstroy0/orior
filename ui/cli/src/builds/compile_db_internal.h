@@ -29,8 +29,6 @@ typedef struct CliCompileDbCtx CliCompileDbCtx;
 #define CLI_COMPILE_FOUND 1024u
 
 // the cells the files a look reads, the folders a search finds and the folders a walk has still to look in are
-// allocated in, counted (compile_db.c)
-extern CellOwner g_cli_compile_cells;
 
 // A file a look reads, and when it last changed, in milliseconds since 1970
 typedef struct

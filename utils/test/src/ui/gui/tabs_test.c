@@ -26,7 +26,7 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -79,7 +79,7 @@ int main(void)
     const GuiRect risen = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
     cli_check((risen.y == frame.tabs_row.y) && (risen.height == frame.tabs_row.height - 1) && (risen.y < frame.tabs.y),
               "halfway through the claim a tab stands whole in the row risen out of the work's head");
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

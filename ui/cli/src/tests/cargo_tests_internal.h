@@ -4,7 +4,7 @@
 // and the capacity the search stores what files contain in
 #ifndef CARGO_TESTS_INTERNAL_H
 #define CARGO_TESTS_INTERNAL_H
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "cargo_tests.h"
 #include "embed_dispatch_layout.h"
@@ -16,8 +16,6 @@ typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 
 // the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*capacity` where
 // that is more, containing the `*capacity` of `cell`, `cell` given back and `*capacity` raised: the cell, or NULL where
-// it is refused and `cell` is retained (cargo_scan.c)
-extern CellOwner g_cli_cargo_cells;
 
 // what a token of Rust's text is: a word, `::`, or a sign
 #define CLI_RUST_WORD 0u

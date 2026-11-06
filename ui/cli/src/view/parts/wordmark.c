@@ -212,16 +212,16 @@ void gui_wordmark_still(const GuiWordmarkStillCfg *args)
         args->wordmark->exit_start_ms = 0ULL;
         args->wordmark->pours = 0;
         args->wordmark->home = 1;
-        g_cli_cells->persistent_buf_release(args->wordmark->flight_first, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->flight_first, g_gui_owner);
         args->wordmark->flight_first = NULL;
         args->wordmark->flight_span = NULL;
         args->wordmark->flight_cover = NULL;
-        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
         args->wordmark->row_sum = NULL;
         args->wordmark->text_color = NULL;
         args->wordmark->row = NULL;
         args->wordmark->name.cover = NULL;
-        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->under.pixels, g_gui_raster_owner);
         args->wordmark->under.pixels = NULL;
         args->wordmark->under.width = 0u;
         args->wordmark->under.height = 0u;
@@ -365,7 +365,7 @@ EMBED_INLINE int wordmark_name_init(const WordmarkCtx *args)
     const unsigned long long pixels = (unsigned long long)width * height;
     const unsigned long long sums = (unsigned long long)width * sizeof(*args->wordmark->row_sum);
     const unsigned long long colors = (unsigned long long)height * sizeof(*args->wordmark->text_color);
-    unsigned int *const cell = g_cli_cells->persistent_buf_alloc(sums + colors + width + pixels, &g_gui_cells);
+    unsigned int *const cell = g_cli_guard->persistent_buf_alloc(sums + colors + width + pixels, g_gui_owner);
     if (cell == NULL)
     {
         return 0;
@@ -570,11 +570,11 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
     const unsigned int width = (unsigned int)(args->place->under.width + (2 * reach));
     const unsigned int height = (unsigned int)(args->place->under.height + (2 * reach));
     const unsigned long long pixels = (unsigned long long)width * height;
-    float *const floats = g_cli_cells->temporary_buf_alloc((pixels * sizeof(*floats)) + (3ULL * pixels), &g_gui_cells);
+    float *const floats = g_cli_guard->temporary_buf_alloc((pixels * sizeof(*floats)) + (3ULL * pixels), g_gui_owner);
     if ((floats == NULL) || !EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &args->wordmark->under,
                                         .width = width, .height = height))
     {
-        g_cli_cells->persistent_buf_release(floats, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(floats, g_gui_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = floats, .val = 0, .bytes = pixels * sizeof(*floats)});
@@ -613,7 +613,7 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
                .color = (args->palette->open_text & 0x00ffffffu) | ((GuiColor)WORDMARK_LIP_ALPHA << 24u));
     EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask_bits = &cuts_mask,
                .x = 0, .y = 0, .color = args->palette->incised);
-    g_cli_cells->persistent_buf_release(floats, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(floats, g_gui_owner);
     return 1;
 }
 
@@ -634,12 +634,12 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
     GuiWordmarkPosition place;
     if (args->wordmark->created_em != em)
     {
-        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
         args->wordmark->row_sum = NULL;
         args->wordmark->text_color = NULL;
         args->wordmark->row = NULL;
         args->wordmark->name.cover = NULL;
-        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->under.pixels, g_gui_raster_owner);
         args->wordmark->under.pixels = NULL;
         args->wordmark->under.width = 0u;
         args->wordmark->under.height = 0u;
@@ -658,12 +658,12 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
         if (!named || !EMBED_CALL(wordmark_under_init, WordmarkCtx, .wordmark = args->wordmark,
                                   .palette = args->palette, .frame = args->frame, .place = &place))
         {
-            g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+            g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
             args->wordmark->row_sum = NULL;
             args->wordmark->text_color = NULL;
             args->wordmark->row = NULL;
             args->wordmark->name.cover = NULL;
-            g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+            g_cli_guard->persistent_buf_release(args->wordmark->under.pixels, g_gui_raster_owner);
             args->wordmark->under.pixels = NULL;
             args->wordmark->under.width = 0u;
             args->wordmark->under.height = 0u;
@@ -813,12 +813,12 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
                             .icons = args->icons, .palette = args->palette, .frame = args->frame))
             {
                 args->wordmark->home = 1;
-                g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+                g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
                 args->wordmark->row_sum = NULL;
                 args->wordmark->text_color = NULL;
                 args->wordmark->row = NULL;
                 args->wordmark->name.cover = NULL;
-                g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+                g_cli_guard->persistent_buf_release(args->wordmark->under.pixels, g_gui_raster_owner);
                 args->wordmark->under.pixels = NULL;
                 args->wordmark->under.width = 0u;
                 args->wordmark->under.height = 0u;
@@ -845,7 +845,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
             args->wordmark->home = !args->wordmark->pours;
             if (!args->wordmark->pours)
             {
-                g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+                g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
                 args->wordmark->row_sum = NULL;
                 args->wordmark->text_color = NULL;
                 args->wordmark->row = NULL;
@@ -866,7 +866,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
     {
         args->wordmark->pours = 0;
         args->wordmark->home = 1;
-        g_cli_cells->persistent_buf_release(args->wordmark->flight_first, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->flight_first, g_gui_owner);
         args->wordmark->flight_first = NULL;
         args->wordmark->flight_span = NULL;
         args->wordmark->flight_cover = NULL;
@@ -874,12 +874,12 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
     if (through >= GUI_WORDMARK_SLIDE_MS + GUI_WORDMARK_FADE_OUT_DELAY_MS + GUI_WORDMARK_FADE_OUT_MS)
     {
         args->wordmark->exit_start_ms = 0ULL;
-        g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
         args->wordmark->row_sum = NULL;
         args->wordmark->text_color = NULL;
         args->wordmark->row = NULL;
         args->wordmark->name.cover = NULL;
-        g_cli_cells->persistent_buf_release(args->wordmark->under.pixels, &g_gui_raster_cells);
+        g_cli_guard->persistent_buf_release(args->wordmark->under.pixels, g_gui_raster_owner);
         args->wordmark->under.pixels = NULL;
         args->wordmark->under.width = 0u;
         args->wordmark->under.height = 0u;
@@ -1085,7 +1085,7 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
     // the foot is positive
     const unsigned int entries = (unsigned int)footer + 2u;
     int *const tables =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)entries * 2ULL * sizeof(*tables), &g_gui_cells);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)entries * 2ULL * sizeof(*tables), g_gui_owner);
     if (tables == NULL)
     {
         return 0;
@@ -1105,11 +1105,10 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
     }
     const unsigned long long first_bytes = ((unsigned long long)WORDMARK_FLIGHT_STAGES + 1ULL) * sizeof(unsigned int);
     const unsigned long long span_bytes = (unsigned long long)spans * sizeof(GuiWordmarkSpan);
-    unsigned int *const cell =
-        g_cli_cells->persistent_buf_alloc(first_bytes + span_bytes + covers + 1ULL, &g_gui_cells);
+    unsigned int *const cell = g_cli_guard->persistent_buf_alloc(first_bytes + span_bytes + covers + 1ULL, g_gui_owner);
     if (cell == NULL)
     {
-        g_cli_cells->persistent_buf_release(tables, &g_gui_cells);
+        g_cli_guard->persistent_buf_release(tables, g_gui_owner);
         return 0;
     }
     args->wordmark->flight_first = cell;
@@ -1126,8 +1125,8 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
                    .cover_out = args->wordmark->flight_cover, .spans = &spans, .covers = &covers);
     }
     args->wordmark->flight_first[WORDMARK_FLIGHT_STAGES] = spans;
-    g_cli_cells->persistent_buf_release(tables, &g_gui_cells);
-    g_cli_cells->persistent_buf_release(args->wordmark->row_sum, &g_gui_cells);
+    g_cli_guard->persistent_buf_release(tables, g_gui_owner);
+    g_cli_guard->persistent_buf_release(args->wordmark->row_sum, g_gui_owner);
     args->wordmark->row_sum = NULL;
     args->wordmark->text_color = NULL;
     args->wordmark->row = NULL;

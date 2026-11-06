@@ -17,6 +17,7 @@
 typedef struct CliTerminalXtermSizeCfg CliTerminalXtermSizeCfg;
 typedef struct CliTerminalXtermCfg CliTerminalXtermCfg;
 typedef struct CliTerminalXtermBytesCfg CliTerminalXtermBytesCfg;
+typedef struct CliTerminalXtermSpansCfg CliTerminalXtermSpansCfg;
 
 // a style's weight and marks, a bit each
 #define CLI_TERMINAL_BOLD 0x01u
@@ -123,6 +124,22 @@ typedef struct
     unsigned long long size;
 } CliTerminalXtermPlainCfg;
 unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args);
+// A span of a line's plain text in one style: the place of its first byte among the plain bytes and its bytes, its
+// color, the index of one of the sixteen or CLI_TERMINAL_SPAN_PLAIN for the default and every other, and whether it is
+// bold
+#define CLI_TERMINAL_SPAN_PLAIN 256u
+typedef struct
+{
+    unsigned int offset;
+    unsigned int length;
+    unsigned int color;
+    int bold;
+} CliTerminalXtermSpan;
+// the `size` bytes of one line at `text` read through the SGR walk the screen's write reads them with: the bytes with
+// the escape sequences taken out written into `plain_out`, `plain_capacity` at most, their count into
+// `plain_size_out`, and a span each run of them whose color or weight is not the plain style's into `spans_out`,
+// `spans_capacity` at most, a run the spans cannot meet left plain: the count of the spans
+unsigned int cli_terminal_xterm_spans(const CliTerminalXtermSpansCfg *args);
 
 struct CliTerminalXtermSizeCfg
 {
@@ -147,6 +164,17 @@ struct CliTerminalXtermBytesCfg
     unsigned long long size;
 };
 
+struct CliTerminalXtermSpansCfg
+{
+    const char *text;
+    unsigned long long size;
+    char *plain_out;
+    unsigned long long plain_capacity;
+    unsigned long long *plain_size_out;
+    CliTerminalXtermSpan *spans_out;
+    unsigned int spans_capacity;
+};
+
 typedef struct
 {
     int (*init)(const CliTerminalXtermSizeCfg *args);
@@ -165,6 +193,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliTerminalXtermBytesNs, write);
 EMBED_TABLE_STORAGE CliTerminalXtermBytesNs cli_terminal_xterm_bytes EMBED_UNUSED = {
     .write = cli_terminal_xterm_write,
+};
+
+typedef struct
+{
+    unsigned int (*spans)(const CliTerminalXtermSpansCfg *args);
+} CliTerminalXtermSpansNs;
+EMBED_TABLE_LAYOUT(CliTerminalXtermSpansNs, spans);
+EMBED_TABLE_STORAGE CliTerminalXtermSpansNs cli_terminal_xterm_spans_table EMBED_UNUSED = {
+    .spans = cli_terminal_xterm_spans,
 };
 
 #endif

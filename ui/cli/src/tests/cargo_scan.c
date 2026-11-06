@@ -320,14 +320,13 @@ static void scan_tokens_append(const CargoScanCtx *args)
 
 void cli_cargo_tokens(const CliCargoTestsCtx *args)
 {
-    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
     g_cli_cargo_scan.tokens = NULL;
     g_cli_cargo_scan.token_capacity = 0ULL;
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     const unsigned long long counted = g_cli_cargo_scan.token_count;
     g_cli_cargo_scan.tokens =
-        (counted != 0ULL) ? g_cli_cells->persistent_buf_alloc(counted * sizeof(CliRustToken), &g_cli_cargo_cells)
-                          : NULL;
+        (counted != 0ULL) ? g_cli_guard->persistent_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner) : NULL;
     g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ULL;
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
@@ -344,7 +343,7 @@ EMBED_INLINE int scan_is_word(const CargoScanCtx *args)
 {
     const CliRustToken *const token = &g_cli_cargo_scan.tokens[args->at];
     return (args->at < g_cli_cargo_scan.token_count) && (token->kind == CLI_RUST_WORD) &&
-           (token->size == cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL})) &&
+           (token->size == cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES})) &&
            (memor.cmp(
                 &(MemoriaCfg){.src = args->text + token->start, .other = args->word_text, .bytes = token->size}) == 0);
 }
@@ -455,7 +454,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
     if (g_cli_cargo_scan.items == NULL)
     {
         const unsigned long long item_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(CliRustItem);
-        char *const cell = g_cli_cells->persistent_buf_alloc(item_bytes + CLI_CARGO_TEXT, &g_cli_cargo_cells);
+        char *const cell = g_cli_guard->persistent_buf_alloc(item_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
         if (cell != NULL)
         {
             g_cli_cargo_scan.items = (CliRustItem *)(void *)cell;

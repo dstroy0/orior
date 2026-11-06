@@ -61,7 +61,7 @@ int cli_dap_itself(const CliDapMessageCfg *args);
 
 // a request of `command` with `length` bytes of JSON arguments, an empty object for none, sent, its sequence number
 // into `seq`; its answer waited for up to `wait` milliseconds and handed over in `answer`, whose message the caller
-// gives back to g_cli_debug_cells, NULL where the request failed; and the two in turn. Each 1, or 0 with why given. The
+// gives back to g_cli_debug_owner, NULL where the request failed; and the two in turn. Each 1, or 0 with why given. The
 // last line the adapter wrote to its errors, which reports why where it stops; and the adapter requested to end the
 // program, or to let go of one it attached to, and itself, and ended where it does not (dap.c)
 int cli_dap_on_send(const CliDapErrMsgCommandCfg *args);

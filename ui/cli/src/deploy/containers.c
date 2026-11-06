@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // containers.c: docker and kubectl run, and docker's list, logs and acts, and what docker writes read
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../runs/runner.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -129,9 +129,9 @@ CliContainers g_cli_containers;
 
 int cli_containers_act(const CliContainersCfg *args)
 {
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "start", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "stop", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "restart", .cap = CLI_CELLS_POOL})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "start", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "stop", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "restart", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, args->act);
         mmgr_line_put(args->err_msg, " is not something a container is");

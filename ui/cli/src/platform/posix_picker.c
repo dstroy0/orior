@@ -569,7 +569,7 @@ static int dbus_connect(void)
             mmgr_line_put_n(
                 &named, from,
                 (size_t)EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
-                                   .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}),
+                                   .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}),
                                    .set = ",;"));
         }
     }
@@ -652,7 +652,7 @@ EMBED_INLINE int dbus_uri_path(const PosixPickerCtx *args)
     if (at != NULL)
     {
         EMBED_CALL(cli_text_size_set.append_unescaped, CliTextSizeSetCfg, .out = &decoded, .text = at,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}));
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES}));
     }
     return mmgr_line_finish(&decoded) != 0ULL;
 }

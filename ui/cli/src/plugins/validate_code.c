@@ -135,7 +135,7 @@ EMBED_INLINE int code_word_letter(const ValidateCodeCtx *args)
                ((args->letter >= '0') && (args->letter <= '9')) ||
                ((args->letter != 0u) && (args->letter < 0x80u) &&
                 (cellul.chr(&(CatenaFinitaCfg){
-                     .src = "_.'#!?", .cap = CLI_CELLS_POOL, .byte = (unsigned char)args->letter}) != NULL));
+                     .src = "_.'#!?", .cap = CLI_POOL_BYTES, .byte = (unsigned char)args->letter}) != NULL));
     }
     return !code_white(args) && (args->letter != 0x27e8u) && (args->letter != 0x27e9u);
 }
@@ -190,7 +190,7 @@ void cli_validate_words_get(void)
 // whether a word is the text `with`
 EMBED_INLINE int code_word_is(const ValidateCodeCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_CELLS_POOL}) == args->word_text->size) &&
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_POOL_BYTES}) == args->word_text->size) &&
            (memor.cmp(&(MemoriaCfg){.src = g_cli_validate->code + args->word_text->start,
                                     .other = args->with,
                                     .bytes = args->word_text->size}) == 0);

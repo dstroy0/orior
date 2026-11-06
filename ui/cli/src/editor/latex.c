@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // latex.c: a LaTeX file made into pages: the engine its text names, the programs found, the make run in orior's own
 // folder for the file, and what the make left written as the preview reads it
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/digest.h"
 #include "../text/text.h"
 #include "archive.h"
@@ -12,7 +12,7 @@ CliLatexWorkState *g_cli_latex;
 
 int cli_latex_lock(void)
 {
-    g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), &g_cli_editor_cells);
+    g_cli_latex = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_latex), g_cli_editor_owner);
     return g_cli_latex != NULL;
 }
 
@@ -47,7 +47,7 @@ EMBED_INLINE void latex_stem(const LatexCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *size = args->size;
-    unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long end = from;
 #if defined(_WIN32)
     from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = from,

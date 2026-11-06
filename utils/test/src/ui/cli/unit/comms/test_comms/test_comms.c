@@ -219,7 +219,7 @@ void test_a_key_is_64_hex_digits_and_no_two_are_alike(void)
 {
     keys_run_result();
     TEST_ASSERT_EQUAL_UINT64(64ull, CLI_UNITY_LENGTH(s_key_one));
-    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = s_key_one, .other = s_key_two, .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = s_key_one, .other = s_key_two, .cap = CLI_POOL_BYTES}));
 }
 
 void test_a_key_names_its_part(void)

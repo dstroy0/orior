@@ -6,7 +6,7 @@
 // counted by one walk of the files and followed by a second, every list of the walk one cell sized to the tree's files,
 // imports and edges; a finding's message a cell sized to the paths of its way
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "inspect_tree_internal.h"
 
 // The walk: each file's first edge and its count; each edge's import and the file it runs, counted where
@@ -145,7 +145,7 @@ EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
     {
         size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ULL;
     }
-    char *const text = g_cli_cells->temporary_buf_alloc(size, &g_cli_inspect_cells);
+    char *const text = g_cli_guard->temporary_buf_alloc(size, g_cli_inspect_owner);
     if (text == NULL)
     {
         return;
@@ -165,7 +165,7 @@ EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
                    .from = facts->import[args->import].from, .to = facts->import[args->import].to,
                    .code = "import-cycle", .message = &message);
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_inspect_owner);
 }
 
 // the imports of the file at `file` that lead back round to it, each handed to `each`
@@ -205,8 +205,8 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
         imports = (tree_file->used && (tree_file->facts.imports > imports)) ? tree_file->facts.imports : imports;
     }
     const unsigned long long files = g_cli_tree_files + 1ULL;
-    unsigned int *const cell = g_cli_cells->persistent_buf_alloc(
-        ((6ULL * files) + (2ULL * edges) + imports) * sizeof(unsigned int), &g_cli_inspect_cells);
+    unsigned int *const cell = g_cli_guard->persistent_buf_alloc(
+        ((6ULL * files) + (2ULL * edges) + imports) * sizeof(unsigned int), g_cli_inspect_owner);
     if (cell == NULL)
     {
         return;
@@ -230,6 +230,6 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
             EMBED_CALL(cycles_get, InspectTreeCyclesCtx, .file = file, .each = args->each, .context = args->context);
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_inspect_owner);
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
 }

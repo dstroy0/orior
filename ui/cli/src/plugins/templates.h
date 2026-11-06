@@ -6,8 +6,8 @@
 // past git's own folder (templates.c)
 #ifndef TEMPLATES_H
 #define TEMPLATES_H
-#include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTemplatesTemplateNameCfg CliTemplatesTemplateNameCfg;
@@ -22,8 +22,6 @@ typedef struct CliTemplatesOutCfg CliTemplatesOutCfg;
 int cli_templates_folder(const CliTemplatesCfg *args);
 int cli_templates_create(const CliTemplatesTemplateNameCfg *args);
 int cli_templates_save(const CliTemplatesNameCfg *args);
-// the cells the templates' names and a template file's pieces occupy
-extern CellOwner g_cli_templates_cells;
 
 struct CliTemplatesTemplateNameCfg
 {

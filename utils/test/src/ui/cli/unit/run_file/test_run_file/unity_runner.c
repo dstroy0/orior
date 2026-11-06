@@ -74,7 +74,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\run_file\\test_run_file\\test_run_file.c");
   run_test(test_a_path_is_quoted_for_the_shell, "test_a_path_is_quoted_for_the_shell", 18);
   run_test(test_every_run_line_of_the_manifest_closes_its_placeholders, "test_every_run_line_of_the_manifest_closes_its_placeholders", 26);
-  run_test(test_a_language_with_no_run_line_is_refused, "test_a_language_with_no_run_line_is_refused", 49);
+  run_test(test_a_language_with_no_run_line_is_refused, "test_a_language_with_no_run_line_is_refused", 52);
 
   return UNITY_END();
 }

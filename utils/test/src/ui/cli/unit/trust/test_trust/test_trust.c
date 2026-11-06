@@ -79,9 +79,9 @@ void test_the_code_a_tree_runs_is_found_and_released(void)
     TEST_ASSERT_EQUAL_UINT(2u, code.count);
     TEST_ASSERT_EQUAL_STRING("build.rs", code.paths);
     TEST_ASSERT_EQUAL_STRING("prettier.config.js", code.paths + CLI_UNITY_LENGTH(code.paths) + 1u);
-    g_cli_cells->persistent_buf_release(code.paths, &g_cli_trust_cells);
+    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
-    TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_trust_cells.in_use));
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_trust_owner));
 }
 
 void test_a_tree_with_no_answer_has_none(void)

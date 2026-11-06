@@ -472,7 +472,7 @@ GuiColor gui_palette_token(const GuiPaletteLengthCfg *args)
         for (unsigned int at = 0u; at < args->palette->token_count; at += 1u)
         {
             const char *const known = args->palette->token[at].name;
-            if ((cellul.len(&(CatenaFinitaCfg){.src = known, .cap = CLI_CELLS_POOL}) == length) &&
+            if ((cellul.len(&(CatenaFinitaCfg){.src = known, .cap = CLI_POOL_BYTES}) == length) &&
                 (memor.cmp(&(MemoriaCfg){.src = known, .other = args->name_read, .bytes = length}) == 0))
             {
                 return args->palette->token[at].color;

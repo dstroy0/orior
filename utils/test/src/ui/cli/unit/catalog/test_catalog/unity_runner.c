@@ -94,8 +94,8 @@ int main(void)
   run_test(test_a_drivers_parts_join_its_literals, "test_a_drivers_parts_join_its_literals", 156);
   run_test(test_the_tree_has_a_job_of_every_group, "test_the_tree_has_a_job_of_every_group", 168);
   run_test(test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size, "test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size", 183);
-  run_test(test_a_drivers_parts_are_read_from_its_usage, "test_a_drivers_parts_are_read_from_its_usage", 204);
-  run_test(test_the_catalogs_memory_is_released_as_the_tree_is_read, "test_the_catalogs_memory_is_released_as_the_tree_is_read", 219);
+  run_test(test_a_drivers_parts_are_read_from_its_usage, "test_a_drivers_parts_are_read_from_its_usage", 209);
+  run_test(test_the_catalogs_memory_is_released_as_the_tree_is_read, "test_the_catalogs_memory_is_released_as_the_tree_is_read", 224);
 
   return UNITY_END();
 }

@@ -58,7 +58,7 @@ int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
 
 int cli_requests_contains(const CliRequestsTextSizeNeedleCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->needle, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->needle, .cap = CLI_POOL_BYTES});
     for (unsigned long long at = 0ULL; at + length <= args->size; at += 1ULL)
     {
         unsigned long long same = 0ULL;
@@ -141,7 +141,7 @@ EMBED_INLINE int url_host(const RequestsUrlCtx *args)
 int cli_requests_address(const CliRequestsErrMsgUrlCtx *args)
 {
     const char *const scheme_end = cellul.find(
-        &(CatenaFinitaCfg){.src = args->url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->url, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES});
     if (scheme_end == NULL)
     {
         mmgr_line_put(args->err_msg, args->url);
@@ -190,13 +190,13 @@ int cli_requests_address(const CliRequestsErrMsgUrlCtx *args)
 void cli_requests_join(const CliRequestsOutBaseCtx *args)
 {
     if (cellul.find(&(CatenaFinitaCfg){
-            .src = args->location, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
+            .src = args->location, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) != NULL)
     {
         mmgr_line_put(args->out, args->location);
         return;
     }
     const char *const scheme_end = cellul.find(
-        &(CatenaFinitaCfg){.src = args->base_text, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->base_text, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES});
     const char *const rest = (scheme_end != NULL) ? (scheme_end + 3) : args->base_text;
     if (scheme_end != NULL)
     {
@@ -235,7 +235,7 @@ void cli_requests_join(const CliRequestsOutBaseCtx *args)
 
 const CliRequestsText *cli_requests_header(const CliRequestsNameAnswerCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (unsigned int at = 0u; at < args->answer->headers; at += 1u)
     {
         const CliRequestsText *const name_at = &args->answer->header_name[at];

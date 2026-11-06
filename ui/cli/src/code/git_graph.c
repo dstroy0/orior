@@ -108,7 +108,7 @@ EMBED_INLINE unsigned int cli_lane_waiting(const GitGraphCtx *args)
                 &(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                      .text_read = &args->found_read->text, .at = args->lanes[at].id),
                                    .other = args->text,
-                                   .cap = CLI_CELLS_POOL})))
+                                   .cap = CLI_POOL_BYTES})))
         {
             return at;
         }
@@ -132,7 +132,7 @@ EMBED_INLINE void cli_lanes_met(const GitGraphCtx *args)
             cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                            .text_read = &args->found->text, .at = lanes[at].id),
                                          .other = args->text,
-                                         .cap = CLI_CELLS_POOL});
+                                         .cap = CLI_POOL_BYTES});
         EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = at,
                    .to = waits ? args->lane_at : at, .half = 0u, .color = lanes[at].color);
         if (waits)
@@ -256,13 +256,13 @@ EMBED_INLINE int cli_commit_matches(const GitGraphCtx *args)
     const char *const id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                       .text_read = &args->found_read->text, .at = args->drawn_read->id);
     EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = subject,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&line, ' ');
     EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = author,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = author, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = author, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&line, ' ');
     EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+               .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}));
     mmgr_line_ch(&line, ' ');
     for (unsigned int at = 0u; at < args->drawn_read->refs; at += 1u)
     {
@@ -270,13 +270,13 @@ EMBED_INLINE int cli_commit_matches(const GitGraphCtx *args)
                                             .text_read = &args->found_read->text, .at = args->drawn_read->ref[at]);
         mmgr_line_put(&line, (at != 0u) ? " " : "");
         EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_finish(&line);
     for (unsigned int at = 0u; at < args->count_value; at += 1u)
     {
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = s_lower_text, .cap = CLI_CELLS_POOL, .other = args->words[at], .other_cap = CLI_CELLS_POOL}) ==
+                .src = s_lower_text, .cap = CLI_POOL_BYTES, .other = args->words[at], .other_cap = CLI_POOL_BYTES}) ==
             NULL)
         {
             return 0;
@@ -369,10 +369,10 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     {
         word_text += EMBED_CALL(
             cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word_text, .at = 0ULL,
-            .size = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
+            .size = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_POOL_BYTES}), .set = CLI_TEXT_WHITE);
         const char *end = word_text;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_POOL_BYTES}),
                           .set = CLI_TEXT_WHITE);
         if (end > word_text)
         {

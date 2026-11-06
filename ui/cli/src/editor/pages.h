@@ -121,7 +121,7 @@ struct CliPagesFromCfg
     unsigned long long to;
     const char **line;
     unsigned long long *count;
-    CellOwner *owner;
+    const CellOwner *owner;
 };
 
 struct CliPagesOutErrMsgNeedleCfg

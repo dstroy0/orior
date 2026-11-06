@@ -6,6 +6,7 @@
 // notice after the crumbs with Silence beside it, a failure's in the fail color, one too long cut short within half the
 // window, Focus in the signal on the right, and a press on each of them found where it is drawn
 #include "../../../../../ui/cli/src/view/base.h"
+#include "../../../../../ui/cli/src/view/parts/crumbs.h"
 #include "../../../../../ui/cli/src/view/parts/statusbar.h"
 #include "../../../../../ui/cli/src/view/view.h"
 #include "../cli/cli_check.h"
@@ -65,7 +66,7 @@ static int same(const char *text, const char *required)
 
 int main(void)
 {
-    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    (void)cli_pool_made(CLI_POOL_BYTES);
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
@@ -86,6 +87,7 @@ int main(void)
     GuiStatus status;
     memor.set(&(MemoriaCfg){.dst = &status, .val = 0, .bytes = sizeof(status)});
     status.path = "ui/gui/src/interface.c";
+    EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = NULL, .path = status.path, .line = 0ULL);
     status.has_cursor = 1;
     status.line = 11ull;
     status.col = 2ull;
@@ -151,6 +153,7 @@ int main(void)
 
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     status.path = "";
+    EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = NULL, .path = status.path, .line = 0ULL);
     status.has_cursor = 0;
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &frame, .status = &status);
     cli_check(bare(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, &bare_base), "with no file open the left is bare");
@@ -159,6 +162,7 @@ int main(void)
 
     // a notice a gap after the crumbs, Silence beside it, each pressed where it is drawn
     status.path = "ui/gui/src/interface.c";
+    EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = NULL, .path = status.path, .line = 0ULL);
     status.notice = "Formatted 3 places.";
     GuiStatusPlaces places;
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
@@ -196,15 +200,15 @@ int main(void)
     cli_check(colored(&raster, places.focus, palette->signal), "Focus is in the signal");
     cli_check(EMBED_CALL(gui_statusbar_x.hit, GuiStatusbarXCfg, .status = &status, .glyphs = &glyphs, .icons = &icons, .frame = &frame, .x = places.focus.x + 4, .y = middle_y) == CLI_HIT_STATUS_FOCUS, "a press on Focus is Focus's");
     cli_check(places.notice.width == 0, "with no notice none stands");
-    g_cli_cells->persistent_buf_release(raster.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    g_cli_cells->persistent_buf_release(bare_base.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(bare_base.pixels, g_gui_raster_owner);
     bare_base.pixels = NULL;
     bare_base.width = 0u;
     bare_base.height = 0u;
-    g_cli_cells->persistent_buf_release(base.tile_red_blue, &g_gui_base_cells);
+    g_cli_guard->persistent_buf_release(base.tile_red_blue, g_gui_base_owner);
     base.tile_red_blue = NULL;
     base.tile_green = NULL;
     base.tile_remainder = NULL;
@@ -215,7 +219,7 @@ int main(void)
     {
         if (icons.entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(icons.entry[at].mask_bits.cover, &g_gui_icons_cells);
+            g_cli_guard->persistent_buf_release(icons.entry[at].mask_bits.cover, g_gui_icons_owner);
             icons.entry[at].mask_bits.cover = NULL;
             icons.entry[at].used = 0;
         }

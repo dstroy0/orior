@@ -46,10 +46,10 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
     }
     char required[CLI_PATH_MAX_LEN];
     const char *const path =
-        cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
+        cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
     memor.cpy(&(MemoriaCfg){
-        .dst = required, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-    required[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL})] =
+        .dst = required, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}) + 1u});
+    required[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES})] =
         '\0';
     unsigned long long body = size;
     unsigned long long body_end = size;
@@ -81,7 +81,7 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
                       .size = body_end, .at = &at, .start = &start, .end = &end))
     {
         while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->block[start]}) != NULL))
+                                     .src = " \t", .cap = CLI_POOL_BYTES, .byte = args->block[start]}) != NULL))
         {
             start += 1ULL;
         }

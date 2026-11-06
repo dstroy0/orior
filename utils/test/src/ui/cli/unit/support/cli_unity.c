@@ -3,7 +3,7 @@
 // cli_unity.c: what orior_cli's Unity suites share
 #include "cli_unity.h"
 
-#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/text/text.h"
 
 #include <stdlib.h>
@@ -19,10 +19,10 @@ static void owners_written(void)
     static char s_owners[256ull * 1024ull];
     VerbaLinea owners = {s_owners, sizeof(s_owners), 0ull};
     mmgr_line_put(&owners, "cells pool ");
-    EMBED_CALL(cli_cells_table.usage_write, CliCellsCfg, .out = &owners);
+    cli_pool_usage_write(&owners);
     mmgr_line_ch(&owners, '\n');
     mmgr_line_put(&owners, "cells owners ");
-    EMBED_CALL(cli_cells_table.owners_write, CliCellsCfg, .out = &owners);
+    cli_pool_owners_write(&owners);
     mmgr_line_ch(&owners, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = owners.out, .length = mmgr_line_ok(&owners) ? owners.at : 0ull);
 }
@@ -32,7 +32,7 @@ void cli_unity_begun(void)
     static int s_begun;
     if (!s_begun)
     {
-        (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+        (void)cli_pool_made(CLI_POOL_BYTES);
         (void)atexit(owners_written);
         s_begun = 1;
     }
@@ -76,20 +76,20 @@ static CliJson s_json;
 
 const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
     return &s_json;
 }
 
 void cli_unity_parsed_released(void)
 {
-    g_cli_cells->persistent_buf_release(s_json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -106,8 +106,8 @@ unsigned int cli_unity_finding(unsigned int found, const char *code, const char 
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at);
         const char *const message = cli_unity_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = one, .name = "message"), "value");
-        const int code_matches = (code == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "code"), .other = code, .cap = CLI_CELLS_POOL});
-        const int part_matches = (part == NULL) || (cellul.find(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL, .other = part, .other_cap = CLI_CELLS_POOL}) != NULL);
+        const int code_matches = (code == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "code"), .other = code, .cap = CLI_POOL_BYTES});
+        const int part_matches = (part == NULL) || (cellul.find(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES, .other = part, .other_cap = CLI_POOL_BYTES}) != NULL);
         if (code_matches && part_matches)
         {
             return one;

@@ -7,7 +7,7 @@
 #include "servers.h"
 
 #include "../code/symbols.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../editor/view.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
@@ -201,7 +201,7 @@ EMBED_INLINE void panels_hover_hide(const PanelsCtx *args)
     (void)args;
     if (s_panels.hover_text != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_panels.hover_text, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(s_panels.hover_text, g_cli_servers_owner);
         s_panels.hover_text = NULL;
         s_panels.hover_length = 0ULL;
     }
@@ -219,9 +219,9 @@ EMBED_INLINE void panels_completion_close(const PanelsCtx *args)
         return;
     }
     s_panels.completion = NULL;
-    g_cli_cells->persistent_buf_release(list->server, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(list->server, g_cli_servers_owner);
     cli_view_words_release(list->words);
-    g_cli_cells->persistent_buf_release(list, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(list, g_cli_servers_owner);
 }
 
 // the signature gone, a wait for one with it
@@ -230,7 +230,7 @@ EMBED_INLINE void panels_signature_hide(const PanelsCtx *args)
     (void)args;
     if (s_panels.signature != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_panels.signature, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(s_panels.signature, g_cli_servers_owner);
         s_panels.signature = NULL;
     }
     s_panels.signature_due_ms = 0ULL;
@@ -324,7 +324,7 @@ static void panels_hover_tree_run(void *context)
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
     CliFoundDeclarations *const found =
         EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
-                   .most = CLI_PANELS_DECLARATIONS, .owner = &g_cli_servers_cells);
+                   .most = CLI_PANELS_DECLARATIONS, .owner = g_cli_servers_owner);
     if (found == NULL)
     {
         return;
@@ -333,11 +333,11 @@ static void panels_hover_tree_run(void *context)
     for (unsigned int at = 0u; at < found->count; at += 1u)
     {
         const CliFoundDeclaration *const one = &found->found[at];
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = one->text, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_CELLS_POOL}) + 64ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = one->text, .cap = CLI_POOL_BYTES}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_POOL_BYTES}) + 64ULL;
     }
-    char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_servers_cells);
+    char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_owner);
     VerbaLinea joined = mmgr_line_over(cell, bytes);
     unsigned int parts = 0u;
     for (unsigned int at = 0u; (cell != NULL) && (at < found->count) && (parts < CLI_PANELS_HOVER_DECLARATIONS);
@@ -351,10 +351,10 @@ static void panels_hover_tree_run(void *context)
             parts += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(found, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(found, g_cli_servers_owner);
     if ((parts == 0u) || !mmgr_line_ok(&joined))
     {
-        g_cli_cells->persistent_buf_release(cell, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
         return;
     }
     ask->text = cell;
@@ -365,7 +365,7 @@ static void panels_hover_tree_run(void *context)
 static void panels_hover_server_run(void *context)
 {
     PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
-    char *const cell = g_cli_cells->temporary_buf_alloc(CLI_PANELS_ANSWER_CAPACITY, &g_cli_servers_cells);
+    char *const cell = g_cli_guard->temporary_buf_alloc(CLI_PANELS_ANSWER_CAPACITY, g_cli_servers_owner);
     VerbaLinea output = mmgr_line_over(cell, CLI_PANELS_ANSWER_CAPACITY);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
@@ -375,14 +375,14 @@ static void panels_hover_server_run(void *context)
                    .col = (unsigned int)ask->col, .out = &output, .err_msg = &ignored) &&
         mmgr_line_ok(&output) && (output.at > 0ULL))
     {
-        ask->text = g_cli_cells->persistent_buf_alloc(output.at, &g_cli_servers_cells);
+        ask->text = g_cli_guard->persistent_buf_alloc(output.at, g_cli_servers_owner);
         if (ask->text != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = ask->text, .src = output.out, .bytes = output.at});
             ask->length = output.at;
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
 }
 
 static void panels_hover_server_done(void *context);
@@ -405,7 +405,7 @@ static void panels_hover_tree_done(void *context)
         panels_hover_server_done(ask);
         return;
     }
-    g_cli_cells->persistent_buf_release(ask, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(ask, g_cli_servers_owner);
 }
 
 // the server's answer: it stands after the tree's
@@ -417,7 +417,7 @@ static void panels_hover_server_done(void *context)
         const unsigned long long between =
             (s_panels.hover_text != NULL) ? (sizeof(CLI_PANELS_HOVER_BETWEEN) - 1ULL) : 0ULL;
         char *const joined =
-            g_cli_cells->persistent_buf_alloc(s_panels.hover_length + between + ask->length, &g_cli_servers_cells);
+            g_cli_guard->persistent_buf_alloc(s_panels.hover_length + between + ask->length, g_cli_servers_owner);
         if (joined != NULL)
         {
             if (s_panels.hover_text != NULL)
@@ -437,8 +437,8 @@ static void panels_hover_server_done(void *context)
             s_panels.hover_to = ask->to;
         }
     }
-    g_cli_cells->persistent_buf_release(ask->text, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(ask, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(ask->text, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(ask, g_cli_servers_owner);
 }
 
 // the hover asked for at the pointer's cell: a pointer resting on the word shown does not ask again, and a place no
@@ -472,7 +472,7 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
         full[0] = '\0';
     }
     PanelsHoverAsk ask = {s_panels.hover_ask, word_text, s_panels.root, full, line, col, from, to, NULL, 0ULL};
-    PanelsHoverAsk *const asked = g_cli_cells->persistent_buf_alloc(sizeof(ask), &g_cli_servers_cells);
+    PanelsHoverAsk *const asked = g_cli_guard->persistent_buf_alloc(sizeof(ask), g_cli_servers_owner);
     if (asked == NULL)
     {
         return;
@@ -721,19 +721,19 @@ EMBED_INLINE PanelsCompletion *panels_completion_alloc(const PanelsCtx *args)
     for (unsigned int at = 0u; at < from_server; at += 1u)
     {
         const CliServerItem *const one = &args->server->item[at];
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = one->label, .cap = CLI_CELLS_POOL}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->insert, .cap = CLI_CELLS_POOL}) + 2ULL;
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = one->label, .cap = CLI_POOL_BYTES}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = one->insert, .cap = CLI_POOL_BYTES}) + 2ULL;
     }
     for (unsigned int at = 0u; at < from_words; at += 1u)
     {
         bytes += (unsigned long long)args->words->length[at] + 1ULL;
     }
-    PanelsCompletion *const list = g_cli_cells->persistent_buf_alloc(
+    PanelsCompletion *const list = g_cli_guard->persistent_buf_alloc(
         sizeof(*list) + (most * sizeof(PanelsItem)) + (most * sizeof(unsigned int)) + (2ULL * CLI_PANELS_WORD) + bytes,
-        &g_cli_servers_cells);
+        g_cli_servers_owner);
     if (list == NULL)
     {
-        g_cli_cells->persistent_buf_release(args->server, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(args->server, g_cli_servers_owner);
         cli_view_words_release(args->words);
         return NULL;
     }
@@ -757,7 +757,7 @@ EMBED_INLINE PanelsCompletion *panels_completion_alloc(const PanelsCtx *args)
     {
         const CliServerItem *const one = &args->server->item[at];
         const unsigned long long label_length =
-            cellul.len(&(CatenaFinitaCfg){.src = one->label, .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = one->label, .cap = CLI_POOL_BYTES});
         if (label_length == 0ULL)
         {
             continue;
@@ -767,9 +767,9 @@ EMBED_INLINE PanelsCompletion *panels_completion_alloc(const PanelsCtx *args)
         item->label_length = label_length;
         item->kind = one->kind;
         item->detail = one->detail;
-        item->detail_length = cellul.len(&(CatenaFinitaCfg){.src = one->detail, .cap = CLI_CELLS_POOL});
+        item->detail_length = cellul.len(&(CatenaFinitaCfg){.src = one->detail, .cap = CLI_POOL_BYTES});
         const unsigned long long insert_length =
-            cellul.len(&(CatenaFinitaCfg){.src = one->insert, .cap = CLI_CELLS_POOL});
+            cellul.len(&(CatenaFinitaCfg){.src = one->insert, .cap = CLI_POOL_BYTES});
         const char *const insert = (insert_length != 0ULL) ? one->insert : one->label;
         const unsigned long long inserted = (insert_length != 0ULL) ? insert_length : label_length;
         if (one->snippet)
@@ -862,18 +862,18 @@ EMBED_INLINE void panels_completion_stand(PanelsCompletion *list)
     const int empty = (list->prefix_length == 0ULL) && !s_panels.completion_forced && (was == NULL);
     if ((list->count == 0u) || (alone && !s_panels.completion_forced) || empty)
     {
-        g_cli_cells->persistent_buf_release(list->server, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(list->server, g_cli_servers_owner);
         cli_view_words_release(list->words);
-        g_cli_cells->persistent_buf_release(list, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(list, g_cli_servers_owner);
         EMBED_CALL(panels_completion_close, PanelsCtx, .at = 0u);
         return;
     }
     panels_completion_scrolled(list);
     if (was != NULL)
     {
-        g_cli_cells->persistent_buf_release(was->server, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(was->server, g_cli_servers_owner);
         cli_view_words_release(was->words);
-        g_cli_cells->persistent_buf_release(was, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(was, g_cli_servers_owner);
     }
     s_panels.completion = list;
 }
@@ -894,7 +894,7 @@ EMBED_INLINE void panels_items_post(const PanelsCtx *args)
     // a place in a text a view shows stands below 2^32 lines and columns
     CliServerItems *const items =
         EMBED_CALL(cli_servers_ask.items_alloc, CliServersAskCfg, .path = full, .line = (unsigned int)list->line,
-                   .col = (unsigned int)s_panels.cursor.col, .owner = &g_cli_servers_cells, .err_msg = &ignored);
+                   .col = (unsigned int)s_panels.cursor.col, .owner = g_cli_servers_owner, .err_msg = &ignored);
     if (items == NULL)
     {
         return;
@@ -1137,10 +1137,10 @@ EMBED_INLINE CliSignaturePanel *panels_signature_joined(const PanelsCtx *args)
 {
     const CliSignaturePanel *const panel = args->panel;
     const unsigned int differing = (args->own != NULL) ? args->own->differing : 0u;
-    CliSignaturePanel *const joined = g_cli_cells->persistent_buf_alloc(
+    CliSignaturePanel *const joined = g_cli_guard->persistent_buf_alloc(
         sizeof(*joined) + (panel->parameters * sizeof(*joined->parameter)) + (differing * sizeof(*joined->differs)) +
             panel->length + panel->doc_length + 2ULL,
-        &g_cli_servers_cells);
+        g_cli_servers_owner);
     if (joined == NULL)
     {
         return NULL;
@@ -1216,7 +1216,7 @@ static void panels_signature_tree_run(void *context)
     unsigned long long size = 0ULL;
     char *const text =
         EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = ask->key, .first = top, .last = line,
-                   .size_pointer = &size, .state = state, .capacity = sizeof(state), .owner = &g_cli_servers_cells);
+                   .size_pointer = &size, .state = state, .capacity = sizeof(state), .owner = g_cli_servers_owner);
     if (text == NULL)
     {
         return;
@@ -1224,10 +1224,10 @@ static void panels_signature_tree_run(void *context)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
     ask->panel = EMBED_CALL(cli_symbols_path_text_size_out.signature_alloc, CliSymbolsPathTextSizeOutCfg,
-                            .path = ask->path, .text = text, .size = size, .owner = &g_cli_servers_cells,
+                            .path = ask->path, .text = text, .size = size, .owner = g_cli_servers_owner,
                             .state = (state[0] != '\0') ? state : "root", .line = line - top, .col = ask->cursor.col,
                             .err_msg = &ignored);
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
 // the tree's answer stands, and the server is asked over it where the file is served
@@ -1255,7 +1255,7 @@ static void panels_signature_server_run(void *context)
     // a place in a text a view shows stands below 2^32 lines and columns
     ask->panel = EMBED_CALL(cli_servers_ask.signature_alloc, CliServersAskCfg, .path = ask->full,
                             .line = (unsigned int)ask->cursor.line, .col = (unsigned int)ask->cursor.col,
-                            .owner = &g_cli_servers_cells, .err_msg = &ignored);
+                            .owner = g_cli_servers_owner, .err_msg = &ignored);
 }
 
 // the server's answer stands over the tree's, whose differing parameters it saves
@@ -1273,7 +1273,7 @@ static void panels_signature_server_done(void *context)
             s_panels.signature = joined;
         }
     }
-    g_cli_cells->persistent_buf_release(ask->panel, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(ask->panel, g_cli_servers_owner);
 }
 
 // the view's text handed to its language's server, where it is read whole and its language has a server that takes
@@ -1287,11 +1287,11 @@ static void panels_serve_run(PanelsServeAsk *ask)
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = ask->path, .id_out = id);
-    g_cli_cells->persistent_buf_release(languages.pair, &g_cli_plugins_cells);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
     unsigned long long size = 0ULL;
     char *const text = known ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = ask->key,
-                                          .size_pointer = &size, .owner = &g_cli_servers_cells)
+                                          .size_pointer = &size, .owner = g_cli_servers_owner)
                              : NULL;
     if (text == NULL)
     {
@@ -1315,7 +1315,7 @@ static void panels_serve_run(PanelsServeAsk *ask)
         }
     }
     ask->served = served;
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
 // a view opened, under `key` on the file at `path` from the tree's top, handed to its language's server; a view on no
@@ -1368,14 +1368,14 @@ static void panels_sync_post(const PanelsCtx *args)
     s_panels.changed = 0;
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
-                                  .owner = &g_cli_servers_cells);
+                                  .owner = g_cli_servers_owner);
     if (text != NULL)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea ignored = {why, sizeof(why), 0ULL};
         (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = full, .text = text, .size = size,
                          .err_msg = &ignored);
-        g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     }
 }
 

@@ -38,7 +38,7 @@ static unsigned int lines_displayed(unsigned int job, const char *const *pairs, 
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char key[CLI_NAME_MAX_LEN];
-        const char *const equals = cellul.chr(&(CatenaFinitaCfg){.src = pairs[at], .cap = CLI_CELLS_POOL, .byte = '='});
+        const char *const equals = cellul.chr(&(CatenaFinitaCfg){.src = pairs[at], .cap = CLI_POOL_BYTES, .byte = '='});
         // the `=` lies in the pair, past its start
         const unsigned long long length = (equals != NULL) ? (unsigned long long)(equals - pairs[at]) : 0ull;
         memor.cpy(&(MemoriaCfg){.dst = key, .src = pairs[at], .bytes = length});

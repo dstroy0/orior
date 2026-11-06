@@ -515,11 +515,11 @@ static void view_run(void *context)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &s_view.wake, .seen = seen,
                          .milliseconds_u64 = wait_ms);
     }
-    g_cli_cells->persistent_buf_release(s_view.icon_small.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(s_view.icon_small.pixels, g_gui_raster_owner);
     s_view.icon_small.pixels = NULL;
     s_view.icon_small.width = 0u;
     s_view.icon_small.height = 0u;
-    g_cli_cells->persistent_buf_release(s_view.icon_large.pixels, &g_gui_raster_cells);
+    g_cli_guard->persistent_buf_release(s_view.icon_large.pixels, g_gui_raster_owner);
     s_view.icon_large.pixels = NULL;
     s_view.icon_large.width = 0u;
     s_view.icon_large.height = 0u;
@@ -542,8 +542,8 @@ static int view_cell_init(void)
     const size_t order_bytes = (size_t)CLI_VIEW_ORDERS * CLI_VIEW_ORDER_SEGMENT;
     const size_t map_bytes = sizeof(CliViewHits) + (GUI_WINDOW_HIT_CLIENTS * sizeof(GuiRect));
     const size_t maps_bytes = (size_t)CLI_VIEW_SURFACES * CLI_VIEW_HIT_BUFFERS * map_bytes;
-    s_view.cell = g_cli_cells->persistent_buf_alloc(event_bytes + CLI_VIEW_EVENT_BYTES + order_bytes + maps_bytes,
-                                                    &g_cli_view_cells);
+    s_view.cell = g_cli_guard->persistent_buf_alloc(event_bytes + CLI_VIEW_EVENT_BYTES + order_bytes + maps_bytes,
+                                                    g_cli_view_owner);
     if (s_view.cell == NULL)
     {
         return 0;
@@ -593,7 +593,7 @@ int cli_view_begin(const CliViewBeginCfg *args)
     if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &s_view.window, .err_msg = args->err_msg,
                     .display_width = args->display_width, .display_height = args->display_height))
     {
-        g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
+        g_cli_guard->persistent_buf_release(s_view.cell, g_cli_view_owner);
         return 0;
     }
     cli_command_line_tree_begin(view_woken);
@@ -608,7 +608,7 @@ int cli_view_begin(const CliViewBeginCfg *args)
         mmgr_line_put(args->err_msg, "the view's thread could not be started");
         EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_view.window);
         cli_command_line_tree_end();
-        g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
+        g_cli_guard->persistent_buf_release(s_view.cell, g_cli_view_owner);
         return 0;
     }
     return 1;
@@ -624,6 +624,6 @@ void cli_view_end(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_view.ended, .milliseconds_u64 = 1ULL);
     }
     cli_command_line_tree_end();
-    g_cli_cells->persistent_buf_release(s_view.cell, &g_cli_view_cells);
+    g_cli_guard->persistent_buf_release(s_view.cell, g_cli_view_owner);
     s_view.cell = NULL;
 }

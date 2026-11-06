@@ -83,14 +83,14 @@ int cli_review_share(const CliReviewOneCtx *args)
     const char *other = args->other;
     unsigned long long *same = args->same;
     unsigned long long *longest = args->longest;
-    const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
-    const unsigned long long other_size = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
+    const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_POOL_BYTES});
+    const unsigned long long other_size = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_POOL_BYTES});
     // both texts' lines, and a mark for each of the first's that one of the second's contains, in one cell
     const unsigned int one_max = EMBED_CALL(text_lines_max, ReviewTextCtx, .text = args->one, .size = one_size);
     const unsigned int other_max = EMBED_CALL(text_lines_max, ReviewTextCtx, .text = other, .size = other_size);
     const unsigned long long words = (2ULL * one_max) + (2ULL * other_max);
     unsigned int *const cell =
-        g_cli_cells->temporary_buf_alloc((words * sizeof(unsigned int)) + one_max, &g_cli_review_cells);
+        g_cli_guard->temporary_buf_alloc((words * sizeof(unsigned int)) + one_max, g_cli_review_owner);
     if (cell == NULL)
     {
         return 0;
@@ -124,7 +124,7 @@ int cli_review_share(const CliReviewOneCtx *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_review_cells);
+    g_cli_guard->persistent_buf_release(cell, g_cli_review_owner);
     // two texts of no lines contain all alike
     if (*longest == 0ULL)
     {
@@ -136,15 +136,15 @@ int cli_review_share(const CliReviewOneCtx *args)
 
 int cli_review_calls(const CliReviewCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (length == 0ULL)
     {
         return 0;
     }
     for (const char *at = cellul.find(&(CatenaFinitaCfg){
-             .src = args->text, .cap = CLI_CELLS_POOL, .other = args->name, .other_cap = CLI_CELLS_POOL});
+             .src = args->text, .cap = CLI_POOL_BYTES, .other = args->name, .other_cap = CLI_POOL_BYTES});
          at != NULL; at = cellul.find(&(CatenaFinitaCfg){
-                         .src = at + 1, .cap = CLI_CELLS_POOL, .other = args->name, .other_cap = CLI_CELLS_POOL}))
+                         .src = at + 1, .cap = CLI_POOL_BYTES, .other = args->name, .other_cap = CLI_POOL_BYTES}))
     {
         // the letter before the name, read back to where it starts
         const char *before = at;
@@ -163,7 +163,7 @@ int cli_review_calls(const CliReviewCtx *args)
             joined = EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter);
         }
         const char *after = at + length;
-        unsigned long long rest = cellul.len(&(CatenaFinitaCfg){.src = after, .cap = CLI_CELLS_POOL});
+        unsigned long long rest = cellul.len(&(CatenaFinitaCfg){.src = after, .cap = CLI_POOL_BYTES});
         while (rest > 0ULL)
         {
             const unsigned long long step =

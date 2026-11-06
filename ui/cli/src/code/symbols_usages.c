@@ -9,7 +9,7 @@
 // function it stands in shadows set aside. A name, a local, a parameter, a region's brackets and a statement's end
 // are known by the roles their grammar's tokens name; a function's region by its head declaring a function
 #include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
@@ -306,7 +306,7 @@ EMBED_INLINE int usages_same(const SymbolsUsagesCtx *args)
     }
     return (args->one->defined_line == args->line) &&
            cellul.eq(&(CatenaFinitaCfg){
-               .src = args->usages->paths.out + args->one->defined, .other = args->defined, .cap = CLI_CELLS_POOL});
+               .src = args->usages->paths.out + args->one->defined, .other = args->defined, .cap = CLI_POOL_BYTES});
 }
 
 // each note of the branch at `path` handed on as a usage where it stands in the region `region` of a local, else where
@@ -372,7 +372,7 @@ EMBED_INLINE char *usages_text(const SymbolsUsagesCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
     // a text read mapped is read and never written
     return (char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full, .size_pointer = size,
-                              .owner = &g_cli_code_cells);
+                              .owner = g_cli_code_owner);
 }
 
 // the name the leaf at `line`, `col` of `size` bytes of `text` names, read in the language of the file at `path`, into
@@ -431,17 +431,17 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
     args->name[length] = '\0';
     if (leaved)
     {
-        g_cli_cells->persistent_buf_release(read.leaf, &g_cli_leaves_cells);
+        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
     }
     if (languages != NULL)
     {
-        g_cli_cells->persistent_buf_release(languages->languages.pair, &g_cli_plugins_cells);
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
-    g_cli_cells->persistent_buf_release(languages, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return length;
 }
 
@@ -458,7 +458,7 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
                        .branch = &g_cli_branches[at], .path_out = one);
         }
         if (g_cli_branches[at].used && (one[0] != '@') &&
-            !cellul.eq(&(CatenaFinitaCfg){.src = one, .other = path, .cap = CLI_CELLS_POOL}))
+            !cellul.eq(&(CatenaFinitaCfg){.src = one, .other = path, .cap = CLI_POOL_BYTES}))
         {
             mmgr_line_put(args->paths, one);
             mmgr_line_ch(args->paths, '\0');
@@ -470,7 +470,7 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
 // `defined` at `line` handed on: 1, or 0 with why given
 EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 {
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_USAGES_CAPACITY, &g_cli_code_cells);
+    char *const paths_cell = g_cli_guard->temporary_buf_alloc(CLI_USAGES_CAPACITY, g_cli_code_owner);
     VerbaLinea paths = mmgr_line_over(paths_cell, CLI_USAGES_CAPACITY);
     if (paths.out == NULL)
     {
@@ -480,7 +480,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
     EMBED_CALL(usages_tree_paths, SymbolsUsagesCtx, .path = args->path, .paths = &paths);
     int walked = mmgr_line_ok(&paths);
     for (unsigned long long at = 0ULL; walked && (at < paths.at);
-         at += cellul.len(&(CatenaFinitaCfg){.src = paths.out + at, .cap = CLI_CELLS_POOL}) + 1ULL)
+         at += cellul.len(&(CatenaFinitaCfg){.src = paths.out + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
         const char *const one = paths.out + at;
         unsigned long long size = 0ULL;
@@ -502,14 +502,14 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
         }
         if (mapped && (text != NULL))
         {
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_code_owner));
         }
         else
         {
-            g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+            g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
         }
     }
-    g_cli_cells->persistent_buf_release(paths.out, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(paths.out, g_cli_code_owner);
     return walked;
 }
 
@@ -518,7 +518,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 // there, as for a define the compile database gives, or -1 with why given
 EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
 {
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = args->defined, .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = args->defined, .cap = CLI_POOL_BYTES}))
     {
         unsigned long long size = 0ULL;
         int mapped = 0;
@@ -533,11 +533,11 @@ EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
                                       .path = args->defined, .text = text, .size = size, .err_msg = args->err_msg);
         if (mapped && (text != NULL))
         {
-            g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+            g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_code_owner));
         }
         else
         {
-            g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+            g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
         }
         if (!walked)
         {
@@ -629,11 +629,10 @@ static int usages_request(const SymbolsUsagesCtx *args)
                                     .line = args->line, .col = args->col, .name = name)
                        : 0ULL;
     const unsigned long long capacity = (length != 0ULL) ? CLI_USAGES_CAPACITY : 0ULL;
-    char *const notes_cell = (capacity != 0ULL) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
-    char *const texts_cell = (capacity != 0ULL) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
-    char *const paths_cell = (capacity != 0ULL) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
-    char *const regions_cell =
-        (capacity != 0ULL) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
+    char *const notes_cell = (capacity != 0ULL) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_code_owner) : NULL;
+    char *const texts_cell = (capacity != 0ULL) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_code_owner) : NULL;
+    char *const paths_cell = (capacity != 0ULL) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_code_owner) : NULL;
+    char *const regions_cell = (capacity != 0ULL) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_code_owner) : NULL;
     CliUsages usages = {name,
                         length,
                         mmgr_line_over(notes_cell, capacity),
@@ -659,17 +658,17 @@ static int usages_request(const SymbolsUsagesCtx *args)
         mmgr_line_put(args->err_msg, "the cells cannot meet the usages' walk");
         read = -1;
     }
-    g_cli_cells->persistent_buf_release(usages.notes.out, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(usages.texts.out, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(usages.paths.out, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(usages.regions.out, &g_cli_code_cells);
+    g_cli_guard->persistent_buf_release(usages.notes.out, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(usages.texts.out, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(usages.paths.out, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(usages.regions.out, g_cli_code_owner);
     if (mapped && (text != NULL))
     {
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (&g_cli_code_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_code_owner));
     }
     else
     {
-        g_cli_cells->persistent_buf_release(text, &g_cli_code_cells);
+        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
     }
     return read;
 }

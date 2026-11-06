@@ -90,24 +90,24 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\format\\test_format\\test_format.c");
   run_test(test_each_formatter_names_a_language, "test_each_formatter_names_a_language", 50);
-  run_test(test_python_is_formatted_by_black, "test_python_is_formatted_by_black", 64);
-  run_test(test_c_is_formatted_by_clang_format, "test_c_is_formatted_by_clang_format", 71);
-  run_test(test_tex_has_no_formatter, "test_tex_has_no_formatter", 78);
-  run_test(test_blacks_width_is_read_within_its_table, "test_blacks_width_is_read_within_its_table", 84);
-  run_test(test_a_width_in_another_table_is_not_read, "test_a_width_in_another_table_is_not_read", 89);
-  run_test(test_rustfmts_width_is_read_before_any_table, "test_rustfmts_width_is_read_before_any_table", 94);
-  run_test(test_clang_formats_width_is_read_from_its_yaml, "test_clang_formats_width_is_read_from_its_yaml", 99);
-  run_test(test_prettiers_width_is_read_from_its_json, "test_prettiers_width_is_read_from_its_json", 104);
-  run_test(test_a_width_is_read_from_the_nearest_folder_above, "test_a_width_is_read_from_the_nearest_folder_above", 109);
-  run_test(test_a_crates_edition_is_read, "test_a_crates_edition_is_read", 114);
-  run_test(test_a_language_with_no_formatter_has_no_width, "test_a_language_with_no_formatter_has_no_width", 123);
-  run_test(test_markdown_prose_has_no_width_unless_it_wraps, "test_markdown_prose_has_no_width_unless_it_wraps", 128);
-  run_test(test_prettiers_width_is_the_margin_of_a_script, "test_prettiers_width_is_the_margin_of_a_script", 134);
-  run_test(test_markdown_prose_allocs_the_width_where_it_wraps, "test_markdown_prose_allocs_the_width_where_it_wraps", 145);
-  run_test(test_a_python_file_is_python, "test_a_python_file_is_python", 151);
-  run_test(test_an_extensions_case_does_not_matter, "test_an_extensions_case_does_not_matter", 156);
-  run_test(test_of_two_languages_the_first_by_id_wins, "test_of_two_languages_the_first_by_id_wins", 161);
-  run_test(test_a_file_with_no_extension_has_no_language, "test_a_file_with_no_extension_has_no_language", 166);
+  run_test(test_python_is_formatted_by_black, "test_python_is_formatted_by_black", 67);
+  run_test(test_c_is_formatted_by_clang_format, "test_c_is_formatted_by_clang_format", 74);
+  run_test(test_tex_has_no_formatter, "test_tex_has_no_formatter", 81);
+  run_test(test_blacks_width_is_read_within_its_table, "test_blacks_width_is_read_within_its_table", 87);
+  run_test(test_a_width_in_another_table_is_not_read, "test_a_width_in_another_table_is_not_read", 92);
+  run_test(test_rustfmts_width_is_read_before_any_table, "test_rustfmts_width_is_read_before_any_table", 97);
+  run_test(test_clang_formats_width_is_read_from_its_yaml, "test_clang_formats_width_is_read_from_its_yaml", 102);
+  run_test(test_prettiers_width_is_read_from_its_json, "test_prettiers_width_is_read_from_its_json", 107);
+  run_test(test_a_width_is_read_from_the_nearest_folder_above, "test_a_width_is_read_from_the_nearest_folder_above", 112);
+  run_test(test_a_crates_edition_is_read, "test_a_crates_edition_is_read", 117);
+  run_test(test_a_language_with_no_formatter_has_no_width, "test_a_language_with_no_formatter_has_no_width", 126);
+  run_test(test_markdown_prose_has_no_width_unless_it_wraps, "test_markdown_prose_has_no_width_unless_it_wraps", 131);
+  run_test(test_prettiers_width_is_the_margin_of_a_script, "test_prettiers_width_is_the_margin_of_a_script", 137);
+  run_test(test_markdown_prose_allocs_the_width_where_it_wraps, "test_markdown_prose_allocs_the_width_where_it_wraps", 148);
+  run_test(test_a_python_file_is_python, "test_a_python_file_is_python", 154);
+  run_test(test_an_extensions_case_does_not_matter, "test_an_extensions_case_does_not_matter", 159);
+  run_test(test_of_two_languages_the_first_by_id_wins, "test_of_two_languages_the_first_by_id_wins", 164);
+  run_test(test_a_file_with_no_extension_has_no_language, "test_a_file_with_no_extension_has_no_language", 169);
 
   return UNITY_END();
 }

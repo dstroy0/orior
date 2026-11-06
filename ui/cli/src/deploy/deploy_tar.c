@@ -3,7 +3,7 @@
 // deploy_tar.c: the tar stream a machine's files go in, written to a file: each file a ustar header and its bytes,
 // with its mode and the time given, a path longer than a ustar header fits in a PAX header before it, and two blocks
 // of zeros after the last
-#include "../command_line/cells.h"
+#include "../command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -63,7 +63,7 @@ EMBED_INLINE void tar_octal(const DeployTarCtx *args)
 EMBED_INLINE void tar_header(const DeployTarCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->header, .bytes = CLI_DEPLOY_BLOCK, .val = 0u});
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     memor.cpy(&(MemoriaCfg){.dst = args->header, .src = args->name, .bytes = (length < 100u) ? length : 100u});
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 100, .width = 8u, .value = args->mode, .digits = 7u);
     memor.cpy(&(MemoriaCfg){.dst = args->header + 108, .src = "0000000", .bytes = 8u});
@@ -173,7 +173,7 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ULL;
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                      .size_pointer = &size, .owner = &g_cli_deploy_cells);
+                                                      .size_pointer = &size, .owner = g_cli_deploy_owner);
         if (bytes == NULL)
         {
             mmgr_line_put(args->err_msg, full);
@@ -184,11 +184,11 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
         EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = file->path, .size = size, .mode = file->mode,
                    .time = args->time, .kind = '0');
         const int written =
-            ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
+            ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_POOL_BYTES}) <= 99u) ||
              EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, (&g_cli_deploy_cells));
+        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
         if (!written)
         {
             mmgr_line_put(args->err_msg, args->path);

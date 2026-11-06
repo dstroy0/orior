@@ -109,13 +109,13 @@ EMBED_INLINE unsigned int slice_path_position(const ServersSliceCtx *args)
     {
         return args->slicing->last_position;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     int found = 0;
     while (!found && (at < args->slicing->paths.at))
     {
         const char *const one = args->slicing->paths.out + at;
-        const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
+        const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
         found = (one_size == size) &&
                 (memor.cmp(&(MemoriaCfg){.src = one, .other = args->path, .bytes = (size_t)size}) == 0);
         at += found ? 0ULL : (one_size + 1ULL);
@@ -151,9 +151,9 @@ static void slice_line_append(const CliSliceLineCfg *args)
 EMBED_INLINE int slice_lines_init(const ServersSliceCtx *args)
 {
     CliServersSlicing *slicing = args->slicing;
-    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
-    char *const map_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
+    char *const text_cell = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
+    char *const map_cell = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
+    char *const paths_cell = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
     *slicing = (CliServersSlicing){mmgr_line_over(text_cell, CLI_SERVERS_SLICE_CAPACITY),
                                    mmgr_line_over(map_cell, CLI_SERVERS_SLICE_CAPACITY),
                                    mmgr_line_over(paths_cell, CLI_SERVERS_SLICE_CAPACITY),
@@ -173,7 +173,7 @@ static int slice_save(const ServersSliceCtx *args)
     unsigned long long version = args->version;
     int *fresh = args->fresh;
     args->head->lines = args->slicing_read->lines;
-    args->head->root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1ULL;
+    args->head->root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1ULL;
     args->head->paths_size = args->slicing_read->paths.at;
     const unsigned long long hash =
         EMBED_CALL(cli_servers_read_state_internal.hash_get, CliServersReadStateCtx,
@@ -191,7 +191,7 @@ static int slice_save(const ServersSliceCtx *args)
     const unsigned long long openers_size = (unsigned long long)args->head->openers * sizeof(unsigned int);
     const unsigned long long stored_size = sizeof(*args->head) + openers_size + args->slicing_read->map.at +
                                            args->head->root_size + args->head->paths_size;
-    char *const stored = g_cli_cells->temporary_buf_alloc(stored_size, &g_cli_servers_cells);
+    char *const stored = g_cli_guard->temporary_buf_alloc(stored_size, g_cli_servers_owner);
     if (stored != NULL)
     {
         unsigned long long at = 0ULL;
@@ -211,13 +211,13 @@ static int slice_save(const ServersSliceCtx *args)
     const int saved = (stored != NULL) &&
                       EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_slices, .key = key,
                                  .adjacent_value = args->path, .text = stored, .size_value = stored_size);
-    g_cli_cells->persistent_buf_release(stored, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(stored, g_cli_servers_owner);
     return saved;
 }
 
 // the slice of the file at `path` in the tree at `root` cut from `size` bytes of `text` for the view of `head`, its
 // openers `opener`, and stored by `key` with the view and its map as slice_save stores it, to be given as `version`
-// where `*fresh` is 1: its text, in a cell the caller gives back with g_cli_cells->persistent_buf_release, its size
+// where `*fresh` is 1: its text, in a cell the caller gives back with g_cli_guard->persistent_buf_release, its size
 // into `slice_size`, or NULL with why given
 static char *slice_cut(const ServersSliceCtx *args)
 {
@@ -255,14 +255,14 @@ static char *slice_cut(const ServersSliceCtx *args)
         {
             mmgr_line_put(err_msg, "the slice could not be cut: the cells cannot meet it");
         }
-        g_cli_cells->persistent_buf_release(slicing.text.out, &g_cli_servers_cells);
-        g_cli_cells->persistent_buf_release(slicing.map.out, &g_cli_servers_cells);
-        g_cli_cells->persistent_buf_release(slicing.paths.out, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(slicing.text.out, g_cli_servers_owner);
+        g_cli_guard->persistent_buf_release(slicing.map.out, g_cli_servers_owner);
+        g_cli_guard->persistent_buf_release(slicing.paths.out, g_cli_servers_owner);
         return NULL;
     }
     *slice_size = slicing.text.at;
-    g_cli_cells->persistent_buf_release(slicing.map.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(slicing.paths.out, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(slicing.map.out, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(slicing.paths.out, g_cli_servers_owner);
     return slicing.text.out;
 }
 
@@ -367,7 +367,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
                                      .language_id = args->id, .text = slice, .length = slice_size, .err_msg = err_msg)
                         : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->server,
                                      .path = path, .text = slice, .length = slice_size, .err_msg = err_msg)));
-    g_cli_cells->persistent_buf_release(slice, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
     if (sent && fresh)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = args->server);
@@ -429,7 +429,7 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     CliServersWindow window = args->window;
     void *context = args->context;
     // a window's slice is cut and handed on where the walk reaches it, the walk's cells saved while it is
-    CliServersCut *const cut = g_cli_cells->temporary_buf_alloc(sizeof(CliServersCut), &g_cli_servers_cells);
+    CliServersCut *const cut = g_cli_guard->temporary_buf_alloc(sizeof(CliServersCut), g_cli_servers_owner);
     if (cut == NULL)
     {
         mmgr_line_put(args->err_msg, "the slices could not be cut: the cells cannot meet them");
@@ -461,10 +461,10 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     {
         mmgr_line_put(args->err_msg, "the slices could not be cut: the cells cannot meet them");
     }
-    g_cli_cells->persistent_buf_release(cut->slicing.text.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(cut->slicing.map.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(cut->slicing.paths.out, &g_cli_servers_cells);
-    g_cli_cells->persistent_buf_release(cut, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(cut->slicing.text.out, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(cut->slicing.map.out, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(cut->slicing.paths.out, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(cut, g_cli_servers_owner);
     return integer;
 }
 
@@ -623,13 +623,13 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
         sent = (slice != NULL) &&
                (!cut || EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path,
                                    .text = slice, .length = slice_size, .err_msg = err_msg));
-        g_cli_cells->persistent_buf_release(slice, &g_cli_servers_cells);
+        g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
     }
     if (sent && cut)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = server);
     }
-    g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     if (!sent)
     {
@@ -719,13 +719,13 @@ EMBED_INLINE void slice_ranged_write(const ServersSliceCtx *args)
     for (unsigned int member = json->node[args->one].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
         const char *const name = json->text + json->node[member].key;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "range", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "range", .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
         mmgr_line_ch(out, ',');
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = member,
                    .out = out, .indent = 0u, .sorted = 0);
@@ -811,13 +811,13 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
     const unsigned int array =
         (stored != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                       .json = &json, .text = args->all, .size = size, .nodes_more = 0u,
-                                      .text_more = 0ULL, .err_msg = &ignored, .owner = &g_cli_servers_cells)
+                                      .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_servers_owner)
                          : CLI_JSON_NONE;
     // a diagnostic's numbers written again are at most as long again as those it came with
     const unsigned long long mapped_capacity = (2ULL * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
     char *const mapped_cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
                                          .node = array, .kind = CFG_JSON_ARRAY)
-                                  ? g_cli_cells->temporary_buf_alloc(mapped_capacity, args->owner)
+                                  ? g_cli_guard->temporary_buf_alloc(mapped_capacity, args->owner)
                                   : NULL;
     VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_capacity);
     const int made = mapped_cell != NULL;
@@ -858,13 +858,12 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
         }
         mmgr_line_ch(&mapped, ']');
     }
-    g_cli_cells->persistent_buf_release(json.node,
-                                        EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!made || !mmgr_line_ok(&mapped))
     {
-        g_cli_cells->persistent_buf_release(mapped.out, args->owner);
+        g_cli_guard->persistent_buf_release(mapped.out, args->owner);
         return NULL;
     }
     *mapped_size = mapped.at;
