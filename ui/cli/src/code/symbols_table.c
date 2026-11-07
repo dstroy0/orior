@@ -159,7 +159,7 @@ EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
     {
         return CLI_BRANCHES_MAX;
     }
-    const CarcerMovableSlot *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_code_owner);
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_code_owner);
     if (cell == NULL)
     {
         return CLI_BRANCHES_MAX;

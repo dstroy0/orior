@@ -37,7 +37,7 @@ typedef struct
 // a folder. A place left is reused, so that a branch's place stands for as long as it does
 typedef struct
 {
-    const CarcerMovableSlot *cell;
+    const CarcerMovableEntry *cell;
     unsigned int bytes;
     unsigned int path;
     int used;

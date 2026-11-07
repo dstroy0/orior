@@ -286,7 +286,7 @@ void test_changed_rules_leave_what_remains_in_its_cell(void)
 {
     repository_listing("trunk_relisted");
     const unsigned int branch = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c");
-    const CarcerMovableSlot *const cell = g_cli_branches[branch].cell;
+    const CarcerMovableEntry *const cell = g_cli_branches[branch].cell;
     file_written(NULL, ".gitignore", "*.o\nout/\nsrc/\n");
     EMBED_CALL(cli_symbols_context.tree_relist, CliSymbolsContextCfg, .root = s_root, .emit = NULL, .context = NULL);
     TEST_ASSERT_EQUAL_UINT(branch, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));

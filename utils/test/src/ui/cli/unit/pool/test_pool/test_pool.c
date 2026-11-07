@@ -318,7 +318,7 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     static CliWake s_wake = CLI_WAKE_INIT;
     cli_pool_movable_ready();
     void *const hole = g_cli_guard->persistent_buf_alloc(HOLE_BYTES, g_checks_owner);
-    const CarcerMovableSlot *const cell = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
     TEST_ASSERT_NOT_NULL(hole);
     TEST_ASSERT_NOT_NULL(cell);
     for (unsigned int at = 0u; at < CELL_BYTES; at += 1u)

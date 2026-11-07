@@ -150,7 +150,7 @@ EMBED_INLINE int cli_branch_join(const SymbolsCtx *args)
     const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1ULL;
     const unsigned long long symbols_size = args->walk_read->read_count * sizeof(CliDeclaration);
     const unsigned long long bytes = symbols_size + path_length + args->walk_read->read_used;
-    const CarcerMovableSlot *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_code_owner);
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_code_owner);
     if (cell == NULL)
     {
         return 0;
