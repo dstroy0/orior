@@ -19,6 +19,7 @@ ANY-4-007	live	examples/any_corpus/4_measure/point_volume.py
 ANY-4-008	live	examples/any_corpus/4_measure/what_a_summary_returns.py
 ANY-4-009	live	examples/any_corpus/4_measure/which_corpora_read_their_numbering.py
 ANY-4-010	live	examples/any_corpus/4_measure/which_is_constant.py
+ANY-4-011	live	examples/any_corpus/4_measure/symbol_ratios.py
 ANY-5-001	live	examples/any_corpus/5_sift/selection_rules.py
 ANY-5-002	live	examples/any_corpus/5_sift/survivor_regimes.py
 ART-1-001	live	examples/art/1_represent/picture_true_size.py

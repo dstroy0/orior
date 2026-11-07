@@ -6,6 +6,8 @@
 R is here for one reason the other implementations cannot cover. The Python side computes means, standard deviations, slopes, standard errors and t values, and every one of those assumes a distribution. Python's standard library carries no Shapiro-Wilk, no analysis of variance, no Wilcoxon and no Spearman. The assumption goes unchecked without these.
 
 ```
+python utils/test/harness.py evidence r
+
 Rscript evidence/sims/r/hypotheses/ratio_normality.R build/ratios.csv
 Rscript evidence/sims/r/hypotheses/ladder_analysis.R build/ladder.csv
 Rscript evidence/sims/r/hypotheses/language_variance.R build/language_constant.csv

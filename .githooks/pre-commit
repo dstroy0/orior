@@ -102,6 +102,24 @@ if ! git -C "$REPO" diff --quiet -- "$RATCHET"; then
     git -C "$REPO" add -- "$RATCHET"
 fi
 
+# Every technical document is checked against ASD-STE100 through the test harness, whose folder is the first of the
+# [layout] tests key. A document may carry no more findings than $TOOLS/prose/ste_ratchet.tsv allows it, and a new
+# document none; the same command holds the checker's copies in MMgr and embedded_types to this one.
+#
+# To see the findings:                 python utils/test/harness.py docs ste --show [DOC ...]
+# To lower the ratchet after a repair: python utils/test/harness.py docs ste --lower
+TESTS=$(sed -n 's/^[[:space:]]*tests[[:space:]]*=[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' \
+    "$REPO/repotools.toml" 2>/dev/null | head -1)
+if [ -z "$TESTS" ] || [ ! -f "$REPO/$TESTS/harness.py" ]; then
+    echo "  commit stopped: no test harness under the [layout] tests key of $REPO/repotools.toml"
+    exit 1
+fi
+python "$REPO/$TESTS/harness.py" docs ste
+ste=$?
+if ! git -C "$REPO" diff --quiet -- "$REPO/$TOOLS/prose/ste_ratchet.tsv"; then
+    git -C "$REPO" add -- "$REPO/$TOOLS/prose/ste_ratchet.tsv"
+fi
+
 # The claim check holds every number a reader meets first against the theory, and stops pages that
 # repeat a result the theory took back. It runs when a path in the index is README.md, a page under
 # docs/, a file under theory/ or the check itself, since no other path can change an answer. It
@@ -150,12 +168,15 @@ if [ -n "$PAPERS" ]; then
     fi
 fi
 
-if [ "$status" -eq 0 ] && [ "$claims" -eq 0 ] && [ "$pdfs" -eq 0 ]; then
+if [ "$status" -eq 0 ] && [ "$ste" -eq 0 ] && [ "$claims" -eq 0 ] && [ "$pdfs" -eq 0 ]; then
     exit 0
 fi
 
 echo ""
-if [ "$status" -eq 0 ] && [ "$claims" -eq 0 ]; then
+if [ "$status" -eq 0 ] && [ "$ste" -ne 0 ]; then
+    echo "  commit stopped: a document carries more ASD-STE100 findings than its ratchet allows, or a"
+    echo "  copy of the checker differs; see the lines above."
+elif [ "$status" -eq 0 ] && [ "$claims" -eq 0 ]; then
     echo "  commit stopped: a research paper did not build clean, see the lines above."
 elif [ "$status" -eq 0 ]; then
     echo "  commit stopped: a page repeats a claim the theory took back. Read the places shown;"

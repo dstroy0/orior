@@ -4,7 +4,7 @@
 # Catalog: LNG-4-023
 #
 # Measure several texts per language at character width, to test whether a language carries a constant,
-# for Section 4.13 of theory/workbooks/orior.
+# for the language constant entry of theory/workbooks/orior/chapters/chapter_orior_workbook.tex.
 #
 #   Usage:  python examples/language/4_measure/language_constant.py
 #

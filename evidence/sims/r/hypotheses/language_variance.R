@@ -1,7 +1,8 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Decide whether a language carries a constant, for Section 4.13 of theory/orior.
+# Decide whether a language carries a constant, for the language constant entry of
+# theory/workbooks/orior/chapters/chapter_orior_workbook.tex.
 #
 #   Usage:  Rscript evidence/sims/r/hypotheses/language_variance.R [build/language_constant.csv]
 #
@@ -12,8 +13,8 @@
 # Three quantities are tested and they are not expected to behave alike. The mean distance between word
 # boundaries should belong to a language, since word length does. Collision entropy should belong to it
 # partly, through the size and shape of its character inventory. The rare half against a permutation null
-# was found in earlier work to hold across every language measured. If it is a universal it should
-# fail to separate them, and that failure is the result and not the absence of one.
+# is posited as a universal. If it is one it should fail to separate them, and that failure is the result
+# and not the absence of one.
 #
 # Chinese is held out of the main test and reported separately. It is logographic, carries 3164 distinct
 # symbols against 87 to 98 for the others, and would dominate any variance it entered.

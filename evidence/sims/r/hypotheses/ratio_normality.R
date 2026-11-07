@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Test whether the per symbol ratios are normally distributed, for the heavy tail posit in
-# theory/workbook.
+# theory/workbooks/orior/chapters/chapter_orior_workbook.tex.
 #
 #   Usage:  Rscript evidence/sims/r/hypotheses/ratio_normality.R [build/ratios.csv]
 #
