@@ -20,8 +20,8 @@ authors:
 repository-code: "https://github.com/dstroy0/orior"
 url: "https://dstroy0.github.io/orior/"
 license: AGPL-3.0-or-later
-version: 1.8.0
-date-released: "2026-10-03"
+version: 1.9.1
+date-released: "2026-11-07"
 keywords:
   - maximum-entropy
   - permutation-null
