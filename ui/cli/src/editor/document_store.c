@@ -532,7 +532,7 @@ EMBED_INLINE void cli_line_begin(const DocumentStoreCtx *args)
     lines->lines += 1u;
 }
 
-EMBED_INLINE void cli_line_machine_transfer(const DocumentStoreCtx *args)
+EMBED_INLINE void cli_line_state_copy(const DocumentStoreCtx *args)
 {
     if (args->lines->lines > 0u)
     {
@@ -726,7 +726,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
     for (unsigned long long line = 0ULL; line < args->edit->from.line; line += 1ULL)
     {
         EMBED_CALL(cli_line_begin, DocumentStoreCtx, .lines = reserve);
-        EMBED_CALL(cli_line_machine_transfer, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
+        EMBED_CALL(cli_line_state_copy, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
                    .line = line);
         EMBED_CALL(cli_units_append, DocumentStoreCtx, .lines = reserve, .units = now->unit + now->start[line],
                    .count = now->length[line]);
@@ -762,7 +762,7 @@ EMBED_INLINE void cli_edit_write(const DocumentStoreCtx *args)
     for (unsigned long long line = tail_line + 1ULL; line < now->lines; line += 1ULL)
     {
         EMBED_CALL(cli_line_begin, DocumentStoreCtx, .lines = reserve);
-        EMBED_CALL(cli_line_machine_transfer, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
+        EMBED_CALL(cli_line_state_copy, DocumentStoreCtx, .lines = reserve, .from_lines_pointer = now,
                    .line = line);
         EMBED_CALL(cli_units_append, DocumentStoreCtx, .lines = reserve, .units = now->unit + now->start[line],
                    .count = now->length[line]);

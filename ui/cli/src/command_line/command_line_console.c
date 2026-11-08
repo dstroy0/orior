@@ -32,6 +32,7 @@ typedef struct
     const char *root;
     const char *command;
     int *code;
+    VerbaLinea *out_line;
 } CommandLineConsoleCtx;
 // why given written to the errors
 EMBED_INLINE void console_err_print(const CommandLineConsoleCtx *args)
@@ -318,6 +319,99 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
         return 0;
     }
     return 1;
+}
+
+// the value a setting's words write, as the node's `args_text` takes them: `[on|off]` as true or false, words that
+// repeat, their args ending `...`, one to a line, and any other joined by spaces, into `out_line`: 1, or 0 with why
+// written
+EMBED_INLINE int console_setting_value(const CommandLineConsoleCtx *args)
+{
+    VerbaLinea *const value = args->out_line;
+    const char *const takes = (args->one != NULL) ? args->one : "";
+    if (cellul.eq(&(CatenaFinitaCfg){.src = takes, .other = "[on|off]", .cap = CLI_POOL_BYTES}))
+    {
+        const int on = cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "on", .cap = CLI_POOL_BYTES});
+        if (!on && !cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "off", .cap = CLI_POOL_BYTES}))
+        {
+            VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
+            mmgr_line_put(&line, args->words[0]);
+            mmgr_line_put(&line, " is neither on nor off");
+            EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
+                       .size = mmgr_line_ok(&line) ? line.at : 0ULL);
+            return 0;
+        }
+        mmgr_line_put(value, on ? "true" : "false");
+        return mmgr_line_finish(value) != 0ULL;
+    }
+    const unsigned long long takes_size = cellul.len(&(CatenaFinitaCfg){.src = takes, .cap = CLI_POOL_BYTES});
+    const int lines = (takes_size >= 3ULL) && cellul.eq(&(CatenaFinitaCfg){
+                                                  .src = takes + takes_size - 3ULL, .other = "...", .cap = 4ULL});
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        if (at > 0u)
+        {
+            mmgr_line_ch(value, lines ? '\n' : ' ');
+        }
+        mmgr_line_put(value, args->words[at]);
+    }
+    return mmgr_line_finish(value) != 0ULL;
+}
+
+int cli_console_setting(const CliCommandLineWordsCountCtx *args)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
+    {
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "orior_cli finds no folder of its own");
+        return CLI_NO_CODE;
+    }
+    const char *const key = args->command;
+    if (args->count == 0u)
+    {
+        CliStateEntries *const entries =
+            cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_command_line_owner});
+        const char *const standing = (entries != NULL) ? cli_state_entry_value(entries, key) : NULL;
+        if (standing != NULL)
+        {
+            EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = standing);
+        }
+        g_cli_guard->persistent_buf_release(entries, g_cli_command_line_owner);
+        return (standing != NULL) ? 0 : CLI_WRONG;
+    }
+    VerbaLinea value = {s_line, sizeof(s_line), 0ULL};
+    if (!EMBED_CALL(console_setting_value, CommandLineConsoleCtx, .one = args->args_text, .words = args->words,
+                    .count = args->count, .out_line = &value))
+    {
+        return CLI_WRONG;
+    }
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+    if (!cli_state_value_save(&(CliStateValueCfg){.folder = folder, .key = key, .value = s_line, .err_msg = &err_msg}))
+    {
+        EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+        return CLI_WRONG;
+    }
+    static char s_found[CLI_PATH_MAX_LEN];
+    const int found = (args->named != NULL)
+                          ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = args->named,
+                                       .root = s_found, .err_msg = &err_msg)
+                          : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = s_found);
+    err_msg.at = 0ULL;
+    static CliReachAnswer s_answer;
+    const char *const sent[2] = {key, s_line};
+    const int requested =
+        EMBED_CALL(cli_reach_menu.request, CliReachMenuCfg, .root = found ? s_found : NULL, .menu = "file",
+                   .command = "preferences", .request = sent, .count = 2u, .answer = &s_answer, .err_msg = &err_msg);
+    if (requested == 0)
+    {
+        EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+        return CLI_WRONG;
+    }
+    if ((requested > 0) && !s_answer.done)
+    {
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_answer.text);
+        return CLI_WRONG;
+    }
+    return 0;
 }
 
 int cli_console(const CliCommandLineWordsCountCtx *args)

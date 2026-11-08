@@ -122,7 +122,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     const char *const read[7] = {files->machine,   files->costs,  files->record,   files->layout,
                                  files->mnemonics, files->fields, args->step->base};
     const unsigned int reads = ((args->step->kind == QUERY_LEARN_PASS) && (args->step->base != NULL)) ? 7u : 6u;
-    int whole = EMBED_CALL(query_learn_err_msg_internal.carry, QueryLearnErrMsgCtx, .context = context,
+    int whole = EMBED_CALL(query_learn_err_msg_internal.files_add, QueryLearnErrMsgCtx, .context = context,
                            .run_out = &s_run, .lessons = 1, .err_msg = err_msg) &&
                 EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                            .paths_letters = read, .count = reads, .err_msg = err_msg);
@@ -389,7 +389,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
         return -1;
     }
     const char *const read[6] = {machine, costs, record, files->layout, files->mnemonics, files->fields};
-    int whole = EMBED_CALL(query_learn_err_msg_internal.carry, QueryLearnErrMsgCtx, .context = context,
+    int whole = EMBED_CALL(query_learn_err_msg_internal.files_add, QueryLearnErrMsgCtx, .context = context,
                            .run_out = &s_run, .lessons = 0, .err_msg = err_msg) &&
                 EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                            .paths_letters = read, .count = 6u, .err_msg = err_msg);

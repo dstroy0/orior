@@ -12,10 +12,20 @@
 // the sleep
 #define CLI_WAKE_RECHECK_MS 10ul
 
-int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed_u32 milliseconds)
+int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed_u64 nanoseconds)
 {
     embed_atomic_word_value was = seen;
-    const DWORD waited = (milliseconds == EMBED_WAIT_FOREVER) ? INFINITE : (DWORD)milliseconds;
+
+    if (nanoseconds == 0u)
+    {
+        return embed_atomic_word_load(word) != seen;
+    }
+    // WaitOnAddress takes whole milliseconds: the limit is rounded up, and a limit past the longest a DWORD counts
+    // waits that long
+    const embed_u64 milliseconds = (nanoseconds / 1000000u) + (embed_u64)((nanoseconds % 1000000u) != 0u);
+    const DWORD waited = (nanoseconds == EMBED_WAIT_FOREVER) ? INFINITE
+                         : (milliseconds < 0xfffffffeull)    ? (DWORD)milliseconds
+                                                             : (DWORD)0xfffffffeull;
     (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);
     return embed_atomic_word_load(word) != seen;
 }

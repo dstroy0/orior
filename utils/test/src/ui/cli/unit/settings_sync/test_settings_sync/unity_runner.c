@@ -3,7 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/code/git.h"
-#include "ui/cli/src/machine/carry_internal.h"
+#include "ui/cli/src/machine/settings_sync_internal.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\carry\\test_carry\\test_carry.c");
+  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\settings_sync\\test_settings_sync\\test_settings_sync.c");
   run_test(test_what_travels_is_the_settings_themes_plugins_and_their_settings, "test_what_travels_is_the_settings_themes_plugins_and_their_settings", 167);
   run_test(test_this_machines_own_settings_stay, "test_this_machines_own_settings_stay", 178);
   run_test(test_a_file_reads_back_as_what_was_packed, "test_a_file_reads_back_as_what_was_packed", 187);

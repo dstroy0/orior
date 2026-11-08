@@ -231,6 +231,62 @@ void cli_pool_owners_write(VerbaLinea *out)
     }
 }
 
+// the in-use count of each owner at the last telemetry line, which only the window's main thread reads and writes
+static unsigned long long s_pool_telemetry_in_use[MMGR_CARCER_OWNERS];
+
+void cli_pool_telemetry_log(void)
+{
+    // The reads come first and the writes after them, because a line can take a cell of the same cellblock
+    PoolOwnerRead owners[MMGR_CARCER_OWNERS];
+    const unsigned int count = EMBED_CALL(pool_owners_read, PoolCtx, .owners = owners);
+    unsigned long long pool = 0ULL;
+    unsigned long long persistent = 0ULL;
+    unsigned long long temporary = 0ULL;
+    cli_pool_report(&pool, &persistent, &temporary);
+    unsigned long long in_use = 0ULL;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        in_use += owners[at].in_use;
+    }
+    const SeriesCellularum *const record = &cli_pool_site_cli_pool_ctx;
+    unsigned long long touches = 0ULL;
+    for (size_t row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
+    {
+        size_t id = 0u;
+        size_t passes = 0u;
+        if (mmgr_movable_touches(record, row, &id, &passes))
+        {
+            touches += (unsigned long long)passes;
+        }
+    }
+    char text[200];
+    VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
+    mmgr_line_decimal(&line, pool, 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, in_use, 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, persistent, 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, temporary, 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, (unsigned long long)mmgr_movable_queue_depth(record), 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, touches, 1u);
+    if (mmgr_line_ok(&line))
+    {
+        (void)fprintf(stderr, "cells telemetry %.*s\n", (int)line.at, line.out);
+    }
+    // an owner gets a line only where its in-use count moved since the last telemetry line
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        if (owners[at].in_use != s_pool_telemetry_in_use[at])
+        {
+            s_pool_telemetry_in_use[at] = owners[at].in_use;
+            (void)fprintf(stderr, "cells owner %s %llu %llu\n", owners[at].name, owners[at].in_use, owners[at].hw);
+        }
+    }
+}
+
 void cli_pool_peaks_report(void)
 {
     if (qry_member_run() == NULL)

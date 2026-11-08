@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_at_terminal.c: a window command runs at the terminal only where the terminal can do it; branches and stashes go through their commands; tests
-// run and report each failure and the counts; carried settings are read in and the read undone; a window command with no window open runs at the
+// run and report each failure and the counts; synced settings are read in and the read undone; a window command with no window open runs at the
 // terminal where it can and opens a window where not; and a branch with its own commits is deleted only when forced
 #include "ui/cli/src/command_line/at_terminal.h"
 #include "ui/cli/src/command_line/command_line.h"
-#include "ui/cli/src/machine/carry.h"
+#include "ui/cli/src/machine/settings_sync.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_test_here[] = "import unittest\n\n\nclass Here(unittest.TestCase):\n    def test_passes(self):\n"
@@ -84,7 +84,7 @@ static void settings_sent(char *base, char *there, char *between)
     static char s_sent_err[1024];
     char here[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    cli_unity_folder("at_terminal_carry", base);
+    cli_unity_folder("at_terminal_settings_sync", base);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "here", .joined = here);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "there", .joined = there);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "between", .joined = between);
@@ -95,7 +95,7 @@ static void settings_sent(char *base, char *there, char *between)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "body { color: red; }\n", .size = 21ull));
     VerbaLinea out = {s_sent_out, sizeof(s_sent_out), 0ull};
     VerbaLinea err_msg = {s_sent_err, sizeof(s_sent_err), 0ull};
-    (void)EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = here, .to = between, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_settings_sync_home_to.send, CliSettingsSyncHomeToCfg, .home = here, .to = between, .out = &out, .err_msg = &err_msg);
 }
 
 // the sent settings read in on `there`: 1 with what it printed in s_out, or 0
@@ -146,7 +146,7 @@ void test_gits_tests_and_transferred_settings_commands_run_at_the_terminal(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "branch-switch"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "stash-drop"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "test-run"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "carry-undo"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "sync.undo"));
 }
 
 void test_the_windows_own_commands_do_not_run_at_the_terminal(void)
@@ -298,11 +298,13 @@ void test_settings_read_in_are_undone(void)
     char id[128] = "";
     settings_sent(base, there, between);
     TEST_ASSERT_TRUE(settings_read(there, between));
-    const char *const undo = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES, .other = "carry-undo ", .other_cap = CLI_POOL_BYTES});
+    static const char s_undo[] = "preferences sync undo ";
+    const char *const undo = cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_POOL_BYTES, .other = s_undo, .other_cap = CLI_POOL_BYTES});
     TEST_ASSERT_NOT_NULL(undo);
-    for (unsigned int at = 0u; (at + 1u < sizeof(id)) && (undo[11u + at] > ' '); at += 1u)
+    const char *const named = undo + sizeof(s_undo) - 1u;
+    for (unsigned int at = 0u; (at + 1u < sizeof(id)) && (named[at] > ' '); at += 1u)
     {
-        id[at] = undo[11u + at];
+        id[at] = named[at];
         id[at + 1u] = '\0';
     }
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};

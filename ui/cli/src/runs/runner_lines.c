@@ -148,7 +148,7 @@ static CliWake s_transferred_wake = CLI_WAKE_INIT;
 
 // a stream read to its end, each line printed as it is whole, a line of CLI_TRANSFERRED_LINE bytes printed where it has
 // come to that many with no end
-EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
+EMBED_INLINE void cli_stream_lines_print(const RunnerLinesCtx *args)
 {
     char piece[4096];
     for (;;)
@@ -191,15 +191,15 @@ EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
     }
 }
 
-static void cli_errors_machine_transfer(void *context)
+static void cli_errors_stream_thread(void *context)
 {
     CliTransport *const transport = (CliTransport *)context;
-    EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = transport);
+    EMBED_CALL(cli_stream_lines_print, RunnerLinesCtx, .transport = transport);
     transport->ended = 1;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_transferred_wake);
 }
 
-void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
+void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args)
 {
     // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
     CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ULL};
@@ -208,13 +208,13 @@ void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
     err_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
     CliTransport *const out = &out_transport;
     CliTransport *const err = &err_transport;
-    CliThread errors = {cli_errors_machine_transfer, err};
+    CliThread errors = {cli_errors_stream_thread, err};
     const int threaded = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &errors);
     if (!threaded)
     {
-        EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = err);
+        EMBED_CALL(cli_stream_lines_print, RunnerLinesCtx, .transport = err);
     }
-    EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = out);
+    EMBED_CALL(cli_stream_lines_print, RunnerLinesCtx, .transport = out);
     while (threaded && !err->ended)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_transferred_wake);

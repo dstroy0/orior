@@ -108,7 +108,7 @@ void query_part_read(const QueryPairsPartNameCtx *args)
     mmgr_line_finish(&line);
 }
 
-int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args)
+int query_pairs_tools_words(const QueryPairsPartContextDryCtx *args)
 {
     const QueryContext *context = args->context;
     VerbaLinea *err_msg = args->err_msg;
@@ -136,13 +136,13 @@ int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args)
                .path_out = machine);
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_NVIDIA "/elf64_nvidia.tsv", .path_out = layout);
-    EMBED_CALL(query_pairs_part_dry_internal.machine_transfer_words, QueryPairsPartDryCtx, .words = args->words,
+    EMBED_CALL(query_pairs_part_dry_internal.words_add, QueryPairsPartDryCtx, .words = args->words,
                .transport = s_transport, .cross = s_cross, .nvdisasm = s_nvdisasm, .machine = machine, .layout = layout,
                .part = args->part, .dry = args->dry);
     return 1;
 }
 
-void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args)
+void query_pairs_words_add(const QueryPairsPartDryCtx *args)
 {
     QueryWords *words = args->words;
     char reader[64];

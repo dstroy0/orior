@@ -154,6 +154,12 @@ int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args)
                       .err_msg = args->err_msg);
 }
 
+int cli_settings_ensure(const CliPathErrMsgKindCtx *args)
+{
+    return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = "{\n}\n",
+                      .err_msg = args->err_msg);
+}
+
 int cli_home_ensure_user_css(const CliPathErrMsgKindCtx *args)
 {
     if (!cli_path_err_msg_kind_internal.home_user_css(args))

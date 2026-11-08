@@ -53,6 +53,10 @@ extern "C"
     // at a command's end: the cellblock's peaks recorded as `cells/cli_cells` and each owner's as `cells/<name>`, to
     // the run this process is a member of
     void cli_pool_peaks_report(void);
+    // MMgr's telemetry to the error stream, from the window's main thread on its memory tick. The line is
+    // `cells telemetry <pool> <in use> <persistent peak> <temporary peak> <queue> <lane passes>`. Each owner whose
+    // in-use count moved since the last line gets `cells owner <name> <in use> <peak>`
+    void cli_pool_telemetry_log(void);
 
 #ifdef __cplusplus
 }

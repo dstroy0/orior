@@ -101,6 +101,11 @@ int cli_completions(const CliCommandLineOutErrMsgShellCtx *args);
 
 // a command the command line runs itself, in the terminal: the code to exit with (command_line_console.c)
 int cli_console(const CliCommandLineWordsCountCtx *args);
+// a setting of the tree of commands, its key the chain `command` and its words its value, as the node's `args_text`
+// takes them: the value written to orior's settings.json and sent as it is to the window open on the tree, which takes
+// it into what it draws with and reads no file for it; with no words, the text standing written out. The code to exit
+// with (command_line_console.c)
+int cli_console_setting(const CliCommandLineWordsCountCtx *args);
 // `orior_cli edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that contains the text, as
 // path:line:column: line; the code to exit with, 1 where none does, as grep exits (command_line_search.c)
 int cli_console_search(const CliCommandLineWordsCountCtx *args);
@@ -188,6 +193,7 @@ struct CliCommandLineWordsCountCtx
     unsigned int count;
     const char *named;
     const char *command;
+    const char *args_text;
 };
 
 struct CliCommandLineTextSizeCtx
@@ -419,6 +425,7 @@ EMBED_TABLE_STORAGE CliCommandLineNamedNsTable cli_command_line_named_internal E
 typedef struct
 {
     int (*console)(const CliCommandLineWordsCountCtx *args);
+    int (*console_setting)(const CliCommandLineWordsCountCtx *args);
     int (*console_search)(const CliCommandLineWordsCountCtx *args);
     int (*new_plugin)(const CliCommandLineWordsCountCtx *args);
     int (*toolchains_words)(const CliCommandLineWordsCountCtx *args);
@@ -427,10 +434,11 @@ typedef struct
     int (*validate_files)(const CliCommandLineWordsCountCtx *args);
     int (*format_files)(const CliCommandLineWordsCountCtx *args);
 } CliCommandLineWordsCountNs;
-EMBED_TABLE_LAYOUT(CliCommandLineWordsCountNs, console, console_search, new_plugin, toolchains_words, run_file_words,
-                   clone_words, validate_files, format_files);
+EMBED_TABLE_LAYOUT(CliCommandLineWordsCountNs, console, console_setting, console_search, new_plugin, toolchains_words,
+                   run_file_words, clone_words, validate_files, format_files);
 EMBED_TABLE_STORAGE CliCommandLineWordsCountNs cli_command_line_words_count_internal EMBED_UNUSED = {
     .console = cli_console,
+    .console_setting = cli_console_setting,
     .console_search = cli_console_search,
     .new_plugin = cli_new_plugin,
     .toolchains_words = cli_toolchains_words,

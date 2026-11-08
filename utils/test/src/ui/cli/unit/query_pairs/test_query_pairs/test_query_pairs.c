@@ -47,7 +47,7 @@ static const char *targets_of(const char *mode, const char *const *words, unsign
 static void transport_words(int dry)
 {
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
-    EMBED_CALL(query_pairs_part_dry_internal.machine_transfer_words, QueryPairsPartDryCtx, .words = &s_words, .transport = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .part = "sm_86", .dry = dry);
+    EMBED_CALL(query_pairs_part_dry_internal.words_add, QueryPairsPartDryCtx, .words = &s_words, .transport = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .part = "sm_86", .dry = dry);
 }
 
 // `words` read as a pairs' mode into s_mode: 1, or 0 where they are refused

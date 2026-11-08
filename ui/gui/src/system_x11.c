@@ -394,6 +394,10 @@ static void system_event(const SystemX11Ctx *args)
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_BLUR});
         break;
+    case FocusIn:
+        EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
+        break;
     case ButtonPress:
         if (args->event_x_event_pointer->xbutton.button == Button1)
         {

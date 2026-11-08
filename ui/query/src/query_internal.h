@@ -199,7 +199,7 @@ void query_print(const QueryTextCtx *args);
 // the path `under` the top of the tree written into `path`, sized for QUERY_PATH_MAX_LEN
 void query_at(const QueryContextUnderCtx *args);
 
-// the writer's words (writer.c, writer_machine_transfer.c)
+// the writer's words (writer.c, writer_records.c)
 int query_writer_start(const QueryWriterCtx *args);
 int query_writer_init(const QueryWriterCtx *args);
 int query_writer_runs(const QueryWriterCtx *args);
@@ -211,8 +211,8 @@ int query_writer_append(const QueryNameBytesCtx *args);
 int query_writer_latest(const QueryCountNameCtx *args);
 int query_writer_file(const QueryPathBytesSizeCtx *args);
 int query_writer_leave(const QueryPathBytesSizeCtx *args);
-int query_writer_machine_transfer(const QueryCountNameCtx *args);
-int query_writer_machine_transfer_list(const QueryFromWriterCtx *args);
+int query_writer_records_import(const QueryCountNameCtx *args);
+int query_writer_records_import_list(const QueryFromWriterCtx *args);
 int query_writer_read(const QueryCountNameCtx *args);
 // every record of `name` joined, as query_writer_read joins them, in a cell of their size with a 0 after, their size
 // into `size`: the cell, or NULL where none was there or the cell could not be taken
@@ -241,7 +241,7 @@ unsigned int query_retain_max(void);
 void query_runs_prune(const QueryFolderMaxCtx *args);
 int query_run_start(const QueryFolderContextCtx *args);
 int query_run_joining(const QueryErrMsgRootCtx *args);
-int query_run_machine_transfer(const QueryCountFolderCtx *args);
+int query_run_files_add(const QueryCountFolderCtx *args);
 int query_run_read(const QueryCountErrMsgCtx *args);
 void query_run_leave(const QueryCountErrMsgCtx *args);
 int query_run_end(const QueryContextErrMsgRunCtx *args);
@@ -769,17 +769,17 @@ typedef struct
 {
     int (*writer_is_member)(const QueryCountNameCtx *args);
     int (*writer_latest)(const QueryCountNameCtx *args);
-    int (*writer_machine_transfer)(const QueryCountNameCtx *args);
+    int (*writer_records_import)(const QueryCountNameCtx *args);
     int (*writer_read)(const QueryCountNameCtx *args);
     char *(*writer_read_alloc)(const QueryCountNameCtx *args);
     int (*writer_current)(const QueryCountNameCtx *args);
 } QueryCountNameNs;
-EMBED_TABLE_LAYOUT(QueryCountNameNs, writer_is_member, writer_latest, writer_machine_transfer, writer_read,
+EMBED_TABLE_LAYOUT(QueryCountNameNs, writer_is_member, writer_latest, writer_records_import, writer_read,
                    writer_read_alloc, writer_current);
 EMBED_TABLE_STORAGE QueryCountNameNs query_count_name_internal EMBED_UNUSED = {
     .writer_is_member = query_writer_is_member,
     .writer_latest = query_writer_latest,
-    .writer_machine_transfer = query_writer_machine_transfer,
+    .writer_records_import = query_writer_records_import,
     .writer_read = query_writer_read,
     .writer_read_alloc = query_writer_read_alloc,
     .writer_current = query_writer_current,
@@ -796,11 +796,11 @@ EMBED_TABLE_STORAGE QueryNameBytesNs query_name_bytes_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*writer_machine_transfer_list)(const QueryFromWriterCtx *args);
+    int (*writer_records_import_list)(const QueryFromWriterCtx *args);
 } QueryFromWriterNs;
-EMBED_TABLE_LAYOUT(QueryFromWriterNs, writer_machine_transfer_list);
+EMBED_TABLE_LAYOUT(QueryFromWriterNs, writer_records_import_list);
 EMBED_TABLE_STORAGE QueryFromWriterNs query_from_writer_internal EMBED_UNUSED = {
-    .writer_machine_transfer_list = query_writer_machine_transfer_list,
+    .writer_records_import_list = query_writer_records_import_list,
 };
 
 typedef struct
@@ -888,11 +888,11 @@ EMBED_TABLE_STORAGE QueryErrMsgRootNs query_err_msg_root_internal EMBED_UNUSED =
 
 typedef struct
 {
-    int (*run_machine_transfer)(const QueryCountFolderCtx *args);
+    int (*run_output_relay)(const QueryCountFolderCtx *args);
 } QueryCountFolderNs;
-EMBED_TABLE_LAYOUT(QueryCountFolderNs, run_machine_transfer);
+EMBED_TABLE_LAYOUT(QueryCountFolderNs, run_output_relay);
 EMBED_TABLE_STORAGE QueryCountFolderNs query_count_folder_internal EMBED_UNUSED = {
-    .run_machine_transfer = query_run_machine_transfer,
+    .run_output_relay = query_run_files_add,
 };
 
 typedef struct

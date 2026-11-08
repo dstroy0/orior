@@ -291,7 +291,7 @@ void test_a_frame_counts_its_line_from_zero(void)
     CLI_TEST_ASSERT_TEXT("{\"id\":7,\"name\":\"main\",\"path\":\"/t/a.c\",\"line\":5,\"col\":12,\"ip\":\"0x1000\"}", s_out, out.at);
 }
 
-void test_breakpoints_machine_transfer_their_conditions_counts_and_messages(void)
+void test_breakpoints_retain_their_conditions_counts_and_messages(void)
 {
     static const char s_sent[] = "[{\"line\":4},{\"line\":9,\"condition\":\"x > 2\",\"hits\":\">= 3\",\"log\":\"\"},{"
                                  "\"line\":11,\"log\":\"x is {x}\"}]";

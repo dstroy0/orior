@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// machine_transfer_send.c: what travels written to one file, or laid out in a folder, which, where it is a repository,
+// settings_sync_export.c: what travels written to one file, or laid out in a folder, which, where it is a repository,
 // is committed and pushed
 #include "../code/git.h"
-#include "carry_internal.h"
+#include "settings_sync_internal.h"
 
 // The capacity a sending takes: what travels and the files the folder contains that travel, their cells given back as
 // the sending ends
@@ -25,9 +25,9 @@ typedef struct
     VerbaLinea *err_msg;
     const char *folder;
     const char *const *request;
-} CarrySendCtx;
+} SettingsSyncExportCtx;
 // that `count` files went to `to`, reported, with how
-EMBED_INLINE void cli_send(const CarrySendCtx *args)
+EMBED_INLINE void cli_send(const SettingsSyncExportCtx *args)
 {
     mmgr_line_decimal(args->out, args->count, 0u);
     mmgr_line_put(args->out, args->how);
@@ -36,12 +36,12 @@ EMBED_INLINE void cli_send(const CarrySendCtx *args)
 }
 
 // what travels written as one file at `to`: 1, or 0 with why given
-EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
+EMBED_INLINE int cli_file_send(const SettingsSyncExportCtx *args)
 {
     // the file written in a cell sized to what travels
     const unsigned long long file_capacity =
-        EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_sent_capacity,
-                   CliMachineTransferTransferredCtx, .carried = &s_send.packed);
+        EMBED_CALL(cli_settings_sync_transferred_internal.transferred_sent_capacity,
+                   CliSettingsSyncTransferredCtx, .synced = &s_send.packed);
     char *const file_cell = g_cli_guard->temporary_buf_alloc(file_capacity, g_cli_machine_owner);
     VerbaLinea file = mmgr_line_over(file_cell, file_capacity);
     if (file.out == NULL)
@@ -50,18 +50,18 @@ EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
         mmgr_line_put(args->err_msg, ": no cell could be taken to write it in");
         return 0;
     }
-    mmgr_line_put(&file, "{\n  \"orior\": \"" CLI_MACHINE_TRANSFER_MARK "\",\n  \"files\": {");
+    mmgr_line_put(&file, "{\n  \"orior\": \"" CLI_SETTINGS_SYNC_MARK "\",\n  \"files\": {");
     for (unsigned int at = 0u; at < s_send.packed.count; at += 1u)
     {
-        const char *const place = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
-                                             CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at);
+        const char *const place = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position,
+                                             CliSettingsSyncTransferredAtCtx, .synced = &s_send.packed, .at = at);
         mmgr_line_put(&file, (at != 0u) ? ",\n    " : "\n    ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file, .text = place,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(&file, ": ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file,
-                   .text = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
-                                      CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
+                   .text = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value,
+                                      CliSettingsSyncTransferredAtCtx, .synced = &s_send.packed, .at = at),
                    .length = s_send.packed.size[at]);
     }
     mmgr_line_put(&file, (s_send.packed.count != 0u) ? "\n  }\n}\n" : "}\n}\n");
@@ -79,7 +79,7 @@ EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
 }
 
 // git run in the folder with `args`: 1 where it succeeded, its words into `out`
-EMBED_INLINE int cli_git_in(const CarrySendCtx *args)
+EMBED_INLINE int cli_git_in(const SettingsSyncExportCtx *args)
 {
     const char *const *arguments = args->request;
     unsigned int count = args->count;
@@ -91,7 +91,7 @@ EMBED_INLINE int cli_git_in(const CarrySendCtx *args)
 }
 
 // whether the repository at `folder` has a remote
-EMBED_INLINE int cli_has_remote(const CarrySendCtx *args)
+EMBED_INLINE int cli_has_remote(const SettingsSyncExportCtx *args)
 {
     static const char *const s_remote[1] = {"remote"};
     char remotes[CLI_NAME_MAX_LEN * 4u];
@@ -104,18 +104,18 @@ EMBED_INLINE int cli_has_remote(const CarrySendCtx *args)
 }
 
 // the folder `to` made to contain exactly what travels: 1, or 0 with why given
-EMBED_INLINE int cli_folder_layout(const CarrySendCtx *args)
+EMBED_INLINE int cli_folder_layout(const SettingsSyncExportCtx *args)
 {
-    EMBED_CALL(cli_machine_transfer_folder_internal.files, CliMachineTransferFolderCtx, .folder = args->to,
+    EMBED_CALL(cli_settings_sync_folder_internal.files, CliSettingsSyncFolderCtx, .folder = args->to,
                .found = &s_send.there);
     for (unsigned int at = 0u; at < s_send.there.count; at += 1u)
     {
-        const char *const path = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
-                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.there, .at = at);
-        if ((EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx,
-                        .carried = &s_send.packed,
-                        .place = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
-                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.there, .at = at)) ==
+        const char *const path = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value,
+                                            CliSettingsSyncTransferredAtCtx, .synced = &s_send.there, .at = at);
+        if ((EMBED_CALL(cli_settings_sync_transferred_internal.transferred_find, CliSettingsSyncTransferredCtx,
+                        .synced = &s_send.packed,
+                        .place = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position,
+                                            CliSettingsSyncTransferredAtCtx, .synced = &s_send.there, .at = at)) ==
              s_send.packed.count) &&
             !EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path))
         {
@@ -129,16 +129,16 @@ EMBED_INLINE int cli_folder_layout(const CarrySendCtx *args)
         char path[CLI_PATH_MAX_LEN];
         char parent[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->to,
-                   .relative = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
-                                          CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
+                   .relative = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position,
+                                          CliSettingsSyncTransferredAtCtx, .synced = &s_send.packed, .at = at),
                    .joined = path);
         const int made =
             !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) ||
             EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent);
         if (!made ||
             !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
-                        .bytes = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
-                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
+                        .bytes = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value,
+                                            CliSettingsSyncTransferredAtCtx, .synced = &s_send.packed, .at = at),
                         .size = s_send.packed.size[at]))
         {
             mmgr_line_put(args->err_msg, path);
@@ -150,19 +150,19 @@ EMBED_INLINE int cli_folder_layout(const CarrySendCtx *args)
 }
 
 // the folder `to`, a repository, committed, and pushed where it has a remote: 1 with what it did reported, or 0
-EMBED_INLINE int cli_commit(const CarrySendCtx *args)
+EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
 {
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     static const char *const s_add[4] = {"add", "-A", "--", "."};
     static const char *const s_diff[3] = {"diff", "--cached", "--quiet"};
-    if (!EMBED_CALL(cli_git_in, CarrySendCtx, .folder = args->to, .request = s_add, .count = 4u, .err_msg = err_msg))
+    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_add, .count = 4u, .err_msg = err_msg))
     {
         return 0;
     }
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea quiet = {why, sizeof(why), 0ULL};
-    if (EMBED_CALL(cli_git_in, CarrySendCtx, .folder = args->to, .request = s_diff, .count = 3u, .err_msg = &quiet))
+    if (EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_diff, .count = 3u, .err_msg = &quiet))
     {
         mmgr_line_put(out, args->to);
         mmgr_line_put(out, " contains these settings already");
@@ -182,11 +182,11 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
     mmgr_line_put(&line, named ? name : "a machine");
     mmgr_line_finish(&line);
     const char *const commit[3] = {"commit", "-m", message};
-    if (!EMBED_CALL(cli_git_in, CarrySendCtx, .folder = args->to, .request = commit, .count = 3u, .err_msg = err_msg))
+    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = commit, .count = 3u, .err_msg = err_msg))
     {
         return 0;
     }
-    if (EMBED_CALL(cli_has_remote, CarrySendCtx, .folder = args->to))
+    if (EMBED_CALL(cli_has_remote, SettingsSyncExportCtx, .folder = args->to))
     {
         char words[CLI_NAME_MAX_LEN * 4u];
         VerbaLinea pushed = {words, sizeof(words), 0ULL};
@@ -195,55 +195,55 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
         {
             return 0;
         }
-        EMBED_CALL(cli_send, CarrySendCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
+        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
                    .to = args->to, .after = " and pushed");
         return 1;
     }
-    EMBED_CALL(cli_send, CarrySendCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
+    EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
                .to = args->to, .after = "");
     return 1;
 }
 
-int cli_machine_transfer_send(const CliMachineTransferHomeToCfg *args)
+int cli_settings_sync_send(const CliSettingsSyncHomeToCfg *args)
 {
-    int sent = EMBED_CALL(cli_machine_transfer.pack, CliMachineTransferCfg, .home = args->home,
+    int sent = EMBED_CALL(cli_settings_sync.pack, CliSettingsSyncCfg, .home = args->home,
                           .packed = &s_send.packed, .err_msg = args->err_msg);
     if (sent && !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->to))
     {
-        sent = EMBED_CALL(cli_file_send, CarrySendCtx, .to = args->to, .err_msg = args->err_msg);
+        sent = EMBED_CALL(cli_file_send, SettingsSyncExportCtx, .to = args->to, .err_msg = args->err_msg);
         if (sent)
         {
-            EMBED_CALL(cli_send, CarrySendCtx, .out = args->out, .count = s_send.packed.count,
+            EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = args->out, .count = s_send.packed.count,
                        .how = " files written to ", .to = args->to, .after = "");
         }
-        EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
-                   CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.packed);
+        EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
+                   CliSettingsSyncTransferredPositionCtx, .transferred_out = &s_send.packed);
         return sent;
     }
     char git[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->to, .relative = ".git", .joined = git);
     const int repository = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
                            EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git);
-    if (sent && repository && EMBED_CALL(cli_has_remote, CarrySendCtx, .folder = args->to))
+    if (sent && repository && EMBED_CALL(cli_has_remote, SettingsSyncExportCtx, .folder = args->to))
     {
         char words[CLI_NAME_MAX_LEN * 4u];
         VerbaLinea pulled = {words, sizeof(words), 0ULL};
         sent = EMBED_CALL(cli_git_root_out_count_err_msg.pull, CliGitRootOutCountErrMsgCfg, .root = args->to,
                           .out = &pulled, .err_msg = args->err_msg);
     }
-    sent = sent && EMBED_CALL(cli_folder_layout, CarrySendCtx, .to = args->to, .err_msg = args->err_msg);
+    sent = sent && EMBED_CALL(cli_folder_layout, SettingsSyncExportCtx, .to = args->to, .err_msg = args->err_msg);
     if (sent && !repository)
     {
-        EMBED_CALL(cli_send, CarrySendCtx, .out = args->out, .count = s_send.packed.count, .how = " files written to ",
+        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = args->out, .count = s_send.packed.count, .how = " files written to ",
                    .to = args->to, .after = "");
     }
     else if (sent)
     {
-        sent = EMBED_CALL(cli_commit, CarrySendCtx, .to = args->to, .out = args->out, .err_msg = args->err_msg);
+        sent = EMBED_CALL(cli_commit, SettingsSyncExportCtx, .to = args->to, .out = args->out, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
-               CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.there);
-    EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
-               CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.packed);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
+               CliSettingsSyncTransferredPositionCtx, .transferred_out = &s_send.there);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
+               CliSettingsSyncTransferredPositionCtx, .transferred_out = &s_send.packed);
     return sent;
 }

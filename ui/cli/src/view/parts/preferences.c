@@ -142,14 +142,16 @@ void gui_preferences_want(const GuiPreferencesScaleCfg *args)
     // the colors' rows in two columns, and the row over them; a count of colors is far inside what an int represents
     const int rows =
         (int)((EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette) + 1u) / 2u) + 1;
+    // the tabs' row along the top and the edge under it
+    const int tabs =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW, .scale = scale) +
+        (edge / 2);
     // sizes at a scale are not negative
-    *width = (unsigned int)((2 * edge) +
-                            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_LIST,
-                                       .scale = scale) +
-                            (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                            .pixels = GUI_PREFERENCES_CELL_WIDTH, .scale = scale)));
-    *height = (unsigned int)((2 * edge) + (rows * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                             .pixels = GUI_PREFERENCES_CELL, .scale = scale)));
+    *width = (unsigned int)((2 * edge) + (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                         .pixels = GUI_PREFERENCES_CELL_WIDTH, .scale = scale)));
+    *height = (unsigned int)((2 * edge) + tabs +
+                             (rows * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                .pixels = GUI_PREFERENCES_CELL, .scale = scale)));
 }
 
 GuiRect gui_preferences_rect(const GuiPreferencesPaletteValuesCfg *args)
@@ -173,20 +175,19 @@ GuiRect gui_preferences_section_rect(const GuiPreferencesPaletteValuesCfg *args)
     const GuiRect rect = gui_preferences_palette_values.rect(args);
     const int row = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
                                .scale = args->preferences_read->scale);
-    // a section's place is far inside what an int represents
-    return (GuiRect){rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
-                                         .scale = args->preferences_read->scale),
-                     rect.y +
+    const int tab = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_TAB,
+                               .scale = args->preferences_read->scale);
+    // a section's tab stands along the top, one after another; its place is far inside what an int represents
+    return (GuiRect){rect.x +
                          EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
                                     .scale = args->preferences_read->scale) +
-                         ((int)args->at * row),
-                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                .pixels = GUI_PREFERENCES_LIST - GUI_PREFERENCES_EDGE,
-                                .scale = args->preferences_read->scale),
-                     row};
+                         ((int)args->at * tab),
+                     rect.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
+                                         .scale = args->preferences_read->scale),
+                     tab, row};
 }
 
-// what a section shows stands in: past the list, the edge saved all round
+// what a section shows stands in: under the tabs' row, the edge all round and half an edge under the tabs
 EMBED_INLINE GuiRect preferences_content(const PreferencesCtx *args)
 {
     const GuiPreferences *preferences = args->preferences;
@@ -194,9 +195,12 @@ EMBED_INLINE GuiRect preferences_content(const PreferencesCtx *args)
                                     .preferences_read = preferences);
     const int edge = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
                                 .scale = preferences->scale);
-    const int list = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_LIST,
-                                .scale = preferences->scale);
-    return (GuiRect){rect.x + edge + list, rect.y + edge, rect.width - (2 * edge) - list, rect.height - (2 * edge)};
+    const int tabs =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
+                   .scale = preferences->scale) +
+        (edge / 2);
+    return (GuiRect){rect.x + edge, rect.y + edge + tabs, rect.width - (2 * edge),
+                     rect.height - (2 * edge) - tabs};
 }
 
 GuiRect gui_preferences_row_rect(const GuiPreferencesRowCfg *args)
@@ -800,6 +804,20 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     const GuiRect clip = gui_preferences_palette_values.rect(args);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = clip,
                .color = palette->surface);
+    // the edge in the signal while the window holds the focus, as the editor's border shows it while it holds it, else
+    // in the widget's line
+    const int edge_line = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_TAB_LINE,
+                                     .scale = args->preferences_read->scale);
+    const GuiColor edge_color = args->preferences_read->focused ? palette->signal : palette->widget_line;
+    const GuiRect sides[4] = {{clip.x, clip.y, clip.width, edge_line},
+                              {clip.x, clip.y + clip.height - edge_line, clip.width, edge_line},
+                              {clip.x, clip.y, edge_line, clip.height},
+                              {clip.x + clip.width - edge_line, clip.y, edge_line, clip.height}};
+    for (unsigned int side = 0u; side < 4u; side += 1u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = sides[side],
+                   .color = edge_color);
+    }
     EMBED_CALL(preferences_close_draw, PreferencesCtx, .preferences = args->preferences_read, .raster = raster,
                .palette = palette);
     // a size in pixels is not negative
@@ -810,7 +828,22 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     {
         const GuiRect rect = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg,
                                         .preferences_read = args->preferences_read, .at = section);
-        const GuiColor color = (section == args->preferences_read->section) ? palette->text : palette->text_3;
+        const int shown = section == args->preferences_read->section;
+        const GuiColor color = shown ? palette->text : palette->text_3;
+        if (shown)
+        {
+            // the shown tab underlined in the signal, the width of its name's row
+            const int line = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_TAB_LINE,
+                                        .scale = args->preferences_read->scale);
+            const float name_width =
+                EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                           .face = GUI_FACE_HEAD, .size = size, .text = s_sections[section],
+                           .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = s_sections[section]));
+            // a name's width in pixels is far inside what an int represents
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect = (GuiRect){rect.x, rect.y + rect.height - line, (int)name_width, line},
+                       .color = palette->signal);
+        }
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)rect.x,
                          .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,

@@ -1,4 +1,13 @@
 {
+  "line": [
+    { "command": "list" },
+    { "command": "show" },
+    { "command": "bridge" },
+    { "command": "--root" },
+    { "command": "--help" },
+    { "command": "--version" },
+    { "command": "--completions" }
+  ],
   "menus": [
     {
       "title": "File",
@@ -278,9 +287,9 @@
         { "label": "Verify Disassembly", "command": "disasm-verify", "args": "<module> [--function <name>]... [--toolchain llvm|gcc|apple] [--target <triple>]", "needs": "tab", "console": true },
         { "label": "Update Snapshots", "command": "update-snapshots" },
         { "label": "Find Tests…", "command": "tests", "args": "[--json]", "console": true },
-        { "label": "Run All Tests", "command": "run-tests" },
+        { "label": "Run All Tests", "command": "run-tests", "terminal": true },
         { "label": "Run Failed Tests", "command": "run-failed-tests" },
-        { "label": "Run All Tests with Coverage", "command": "cover-tests" },
+        { "label": "Run All Tests with Coverage", "command": "cover-tests", "terminal": true },
         { "label": "Stop Tests", "command": "stop-tests" },
         { "label": "Run Tests in Parallel", "command": "parallel-tests", "args": "[on|off]", "checks": "parallel-tests" },
         "-",
@@ -317,15 +326,15 @@
       "items": [
         { "label": "Commit…", "command": "commit-view" },
         { "label": "Review Changes by Structure", "command": "review-structure", "args": "[commit]" },
-        { "label": "Push", "command": "push" },
-        { "label": "Pull", "command": "pull" },
+        { "label": "Push", "command": "push", "terminal": true },
+        { "label": "Pull", "command": "pull", "terminal": true },
         "-",
-        { "label": "Branches…", "command": "branches" },
-        { "label": "New Branch…", "command": "new-branch", "args": "[name]" },
+        { "label": "Branches…", "command": "branches", "terminal": true },
+        { "label": "New Branch…", "command": "new-branch", "args": "[name]", "terminal": true },
         "-",
-        { "label": "Stash Changes…", "command": "stash", "args": "[message]" },
-        { "label": "Stashes…", "command": "stashes" },
-        { "label": "Cherry-Pick…", "command": "cherry-pick", "args": "[commit]" },
+        { "label": "Stash Changes…", "command": "stash", "args": "[message]", "terminal": true },
+        { "label": "Stashes…", "command": "stashes", "terminal": true },
+        { "label": "Cherry-Pick…", "command": "cherry-pick", "args": "[commit]", "terminal": true },
         "-",
         { "label": "Line History", "command": "line-history", "args": "[on|off]", "checks": "line-history" },
         { "label": "Authors", "command": "git-authors", "args": "[on|off]", "checks": "git-authors" },
@@ -516,16 +525,16 @@
       "title": "Lists",
       "popup": true,
       "items": [
-        { "label": "Switch", "command": "branch-switch", "args": "<branch>" },
-        { "label": "Merge", "command": "branch-merge", "args": "<branch>" },
-        { "label": "Rebase onto It", "command": "branch-rebase", "args": "<branch>" },
-        { "label": "Rename…", "command": "branch-rename", "args": "<branch> [name]" },
-        { "label": "Delete", "command": "branch-delete", "args": "<branch>" },
-        { "label": "Apply", "command": "stash-apply", "args": "<stash>" },
-        { "label": "Pop", "command": "stash-pop", "args": "<stash>" },
-        { "label": "Drop", "command": "stash-drop", "args": "<stash>" },
-        { "label": "Run", "command": "test-run", "args": "<test|file>..." },
-        { "label": "Run with Coverage", "command": "test-cover", "args": "<test|file>..." },
+        { "label": "Switch", "command": "branch-switch", "args": "<branch>", "terminal": true },
+        { "label": "Merge", "command": "branch-merge", "args": "<branch>", "terminal": true },
+        { "label": "Rebase onto It", "command": "branch-rebase", "args": "<branch>", "terminal": true },
+        { "label": "Rename…", "command": "branch-rename", "args": "<branch> [name]", "terminal": true },
+        { "label": "Delete", "command": "branch-delete", "args": "<branch>", "terminal": true },
+        { "label": "Apply", "command": "stash-apply", "args": "<stash>", "terminal": true },
+        { "label": "Pop", "command": "stash-pop", "args": "<stash>", "terminal": true },
+        { "label": "Drop", "command": "stash-drop", "args": "<stash>", "terminal": true },
+        { "label": "Run", "command": "test-run", "args": "<test|file>...", "terminal": true },
+        { "label": "Run with Coverage", "command": "test-cover", "args": "<test|file>...", "terminal": true },
         { "label": "Debug", "command": "test-debug", "args": "<test>" },
         { "label": "Open", "command": "profile-open", "args": "<function>" },
         { "label": "Zoom to", "command": "profile-zoom", "args": "<function>" },
@@ -538,14 +547,39 @@
       "title": "Preferences",
       "popup": true,
       "items": [
-        { "label": "Zoom", "command": "prefs-zoom", "args": "<percent>" },
-        { "label": "Language", "command": "prefs-language", "args": "<tag|system>" },
-        { "label": "Cores kept for you", "command": "prefs-cores", "args": "<count>" },
-        { "label": "Opacity", "command": "prefs-opacity", "args": "<bar|menu|pane|tab|editor|panel|sheet> <percent>" },
-        { "label": "Settings", "command": "prefs-setting", "args": "<trim|final-newline|vim-keys> [on|off]" },
-        { "label": "Fonts", "command": "prefs-font", "args": "<head|text|code|code-size> [font]" },
-        { "label": "Files", "command": "prefs-patterns", "args": "<explorer|search|watching> [pattern]..." },
-        { "label": "Sets of files to search", "command": "prefs-search-sets", "args": "[line]..." },
+        { "label": "Zoom", "command": "zoom", "args": "<percent>", "setting": true },
+        { "label": "Language", "command": "language", "args": "<tag|system>", "setting": true },
+        { "label": "Cores kept for you", "command": "cores-reserved", "args": "<count>", "setting": true, "machine": true, "reader": true },
+        { "label": "Opacity", "command": "opacity", "items": [
+            { "label": "Bar opacity", "command": "bar", "args": "<percent>", "setting": true },
+            { "label": "Menu opacity", "command": "menu", "args": "<percent>", "setting": true },
+            { "label": "Pane opacity", "command": "pane", "args": "<percent>", "setting": true },
+            { "label": "Tab opacity", "command": "tab", "args": "<percent>", "setting": true },
+            { "label": "Editor opacity", "command": "editor", "args": "<percent>", "setting": true },
+            { "label": "Panel opacity", "command": "panel", "args": "<percent>", "setting": true },
+            { "label": "Sheet opacity", "command": "sheet", "args": "<percent>", "setting": true }
+          ]
+        },
+        { "label": "Trim Trailing Whitespace", "command": "trim", "args": "[on|off]", "setting": true },
+        { "label": "Insert Final Newline", "command": "final-newline", "args": "[on|off]", "setting": true },
+        { "label": "Vim's Keys", "command": "vim", "args": "[on|off]", "setting": true },
+        { "label": "Fonts", "command": "fonts", "items": [
+            { "label": "Interface font", "command": "head", "args": "[font]", "setting": true },
+            { "label": "Reading font", "command": "text", "args": "[font]", "setting": true },
+            { "label": "Code font", "command": "code", "args": "[font]", "setting": true },
+            { "label": "Code size", "command": "code-size", "args": "[pixels]", "setting": true }
+          ]
+        },
+        { "label": "Files", "command": "patterns", "items": [
+            { "label": "Hidden from the explorer", "command": "explorer", "args": "[pattern]...", "setting": true },
+            { "label": "Hidden from the search", "command": "search", "args": "[pattern]...", "setting": true },
+            { "label": "Not watched", "command": "watching", "args": "[pattern]...", "setting": true }
+          ]
+        },
+        { "label": "Find in Files", "command": "search", "items": [
+            { "label": "Sets of files to search", "command": "sets", "args": "[line]...", "setting": true }
+          ]
+        },
         { "label": "Color Theme", "command": "theme-choose", "args": "<dark|light|theme>" },
         { "label": "New", "command": "theme-new" },
         { "label": "Delete", "command": "theme-delete" },
@@ -558,18 +592,66 @@
         { "label": "Remove", "command": "theme-image-remove" },
         { "label": "File icons", "command": "theme-icon", "args": "<pattern> [mark] [color]" },
         { "label": "Take this icon off", "command": "theme-icon-remove", "args": "<pattern>" },
-        { "label": "Keys from", "command": "keys-from", "args": "<set>" },
-        { "label": "A letter's key is", "command": "keys-letter", "args": "<character|place>" },
-        { "label": "Set…", "command": "key-set", "args": "<command> <keys>" },
-        { "label": "Take Off", "command": "key-off", "args": "<command> <keys>" },
-        { "label": "Reset", "command": "key-reset", "args": "<command>" },
+        { "label": "Keyboard Shortcuts", "command": "keys", "args": "<command> [keys]", "setting": true, "each": true },
         { "label": "Show Again", "command": "notice-show-again", "args": "<kind>" },
         { "label": "Your settings.json", "command": "settings-own" },
         { "label": "The tree's settings.json", "command": "settings-tree" },
-        { "label": "File or folder", "command": "carry-place", "args": "[path]" },
-        { "label": "Send", "command": "carry-send", "args": "[path]" },
-        { "label": "Take…", "command": "carry-take", "args": "[path] [file|setting]..." },
-        { "label": "Undo", "command": "carry-undo", "args": "<taking>" }
+        { "label": "Settings on Every Machine", "command": "sync", "items": [
+            { "label": "File or folder", "command": "place", "args": "[path]", "machine": true },
+            { "label": "Export", "command": "export", "args": "[path]", "terminal": true },
+            { "label": "Import…", "command": "import", "args": "[path] [file|setting]...", "terminal": true },
+            { "label": "Undo", "command": "undo", "args": "<import>", "terminal": true }
+          ]
+        },
+        { "command": "machine", "hidden": true, "machine": true },
+        { "command": "scheme", "setting": true, "hidden": true },
+        { "command": "theme", "hidden": true, "items": [
+            { "command": "dark", "args": "<theme>", "setting": true },
+            { "command": "light", "args": "<theme>", "setting": true }
+          ]
+        },
+        { "command": "crumbs", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "column", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "sticky", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "brackets", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "autosave", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "format-on-save", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "panes", "hidden": true, "items": [
+            { "command": "auto", "args": "[on|off]", "setting": true }
+          ]
+        },
+        { "command": "plugins", "hidden": true, "items": [
+            { "command": "off", "setting": true },
+            { "command": "allowed", "setting": true, "reader": true },
+            { "command": "catalog", "setting": true }
+          ]
+        },
+        { "command": "macros", "setting": true, "hidden": true },
+        { "command": "margin", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "whitespace", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "comments-hidden", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "past-ends", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "diff-space", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "diff-structure", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "memory-budget", "setting": true, "machine": true, "hidden": true },
+        { "command": "smooth-scroll", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "flick-scroll", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "type-hints", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "parameter-hints", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "shape-search", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "docstring-form", "setting": true, "hidden": true },
+        { "command": "checkers", "setting": true, "reader": true, "hidden": true },
+        { "command": "environment", "setting": true, "each": true, "machine": true, "reader": true, "hidden": true },
+        { "command": "continuation", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "operator-next-line", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "doc-margin", "args": "[on|off]", "setting": true, "hidden": true },
+        { "command": "tests", "hidden": true, "items": [
+            { "command": "parallel", "args": "[on|off]", "setting": true }
+          ]
+        },
+        { "command": "titlebar", "setting": true, "reader": true, "hidden": true },
+        { "command": "signing", "setting": true, "each": true, "machine": true, "reader": true, "hidden": true },
+        { "command": "network", "setting": true, "reader": true, "hidden": true }
       ]
     },
     {

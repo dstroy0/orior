@@ -21,6 +21,7 @@
 #include "../editor/view_edits.h"
 #include "../machine/reach.h"
 #include "../machine/report.h"
+#include "../machine/settings.h"
 #include "../machine/state.h"
 #include "../preview/preview.h"
 #include "../runs/job_runs.h"
@@ -49,6 +50,7 @@
 #define GUI_WINDOW_BAR_KEY "opacity.bar"
 #define GUI_WINDOW_EDITOR_KEY "opacity.editor"
 #define GUI_WINDOW_COLOR_KEY "color."
+#define GUI_WINDOW_KEYS_KEY "keys."
 #define GUI_WINDOW_WORDMARK_KEY "wordmark.session"
 #define GUI_WINDOW_GROUP_KEY "panes.group"
 #define GUI_WINDOW_SESSION_SECONDS 60ULL
@@ -1083,6 +1085,12 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
     return (earliest > now_ms) ? earliest - now_ms : 1ULL;
 }
 
+// whether `name` is `key`
+EMBED_INLINE int window_is(const GuiWindowCtx *args)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->key, .cap = CLI_LABEL_MAX_LEN});
+}
+
 // the setting `key` saved as `value` in orior's folder
 EMBED_INLINE void window_setting_save(const GuiWindowCtx *args)
 {
@@ -1234,60 +1242,87 @@ EMBED_INLINE void window_percent_read(const GuiWindowCtx *args)
     }
 }
 
-// the settings orior's folder saved read from `entries`: the zoom, the opacities, less motion and each color a
-// setting of `color.` and the palette's name sets
+// the color of the palette's whose name follows `color.` in `key` set to the text `value`, where the text reads as a
+// color other than the one standing
+EMBED_INLINE void window_color_apply(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const unsigned int colors =
+        EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette);
+    for (unsigned int at = 0u; at < colors; at += 1u)
+    {
+        char name[GUI_PREFERENCES_TEXT];
+        EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = window->palette, .at = at, .name = name,
+                   .size = sizeof(name));
+        if (!cellul.eq(&(CatenaFinitaCfg){
+                .src = name, .other = args->key + sizeof(GUI_WINDOW_COLOR_KEY) - 1u, .cap = sizeof(name)}))
+        {
+            continue;
+        }
+        const GuiColor current =
+            EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = window->palette, .at = at);
+        GuiColor color = 0u;
+        if (EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = args->value,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = GUI_PREFERENCES_TEXT}),
+                       .current = current, .color_pointer = &color) &&
+            (color != current))
+        {
+            EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = at,
+                       .color = color);
+        }
+        return;
+    }
+}
+
+// the setting `key` at the text `value` taken into what the window draws with: the zoom, the bar's and the editor's
+// opacity, less motion, a color of `color.` and a command's own keys of `keys.`; the key of any other setting is the
+// CLI's alone and changes nothing here
+EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    GuiPreferenceValues *const values = &window->preference_values;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_ZOOM_KEY))
+    {
+        unsigned int zoom_percent = 0u;
+        EMBED_CALL(window_percent_read, GuiWindowCtx, .value = args->value, .percent_out = &zoom_percent);
+        (void)EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = zoom_percent,
+                         .step_pointer = &values->zoom_step);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_BAR_KEY))
+    {
+        EMBED_CALL(window_percent_read, GuiWindowCtx, .value = args->value, .percent_out = &values->bar_percent);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_EDITOR_KEY))
+    {
+        EMBED_CALL(window_percent_read, GuiWindowCtx, .value = args->value, .percent_out = &values->editor_percent);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_REDUCE_KEY))
+    {
+        window->motion_saved = cellul.eq(&(CatenaFinitaCfg){.src = args->value, .other = "true", .cap = 8ULL});
+    }
+    else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}))
+    {
+        EMBED_CALL(window_color_apply, GuiWindowCtx, .window = window, .key = args->key, .value = args->value);
+    }
+    else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = GUI_WINDOW_KEYS_KEY, .cap = 64ULL}))
+    {
+        cli_commands_keys_own(args->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, args->value);
+    }
+}
+
+// the settings orior's folder saved, the CLI's `entries`, taken over the window's defaults one at a time
 EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     GuiPreferenceValues *const values = &window->preference_values;
-    unsigned int zoom_percent = EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg,
-                                           .step = GUI_PREFERENCE_ZOOM_DEFAULT_STEP);
-    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_ZOOM_KEY),
-               .percent_out = &zoom_percent);
-    (void)EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = zoom_percent,
-                     .step_pointer = &values->zoom_step);
+    values->zoom_step = GUI_PREFERENCE_ZOOM_DEFAULT_STEP;
     values->bar_percent = GUI_WINDOW_BAR_PERCENT;
     values->editor_percent = GUI_WINDOW_EDITOR_PERCENT;
-    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_BAR_KEY),
-               .percent_out = &values->bar_percent);
-    EMBED_CALL(window_percent_read, GuiWindowCtx, .value = cli_state_entry_value(args->entries, GUI_WINDOW_EDITOR_KEY),
-               .percent_out = &values->editor_percent);
-    const char *const reduce = cli_state_entry_value(args->entries, GUI_WINDOW_REDUCE_KEY);
-    window->motion_saved =
-        (reduce != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = reduce, .other = "true", .cap = 8ULL});
-    const unsigned int colors =
-        EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette);
+    window->motion_saved = 0;
     for (unsigned int each = 0u; (args->entries != NULL) && (each < args->entries->count); each += 1u)
     {
-        const char *const entry = args->entries->entry[each].key;
-        if (!cellul.starts(&(CatenaFinitaCfg){.src = entry, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}))
-        {
-            continue;
-        }
-        for (unsigned int at = 0u; at < colors; at += 1u)
-        {
-            char name[GUI_PREFERENCES_TEXT];
-            EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = window->palette, .at = at, .name = name,
-                       .size = sizeof(name));
-            if (!cellul.eq(&(CatenaFinitaCfg){
-                    .src = name, .other = entry + sizeof(GUI_WINDOW_COLOR_KEY) - 1u, .cap = sizeof(name)}))
-            {
-                continue;
-            }
-            const char *const text = args->entries->entry[each].value;
-            const GuiColor current =
-                EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = window->palette, .at = at);
-            GuiColor color = 0u;
-            if (EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = text,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_PREFERENCES_TEXT}),
-                           .current = current, .color_pointer = &color) &&
-                (color != current))
-            {
-                EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = at,
-                           .color = color);
-            }
-            break;
-        }
+        EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = args->entries->entry[each].key,
+                   .value = args->entries->entry[each].value);
     }
     EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
 }
@@ -1643,6 +1678,45 @@ EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
     EMBED_CALL(window_shown, GuiWindowCtx, .window = window);
 }
 
+// a settings file opened, each made an empty object where it is not there yet: the tree's `.orior/settings.json` in the
+// editor where `on` is 1, else the reader's own in orior's folder, outside every tree, as the system opens it
+EMBED_INLINE void window_settings_file_open(const GuiWindowCtx *args)
+{
+    char path[CLI_PATH_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
+    const char *const root = cli_command_line_root();
+    if (args->on && (root != NULL))
+    {
+        mmgr_line_put(&line, root);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, CLI_SETTINGS_TREE);
+    }
+    else if (!args->on && EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = path))
+    {
+        line.at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)});
+        mmgr_line_put(&line, "/settings.json");
+    }
+    if ((mmgr_line_finish(&line) == 0ULL) ||
+        !EMBED_CALL(cli_path_err_msg_kind_internal.settings_ensure, CliPathErrMsgKindCtx, .path_out = path,
+                    .err_msg = &err_msg))
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.", 1);
+        return;
+    }
+    if (args->on)
+    {
+        EMBED_CALL(window_file_open, GuiWindowCtx, .window = args->window, .name = path, .place = NULL);
+        return;
+    }
+    if (!EMBED_CALL(cli_path_err_msg_name_internal.home_reveal, CliPathErrMsgNameCtx, .path = path,
+                    .err_msg = &err_msg))
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.", 1);
+    }
+}
+
 // the tool `at` of the strip shown, or hidden where it shows; the terminal's panel opened or closed beside whatever
 // side tool shows, the footer tool's pane standing in it leaving; a footer tool's pane shown in the panel at the foot,
 // the terminal closed where it was open, or hidden where it shows; the explorer listed as it shows
@@ -1705,12 +1779,6 @@ EMBED_INLINE int window_name_among(const GuiWindowCtx *args)
         }
     }
     return 0;
-}
-
-// whether `name` is `key`
-EMBED_INLINE int window_is(const GuiWindowCtx *args)
-{
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->key, .cap = CLI_LABEL_MAX_LEN});
 }
 
 // the menus' answer to whether an item cannot be chosen: it needs a file open while none is, text chosen in the
@@ -1944,17 +2012,32 @@ EMBED_INLINE int window_widgets_run(const GuiWindowCtx *args)
 }
 
 // the command `name` run with its `count` `words`, its keys `value`, whoever asked for it
-EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
+EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const name = args->name;
+    // 1 where a branch below runs the command, 0 where none does: the window has no part for it
+    int ran = 1;
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "exit"))
     {
         window->closing = 1;
     }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preferences") && (args->count >= 2u))
+    {
+        // a setting the CLI wrote to settings.json as it sent it here, its key and its text the command's words
+        EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = args->words[0],
+                   .value = args->words[1]);
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
+    }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preferences"))
     {
         EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = window);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "settings-own") ||
+             EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "settings-tree"))
+    {
+        EMBED_CALL(window_settings_file_open, GuiWindowCtx, .window = window,
+                   .on = EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "settings-tree"));
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "close-editor"))
     {
@@ -2082,6 +2165,11 @@ EMBED_INLINE void window_command_run(const GuiWindowCtx *args)
     {
         EMBED_CALL(window_key_take, GuiWindowCtx, .window = window, .name = name, .on = 0);
     }
+    else
+    {
+        ran = 0;
+    }
+    return ran;
 }
 
 // a command the command line asks for, through the door or as the window started: the file a path names opened, or a
@@ -2108,12 +2196,9 @@ static int window_command_named(const char *command, const char *const *words, u
                                  .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])) ||
                       EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_view_commands,
                                  .count = sizeof(s_view_commands) / sizeof(s_view_commands[0]));
-    if (known)
-    {
-        EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = command,
-                   .value = keyed ? item.keys : NULL, .words = words, .count = count);
-    }
-    return known;
+    // a command of the menus the window runs no part for is refused, the door answering that it is none of the window's
+    return known && EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = command,
+                               .value = keyed ? item.keys : NULL, .words = words, .count = count);
 }
 
 // the tool whose keys are the key `name`, -1 for none
@@ -2140,8 +2225,8 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
         // a part's own row runs with the word its args carry
         const char *const word = cli_menus_own_word(args->item->args);
         const char *const words[1] = {word};
-        EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
-                   .value = args->item->keys, .words = words, .count = (word != NULL) ? 1u : 0u);
+        (void)EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
+                         .value = args->item->keys, .words = words, .count = (word != NULL) ? 1u : 0u);
     }
 }
 
@@ -2201,7 +2286,7 @@ static void window_key_take(const GuiWindowCtx *args)
         EMBED_CALL(window_name_among, GuiWindowCtx, .name = item.command, .words = s_own_commands,
                    .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])))
     {
-        EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = item.command, .value = item.keys);
+        (void)EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = item.command, .value = item.keys);
         return;
     }
     const int tool = EMBED_CALL(window_tool_key, GuiWindowCtx, .name = name);
@@ -2463,6 +2548,7 @@ void gui_window_step(const GuiWindowCfg *args)
             EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
                 ? measured.working
                 : 0ULL;
+        cli_pool_telemetry_log();
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
         window->pending = 1;
     }
@@ -2701,15 +2787,17 @@ void gui_window_draw(const GuiWindowCfg *args)
                .radius = frame->pane_radius, .inner = pane, .corners_only = 1);
     // the work's outline: the lines it stands in, as the page draws them, the signal along its head, a thin line of
     // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
-    // holes the parts shown over the work make in it while the claim holds
+    // holes the parts shown over the work make in it while the claim holds; while Preferences' window holds the
+    // focus, the signal is on its edge and the work's head and left take the right's line
     const GuiColor right_line =
         GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
                 (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const int work_focused = !(args->window->preferences.displayed && args->window->preferences.focused);
     const GuiOutline lines = {
-        palette->signal,
+        work_focused ? palette->signal : right_line,
         right_line,
         right_line,
-        (palette->signal & 0x00ffffffu) | (0x59u << 24u),
+        work_focused ? ((palette->signal & 0x00ffffffu) | (0x59u << 24u)) : right_line,
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_TOP, .scale = frame->scale),
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_RIGHT, .scale = frame->scale),
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_BOTTOM, .scale = frame->scale),
@@ -3670,6 +3758,21 @@ static void window_blur(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
 }
 
+// the focus come to the main window or to Preferences' window: the signal moves to the edge of the one that holds it
+static void window_focus(const GuiInputHandlerCfg *args)
+{
+    args->window->preferences.focused = 0;
+    args->window->pending = 1;
+    args->window->preferences_pending = 1;
+}
+
+static void window_preferences_focus(const GuiInputHandlerCfg *args)
+{
+    args->window->preferences.focused = 1;
+    args->window->pending = 1;
+    args->window->preferences_pending = 1;
+}
+
 // the menu of the tab at `at` built as the menus' own rows, as tabs.js gives it: Close, Close others, which one tab
 // alone cannot take, Close All, a line and Copy path: 1, or 0 where no view stands at `at`
 EMBED_INLINE int window_tab_menu(const GuiWindowCtx *args)
@@ -3828,13 +3931,15 @@ static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_MOVED] = window_m
                                                     [GUI_INPUT_KEY] = window_key,
                                                     [GUI_INPUT_TEXT] = window_text,
                                                     [GUI_INPUT_MENU] = window_menu,
-                                                    [GUI_INPUT_BLUR] = window_blur}};
+                                                    [GUI_INPUT_BLUR] = window_blur,
+                                                    [GUI_INPUT_FOCUS] = window_focus}};
 static const GuiInputHandlers s_preferences_handlers = {{[GUI_INPUT_MOVED] = window_preferences_move,
                                                          [GUI_INPUT_DOWN] = window_preferences_press,
                                                          [GUI_INPUT_LEFT] = window_preferences_leave,
                                                          [GUI_INPUT_WHEEL] = window_preferences_wheel,
                                                          [GUI_INPUT_KEY] = window_preferences_key,
-                                                         [GUI_INPUT_TEXT] = window_preferences_text}};
+                                                         [GUI_INPUT_TEXT] = window_preferences_text,
+                                                         [GUI_INPUT_FOCUS] = window_preferences_focus}};
 
 void gui_window_input(const GuiWindowInputKindCfg *args)
 {

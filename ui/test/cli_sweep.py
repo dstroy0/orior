@@ -3,21 +3,27 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Sweeps every command and option of orior_cli, as `orior_cli help` lists them, on a window of the
-# sweep's own (isolated.py) with monitor.js in its page, so a command that acts in the window acts in
-# that one and a call that would leave it is blocked. Each command is run bare, with each of its words
-# filled and each option given, and with each choice its words offer on its own; a word to fill is
-# given a value of the sweep's tree. The help's own forms, the completions for each shell, and the
-# job lists and a job shown on the top's own tree, which only read, are run besides.
+# sweep's own (isolated.py): the released window in C on a tree and a home of the sweep's own, so a
+# command that acts in the window acts in that one, on the display the sweep is given, where it is seen
+# as each command lands. Each command is run bare, with each of its words filled and each option given,
+# and with each choice its words offer on its own; a word to fill is given a value of the sweep's tree.
+# The help's own forms, the completions for each shell, and the job lists and a job shown on the top's
+# own tree, which only read, are run besides.
+#
+# Each form that acts in the window is given its settle and the window's frame is pictured into the
+# run's shots/, then Escape closes what the form left asking. A window that ends under a form is
+# recorded as crashed by it and started again on its home and tree, and the sweep goes on.
 #
 # A form that would reach another machine, a container or the bug tracker is not run, and the report
-# names it. Each form's record keeps its words, its exit code, how long it took, and the ends of what
-# it said; the report flags those that crashed first, then those that did not end in their time, then
-# those that ended with an error, each with what it said.
+# names it, as is one that opens another window. Each form's record keeps its words, its exit code,
+# how long it took, the ends of what it said and its picture; the report flags those that crashed
+# first, then those that did not end in their time, then those that ended with an error, each with
+# what it said.
 #
-#   Usage:  python -I ui/test/cli_sweep.py [--display \\.\DISPLAY3] [--wait 60] [--only <text>]
+#   Usage:  python -I ui/test/cli_sweep.py [--display \\.\DISPLAY1] [--wait 60] [--settle 1] [--only <text>]
 #
 # Each run is kept in the top's build/ui_test/cli_sweep/<time>/: cli_sweep.md, cli_sweep.json, window.log,
-# and the window's home and tree.
+# shots/, and the window's home and tree.
 
 import argparse
 import json
@@ -25,18 +31,20 @@ import os
 import re
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "utils" / "test"))
-import harness_cdp as cdp  # noqa: E402
+import harness_window  # noqa: E402
 import isolated  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 TOP = HERE.parents[1]
-CLI = TOP / "build" / "cli" / "x86_64-pc-windows-msvc" / ("orior_cli.exe" if os.name == "nt" else "orior_cli")
+CLI = TOP / "build" / "cli" / harness_window.host_target() / ("orior_cli.exe" if os.name == "nt" else "orior_cli")
+
+# The forms after which the window is put back on the sweep's tree, as they open another
+OPENERS = ("open-folder", "open-repository", "open-workspace", "create-repository", "add-folder", "environment")
 
 # The value each word to fill is given, by its name; a word not named here is given VALUE
 FILLED = {
@@ -70,6 +78,11 @@ BLOCKED = {
     "container-restart": "it restarts a container",
     "container-terminal": "it opens a container's terminal",
     "container-open": "it opens a container",
+    "new-window": "it opens another window",
+    "open-folder-window": "it opens another window",
+    "tab-new-window": "it opens another window",
+    "file-open-window": "it opens another window",
+    "exit": "it closes the sweep's window",
 }
 
 
@@ -187,35 +200,28 @@ class CliSweeper:
         self.stamp = time.strftime("%Y%m%d-%H%M%S")
         self.out = TOP / "build" / "ui_test" / "cli_sweep" / self.stamp
         self.out.mkdir(parents=True)
+        self.shots = self.out / "shots"
+        self.shots.mkdir()
         self.window = isolated.Window(self.out, options.display)
-        self.conn = cdp.Connection(self.window.page)
         self.records = []
-        self.watching = True
 
-    def watch(self):
-        """monitor.js kept in the page, and a prompt a command opens closed unanswered, every two seconds."""
-        while self.watching:
-            try:
-                if not self.conn.evaluate("Boolean(window.__walk)", timeout=10):
-                    self.conn.evaluate((HERE / "monitor.js").read_text(encoding="utf-8"), timeout=10)
-                self.conn.evaluate("window.__walk.answer(null)", timeout=10)
-            except (RuntimeError, TimeoutError, ConnectionError, OSError):
-                pass
-            time.sleep(2)
-
-    def tree_kept(self):
-        """The window put back on the sweep's tree where a form opened another, as the forms after it reach the
-        window by its tree: the tree it had open, or None where it had the sweep's."""
-        opened = self.conn.evaluate("document.getElementById('tree-path')?.textContent ?? ''", timeout=20)
-        if Path(opened).resolve() == self.window.tree.resolve() if opened else True:
+    def tree_kept(self, words):
+        """The window put back on the sweep's tree after a form that opens another, as the forms after it reach the
+        window by its tree: the form's opener, or None where it opened none."""
+        opener = next((word for word in OPENERS if word in words), None)
+        if opener is None or not self.window.alive():
             return None
-        self.conn.evaluate(
-            "(async () => { document.querySelectorAll('dialog[open]').forEach((one) => one.close());"
-            f" await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(str(self.window.tree))}]); return 1; }})()",
-            timeout=60,
-        )
-        time.sleep(1.5)
-        return opened
+        subprocess.run([str(CLI), "file", "open-folder", str(self.window.tree)], cwd=self.window.tree, env=self.window.env, capture_output=True, timeout=self.options.wait, stdin=subprocess.DEVNULL)
+        time.sleep(self.options.settle)
+        return opener
+
+    def pictured(self, index, record):
+        """A form that acts in the window given its settle, the frame pictured, and what it left asking closed."""
+        time.sleep(self.options.settle)
+        path = self.shots / ("%04d.png" % index)
+        if self.window.shot(path):
+            record["shot"] = str(path.relative_to(self.out))
+        self.window.keys("Escape")
 
     def ran(self, words):
         """One form run: its record."""
@@ -238,35 +244,33 @@ class CliSweeper:
         return record
 
     def run(self):
-        self.conn.evaluate((HERE / "monitor.js").read_text(encoding="utf-8"))
-        watcher = threading.Thread(target=self.watch, daemon=True)
-        watcher.start()
         try:
-            every = [["help"]] + [["--completions", shell] for shell in ("bash", "zsh", "fish", "powershell")]
-            every += [["--root", str(TOP), "run", "list"], ["--root", str(TOP), "list"]]
+            every = [(["help"], False)] + [(["--completions", shell], False) for shell in ("bash", "zsh", "fish", "powershell")]
+            every += [(["--root", str(TOP), "run", "list"], False), (["--root", str(TOP), "list"], False)]
             for usage in usages():
-                every += forms(usage)
+                every += [(one, usage["window"]) for one in forms(usage)]
             if self.options.only:
-                every = [one for one in every if self.options.only in " ".join(one)]
+                every = [one for one in every if self.options.only in " ".join(one[0])]
             print(f"{len(every)} forms; the window's tree is {self.window.tree}")
-            for index, words in enumerate(every, 1):
+            for index, (words, acts) in enumerate(every, 1):
                 record = self.ran(words)
-                record["tree"] = self.tree_kept()
+                if acts and not record.get("blocked"):
+                    self.pictured(index, record)
+                record["tree"] = self.tree_kept(words)
+                if not self.window.alive():
+                    # the window ended under the form: recorded as its crash, and started again for the forms after it
+                    record["window_ended"] = self.window.restarted()
                 self.records.append(record)
                 state = record.get("blocked") or ("did not end" if record.get("late") else f"exit {record['code']}")
+                state += f", the window ended {record['window_ended']}" if "window_ended" in record else ""
                 print(f"{index:4d}/{len(every)} {' '.join(words)[:70]:70s} {state}", flush=True)
-                if self.window.process.poll() is not None:
-                    print("the window closed: the sweep stops")
-                    break
         finally:
-            self.watching = False
             self.write()
-            self.conn.close()
             self.window.close()
 
     def write(self):
         (self.out / "cli_sweep.json").write_text(json.dumps(self.records, indent=1), encoding="utf-8")
-        crashed = [one for one in self.records if isinstance(one.get("code"), int) and (one["code"] < 0 or one["code"] >= 0xC0000000)]
+        crashed = [one for one in self.records if (isinstance(one.get("code"), int) and (one["code"] < 0 or one["code"] >= 0xC0000000)) or "window_ended" in one]
         late = [one for one in self.records if one.get("late")]
         failed = [one for one in self.records if isinstance(one.get("code"), int) and 0 < one["code"] < 0xC0000000]
         blocked = [one for one in self.records if one.get("blocked")]
@@ -277,7 +281,7 @@ class CliSweeper:
             return (one.get("err") or one.get("out") or "").strip().splitlines()[-1:] or [""]
 
         for title, records, detail in (
-            ("Crashed", crashed, lambda one: f"exit {one['code']:#x}: {said(one)[0][:300]}"),
+            ("Crashed", crashed, lambda one: (f"the window ended with {one['window_ended']}" if "window_ended" in one else f"exit {one['code']:#x}") + f": {said(one)[0][:300]}"),
             ("Did not end", late, lambda one: said(one)[0][:300]),
             ("Ended with an error", failed, lambda one: f"exit {one['code']}: {said(one)[0][:300]}"),
             ("Not run", blocked, lambda one: one["blocked"]),
@@ -291,8 +295,9 @@ def main():
     # each line said as it is printed, a run's output read as it goes where it is kept in a file
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     parser = argparse.ArgumentParser(description="Sweep every command and option of orior_cli on a window of the sweep's own.")
-    parser.add_argument("--display", default="\\\\.\\DISPLAY3", help="the display the window is put on")
+    parser.add_argument("--display", default="\\\\.\\DISPLAY1", help="the display the window is put on")
     parser.add_argument("--wait", type=float, default=60.0, help="seconds a form is given to end")
+    parser.add_argument("--settle", type=float, default=1.0, help="seconds a form that acts in the window is given before its picture")
     parser.add_argument("--only", help="run only the forms whose words hold this text")
     CliSweeper(parser.parse_args()).run()
 

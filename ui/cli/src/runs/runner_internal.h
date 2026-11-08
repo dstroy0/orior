@@ -53,7 +53,7 @@ double cli_run_since(const CliRunnerCtx *args);
 void cli_run_line(const CliRunnerRunStreamCtx *args);
 // each line of a started process's output and errors carried to the run as it comes, the errors on a thread of their
 // own, until both end
-void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args);
+void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args);
 // the pages a job wrote: every .html file in its view folder, and every .html path its output names that is a file,
 // each by its path in the tree, in order and each once, into `views`, sized for CLI_VIEWS_MAX: their count
 unsigned int cli_run_pages(const CliRunnerRootCtx *args);
@@ -110,11 +110,11 @@ EMBED_TABLE_STORAGE CliRunnerRunNs cli_runner_run_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*run_machine_transfer)(const CliRunnerRunSpawnedCtx *args);
+    void (*run_output_relay)(const CliRunnerRunSpawnedCtx *args);
 } CliRunnerRunSpawnedNs;
-EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_machine_transfer);
+EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_output_relay);
 EMBED_TABLE_STORAGE CliRunnerRunSpawnedNs cli_runner_run_spawned_internal EMBED_UNUSED = {
-    .run_machine_transfer = cli_run_machine_transfer,
+    .run_output_relay = cli_run_output_relay,
 };
 
 typedef struct

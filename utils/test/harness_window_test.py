@@ -1,13 +1,18 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""harness.py window test: the window's suite, ui/test/src, each module of the window tested by its own file, run in
-a window of the run's own, started on a copy of ui/test/fixtures/tree with a home of its own, its page loaded fresh
-for each file, and every press, key, drag and wheel sent as real input. The window is driven through its debugging
-port where its web view is WebView2, on Windows, and through WebDriver where it is WebKitGTK, on Linux; --docker runs
-the suite in the harness's Linux image on this machine. On macOS, where the web view is WKWebView, the window is driven
-through Appium's Mac2 driver by the tests of ui/test/appium, through its accessibility tree (harness_appium.py).
+"""harness.py window test: the window's suite. On Windows the window is the released window in C and is driven as the
+command line drives it, --driver cli: ui/test/cli_sweep.py starts it on a tree and a home of its own on the display
+--monitor numbers, DISPLAY1 where none is, and sends it every command and option of orior_cli, each command that acts
+in the window given its settle and pictured; --only keeps the forms holding its text. The run fails where the window
+ends under a form, a form crashes, or one does not end in its time.
 
-    harness.py window test [--only TEXT]... [--driver cdp|webdriver|appium] [--docker] [--sanitize address|thread]
+The other drivers run ui/test/src, each module of the window tested by its own file, in a window whose page is loaded
+fresh for each file, every press, key, drag and wheel sent as real input: through the debugging port where the web view
+is WebView2, --driver cdp, and through WebDriver where it is WebKitGTK, on Linux; --docker runs the suite in the
+harness's Linux image on this machine. On macOS, where the web view is WKWebView, the window is driven through Appium's
+Mac2 driver by the tests of ui/test/appium, through its accessibility tree (harness_appium.py).
+
+    harness.py window test [--only TEXT]... [--driver cli|cdp|webdriver|appium] [--docker] [--sanitize address|thread]
                            [--monitor N] [--monitors] [--no-servers] [--keep-window] [--stop-servers] [--trees FOLDER]
 
 --sanitize builds the window's C side and links the window under that sanitizer, with clang's runtime, and the window
@@ -132,7 +137,7 @@ class Report:
 def options_of(words):
     parser = argparse.ArgumentParser(prog="harness.py window test", add_help=True)
     parser.add_argument("--only", action="append", default=[], help="the test files whose paths hold this text")
-    parser.add_argument("--driver", choices=("cdp", "webdriver", "appium"), default="cdp" if os.name == "nt" else "appium" if sys.platform == "darwin" else "webdriver")
+    parser.add_argument("--driver", choices=("cli", "cdp", "webdriver", "appium"), default="cli" if os.name == "nt" else "appium" if sys.platform == "darwin" else "webdriver")
     parser.add_argument("--docker", action="store_true", help="the suite in the harness's Linux image on this machine")
     parser.add_argument("--sanitize", choices=("address", "thread"), default="", help="the window built and run under this sanitizer, its reports in the run's folder")
     parser.add_argument("--monitor", type=int, default=int(os.environ.get("ORIOR_TEST_MONITOR") or 0), help="the display's number, as the system's settings give it")
@@ -501,6 +506,35 @@ def run_in_docker(passed, needed):
     return ran.returncode
 
 
+def cli_driven(options):
+    """The window in C driven as the command line drives it: the released window built, then ui/test/cli_sweep.py run on
+    a window of its own on the display --monitor numbers, every command and option of the command line sent to it and
+    each that acts in the window pictured. Fails where the window ends under a form, a form crashes, or one does not end
+    in its time."""
+    import json
+
+    import harness_window
+
+    window_built(bin_named("gui"))
+    harness_window.windows_ended()
+    display = "\\\\.\\DISPLAY%d" % options.monitor if options.monitor else "\\\\.\\DISPLAY1"
+    words = [sys.executable, "-I", os.path.join(SUITE, "cli_sweep.py"), "--display", display]
+    for only in options.only or []:
+        words += ["--only", only]
+    code = subprocess.run(words, stdin=subprocess.DEVNULL).returncode
+    runs = findroot.at("build", "ui_test", "cli_sweep")
+    latest = max((os.path.join(runs, one) for one in os.listdir(runs)), key=os.path.getmtime) if os.path.isdir(runs) else ""
+    kept = os.path.join(latest, "cli_sweep.json")
+    if code or not os.path.isfile(kept):
+        print("the sweep did not end with its report (exit %d)" % code)
+        return 1
+    with open(kept, encoding="utf-8") as handle:
+        records = json.load(handle)
+    broken = [one for one in records if "window_ended" in one or one.get("late") or (isinstance(one.get("code"), int) and (one["code"] < 0 or one["code"] >= 0xC0000000))]
+    print("window test: %d forms, %d where the window ended, crashed or did not end; %s" % (len(records), len(broken), os.path.join(latest, "cli_sweep.md")))
+    return 1 if broken else 0
+
+
 def cmd_window_test(a):
     words = [word for word in a.extra if word != "--"]
     options = options_of(words)
@@ -517,6 +551,8 @@ def cmd_window_test(a):
         for device, (left, top, right, bottom) in sorted(win.displays().items()):
             print("  %s  %dx%d at %d,%d" % (device, right - left, bottom - top, left, top))
         return 0
+    if options.driver == "cli":
+        return cli_driven(options)
     tests = ["src/" + file for file in files_under(os.path.join(SUITE, "src"), ".test.js") if not options.only or any(only in file for only in options.only)]
     if options.only and not tests:
         print("no test file under ui/test/src has a path holding %s" % " or ".join(options.only))

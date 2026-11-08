@@ -355,7 +355,8 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
 // `quoted` is 1, joined by a comma and a space
 EMBED_INLINE void help_first(const CommandLineHelpCtx *args)
 {
-    static const char *const s_own[] = {"list", "show", "bridge", "--root", "--help", "--version", "--completions"};
+    static CliItem s_own[CLI_ITEMS_MAX];
+    const unsigned int own = cli_menu_rows(cli_line_list(), s_own, CLI_ITEMS_MAX);
     const char *const between = args->quoted ? ", " : " ";
     const char *const quote = args->quoted ? "'" : "";
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
@@ -367,11 +368,11 @@ EMBED_INLINE void help_first(const CommandLineHelpCtx *args)
         mmgr_line_put(args->out, word_text);
         mmgr_line_put(args->out, quote);
     }
-    for (unsigned int at = 0u; at < sizeof(s_own) / sizeof(s_own[0]); at += 1u)
+    for (unsigned int at = 0u; at < own; at += 1u)
     {
         mmgr_line_put(args->out, ((at > 0u) || (cli_menus() > 0u)) ? between : "");
         mmgr_line_put(args->out, quote);
-        mmgr_line_put(args->out, s_own[at]);
+        mmgr_line_put(args->out, s_own[at].command);
         mmgr_line_put(args->out, quote);
     }
 }

@@ -589,6 +589,9 @@ int cli_home_menus(const CliPathErrMsgKindCtx *args);
 int cli_home_languages(const CliFolderCtx *args);
 int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args);
 int cli_home_ensure_user_css(const CliPathErrMsgKindCtx *args);
+// the settings file at `path_out` made, an empty object, its folder with it, where it is not there: 1, or 0 with why
+// given (home.c)
+int cli_settings_ensure(const CliPathErrMsgKindCtx *args);
 int cli_home_reveal(const CliPathErrMsgNameCtx *args);
 
 struct CliWordsCtx
@@ -1794,13 +1797,16 @@ typedef struct
     int (*home_menus)(const CliPathErrMsgKindCtx *args);
     int (*home_ensure_menus)(const CliPathErrMsgKindCtx *args);
     int (*home_ensure_user_css)(const CliPathErrMsgKindCtx *args);
+    int (*settings_ensure)(const CliPathErrMsgKindCtx *args);
 } CliPathErrMsgKindNs;
-EMBED_TABLE_LAYOUT(CliPathErrMsgKindNs, home_user_css, home_menus, home_ensure_menus, home_ensure_user_css);
+EMBED_TABLE_LAYOUT(CliPathErrMsgKindNs, home_user_css, home_menus, home_ensure_menus, home_ensure_user_css,
+                   settings_ensure);
 EMBED_TABLE_STORAGE CliPathErrMsgKindNs cli_path_err_msg_kind_internal EMBED_UNUSED = {
     .home_user_css = cli_home_user_css,
     .home_menus = cli_home_menus,
     .home_ensure_menus = cli_home_ensure_menus,
     .home_ensure_user_css = cli_home_ensure_user_css,
+    .settings_ensure = cli_settings_ensure,
 };
 
 #endif

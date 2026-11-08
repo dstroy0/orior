@@ -227,7 +227,7 @@ static int cli_step(const RunnerRunCtx *args)
         *has_code = 0;
         return 0;
     }
-    EMBED_CALL(cli_runner_run_spawned_internal.run_machine_transfer, CliRunnerRunSpawnedCtx, .run = run,
+    EMBED_CALL(cli_runner_run_spawned_internal.run_output_relay, CliRunnerRunSpawnedCtx, .run = run,
                .spawned = &spawned);
     const long long exit_code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
     run->process = 0ULL;

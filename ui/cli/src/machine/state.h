@@ -24,9 +24,9 @@ typedef struct CliStateJsonCfg CliStateJsonCfg;
 typedef struct CliStateOutCfg CliStateOutCfg;
 typedef struct CliStateCfg CliStateCfg;
 
-// whether the entry `key`, without `orior.`, is a setting or the list of themes, those a taking of another machine's
+// whether the entry `key`, without `orior.`, is a setting or the list of themes, those an import of another machine's
 // settings changes
-int cli_state_is_machine_transfer(const CliStateCfg *args);
+int cli_state_is_synced(const CliStateCfg *args);
 // an entry as the page stores it, from the value written: a string's text, else the value as compact JSON, after `out`
 void cli_state_read_back(const CliStateJsonCfg *args);
 // every entry stored in `folder`, by its key without `orior.`, written as a JSON object of texts in the order of the
@@ -101,11 +101,11 @@ struct CliStateCfg
 
 typedef struct
 {
-    int (*is_machine_transfer)(const CliStateCfg *args);
+    int (*is_synced)(const CliStateCfg *args);
 } CliStateNs;
-EMBED_TABLE_LAYOUT(CliStateNs, is_machine_transfer);
+EMBED_TABLE_LAYOUT(CliStateNs, is_synced);
 EMBED_TABLE_STORAGE CliStateNs cli_state_table EMBED_UNUSED = {
-    .is_machine_transfer = cli_state_is_machine_transfer,
+    .is_synced = cli_state_is_synced,
 };
 
 typedef struct

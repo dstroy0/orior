@@ -4,10 +4,11 @@
 // switched to, merged, rebased onto, renamed and deleted, a branch whose commits no other branch contains deleted only
 // with --force, as the window confirms first; the stashes made, listed, applied, popped and dropped; the commits of the
 // other branches the branch open does not contain listed, and one picked; the tree's tests run; and the settings sent,
-// taken in and the taking undone
+// taken in and the import undone
 #include "at_terminal.h"
 #include "../code/git.h"
-#include "../machine/carry.h"
+#include "../machine/settings_sync.h"
+#include "commands.h"
 #include "../tests/testing.h"
 #include "../text/text.h"
 
@@ -25,19 +26,8 @@ typedef struct
 
 int cli_at_terminal_runs(const CliAtTerminalCommandCfg *args)
 {
-    static const char *const s_commands[] = {
-        "push",          "pull",          "branches",      "new-branch", "branch-switch", "branch-merge",
-        "branch-rebase", "branch-rename", "branch-delete", "stash",      "stashes",       "stash-apply",
-        "stash-pop",     "stash-drop",    "cherry-pick",   "run-tests",  "cover-tests",   "test-run",
-        "test-cover",    "carry-send",    "carry-take",    "carry-undo"};
-    for (unsigned int at = 0u; at < sizeof(s_commands) / sizeof(s_commands[0]); at += 1u)
-    {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_commands[at], .other = args->command, .cap = CLI_POOL_BYTES}))
-        {
-            return 1;
-        }
-    }
-    return 0;
+    CliItem node;
+    return cli_chain_item(&(CliCommandsMenuCfg){.word_text = args->command, .item = &node}) && node.terminal;
 }
 
 typedef struct
@@ -383,15 +373,15 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
                           .count = count, .cover = cover, .out = out, .err_msg = err_msg);
     }
     char home[CLI_PATH_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-send", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "sync.export", .cap = CLI_POOL_BYTES}))
     {
         name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
                           .count = count, .what = "the file or folder the settings go to", .err_msg = err_msg);
         return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
-               EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = home, .to = name,
+               EMBED_CALL(cli_settings_sync_home_to.send, CliSettingsSyncHomeToCfg, .home = home, .to = name,
                           .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-take", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "sync.import", .cap = CLI_POOL_BYTES}))
     {
         name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
                           .count = count, .what = "the file or folder the settings come from", .err_msg = err_msg);
@@ -399,10 +389,10 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
                EMBED_CALL(cli_at_terminal_count.take, CliAtTerminalCountCfg, .home = home, .from = name,
                           .chosen = args->request + 1, .count = count - 1u, .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-undo", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "sync.undo", .cap = CLI_POOL_BYTES}))
     {
         name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
-                          .count = count, .what = "a taking", .err_msg = err_msg);
+                          .count = count, .what = "an import", .err_msg = err_msg);
         return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
                EMBED_CALL(cli_at_terminal.undo, CliAtTerminalCfg, .home = home, .id = name, .out = out,
                           .err_msg = err_msg);

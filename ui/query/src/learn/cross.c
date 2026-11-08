@@ -118,7 +118,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
         char carried[QUERY_LINE_MAX_LEN];
         VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
         mmgr_line_put(&transferred_line, "  ");
-        whole = EMBED_CALL(query_from_writer_internal.writer_machine_transfer_list, QueryFromWriterCtx,
+        whole = EMBED_CALL(query_from_writer_internal.writer_records_import_list, QueryFromWriterCtx,
                            .writer = &s_here.writer, .from = args->latest, .list_entries = names_text,
                            .err_msg = &transferred_line);
         if (whole && (mmgr_line_finish(&transferred_line) != 0ULL))
@@ -152,7 +152,7 @@ EMBED_INLINE int query_forms_carried(const CrossCtx *args)
     mmgr_line_put(&forms_line, "/forms.txt");
     mmgr_line_finish(&forms_line);
     const char *const files[3] = {forms_work, forms, "gated.txt"};
-    return EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_here,
+    return EMBED_CALL(query_count_folder_internal.run_output_relay, QueryCountFolderCtx, .run = &s_here,
                       .folder = args->folder, .files = files, .count = 3u, .crystal = args->crystal,
                       .err_msg = args->err_msg);
 }

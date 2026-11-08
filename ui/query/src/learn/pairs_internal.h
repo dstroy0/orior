@@ -47,7 +47,7 @@ typedef struct
 void query_part_read(const QueryPairsPartNameCtx *args);
 // the carrier's words with the tools built and the vendor's reader found, added to `words`: the airlock every round
 // passes before the part, the pop and the cross, and the carrier stopped before the driver where `dry`
-int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args);
+int query_pairs_tools_words(const QueryPairsPartContextDryCtx *args);
 // the part's files, the bridge, the rulesets and the stick's manifest read into the run
 int query_pairs_configs(const QueryPairsPartContextCtx *args);
 // the host's questions, the C++ the run contains as `host_questions.cpp`, compiled under `out` with signed arithmetic
@@ -69,7 +69,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args);
 // is given after its folder; whether a mode opens with the kernel the system accepted; and the vendor's writer's
 // words after its program that hand the run that kernel (pairs_judged.c)
 int query_pairs_read(const QueryPairsErrMsgCtx *args);
-void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args);
+void query_pairs_words_add(const QueryPairsPartDryCtx *args);
 void query_targets(const QueryPairsWordsCtx *args);
 int query_kernel_dispatch(const QueryPairsCtx *args);
 void query_kernel_words(const QueryPairsPartCtx *args);
@@ -191,11 +191,11 @@ EMBED_TABLE_STORAGE QueryPairsPartNameNs query_pairs_part_name_internal EMBED_UN
 
 typedef struct
 {
-    int (*carry)(const QueryPairsPartContextDryCtx *args);
+    int (*tools_words)(const QueryPairsPartContextDryCtx *args);
 } QueryPairsPartContextDryNs;
-EMBED_TABLE_LAYOUT(QueryPairsPartContextDryNs, carry);
+EMBED_TABLE_LAYOUT(QueryPairsPartContextDryNs, tools_words);
 EMBED_TABLE_STORAGE QueryPairsPartContextDryNs query_pairs_part_context_dry_internal EMBED_UNUSED = {
-    .carry = query_pairs_machine_transfer,
+    .tools_words = query_pairs_tools_words,
 };
 
 typedef struct
@@ -267,11 +267,11 @@ EMBED_TABLE_STORAGE QueryPairsErrMsgNs query_pairs_err_msg_internal EMBED_UNUSED
 
 typedef struct
 {
-    void (*machine_transfer_words)(const QueryPairsPartDryCtx *args);
+    void (*words_add)(const QueryPairsPartDryCtx *args);
 } QueryPairsPartDryNs;
-EMBED_TABLE_LAYOUT(QueryPairsPartDryNs, machine_transfer_words);
+EMBED_TABLE_LAYOUT(QueryPairsPartDryNs, words_add);
 EMBED_TABLE_STORAGE QueryPairsPartDryNs query_pairs_part_dry_internal EMBED_UNUSED = {
-    .machine_transfer_words = query_pairs_machine_transfer_words,
+    .words_add = query_pairs_words_add,
 };
 
 typedef struct

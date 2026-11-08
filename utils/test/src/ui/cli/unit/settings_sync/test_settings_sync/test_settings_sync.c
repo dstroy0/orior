@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_machine_transfer.c: settings travel by a file, are compared before they are applied, and an application is undone; and settings travel by a
+// test_settings_sync.c: settings travel by a file, are compared before they are applied, and an application is undone; and settings travel by a
 // folder that is a repository and are committed
 #include "ui/cli/src/code/git.h"
-#include "ui/cli/src/machine/carry_internal.h"
+#include "ui/cli/src/machine/settings_sync_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static CliTransferred s_packed;
@@ -56,7 +56,7 @@ static int file_is(const char *name)
 // two homes written and the first packed into s_packed
 static void first_home_packed(void)
 {
-    cli_unity_folder("carry", s_root);
+    cli_unity_folder("settings_sync", s_root);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "one", .joined = s_one);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "two", .joined = s_two);
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = s_two));
@@ -66,17 +66,17 @@ static void first_home_packed(void)
     file_written("one/plugin_settings/marks.json", "{\"every\": 3}");
     file_written("one/state.json", "{\"panes\": {}}");
     file_written("two/settings.json", "{\"zoom\": 1.0, \"sticky\": false, \"memory-budget\": 400, \"machine\": {\"zoom\": 2}}");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer.pack, CliMachineTransferCfg, .home = s_one, .packed = &s_packed, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync.pack, CliSettingsSyncCfg, .home = s_one, .packed = &s_packed, .err_msg = &s_err_msg));
 }
 
 // the first home sent to a file and read back into s_there
 static void file_read_back(void)
 {
     first_home_packed();
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "carried.json", .joined = s_file);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "synced.json", .joined = s_file);
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = s_one, .to = s_file, .out = &out, .err_msg = &s_err_msg));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_home_to.send, CliSettingsSyncHomeToCfg, .home = s_one, .to = s_file, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_from.read, CliSettingsSyncFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
 }
 
 // the differences of the second home from the file, parsed: the array's node
@@ -84,7 +84,7 @@ static unsigned int differences_read(void)
 {
     file_read_back();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_machine_transfer_home.differences, CliMachineTransferHomeCfg, .home = s_two, .there = &s_there, .out = &out);
+    EMBED_CALL(cli_settings_sync_home.differences, CliSettingsSyncHomeCfg, .home = s_two, .there = &s_there, .out = &out);
     unsigned int found = CLI_JSON_NONE;
     s_json = cli_unity_parsed(s_out, out.at, &found);
     return found;
@@ -97,7 +97,7 @@ static void settings_applied(void)
     static const char *const s_chosen_keys[2] = {"zoom", "sticky"};
     file_read_back();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home.take, CliMachineTransferHomeCfg, .home = s_two, .from = "carried.json", .there = &s_there, .positions = s_chosen_files, .count = 3u, .keys = s_chosen_keys, .key_count = 2u, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_home.take, CliSettingsSyncHomeCfg, .home = s_two, .from = "synced.json", .there = &s_there, .positions = s_chosen_files, .count = 3u, .keys = s_chosen_keys, .key_count = 2u, .out = &out, .err_msg = &s_err_msg));
     unsigned int allocating = CLI_JSON_NONE;
     s_json = cli_unity_parsed(s_out, out.at, &allocating);
     const char *const id = cli_unity_member_text(allocating, "id");
@@ -110,7 +110,7 @@ static void settings_applied(void)
 static unsigned int applications_recorded(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_machine_transfer_home_to.allocations, CliMachineTransferHomeToCfg, .home = s_two, .out = &out);
+    EMBED_CALL(cli_settings_sync_home_to.allocations, CliSettingsSyncHomeToCfg, .home = s_two, .out = &out);
     unsigned int allocations = CLI_JSON_NONE;
     s_json = cli_unity_parsed(s_out, out.at, &allocations);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = allocations, .kind = CFG_JSON_ARRAY));
@@ -131,7 +131,7 @@ static void repository_created(void)
     static const char *const s_init[2] = {"init", "-q"};
     static const char *const s_email[3] = {"config", "user.email", "orior@example.com"};
     static const char *const s_name[3] = {"config", "user.name", "orior"};
-    cli_unity_folder("carry_repo", s_root);
+    cli_unity_folder("settings_sync_repo", s_root);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "home", .joined = s_home);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "repo", .joined = s_repo);
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = s_repo));
@@ -149,7 +149,7 @@ static int repository_sent(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     s_err_msg.at = 0ull;
-    const int sent = EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = s_home, .to = s_repo, .out = &out, .err_msg = &s_err_msg);
+    const int sent = EMBED_CALL(cli_settings_sync_home_to.send, CliSettingsSyncHomeToCfg, .home = s_home, .to = s_repo, .out = &out, .err_msg = &s_err_msg);
     s_out[out.at] = '\0';
     return sent;
 }
@@ -171,17 +171,17 @@ void test_what_travels_is_the_settings_themes_plugins_and_their_settings(void)
     TEST_ASSERT_EQUAL_UINT(4u, s_packed.count);
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(s_positions[at], EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at));
+        TEST_ASSERT_EQUAL_STRING(s_positions[at], EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position, CliSettingsSyncTransferredAtCtx, .synced = &s_packed, .at = at));
     }
 }
 
 void test_this_machines_own_settings_stay(void)
 {
     first_home_packed();
-    const unsigned int settings = EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx, .carried = &s_packed, .place = "settings.json");
+    const unsigned int settings = EMBED_CALL(cli_settings_sync_transferred_internal.transferred_find, CliSettingsSyncTransferredCtx, .synced = &s_packed, .place = "settings.json");
     TEST_ASSERT_LESS_THAN_UINT(s_packed.count, settings);
-    CLI_TEST_ASSERT_NOT_CONTAINS("memory-budget", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = settings));
-    CLI_TEST_ASSERT_NOT_CONTAINS("machine", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = settings));
+    CLI_TEST_ASSERT_NOT_CONTAINS("memory-budget", EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value, CliSettingsSyncTransferredAtCtx, .synced = &s_packed, .at = settings));
+    CLI_TEST_ASSERT_NOT_CONTAINS("machine", EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value, CliSettingsSyncTransferredAtCtx, .synced = &s_packed, .at = settings));
 }
 
 void test_a_file_reads_back_as_what_was_packed(void)
@@ -190,8 +190,8 @@ void test_a_file_reads_back_as_what_was_packed(void)
     TEST_ASSERT_EQUAL_UINT(s_packed.count, s_there.count);
     for (unsigned int at = 0u; at < s_there.count; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = at));
-        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = at));
+        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position, CliSettingsSyncTransferredAtCtx, .synced = &s_packed, .at = at), EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position, CliSettingsSyncTransferredAtCtx, .synced = &s_there, .at = at));
+        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value, CliSettingsSyncTransferredAtCtx, .synced = &s_packed, .at = at), EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value, CliSettingsSyncTransferredAtCtx, .synced = &s_there, .at = at));
     }
 }
 
@@ -278,7 +278,7 @@ void test_an_undo_writes_a_file_back_as_it_was(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     file_read("two/settings.json");
     CLI_TEST_ASSERT_CONTAINS("\"sticky\": false", s_now);
 }
@@ -287,7 +287,7 @@ void test_an_undo_removes_a_file_the_application_created(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     TEST_ASSERT_FALSE(file_is("two/themes/Night.json"));
 }
 
@@ -295,18 +295,18 @@ void test_an_undo_removes_the_record(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_UINT(0u, applications_recorded());
 }
 
 void test_a_file_that_transfers_no_settings_is_refused(void)
 {
-    cli_unity_folder("carry", s_root);
+    cli_unity_folder("settings_sync", s_root);
     file_written("other.json", "{\"files\": {}}");
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "other.json", .joined = s_file);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_settings_sync_from.read, CliSettingsSyncFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
     (void)mmgr_line_finish(&s_err_msg);
-    CLI_TEST_ASSERT_CONTAINS("no settings orior_cli carried", s_error);
+    CLI_TEST_ASSERT_CONTAINS("no settings orior_cli synced", s_error);
 }
 
 void test_settings_are_sent_to_a_repository_and_committed(void)
@@ -353,8 +353,8 @@ void test_the_repository_reads_back_what_was_sent(void)
     repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     s_err_msg.at = 0ull;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_repo, .there_out = &s_there, .err_msg = &s_err_msg));
-    const unsigned int day = EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx, .carried = &s_there, .place = "themes/Day.json");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_sync_from.read, CliSettingsSyncFromCfg, .from = s_repo, .there_out = &s_there, .err_msg = &s_err_msg));
+    const unsigned int day = EMBED_CALL(cli_settings_sync_transferred_internal.transferred_find, CliSettingsSyncTransferredCtx, .synced = &s_there, .place = "themes/Day.json");
     TEST_ASSERT_LESS_THAN_UINT(s_there.count, day);
-    TEST_ASSERT_EQUAL_STRING("{\"name\": \"Day\"}", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = day));
+    TEST_ASSERT_EQUAL_STRING("{\"name\": \"Day\"}", EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_value, CliSettingsSyncTransferredAtCtx, .synced = &s_there, .at = day));
 }

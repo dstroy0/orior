@@ -32,7 +32,10 @@
                                                                  stack of the busiest past the spike, to window_cpu.txt
     harness.py window gpu [--seconds 50] [--id N]                its process tree's GPU 3D engine share each second and
                                                                  its processor time, to window_gpu.txt
-    harness.py window in-job --id N                             whether a process sits in a job
+    harness.py window poll [--minutes 2] [--step 2] [--id N]     system and window processor share, threads, handles,
+                                                                 working set, commit, reserve and MMgr's telemetry
+                                                                 each step, to build/harness/window_poll.tsv
+    harness.py window in-job --id N                           whether a process sits in a job
     harness.py window test [arg...]                              the window's suite, ui/test/src (harness_window_test.py)
     harness.py window motion [--port P] [--edges E] [--rounds N] the window's motions as each edge's part comes and goes,
                                                                  what is not smooth and what does not match, ranked, to
@@ -1123,6 +1126,104 @@ def cmd_cpu(a):
     return subprocess.call(words)
 
 
+TELEMETRY = re.compile(r"^cells telemetry (\d+) (\d+) (\d+) (\d+) (\d+) (\d+)\s*$")
+OWNER_LINE = re.compile(r"^cells owner (\S+) (\d+) (\d+)\s*$")
+
+
+def telemetry_read(offset):
+    """MMgr's telemetry the window's main thread wrote to build/harness/window_errors.txt past `offset`: the last
+    telemetry line's fields or None, each owner's last (in use, peak), and the offset read to."""
+    try:
+        with open(WINDOW_ERRORS, "rb") as kept:
+            kept.seek(offset)
+            text = kept.read()
+    except OSError:
+        return None, {}, offset
+    last = None
+    owners = {}
+    for line in text.decode("utf-8", errors="replace").splitlines():
+        found = TELEMETRY.match(line)
+        if found:
+            last = tuple(int(field) for field in found.groups())
+            continue
+        named = OWNER_LINE.match(line)
+        if named:
+            owners[named.group(1)] = (int(named.group(2)), int(named.group(3)))
+    return last, owners, offset + len(text)
+
+
+def reserved_bytes(process_id):
+    """The bytes of a process's address space reserved and not committed."""
+    import harness_win32 as win
+
+    return sum(size for _, _, size, state, _, _ in win.regions(process_id) if state == win.MEM_RESERVE)
+
+
+def cmd_poll(a):
+    """The released window polled each --step seconds for --minutes: the system's processor share and the window's,
+    its threads and handles, its working set, private working set, commit and reserve, and the telemetry MMgr's main
+    thread writes on its memory tick: the pool, the bytes in use, the two peaks, the turnstiles' queue and the lane
+    passes. A row each step to build/harness/window_poll.tsv, and each owner whose in-use count moved."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    process_id = a.id or pid_read()
+    if not process_id or not win.alive(process_id):
+        print("no window running: harness.py window start")
+        return 1
+    cores = os.cpu_count() or 1
+    head = ["s", "system%", "window%", "threads", "handles", "working_MiB", "private_MiB", "commit_MiB", "reserve_MiB",
+            "pool_MiB", "in_use_MiB", "persistent_peak_MiB", "temporary_peak_MiB", "queue", "lane_passes"]
+    rows = []
+    owners = {}
+    offset = 0
+    telemetry, moved, offset = telemetry_read(offset)
+    owners.update(moved)
+    system_before = win.system_times()
+    window_before = win.processor_seconds(process_id) or 0.0
+    started = time.monotonic()
+    print("\t".join(head))
+    while time.monotonic() - started < a.minutes * 60.0:
+        time.sleep(a.step)
+        if not win.alive(process_id):
+            print("the window %d ended" % process_id)
+            break
+        system_now = win.system_times()
+        window_now = win.processor_seconds(process_id) or window_before
+        idle = system_now[0] - system_before[0]
+        busy = (system_now[1] - system_before[1]) + (system_now[2] - system_before[2])
+        system_share = 100.0 * (busy - idle) / busy if busy > 0.0 else 0.0
+        window_share = 100.0 * (window_now - window_before) / (a.step * cores)
+        system_before, window_before = system_now, window_now
+        said = win.memory(process_id) or (0, 0, 0)
+        found, moved, offset = telemetry_read(offset)
+        telemetry = found or telemetry
+        owners.update(moved)
+        mmgr = telemetry or (0, 0, 0, 0, 0, 0)
+        row = ["%.0f" % (time.monotonic() - started), "%.1f" % system_share, "%.2f" % window_share,
+               str(win.thread_count(process_id)), str(win.handle_count(process_id) or 0),
+               "%.1f" % (said[1] / MIB), "%.1f" % (said[0] / MIB), "%.1f" % (said[2] / MIB),
+               "%.1f" % (reserved_bytes(process_id) / MIB),
+               "%.1f" % (mmgr[0] / MIB), "%.2f" % (mmgr[1] / MIB), "%.2f" % (mmgr[2] / MIB), "%.2f" % (mmgr[3] / MIB),
+               str(mmgr[4]), str(mmgr[5])]
+        rows.append(row)
+        print("\t".join(row))
+    out = os.path.join(HARNESS_BUILD, "window_poll.tsv")
+    with open(out, "w", encoding="utf-8", newline="\n") as kept:
+        kept.write("\t".join(head) + "\n")
+        kept.writelines("\t".join(row) + "\n" for row in rows)
+        kept.write("\nowner\tin_use_bytes\tpeak_bytes\n")
+        kept.writelines("%s\t%d\t%d\n" % (name, used, peak) for name, (used, peak) in sorted(owners.items(), key=lambda one: -one[1][1]))
+    if telemetry is None:
+        print("no MMgr telemetry line in %s" % WINDOW_ERRORS)
+    print("owners by peak:")
+    for name, (used, peak) in sorted(owners.items(), key=lambda one: -one[1][1])[: a.owners]:
+        print("  %-32s in use %10d  peak %10d" % (name, used, peak))
+    print("written to %s" % out)
+    return 0
+
+
 def cmd_gpu(a):
     """The released window's process tree over --seconds: the processor time its processes used, and each second the
     share of the GPU's 3D engine they kept busy as the system counts it (typeperf over the GPU Engine counters), their
@@ -1404,6 +1505,14 @@ def register(sub):
     p.add_argument("--seconds", type=int, default=50, help="how long it is watched, the lattice's whole loop where none is given")
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.set_defaults(fn=cmd_gpu)
+
+    p = window.add_parser("poll", help="the window polled each --step s for --minutes: system and window processor share, "
+                                        "threads, handles, working set, commit, reserve and MMgr's telemetry, to build/harness/window_poll.tsv")
+    p.add_argument("--minutes", type=float, default=2.0)
+    p.add_argument("--step", type=float, default=2.0, help="the seconds between rows, MMgr's memory tick where none")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.add_argument("--owners", type=int, default=20, help="how many owners are printed, by peak")
+    p.set_defaults(fn=cmd_poll)
 
     p = window.add_parser("in-job", help="whether a process sits in a job")
     p.add_argument("--id", type=int, required=True)

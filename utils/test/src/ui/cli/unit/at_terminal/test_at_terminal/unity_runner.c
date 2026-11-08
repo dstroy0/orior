@@ -4,7 +4,7 @@
 #include "unity.h"
 #include "ui/cli/src/command_line/at_terminal.h"
 #include "ui/cli/src/command_line/command_line.h"
-#include "ui/cli/src/machine/carry.h"
+#include "ui/cli/src/machine/settings_sync.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -107,11 +107,11 @@ int main(void)
   run_test(test_settings_sent_are_read_in, "test_settings_sent_are_read_in", 265);
   run_test(test_settings_read_again_change_nothing, "test_settings_read_again_change_nothing", 276);
   run_test(test_settings_read_in_are_undone, "test_settings_read_in_are_undone", 292);
-  run_test(test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch, "test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch", 315);
-  run_test(test_a_window_command_with_no_window_opens_a_window, "test_a_window_command_with_no_window_opens_a_window", 326);
-  run_test(test_a_side_branchs_commit_is_listing_to_cherry_pick, "test_a_side_branchs_commit_is_listing_to_cherry_pick", 335);
-  run_test(test_a_branch_with_its_own_commits_is_deleted_only_when_forced, "test_a_branch_with_its_own_commits_is_deleted_only_when_forced", 344);
-  run_test(test_a_commit_is_cherry_picked_onto_main, "test_a_commit_is_cherry_picked_onto_main", 356);
+  run_test(test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch, "test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch", 317);
+  run_test(test_a_window_command_with_no_window_opens_a_window, "test_a_window_command_with_no_window_opens_a_window", 328);
+  run_test(test_a_side_branchs_commit_is_listing_to_cherry_pick, "test_a_side_branchs_commit_is_listing_to_cherry_pick", 337);
+  run_test(test_a_branch_with_its_own_commits_is_deleted_only_when_forced, "test_a_branch_with_its_own_commits_is_deleted_only_when_forced", 346);
+  run_test(test_a_commit_is_cherry_picked_onto_main, "test_a_commit_is_cherry_picked_onto_main", 358);
 
   return UNITY_END();
 }

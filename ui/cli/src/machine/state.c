@@ -2,29 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // state.c: where each of the window's entries is stored, and every entry read back from orior's own folder
 #include "../command_line/callback_cfg.h"
+#include "../command_line/commands.h"
 #include "../command_line/pool.h"
 #include "../deploy/devcontainer.h"
 #include "../text/text.h"
 #include "settings.h"
 #include "state_internal.h"
-
-// the settings among the window's entries: a key named here, or one starting with a name here that ends in `.`
-static const char *const s_settings[46] = {"scheme",          "zoom",           "opacity.",
-                                           "fonts",           "theme.",         "crumbs",
-                                           "column",          "sticky",         "brackets",
-                                           "autosave",        "trim",           "final-newline",
-                                           "format-on-save",  "panes.auto",     "patterns.",
-                                           "search.sets",     "plugins.off",    "plugins.allowed",
-                                           "plugins.catalog", "macros",         "vim",
-                                           "margin",          "whitespace",     "comments-hidden",
-                                           "past-ends",       "diff-space",     "diff-structure",
-                                           "memory-budget",   "cores-reserved", "smooth-scroll",
-                                           "flick-scroll",    "type-hints",     "parameter-hints",
-                                           "shape-search",    "docstring-form", "checkers",
-                                           "environment.",    "continuation",   "operator-next-line",
-                                           "doc-margin",      "tests.parallel", "titlebar",
-                                           "signing.",        "keys",           "network",
-                                           "language"};
 
 // the entry that contains every theme of the reader's, and the start of each change not saved
 static const char s_themes[] = "themes";
@@ -42,21 +25,13 @@ unsigned int cli_state_position(const CliStateCtx *args)
     {
         return CLI_STATE_BACKUP;
     }
-    for (unsigned int at = 0u; at < 46u; at += 1u)
-    {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_settings[at], .cap = CLI_POOL_BYTES});
-        const int prefix = s_settings[at][length - 1ULL] == '.';
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_settings[at], .cap = CLI_POOL_BYTES})) ||
-            (prefix && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->key,
-                                  .other_pointer = s_settings[at], .size = length)))
-        {
-            return CLI_STATE_SETTINGS;
-        }
-    }
-    return CLI_STATE_FILE;
+    CliItem node;
+    return (cli_setting_node(&(CliCommandsMenuCfg){.word_text = args->key, .item = &node}) && node.setting)
+               ? CLI_STATE_SETTINGS
+               : CLI_STATE_FILE;
 }
 
-int cli_state_is_machine_transfer(const CliStateCfg *args)
+int cli_state_is_synced(const CliStateCfg *args)
 {
     const unsigned int place = EMBED_CALL(cli_state_internal.place, CliStateCtx, .key = args->key);
     return (place == CLI_STATE_SETTINGS) || (place == CLI_STATE_THEMES);

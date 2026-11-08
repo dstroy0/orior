@@ -2498,7 +2498,7 @@ EMBED_INLINE void view_lines_cover(const ViewCtx *args)
 // a place carried through the edit of the span from `from` to `to` by text ending at `end`: before it it stays, inside
 // it it goes to the span's start, or with `after` to the text's end, and past it it moves with the span's end; a place
 // at the span's start goes on only with `after`
-EMBED_INLINE CliPosition view_position_machine_transfer(const ViewCtx *args)
+EMBED_INLINE CliPosition view_position_map(const ViewCtx *args)
 {
     if (EMBED_CALL(view_before, ViewCtx, .one = args->place, .other = args->from) ||
         (!EMBED_CALL(view_before, ViewCtx, .one = args->from, .other = args->place) && !args->after))
@@ -2588,9 +2588,9 @@ EMBED_INLINE int view_cell_replace(const ViewCtx *args)
     const CliPosition anchor = args->view->anchor;
     const int after = EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
                       EMBED_CALL(view_before, ViewCtx, .one = cursor, .other = anchor);
-    const CliPosition cursor_transferred = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = cursor,
+    const CliPosition cursor_transferred = EMBED_CALL(view_position_map, ViewCtx, .place = cursor,
                                                       .from = from, .to = to, .end = end, .after = 1);
-    const CliPosition anchor_transferred = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = anchor,
+    const CliPosition anchor_transferred = EMBED_CALL(view_position_map, ViewCtx, .place = anchor,
                                                       .from = from, .to = to, .end = end, .after = after);
     if (!view_edit_trim(args))
     {
@@ -2828,13 +2828,13 @@ EMBED_INLINE unsigned long long view_indent_line(const ViewCtx *args)
     if (view->cursor.line == line)
     {
         *args->cursor_pointer =
-            EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor, .from = from, .to = to,
+            EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from, .to = to,
                        .end = ends, .after = (view->cursor.col > 0ULL) || !args->selected);
     }
     if (view->anchor.line == line)
     {
         *args->anchor_pointer =
-            EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor, .from = from, .to = to,
+            EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from, .to = to,
                        .end = ends, .after = (view->anchor.col > 0ULL) || !args->selected);
     }
     return at;
@@ -2950,12 +2950,12 @@ EMBED_INLINE unsigned long long view_comment_line(const ViewCtx *args)
     const CliPosition ends = {line, args->marked ? place : place + args->units_u64 + 1ULL};
     if (view->cursor.line == line)
     {
-        *args->cursor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor, .from = from,
+        *args->cursor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from,
                                            .to = to, .end = ends, .after = 1);
     }
     if (view->anchor.line == line)
     {
-        *args->anchor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor, .from = from,
+        *args->anchor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from,
                                            .to = to, .end = ends, .after = args->after);
     }
     memor.cpy(&(MemoriaCfg){.dst = put + at, .src = text + read, .bytes = place});
@@ -3629,9 +3629,9 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
         return 0;
     }
     EMBED_CALL(view_settle, ViewCtx, .view = args->view,
-               .cursor = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = cursor, .from = from, .to = to,
+               .cursor = EMBED_CALL(view_position_map, ViewCtx, .place = cursor, .from = from, .to = to,
                                     .end = end, .after = 1),
-               .anchor = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = anchor, .from = from, .to = to,
+               .anchor = EMBED_CALL(view_position_map, ViewCtx, .place = anchor, .from = from, .to = to,
                                     .end = end, .after = 0));
     return 1;
 }

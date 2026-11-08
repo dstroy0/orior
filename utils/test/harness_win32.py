@@ -294,6 +294,45 @@ def processor_seconds(process_id):
     return sum((time.high << 32) | time.low for time in (kernel, user)) / 10_000_000
 
 
+MEM_RESERVE = 0x2000
+
+
+def handle_count(process_id):
+    """The handles a process holds open, as the system counts them; None where it cannot be asked."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)
+    if not handle:
+        return None
+    count = wintypes.DWORD(0)
+    asked = kernel32.GetProcessHandleCount(handle, ctypes.byref(count))
+    kernel32.CloseHandle(handle)
+    return count.value if asked else None
+
+
+def thread_count(process_id):
+    """The threads a process runs, as a process snapshot counts them; 0 where it runs none."""
+    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if snapshot == INVALID_HANDLE:
+        return 0
+    entry = ProcessEntry()
+    entry.dwSize = ctypes.sizeof(ProcessEntry)
+    count = 0
+    more = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+    while more:
+        if entry.th32ProcessID == process_id:
+            count = entry.cntThreads
+            break
+        more = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    kernel32.CloseHandle(snapshot)
+    return count
+
+
+def system_times():
+    """(idle, kernel, user) seconds every processor of the system has spent; the kernel time holds the idle time."""
+    idle, kernel, user = FileTime(), FileTime(), FileTime()
+    kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kernel), ctypes.byref(user))
+    return tuple(((one.high << 32) | one.low) / 10_000_000 for one in (idle, kernel, user))
+
+
 def in_job(process_id):
     """(asked, in a job) for a process: whether the question was answered and its answer."""
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)

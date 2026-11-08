@@ -18,7 +18,7 @@ extern void test_the_list_is_quick_enough_for_a_picker(void);
 extern void test_launch_arguments_read_the_program_and_the_folder(void);
 extern void test_a_number_filled_in_is_a_number(void);
 extern void test_a_frame_counts_its_line_from_zero(void);
-extern void test_breakpoints_machine_transfer_their_conditions_counts_and_messages(void);
+extern void test_breakpoints_retain_their_conditions_counts_and_messages(void);
 extern void test_a_session_accepts_the_files_of_its_language(void);
 extern void test_memory_comes_as_base64(void);
 extern void test_every_byte_of_memory_comes_through_base64(void);
@@ -99,7 +99,7 @@ int main(void)
   run_test(test_launch_arguments_read_the_program_and_the_folder, "test_launch_arguments_read_the_program_and_the_folder", 259);
   run_test(test_a_number_filled_in_is_a_number, "test_a_number_filled_in_is_a_number", 271);
   run_test(test_a_frame_counts_its_line_from_zero, "test_a_frame_counts_its_line_from_zero", 283);
-  run_test(test_breakpoints_machine_transfer_their_conditions_counts_and_messages, "test_breakpoints_machine_transfer_their_conditions_counts_and_messages", 294);
+  run_test(test_breakpoints_retain_their_conditions_counts_and_messages, "test_breakpoints_retain_their_conditions_counts_and_messages", 294);
   run_test(test_a_session_accepts_the_files_of_its_language, "test_a_session_accepts_the_files_of_its_language", 307);
   run_test(test_memory_comes_as_base64, "test_memory_comes_as_base64", 315);
   run_test(test_every_byte_of_memory_comes_through_base64, "test_every_byte_of_memory_comes_through_base64", 322);

@@ -196,17 +196,14 @@ static ServersProblemsTable *problems_table_built(const ServersProblemsTable *ta
 
 // from any thread: a file's report taken and published in the table in place of the file's last, or the file taken out
 // where it has no diagnostics; the table replaced pushed on the retired
-// a pass badged in at the table's turnstiles with the servers' owner place: badged in again while the bank is full
+// a pass entered at the table's turnstiles from the address of a word on this thread's stack: each thread's stack has
+// its own place, so the threads start at lanes of their own, and the entry spills where a lane is busy
 static unsigned int problems_entered(void)
 {
-    unsigned int at =
-        embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_word_value)g_cli_servers_owner->place);
+    const unsigned int here = 0u;
 
-    while (at == EMBED_TURNSTILE_NONE)
-    {
-        at = embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_word_value)g_cli_servers_owner->place);
-    }
-    return at;
+    // Explicit cast carries the address of the stack word as the entry's integer
+    return embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_uptr_value)(uintptr_t)&here);
 }
 
 static void problems_reported(const CliServerDiagnosticsCfg *args)

@@ -272,21 +272,79 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     if (EMBED_CALL(cli_commands_menu.menu_command, CliCommandsMenuCfg, .menu = menu, .word_text = words[1],
                    .item = &s_item))
     {
-        if (s_item.console)
+        // the chain walked down the tree: each word after names a node among the rows under the node before, while
+        // that node has rows; the chain's commands joined by dots, and the words after it the command's own
+        static char s_chain[CLI_LABEL_MAX_LEN * 4u];
+        VerbaLinea chain = {s_chain, sizeof(s_chain), 0ULL};
+        mmgr_line_put(&chain, s_item.command);
+        unsigned int used = 2u;
+        int console = s_item.console;
+        while ((used < count) && (s_item.list != 0u))
+        {
+            const unsigned int rows = s_item.list;
+            if (!EMBED_CALL(cli_commands_menu.item_command, CliCommandsMenuCfg, .list = rows, .word_text = words[used],
+                            .item = &s_item))
+            {
+                break;
+            }
+            mmgr_line_ch(&chain, '.');
+            mmgr_line_put(&chain, s_item.command);
+            console = console || s_item.console;
+            used += 1u;
+        }
+        // a setting whose every key under its chain is its own takes the next word as the rest of the key
+        if (s_item.setting && s_item.each && (used < count))
+        {
+            mmgr_line_ch(&chain, '.');
+            mmgr_line_put(&chain, words[used]);
+            used += 1u;
+        }
+        (void)mmgr_line_finish(&chain);
+        // a chain that ends on a node with rows under it names no command: its rows written out where no word follows,
+        // and the word that follows refused where none of them is it
+        if (s_item.list != 0u)
+        {
+            static CliItem s_rows[CLI_ITEMS_MAX];
+            const unsigned int rows = cli_menu_rows(s_item.list, s_rows, CLI_ITEMS_MAX);
+            VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
+            mmgr_line_put(&line, word_text);
+            mmgr_line_ch(&line, '.');
+            mmgr_line_put(&line, s_chain);
+            mmgr_line_put(&line, (used < count) ? " has no " : " takes one of:");
+            mmgr_line_put(&line, (used < count) ? words[used] : "");
+            for (unsigned int row = 0u; (used >= count) && (row < rows); row += 1u)
+            {
+                mmgr_line_ch(&line, ' ');
+                mmgr_line_put(&line, s_rows[row].command);
+            }
+            EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
+                       .size = mmgr_line_ok(&line) ? line.at : 0ULL);
+            EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
+            return;
+        }
+        if (s_item.setting)
+        {
+            EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
+                       .code = EMBED_CALL(cli_command_line_words_count_internal.console_setting,
+                                          CliCommandLineWordsCountCtx, .command = s_chain, .named = named,
+                                          .words = words + used, .count = count - used, .args_text = s_item.args));
+            return;
+        }
+        if (console)
         {
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
                        .code = EMBED_CALL(cli_command_line_words_count_internal.console, CliCommandLineWordsCountCtx,
-                                          .command = s_item.command, .named = named, .words = words + 2,
-                                          .count = count - 2u));
+                                          .command = s_item.command, .named = named, .words = words + used,
+                                          .count = count - used));
             return;
         }
         // a command the window runs is given the words it needs, else it is refused here and never sent there
-        if ((count - 2u) < EMBED_CALL(cli_commands_item.item_words_need, CliCommandsItemCfg, .item_read = &s_item))
+        if ((count - used) < EMBED_CALL(cli_commands_item.item_words_need, CliCommandsItemCfg, .item_read = &s_item))
         {
             VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
             mmgr_line_put(&line, word_text);
-            mmgr_line_ch(&line, ' ');
-            mmgr_line_put(&line, s_item.command);
+            mmgr_line_ch(&line, '.');
+            mmgr_line_put(&line, s_chain);
             mmgr_line_put(&line, " takes ");
             mmgr_line_put(&line, s_item.args);
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
@@ -295,7 +353,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
             return;
         }
         EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = word_text,
-                   .command = s_item.command, .request = words + 2, .count = count - 2u);
+                   .command = s_chain, .request = words + used, .count = count - used);
         return;
     }
     char group[1][CLI_LABEL_MAX_LEN];

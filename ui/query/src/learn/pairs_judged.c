@@ -152,7 +152,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     const int has_crystal = EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx,
                                        .root = context->root, .program = crystal, .capacity = sizeof(crystal));
     const char *const carried[3] = {host_answers, overseer, "faulted.txt"};
-    whole = whole && EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_run,
+    whole = whole && EMBED_CALL(query_count_folder_internal.run_output_relay, QueryCountFolderCtx, .run = &s_run,
                                 .folder = run_folder, .files = carried, .count = 3u,
                                 .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
     const unsigned char *bytes = NULL;
@@ -213,7 +213,7 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word_text = "--");
     whole = whole &&
-            EMBED_CALL(query_pairs_part_context_dry_internal.carry, QueryPairsPartContextDryCtx, .context = context,
+            EMBED_CALL(query_pairs_part_context_dry_internal.tools_words, QueryPairsPartContextDryCtx, .context = context,
                        .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
                        .context = context, .run = &s_run, .identity = args->identity,

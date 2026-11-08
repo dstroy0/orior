@@ -27,9 +27,9 @@ typedef struct GuiPreferencesCfg GuiPreferencesCfg;
 typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
 
 // the sections; the rows of Settings; the zoom's steps; the opacities' step and most; and the sizes in unscaled pixels:
-// how far everything saves from the edges of what it stands in, the sections' width, a row's height, the text's size, a
-// cell of the grid's width and height, the swatch's side, the code's size, and the most bytes a value's text and a
-// color's name take
+// how far everything stands from the edges of what it stands in, a section's tab's width along the top, a row's
+// height, the text's size, a cell of the grid's width and height, the swatch's side, the code's size, the shown tab's
+// underline, and the most bytes a value's text and a color's name take
 #define GUI_PREFERENCES_SETTINGS 0u
 #define GUI_PREFERENCES_COLORS 1u
 #define GUI_PREFERENCES_SECTIONS 2u
@@ -43,7 +43,8 @@ typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
 #define GUI_PREFERENCE_OPACITY_STEP 10u
 #define GUI_PREFERENCE_OPACITY_MAX 100u
 #define GUI_PREFERENCES_EDGE 24
-#define GUI_PREFERENCES_LIST 168
+#define GUI_PREFERENCES_TAB 112
+#define GUI_PREFERENCES_TAB_LINE 2
 #define GUI_PREFERENCES_ROW 30
 #define GUI_PREFERENCES_SIZE 13u
 #define GUI_PREFERENCES_CELL_WIDTH 320
@@ -85,7 +86,8 @@ typedef struct
 
 // Preferences: whether it is shown; the section shown; the row or color marked; the grid's first row in view; whether a
 // color's value is being typed, what has been typed and how much; its window's client size and the scale it is laid at,
-// a percent; and whether the pointer stands on its close mark
+// a percent; whether the pointer stands on its close mark; and whether its window holds the focus, which its edge
+// shows in the signal and the main window's work then does not
 typedef struct
 {
     int displayed;
@@ -99,6 +101,7 @@ typedef struct
     unsigned int height;
     int scale;
     int close_pointed;
+    int focused;
 } GuiPreferences;
 
 // a Preferences not shown, at its first section

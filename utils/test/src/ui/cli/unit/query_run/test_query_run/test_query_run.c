@@ -366,7 +366,7 @@ void test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_fr
         paths[at] = files[at];
     }
     err_msg.at = 0ull;
-    const int carried = EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_run, .folder = folder, .files = paths, .count = 3u, .crystal = NULL, .err_msg = &err_msg);
+    const int carried = EMBED_CALL(query_count_folder_internal.run_output_relay, QueryCountFolderCtx, .run = &s_run, .folder = folder, .files = paths, .count = 3u, .crystal = NULL, .err_msg = &err_msg);
     const int from_run = latest_is(&s_run, "carried_check_forms.txt", "from the run before\n");
     const int from_disk = latest_is(&s_run, "carried_check_faulted.txt", "from the disk\n");
     const unsigned char *bytes = NULL;

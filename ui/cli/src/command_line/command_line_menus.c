@@ -56,6 +56,46 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
     }
 }
 
+// the depth of the tree of commands a menu's chains are written to at the most
+#define CLI_MENU_CHAIN_DEPTH 8u
+
+typedef struct
+{
+    const char *words;
+    const CliItem *items;
+    unsigned int count;
+    unsigned int depth;
+} CommandLineChainsCtx;
+// each of `count` rows written as `orior_cli <words> <command> <args>`, marked where it acts in the window, a row with
+// rows under it written by its rows in its place, its command added to the words
+static void menus_chains(const CommandLineChainsCtx *args)
+{
+    static CliItem s_rows[CLI_MENU_CHAIN_DEPTH][CLI_ITEMS_MAX];
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        const CliItem *const item = &args->items[at];
+        char line[CLI_LABEL_MAX_LEN * 4u];
+        VerbaLinea usage = {line, sizeof(line), 0ULL};
+        mmgr_line_put(&usage, args->words);
+        mmgr_line_ch(&usage, ' ');
+        mmgr_line_put(&usage, item->command);
+        if ((item->list != 0u) && (args->depth < CLI_MENU_CHAIN_DEPTH))
+        {
+            (void)mmgr_line_finish(&usage);
+            const unsigned int rows = cli_menu_rows(item->list, s_rows[args->depth], CLI_ITEMS_MAX);
+            menus_chains(&(CommandLineChainsCtx){
+                .words = line, .items = s_rows[args->depth], .count = rows, .depth = args->depth + 1u});
+            continue;
+        }
+        mmgr_line_ch(&usage, ' ');
+        mmgr_line_put(&usage, item->args);
+        usage.at = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = line, .size = usage.at);
+        mmgr_line_put(&usage, (item->console || item->setting) ? "" : "  *");
+        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
+                   .size = mmgr_line_ok(&usage) ? usage.at : 0ULL);
+    }
+}
+
 int cli_menu_lines(const CliCommandLineWordCtx *args)
 {
     static CliItem s_items[CLI_ITEMS_MAX];
@@ -63,21 +103,12 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
     EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word_text);
     const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
                                           .menu = args->menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
-    for (unsigned int at = 0u; at < items; at += 1u)
-    {
-        char line[CLI_LABEL_MAX_LEN * 4u];
-        VerbaLinea usage = {line, sizeof(line), 0ULL};
-        mmgr_line_put(&usage, "orior_cli ");
-        mmgr_line_put(&usage, word_text);
-        mmgr_line_ch(&usage, ' ');
-        mmgr_line_put(&usage, s_items[at].command);
-        mmgr_line_ch(&usage, ' ');
-        mmgr_line_put(&usage, s_items[at].args);
-        usage.at = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = line, .size = usage.at);
-        mmgr_line_put(&usage, s_items[at].console ? "" : "  *");
-        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
-                   .size = mmgr_line_ok(&usage) ? usage.at : 0ULL);
-    }
+    char words[CLI_LABEL_MAX_LEN];
+    VerbaLinea first = {words, sizeof(words), 0ULL};
+    mmgr_line_put(&first, "orior_cli ");
+    mmgr_line_put(&first, word_text);
+    (void)mmgr_line_finish(&first);
+    menus_chains(&(CommandLineChainsCtx){.words = words, .items = s_items, .count = items, .depth = 0u});
     char split[CLI_LABEL_MAX_LEN];
     char group[1][CLI_LABEL_MAX_LEN];
     if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = args->menu, .groups = group,

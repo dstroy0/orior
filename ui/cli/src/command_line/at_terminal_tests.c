@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // at_terminal_tests.c: the tree's tests run at the terminal and waited for, each test that failed reported with the
 // first line it printed, each file's coverage, and the counts, a run that ran no test or failed one refused; and the
-// settings a file or a folder carries taken in, each file and setting named or every one that differs, and a taking
+// settings a file or a folder syncs taken in, each file and setting named or every one that differs, and an import
 // undone
-#include "../machine/carry.h"
+#include "../machine/settings_sync.h"
 #include "../tests/test_runs.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -17,8 +17,8 @@ typedef struct
     VerbaLinea line;
     unsigned long long lines;
 } CliTestLines;
-// the most files and settings one taking takes; the most bytes of the lines a run's failed tests or its coverage print;
-// and the most bytes of what is carried written as its differences or as a taking
+// the most files and settings one import takes; the most bytes of the lines a run's failed tests or its coverage print;
+// and the most bytes of what is synced written as its differences or as an import
 #define CLI_AT_TERMINAL_ALLOCATED 4096u
 #define CLI_AT_TERMINAL_LINES (1u << 20u)
 #define CLI_AT_TERMINAL_TRANSFERRED (8ULL << 20u)
@@ -304,7 +304,7 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     return good;
 }
 
-// a cell of the most what is carried writes to
+// a cell of the most what is synced writes to
 static char *tests_transferred_alloc(void)
 {
     return g_cli_guard->temporary_buf_alloc(CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
@@ -337,14 +337,14 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     static CliTransferred s_there;
-    if (!EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = from, .there_out = &s_there,
+    if (!EMBED_CALL(cli_settings_sync_from.read, CliSettingsSyncFromCfg, .from = from, .there_out = &s_there,
                     .err_msg = err_msg))
     {
         return 0;
     }
     char *const differences_text = tests_transferred_alloc();
     VerbaLinea differences = mmgr_line_over(differences_text, CLI_AT_TERMINAL_TRANSFERRED);
-    EMBED_CALL(cli_machine_transfer_home.differences, CliMachineTransferHomeCfg, .home = home, .there = &s_there,
+    EMBED_CALL(cli_settings_sync_home.differences, CliSettingsSyncHomeCfg, .home = home, .there = &s_there,
                .out = &differences);
     CliJson tree;
     CliJson *const json = &tree;
@@ -442,7 +442,7 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     {
         char *const allocating_text = tests_transferred_alloc();
         VerbaLinea allocating = mmgr_line_over(allocating_text, CLI_AT_TERMINAL_TRANSFERRED);
-        done = EMBED_CALL(cli_machine_transfer_home.take, CliMachineTransferHomeCfg, .home = home, .from = from,
+        done = EMBED_CALL(cli_settings_sync_home.take, CliSettingsSyncHomeCfg, .home = home, .from = from,
                           .there = &s_there, .positions = chosen_positions, .count = positions, .keys = chosen_keys,
                           .key_count = keys, .out = &allocating, .err_msg = err_msg);
         CliJson consumed_tree;
@@ -466,7 +466,7 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
             mmgr_line_decimal(out, reserved, 1u);
             mmgr_line_put(out, (reserved == 1u) ? " file from " : " files from ");
             mmgr_line_put(out, from);
-            mmgr_line_put(out, "; carry-undo ");
+            mmgr_line_put(out, "; preferences sync undo ");
             mmgr_line_put_n(out, (id != NULL) ? id : "", id_size);
             mmgr_line_put(out, " writes them back.");
         }
@@ -490,7 +490,7 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char *const allocating_text = tests_transferred_alloc();
     VerbaLinea allocating = mmgr_line_over(allocating_text, CLI_AT_TERMINAL_TRANSFERRED);
-    const int done = EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = home,
+    const int done = EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = home,
                                 .id = id, .out = &allocating, .err_msg = err_msg);
     CliJson tree;
     const unsigned int consumed =
@@ -503,7 +503,7 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &tree,
                                           .object = consumed, .name = "from"),
                        .length_pointer = &size);
-        mmgr_line_put(out, "The taking from ");
+        mmgr_line_put(out, "The import from ");
         mmgr_line_put_n(out, (from != NULL) ? from : "", size);
         mmgr_line_put(out, " is undone.");
     }

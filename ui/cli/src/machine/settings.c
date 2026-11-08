@@ -3,6 +3,7 @@
 // settings.c: a settings file's own keys, the settings a tree's file does not set, `${name}` read, and a chain of
 // files each taking the next, read and written as the window reads it
 #include "../command_line/callback_cfg.h"
+#include "../command_line/commands.h"
 #include "../command_line/pool.h"
 #include "../deploy/devcontainer.h"
 #include "../text/text.h"
@@ -32,13 +33,6 @@ static const char s_machine[] = "machine";
 
 static const char *const s_systems[3] = {"windows", "linux", "macos"};
 
-// the settings a tree's file does not set, each a key or the start of keys where it ends in `.`: how the programs a
-// build makes are signed, the environment a tree's runs take, the checkers run as files change, the window's title
-// bar, whether orior_cli is blocked from the network, what each plugin may read, write and reach, and the cores
-// reserved for the reader. Each runs a program, names the reader's own, lets orior_cli or a plugin reach out or takes
-// the reader's machine, and a tree cloned from anywhere would set it
-static const char *const s_tree_scoped_keys[7] = {"signing.", "environment.",    "checkers",      "titlebar",
-                                                  "network",  "plugins.allowed", "cores-reserved"};
 
 // the most bytes of a settings file read
 #define CLI_SETTINGS_FILE (1u << 20u)
@@ -85,21 +79,13 @@ int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
     return found;
 }
 
+// whether `key` is a setting a tree's file does not set, its node in commands.json marked `reader`: a setting that runs
+// a program, names the reader's own, lets orior_cli or a plugin reach out or takes the reader's machine, which a tree
+// cloned from anywhere would otherwise set
 int cli_settings_tree_scope(const CliSettingsKeyCtx *args)
 {
-    for (unsigned int at = 0u; at < 7u; at += 1u)
-    {
-        const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = s_tree_scoped_keys[at], .cap = CLI_POOL_BYTES});
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_tree_scoped_keys[at], .cap = CLI_POOL_BYTES})) ||
-            ((s_tree_scoped_keys[at][length - 1ULL] == '.') &&
-             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->key,
-                        .other_pointer = s_tree_scoped_keys[at], .size = length)))
-        {
-            return 1;
-        }
-    }
-    return 0;
+    CliItem node;
+    return cli_setting_node(&(CliCommandsMenuCfg){.word_text = args->key, .item = &node}) && node.reader;
 }
 
 void cli_settings_home(const CliSettingsCtx *args)

@@ -27,8 +27,11 @@ typedef struct CliCommandsItemCfg CliCommandsItemCfg;
 
 // One row of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after its
 // name, or for a part's own row the one word it runs with, what it needs before it can be chosen, the name of the state
-// it shows on or off, empty where it is neither, 1 where the command line runs it in the terminal, whether it is a
-// line, hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has none
+// it shows on or off, empty where it is neither, 1 where the command line runs it in the terminal, 1 where it is a
+// setting whose key is its chain of commands after its menu's word, joined by dots, 1 where every key its chain starts,
+// a dot after it, is its own, 1 where its key stays on this machine and is never carried, 1 where only the reader's own
+// settings.json sets it and a tree's never does, 1 where the command line runs it in a terminal where no window is open,
+// whether it is a line, hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has none
 typedef struct
 {
     const char *label;
@@ -38,6 +41,11 @@ typedef struct
     const char *needs;
     const char *checks;
     int console;
+    int setting;
+    int each;
+    int machine;
+    int reader;
+    int terminal;
     int line;
     int hidden;
     int fill;
@@ -164,11 +172,26 @@ unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args);
 // own rows; and whether a menu takes a title on the window's bar: it has rows, and it is neither the strip's nor a
 // popup
 unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity);
+// the list of the command line's own words, as `line` in the list names them, read by cli_menu_rows; 0 where it has
+// none
+unsigned int cli_line_list(void);
 unsigned int cli_menu_list(unsigned int menu);
 int cli_menu_shown(unsigned int menu);
 // the item of the menu whose command is `word`: 1, or 0 where it has none; and the words an item must be given, each
 // `<word>` of its args outside a bracket
 int cli_menu_command(const CliCommandsMenuCfg *args);
+// the item among the rows under an item, its `list`, whose command is `word`, the next node of a chain: 1, or 0 where
+// none is
+int cli_item_command(const CliCommandsMenuCfg *args);
+// the node of the settings, the rows of the menu CLI_SETTINGS_MENU, whose chain is the key `word`, its parts joined by
+// dots, read into `item`, a node marked `each` the node of every key its chain starts: 1, or 0 where none is
+#define CLI_SETTINGS_MENU "preferences"
+int cli_setting_node(const CliCommandsMenuCfg *args);
+// the node of any menu whose chain after the menu's word is `word`, read into `item`: 1, or 0 where none is
+int cli_chain_item(const CliCommandsMenuCfg *args);
+// the reader's own keys of `command`, the setting `keys.<command>`, laid over the keys the list gives it from here on,
+// in every item read of it
+void cli_commands_keys_own(const char *command, const char *keys);
 unsigned int cli_item_words_need(const CliCommandsItemCfg *args);
 // the menu whose word is `word`: 1, or 0 where none is
 int cli_menu_by_name(const CliCommandsWordCfg *args);
@@ -178,6 +201,7 @@ const char *cli_commands_text(const CliCommandsSizeCfg *args);
 struct CliCommandsMenuCfg
 {
     unsigned int menu;
+    unsigned int list;
     const char *word_text;
     CliItem *item;
 };
@@ -292,10 +316,12 @@ EMBED_TABLE_STORAGE CliCommandsMenuCapacityNs cli_commands_menu_capacity EMBED_U
 typedef struct
 {
     int (*menu_command)(const CliCommandsMenuCfg *args);
+    int (*item_command)(const CliCommandsMenuCfg *args);
 } CliCommandsMenuNs;
-EMBED_TABLE_LAYOUT(CliCommandsMenuNs, menu_command);
+EMBED_TABLE_LAYOUT(CliCommandsMenuNs, menu_command, item_command);
 EMBED_TABLE_STORAGE CliCommandsMenuNs cli_commands_menu EMBED_UNUSED = {
     .menu_command = cli_menu_command,
+    .item_command = cli_item_command,
 };
 
 typedef struct

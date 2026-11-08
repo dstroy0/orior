@@ -225,7 +225,7 @@ EMBED_INLINE unsigned int query_transferred_runs(const RunCtx *args)
     return count;
 }
 
-int query_run_machine_transfer(const QueryCountFolderCtx *args)
+int query_run_files_add(const QueryCountFolderCtx *args)
 {
     char course[QUERY_PATH_MAX_LEN];
     VerbaLinea course_line = {course, sizeof(course), 0ULL};
@@ -289,7 +289,7 @@ int query_run_machine_transfer(const QueryCountFolderCtx *args)
         }
         char carried[QUERY_LINE_MAX_LEN];
         VerbaLinea transferred_line = {carried, sizeof(carried), 0ULL};
-        EMBED_CALL(query_count_name_internal.writer_machine_transfer, QueryCountNameCtx, .writer = &args->run->writer,
+        EMBED_CALL(query_count_name_internal.writer_records_import, QueryCountNameCtx, .writer = &args->run->writer,
                    .from = named, .names = s_missing, .count = missing, .err_msg = &transferred_line);
     }
     g_cli_guard->persistent_buf_release(transferred_from, g_query_owner);

@@ -130,7 +130,7 @@ EMBED_INLINE int send_here(const DeploySendCtx *args)
 
 // the files retained and the files gone that are retained copied into the release `into` from the one the place at
 // `index` runs: 1, or 0 with why given
-EMBED_INLINE int send_machine_transfer(const DeploySendCtx *args)
+EMBED_INLINE int send_retained_files(const DeploySendCtx *args)
 {
     const CliDeployRun *const run = &g_cli_deploy;
     const CliDeployPosition *const place = &run->place[args->index];
@@ -238,7 +238,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = tar);
     return sent &&
            (!args->releases ||
-            EMBED_CALL(send_machine_transfer, DeploySendCtx, .index = args->index, .into = into, .preserved = preserved,
+            EMBED_CALL(send_retained_files, DeploySendCtx, .index = args->index, .into = into, .preserved = preserved,
                        .preserved_count = preserved_count, .remove = args->remove, .err_msg = args->err_msg));
 }
 

@@ -21,7 +21,8 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 #define GUI_INPUT_TEXT 6u
 #define GUI_INPUT_MENU 7u
 #define GUI_INPUT_BLUR 8u
-#define GUI_INPUT_TYPES 9u
+#define GUI_INPUT_FOCUS 9u
+#define GUI_INPUT_TYPES 10u
 #define GUI_MOD_SHIFT 1u
 #define GUI_MOD_CONTROL 2u
 #define GUI_MOD_ALT 4u

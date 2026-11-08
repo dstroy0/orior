@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// machine_transfer_undo.c: the takings saved, read back and written, and a taking undone
+// settings_sync_undo.c: the imports saved, read back and written, and an import undone
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
-#include "carry_internal.h"
+#include "settings_sync_internal.h"
 
-void cli_machine_transfer_allocating_write(const CliMachineTransferOutCtx *args)
+void cli_settings_sync_allocating_write(const CliSettingsSyncOutCtx *args)
 {
     mmgr_line_put(args->out, args->pretty ? "{\n  \"id\": " : "{\"id\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
@@ -45,15 +45,15 @@ void cli_machine_transfer_allocating_write(const CliMachineTransferOutCtx *args)
     }
 }
 
-// The takings saved: each one's folder name and when it was taken, and the work state one is read into
+// The imports saved: each one's folder name and when it was taken, and the work state one is read into
 typedef struct
 {
     char (*name)[64];
     unsigned long long at[CLI_ALLOCATIONS];
     unsigned int count;
-    const char *carried;
+    const char *synced;
     CliAllocating allocating;
-    CliMachineTransferWorkState work_state;
+    CliSettingsSyncWorkState work_state;
 } CliAllocations;
 
 static CliAllocations s_allocations;
@@ -61,7 +61,7 @@ static CliAllocations s_allocations;
 // the lock taken and the work state begun empty under it
 static int undo_lock(void)
 {
-    // the takings' names and the taking read stand in one cell for as long as the work runs
+    // the imports' names and the import read stand in one cell for as long as the work runs
     s_allocations.name =
         g_cli_guard->persistent_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (s_allocations.name == NULL)
@@ -70,7 +70,7 @@ static int undo_lock(void)
     }
     s_allocations.allocating.place = (char (*)[CLI_NAME_MAX_LEN])(void *)(s_allocations.name + CLI_ALLOCATIONS);
     s_allocations.allocating.existed = (unsigned char *)(void *)(s_allocations.allocating.place + CLI_ALLOCATING_FILES);
-    EMBED_CALL(cli_machine_transfer_capacity_object_internal.capacity_begin, CliMachineTransferWorkStateObjectCtx,
+    EMBED_CALL(cli_settings_sync_capacity_object_internal.capacity_begin, CliSettingsSyncWorkStateObjectCtx,
                .work_state = &s_allocations.work_state);
     return 1;
 }
@@ -80,12 +80,12 @@ typedef struct
     const char *file;
     CliAllocating *allocating;
     const char *home;
-    char *carried;
+    char *synced;
     const char *transferred_read;
     const char *name;
-} CarryUndoCtx;
-// the taking saved at `file` read into `allocating`: 1, or 0 where it is not there or not one
-static int cli_allocating_read(const CarryUndoCtx *args)
+} SettingsSyncUndoCtx;
+// the import saved at `file` read into `allocating`: 1, or 0 where it is not there or not one
+static int cli_allocating_read(const SettingsSyncUndoCtx *args)
 {
     CliJson *const json = &s_allocations.work_state.json;
     unsigned long long size = 0ULL;
@@ -180,16 +180,16 @@ static void cli_allocating_each(const CliEachNameIsFolderCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_allocations.carried, .relative = args->name,
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_allocations.synced, .relative = args->name,
                .joined = folder);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "taking.json", .joined = file);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "import.json", .joined = file);
     if (!args->is_folder || (s_allocations.count >= CLI_ALLOCATIONS) ||
         (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= 64u) ||
-        !EMBED_CALL(cli_allocating_read, CarryUndoCtx, .file = file, .allocating = &s_allocations.allocating))
+        !EMBED_CALL(cli_allocating_read, SettingsSyncUndoCtx, .file = file, .allocating = &s_allocations.allocating))
     {
         return;
     }
-    // the takings saved by when they were taken, the last first, those taken at once in the order they were read
+    // the imports saved by when they were taken, the last first, those taken at once in the order they were read
     unsigned int place = s_allocations.count;
     while ((place > 0u) && (s_allocations.at[place - 1u] < s_allocations.allocating.at))
     {
@@ -208,45 +208,45 @@ static void cli_allocating_each(const CliEachNameIsFolderCfg *args)
     s_allocations.count += 1u;
 }
 
-// every taking saved under `home`, by its folder, the last first
-EMBED_INLINE void cli_allocations_read(const CarryUndoCtx *args)
+// every import saved under `home`, by its folder, the last first
+EMBED_INLINE void cli_allocations_read(const SettingsSyncUndoCtx *args)
 {
-    char *carried = args->carried;
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->home, .relative = "carried", .joined = carried);
-    s_allocations.carried = carried;
+    char *synced = args->synced;
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->home, .relative = "synced", .joined = synced);
+    s_allocations.synced = synced;
     s_allocations.count = 0u;
-    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = carried,
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = synced,
                .each = cli_allocating_each, .context_bytess = NULL);
 }
 
-// the taking saved in the folder `name` read into the work state's taking: 1, or 0
-EMBED_INLINE int cli_allocating_get(const CarryUndoCtx *args)
+// the import saved in the folder `name` read into the work state's import: 1, or 0
+EMBED_INLINE int cli_allocating_get(const SettingsSyncUndoCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->transferred_read, .relative = args->name,
                .joined = folder);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "taking.json", .joined = file);
-    return EMBED_CALL(cli_allocating_read, CarryUndoCtx, .file = file, .allocating = &s_allocations.allocating);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "import.json", .joined = file);
+    return EMBED_CALL(cli_allocating_read, SettingsSyncUndoCtx, .file = file, .allocating = &s_allocations.allocating);
 }
 
-void cli_machine_transfer_allocations(const CliMachineTransferHomeToCfg *args)
+void cli_settings_sync_allocations(const CliSettingsSyncHomeToCfg *args)
 {
     if (!undo_lock())
     {
         mmgr_line_put(args->out, "[]");
         return;
     }
-    char carried[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_allocations_read, CarryUndoCtx, .home = args->home, .carried = carried);
+    char synced[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_allocations_read, SettingsSyncUndoCtx, .home = args->home, .synced = synced);
     mmgr_line_ch(args->out, '[');
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_allocations.count; at += 1u)
     {
-        if (EMBED_CALL(cli_allocating_get, CarryUndoCtx, .transferred_read = carried, .name = s_allocations.name[at]))
+        if (EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced, .name = s_allocations.name[at]))
         {
             mmgr_line_put(args->out, (written != 0u) ? "," : "");
-            EMBED_CALL(cli_machine_transfer_out_internal.allocating_write, CliMachineTransferOutCtx,
+            EMBED_CALL(cli_settings_sync_out_internal.allocating_write, CliSettingsSyncOutCtx,
                        .allocating = &s_allocations.allocating, .pretty = 0, .out = args->out);
             written += 1u;
         }
@@ -260,26 +260,26 @@ void cli_machine_transfer_allocations(const CliMachineTransferHomeToCfg *args)
     s_allocations.name = NULL;
 }
 
-int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
+int cli_settings_sync_undo(const CliSettingsSyncHomeOutCfg *args)
 {
     if (!undo_lock())
     {
-        mmgr_line_put(args->err_msg, "the cells cannot meet the takings saved");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the imports saved");
         return 0;
     }
-    char carried[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_allocations_read, CarryUndoCtx, .home = args->home, .carried = carried);
+    char synced[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_allocations_read, SettingsSyncUndoCtx, .home = args->home, .synced = synced);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < s_allocations.count); at += 1u)
     {
         found =
-            EMBED_CALL(cli_allocating_get, CarryUndoCtx, .transferred_read = carried, .name = s_allocations.name[at]) &&
+            EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced, .name = s_allocations.name[at]) &&
             (cellul.eq(
                 &(CatenaFinitaCfg){.src = s_allocations.allocating.id, .other = args->id, .cap = CLI_POOL_BYTES}));
     }
     if (!found)
     {
-        mmgr_line_put(args->err_msg, "no taking ");
+        mmgr_line_put(args->err_msg, "no import ");
         mmgr_line_put(args->err_msg, args->id);
         mmgr_line_put(args->err_msg, " is saved");
         g_cli_guard->persistent_buf_release(
@@ -293,7 +293,7 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
     }
     const CliAllocating *const allocating = &s_allocations.allocating;
     char backup_dir[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = carried, .relative = allocating->id, .joined = backup_dir);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = synced, .relative = allocating->id, .joined = backup_dir);
     for (unsigned int at = 0u; at < allocating->files; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
@@ -355,7 +355,7 @@ int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args)
         s_allocations.name = NULL;
         return 0;
     }
-    EMBED_CALL(cli_machine_transfer_out_internal.allocating_write, CliMachineTransferOutCtx, .allocating = allocating,
+    EMBED_CALL(cli_settings_sync_out_internal.allocating_write, CliSettingsSyncOutCtx, .allocating = allocating,
                .pretty = 0, .out = args->out);
     g_cli_guard->persistent_buf_release(s_allocations.work_state.json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
