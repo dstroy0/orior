@@ -134,7 +134,7 @@ void test_the_transports_words_without_the_lessons(void)
 void test_a_pass_is_read(void)
 {
     TEST_ASSERT_TRUE(step_read(s_turns, 1u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.type);
     TEST_ASSERT_EQUAL_STRING("turns", s_step.word_text);
     TEST_ASSERT_NULL(s_step.base);
 }
@@ -142,7 +142,7 @@ void test_a_pass_is_read(void)
 void test_a_pass_with_its_base_is_read(void)
 {
     TEST_ASSERT_TRUE(step_read(s_turns, 3u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.type);
     TEST_ASSERT_EQUAL_STRING("a.cu", s_step.base);
 }
 
@@ -150,7 +150,7 @@ void test_the_costs_pass_is_read(void)
 {
     static const char *const s_costs[1] = {"costs"};
     TEST_ASSERT_TRUE(step_read(s_costs, 1u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.type);
     TEST_ASSERT_EQUAL_STRING("costs", s_step.word_text);
 }
 
@@ -158,7 +158,7 @@ void test_a_seeded_discover_is_read(void)
 {
     static const char *const s_seed[2] = {"seed", "listing.sass"};
     TEST_ASSERT_TRUE(step_read(s_seed, 2u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_SEED, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_SEED, s_step.type);
     TEST_ASSERT_EQUAL_STRING("listing.sass", s_step.word_text);
 }
 
@@ -166,28 +166,28 @@ void test_rounds_through_the_airlock_are_read(void)
 {
     static const char *const s_rounds[2] = {"rounds", "3"};
     TEST_ASSERT_TRUE(step_read(s_rounds, 2u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_ROUNDS, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_ROUNDS, s_step.type);
     TEST_ASSERT_EQUAL_UINT(3u, s_step.rounds);
 }
 
 void test_dry_with_no_count_is_one_round(void)
 {
     TEST_ASSERT_TRUE(step_read(s_dry, 1u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_DRY, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_DRY, s_step.type);
     TEST_ASSERT_EQUAL_UINT(1u, s_step.rounds);
 }
 
 void test_dry_reads_its_count_of_rounds(void)
 {
     TEST_ASSERT_TRUE(step_read(s_dry, 2u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_DRY, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_DRY, s_step.type);
     TEST_ASSERT_EQUAL_UINT(2u, s_step.rounds);
 }
 
 void test_the_clock_with_no_span_uses_its_default(void)
 {
     TEST_ASSERT_TRUE(step_read(s_clock, 1u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.type);
     TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_FROM, s_step.word_text);
     TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_WORDS, s_step.base);
 }
@@ -195,7 +195,7 @@ void test_the_clock_with_no_span_uses_its_default(void)
 void test_the_clock_reads_a_input_span(void)
 {
     TEST_ASSERT_TRUE(step_read(s_clock, 3u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.type);
     TEST_ASSERT_EQUAL_STRING("0", s_step.word_text);
     TEST_ASSERT_EQUAL_STRING("4000", s_step.base);
 }
@@ -204,7 +204,7 @@ void test_one_positions_questions_are_read(void)
 {
     static const char *const s_enumerate[2] = {"enumerate", "loop_back_if"};
     TEST_ASSERT_TRUE(step_read(s_enumerate, 2u));
-    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_ENUMERATE, s_step.kind);
+    TEST_ASSERT_EQUAL_INT(QUERY_LEARN_ENUMERATE, s_step.type);
     TEST_ASSERT_EQUAL_STRING("loop_back_if", s_step.word_text);
 }
 

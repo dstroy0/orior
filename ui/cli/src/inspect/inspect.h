@@ -251,7 +251,7 @@ void cli_facts_begin(const CliInspectFactsCfg *args);
 int cli_inspect_facts(const CliInspectFactsLanguageCfg *args);
 
 // a finding of `facts` written as a diagnostic of the protocol's form, its message Markdown and its fixes stored in its
-// data: `{"range", "severity", "message": {"kind", "value"}, "source": "orior", "code", "data": {"orior": fixes},
+// data: `{"range", "severity", "message": {"type", "value"}, "source": "orior", "code", "data": {"orior": fixes},
 // "codeDescription"}`
 void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args);
 

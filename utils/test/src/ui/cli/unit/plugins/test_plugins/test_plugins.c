@@ -77,7 +77,7 @@ static unsigned int toy_answers(void)
 static unsigned int toy_drafted(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = toy_answers(), .err_msg = &err_msg);
+    const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_type.draft, CliPluginsErrMsgJsonSpecTypeCfg, .json_out = &s_json, .spec = toy_answers(), .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, plugin);
     return plugin;
 }
@@ -87,7 +87,7 @@ static unsigned int rusty_drafted(void)
 {
     static const char s_rusty[] = "{\"name\": \"Rusty\", \"extensions\": [\"rsy\"], \"from\": \"rust\", \"keywords\": [\"fn\"]}";
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = tree_read(s_rusty, sizeof(s_rusty) - 1u), .err_msg = &err_msg);
+    const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_type.draft, CliPluginsErrMsgJsonSpecTypeCfg, .json_out = &s_json, .spec = tree_read(s_rusty, sizeof(s_rusty) - 1u), .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, plugin);
     return plugin;
 }
@@ -216,30 +216,30 @@ void test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its
     {
         const unsigned int root = tree_read((const char *)g_cli_bundled[at].text, g_cli_bundled[at].size);
         const char *const id = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "id"), .length_pointer = NULL);
-        const char *const kind = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "kind"), .length_pointer = NULL);
+        const char *const type = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "kind"), .length_pointer = NULL);
         TEST_ASSERT_NOT_NULL_MESSAGE(id, g_cli_bundled[at].id);
         TEST_ASSERT_EQUAL_STRING(g_cli_bundled[at].id, id);
-        TEST_ASSERT_NOT_NULL_MESSAGE(kind, g_cli_bundled[at].id);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_POOL_BYTES}))
+        TEST_ASSERT_NOT_NULL_MESSAGE(type, g_cli_bundled[at].id);
+        if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "language", .cap = CLI_POOL_BYTES}))
         {
             static const char *const s_keys[3] = {"extensions", "names", "paths"};
             // a language opens files by their extensions, names or paths, or serves the folders of its `each`
-            int any = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "each"), .kind = CFG_JSON_OBJECT);
+            int any = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "each"), .type = CFG_JSON_OBJECT);
             for (unsigned int key = 0u; key < 3u; key += 1u)
             {
                 const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = s_keys[key]);
-                any |= EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = list, .kind = CFG_JSON_ARRAY) && (s_json.node[list].count > 0u);
+                any |= EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = list, .type = CFG_JSON_ARRAY) && (s_json.node[list].count > 0u);
             }
             TEST_ASSERT_TRUE_MESSAGE(any, id);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "tool", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "tool", .cap = CLI_POOL_BYTES}))
         {
             const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = root, .name = "languages");
-            TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = list, .kind = CFG_JSON_ARRAY) && (s_json.node[list].count > 0u), id);
+            TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = list, .type = CFG_JSON_ARRAY) && (s_json.node[list].count > 0u), id);
         }
         else
         {
-            TEST_ASSERT_EQUAL_STRING_MESSAGE("script", kind, id);
+            TEST_ASSERT_EQUAL_STRING_MESSAGE("script", type, id);
             // a script plugin that comes with orior runs the code built into the program beside its plugin.json
             TEST_ASSERT_NOT_NULL_MESSAGE(g_cli_bundled[at].code, id);
             TEST_ASSERT_GREATER_THAN_UINT64(0ull, g_cli_bundled[at].code_size);
@@ -402,7 +402,7 @@ void test_a_plugin_from_another_has_the_others_grammar(void)
 {
     const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = rusty_drafted(), .name = "grammar");
     const unsigned int types = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = grammar, .name = "types");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = types, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = types, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_GREATER_THAN_UINT(10u, s_json.node[types].count);
 }
 
@@ -410,7 +410,7 @@ void test_a_plugin_from_one_not_there_is_refused(void)
 {
     static const char s_none[] = "{\"name\": \"x\", \"extensions\": [\"x\"], \"from\": \"nothing-here\"}";
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = tree_read(s_none, sizeof(s_none) - 1u), .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, EMBED_CALL(cli_plugins_err_msg_json_spec_type.draft, CliPluginsErrMsgJsonSpecTypeCfg, .json_out = &s_json, .spec = tree_read(s_none, sizeof(s_none) - 1u), .err_msg = &err_msg));
 }
 
 void test_a_plugin_created_has_its_manifest(void)

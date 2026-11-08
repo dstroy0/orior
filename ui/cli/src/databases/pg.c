@@ -46,9 +46,9 @@ EMBED_INLINE int pg_read(const PgCtx *args)
     return 1;
 }
 
-int cli_pg_message(const CliPgKindCtx *args)
+int cli_pg_message(const CliPgTypeCtx *args)
 {
-    unsigned char *kind = args->kind;
+    unsigned char *type = args->type;
     CliDbFailure *failure = args->failure;
     unsigned char head[5];
     if (!EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = head, .size = sizeof(head)))
@@ -79,12 +79,12 @@ int cli_pg_message(const CliPgKindCtx *args)
                    .message = "the connection broke: the server closed it or did not answer");
         return 0;
     }
-    *kind = head[0];
+    *type = head[0];
     args->pg->size = size;
     return 1;
 }
 
-int cli_pg_send(const CliPgFailureKindCtx *args)
+int cli_pg_send(const CliPgFailureTypeCtx *args)
 {
     CliDbFailure *failure = args->failure;
     unsigned long long length = 4ULL;
@@ -92,7 +92,7 @@ int cli_pg_send(const CliPgFailureKindCtx *args)
     {
         length += args->sizes[at];
     }
-    const unsigned char head[5] = {args->kind_value, (unsigned char)((length >> 24u) & 0xffu),
+    const unsigned char head[5] = {args->type_value, (unsigned char)((length >> 24u) & 0xffu),
                                    (unsigned char)((length >> 16u) & 0xffu), (unsigned char)((length >> 8u) & 0xffu),
                                    (unsigned char)(length & 0xffu)};
     int sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->pg->socket,
@@ -122,14 +122,14 @@ void cli_pg_failure_get(const CliPgCtx *args)
         const unsigned char *const nul =
             memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (size_t)(args->size - at)});
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - args->body) : args->size;
-        const unsigned long long kind = at;
+        const unsigned long long type = at;
         at = end + 1ULL;
-        if (end <= kind)
+        if (end <= type)
         {
             continue;
         }
         char *field;
-        switch (args->body[kind])
+        switch (args->body[type])
         {
         case 'M': {
             field = args->failure->message;
@@ -153,20 +153,20 @@ void cli_pg_failure_get(const CliPgCtx *args)
         }
         }
         const unsigned long long capacity =
-            (args->body[kind] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
+            (args->body[type] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
         if (field != NULL)
         {
             VerbaLinea line = {field, capacity, 0ULL};
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
-                       .text_bytes = args->body + kind + 1u, .length = end - kind - 1u);
+                       .text_bytes = args->body + type + 1u, .length = end - type - 1u);
             mmgr_line_finish(&line);
         }
-        if (args->body[kind] == 'P')
+        if (args->body[type] == 'P')
         {
             // the place, where the field is a number alone, else 0
             unsigned long long value = 0ULL;
-            int whole = (end > kind + 1u) && (end - kind - 1u <= 19ULL);
-            unsigned long long digit = kind + 1u;
+            int whole = (end > type + 1u) && (end - type - 1u <= 19ULL);
+            unsigned long long digit = type + 1u;
             while (whole && (digit < end))
             {
                 whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
@@ -298,7 +298,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
 void cli_pg_close(const CliPgFailureSqlCfg *args)
 {
     CliDbFailure failure;
-    (void)EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'X',
+    (void)EMBED_CALL(cli_pg_failure_type_internal.send, CliPgFailureTypeCtx, .pg = args->pg, .type_value = 'X',
                      .parts = NULL, .sizes = NULL, .count = 0u, .failure = &failure);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->pg->socket);
     s_links[args->pg->place] = NULL;

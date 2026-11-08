@@ -104,7 +104,7 @@ EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
     static const char *const s_names[3] = {"SConstruct", "Sconstruct", "sconstruct"};
     char folder[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
     {
         EMBED_CALL(check_copy, SconsCheckCtx, .from = root, .out = folder);
     }
@@ -126,7 +126,7 @@ EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
                                       .size = length) &&
                            ((after == '\0') || (after == '/') || (after == '\\'));
         if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = root, .cap = CLI_POOL_BYTES})) || !inside ||
-            !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+            !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
         {
             EMBED_CALL(check_copy, SconsCheckCtx, .from = root, .out = out);
             return;
@@ -233,7 +233,7 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
     for (unsigned int at = 0u; (at < files->count) && (read < CLI_SCONS_OTHERS); at += 1u)
     {
         const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
-        if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = file) != CLI_BUILD_SCONS)
+        if (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = file) != CLI_BUILD_SCONS)
         {
             continue;
         }
@@ -275,7 +275,7 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
     s_check.text = text;
     s_check.lines = lines;
     s_check.found = found;
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = s_check.folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = s_check.folder))
     {
         EMBED_CALL(check_copy, SconsCheckCtx, .from = args->root, .out = s_check.folder);
     }
@@ -426,8 +426,8 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
                                          .size = opened - line_start);
         if ((opened > line_start) && (text[opened - 1u] == '['))
         {
-            EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                       .words = g_cli_scons_variables, .count = 44u, .kind = "property",
+            EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                       .words = g_cli_scons_variables, .count = 44u, .type = "property",
                        .detail = "construction variable");
         }
         return;
@@ -438,8 +438,8 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     }
     if (memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)}) != NULL)
     {
-        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                   .words = g_cli_scons_methods, .count = 52u, .kind = "function", .detail = "environment");
+        EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                   .words = g_cli_scons_methods, .count = 52u, .type = "function", .detail = "environment");
         return;
     }
     const unsigned long long open = EMBED_CALL(check_call_open, SconsCheckCtx, .end = token);
@@ -462,8 +462,8 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
                 (memor.cmp(&(MemoriaCfg){
                      .src = g_cli_scons_setters[one], .other = text + name, .bytes = (size_t)(name_end - name)}) == 0))
             {
-                EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                           .words = g_cli_scons_variables, .count = 44u, .kind = "property",
+                EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                           .words = g_cli_scons_variables, .count = 44u, .type = "property",
                            .detail = "construction variable");
             }
         }
@@ -479,7 +479,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
         (void)EMBED_CALL(
             cli_edits_items.completion_append, CliEditsItemsCfg, .items = items, .label = global,
             .label_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES}),
-            .kind = upper ? "constant" : "function", .detail = "SCons", .detail_size = 5u, .insert = global,
+            .type = upper ? "constant" : "function", .detail = "SCons", .detail_size = 5u, .insert = global,
             .insert_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_POOL_BYTES}), .snippet = 0);
     }
 }

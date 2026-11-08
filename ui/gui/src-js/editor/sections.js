@@ -36,7 +36,7 @@ export function headingsOf(doc, { headings, skips = [] }) {
 }
 
 // The regions of a document's blocks: each from its opening line to its closing one, a block of the
-// same kind inside it closed first.
+// same type inside it closed first.
 function blockRegions(doc, blocks, found) {
   for (const [open, close] of blocks) {
     const opened = [];

@@ -3,7 +3,7 @@
 
 // The sections of Preferences that show the window's settings, each drawn on its own: the settings with each one a
 // menu turns on or off, the fonts, the files' patterns and sets, and the notices put away with a press that shows a
-// kind again.
+// type again.
 
 import { coresKept, KEPT_LEAST } from "../../../gui/src-js/cores.js";
 import { FONT_SETTINGS, fontDefault } from "../../../gui/src-js/fonts.js";

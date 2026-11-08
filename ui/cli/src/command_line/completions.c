@@ -56,7 +56,7 @@ int cli_completion_append(const CliEditsItemsCfg *args)
         return 0;
     }
     args->items->item[args->items->count] = (CliCompletion){
-        label_at,  (unsigned int)args->label_size,  args->kind,   detail_at, (unsigned int)args->detail_size,
+        label_at,  (unsigned int)args->label_size,  args->type,   detail_at, (unsigned int)args->detail_size,
         insert_at, (unsigned int)args->insert_size, args->snippet};
     args->items->count += 1u;
     return 1;

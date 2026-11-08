@@ -208,7 +208,7 @@ EMBED_INLINE unsigned int block_put(const MarkdownCtx *args)
     }
     items->blocks += 1u;
     return EMBED_CALL(item_put, MarkdownCtx, .items = items, .writing = args->writing,
-                      .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BLOCK,
+                      .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BLOCK,
                                                 .x = args->x,
                                                 .y = *args->y,
                                                 .width = args->width,
@@ -269,7 +269,7 @@ EMBED_INLINE void run_commit(const MarkdownCtx *args)
     if (code)
     {
         (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                         .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                         .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                    .x = x - 2,
                                                    .y = flow->y + 2,
                                                    .width = width + 4,
@@ -283,7 +283,7 @@ EMBED_INLINE void run_commit(const MarkdownCtx *args)
     const unsigned int flags =
         (flow->base_flags | flow->run_style.flags | (linked ? CLI_PREVIEW_UNDERLINE : 0u)) & ~MARKDOWN_CODE_FLAG;
     (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                     .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_TEXT,
+                     .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_TEXT,
                                                .x = x,
                                                .y = flow->y,
                                                .width = width,
@@ -1148,7 +1148,7 @@ EMBED_INLINE void code_line_put(const MarkdownCtx *args)
     // the columns fit the width, an int
     (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
                      .item =
-                         &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_TEXT,
+                         &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_TEXT,
                                            .x = args->x,
                                            .y = *args->y,
                                            .width = (int)((columns * MARKDOWN_CODE_ADVANCE * MARKDOWN_CODE) / 1000u),
@@ -1181,7 +1181,7 @@ EMBED_INLINE void code_laid(const MarkdownCtx *args)
 {
     int *const y = args->y;
     const unsigned int ground = EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                                           .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                                           .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                                      .x = args->x,
                                                                      .y = *y,
                                                                      .width = args->width,
@@ -1255,7 +1255,7 @@ EMBED_INLINE void flow_laid(const MarkdownCtx *args)
 EMBED_INLINE void rule_laid(const MarkdownCtx *args)
 {
     (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                     .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_RULE,
+                     .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_RULE,
                                                .x = args->x,
                                                .y = *args->y + args->height,
                                                .width = args->width,
@@ -1281,7 +1281,7 @@ EMBED_INLINE void row_laid(const MarkdownCtx *args)
     }
     const unsigned int ground = args->heading
                                     ? EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                                                 .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                                                 .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                                            .x = args->x,
                                                                            .y = top,
                                                                            .width = total,
@@ -1295,7 +1295,7 @@ EMBED_INLINE void row_laid(const MarkdownCtx *args)
     {
         const int cell_width = args->widths[column];
         (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                         .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                         .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                    .x = cell_x,
                                                    .y = top,
                                                    .width = cell_width,
@@ -1444,7 +1444,7 @@ static void container_laid(const MarkdownCtx *args)
 
 // the list whose first item stands at `at` of `lines`, `count` in all, laid at `x`, `*y`, `width` wide, `depth` deep:
 // each item a block, its mark at the left, a disc, its number or a task's box with the tick where it is checked, and
-// its lines as a container of their own past the indent; the list ends at a line that opens no item of its kind and
+// its lines as a container of their own past the indent; the list ends at a line that opens no item of its type and
 // belongs to none: the line after it
 static unsigned int list_laid(const MarkdownCtx *args)
 {
@@ -1514,7 +1514,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
             const int box_y = item_top + ((MARKDOWN_BODY_LINE - MARKDOWN_TASK) / 2);
             (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
                              .item =
-                                 &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                                 &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                    .x = args->x + 2,
                                                    .y = box_y,
                                                    .width = MARKDOWN_TASK,
@@ -1526,7 +1526,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
             if (checked)
             {
                 (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                                 .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_SEGMENT,
+                                 .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_SEGMENT,
                                                            .x = args->x + 5,
                                                            .y = box_y + 7,
                                                            .width = 2,
@@ -1535,7 +1535,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
                                                            .stroke = CLI_PREVIEW_ROLE_NONE,
                                                            .line = line});
                 (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                                 .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_SEGMENT,
+                                 .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_SEGMENT,
                                                            .x = args->x + 7,
                                                            .y = box_y + 10,
                                                            .width = 5,
@@ -1562,7 +1562,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
                                                     .writing = args->writing, .bytes = digits, .length = length);
             (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
                              .item =
-                                 &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_TEXT,
+                                 &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_TEXT,
                                                    .x = args->x,
                                                    .y = item_top,
                                                    .width = EMBED_CALL(bytes_width, MarkdownCtx, .text = digits,
@@ -1579,7 +1579,7 @@ static unsigned int list_laid(const MarkdownCtx *args)
         else
         {
             (void)EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                             .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                             .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                        .x = args->x + 8,
                                                        .y = item_top + ((MARKDOWN_BODY_LINE - MARKDOWN_DISC) / 2),
                                                        .width = MARKDOWN_DISC,
@@ -1626,7 +1626,7 @@ static unsigned int quote_laid(const MarkdownCtx *args)
     }
     const int top = *y;
     const unsigned int bar = EMBED_CALL(item_put, MarkdownCtx, .items = args->items, .writing = args->writing,
-                                        .item = &(CliPreviewItem){.kind = CLI_PREVIEW_ITEM_BOX,
+                                        .item = &(CliPreviewItem){.type = CLI_PREVIEW_ITEM_BOX,
                                                                   .x = args->x,
                                                                   .y = top,
                                                                   .width = MARKDOWN_QUOTE_BAR,

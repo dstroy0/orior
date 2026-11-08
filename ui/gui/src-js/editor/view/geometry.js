@@ -312,7 +312,7 @@ export function takeSettings() {
   this.schedule();
 }
 
-// The colors the session shown is drawn in where its kind of file has a theme of its own, as
+// The colors the session shown is drawn in where its type of file has a theme of its own, as
 // `themeOf` gives them, set on the editor in place of those set before; the window's where it has
 // none.
 export function drawTheme() {

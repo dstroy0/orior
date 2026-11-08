@@ -165,11 +165,11 @@ export async function askDocMargin(given) {
 }
 
 // File, Tree Environment: the environments the tree holds, each by its folder in the tree and its
-// kind, the one in use checked, and the toolchains' own Python; the one chosen kept for the tree by
+// type, the one in use checked, and the toolchains' own Python; the one chosen kept for the tree by
 // its folder in it, which moves with the tree, and taken up again as the tree opens. A tree with none
 // chosen takes its own virtual environment, the one nearest its top, with no setup. An environment
 // chosen says which packages the files beside it require that it has not installed.
-const ENV_KINDS = { venv: "virtual environment", pipenv: "Pipenv", nix: "Nix" };
+const ENV_TYPES = { venv: "virtual environment", pipenv: "Pipenv", nix: "Nix" };
 
 // The environment the tree open uses, or null for the toolchains' own Python.
 let environmentInUse = null;
@@ -188,7 +188,7 @@ async function useEnvironment(env, { quiet = false, kept = true } = {}) {
       localStorage.setItem(environmentKey(), JSON.stringify({ kind: env?.kind ?? null, place: env?.place ?? "" }));
     }
     if (!quiet) {
-      const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_KINDS[env.kind]}` : "the toolchains' own";
+      const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_TYPES[env.kind]}` : "the toolchains' own";
       const missing = used.missing.length ? `; it has not installed ${used.missing.join(", ")}` : "";
       say(`The tree's environment is ${where}${used.python ? `, its Python ${used.python}` : ""}${missing}.`, { failed: Boolean(used.missing.length) });
     }
@@ -211,7 +211,7 @@ export async function chooseEnvironment(given) {
   const items = [
     { label: "The Toolchains' Own Python", checked: !environmentInUse, command: "environment", args: ["none"], run: () => useEnvironment(null) },
     ...(found.length ? ["-"] : []),
-    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, command: "environment", args: [`${env.kind}:${env.place}`], run: () => useEnvironment(env) })),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_TYPES[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, command: "environment", args: [`${env.kind}:${env.place}`], run: () => useEnvironment(env) })),
   ];
   showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
 }

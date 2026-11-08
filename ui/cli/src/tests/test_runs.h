@@ -19,7 +19,7 @@
 typedef struct CliTestRunsRootCfg CliTestRunsRootCfg;
 typedef struct CliTestRunsCfg CliTestRunsCfg;
 
-// What a run reports as it goes, written as JSON, `{"kind": "started" | "result" | "coverage" | "done", "run", ...}`:
+// What a run reports as it goes, written as JSON, `{"type": "started" | "result" | "coverage" | "done", "run", ...}`:
 // that it started, with how many tests or files, over how many processes and with which runner; each result, `{"id",
 // "outcome", "message", "file", "line", "seconds"}`; the coverage, `{"file", "ran", "missed"}` by file; and its end,
 // with its counts. Handed to `emit` with its context, on a thread of the run's own

@@ -15,11 +15,11 @@ typedef struct CliSettingsTextLengthCtx CliSettingsTextLengthCtx;
 typedef struct CliSettingsLayersProblemCtx CliSettingsLayersProblemCtx;
 typedef struct CliSettingsCtx CliSettingsCtx;
 
-// the kind a `[kind]` key names, its letters from `*kind`, `*length` of them: 1, or 0 where the key names none;
+// the type a `[type]` key names, its letters from `*type`, `*length` of them: 1, or 0 where the key names none;
 // whether a tree's file does not set `key`; the reader's home folder into `out`, sized for CLI_PATH_MAX_LEN, empty
 // where there is none; and `length` bytes of `text` with each `${name}` that `look` reads put in its place, one it does
 // not read staying as it is, after `out`
-int cli_settings_kind_get(const CliSettingsKeyCtx *args);
+int cli_settings_type_get(const CliSettingsKeyCtx *args);
 int cli_settings_tree_scope(const CliSettingsKeyCtx *args);
 void cli_settings_home(const CliSettingsCtx *args);
 void cli_settings_expand(const CliSettingsTextCtx *args);
@@ -58,20 +58,20 @@ typedef struct
     unsigned int value;
 } CliPartValue;
 
-// A kind of file's settings: the chain and the file that sets them, the kind's key, and the object of them
+// A type of file's settings: the chain and the file that sets them, the type's key, and the object of them
 typedef struct
 {
     const CliChain *chain;
     unsigned int file;
     const char *key;
     unsigned int object;
-} CliKindSet;
+} CliTypeSet;
 
 // a text put in the layers' texts: its place; and a problem put after the layers', reported once (settings_layers.c)
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args);
 void cli_settings_problem(const CliSettingsLayersProblemCtx *args);
-// where the parts, their values and the kinds' settings are stored; and the parts of the file `file` of `chain` put
-// after the parts, its values after `*values` and its kinds' settings after `*kinds`: the parts' count after
+// where the parts, their values and the types' settings are stored; and the parts of the file `file` of `chain` put
+// after the parts, its values after `*values` and its types' settings after `*types`: the parts' count after
 // (settings_parts.c)
 void cli_settings_parts_store(const CliSettingsPartsCtx *args);
 unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args);
@@ -85,7 +85,7 @@ struct CliSettingsLayersCtx
     int own;
     unsigned int parts_u32;
     unsigned int *values_u32s;
-    unsigned int *kinds_u32s;
+    unsigned int *types_u32s;
 };
 
 struct CliSettingsTextCtx
@@ -100,7 +100,7 @@ struct CliSettingsTextCtx
 struct CliSettingsKeyCtx
 {
     const char *key;
-    const char **kind;
+    const char **type;
     unsigned long long *length_pointer;
 };
 
@@ -108,7 +108,7 @@ struct CliSettingsPartsCtx
 {
     CliPart *parts;
     CliPartValue *values;
-    CliKindSet *kinds;
+    CliTypeSet *types;
 };
 
 struct CliSettingsTextLengthCtx
@@ -131,12 +131,12 @@ struct CliSettingsCtx
 
 typedef struct
 {
-    int (*kind_get)(const CliSettingsKeyCtx *args);
+    int (*type_get)(const CliSettingsKeyCtx *args);
     int (*tree_scope)(const CliSettingsKeyCtx *args);
 } CliSettingsKeyNsTable;
-EMBED_TABLE_LAYOUT(CliSettingsKeyNsTable, kind_get, tree_scope);
+EMBED_TABLE_LAYOUT(CliSettingsKeyNsTable, type_get, tree_scope);
 EMBED_TABLE_STORAGE CliSettingsKeyNsTable cli_settings_key_internal EMBED_UNUSED = {
-    .kind_get = cli_settings_kind_get,
+    .type_get = cli_settings_type_get,
     .tree_scope = cli_settings_tree_scope,
 };
 

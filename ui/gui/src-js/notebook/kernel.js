@@ -211,7 +211,7 @@ export async function runAll(book) {
   }
 }
 
-// Runs every code cell from the first in a kernel of the notebook's own kind started for it alone,
+// Runs every code cell from the first in a kernel of the notebook's own type started for it alone,
 // and says the first that fails, or that each ran; the notebook's own kernel and outputs stay as
 // they are.
 export async function checkFromTop(book) {

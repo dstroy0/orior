@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// builds_internal.h: what the build files' readers share across their kinds: the program that runs a Gradle build and
+// builds_internal.h: what the build files' readers share across their types: the program that runs a Gradle build and
 // the folder its build stands in, and the program that runs a Maven build
 #ifndef BUILDS_INTERNAL_H
 #define BUILDS_INTERNAL_H

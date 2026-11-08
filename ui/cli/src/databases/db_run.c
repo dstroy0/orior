@@ -131,7 +131,7 @@ EMBED_INLINE int run_queries(const DbRunCtx *args)
 {
     const char *statement = args->statement;
     VerbaLinea *out = args->out;
-    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->open->config.kind);
+    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->open->config.type);
     char query[CLI_DB_FIELD];
     VerbaLinea counting_line = {query, sizeof(query), 0ULL};
     if (EMBED_CALL(cli_sql_length_dialect.unbounded, CliSqlLengthDialectCfg, .statement = statement,
@@ -242,7 +242,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
         args->out->at = from;
         return 0;
     }
-    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->open->config.kind);
+    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->open->config.type);
     const unsigned int does =
         EMBED_CALL(cli_sql_length.does, CliSqlLengthCfg, .statement = text, .length = length, .dialect = dialect);
     CliShaped shaped;
@@ -266,8 +266,8 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = column->name, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->out, ",\"kind\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
-                       .text_bytes = (const unsigned char *)column->kind,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->kind, .cap = CLI_POOL_BYTES}));
+                       .text_bytes = (const unsigned char *)column->type,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = column->type, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->out, column->numeric ? ",\"numeric\":true}" : ",\"numeric\":false}");
         }
         mmgr_line_ch(args->out, ']');
@@ -308,8 +308,8 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.verb, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"kind\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
-                   .text_bytes = (const unsigned char *)shaped.kind,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.kind, .cap = CLI_POOL_BYTES}));
+                   .text_bytes = (const unsigned char *)shaped.type,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = shaped.type, .cap = CLI_POOL_BYTES}));
         mmgr_line_put(args->out, ",\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                    .text_bytes = (const unsigned char *)shaped.name,

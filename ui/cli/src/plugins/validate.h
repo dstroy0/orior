@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate.h: a tool plugin checks a proof with its prover and distinguishes a failure of the mathematics from a limit
-// of the machine. A tool plugin is a folder containing plugin.json, as a language plugin is, of kind "tool":
+// of the machine. A tool plugin is a folder containing plugin.json, as a language plugin is, of type "tool":
 //
 //   languages               the languages whose files it checks
 //   toolchain               the toolchain in the manifest its program is found by
 //   run                     { program, args, project, inProject, patience }: the program and its words, `{file}` the
 //                           file; the names of the files that mark a project's folder, and the words that run the
 //                           program inside the project, from its folder; and the seconds one check may take
-//   barriers                each a limit of the machine: `kinds`, the kinds of message the prover gives where the
+//   barriers                each a limit of the machine: `types`, the types of message the prover gives where the
 //                           limit stopped the check, or `phrases`, words such a message contains, and `not`, words it
 //                           does not; `lift`, the word that sets the limit, `{value}` its value; and `default`, `grow`
 //                           and `ceiling`, where it starts, how many times it grows a step, and how far it may go
@@ -40,7 +40,7 @@ int cli_validate_tool_for(const CliValidateCfg *args);
 // the file at `path` validated with the tool plugin `id`: checked, each barrier that stops it lifted as far as its
 // ceiling, and what is left reported, the flags and the axioms, written as `{"tool", "file", "project", "passes",
 // "verdict", "checks": [{"settings", "seconds", "errors", "barriers"}], "findings": [{"line", "col", "end_line",
-// "end_col", "severity", "kind", "barrier", "message", "lifted"}]}`: 1, or 0 with why given (validate.c)
+// "end_col", "severity", "type", "barrier", "message", "lifted"}]}`: 1, or 0 with why given (validate.c)
 int cli_on_validate(const CliValidatePathCfg *args);
 
 struct CliValidatePathCfg

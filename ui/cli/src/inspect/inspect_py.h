@@ -17,7 +17,7 @@ typedef struct CliInspectPySrcLineCfg CliInspectPySrcLineCfg;
 typedef struct CliInspectPySrcTokCfg CliInspectPySrcTokCfg;
 typedef struct CliInspectPyCfg CliInspectPyCfg;
 
-// a token's kind
+// a token's type
 #define CLI_PY_NAME 0u
 #define CLI_PY_NUMBER 1u
 #define CLI_PY_STR 2u

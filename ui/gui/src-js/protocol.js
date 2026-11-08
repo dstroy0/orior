@@ -263,7 +263,7 @@ export function telemetryStep(telemetry, blob, atMs) {
 }
 
 // One console line more: a round's line gives the latency; a line saying a question was blocked from the part,
-// refused or faulted counts one error of its kind.
+// refused or faulted counts one error of its type.
 export function telemetryLine(telemetry, text) {
   const round = ROUND_LINE.exec(text);
   if (round) {
@@ -345,7 +345,7 @@ export function spanSaid(ms) {
 // A protocol command's words from the command line read into a job's values, as the job's fields would hold them:
 // `--<key> <value>` a parameter's value; `--<choice>` alone the choice of the first choice parameter that offers it and
 // holds none yet; a bare word the first parameter with no value, a choice where it is one of its choices and a word
-// otherwise. `params` is the job's, each `{ key, kind, choices }`. Words no parameter takes are left out.
+// otherwise. `params` is the job's, each `{ key, type, choices }`. Words no parameter takes are left out.
 export function valuesOfWords(params, words) {
   const values = {};
   const open = (param) => !values[param.key]?.length;

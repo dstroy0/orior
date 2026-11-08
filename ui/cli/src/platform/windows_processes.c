@@ -14,7 +14,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
-typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULONG length, PULONG returned);
+typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG type, PVOID info, ULONG length, PULONG returned);
 
 // what NtQueryInformationProcess is queried for: the line a process was started with; the most bytes it is read in; and
 // the access a process is opened with to read it

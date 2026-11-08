@@ -110,7 +110,7 @@ typedef struct
     unsigned int name;
     unsigned int motion;
     unsigned int letter;
-    unsigned int object_kind;
+    unsigned int object_type;
     unsigned int object_of;
     int lines;
     int chosen;
@@ -191,7 +191,7 @@ unsigned long long cli_vim_letter_written(const CliVimCtx *args);
 void cli_vim_parse(const CliVimCtx *args);
 // the text read through the view `key` (vim_motions.c): how many lines; the units of the line `line`, their count into
 // `length_out`; the letter at `place`, CLI_VIM_LINE_END past its line's end; the place a letter on from `place`,
-// across a line's end, and a letter back: 1 with it into `place_out`, or 0 at the text's end or start; a letter's kind,
+// across a line's end, and a letter back: 1 with it into `place_out`, or 0 at the text's end or start; a letter's type,
 // 0 for a blank or a line's end, 1 for a word's letter and 2 for any other, with `big` 1 for every letter but a blank;
 // a line's first letter that is not blank, its last letter where all are; its last letter; the place Vim's cursor
 // stands at, the selection's head in visual mode; the cursor put at `place`, the line and the column cut to the text,
@@ -203,7 +203,7 @@ const unsigned short *cli_vim_line(const CliVimCtx *args);
 unsigned int cli_vim_letter_at(const CliVimCtx *args);
 int cli_vim_forward(const CliVimCtx *args);
 int cli_vim_backward(const CliVimCtx *args);
-unsigned int cli_vim_kind(const CliVimCtx *args);
+unsigned int cli_vim_type(const CliVimCtx *args);
 unsigned long long cli_vim_first_letter(const CliVimCtx *args);
 unsigned long long cli_vim_last_col(const CliVimCtx *args);
 CliPosition cli_vim_head(const CliVimCtx *args);
@@ -266,7 +266,7 @@ typedef struct
     unsigned int (*letter_at)(const CliVimCtx *args);
     int (*forward)(const CliVimCtx *args);
     int (*backward)(const CliVimCtx *args);
-    unsigned int (*kind)(const CliVimCtx *args);
+    unsigned int (*type)(const CliVimCtx *args);
     unsigned long long (*first_letter)(const CliVimCtx *args);
     unsigned long long (*last_col)(const CliVimCtx *args);
     CliPosition (*head)(const CliVimCtx *args);
@@ -275,7 +275,7 @@ typedef struct
     void (*move_by)(const CliVimCtx *args);
     void (*object)(const CliVimCtx *args);
 } CliVimMotionsNsInternal;
-EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, letter_at, forward, backward, kind, first_letter, last_col,
+EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, letter_at, forward, backward, type, first_letter, last_col,
                    head, put, motion, move_by, object);
 EMBED_TABLE_STORAGE CliVimMotionsNsInternal cli_vim_motions_internal EMBED_UNUSED = {
     .lines = cli_vim_lines,
@@ -283,7 +283,7 @@ EMBED_TABLE_STORAGE CliVimMotionsNsInternal cli_vim_motions_internal EMBED_UNUSE
     .letter_at = cli_vim_letter_at,
     .forward = cli_vim_forward,
     .backward = cli_vim_backward,
-    .kind = cli_vim_kind,
+    .type = cli_vim_type,
     .first_letter = cli_vim_first_letter,
     .last_col = cli_vim_last_col,
     .head = cli_vim_head,

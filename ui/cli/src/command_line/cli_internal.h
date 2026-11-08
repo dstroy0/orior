@@ -59,11 +59,11 @@ typedef struct CliFileCtx CliFileCtx;
 typedef struct CliOwnerCtx CliOwnerCtx;
 typedef struct CliFileStageCtx CliFileStageCtx;
 typedef struct CliLineCtx CliLineCtx;
-typedef struct CliPathErrMsgKindCtx CliPathErrMsgKindCtx;
+typedef struct CliPathErrMsgTypeCtx CliPathErrMsgTypeCtx;
 typedef struct CliCapacityLogonCtx CliCapacityLogonCtx;
 typedef struct CliClockCivilCtx CliClockCivilCtx;
 typedef struct CliCapacityFoldersCtx CliCapacityFoldersCtx;
-typedef struct CliPathOutKindCtx CliPathOutKindCtx;
+typedef struct CliPathOutTypeCtx CliPathOutTypeCtx;
 typedef struct CliPidCtx CliPidCtx;
 typedef struct CliContextCtx CliContextCtx;
 typedef struct CliCapacityProcessesCtx CliCapacityProcessesCtx;
@@ -330,7 +330,7 @@ int cli_file_put_write(const CliPathPutCtx *args);
 _Static_assert((CLI_STAGE_BYTES % 4096u) == 0u, "CLI_STAGE_BYTES is a whole number of 4 KiB pages");
 _Static_assert(((256u << 10u) % CLI_STAGE_BYTES) == 0u, "CLI_STAGE_BYTES divides the cache manager's 256 KiB view");
 
-// A file being written whole, and sealed where it is of a kind ksg seals (ksg_writing.h): written beside its place
+// A file being written whole, and sealed where it is of a type ksg seals (ksg_writing.h): written beside its place
 // under a name of this process's own, made durable and put in its place, and a write that fails leaves the file it
 // would have replaced as it was
 typedef KsgWriting CliFileWriting;
@@ -389,7 +389,7 @@ void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args);
 #define CLI_PICK_FOLDER 1u
 #define CLI_PICK_SAVE 2u
 
-// the system's picker shown for the reader to pick `kind`, waited on: the path chosen into `path`, sized for
+// the system's picker shown for the reader to pick `type`, waited on: the path chosen into `path`, sized for
 // `capacity`, 1, or 0 where none was chosen (platform/windows_picker.c, platform/posix_picker.c)
 int cli_file_pick(const CliPathCapacityCtx *args);
 
@@ -462,7 +462,7 @@ int cli_wake_wait_seen_for(const CliWakeCtx *args);
 
 // a change the system reports: its path from the tree's top with forward slashes, empty where changes were lost, and
 // what happened to it
-typedef void (*CliChangeFn)(const CliEachPathKindCfg *args);
+typedef void (*CliChangeFn)(const CliEachPathTypeCfg *args);
 
 // the folder `root` and all under it watched by the system, each change handed to `emit` on a thread of the watch's
 // own as it is made: 1, or 0 where the system cannot watch it, as off Windows; and the watch stopped, its thread
@@ -578,20 +578,20 @@ void cli_full(const CliRootCtx *args);
 void cli_relative(const CliPathRootCtx *args);
 // the folder above `path` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where `path` is a root or a bare name
 // and has none
-int cli_path_parent(const CliPathOutKindCtx *args);
+int cli_path_parent(const CliPathOutTypeCtx *args);
 
 // orior's own folder (home.c): the folder, its plugins, the reader's stylesheet, menus and languages; each made where
 // it is not there; and a file or a folder opened as the system opens it
 int cli_home_folder(const CliFolderCtx *args);
 int cli_home_plugins(const CliFolderCtx *args);
-int cli_home_user_css(const CliPathErrMsgKindCtx *args);
-int cli_home_menus(const CliPathErrMsgKindCtx *args);
+int cli_home_user_css(const CliPathErrMsgTypeCtx *args);
+int cli_home_menus(const CliPathErrMsgTypeCtx *args);
 int cli_home_languages(const CliFolderCtx *args);
-int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args);
-int cli_home_ensure_user_css(const CliPathErrMsgKindCtx *args);
+int cli_home_ensure_menus(const CliPathErrMsgTypeCtx *args);
+int cli_home_ensure_user_css(const CliPathErrMsgTypeCtx *args);
 // the settings file at `path_out` made, an empty object, its folder with it, where it is not there: 1, or 0 with why
 // given (home.c)
-int cli_settings_ensure(const CliPathErrMsgKindCtx *args);
+int cli_settings_ensure(const CliPathErrMsgTypeCtx *args);
 int cli_home_reveal(const CliPathErrMsgNameCtx *args);
 
 struct CliWordsCtx
@@ -759,7 +759,7 @@ struct CliPathCapacityCtx
 {
     char *path_out;
     size_t capacity_bytes;
-    unsigned int kind;
+    unsigned int type;
 };
 
 struct CliPathCountCtx
@@ -951,7 +951,7 @@ struct CliLineCtx
     CliFileWriting *file;
 };
 
-struct CliPathErrMsgKindCtx
+struct CliPathErrMsgTypeCtx
 {
     char *path_out;
     VerbaLinea *err_msg;
@@ -975,7 +975,7 @@ struct CliCapacityFoldersCtx
     char (*folders)[CLI_PATH_MAX_LEN];
 };
 
-struct CliPathOutKindCtx
+struct CliPathOutTypeCtx
 {
     const char *path;
     char *out;
@@ -1784,24 +1784,24 @@ EMBED_TABLE_STORAGE CliRootNs cli_root_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*path_parent)(const CliPathOutKindCtx *args);
-} CliPathOutKindNs;
-EMBED_TABLE_LAYOUT(CliPathOutKindNs, path_parent);
-EMBED_TABLE_STORAGE CliPathOutKindNs cli_path_out_kind_internal EMBED_UNUSED = {
+    int (*path_parent)(const CliPathOutTypeCtx *args);
+} CliPathOutTypeNs;
+EMBED_TABLE_LAYOUT(CliPathOutTypeNs, path_parent);
+EMBED_TABLE_STORAGE CliPathOutTypeNs cli_path_out_type_internal EMBED_UNUSED = {
     .path_parent = cli_path_parent,
 };
 
 typedef struct
 {
-    int (*home_user_css)(const CliPathErrMsgKindCtx *args);
-    int (*home_menus)(const CliPathErrMsgKindCtx *args);
-    int (*home_ensure_menus)(const CliPathErrMsgKindCtx *args);
-    int (*home_ensure_user_css)(const CliPathErrMsgKindCtx *args);
-    int (*settings_ensure)(const CliPathErrMsgKindCtx *args);
-} CliPathErrMsgKindNs;
-EMBED_TABLE_LAYOUT(CliPathErrMsgKindNs, home_user_css, home_menus, home_ensure_menus, home_ensure_user_css,
+    int (*home_user_css)(const CliPathErrMsgTypeCtx *args);
+    int (*home_menus)(const CliPathErrMsgTypeCtx *args);
+    int (*home_ensure_menus)(const CliPathErrMsgTypeCtx *args);
+    int (*home_ensure_user_css)(const CliPathErrMsgTypeCtx *args);
+    int (*settings_ensure)(const CliPathErrMsgTypeCtx *args);
+} CliPathErrMsgTypeNs;
+EMBED_TABLE_LAYOUT(CliPathErrMsgTypeNs, home_user_css, home_menus, home_ensure_menus, home_ensure_user_css,
                    settings_ensure);
-EMBED_TABLE_STORAGE CliPathErrMsgKindNs cli_path_err_msg_kind_internal EMBED_UNUSED = {
+EMBED_TABLE_STORAGE CliPathErrMsgTypeNs cli_path_err_msg_type_internal EMBED_UNUSED = {
     .home_user_css = cli_home_user_css,
     .home_menus = cli_home_menus,
     .home_ensure_menus = cli_home_ensure_menus,

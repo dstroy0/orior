@@ -5,7 +5,7 @@
 // folder named by its id containing plugin.json:
 //
 //   id, name, version       the plugin's own name for itself, the name it shows, and its version
-//   kind                    "language", "tool" for a tool plugin, which the validation reads, or "script" for a
+//   type                    "language", "tool" for a tool plugin, which the validation reads, or "script" for a
 //                           plugin that runs code of its own, which the window's scripts.js runs: the file `main`
 //                           names beside plugin.json, plugin.js where it names none, in the form of orior's calls
 //                           `api` names
@@ -46,7 +46,7 @@ typedef struct CliPluginsErrMsgCfg CliPluginsErrMsgCfg;
 typedef struct CliPluginsErrMsgJsonCfg CliPluginsErrMsgJsonCfg;
 typedef struct CliPluginsErrMsgJsonSpecCfg CliPluginsErrMsgJsonSpecCfg;
 typedef struct CliPluginsJsonCfg CliPluginsJsonCfg;
-typedef struct CliPluginsErrMsgJsonSpecKindCfg CliPluginsErrMsgJsonSpecKindCfg;
+typedef struct CliPluginsErrMsgJsonSpecTypeCfg CliPluginsErrMsgJsonSpecTypeCfg;
 typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
 typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
 typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
@@ -158,7 +158,7 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args);
 // why given; and a tree allocated into `draft`, released through persistent_buf_release, sized to the answers at `spec`
 // in `json`, to the plugin they start from and to what a draft of them makes, the answers copied into it: their node
 // there, or CLI_JSON_NONE with why given (plugins_draft.c)
-unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecKindCfg *args);
+unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecTypeCfg *args);
 unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args);
 // a plugin as its file lays out it: each value on one line where it fits in 110 characters; and a few lines in its
 // language to open and try, a comment, a keyword, a type, a constant, a string and a number, each where the plugin has
@@ -217,7 +217,7 @@ struct CliPluginsJsonCfg
     unsigned int each_u32;
 };
 
-struct CliPluginsErrMsgJsonSpecKindCfg
+struct CliPluginsErrMsgJsonSpecTypeCfg
 {
     VerbaLinea *err_msg;
     CliJson *json_out;
@@ -368,10 +368,10 @@ EMBED_TABLE_STORAGE CliPluginsIdNameNs cli_plugins_id_name EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*draft)(const CliPluginsErrMsgJsonSpecKindCfg *args);
-} CliPluginsErrMsgJsonSpecKindNs;
-EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonSpecKindNs, draft);
-EMBED_TABLE_STORAGE CliPluginsErrMsgJsonSpecKindNs cli_plugins_err_msg_json_spec_kind EMBED_UNUSED = {
+    unsigned int (*draft)(const CliPluginsErrMsgJsonSpecTypeCfg *args);
+} CliPluginsErrMsgJsonSpecTypeNs;
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonSpecTypeNs, draft);
+EMBED_TABLE_STORAGE CliPluginsErrMsgJsonSpecTypeNs cli_plugins_err_msg_json_spec_type EMBED_UNUSED = {
     .draft = cli_plugins_draft,
 };
 

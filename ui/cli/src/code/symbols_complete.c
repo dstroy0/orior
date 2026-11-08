@@ -29,15 +29,15 @@ typedef struct
     CliComplete *complete;
     const char *name;
     unsigned long long length;
-    const char *kind;
+    const char *type;
     unsigned int line;
     const char *path;
-    char *kind_out;
+    char *type_out;
     const CliEffect *effect;
     const CliLeafRead *read;
     unsigned int place;
 } SymbolsCompleteCtx;
-// `length` bytes of `name` handed on as `kind` declared on `line`, where they begin with the word typed and were not
+// `length` bytes of `name` handed on as `type` declared on `line`, where they begin with the word typed and were not
 // handed on before
 EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
 {
@@ -64,15 +64,15 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
     mmgr_line_put_n(&args->complete->transferred, args->name, (size_t)args->length);
     mmgr_line_ch(&args->complete->transferred, '\0');
     EMBED_CALL(args->complete->each, CliDeclaredCfg, .context = args->complete->context, .name = args->name,
-               .length = args->length, .kind = args->kind, .line = args->line);
+               .length = args->length, .type = args->type, .line = args->line);
 }
 
-// the kind the tree's file at `path` declares `length` bytes of `name` as on its line `line`, as its grammar names it,
-// into `kind`, sized for CLI_NAME_MAX_LEN, empty where it declares none there, as for a define the database gives
-EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
+// the type the tree's file at `path` declares `length` bytes of `name` as on its line `line`, as its grammar names it,
+// into `type`, sized for CLI_NAME_MAX_LEN, empty where it declares none there, as for a define the database gives
+EMBED_INLINE void complete_type_declare(const SymbolsCompleteCtx *args)
 {
     const char *path = args->path;
-    args->kind_out[0] = '\0';
+    args->type_out[0] = '\0';
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
     const CliTreeBranch *const branch = (file < CLI_BRANCHES_MAX) ? &g_cli_branches[file] : NULL;
     char *const scratch = ((branch != NULL) && branch->used) ? cli_branch_copy_alloc() : NULL;
@@ -80,7 +80,7 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
     {
         EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = branch, .scratch = scratch);
     }
-    for (unsigned int at = 0u; (scratch != NULL) && (args->kind_out[0] == '\0') && (at < branch->count); at += 1u)
+    for (unsigned int at = 0u; (scratch != NULL) && (args->type_out[0] == '\0') && (at < branch->count); at += 1u)
     {
         const CliDeclaration *const one = &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations,
                                                       CliSymbolsTreeBranchScratchCfg, .scratch_read = scratch)[at];
@@ -88,15 +88,15 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = scratch + one->name,
                        .other_pointer = args->name, .size = args->length))
         {
-            VerbaLinea written = {args->kind_out, CLI_NAME_MAX_LEN, 0ULL};
-            mmgr_line_put(&written, scratch + one->kind);
-            args->kind_out[(mmgr_line_finish(&written) != 0ULL) ? written.at : 0ULL] = '\0';
+            VerbaLinea written = {args->type_out, CLI_NAME_MAX_LEN, 0ULL};
+            mmgr_line_put(&written, scratch + one->type);
+            args->type_out[(mmgr_line_finish(&written) != 0ULL) ? written.at : 0ULL] = '\0';
         }
     }
     g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
 }
 
-// the defines in effect where the walk ended, the database's first, each of the kind its declaration's grammar names,
+// the defines in effect where the walk ended, the database's first, each of the type its declaration's grammar names,
 // then the declarations it met in an active region, each offered in the order met
 EMBED_INLINE void complete_walk(const SymbolsCompleteCtx *args)
 {
@@ -109,13 +109,13 @@ EMBED_INLINE void complete_walk(const SymbolsCompleteCtx *args)
         if (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx, .effect_read = effect, .name = name,
                        .length = length) == at)
         {
-            char kind[CLI_NAME_MAX_LEN];
-            EMBED_CALL(complete_kind_declare, SymbolsCompleteCtx,
+            char type[CLI_NAME_MAX_LEN];
+            EMBED_CALL(complete_type_declare, SymbolsCompleteCtx,
                        .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
                                           .at_value = effect->macro[at].path),
-                       .name = name, .length = length, .line = effect->macro[at].line, .kind_out = kind);
+                       .name = name, .length = length, .line = effect->macro[at].line, .type_out = type);
             EMBED_CALL(complete_offer, SymbolsCompleteCtx, .complete = args->complete, .name = name, .length = length,
-                       .kind = kind, .line = effect->macro[at].line);
+                       .type = type, .line = effect->macro[at].line);
         }
     }
     for (unsigned int at = 0u; at < effect->seens; at += 1u)
@@ -127,8 +127,8 @@ EMBED_INLINE void complete_walk(const SymbolsCompleteCtx *args)
                        .name = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
                                           .at_value = one->name),
                        .length = one->length,
-                       .kind = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
-                                          .at_value = one->kind),
+                       .type = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                          .at_value = one->type),
                        .line = one->line);
         }
     }
@@ -191,7 +191,7 @@ EMBED_INLINE void complete_locals(const SymbolsCompleteCtx *args)
             const char *const name = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                 .read_read = read, .leaf = leaf, .length_pointer = &length);
             EMBED_CALL(complete_offer, SymbolsCompleteCtx, .complete = args->complete, .name = name, .length = length,
-                       .kind = ((is & CLI_LEAF_PARAMETER) != 0u) ? "parameter" : "local",
+                       .type = ((is & CLI_LEAF_PARAMETER) != 0u) ? "parameter" : "local",
                        .line = read->leaf[leaf].line);
         }
     }

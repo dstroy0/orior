@@ -44,7 +44,7 @@ EMBED_INLINE void facts_call_put(const InspectPyFactsCtx *args)
     const CliPyLine *const inner = args->line;
     const unsigned int offset = args->at;
     const CliInspectTok *const tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = inner, .at = offset);
-    if ((tok->kind != CLI_PY_NAME) ||
+    if ((tok->type != CLI_PY_NAME) ||
         !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                     .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = inner, .at = offset + 1u),
                     .word_text = "(") ||

@@ -153,7 +153,7 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
 #define CLI_REQUESTS_ANSWERS_MAX 32u
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int tone;
     unsigned int group;
     unsigned int answer;

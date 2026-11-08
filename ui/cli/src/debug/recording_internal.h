@@ -54,18 +54,18 @@ typedef struct
     int seen;
 } CliRecordedFrame;
 
-// An exception raised: the step it was raised at, and its kind and message in the names
+// An exception raised: the step it was raised at, and its type and message in the names
 typedef struct
 {
     unsigned int step;
-    unsigned int kind;
+    unsigned int type;
     unsigned int message;
 } CliRecordedRaise;
 
 // A recorded run, read from the recorder's lines in its file, which is stays mapped as it is read from: its steps, its
 // frames by number, its steps by frame, its files, threads and raises, the names they take, the program's exit code,
 // and whether the recording stopped short of the run's end. The steps, frames, files, threads, raises and names are
-// parts of one cell, `capacity`, sized by a count of the file's lines by kind before they are read, and given back with
+// parts of one cell, `capacity`, sized by a count of the file's lines by type before they are read, and given back with
 // the recording; each part's `most` is what the count found
 typedef struct
 {

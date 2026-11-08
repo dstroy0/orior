@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_scan.c: what each kind of build script declares of the programs it makes, read from its text: CMake's and
+// executables_scan.c: what each type of build script declares of the programs it makes, read from its text: CMake's and
 // Meson's executables and projects, the calls of a command in a script's code, and the comments taken out of it
 // (executables_scan_more.c reads the rest)
 #include "../text/text.h"

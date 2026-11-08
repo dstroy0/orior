@@ -688,7 +688,7 @@ int cli_changes_row(const CliGitChangesCfg *args)
     row->state = changed->state;
     if (inner == 0u)
     {
-        row->kind = CLI_CHANGES_ROW_FILE;
+        row->type = CLI_CHANGES_ROW_FILE;
         row->name = path + changed->name;
         row->folder_length = (changed->name > 0u) ? changed->name - 1u : 0u;
         row->taken = (s_changes.out == NULL) || !s_changes.out[file];
@@ -706,7 +706,7 @@ int cli_changes_row(const CliGitChangesCfg *args)
     row->hunk = hunk;
     if (offset == 0u)
     {
-        row->kind = CLI_CHANGES_ROW_HUNK;
+        row->type = CLI_CHANGES_ROW_HUNK;
         row->from = one[0];
         row->to = one[1];
         row->taken = !s_changes.out[file] && (part->hunk_out[hunk] < lines);
@@ -714,7 +714,7 @@ int cli_changes_row(const CliGitChangesCfg *args)
         return 1;
     }
     const unsigned int line = offset - 1u;
-    row->kind = CLI_CHANGES_ROW_LINE;
+    row->type = CLI_CHANGES_ROW_LINE;
     row->from = one[0];
     row->to = one[1];
     row->gone = line < outs;
@@ -734,7 +734,7 @@ void cli_changes_toggle(const CliGitChangesCfg *args)
         return;
     }
     ChangesPart *const part = EMBED_CALL(part_of, ChangesCtx, .file = row.file);
-    if (row.kind == CLI_CHANGES_ROW_FILE)
+    if (row.type == CLI_CHANGES_ROW_FILE)
     {
         s_changes.out[row.file] ^= 1u;
         // the file taken whole or left out whole: its lines' choices go
@@ -753,7 +753,7 @@ void cli_changes_toggle(const CliGitChangesCfg *args)
     const unsigned int *const one = part->hunk + (4u * row.hunk);
     const unsigned int key_first = part->hunk_row[row.hunk] - row.hunk;
     const unsigned int lines = (one[1] - one[0]) + (one[3] - one[2]);
-    if (row.kind == CLI_CHANGES_ROW_HUNK)
+    if (row.type == CLI_CHANGES_ROW_HUNK)
     {
         // every line taken where some is left out or the file is, else every line left out
         const int on = s_changes.out[row.file] || (part->hunk_out[row.hunk] != 0u);
@@ -775,7 +775,7 @@ int cli_changes_open(const CliGitChangesCfg *args)
 {
     CliChangedRow row;
     if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = args->at, .row = &row) ||
-        (row.kind != CLI_CHANGES_ROW_FILE) || !row.opens)
+        (row.type != CLI_CHANGES_ROW_FILE) || !row.opens)
     {
         return 0;
     }

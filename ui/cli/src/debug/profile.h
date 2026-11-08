@@ -26,8 +26,8 @@ extern const char g_cli_profile_shim[];
 
 // the Python file at `file`, a path under `root`, profiled on this machine, or where `remote` names a machine, as
 // `user@host:folder`, on it, in that folder, by the same path, any profile running stopped first; what it reports as it
-// goes comes by `sink`, written as JSON, `{"kind": "output", "text", "error"}` for a line the program wrote, `{"kind":
-// "counts", "counts"}` for the counts so far, and `{"kind": "done", "code", "message"}` at its end: 1, or 0 with why
+// goes comes by `sink`, written as JSON, `{"type": "output", "text", "error"}` for a line the program wrote, `{"type":
+// "counts", "counts"}` for the counts so far, and `{"type": "done", "code", "message"}` at its end: 1, or 0 with why
 // given. And the profile running stopped, where one is (profile.c)
 int cli_profile_start(const CliProfileCfg *args);
 void cli_profile_stop(void);

@@ -85,7 +85,7 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
     }
     if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
                    .word_text = "=>") &&
-        (last == first + 1u) && (g_cli_inspect_tok[first].kind == CLI_JS_NAME))
+        (last == first + 1u) && (g_cli_inspect_tok[first].type == CLI_JS_NAME))
     {
         EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = args->names,
                    .at = args->src + g_cli_inspect_tok[first].start,
@@ -96,7 +96,7 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
     static const char *const s_after[3] = {",", ")", "="};
     for (unsigned int at = first + 1u; at < last; at += 1u)
     {
-        if ((g_cli_inspect_tok[at].kind == CLI_JS_NAME) &&
+        if ((g_cli_inspect_tok[at].type == CLI_JS_NAME) &&
             (EMBED_CALL(cli_inspect_js_from.js_pair_depth, CliInspectJsFromCfg, .src = args->src, .from = first + 1u,
                         .to = at) == 0) &&
             EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = args->src, .at = at - 1u,
@@ -139,7 +139,7 @@ EMBED_INLINE void parse_scopes(const InspectJsParseCtx *args)
         for (unsigned int at = first; at < open; at += 1u)
         {
             const CliInspectTok *const tok = &g_cli_inspect_tok[at];
-            if ((tok->kind == CLI_JS_NAME) &&
+            if ((tok->type == CLI_JS_NAME) &&
                 EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_scope_names,
                            .at = src + tok->start, .size_u32 = tok->end - tok->start) &&
                 (s_param_count < CLI_JS_PARAMS))
@@ -277,7 +277,7 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
     for (unsigned int at = 0u; at < g_cli_inspect_toks; at += 1u)
     {
         const CliInspectTok *const tok = &g_cli_inspect_tok[at];
-        if ((tok->kind != CLI_JS_STR) && (tok->kind != CLI_JS_REGEX))
+        if ((tok->type != CLI_JS_STR) && (tok->type != CLI_JS_REGEX))
         {
             continue;
         }
@@ -287,7 +287,7 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
                    .first = tok->from.line, .last = tok->to.line);
         EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = args->parsed,
                    .from = tok->from, .to = tok->to);
-        if ((tok->end - tok->start >= 2u) && (tok->kind == CLI_JS_STR))
+        if ((tok->end - tok->start >= 2u) && (tok->type == CLI_JS_STR))
         {
             EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
                        .parsed = args->parsed, .from = (CliInspectPosition){tok->from.line, tok->from.col + 1u},
@@ -299,7 +299,7 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
     {
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at - 1u,
                        .word_text = "class") &&
-            (g_cli_inspect_tok[at].kind == CLI_JS_NAME))
+            (g_cli_inspect_tok[at].type == CLI_JS_NAME))
         {
             EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_classes,
                        .at = args->src + g_cli_inspect_tok[at].start,
@@ -312,15 +312,15 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
     {
         const CliInspectTok *const tok = &g_cli_inspect_tok[at];
         unsigned char class_of = CLI_INSPECT_NONE;
-        if ((tok->kind == CLI_JS_STR) || (tok->kind == CLI_JS_REGEX))
+        if ((tok->type == CLI_JS_STR) || (tok->type == CLI_JS_REGEX))
         {
             continue;
         }
-        if (tok->kind == CLI_JS_NUMBER)
+        if (tok->type == CLI_JS_NUMBER)
         {
             class_of = CLI_INSPECT_NUMBER;
         }
-        else if (tok->kind == CLI_JS_PUNCT)
+        else if (tok->type == CLI_JS_PUNCT)
         {
             const unsigned int close = g_cli_js_pair[at];
             const int opens = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src,

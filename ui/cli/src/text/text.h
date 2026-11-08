@@ -30,7 +30,7 @@ typedef struct CliTextOutCapacityCfg CliTextOutCapacityCfg;
 typedef struct CliTextSizeOneCfg CliTextSizeOneCfg;
 typedef struct CliTextSizePrefixCfg CliTextSizePrefixCfg;
 typedef struct CliTextPathsCfg CliTextPathsCfg;
-typedef struct CliTextSizeKindCfg CliTextSizeKindCfg;
+typedef struct CliTextSizeTypeCfg CliTextSizeTypeCfg;
 typedef struct CliTextCfg CliTextCfg;
 
 // A line of a text: where it stops, at its "\n" or the text's end; where it stops with a "\r" before its "\n" left
@@ -86,7 +86,7 @@ void cli_text_append_unescaped(const CliTextSizeSetCfg *args);
 
 // the ASCII whitespace, a set of bytes for the walks below
 #define CLI_TEXT_WHITE " \t\n\v\f\r"
-// the kinds of byte a class walk passes over: ASCII letters, decimal digits, the bytes past ASCII, the capitals and the
+// the types of byte a class walk passes over: ASCII letters, decimal digits, the bytes past ASCII, the capitals and the
 // small letters
 #define CLI_TEXT_LETTERS 1u
 #define CLI_TEXT_DIGITS 2u
@@ -129,7 +129,7 @@ unsigned long long cli_text_letters(const CliTextSizeByteCfg *args);
 unsigned long long cli_text_units(const CliTextSizeByteCfg *args);
 // whether `size` bytes are UTF-8 whole, every byte starting or inside a letter: a word of ASCII bytes passes in one
 // test, a word containing a high bit is read letter by letter (text.c)
-int cli_text_utf8_valid(const CliTextSizeKindCfg *args);
+int cli_text_utf8_valid(const CliTextSizeTypeCfg *args);
 
 // whether `size` bytes of `text` start with `prefix`, and end with `suffix`
 int cli_text_starts(const CliTextSizePrefixCfg *args);
@@ -344,7 +344,7 @@ struct CliTextPathsCfg
     unsigned int count;
 };
 
-struct CliTextSizeKindCfg
+struct CliTextSizeTypeCfg
 {
     unsigned long long size;
     const unsigned char *text_bytes;
@@ -565,10 +565,10 @@ EMBED_TABLE_STORAGE CliTextSizeLengthNs cli_text_size_length EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*utf8_valid)(const CliTextSizeKindCfg *args);
-} CliTextSizeKindNs;
-EMBED_TABLE_LAYOUT(CliTextSizeKindNs, utf8_valid);
-EMBED_TABLE_STORAGE CliTextSizeKindNs cli_text_size_kind EMBED_UNUSED = {
+    int (*utf8_valid)(const CliTextSizeTypeCfg *args);
+} CliTextSizeTypeNs;
+EMBED_TABLE_LAYOUT(CliTextSizeTypeNs, utf8_valid);
+EMBED_TABLE_STORAGE CliTextSizeTypeNs cli_text_size_type EMBED_UNUSED = {
     .utf8_valid = cli_text_utf8_valid,
 };
 

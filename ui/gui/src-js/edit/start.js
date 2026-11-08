@@ -15,7 +15,7 @@ import { startTrace } from "../trace.js";
 import { coverageOf, startTests, testMenu, testsOf } from "../tests.js";
 import { showMenu } from "../menu.js";
 import { cellFileOf, notebookEditor, startNotebooks } from "../notebook.js";
-import { kindColors } from "../themes.js";
+import { kindColors: typeColors } from "../themes.js";
 import { onFonts } from "../fonts.js";
 import { writeWithCare } from "../rights.js";
 import { marksOf, startScripts, syncPlugins, tell } from "../scripts.js";
@@ -173,7 +173,7 @@ export function startEditor() {
   };
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
-  state.editor.themeOf = (s) => kindColors(s?.language?.id);
+  state.editor.themeOf = (s) => typeColors(s?.language?.id);
   state.editor.addKeys(state.editorKeys);
   state.editor.bindKeys(state.boundKeys);
   state.editor.setVim(vimKeys());

@@ -258,7 +258,7 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
         return;
     }
     if (list_entries->include_only && args->is_folder &&
-        !EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = &s_listing->folders, .path = path) &&
+        !EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = &s_listing->folders, .path = path) &&
         !EMBED_CALL(cli_patterns_path.include_folder, CliPatternsPathCfg, .patterns = &s_listing->patterns,
                     .path = path))
     {
@@ -278,7 +278,7 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
         return;
     }
     const int archive =
-        !args->is_folder && (EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = name) != CLI_ARCHIVE_NONE);
+        !args->is_folder && (EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = name) != CLI_ARCHIVE_NONE);
     EMBED_CALL(cli_entry_append, FilesListCtx, .name = name, .path = path, .dir = args->is_folder || archive,
                .ignored = ignored, .archive = archive, .raw = NULL);
 }

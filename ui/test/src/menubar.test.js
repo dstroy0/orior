@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The menu bar's keys: a key two commands for different kinds of file share goes to the one whose
-// kind the file shown is. And every item of every menu, pressed from its menu as a person presses it.
+// The menu bar's keys: a key two commands for different types of file share goes to the one whose
+// type the file shown is. And every item of every menu, pressed from its menu as a person presses it.
 
 import { allCommands, hasCommand, runCommand } from "../../gui/src-js/menubar.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";

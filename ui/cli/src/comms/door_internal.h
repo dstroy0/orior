@@ -27,17 +27,17 @@ typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 #define CLI_IPC_FRAME (1u << 18u)
 #define CLI_IPC_ENTRY_BODY 4096u
 
-// A frame is its bytes' count in four bytes, least first, then its kind's byte and its fields, each text ended by a 0.
+// A frame is its bytes' count in four bytes, least first, then its type's byte and its fields, each text ended by a 0.
 // A process's first frame joins by its key; each after it listens on a channel, or sends on one a byte saying where the
 // body is and the body or a transfer. The door answers each with a refusal and why, or an answer and what it has to
 // say, a name or a count; and it sends what comes on a channel as a message: the channel, who sent it, and the same
 // byte and body
-#define CLI_IPC_KIND_JOIN 'J'
-#define CLI_IPC_KIND_LISTEN 'L'
-#define CLI_IPC_KIND_SEND 'S'
-#define CLI_IPC_KIND_REFUSED 'R'
-#define CLI_IPC_KIND_ANSWER 'A'
-#define CLI_IPC_KIND_MESSAGE 'M'
+#define CLI_IPC_TYPE_JOIN 'J'
+#define CLI_IPC_TYPE_LISTEN 'L'
+#define CLI_IPC_TYPE_SEND 'S'
+#define CLI_IPC_TYPE_REFUSED 'R'
+#define CLI_IPC_TYPE_ANSWER 'A'
+#define CLI_IPC_TYPE_MESSAGE 'M'
 #define CLI_IPC_BODY_INLINE 'B'
 #define CLI_IPC_BODY_TRANSFER 'T'
 

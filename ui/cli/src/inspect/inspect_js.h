@@ -19,7 +19,7 @@ typedef struct CliInspectJsFromCfg CliInspectJsFromCfg;
 typedef struct CliInspectJsOpenCfg CliInspectJsOpenCfg;
 typedef struct CliInspectJsCfg CliInspectJsCfg;
 
-// a token's kind
+// a token's type
 #define CLI_JS_NAME 0u
 #define CLI_JS_NUMBER 1u
 #define CLI_JS_STR 2u

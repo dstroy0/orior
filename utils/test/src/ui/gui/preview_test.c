@@ -62,7 +62,7 @@ static unsigned int run_reading(const char *text)
         const char *read = NULL;
         const CliPreviewItem *const item =
             EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = at, .text_out = &read);
-        if ((item->kind == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
+        if ((item->type == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
             (memor.cmp(&(MemoriaCfg){.src = read, .other = text, .bytes = length}) == 0))
         {
             return at;
@@ -181,7 +181,7 @@ int main(void)
     const int top = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
     const unsigned int first = EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = top);
     const CliPreviewItem *const started = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = first);
-    cli_check((started->kind == CLI_PREVIEW_ITEM_BLOCK) && (started->y <= top) && (first > 0u),
+    cli_check((started->type == CLI_PREVIEW_ITEM_BLOCK) && (started->y <= top) && (first > 0u),
               "the draw starts at the block standing at the top, past the items above it");
     drawn(&raster, &glyphs, palette, &frame);
     cli_check((drawn_in(&raster, over) == 0u) && (drawn_in(&raster, under) == 0u) &&
@@ -206,7 +206,7 @@ int main(void)
               "a press on the text is not the preview's");
 
     // the cursor's line marks its block in the signal
-    const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = 2ULL, .column = 0ULL};
+    const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = 2ULL, .column = 0ULL};
     view_input(key, &placed);
     now_ms += CLI_PREVIEW_LOOK_MS;
     cli_check(stepped(key, &frame, now_ms), "the cursor's line moved draws anew");
@@ -217,7 +217,7 @@ int main(void)
         marked = ((item->flags & CLI_PREVIEW_HERE) != 0u) ? at : marked;
     }
     const CliPreviewItem *const mark = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = marked);
-    cli_check((mark != NULL) && (mark->kind == CLI_PREVIEW_ITEM_BLOCK) && (mark->line == 2u),
+    cli_check((mark != NULL) && (mark->type == CLI_PREVIEW_ITEM_BLOCK) && (mark->line == 2u),
               "the block of the cursor's line is marked");
     drawn(&raster, &glyphs, palette, &frame);
     const int top_now = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
@@ -229,7 +229,7 @@ int main(void)
               "the mark is drawn in the signal beside the block");
 
     // a scroll of the editor moves the preview and none goes back
-    const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = 30ULL};
+    const CliViewInput scrolled = {.type = CLI_VIEW_SCROLL, .top = 30ULL};
     view_input(key, &scrolled);
     now_ms += CLI_PREVIEW_LOOK_MS;
     cli_check(stepped(key, &frame, now_ms) &&

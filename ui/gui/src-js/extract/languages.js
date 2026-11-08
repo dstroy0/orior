@@ -174,13 +174,13 @@ export const LANGUAGES = {
     // A name's type as clangd's hover gives it, its `Type:`, for a parameter or a variable local to
     // a function; a field marked as one; null for any other name.
     typeIn: (said) => {
-      const kind = said.match(/^###\s+([\w ]+?)\s+`/m)?.[1] ?? "";
-      const type = said.match(/Type:\s*`([^`]+)`/)?.[1] ?? null;
-      if (kind === "field") {
+      const type = said.match(/^###\s+([\w ]+?)\s+`/m)?.[1] ?? "";
+      const hoverType = said.match(/Type:\s*`([^`]+)`/)?.[1] ?? null;
+      if (type === "field") {
         return { field: true };
       }
-      const local = kind === "param" || (kind.endsWith("variable") && /\/\/ In (?!namespace\b)/.test(said));
-      return local && type ? { type } : null;
+      const local = type === "param" || (type.endsWith("variable") && /\/\/ In (?!namespace\b)/.test(said));
+      return local && hoverType ? { type: hoverType } : null;
     },
   },
 };

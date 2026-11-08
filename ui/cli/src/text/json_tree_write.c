@@ -286,7 +286,7 @@ static void cli_write(const JsonTreeWriteCtx *args)
 {
     VerbaLinea *out = args->out;
     const CliJsonNode *const at = &args->json->node[args->node];
-    switch (at->kind)
+    switch (at->type)
     {
     case CFG_JSON_STRING:
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
@@ -307,7 +307,7 @@ static void cli_write(const JsonTreeWriteCtx *args)
     default:
         break;
     }
-    const int object = at->kind == CFG_JSON_OBJECT;
+    const int object = at->type == CFG_JSON_OBJECT;
     mmgr_line_ch(out, object ? '{' : '[');
     if (at->first == CLI_JSON_NONE)
     {

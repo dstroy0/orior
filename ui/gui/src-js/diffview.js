@@ -90,14 +90,14 @@ const SPACE_KEY = "orior.diff-space";
 const STRUCTURE_KEY = "orior.diff-structure";
 
 // What a line of a structural comparison is, by the number the window's side gives it.
-const KINDS = ["same", "changed", "moved", "reshaped", "renamed"];
+const TYPES = ["same", "changed", "moved", "reshaped", "renamed"];
 
-// A line's text with each of its marked tokens, `[from, to, kind]`, in a span of its kind.
+// A line's text with each of its marked tokens, `[from, to, type]`, in a span of its type.
 function markedText(text, marks = []) {
   let html = "";
   let at = 0;
-  for (const [from, to, kind] of marks) {
-    html += `${escapeHtml(text.slice(at, from))}<span class="diff-token ${KINDS[kind]}">${escapeHtml(text.slice(from, to))}</span>`;
+  for (const [from, to, type] of marks) {
+    html += `${escapeHtml(text.slice(at, from))}<span class="diff-token ${TYPES[type]}">${escapeHtml(text.slice(from, to))}</span>`;
     at = to;
   }
   return html + escapeHtml(text.slice(at));
@@ -106,8 +106,8 @@ function markedText(text, marks = []) {
 // The marks of a side by line.
 function marksByLine(marks) {
   const lines = new Map();
-  for (const [line, from, to, kind] of marks) {
-    lines.set(line, [...(lines.get(line) ?? []), [from, to, kind]]);
+  for (const [line, from, to, type] of marks) {
+    lines.set(line, [...(lines.get(line) ?? []), [from, to, type]]);
   }
   return lines;
 }
@@ -132,10 +132,10 @@ function structureHtml(found, old, fresh, review, notes) {
   const right = marksByLine(found.right_marks);
   let html = "";
   found.rows.forEach(([from, to], at) => {
-    const side = (lines, line, kinds, marks, which) =>
+    const side = (lines, line, types, marks, which) =>
       line === null
         ? `<span class="diff-num"></span><span class="diff-text diff-gap ${which}"></span>`
-        : `${which === "right" ? rightNumber(line, review) : `<span class="diff-num">${line + 1}</span>`}<span class="diff-text ${which} line-${KINDS[kinds[line]]}">${markedText(lines[line], marks.get(line)) || " "}</span>`;
+        : `${which === "right" ? rightNumber(line, review) : `<span class="diff-num">${line + 1}</span>`}<span class="diff-text ${which} line-${TYPES[types[line]]}">${markedText(lines[line], marks.get(line)) || " "}</span>`;
     html += `<div class="diff-row by-structure" data-row="${at}">${side(old, from, found.left, left, "left")}${side(fresh, to, found.right, right, "right")}</div>`;
     if (to !== null) {
       html += commentsHtml(notes.get(to));
@@ -153,7 +153,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// The rows of the two texts side by side: each [left line or null, right line or null, kind], kind
+// The rows of the two texts side by side: each [left line or null, right line or null, type], type
 // "same", "changed", "added" or "removed", and where each change starts.
 function rowsOf(then, now) {
   const aside = localStorage.getItem(SPACE_KEY) === "aside";
@@ -270,12 +270,12 @@ export async function showDiff(host, path, then, now, { sides = null, same = "No
     body.innerHTML = structureHtml(found, old, fresh, review, notes);
   } else {
     let html = "";
-    found.rows.forEach(([left, right, kind], at) => {
+    found.rows.forEach(([left, right, type], at) => {
       const side = (lines, line, which) =>
         line === null
           ? `<span class="diff-num"></span><span class="diff-text diff-gap ${which}"></span>`
           : `${which === "right" ? rightNumber(line, review) : `<span class="diff-num">${line + 1}</span>`}<span class="diff-text ${which}">${escapeHtml(lines[line]) || " "}</span>`;
-      html += `<div class="diff-row ${kind}" data-row="${at}">${side(old, left, "left")}${side(fresh, right, "right")}</div>`;
+      html += `<div class="diff-row ${type}" data-row="${at}">${side(old, left, "left")}${side(fresh, right, "right")}</div>`;
       if (right !== null) {
         html += commentsHtml(notes.get(right));
       }

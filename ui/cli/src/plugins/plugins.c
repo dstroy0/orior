@@ -260,7 +260,7 @@ static void cli_language_each(const CliEachPluginCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &err_msg, .owner = g_cli_plugins_owner);
-    const char *const kind =
+    const char *const type =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -268,7 +268,7 @@ static void cli_language_each(const CliEachPluginCfg *args)
                          .length_pointer = NULL)
             : NULL;
     if ((root == CLI_JSON_NONE) ||
-        ((kind != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_POOL_BYTES}))))
+        ((type != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "language", .cap = CLI_POOL_BYTES}))))
     {
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
@@ -287,8 +287,8 @@ static void cli_language_each(const CliEachPluginCfg *args)
     {
         const unsigned int items = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = root, .name = s_lists[list]);
-        for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                            .node = items, .kind = CFG_JSON_ARRAY)
+        for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                            .node = items, .type = CFG_JSON_ARRAY)
                                      ? json.node[items].first
                                      : CLI_JSON_NONE;
              item != CLI_JSON_NONE; item = json.node[item].next)

@@ -349,8 +349,8 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
     unsigned int value = args->value;
     unsigned int *count = args->count;
     static char s_word[CLI_STRING_MAX_LEN];
-    const CfgJsonKind kind = s_tokens[value].kind;
-    if ((kind == CFG_JSON_STRING) || (kind == CFG_JSON_ARRAY))
+    const CfgJsonKind type = s_tokens[value].kind;
+    if ((type == CFG_JSON_STRING) || (type == CFG_JSON_ARRAY))
     {
         if (*count >= CLI_PLAN_COMMANDS_MAX)
         {
@@ -360,7 +360,7 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
         unsigned int tokens[CLI_PLAN_LIST_MAX];
         const unsigned int words = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
                                               .value = value, .tokens = tokens, .capacity = CLI_PLAN_LIST_MAX);
-        const CliPlanCommand command = {kind == CFG_JSON_STRING, plan->words.count, words};
+        const CliPlanCommand command = {type == CFG_JSON_STRING, plan->words.count, words};
         for (unsigned int at = 0u; at < words; at += 1u)
         {
             if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
@@ -373,7 +373,7 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
         args->commands[*count] = command;
         *count += 1u;
     }
-    else if (kind == CFG_JSON_OBJECT)
+    else if (type == CFG_JSON_OBJECT)
     {
         unsigned int keys[CLI_PLAN_LIST_MAX];
         unsigned int values[CLI_PLAN_LIST_MAX];

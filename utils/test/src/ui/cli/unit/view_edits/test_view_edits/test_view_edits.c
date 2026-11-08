@@ -44,7 +44,7 @@ static void keyed(const char *name)
 {
     CliViewInput input;
     memor.set(&(MemoriaCfg){.dst = &input, .val = 0, .bytes = sizeof(input)});
-    input.kind = CLI_VIEW_KEY;
+    input.type = CLI_VIEW_KEY;
     input.name = name;
     VerbaLinea err_msg = {s_why, sizeof(s_why), 0ULL};
     TEST_ASSERT_TRUE(

@@ -411,7 +411,7 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
     g_cli_guard->persistent_buf_release(positions, g_cli_lsp_files_owner);
 }
 
-void cli_lsp_files_let_go(const CliLspKindCtx *args)
+void cli_lsp_files_let_go(const CliLspTypeCtx *args)
 {
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {

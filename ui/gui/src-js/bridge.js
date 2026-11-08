@@ -158,8 +158,8 @@ export async function listen(event, handler) {
 
 // The system's picker: "dir" and "save-dir" a folder, "save" a file to write, anything else a file
 // to read. Answers the path chosen, or null.
-export function pick(kind) {
-  return invoke("pick", { kind });
+export function pick(type) {
+  return invoke("pick", { kind: type });
 }
 
 // A page the tree holds opened in a window of its own: orior's side names the window, its title and the address it

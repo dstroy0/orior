@@ -243,7 +243,9 @@ int cli_is_link(const CliPathFileCtx *args)
 
 unsigned long long cli_clock_milliseconds(void)
 {
-    return GetTickCount64();
+    // The tick count moves in steps of the system timer, about 15.6 ms, and a moving part read from it stands still
+    // across whole frames. The performance counter moves each microsecond
+    return cli_clock_microseconds() / 1000ull;
 }
 
 int cli_raised_platform(const CliErrMsgFromCtx *args)

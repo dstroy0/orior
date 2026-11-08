@@ -142,11 +142,11 @@ export function peekPlaces(title, places) {
 }
 
 // Peek Definition, Peek Usages and Peek Callers: the places the language server finds for the symbol
-// at the cursor, as `kind` asks, shown in a peek.
-export async function peekHere(kind) {
+// at the cursor, as `type` asks, shown in a peek.
+export async function peekHere(type) {
   let found;
   try {
-    found = await placesHere(kind);
+    found = await placesHere(type);
   } catch (error) {
     say(String(error), { failed: true });
     return;
@@ -155,10 +155,10 @@ export async function peekHere(kind) {
     return;
   }
   if (!found.places.length) {
-    say(`No ${kind === "definition" ? "definition" : kind} of ${found.name} found.`);
+    say(`No ${type === "definition" ? "definition" : type} of ${found.name} found.`);
     return;
   }
-  peekPlaces(`${TITLES[kind]} ${found.name}`, found.places);
+  peekPlaces(`${TITLES[type]} ${found.name}`, found.places);
 }
 
 export function startPeek() {

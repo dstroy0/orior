@@ -22,7 +22,7 @@ export function vcolOf(text, col, line = -1) {
   return line < 0 ? v : v + this.hintShift(line, col);
 }
 
-// The hints a line's server gives that the kinds on show, in the order of their cols.
+// The hints a line's server gives that the types on show, in the order of their cols.
 export function hintsOn(line) {
   const all = this.s?.hints?.byLine.get(line);
   if (!all) {
@@ -46,9 +46,9 @@ export function hintShift(line, col) {
   return width;
 }
 
-export function setHints(kind, on) {
-  this.hintKinds[kind] = on;
-  localStorage.setItem(HINT_KEYS[kind], String(on));
+export function setHints(type, on) {
+  this.hintKinds[type] = on;
+  localStorage.setItem(HINT_KEYS[type], String(on));
   this.schedule();
 }
 

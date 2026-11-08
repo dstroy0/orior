@@ -75,8 +75,8 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
     // each end is cut to its low word, as the protocol's unsigned integer is read
     *from &= 0xffffffffULL;
     *to &= 0xffffffffULL;
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = named,
-                      .kind = CFG_JSON_ARRAY) &&
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = named,
+                      .type = CFG_JSON_ARRAY) &&
            (EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = first, .otherwise = none) != none) &&
            (EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
@@ -111,8 +111,8 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
     }
     const unsigned int parameters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = args->json, .object = one, .name = "parameters");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = args->json, .node = parameters, .kind = CFG_JSON_ARRAY)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = args->json, .node = parameters, .type = CFG_JSON_ARRAY)
                                    ? args->json->node[parameters].first
                                    : CLI_JSON_NONE;
     unsigned int most = 0u;

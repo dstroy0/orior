@@ -39,7 +39,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {args->name};
     const int found = found_tool.has_program &&
-                      EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = found_tool.program,
+                      EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = found_tool.program,
                                  .out = folder) &&
                       EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names,
                                  .count = 1u, .path = path);
@@ -129,7 +129,7 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
         cargo, "metadata", "--no-deps", "--format-version", "1", "--offline", "--manifest-path", args->manifest, NULL};
     char folder[CLI_PATH_MAX_LEN];
     const int has_folder =
-        EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder);
+        EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->manifest, .out = folder);
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
@@ -239,7 +239,7 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
                     .src = args->out,
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES}) + 1u});
             }
-            else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->out,
+            else if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->out,
                                  .out = artifact))
             {
                 artifact[0] = '\0';
@@ -294,7 +294,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
     const char *const halves[2] = {args->root, script};
     EMBED_CALL(cli_parts, ExecutablesCtx, .parts = halves, .count = 2u, .out = full);
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = full, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = full, .out = folder))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
@@ -306,9 +306,9 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES}), .set = "/\\");
     base = (base_end != 0ULL) ? (full + base_end) : base;
-    const unsigned int kind =
-        EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
-    if (kind == CLI_KIND_NONE)
+    const unsigned int type =
+        EMBED_CALL(cli_executables_name_out_folder_internal.type_get, CliExecutablesNameOutFolderCtx, .name = base);
+    if (type == CLI_TYPE_NONE)
     {
         mmgr_line_put(args->err_msg, script);
         mmgr_line_put(args->err_msg, " is no build script");
@@ -318,7 +318,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
     EMBED_CALL(cli_executables_name_out_folder_internal.program_file, CliExecutablesNameOutFolderCtx, .name = name,
                .out = file);
     int found = 1;
-    if (kind == CLI_KIND_CARGO)
+    if (type == CLI_TYPE_CARGO)
     {
         const char *const profile = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                                .values = args->values, .key = "profile", .fallback = "dev");
@@ -349,9 +349,9 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
             EMBED_CALL(cli_parts, ExecutablesCtx, .parts = parts, .count = 4u, .out = args->path);
         }
     }
-    else if ((kind == CLI_KIND_CMAKE) || (kind == CLI_KIND_MESON))
+    else if ((type == CLI_TYPE_CMAKE) || (type == CLI_TYPE_MESON))
     {
-        const int cmake = kind == CLI_KIND_CMAKE;
+        const int cmake = type == CLI_TYPE_CMAKE;
         const char *const config = cmake ? EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                                       .values = args->values, .key = "config", .fallback = "Debug")
                                          : EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
@@ -372,7 +372,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
                       : EMBED_CALL(cli_executables_name_out_internal.meson_artifact, CliExecutablesNameOutCtx,
                                    .build = build, .name = name, .out = args->path, .err_msg = args->err_msg);
     }
-    else if (kind == CLI_KIND_GO)
+    else if (type == CLI_TYPE_GO)
     {
         const char *host_system = NULL;
         const char *host_processor = NULL;
@@ -397,17 +397,17 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         const char *const parts[5] = {args->root, "build", "exe", pair, named};
         EMBED_CALL(cli_parts, ExecutablesCtx, .parts = parts, .count = 5u, .out = args->path);
     }
-    else if (kind == CLI_KIND_NPM)
+    else if (type == CLI_TYPE_NPM)
     {
         const char *const parts[4] = {args->root, "build", "exe", file};
         EMBED_CALL(cli_parts, ExecutablesCtx, .parts = parts, .count = 4u, .out = args->path);
     }
-    else if (kind == CLI_KIND_DOTNET)
+    else if (type == CLI_TYPE_DOTNET)
     {
         found = EMBED_CALL(cli_executables_name_out_err_msg_internal.dotnet_artifact, CliExecutablesNameOutErrMsgCtx,
                            .name = name, .lines = args->lines, .out = args->path, .err_msg = args->err_msg);
     }
-    else if (kind == CLI_KIND_ZIG)
+    else if (type == CLI_TYPE_ZIG)
     {
         const char *const parts[4] = {folder, "zig-out", "bin", file};
         EMBED_CALL(cli_parts, ExecutablesCtx, .parts = parts, .count = 4u, .out = args->path);

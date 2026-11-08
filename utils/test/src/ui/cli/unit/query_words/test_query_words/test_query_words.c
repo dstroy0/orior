@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_query_words.c: the words of `orior_cli protocol`: the list names every loop once; leave is read off the words; a loop missing a program reports
-// it and starts no run; an unknown command is refused with the list; the table's whole names are those with every kind; the steps run the protocol in
+// it and starts no run; an unknown command is refused with the list; the table's whole names are those with every type; the steps run the protocol in
 // order; the base is the one word the cross accepts; the readings of a table are distinguished from a pull; the version and the architectures are read
 // off nvcc; the query's words are read and a file not there is reported; and the writers read their words
 #include "ui/query/src/learn/tables_internal.h"
@@ -57,13 +57,13 @@ static void table_written(const char *root, const char *const *files, unsigned i
     }
 }
 
-// the whole names the table contains of `kinds`, joined by `,`
-static const char *joined_names(const char *root, const char *const *kinds, unsigned int count)
+// the whole names the table contains of `types`, joined by `,`
+static const char *joined_names(const char *root, const char *const *types, unsigned int count)
 {
     static char s_names[64][QUERY_NAME_MAX_LEN];
     static const char *s_named[64];
     static char s_joined[512];
-    const unsigned int named = EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = root, .kinds = kinds, .kind_count = count, .names = s_names, .named = s_named);
+    const unsigned int named = EMBED_CALL(query_loops_root_types.whole, QueryLoopsRootTypesCfg, .root = root, .types = types, .type_count = count, .names = s_names, .named = s_named);
     VerbaLinea line = {s_joined, sizeof(s_joined), 0ull};
     for (unsigned int at = 0u; at < named; at += 1u)
     {
@@ -251,7 +251,7 @@ void test_no_command_is_refused_with_the_list(void)
     CLI_TEST_ASSERT_CONTAINS("learn", s_printed);
 }
 
-void test_the_tables_complete_names_are_those_with_every_kind(void)
+void test_the_tables_complete_names_are_those_with_every_type(void)
 {
     static const char *const s_files[9] = {"cu.klm", "cu.krs", "sass.klm", "sass.krs", "c.krs", "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "sm_89.khw"};
     static const char *const s_languages[2] = {"klm", "krs"};

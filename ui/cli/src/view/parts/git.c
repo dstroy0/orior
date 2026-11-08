@@ -145,7 +145,7 @@ static int git_row_height(const GuiPaneCfg *args)
 {
     CliGitLogRow row;
     const int branch =
-        EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = args->row, .row = &row) && (row.kind == CLI_GIT_LOG_ROW_BRANCH);
+        EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = args->row, .row = &row) && (row.type == CLI_GIT_LOG_ROW_BRANCH);
     return branch ? GUI_GIT_BRANCH_ROW : GUI_PANE_ROW;
 }
 
@@ -233,7 +233,7 @@ static void git_row_draw(const GuiPaneCfg *args)
     // the rows are fewer than an int counts
     const int pointed = args->pane_read->pointed == (int)args->row;
     const GuiColor text_color = pointed ? palette->text : palette->text_2;
-    if (row.kind == CLI_GIT_LOG_ROW_BRANCH)
+    if (row.type == CLI_GIT_LOG_ROW_BRANCH)
     {
         const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_BRANCH_PAD);
         const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_BRANCH_GAP);
@@ -246,7 +246,7 @@ static void git_row_draw(const GuiPaneCfg *args)
                          .length = row.second_length, .color = palette->text_3);
         return;
     }
-    if (row.kind == CLI_GIT_LOG_ROW_NONE)
+    if (row.type == CLI_GIT_LOG_ROW_NONE)
     {
         (void)EMBED_CALL(
             gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD, .size = GUI_GIT_NONE_SIZE,
@@ -255,7 +255,7 @@ static void git_row_draw(const GuiPaneCfg *args)
             .text = row.text, .length = row.text_length, .color = palette->text_3);
         return;
     }
-    if (row.kind == CLI_GIT_LOG_ROW_FILE)
+    if (row.type == CLI_GIT_LOG_ROW_FILE)
     {
         const int x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = args->raster, .palette = palette,
                                  .frame = frame, .rect = rect, .clip = args->clip, .depth = 1u);
@@ -353,12 +353,12 @@ static int git_press(const GuiPaneCfg *args)
     {
         return 0;
     }
-    if (row.kind == CLI_GIT_LOG_ROW_COMMIT)
+    if (row.type == CLI_GIT_LOG_ROW_COMMIT)
     {
         EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = args->row, .root = args->root);
         return 0;
     }
-    if (row.kind != CLI_GIT_LOG_ROW_FILE)
+    if (row.type != CLI_GIT_LOG_ROW_FILE)
     {
         return 0;
     }

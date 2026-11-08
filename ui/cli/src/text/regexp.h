@@ -63,18 +63,18 @@ typedef struct
 // properties in `low`, each `negated` where it is its opposite
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int low;
     unsigned int high;
     int negated;
 } CliRegexpItem;
 
-// One node of a pattern: its kind; its character; its class items, or its parts, from `first`, `count` of them; its
+// One node of a pattern: its type; its character; its class items, or its parts, from `first`, `count` of them; its
 // child; the repeat's fewest and most, greedy, and whether a pass takes the text one way or none; its group's index or
 // CLI_REGEXP_NONE; and the flag of a boundary, a lookahead and a class, its opposite
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int letter;
     unsigned int first;
     unsigned int count;

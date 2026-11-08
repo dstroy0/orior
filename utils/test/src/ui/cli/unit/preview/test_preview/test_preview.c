@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_preview.c: the preview's tables against fixed texts: a path's ending answers its kind; the mode reads its word,
+// test_preview.c: the preview's tables against fixed texts: a path's ending answers its type; the mode reads its word,
 // turns off where it stands, and is saved and read back; a Markdown text lays its headings, paragraphs, lists, tasks,
 // quotes, code, tables, rules, links, emphasis and strike as items sorted by top, its cells the size of what they
 // carry; an address that runs script is no link; and over a view bound: the first item a top starts at, the line at a
@@ -38,7 +38,7 @@ static const CliPreviewItem *run_reading(const CliPreviewItems *items, const cha
     for (unsigned int at = 0u; at < items->items; at += 1u)
     {
         const CliPreviewItem *const item = &items->item[at];
-        if ((item->kind == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
+        if ((item->type == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
             (memor.cmp(&(MemoriaCfg){.src = items->text + item->text, .other = text, .bytes = length}) == 0))
         {
             return item;
@@ -47,13 +47,13 @@ static const CliPreviewItem *run_reading(const CliPreviewItems *items, const cha
     return NULL;
 }
 
-// how many items of `items` are of the kind `kind` with the role `role` and the stroke `stroke`
-static unsigned int items_of(const CliPreviewItems *items, unsigned int kind, unsigned int role, unsigned int stroke)
+// how many items of `items` are of the type `type` with the role `role` and the stroke `stroke`
+static unsigned int items_of(const CliPreviewItems *items, unsigned int type, unsigned int role, unsigned int stroke)
 {
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < items->items; at += 1u)
     {
-        count += ((items->item[at].kind == kind) && (items->item[at].role == role) &&
+        count += ((items->item[at].type == type) && (items->item[at].role == role) &&
                   (items->item[at].stroke == stroke))
                      ? 1u
                      : 0u;
@@ -90,7 +90,7 @@ static int bound(const char *text)
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
+    const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = PREVIEW_KEY, .input = &sized,
                      .err_msg = &err_msg);
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");
@@ -126,7 +126,7 @@ static unsigned int bound_run(const char *text)
         const char *read = NULL;
         const CliPreviewItem *const item =
             EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = at, .text_out = &read);
-        if ((item->kind == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
+        if ((item->type == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
             (memor.cmp(&(MemoriaCfg){.src = read, .other = text, .bytes = length}) == 0))
         {
             return at;
@@ -142,7 +142,7 @@ static unsigned int bound_block(unsigned int line)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliPreviewItem *const item = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = at);
-        if ((item->kind == CLI_PREVIEW_ITEM_BLOCK) && (item->line == line))
+        if ((item->type == CLI_PREVIEW_ITEM_BLOCK) && (item->line == line))
         {
             return at;
         }
@@ -165,24 +165,24 @@ static const char *paragraphs(void)
     return s_text;
 }
 
-void test_kind_answers_each_ending_and_none_for_others(void)
+void test_type_answers_each_ending_and_none_for_others(void)
 {
     static const char *const s_paths[] = {"a.md",  "b/c.MARKDOWN", "d.mdown", "e.mkd",   "f.mdx",  "g.html",
                                           "h.htm", "i.xhtml",      "j.css",   "k.svg",   "l.mmd",  "m.mermaid",
                                           "n.tex", "o.latex",      "p.ltx",   "q.http",  "r.rest"};
-    static const unsigned int s_kinds[] = {
+    static const unsigned int s_types[] = {
         CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN,
         CLI_PREVIEW_HTML,     CLI_PREVIEW_HTML,     CLI_PREVIEW_HTML,     CLI_PREVIEW_CSS,      CLI_PREVIEW_SVG,
         CLI_PREVIEW_MERMAID,  CLI_PREVIEW_MERMAID,  CLI_PREVIEW_LATEX,    CLI_PREVIEW_LATEX,    CLI_PREVIEW_LATEX,
         CLI_PREVIEW_REQUESTS, CLI_PREVIEW_REQUESTS};
     for (unsigned int at = 0u; at < sizeof(s_paths) / sizeof(s_paths[0]); at += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT(s_kinds[at], EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = s_paths[at]));
+        TEST_ASSERT_EQUAL_UINT(s_types[at], EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = s_paths[at]));
     }
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = "main.c"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = "md"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = "notes.md/readme"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = NULL));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = "main.c"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = "md"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = "notes.md/readme"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_NONE, EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = NULL));
 }
 
 void test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved(void)
@@ -285,13 +285,13 @@ void test_markdown_lays_every_block_as_items_sorted_by_top(void)
     {
         TEST_ASSERT_TRUE(items.block[at].top >= top);
         TEST_ASSERT_TRUE((at == 0u) || (items.block[at].line >= items.block[at - 1u].line));
-        TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ITEM_BLOCK, items.item[items.block[at].item].kind);
+        TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ITEM_BLOCK, items.item[items.block[at].item].type);
         top = items.block[at].top;
     }
     int block_top = 0;
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
-        block_top = (items.item[at].kind == CLI_PREVIEW_ITEM_BLOCK) ? items.item[at].y : block_top;
+        block_top = (items.item[at].type == CLI_PREVIEW_ITEM_BLOCK) ? items.item[at].y : block_top;
         TEST_ASSERT_TRUE(items.item[at].y >= block_top);
     }
     TEST_ASSERT_TRUE(items.height > top);
@@ -308,7 +308,7 @@ void test_markdown_cells_are_the_size_of_what_they_carry(void)
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
         const CliPreviewItem *const item = &items.item[at];
-        bytes += (item->kind == CLI_PREVIEW_ITEM_TEXT) ? item->length : 0u;
+        bytes += (item->type == CLI_PREVIEW_ITEM_TEXT) ? item->length : 0u;
         if ((item->link_length != 0u) && (item->link != link))
         {
             bytes += item->link_length;
@@ -410,7 +410,7 @@ void test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back(void)
 void test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back(void)
 {
     (void)bound(paragraphs());
-    const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = 40ULL};
+    const CliViewInput scrolled = {.type = CLI_VIEW_SCROLL, .top = 40ULL};
     view_input(&scrolled);
     TEST_ASSERT_EQUAL_INT(1, stepped());
     TEST_ASSERT_EQUAL_INT(EMBED_CALL(cli_preview_scroll.top_of, CliPreviewScrollCfg, .line = 40ULL),
@@ -423,7 +423,7 @@ void test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back(void)
 void test_the_cursor_line_marks_its_block(void)
 {
     (void)bound(paragraphs());
-    const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = 5ULL, .column = 0ULL};
+    const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = 5ULL, .column = 0ULL};
     view_input(&placed);
     TEST_ASSERT_EQUAL_INT(1, stepped());
     const CliPreviewItem *const fourth = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_block(4u));
@@ -431,7 +431,7 @@ void test_the_cursor_line_marks_its_block(void)
     TEST_ASSERT_TRUE((fourth->flags & CLI_PREVIEW_HERE) != 0u);
     TEST_ASSERT_EQUAL_UINT(0u, fifth->flags & CLI_PREVIEW_HERE);
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_preview_mark.mark, CliPreviewMarkCfg, .line = 4ULL));
-    const CliViewInput moved = {.kind = CLI_VIEW_POSITION, .row = 6ULL, .column = 0ULL};
+    const CliViewInput moved = {.type = CLI_VIEW_POSITION, .row = 6ULL, .column = 0ULL};
     view_input(&moved);
     TEST_ASSERT_EQUAL_INT(1, stepped());
     TEST_ASSERT_EQUAL_UINT(0u, fourth->flags & CLI_PREVIEW_HERE);

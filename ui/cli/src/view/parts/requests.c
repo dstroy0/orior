@@ -135,7 +135,7 @@ EMBED_INLINE int requests_box_end(const RequestsPartCtx *args)
            EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_REQUESTS_BOX_GAP);
 }
 
-// the row drawn as its kind: a group with its arrow, a header or what was sent one guide in, the body and a
+// the row drawn as its type: a group with its arrow, a header or what was sent one guide in, the body and a
 // comparison's lines in the code face, a comparison's with its sign first, an answer with its box, and any other in
 // its tone's color
 static void requests_row_draw(const GuiPaneCfg *args)
@@ -152,7 +152,7 @@ static void requests_row_draw(const GuiPaneCfg *args)
     int x = rect.x + pad;
     unsigned int face = GUI_FACE_HEAD;
     GuiColor color = EMBED_CALL(requests_tone_color, RequestsPartCtx, .pane = args, .tone = row.tone);
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_REQUESTS_ROW_GROUP: {
         const int arrow = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_ARROW);
@@ -214,7 +214,7 @@ static int requests_press(const GuiPaneCfg *args)
     {
         return 0;
     }
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_REQUESTS_ROW_GROUP:
         EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = args->row);

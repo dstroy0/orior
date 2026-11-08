@@ -151,7 +151,7 @@
     walk.loafs = null;
   }
 
-  const fault = (kind, text) => walk.errors.push({ t: performance.now(), kind, text: String(text).slice(0, 600) });
+  const fault = (type, text) => walk.errors.push({ t: performance.now(), kind: type, text: String(text).slice(0, 600) });
   window.addEventListener("error", (event) => fault("error", event.error?.stack || event.message));
   window.addEventListener("unhandledrejection", (event) => fault("rejection", event.reason?.stack || event.reason));
   const written = console.error;

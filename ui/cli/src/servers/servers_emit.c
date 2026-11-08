@@ -329,8 +329,8 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
 // the diagnostics of an array of `json` at `array`: its count, 0 where it is no array
 EMBED_INLINE unsigned int emit_array_count(const ServersEmitCtx *args)
 {
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                      .node = args->array, .kind = CFG_JSON_ARRAY)
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                      .node = args->array, .type = CFG_JSON_ARRAY)
                ? args->json->node[args->array].count
                : 0u;
 }
@@ -341,8 +341,8 @@ EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
 {
     const char *key = args->key;
     const CliJson *const json = args->json;
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = args->array, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = args->array, .type = CFG_JSON_ARRAY)
                                  ? json->node[args->array].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
@@ -453,8 +453,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     // the diagnostics the tree contains at the most: the server's, the inspections', and each checker's array
     unsigned int most = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]) +
                         EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[1]);
-    const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                  .json_read = &json, .node = roots[2], .kind = CFG_JSON_OBJECT)
+    const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                  .json_read = &json, .node = roots[2], .type = CFG_JSON_OBJECT)
                                            ? json.node[roots[2]].first
                                            : CLI_JSON_NONE;
     for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)

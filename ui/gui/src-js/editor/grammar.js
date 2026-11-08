@@ -9,32 +9,32 @@
 
 const classes = new Map();
 
-// Every kind of token the grammars compiled name, as "keyword" or "number.cost", for the themes that
+// Every type of token the grammars compiled name, as "keyword" or "number.cost", for the themes that
 // color each.
-const kinds = new Set();
+const types = new Set();
 
-export function tokenKinds() {
+export function tokenTypes() {
   return [...kinds].sort();
 }
 
-// Notes each kind of token a rule's action names: a token, a list of them, cases, or a rule's own.
-function noteKinds(action) {
+// Notes each type of token a rule's action names: a token, a list of them, cases, or a rule's own.
+function noteTypes(action) {
   if (typeof action === "string") {
-    const kind = action === "@brackets" ? "delimiter.bracket" : action;
-    if (kind && !kind.startsWith("@")) {
-      kinds.add(kind);
+    const type = action === "@brackets" ? "delimiter.bracket" : action;
+    if (type && !type.startsWith("@")) {
+      types.add(type);
     }
   } else if (Array.isArray(action)) {
-    action.forEach(noteKinds);
+    action.forEach(noteTypes);
   } else if (action?.cases) {
-    Object.values(action.cases).forEach(noteKinds);
+    Object.values(action.cases).forEach(noteTypes);
   } else if (action && typeof action === "object") {
-    noteKinds(action.token);
+    noteTypes(action.token);
   }
 }
 
 // The class names of a token: "number.cost" is t-number and t-number-cost. A color given to
-// number reaches every kind of number. A token whose name counts the depth of a pair, a segment
+// number reaches every type of number. A token whose name counts the depth of a pair, a segment
 // `depth` and the depth last, takes t-depth and t-depth-<depth> as well, the classes the stylesheet
 // colors a pair's depth by, so no rule of it reads a class name's letters.
 export function classOf(token) {
@@ -54,12 +54,12 @@ export function classOf(token) {
   return found;
 }
 
-// A grammar as the page holds it: its definition, every kind of token its rules name noted for the themes.
+// A grammar as the page holds it: its definition, every type of token its rules name noted for the themes.
 export function compile(def) {
   for (const rules of Object.values(def.tokenizer ?? {})) {
     for (const rule of rules) {
       if (Array.isArray(rule)) {
-        noteKinds(rule[1]);
+        noteTypes(rule[1]);
       }
     }
   }

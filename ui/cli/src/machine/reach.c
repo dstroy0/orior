@@ -15,6 +15,8 @@
 // the most windows stored that are read, and how long a command line waits for the window's answer in milliseconds
 #define CLI_REACH_WINDOWS 64u
 #define CLI_REACH_WAIT 10000ULL
+// the milliseconds a held command's answer is waited for: a week
+#define CLI_REACH_HELD_WAIT 604800000ULL
 
 // A window stored: its process, the tree it has open, its door's address, and its key
 typedef struct
@@ -266,6 +268,17 @@ EMBED_INLINE int reach_window(const ReachCtx *args)
         mmgr_line_decimal(err_msg, delivered, 1u);
         return 0;
     }
+    // a held command's answer comes when a person answers in the window, so the wait has no short bound
+    if ((body.at != 0ULL) && (body.out[0] == CLI_REACH_HELD))
+    {
+        body.at = 0ULL;
+        if (!EMBED_CALL(cli_ipc_client.next, CliIpcClientCfg, .client = client, .wait = CLI_REACH_HELD_WAIT,
+                        .channel_out = reply_channel, .from = from, .body_verba_linea_pointer = &body))
+        {
+            mmgr_line_put(err_msg, "the window held the command and gave no answer");
+            return 0;
+        }
+    }
     args->answer->done = (body.at != 0ULL) && (body.out[0] == CLI_REACH_DONE);
     VerbaLinea answer = {args->answer->text, sizeof(args->answer->text), 0ULL};
     if (body.at > 1ULL)
@@ -358,6 +371,9 @@ typedef struct
     _Atomic int closed;
     void (*_Atomic woken)(void);
     char *key;
+    // the id of the command whose answer the window holds, copied as its thread wakes, and whether one is held
+    char held_id[CLI_NAME_MAX_LEN];
+    int held;
 } CliReachDoor;
 
 static CliReachDoor s_door;
@@ -467,28 +483,50 @@ int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg)
                       .err_msg = err_msg);
 }
 
-// what a command came to, sent on its own channel: `1` where it ran, else `0` and why
-static void reach_answer(const CliReachCommand *command, int ran)
+// an answer sent on a command's own channel: the byte `mark`, then `text` where it is not NULL
+static void reach_answer_text(const char *id, char mark, const char *text)
 {
     char channel[CLI_NAME_MAX_LEN];
     VerbaLinea channel_line = {channel, sizeof(channel), 0ULL};
     mmgr_line_put(&channel_line, "answer/");
-    mmgr_line_put(&channel_line, command->id);
+    mmgr_line_put(&channel_line, id);
     (void)mmgr_line_finish(&channel_line);
-    char text[CLI_NAME_MAX_LEN + 64u];
-    VerbaLinea body = {text, sizeof(text), 0ULL};
-    mmgr_line_ch(&body, ran ? CLI_REACH_DONE : CLI_REACH_REFUSED);
-    if (!ran)
+    char sent[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea body = {sent, sizeof(sent), 0ULL};
+    mmgr_line_ch(&body, mark);
+    if (text != NULL)
     {
-        mmgr_line_put(&body, command->command);
-        mmgr_line_put(&body, " is not a command of the window's");
+        mmgr_line_put(&body, text);
     }
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     unsigned long long delivered = 0ULL;
     (void)EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = s_door.key, .channel = channel,
-                     .body = text, .size = mmgr_line_ok(&body) ? body.at : 1ULL, .delivered = &delivered,
+                     .body = sent, .size = mmgr_line_ok(&body) ? body.at : 1ULL, .delivered = &delivered,
                      .err_msg = &err_msg);
+}
+
+// what a command came to, sent on its own channel: `1` where it ran, else `0` and why
+static void reach_answer(const CliReachCommand *command, int ran)
+{
+    if (ran)
+    {
+        reach_answer_text(command->id, CLI_REACH_DONE, NULL);
+        return;
+    }
+    char why[CLI_NAME_MAX_LEN + 64u];
+    VerbaLinea line = {why, sizeof(why), 0ULL};
+    mmgr_line_put(&line, command->command);
+    mmgr_line_put(&line, " is not a command of the window's");
+    (void)mmgr_line_finish(&line);
+    reach_answer_text(command->id, CLI_REACH_REFUSED, why);
+}
+
+// a command's thread woken: its command done, or its answer held
+static void reach_wake(CliReachCommand *command)
+{
+    embed_atomic_word_store(&command->done, 1u);
+    embed_word_wake(&command->done);
 }
 
 int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count))
@@ -512,17 +550,41 @@ int cli_reach_take(int (*run)(const char *command, const char *const *words, uns
         // the next read before the done word is set: the command's stack frame ends once its thread wakes
         CliReachCommand *const next = first->next;
         first->ran = run(first->command, first->word, first->words);
-        reach_answer(first, first->ran);
-        embed_atomic_word_store(&first->done, 1u);
-        embed_word_wake(&first->done);
+        // A held command keeps its id, and the held byte tells its requester to wait on. Its thread wakes at once, as
+        // the door's answer to the sending process waits on that thread. The window holds one command at a time, so a
+        // second hold is refused
+        if ((first->ran == CLI_REACH_HOLD) && !s_door.held)
+        {
+            VerbaLinea id_line = {s_door.held_id, sizeof(s_door.held_id), 0ULL};
+            mmgr_line_put(&id_line, first->id);
+            s_door.held = mmgr_line_finish(&id_line) != 0ULL;
+            reach_answer_text(first->id, s_door.held ? CLI_REACH_HELD : CLI_REACH_REFUSED,
+                              s_door.held ? NULL : "the command's id does not fit what the window keeps");
+        }
+        else
+        {
+            reach_answer(first, first->ran == 1);
+        }
+        reach_wake(first);
         first = next;
     }
     return 1;
 }
 
+void cli_reach_held_answer(int done, const char *text)
+{
+    if (!s_door.held)
+    {
+        return;
+    }
+    s_door.held = 0;
+    reach_answer_text(s_door.held_id, done ? CLI_REACH_DONE : CLI_REACH_REFUSED, text);
+}
+
 void cli_reach_close(void)
 {
     atomic_store_explicit(&s_door.closed, 1, memory_order_seq_cst);
+    cli_reach_held_answer(0, "the window closed before an answer");
     reach_refused_all();
     atomic_store_explicit(&s_door.woken, NULL, memory_order_release);
     g_cli_guard->persistent_buf_release(s_door.key, g_cli_machine_owner);

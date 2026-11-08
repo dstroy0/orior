@@ -511,7 +511,7 @@ void test_a_request_stores_its_last_answers_the_last_first(void)
 {
     answers_stored();
     const unsigned int make = answers_read(1ull);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = make, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = make, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_HISTORY_MAX, s_json->node[make].count);
     for (unsigned int at = 0u; at < CLI_REQUESTS_HISTORY_MAX; at += 1u)
     {
@@ -546,6 +546,6 @@ void test_a_large_answers_body_is_stored_cut(void)
     const unsigned int answers = answers_read(10ull);
     const unsigned int big = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = answers, .index = 0u);
     const unsigned int body = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = big, .name = "body");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = big, .name = "cut"), .kind = CFG_JSON_TRUE));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = big, .name = "cut"), .type = CFG_JSON_TRUE));
     TEST_ASSERT_EQUAL_UINT64(CLI_REQUESTS_HISTORY_BODY_MAX, s_json->node[body].length);
 }

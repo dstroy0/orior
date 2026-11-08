@@ -496,8 +496,8 @@ unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args)
     unsigned int count = args->count;
     const unsigned int patterns =
         EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = json, .map = args->by_system);
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = patterns, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = patterns, .type = CFG_JSON_ARRAY)
                                  ? json->node[patterns].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)

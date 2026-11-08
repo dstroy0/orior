@@ -105,16 +105,16 @@ function drawAnswer(answer) {
   if (answer.failed) {
     return element("div", { className: "rq-answer" }, element("p", { className: "rq-status failed" }, answer.failed), sentBox);
   }
-  const kind = answer.status >= 400 ? "failed" : answer.status >= 300 ? "moved" : "good";
-  const status = element("p", { className: `rq-status ${kind}` }, element("strong", {}, `${answer.status} ${answer.reason}`), ` ${ms(answer.times.total)}, ${bytes(answer.size)}${answer.redirects.length ? `, after ${answer.redirects.length} redirect${answer.redirects.length === 1 ? "" : "s"}` : ""}`);
+  const type = answer.status >= 400 ? "failed" : answer.status >= 300 ? "moved" : "good";
+  const status = element("p", { className: `rq-status ${type}` }, element("strong", {}, `${answer.status} ${answer.reason}`), ` ${ms(answer.times.total)}, ${bytes(answer.size)}${answer.redirects.length ? `, after ${answer.redirects.length} redirect${answer.redirects.length === 1 ? "" : "s"}` : ""}`);
   const rows = answer.headers.map(([name, value]) => element("tr", {}, element("th", {}, name), element("td", {}, value)));
   const headers = element("details", { className: "rq-headers" }, element("summary", {}, `Headers (${answer.headers.length})`), element("table", {}, ...rows));
-  const type = header(answer, "Content-Type");
+  const contentType = header(answer, "Content-Type");
   let body;
-  if (answer.binary && /^image\//i.test(type)) {
-    body = element("img", { className: "rq-image", src: `data:${type.split(";")[0]};base64,${answer.body}`, alt: `The image the answer holds, ${bytes(answer.size)}` });
+  if (answer.binary && /^image\//i.test(contentType)) {
+    body = element("img", { className: "rq-image", src: `data:${contentType.split(";")[0]};base64,${answer.body}`, alt: `The image the answer holds, ${bytes(answer.size)}` });
   } else if (answer.binary) {
-    body = element("p", { className: "rq-empty" }, `${bytes(answer.size)} of ${type || "bytes"}, not text.`);
+    body = element("p", { className: "rq-empty" }, `${bytes(answer.size)} of ${contentType || "bytes"}, not text.`);
   } else {
     const text = bodyText(answer);
     body = element("pre", { className: "rq-body" }, text.length > MOST_DRAWN ? text.slice(0, MOST_DRAWN) : text);

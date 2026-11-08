@@ -33,7 +33,7 @@ typedef struct
 static CliNames s_names;
 static CliPart s_parts[CLI_LAYER_PARTS];
 static CliPartValue s_values[CLI_LAYER_RAW];
-static CliKindSet s_kinds[CLI_LAYER_PARTS];
+static CliTypeSet s_types[CLI_LAYER_PARTS];
 static char s_value[CLI_LAYER_VALUE];
 
 // the bytes the layers' texts are first taken with
@@ -100,9 +100,9 @@ typedef struct
     const CliChain *tree;
     unsigned int parts;
     const CliPart *part_at;
-    const CliKindSet *set;
-    const char *kind;
-    unsigned long long kind_length;
+    const CliTypeSet *set;
+    const char *type;
+    unsigned long long type_length;
 } SettingsLayersCtx;
 EMBED_INLINE void cli_value_write(const SettingsLayersCtx *args);
 
@@ -186,7 +186,7 @@ static void cli_json_expand(const SettingsLayersCtx *args)
 {
     VerbaLinea *out = args->out;
     const CliJsonNode *const node = &args->chain->json.node[args->value];
-    if (node->kind == CFG_JSON_STRING)
+    if (node->type == CFG_JSON_STRING)
     {
         static char s_text[CLI_SETTINGS_NAMES_DEEP + 1u][CLI_LAYER_VALUE];
         char *const capacity = s_text[s_names.depth];
@@ -201,13 +201,13 @@ static void cli_json_expand(const SettingsLayersCtx *args)
                    .length = mmgr_line_ok(&line) ? line.at : 0ULL);
         return;
     }
-    if ((node->kind != CFG_JSON_ARRAY) && (node->kind != CFG_JSON_OBJECT))
+    if ((node->type != CFG_JSON_ARRAY) && (node->type != CFG_JSON_OBJECT))
     {
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &args->chain->json,
                    .node = args->value, .out = out, .indent = 0u, .sorted = 0);
         return;
     }
-    const int object = node->kind == CFG_JSON_OBJECT;
+    const int object = node->type == CFG_JSON_OBJECT;
     mmgr_line_ch(out, object ? '{' : '[');
     for (unsigned int child = node->first; child != CLI_JSON_NONE; child = args->chain->json.node[child].next)
     {
@@ -421,13 +421,13 @@ EMBED_INLINE void cli_part_read(const SettingsLayersCtx *args)
     }
 }
 
-// the member `value` of the settings object a kind of file's key sets in `set`, of the kind `kind`, read: a problem
-// where it is not theme.dark or theme.light, else stored, put among the layers' kinds where the kind and the key are
+// the member `value` of the settings object a type of file's key sets in `set`, of the type `type`, read: a problem
+// where it is not theme.dark or theme.light, else stored, put among the layers' types where the type and the key are
 // not there yet, and its source, the set's key and its own, put after the layers' sources
-EMBED_INLINE void cli_kind_member_read(const SettingsLayersCtx *args)
+EMBED_INLINE void cli_type_member_read(const SettingsLayersCtx *args)
 {
     CliLayers *const layers = args->layers;
-    const CliKindSet *const set = args->set;
+    const CliTypeSet *const set = args->set;
     const CliJson *const json = &set->chain->json;
     const char *const file = set->chain->file[set->file];
     const char *const key = json->text + json->node[args->value].key;
@@ -449,25 +449,25 @@ EMBED_INLINE void cli_kind_member_read(const SettingsLayersCtx *args)
     }
     const unsigned int text = EMBED_CALL(cli_read_store, SettingsLayersCtx, .layers = layers, .chain = set->chain,
                                          .value = args->value, .file = file, .key = key);
-    const unsigned int kind_text = EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx,
-                                              .layers = layers, .text = args->kind, .length = args->kind_length);
+    const unsigned int type_text = EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx,
+                                              .layers = layers, .text = args->type, .length = args->type_length);
     int known = 0;
-    for (unsigned int each = 0u; !known && (each < layers->kinds); each += 1u)
+    for (unsigned int each = 0u; !known && (each < layers->types); each += 1u)
     {
-        known = (cellul.eq(&(CatenaFinitaCfg){.src = layers->text + layers->kind[each].kind,
-                                              .other = layers->text + kind_text,
+        known = (cellul.eq(&(CatenaFinitaCfg){.src = layers->text + layers->type[each].type,
+                                              .other = layers->text + type_text,
                                               .cap = CLI_POOL_BYTES})) &&
                 (cellul.eq(&(CatenaFinitaCfg){
-                    .src = layers->text + layers->kind[each].key, .other = key, .cap = CLI_POOL_BYTES}));
+                    .src = layers->text + layers->type[each].key, .other = key, .cap = CLI_POOL_BYTES}));
     }
-    if (!known && (layers->kinds < CLI_LAYERS_KEYS))
+    if (!known && (layers->types < CLI_LAYERS_KEYS))
     {
-        layers->kind[layers->kinds] = (CliKindText){
-            kind_text,
+        layers->type[layers->types] = (CliTypeText){
+            type_text,
             EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
                        .text = key, .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES})),
             text};
-        layers->kinds += 1u;
+        layers->types += 1u;
     }
     char from[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea named = {from, sizeof(from), 0ULL};
@@ -479,19 +479,19 @@ EMBED_INLINE void cli_kind_member_read(const SettingsLayersCtx *args)
                .text = text);
 }
 
-// each member of the settings object a kind of file's key sets in `set` read
-EMBED_INLINE void cli_kind_set_read(const SettingsLayersCtx *args)
+// each member of the settings object a type of file's key sets in `set` read
+EMBED_INLINE void cli_type_set_read(const SettingsLayersCtx *args)
 {
-    const CliKindSet *const set = args->set;
+    const CliTypeSet *const set = args->set;
     const CliJson *const json = &set->chain->json;
-    const char *kind = NULL;
-    unsigned long long kind_length = 0ULL;
-    EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = set->key, .kind = &kind,
-               .length_pointer = &kind_length);
+    const char *type = NULL;
+    unsigned long long type_length = 0ULL;
+    EMBED_CALL(cli_settings_key_internal.type_get, CliSettingsKeyCtx, .key = set->key, .type = &type,
+               .length_pointer = &type_length);
     for (unsigned int member = json->node[set->object].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
-        EMBED_CALL(cli_kind_member_read, SettingsLayersCtx, .layers = args->layers, .set = set, .value = member,
-                   .kind = kind, .kind_length = kind_length);
+        EMBED_CALL(cli_type_member_read, SettingsLayersCtx, .layers = args->layers, .set = set, .value = member,
+                   .type = type, .type_length = type_length);
     }
 }
 
@@ -500,10 +500,10 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     const char *root = args->root;
     EMBED_CALL(cli_layers_begun, SettingsLayersCtx, .layers = args->layers, .reader = args->reader, .tree = args->tree);
     EMBED_CALL(cli_settings_parts_internal.parts_store, CliSettingsPartsCtx, .parts = s_parts, .values = s_values,
-               .kinds = s_kinds);
+               .types = s_types);
     unsigned int parts = 0u;
     unsigned int values = 0u;
-    unsigned int kinds = 0u;
+    unsigned int types = 0u;
     const unsigned int last = (args->reader->files != 0u) ? (args->reader->files - 1u) : 0u;
     for (unsigned int at = 0u; at < (args->reader->files + args->tree->files); at += 1u)
     {
@@ -520,7 +520,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
         }
         parts = EMBED_CALL(cli_settings_layers_internal.file_parts, CliSettingsLayersCtx, .layers = args->layers,
                            .chain = chain, .file = file, .of_tree = of_tree, .own = !of_tree && (file == last),
-                           .parts_u32 = parts, .values_u32s = &values, .kinds_u32s = &kinds);
+                           .parts_u32 = parts, .values_u32s = &values, .types_u32s = &types);
     }
     // every setting as the parts set it, the last standing, for `${setting:name}`
     s_names.raws = 0u;
@@ -533,8 +533,8 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     {
         EMBED_CALL(cli_part_read, SettingsLayersCtx, .layers = args->layers, .part_at = &s_parts[at - 1u]);
     }
-    for (unsigned int at = kinds; at > 0u; at -= 1u)
+    for (unsigned int at = types; at > 0u; at -= 1u)
     {
-        EMBED_CALL(cli_kind_set_read, SettingsLayersCtx, .layers = args->layers, .set = &s_kinds[at - 1u]);
+        EMBED_CALL(cli_type_set_read, SettingsLayersCtx, .layers = args->layers, .set = &s_types[at - 1u]);
     }
 }

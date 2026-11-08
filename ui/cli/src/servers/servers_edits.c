@@ -48,8 +48,8 @@ EMBED_INLINE unsigned int edits_on_count(const ServersEditsCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int count = args->before;
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                       .node = args->edits, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                       .node = args->edits, .type = CFG_JSON_ARRAY)
                                 ? json->node[args->edits].first
                                 : CLI_JSON_NONE;
          (one != CLI_JSON_NONE) && (count < CLI_TEXT_EDITS); one = json->node[one].next)
@@ -102,8 +102,8 @@ static void edits_add(const ServersEditsCtx *args)
     {
         return;
     }
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                       .node = edits, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                       .node = edits, .type = CFG_JSON_ARRAY)
                                 ? json->node[edits].first
                                 : CLI_JSON_NONE;
          (one != CLI_JSON_NONE) && (args->editing->edits < args->editing->edit_capacity); one = json->node[one].next)
@@ -208,8 +208,8 @@ static void edits_walk(const ServersEditsCtx *args)
                    .name = "documentChanges");
     const unsigned int changes = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                             .object = args->edit, .name = "changes");
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = document_changes,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = document_changes,
+                   .type = CFG_JSON_ARRAY))
     {
         for (unsigned int change = json->node[document_changes].first; change != CLI_JSON_NONE;
              change = json->node[change].next)
@@ -236,8 +236,8 @@ static void edits_walk(const ServersEditsCtx *args)
             }
         }
     }
-    else if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = changes,
-                        .kind = CFG_JSON_OBJECT))
+    else if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = changes,
+                        .type = CFG_JSON_OBJECT))
     {
         for (unsigned int change = json->node[changes].first; change != CLI_JSON_NONE; change = json->node[change].next)
         {

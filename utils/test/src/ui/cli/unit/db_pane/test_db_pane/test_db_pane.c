@@ -22,7 +22,7 @@ static void lite_saved(const char *name, const char *file)
     CliDbConnection connection;
     memor.set(&(MemoriaCfg){.dst = &connection, .val = 0, .bytes = sizeof(connection)});
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.name, .src = name, .cap = CLI_NAME_MAX_LEN});
-    (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.kind, .src = "sqlite", .cap = 16ULL});
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.type, .src = "sqlite", .cap = 16ULL});
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.file, .src = file, .cap = CLI_PATH_MAX_LEN});
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -135,7 +135,7 @@ void test_the_connections_read_with_none_chosen_stand_as_one_sentence(void)
     tree_ready();
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u));
     const CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.type);
     CLI_TEST_ASSERT_TEXT("No connection", row.text, row.text_length);
     TEST_ASSERT_TRUE(tool_enabled(CLI_DB_PANE_PICK));
     TEST_ASSERT_FALSE(tool_enabled(CLI_DB_PANE_CONNECT));
@@ -156,7 +156,7 @@ void test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema(
     label = tool_label(CLI_DB_PANE_CONNECT, &length);
     CLI_TEST_ASSERT_TEXT("Disconnect", label, length);
     row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row.type);
     CLI_TEST_ASSERT_TEXT("main", row.text, row.text_length);
     TEST_ASSERT_TRUE(row.opens);
     TEST_ASSERT_FALSE(row.open);
@@ -212,17 +212,17 @@ void test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it(void)
 {
     tree_ready();
     ran("DELETE FROM t");
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_PROMPT, row_at(0u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_PROMPT, row_at(0u).type);
     CliDbPaneRow sentence = row_at(0u);
     CLI_TEST_ASSERT_TEXT("This DELETE reaches every row on lite: 3 rows.", sentence.prompt.text,
                          sentence.prompt.length);
     const CliDbPaneRow statement = row_at(1u);
     CLI_TEST_ASSERT_TEXT("DELETE FROM t", statement.prompt.text, statement.prompt.length);
     const CliDbPaneRow buttons = row_at(2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, buttons.prompt.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, buttons.prompt.type);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .choice = 1u, .root = s_root));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane.running, CliDbPaneCfg, .at = 0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row_at(0u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row_at(0u).type);
     ran("DELETE FROM t");
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .choice = 0u, .root = s_root));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane.running, CliDbPaneCfg, .at = 0u));
@@ -240,7 +240,7 @@ void test_a_refused_connection_stands_as_its_failure(void)
     chosen("broken");
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_CONNECT, .root = s_root);
     const CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.type);
     TEST_ASSERT_TRUE(row.failed);
     TEST_ASSERT_NOT_EQUAL_UINT64(0ULL, row.text_length);
     chosen("lite");
@@ -289,10 +289,10 @@ void test_the_form_adds_a_connection_and_removes_it(void)
     tree_ready();
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_NEW, .root = s_root);
     CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_FIELD, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_FIELD, row.type);
     TEST_ASSERT_TRUE(row.focused);
     EMBED_CALL(cli_db_pane_input.type, CliDbPaneInputCfg, .text = "second", .size = 6ULL);
-    // the kind stepped from PostgreSQL to SQLite, and the file typed into its field
+    // the type stepped from PostgreSQL to SQLite, and the file typed into its field
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 1u, .root = s_root);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 1u, .root = s_root);
     row = row_at(1u);
@@ -302,7 +302,7 @@ void test_the_form_adds_a_connection_and_removes_it(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .root = s_root));
     EMBED_CALL(cli_db_pane_input.type, CliDbPaneInputCfg, .text = "two.db", .size = 6ULL);
     const unsigned int rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_BUTTONS, row_at(rows - 1u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_BUTTONS, row_at(rows - 1u).type);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = rows - 1u, .choice = 0u, .root = s_root);
     unsigned long long length = 0ULL;
     // the title read before the assertion, which reads the length first
@@ -340,5 +340,5 @@ void test_disconnect_closes_the_connection_and_lets_its_result_go(void)
     TEST_ASSERT_NULL(EMBED_CALL(cli_db_grid.open, CliDbGridCfg, .at = 0ULL));
     label = tool_label(CLI_DB_PANE_CONNECT, &length);
     CLI_TEST_ASSERT_TEXT("Connect", label, length);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row_at(0u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row_at(0u).type);
 }

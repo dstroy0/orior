@@ -412,19 +412,19 @@ int cli_inflate(const CliArchiveSizeCfg *args)
     unsigned int last = 0u;
     while (last == 0u)
     {
-        unsigned int kind = 0u;
+        unsigned int type = 0u;
         if (!EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 1u, .value = &last) ||
-            !EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &kind))
+            !EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &type))
         {
             mmgr_line_put(args->err_msg, "the deflated data ends early");
             return 0;
         }
-        if (kind >= 3u)
+        if (type >= 3u)
         {
             mmgr_line_put(args->err_msg, "a block of a kind deflate has none of");
             return 0;
         }
-        if (!EMBED_CALL(s_blocks[kind], ArchiveDeflateCtx, .bits = &bits, .data = args->data, .data_size = args->size,
+        if (!EMBED_CALL(s_blocks[type], ArchiveDeflateCtx, .bits = &bits, .data = args->data, .data_size = args->size,
                         .out = args->out, .capacity = args->capacity, .size = args->out_size, .err_msg = args->err_msg))
         {
             return 0;

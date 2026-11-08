@@ -69,7 +69,7 @@ typedef struct
 {
     unsigned long long from;
     unsigned long long to;
-    unsigned int kind;
+    unsigned int type;
     unsigned int element;
     unsigned long long name_from;
     unsigned long long name_to;

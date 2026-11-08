@@ -108,9 +108,9 @@ int cli_debug_pane_item(const CliDebugPaneBarCfg *args)
 EMBED_INLINE void bar_refused(const DebugPaneBarCtx *args)
 {
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = args->text, .length = args->length,
-               .kind = CLI_DEBUG_LINE_STDERR);
+               .type = CLI_DEBUG_LINE_STDERR);
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = "\n", .length = 1ULL,
-               .kind = CLI_DEBUG_LINE_STDERR);
+               .type = CLI_DEBUG_LINE_STDERR);
 }
 
 // whether the session followed is a Python one, whose Step Into goes through the step across
@@ -256,15 +256,15 @@ void cli_debug_pane_type(const CliDebugPaneInputCfg *args)
 EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
 {
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = "> ", .length = 2ULL,
-               .kind = CLI_DEBUG_LINE_INPUT);
+               .type = CLI_DEBUG_LINE_INPUT);
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = args->text, .length = args->length,
-               .kind = CLI_DEBUG_LINE_INPUT);
+               .type = CLI_DEBUG_LINE_INPUT);
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = "\n", .length = 1ULL,
-               .kind = CLI_DEBUG_LINE_INPUT);
+               .type = CLI_DEBUG_LINE_INPUT);
     if (!g_cli_debug_pane.has_session)
     {
         EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = BAR_NONE,
-                   .length = sizeof(BAR_NONE) - 1ULL, .kind = CLI_DEBUG_LINE_STDERR);
+                   .length = sizeof(BAR_NONE) - 1ULL, .type = CLI_DEBUG_LINE_STDERR);
         return;
     }
     const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
@@ -302,9 +302,9 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     if (value != NULL)
     {
         EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = value, .length = value_length,
-                   .kind = CLI_DEBUG_LINE_RESULT);
+                   .type = CLI_DEBUG_LINE_RESULT);
         EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = "\n", .length = 1ULL,
-                   .kind = CLI_DEBUG_LINE_RESULT);
+                   .type = CLI_DEBUG_LINE_RESULT);
     }
     else
     {
@@ -334,7 +334,7 @@ EMBED_INLINE void bar_watched(const DebugPaneBarCtx *args)
         watches->count -= 1u;
         return;
     }
-    entry->kind = CLI_DEBUG_ROW_WATCH;
+    entry->type = CLI_DEBUG_ROW_WATCH;
     entry->text = text;
     entry->text_length = args->length;
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);

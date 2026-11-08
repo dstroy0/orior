@@ -53,7 +53,7 @@ EMBED_INLINE int serve_reject(const DoorServeCtx *args)
 {
     char answer[CLI_ERR_MSG_MAX_LEN + 8u];
     VerbaLinea out = {answer, sizeof(answer), 0ULL};
-    mmgr_line_ch(&out, CLI_IPC_KIND_REFUSED);
+    mmgr_line_ch(&out, CLI_IPC_TYPE_REFUSED);
     mmgr_line_put_n(&out, args->why, args->size);
     return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
 }
@@ -121,7 +121,7 @@ EMBED_INLINE int serve_send(const DoorServeCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int inline_body = (args->entry->size <= CLI_TRANSFER_SMALL);
     const char *const body = args->entry->has_region ? (const char *)args->entry->region.view : args->entry->body;
-    mmgr_line_ch(&prefix, CLI_IPC_KIND_MESSAGE);
+    mmgr_line_ch(&prefix, CLI_IPC_TYPE_MESSAGE);
     mmgr_line_put(&prefix, args->entry->channel);
     mmgr_line_ch(&prefix, '\0');
     mmgr_line_put(&prefix, args->entry->from);
@@ -276,7 +276,7 @@ static void serve_read(void *context)
                    .err_msg = &err_msg) == CLI_IPC_FRAME_READ)
     {
         joined->key[0] = '\0';
-        if ((size != 0ULL) && (joined->frame[0] == CLI_IPC_KIND_JOIN) &&
+        if ((size != 0ULL) && (joined->frame[0] == CLI_IPC_TYPE_JOIN) &&
             (cli_ipc_field_end(joined->frame, size, 1ULL) != 0ULL))
         {
             VerbaLinea key = {joined->key, sizeof(joined->key), 0ULL};
@@ -293,7 +293,7 @@ static void serve_read(void *context)
         {
             char answer[CLI_NAME_MAX_LEN + 8u];
             VerbaLinea out = {answer, sizeof(answer), 0ULL};
-            mmgr_line_ch(&out, CLI_IPC_KIND_ANSWER);
+            mmgr_line_ch(&out, CLI_IPC_TYPE_ANSWER);
             mmgr_line_put(&out, name);
             if (EMBED_CALL(serve_answer, DoorServeCtx, .joined = joined, .bytes = out.out, .size = out.at))
             {

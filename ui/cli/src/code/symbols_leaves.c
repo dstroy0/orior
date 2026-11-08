@@ -20,7 +20,7 @@ typedef struct
     unsigned long long is;
 } CliLeafSegment;
 #define CLI_LEAF_TABLE_COUNT(table_) ((unsigned int)(sizeof(table_) / sizeof((table_)[0])))
-static const CliLeafSegment s_kind_segments[] = {
+static const CliLeafSegment s_type_segments[] = {
     {"string", CLI_LEAF_STRING},   {"comment", CLI_LEAF_COMMENT}, {"number", CLI_LEAF_NUMBER},
     {"identifier", CLI_LEAF_NAME}, {"predefined", CLI_LEAF_NAME}, {"keyword", CLI_LEAF_KEYWORD},
     {"type", CLI_LEAF_TYPE},
@@ -165,7 +165,7 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
             operating = EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from,
                                    .length = size, .segment = "operator");
             is |= EMBED_CALL(cli_leaf_bits, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                             .table = s_kind_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_kind_segments));
+                             .table = s_type_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_type_segments));
         }
         else if (directive)
         {
@@ -286,13 +286,13 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
         const char *const name = args->leaves->text + args->leaves->name_at[args->leaves->name[run]];
         EMBED_CALL(cli_leaf_get, SymbolsLeavesCtx, .name = name, .leaf = leaf);
         read->count += 1u;
-        const char *const kind = ((leaf->is & CLI_LEAF_DECLARES) != 0u)
+        const char *const type = ((leaf->is & CLI_LEAF_DECLARES) != 0u)
                                      ? EMBED_CALL(cli_symbols_name_internal.declares, CliSymbolsNameCtx, .name = name)
                                      : NULL;
-        if ((read->declared != NULL) && (kind != NULL) && (kind[0] != '\0'))
+        if ((read->declared != NULL) && (type != NULL) && (type[0] != '\0'))
         {
             EMBED_CALL(read->declared, CliDeclaredCfg, .context = read->declared_context, .name = line + from,
-                       .length = to - from, .kind = kind, .line = read->lines);
+                       .length = to - from, .type = type, .line = read->lines);
         }
     }
     read->lines += 1u;

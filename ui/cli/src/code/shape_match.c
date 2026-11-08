@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// shape_match.c: the match of a pattern's parts against the code's tokens. A word matches a token of its kind and its
+// shape_match.c: the match of a pattern's parts against the code's tokens. A word matches a token of its type and its
 // text, a statement's end any statement's end; a placeholder bound already matches the same tokens again, and one not
 // bound tries each end it may reach, in order, until the rest matches, its brackets and its statements' ends read by
 // the roles the tokens' grammar names. A match from one place takes at most
@@ -51,7 +51,7 @@ EMBED_INLINE int match_depth_get(const ShapeMatchCtx *args)
 // whether the code's token at `at` ends a statement where it stands outside brackets
 EMBED_INLINE int match_ends_statement(const ShapeMatchCtx *args)
 {
-    return (args->matcher->tokens->kind[args->at] == CLI_SHAPE_BREAK) ||
+    return (args->matcher->tokens->type[args->at] == CLI_SHAPE_BREAK) ||
            ((args->matcher->tokens->role[args->at] & CLI_SHAPE_STATEMENT) != 0u);
 }
 
@@ -92,7 +92,7 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
         }
         if (args->hole == CLI_SHAPE_HOLE_NAME)
         {
-            if (args->matcher_out->tokens->kind[at_end] == CLI_SHAPE_NAME)
+            if (args->matcher_out->tokens->type[at_end] == CLI_SHAPE_NAME)
             {
                 EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
@@ -204,8 +204,8 @@ int cli_shape_from(const CliShapeMatcherCtx *args)
     const unsigned int hole_at = args->matcher->hole_of[args->part];
     if (hole_at == CLI_SHAPE_HOLES)
     {
-        const unsigned char kind = args->matcher->parts->kind[args->part];
-        if (args->at >= args->matcher->tokens->count || (args->matcher->tokens->kind[args->at] != kind))
+        const unsigned char type = args->matcher->parts->type[args->part];
+        if (args->at >= args->matcher->tokens->count || (args->matcher->tokens->type[args->at] != type))
         {
             return 0;
         }
@@ -213,7 +213,7 @@ int cli_shape_from(const CliShapeMatcherCtx *args)
         unsigned long long own_size = 0ULL;
         const char *const own =
             EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher, .at = args->at, .size = &own_size);
-        if ((kind != CLI_SHAPE_BREAK) &&
+        if ((type != CLI_SHAPE_BREAK) &&
             ((own_size != size) ||
              (memor.cmp(&(MemoriaCfg){.src = own,
                                       .other = args->matcher->pattern + args->matcher->parts->start[args->part],

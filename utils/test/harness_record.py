@@ -17,6 +17,7 @@ record grabs the screen through the Desktop Duplication API, ffmpeg's ddagrab, a
 rectangle of the display it stands on, or with --start the whole display the window is placed on, the window's
 rectangle on it kept beside the recording. It is written lossless to build/harness/recordings/<stamp>.mkv.
 
+strip lays one column of each slid frame side by side, a part's place over time, in build/harness/strip_columns.png.
 slide writes each frame from --from to --to seconds under build/harness/slide as <number>_<ms>ms.png, cut to the
 window's rectangle where the recording keeps one, says how far each differs from the frame before it so the frames
 where something moves or flashes stand out, lays the frames that differ from the one before side by side, each under
@@ -350,6 +351,37 @@ def strip_written(path, frames, measured):
     return len(thumbs)
 
 
+def cmd_window_strip(a):
+    """One column of each slid frame from --from ms, --frames of them, laid side by side and drawn --scale times
+    larger, to build/harness/strip_columns.png: a part's place over time read across the picture."""
+    from PIL import Image
+
+    frames = []
+    for path in sorted(glob.glob(os.path.join(SLIDE, "[0-9]*_*ms.png"))):
+        found = re.search(r"_(\d+)ms\.png$", path)
+        if found and int(found.group(1)) >= a.ms_from:
+            frames.append(path)
+    frames = frames[: a.frames]
+    if not frames:
+        print("no slid frame from %d ms in %s: harness.py window slide first" % (a.ms_from, SLIDE))
+        return 1
+    columns = []
+    for path in frames:
+        with Image.open(path) as image:
+            columns.append(image.convert("RGB").crop((a.x, 0, a.x + a.width, image.height)))
+    height = columns[0].height
+    sheet = Image.new("RGB", (a.width * len(columns), height), (0, 0, 0))
+    for at, column in enumerate(columns):
+        sheet.paste(column, (at * a.width, 0))
+    if a.scale > 1:
+        sheet = sheet.resize((sheet.width * a.scale, sheet.height * a.scale), Image.NEAREST)
+    out = os.path.join(os.path.dirname(SLIDE), "strip_columns.png")
+    sheet.save(out)
+    print("%d frames from %s, columns %d to %d, written to %s" % (len(columns), os.path.basename(frames[0]), a.x,
+                                                                    a.x + a.width, out))
+    return 0
+
+
 def cmd_window_slide(a):
     """A recording slid through: each frame from --from to --to written, how far each differs from the one before,
     and the strip of those that do."""
@@ -541,6 +573,14 @@ def register(window):
     p.add_argument("--all", action="store_true", help="every frame listed, and not only those that differ from the one before")
     p.add_argument("--slower", type=int, default=1, help="clip.mp4 played this many times slower")
     p.set_defaults(fn=cmd_window_slide)
+
+    p = window.add_parser("strip", help="one column of each slid frame laid side by side, a part's place over time, to build/harness/strip_columns.png")
+    p.add_argument("--from", dest="ms_from", type=int, default=0, help="the first frame's milliseconds")
+    p.add_argument("--frames", type=int, default=40, help="how many frames")
+    p.add_argument("--x", type=int, default=60, help="the column's left edge in the slid frame")
+    p.add_argument("--width", type=int, default=24, help="the column's width")
+    p.add_argument("--scale", type=int, default=3, help="the picture drawn this many times larger")
+    p.set_defaults(fn=cmd_window_strip)
 
     p = window.add_parser("frames", help="a recording or any video of the window read a frame at a time, the scrollbar's thumb as the compass: "
                                          "the text blank, plain or colored, and where it stood still as the thumb moved, to build/harness/frames.tsv")

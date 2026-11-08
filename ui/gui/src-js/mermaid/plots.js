@@ -54,11 +54,11 @@ export function parseMindmap(text) {
     let shape = "round";
     let label = line;
     const forms = [["((", "))", "circle"], ["))", "((", "bang"], [")", "(", "cloud"], ["{{", "}}", "hexagon"], ["(", ")", "round"], ["[", "]", "rect"]];
-    for (const [open, close, kind] of forms) {
+    for (const [open, close, type] of forms) {
       const at = line.indexOf(open);
       if (at >= 0 && line.endsWith(close) && at + open.length <= line.length - close.length) {
         label = line.slice(at + open.length, line.length - close.length);
-        shape = kind === "bang" ? "hexagon" : kind;
+        shape = type === "bang" ? "hexagon" : type;
         break;
       }
     }
@@ -167,15 +167,15 @@ export function ganttSvg(text) {
     if (at === 0 || tasks[at - 1].section !== task.section) {
       parts.push(`<rect class="mm-section" x="0" y="${y}" width="${label + span + 20}" height="${tasks.filter((one) => one.section === task.section).length * 26}" />${textAt(10, y + 12, task.section, "start", "mm-text strong")}`);
     }
-    const kind = task.tags.includes("crit") ? " crit" : task.tags.includes("done") ? " done" : task.tags.includes("active") ? " active" : "";
+    const type = task.tags.includes("crit") ? " crit" : task.tags.includes("done") ? " done" : task.tags.includes("active") ? " active" : "";
     if (task.tags.includes("milestone")) {
       const mx = x(task.start);
-      parts.push(`<polygon class="mm-task${kind}" points="${mx},${y + 4} ${mx + 9},${y + 13} ${mx},${y + 22} ${mx - 9},${y + 13}" />${textAt(mx + 14, y + 13, task.name, "start")}`);
+      parts.push(`<polygon class="mm-task${type}" points="${mx},${y + 4} ${mx + 9},${y + 13} ${mx},${y + 22} ${mx - 9},${y + 13}" />${textAt(mx + 14, y + 13, task.name, "start")}`);
     } else {
       const left = x(task.start);
       const w = Math.max(2, x(task.end) - left);
       const inside = width(task.name) + 8 < w;
-      parts.push(`<rect class="mm-task${kind}" x="${left}" y="${y + 4}" width="${w}" height="18" rx="3" />${textAt(inside ? left + w / 2 : left + w + 6, y + 13, task.name, inside ? "middle" : "start", inside ? "mm-text on-task" : "mm-text")}`);
+      parts.push(`<rect class="mm-task${type}" x="${left}" y="${y + 4}" width="${w}" height="18" rx="3" />${textAt(inside ? left + w / 2 : left + w + 6, y + 13, task.name, inside ? "middle" : "start", inside ? "mm-text on-task" : "mm-text")}`);
     }
   });
   const bottom = top + tasks.length * 26 + 6;

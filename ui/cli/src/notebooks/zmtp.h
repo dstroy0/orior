@@ -37,7 +37,7 @@ struct CliZmtpSocketHostCfg
     CliSocket *socket_out;
     const char *host;
     unsigned int port;
-    const char *kind;
+    const char *type;
     VerbaLinea *err_msg;
 };
 

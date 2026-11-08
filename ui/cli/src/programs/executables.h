@@ -16,15 +16,15 @@ typedef struct CliExecutablesRootCfg CliExecutablesRootCfg;
 typedef struct CliExecutablesValuesCfg CliExecutablesValuesCfg;
 typedef struct CliExecutablesErrMsgCfg CliExecutablesErrMsgCfg;
 typedef struct CliExecutablesCfg CliExecutablesCfg;
-typedef struct CliExecutablesKindCfg CliExecutablesKindCfg;
+typedef struct CliExecutablesTypeCfg CliExecutablesTypeCfg;
 typedef struct CliExecutablesToolCfg CliExecutablesToolCfg;
 
 // the program `name` of the toolchain `tool`, found where the toolchains window finds it, into `path`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given
 int cli_executables_program(const CliExecutablesToolCfg *args);
 // the C compiler and linker for the system and processor the job's params choose, each variable and its value handed
-// to `each`, where they are another machine's, for a build of the kind named, "go" or "rust"
-void cli_executables_cross_env(const CliExecutablesKindCfg *args);
+// to `each`, where they are another machine's, for a build of the type named, "go" or "rust"
+void cli_executables_cross_env(const CliExecutablesTypeCfg *args);
 // whether this machine signs the programs its builds make
 int cli_executables_signs(void);
 // the program the job `id`'s build made, found from the lines its steps printed, into `path`, sized for
@@ -92,9 +92,9 @@ struct CliExecutablesCfg
     const char *file;
 };
 
-struct CliExecutablesKindCfg
+struct CliExecutablesTypeCfg
 {
-    const char *kind;
+    const char *type;
     const CliValues *values;
     void (*each)(const CliEachNameValueCfg *args);
     void *context;
@@ -119,10 +119,10 @@ EMBED_TABLE_STORAGE CliExecutablesToolNs cli_executables_tool EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*cross_env)(const CliExecutablesKindCfg *args);
-} CliExecutablesKindNs;
-EMBED_TABLE_LAYOUT(CliExecutablesKindNs, cross_env);
-EMBED_TABLE_STORAGE CliExecutablesKindNs cli_executables_kind EMBED_UNUSED = {
+    void (*cross_env)(const CliExecutablesTypeCfg *args);
+} CliExecutablesTypeNs;
+EMBED_TABLE_LAYOUT(CliExecutablesTypeNs, cross_env);
+EMBED_TABLE_STORAGE CliExecutablesTypeNs cli_executables_type EMBED_UNUSED = {
     .cross_env = cli_executables_cross_env,
 };
 

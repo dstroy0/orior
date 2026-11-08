@@ -136,7 +136,7 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
     const CliDiffViewLaid *const laid = &view->row[args->at];
     CliDiffViewRow *const row = args->row;
     *row = (CliDiffViewRow){0};
-    row->kind = laid->kind;
+    row->type = laid->type;
     row->has_left = laid->left != CLI_DIFF_VIEW_NONE;
     row->has_right = laid->right != CLI_DIFF_VIEW_NONE;
     if (row->has_left)

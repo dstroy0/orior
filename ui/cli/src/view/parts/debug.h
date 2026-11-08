@@ -6,7 +6,7 @@
 // them, in the first mark's color where it reports a failure; the views' choices, the one shown lit; and the field of
 // the view shown, which takes the keys. Its rows are the view shown's: a frame with its function and its file and line
 // at the right, the chosen frame marked; a scope or a variable at its depth with its arrow where it opens, its name,
-// its value and its type; a watch with its box, its expression and its value; and a console line in its kind's color.
+// its value and its type; a watch with its box, its expression and its value; and a console line in its type's color.
 // A press on a step runs it, on a choice shows its view, on a frame chooses it and opens its file, on an arrow opens
 // or closes the row, and on a watch's box takes the watch out (debug.c)
 #ifndef GUI_PARTS_DEBUG_H

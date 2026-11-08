@@ -49,10 +49,10 @@ static void record_appended(VerbaLinea *line, const char *name, const char *blob
     (void)mmgr_line_put_n(line, (const char *)bytes, whole);
 }
 
-// the row `at`, into `row`: whether it is of `kind` with the text `text`
-static int row_is(unsigned int at, unsigned int kind, const char *text, CliRunsRow *row)
+// the row `at`, into `row`: whether it is of `type` with the text `text`
+static int row_is(unsigned int at, unsigned int type, const char *text, CliRunsRow *row)
 {
-    return EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = at, .row = row) && (row->kind == kind) &&
+    return EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = at, .row = row) && (row->type == type) &&
            ((text == NULL) ||
             ((row->text_length == strlen(text)) && (strncmp(row->text, text, row->text_length) == 0)));
 }

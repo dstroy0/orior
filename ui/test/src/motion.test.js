@@ -22,14 +22,14 @@ async function idleOver(ms) {
 }
 
 // Whether the lowest work may run, asked in each frame from before `act` sends its input until `ms`
-// after the input's first `kind` event: the answers of the frames within those `ms`, timed from the
+// after the input's first `type` event: the answers of the frames within those `ms`, timed from the
 // event itself and not from the driver's reply, which comes when it comes.
-async function idleAfter(kind, act, ms) {
+async function idleAfter(type, act, ms) {
   let landed = null;
   const heard = (event) => {
     landed ??= event.timeStamp;
   };
-  document.addEventListener(kind, heard, { capture: true });
+  document.addEventListener(type, heard, { capture: true });
   const frames = [];
   let acting = true;
   const asking = (async () => {
@@ -43,9 +43,9 @@ async function idleAfter(kind, act, ms) {
   } finally {
     acting = false;
     await asking;
-    document.removeEventListener(kind, heard, { capture: true });
+    document.removeEventListener(type, heard, { capture: true });
   }
-  assert.ok(landed !== null, `the ${kind} came`);
+  assert.ok(landed !== null, `the ${type} came`);
   return frames.filter(({ at }) => at >= landed && at < landed + ms).map(({ free }) => free);
 }
 

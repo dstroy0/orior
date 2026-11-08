@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// builds.c: a build file's kind by its name, and its check, its completion, the names SCons gives it and the line that
-// updates every snapshot dependency of its build, each handed to the reader of its kind. One check runs at a time, its
+// builds.c: a build file's type by its name, and its check, its completion, the names SCons gives it and the line that
+// updates every snapshot dependency of its build, each handed to the reader of its type. One check runs at a time, its
 // findings stored in their own capacity
 #include "../text/text.h"
 #include "gradle_internal.h"
@@ -11,7 +11,7 @@
 
 static CliBuildFindings s_found;
 
-unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
+unsigned int cli_build_type_get(const CliBuildsPathCfg *args)
 {
     const char *name = args->path;
     const unsigned long long name_end =
@@ -58,8 +58,8 @@ void cli_build_check(const CliBuildsPathCfg *args)
     CliBuildLines lines;
     unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_alloc, CliBuildsTextSizeCfg,
                                             .text = args->text, .size = args->size, .lines_out = &lines);
-    const unsigned int kind = cli_builds_path.build_kind_get(args);
-    switch (kind)
+    const unsigned int type = cli_builds_path.build_type_get(args);
+    switch (type)
     {
     case CLI_BUILD_GRADLE: {
         EMBED_CALL(cli_gradle_text_size_internal.check, CliGradleTextSizeCtx, .root = args->root, .path = args->path,
@@ -94,8 +94,8 @@ void cli_build_check(const CliBuildsPathCfg *args)
 void cli_build_complete(const CliBuildsPathCfg *args)
 {
     const unsigned long long at = cli_builds_path.build_byte_at(args);
-    const unsigned int kind = cli_builds_path.build_kind_get(args);
-    switch (kind)
+    const unsigned int type = cli_builds_path.build_type_get(args);
+    switch (type)
     {
     case CLI_BUILD_GRADLE: {
         EMBED_CALL(cli_gradle_text_internal.complete, CliGradleTextCtx, .root = args->root, .path = args->path,
@@ -127,7 +127,7 @@ void cli_build_complete(const CliBuildsPathCfg *args)
 void cli_build_input_names(const CliBuildsPathTextCfg *args)
 {
     const char *path = args->path;
-    if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_SCONS)
+    if (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_SCONS)
     {
         EMBED_CALL(cli_scons_text_size_context_internal.free, CliSconsTextSizeContextCtx, .text = args->text,
                    .size = args->size, .each_callback = args->each, .context = args->context);
@@ -160,7 +160,7 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
         count += 1u;
         char above[CLI_PATH_MAX_LEN];
         for (unsigned int at = 0u;
-             EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = above) &&
+             EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = above) &&
              (at < 3u);
              at += 1u)
         {
@@ -177,7 +177,7 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned int kind = EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = positions[at]);
+        const unsigned int type = EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = positions[at]);
         if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = positions[at]))
         {
             continue;
@@ -185,9 +185,9 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
         char build[CLI_PATH_MAX_LEN];
         char program[CLI_PATH_MAX_LEN];
         VerbaLinea command = {args->line_capacity, CLI_PATH_MAX_LEN, 0ULL};
-        if (kind == CLI_BUILD_MAVEN)
+        if (type == CLI_BUILD_MAVEN)
         {
-            if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = positions[at],
+            if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = positions[at],
                             .out = build))
             {
                 EMBED_CALL(builds_copy, BuildsCtx, .from = args->root, .out = build);
@@ -197,7 +197,7 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
             mmgr_line_put(&command, program);
             mmgr_line_put(&command, " -U dependency:resolve");
         }
-        else if ((kind == CLI_BUILD_GRADLE) || (kind == CLI_BUILD_CATALOG))
+        else if ((type == CLI_BUILD_GRADLE) || (type == CLI_BUILD_CATALOG))
         {
             EMBED_CALL(cli_gradle_root_internal.build_root, CliGradleRootCtx, .root = args->root, .path = positions[at],
                        .out = build);

@@ -49,7 +49,7 @@ typedef struct
     char *id_out;
     const char *id;
     unsigned long long at;
-    unsigned int kind;
+    unsigned int type;
     long long own_line;
     double seconds;
 } TestReportsCtx;
@@ -372,7 +372,7 @@ EMBED_INLINE void report_case_named(const TestReportsCtx *args)
     mmgr_line_finish(&id_line);
 }
 
-// the outcome `kind` of s_outcomes reported by `worker` for the test `id`, its tag at `at` of the `body_size` bytes of
+// the outcome `type` of s_outcomes reported by `worker` for the test `id`, its tag at `at` of the `body_size` bytes of
 // `body`: the message the tag gives, else the last line of its text; the line the traceback gives in the test's file
 // `required`, else `own_line`; and its `seconds`
 EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
@@ -413,7 +413,7 @@ EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
     const char *const found_text = found ? text.out + last : "";
     const unsigned long long found_size = found ? last_size : 0ULL;
     EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = args->worker,
-               .id = args->id, .outcome = s_outcomes[args->kind], .message = supplied ? message : found_text,
+               .id = args->id, .outcome = s_outcomes[args->type], .message = supplied ? message : found_text,
                .message_size =
                    supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}) : found_size,
                .file = args->required, .line_i64 = line, .seconds = args->seconds);
@@ -458,7 +458,7 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
         if (at < args->body_size)
         {
             EMBED_CALL(report_outcome_emit, TestReportsCtx, .worker = worker, .id = id, .required = required,
-                       .body = args->body, .body_size = args->body_size, .at = at, .kind = tag, .own_line = own_line,
+                       .body = args->body, .body_size = args->body_size, .at = at, .type = tag, .own_line = own_line,
                        .seconds = reserved);
             return;
         }

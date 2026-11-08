@@ -16,7 +16,7 @@ typedef struct
 {
     unsigned int left;
     unsigned int right;
-    unsigned int kind;
+    unsigned int type;
     unsigned int right_at;
 } CliDiffViewLaid;
 

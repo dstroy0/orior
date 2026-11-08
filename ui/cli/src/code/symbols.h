@@ -69,8 +69,8 @@ void cli_tree_files_count(const CliSymbolsCountCfg *args);
 int cli_tree_next_file(const CliSymbolsAtCfg *args);
 int cli_tree_has_file(const CliSymbolsPathNameCfg *args);
 int cli_tree_has_folder(const CliSymbolsPathNameCfg *args);
-// a change the tree tells of: its path from the tree's top, and its kind, a CLI_CHANGE_ number
-typedef void (*CliTreeChange)(const CliEachPathKindCfg *args);
+// a change the tree tells of: its path from the tree's top, and its type, a CLI_CHANGE_ number
+typedef void (*CliTreeChange)(const CliEachPathTypeCfg *args);
 // what the trunk holds now at each of `paths`, `count` of them, mirrored to its closest parent: a file git does not
 // ignore joined, the file walked and not the tree; a folder's own files joined; what is not there let go, each folder
 // left with nothing under it let go in turn
@@ -91,12 +91,12 @@ void cli_tree_walk_stop(void);
 // whether the tree's files are being read for the first time
 int cli_tree_unwalked(void);
 // the declarations whose names answer `query`, at most `most` of them, the best first, written as `{"symbols":
-// [{"name", "kind", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
+// [{"name", "type", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
 // its file as the answer is written
 typedef struct
 {
     const char *name;
-    const char *kind;
+    const char *type;
     const char *path;
     unsigned int line;
     const char *text;
@@ -608,7 +608,7 @@ typedef struct
 {
     const char *name;
     unsigned long long length;
-    const char *kind;
+    const char *type;
     unsigned long long line;
     unsigned int depth;
 } CliOutlineRow;

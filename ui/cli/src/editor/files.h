@@ -34,7 +34,7 @@ typedef struct CliFilesPathCfg CliFilesPathCfg;
 typedef struct CliFilesPathErrMsgCfg CliFilesPathErrMsgCfg;
 typedef struct CliFilesQueryLettersCfg CliFilesQueryLettersCfg;
 typedef struct CliFilesCfg CliFilesCfg;
-typedef struct CliFilesPathKindCfg CliFilesPathKindCfg;
+typedef struct CliFilesPathTypeCfg CliFilesPathTypeCfg;
 typedef struct CliFilesGitCfg CliFilesGitCfg;
 
 // the most paths the tree's list contains, and the most bytes of them
@@ -72,15 +72,15 @@ int cli_files_path_skip(const CliFilesGitCfg *args);
 void cli_files_ignored_read(const CliFilesRootPathsCfg *args);
 // the name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted, laid flat
 // for one call and given back by cli_files_let; or NULL as there (files_seen.c)
-const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args);
+const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args);
 // the files' own report, `<pool's bytes> <their mark> 0`, the most the views and lists occupied of the cellblock at
 // once, written into `out`; the path at `index`; and whether `path` is among the files, which are sorted
 // (files_cells.c)
 void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args);
 const char *cli_files_at(const CliFilesCfg *args);
-int cli_files_contains(const CliFilesPathKindCfg *args);
+int cli_files_contains(const CliFilesPathTypeCfg *args);
 // the place of `path` among the sorted files, their count where it is not among them
-unsigned int cli_files_index(const CliFilesPathKindCfg *args);
+unsigned int cli_files_index(const CliFilesPathTypeCfg *args);
 // the tree listed behind the window, as a tree opens; and whether git tracks the path or would: a file it lists, a
 // file in a folder containing one it lists or at the tree's top, or a file in a folder the tree does not contain, as
 // one just made, that git does not ignore. Every path is, in a tree git cannot read (files_seen.c, files_tracked.c)
@@ -475,7 +475,7 @@ struct CliFilesCfg
     unsigned int index;
 };
 
-struct CliFilesPathKindCfg
+struct CliFilesPathTypeCfg
 {
     const CliFiles *files;
     const char *path;
@@ -491,16 +491,16 @@ typedef struct
 {
     const CliFiles *(*view)(const CliFilesRootPathsCfg *args);
     void (*ignored_read)(const CliFilesRootPathsCfg *args);
-    const CliFiles *(*kinds_view)(const CliFilesRootPathsCfg *args);
+    const CliFiles *(*types_view)(const CliFilesRootPathsCfg *args);
     void (*warm)(const CliFilesRootPathsCfg *args);
     void (*read_behind)(const CliFilesRootPathsCfg *args);
     int (*unread)(const CliFilesRootPathsCfg *args);
 } CliFilesRootPathsNs;
-EMBED_TABLE_LAYOUT(CliFilesRootPathsNs, view, ignored_read, kinds_view, warm, read_behind, unread);
+EMBED_TABLE_LAYOUT(CliFilesRootPathsNs, view, ignored_read, types_view, warm, read_behind, unread);
 EMBED_TABLE_STORAGE CliFilesRootPathsNs cli_files_root_paths EMBED_UNUSED = {
     .view = cli_files_view,
     .ignored_read = cli_files_ignored_read,
-    .kinds_view = cli_files_kinds_view,
+    .types_view = cli_files_types_view,
     .warm = cli_files_warm,
     .read_behind = cli_files_read_behind,
     .unread = cli_files_unread,
@@ -568,11 +568,11 @@ EMBED_TABLE_STORAGE CliFilesRootOutDirNs cli_files_root_out_dir EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*contains)(const CliFilesPathKindCfg *args);
-    unsigned int (*index)(const CliFilesPathKindCfg *args);
-} CliFilesPathKindNs;
-EMBED_TABLE_LAYOUT(CliFilesPathKindNs, contains, index);
-EMBED_TABLE_STORAGE CliFilesPathKindNs cli_files_path_kind EMBED_UNUSED = {
+    int (*contains)(const CliFilesPathTypeCfg *args);
+    unsigned int (*index)(const CliFilesPathTypeCfg *args);
+} CliFilesPathTypeNs;
+EMBED_TABLE_LAYOUT(CliFilesPathTypeNs, contains, index);
+EMBED_TABLE_STORAGE CliFilesPathTypeNs cli_files_path_type EMBED_UNUSED = {
     .contains = cli_files_contains,
     .index = cli_files_index,
 };
@@ -705,12 +705,12 @@ EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
 #define CLI_SEARCH_REGEX 4u
 #define CLI_SEARCH_SET 5u
 
-// A row of the pane: its kind; the file's path from the top of the tree; a file row's name with its bytes and the
+// A row of the pane: its type; the file's path from the top of the tree; a file row's name with its bytes and the
 // bytes of its folder before the name, its count of lines found and whether its lines show; a line row's line and
 // column counted from 1, its text with the text's bytes, and the match's place and bytes in the text
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *path;
     const char *name;
     unsigned long long name_length;

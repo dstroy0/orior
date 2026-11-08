@@ -51,7 +51,7 @@ typedef struct CliServersRootSinkCountCfg CliServersRootSinkCountCfg;
 typedef struct CliServersCapacityCfg CliServersCapacityCfg;
 typedef struct CliServersOutCfg CliServersOutCfg;
 typedef struct CliServersCfg CliServersCfg;
-typedef struct CliServersPathSizeKindCfg CliServersPathSizeKindCfg;
+typedef struct CliServersPathSizeTypeCfg CliServersPathSizeTypeCfg;
 
 // One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
 // severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes in the texts of the report
@@ -128,13 +128,13 @@ typedef struct
 // the rows of the completion's list shown at once
 #define CLI_COMPLETION_ROWS 10u
 
-// One row of the completion: its label and how long, its kind, its detail and how long, and how many bytes of the label
+// One row of the completion: its label and how long, its type, its detail and how long, and how many bytes of the label
 // the prefix marks
 typedef struct
 {
     const char *label;
     unsigned long long label_length;
-    const char *kind;
+    const char *type;
     const char *detail;
     unsigned long long detail_length;
     unsigned int marked;
@@ -269,7 +269,7 @@ int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
 // the same copied into a cell of its size with a 0 after, its size into `size`: the cell, or NULL where the editor
 // has none or the cell could not be taken
 int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args);
-char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args);
+char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args);
 
 // what the server of `path` answers at `line`, `col`: a hover as Markdown, `null` for none; the definitions, each
 // `{"path", "line", "col"}`; the completions, orior's own reading's of a build file or JSON first, each an item; every
@@ -278,12 +278,12 @@ char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args);
 // signature of the call the cursor is in, `{"label", "params", "active", "doc", "count"}` or `null`. Each 1, or 0 with
 // why given (servers_request.c, servers_shapes.c)
 int cli_servers_hover(const CliServersPathOutCfg *args);
-// One item a completion answers: what it shows, its kind, what it states of itself and what it inserts, each ended by a
+// One item a completion answers: what it shows, its type, what it states of itself and what it inserts, each ended by a
 // 0, and whether what it inserts is a snippet
 typedef struct
 {
     const char *label;
-    const char *kind;
+    const char *type;
     const char *detail;
     const char *insert;
     int snippet;
@@ -489,7 +489,7 @@ struct CliServersCfg
     unsigned int capacity;
 };
 
-struct CliServersPathSizeKindCfg
+struct CliServersPathSizeTypeCfg
 {
     const char *path;
     unsigned long long *size_pointer;
@@ -548,10 +548,10 @@ EMBED_TABLE_STORAGE CliServersErrMsgNs cli_servers_err_msg EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*text_alloc)(const CliServersPathSizeKindCfg *args);
-} CliServersPathSizeKindNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeKindNs, text_alloc);
-EMBED_TABLE_STORAGE CliServersPathSizeKindNs cli_servers_path_size_kind EMBED_UNUSED = {
+    char *(*text_alloc)(const CliServersPathSizeTypeCfg *args);
+} CliServersPathSizeTypeNs;
+EMBED_TABLE_LAYOUT(CliServersPathSizeTypeNs, text_alloc);
+EMBED_TABLE_STORAGE CliServersPathSizeTypeNs cli_servers_path_size_type EMBED_UNUSED = {
     .text_alloc = cli_servers_text_alloc,
 };
 

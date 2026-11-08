@@ -16,7 +16,7 @@ typedef struct
 {
     unsigned long long length;
     const GuiPalette *palette;
-    const char *kind;
+    const char *type;
 } SuggestCtx;
 
 int gui_suggest_holds(const GuiSuggestXCfg *args)
@@ -46,15 +46,15 @@ int gui_suggest_row_at(const GuiSuggestXCfg *args)
     return 1;
 }
 
-// the color of a kind's mark: the token colors the page gives each kind
-EMBED_INLINE GuiColor suggest_kind_color(const SuggestCtx *args)
+// the color of a type's mark: the token colors the page gives each type
+EMBED_INLINE GuiColor suggest_type_color(const SuggestCtx *args)
 {
     const GuiPalette *palette = args->palette;
-    const char *kind = args->kind;
+    const char *type = args->type;
     unsigned long long length = args->length;
     static const struct
     {
-        const char *kind;
+        const char *type;
         const char *token;
     } s_marks[] = {{"type", "type"},           {"class", "type"},         {"state", "type"},
                    {"function", "predefined"}, {"method", "predefined"},  {"operator", "predefined"},
@@ -63,9 +63,9 @@ EMBED_INLINE GuiColor suggest_kind_color(const SuggestCtx *args)
                    {"snippet", "string"},      {"module", "tag"}};
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
-        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = s_marks[at].kind, .cap = 32ULL});
+        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = s_marks[at].type, .cap = 32ULL});
         if ((known == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_marks[at].kind, .other = kind, .bytes = length}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_marks[at].type, .other = type, .bytes = length}) == 0))
         {
             const char *const token = s_marks[at].token;
             return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = token,
@@ -98,7 +98,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     const int pad_y =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_PAD_Y, .scale = scale);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_GAP, .scale = scale);
-    const int mark = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_KIND, .scale = scale);
+    const int mark = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_TYPE, .scale = scale);
     const unsigned int rows = panel->rows;
     // the list's width is its widest row's, between the least and the most
     float widest = 0.0f;
@@ -177,8 +177,8 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
             gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
             .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = mark_rect, .other = clip),
             .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale),
-            .color = EMBED_CALL(suggest_kind_color, SuggestCtx, .palette = palette, .kind = item->kind,
-                                .length = cellul.len(&(CatenaFinitaCfg){.src = item->kind, .cap = CLI_POOL_BYTES})));
+            .color = EMBED_CALL(suggest_type_color, SuggestCtx, .palette = palette, .type = item->type,
+                                .length = cellul.len(&(CatenaFinitaCfg){.src = item->type, .cap = CLI_POOL_BYTES})));
         const GuiRect text_clip =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                        .one = (GuiRect){row_rect.x, row_rect.y, list_width - pad_x, row_height}, .other = clip);

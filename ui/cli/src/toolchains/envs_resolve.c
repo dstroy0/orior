@@ -281,12 +281,12 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     s_work_state->output = NULL;
     s_work_state->output_size = 0ULL;
     int made = 0;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "venv", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "venv", .cap = CLI_POOL_BYTES}))
     {
         made = EMBED_CALL(cli_venv_at, EnvsResolveCtx, .folder = folder, .environment = args->environment,
                           .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "pipenv", .cap = CLI_POOL_BYTES}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "pipenv", .cap = CLI_POOL_BYTES}))
     {
         static const char *const s_args[1] = {"--venv"};
         made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "pipenv", .folder = folder, .request = s_args,
@@ -305,7 +305,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
                               .environment = args->environment, .err_msg = args->err_msg);
         }
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "nix", .cap = CLI_POOL_BYTES}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "nix", .cap = CLI_POOL_BYTES}))
     {
         static const char *const s_args[2] = {"print-dev-env", "--json"};
         made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "nix", .folder = folder, .request = s_args,
@@ -314,7 +314,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     }
     else
     {
-        mmgr_line_put(args->err_msg, args->kind);
+        mmgr_line_put(args->err_msg, args->type);
         mmgr_line_put(args->err_msg, " is no kind of environment");
     }
     if (made)

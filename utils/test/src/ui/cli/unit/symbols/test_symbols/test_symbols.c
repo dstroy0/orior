@@ -44,14 +44,14 @@ static unsigned int s_stop_answered;
 static int s_slices_run_result;
 static int s_slices_cut;
 
-// a declaration written after the others, `name kind line` joined by `|`
+// a declaration written after the others, `name type line` joined by `|`
 static void declaration_recorded(const CliDeclaredCfg *args)
 {
     VerbaLinea *const out = args->context;
     mmgr_line_put(out, (out->at > 0ull) ? "|" : "");
     mmgr_line_put_n(out, args->name, args->length);
     mmgr_line_ch(out, ' ');
-    mmgr_line_put(out, args->kind);
+    mmgr_line_put(out, args->type);
     mmgr_line_ch(out, ' ');
     mmgr_line_decimal(out, args->line, 1u);
 }

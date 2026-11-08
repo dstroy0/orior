@@ -66,7 +66,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         return 0;
     }
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = inside, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = inside, .out = folder))
     {
         mmgr_line_put(err_msg, "the file has no folder");
         return 0;

@@ -190,7 +190,7 @@ void test_with_no_session_the_views_show_their_notices_and_no_step_acts(void)
 {
     TEST_ASSERT_EQUAL_UINT(1u, rows_of(CLI_DEBUG_VIEW_FRAMES));
     const CliDebugPaneRow frames = row_of(CLI_DEBUG_VIEW_FRAMES, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, frames.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, frames.type);
     CLI_TEST_ASSERT_TEXT("Frames show here when the program stops.", frames.text, frames.text_length);
     TEST_ASSERT_EQUAL_UINT(1u, rows_of(CLI_DEBUG_VIEW_VARIABLES));
     const CliDebugPaneRow variables = row_of(CLI_DEBUG_VIEW_VARIABLES, 0u);
@@ -229,7 +229,7 @@ void test_a_stop_reads_the_frames_the_first_chosen(void)
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_debug_pane_view.step, CliDebugPaneViewCfg, .root = CHECK_ROOT));
     TEST_ASSERT_EQUAL_UINT(3u, rows_of(CLI_DEBUG_VIEW_FRAMES));
     const CliDebugPaneRow top = row_of(CLI_DEBUG_VIEW_FRAMES, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_FRAME, top.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_FRAME, top.type);
     CLI_TEST_ASSERT_TEXT("inner", top.text, top.text_length);
     CLI_TEST_ASSERT_TEXT("prog.py:12", top.second, top.second_length);
     CLI_TEST_ASSERT_TEXT("src/prog.py", top.third, top.third_length);
@@ -268,12 +268,12 @@ void test_the_first_scope_stands_open_and_the_rest_closed(void)
     TEST_ASSERT_EQUAL_INT(1, stop_read());
     TEST_ASSERT_EQUAL_UINT(4u, rows_of(CLI_DEBUG_VIEW_VARIABLES));
     const CliDebugPaneRow locals = row_of(CLI_DEBUG_VIEW_VARIABLES, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_SCOPE, locals.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_SCOPE, locals.type);
     CLI_TEST_ASSERT_TEXT("Locals", locals.text, locals.text_length);
     TEST_ASSERT_EQUAL_INT(1, locals.opens);
     TEST_ASSERT_EQUAL_INT(1, locals.open);
     const CliDebugPaneRow count = row_of(CLI_DEBUG_VIEW_VARIABLES, 1u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_VARIABLE, count.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_VARIABLE, count.type);
     TEST_ASSERT_EQUAL_UINT(1u, count.depth);
     CLI_TEST_ASSERT_TEXT("count", count.text, count.text_length);
     CLI_TEST_ASSERT_TEXT("3", count.second, count.second_length);
@@ -337,13 +337,13 @@ void test_a_watch_is_evaluated_and_its_box_takes_it_out(void)
     TEST_ASSERT_EQUAL_UINT64(0ULL, field.length);
     TEST_ASSERT_EQUAL_UINT(5u, rows_of(CLI_DEBUG_VIEW_VARIABLES));
     const CliDebugPaneRow watch = row_of(CLI_DEBUG_VIEW_VARIABLES, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_WATCH, watch.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_WATCH, watch.type);
     CLI_TEST_ASSERT_TEXT("count", watch.text, watch.text_length);
     CLI_TEST_ASSERT_TEXT("3", watch.second, watch.second_length);
     TEST_ASSERT_EQUAL_INT(0, watch.failed);
     entered("missing");
     const CliDebugPaneRow refused = row_of(CLI_DEBUG_VIEW_VARIABLES, 1u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_WATCH, refused.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_WATCH, refused.type);
     TEST_ASSERT_EQUAL_INT(1, refused.failed);
     CLI_TEST_ASSERT_TEXT("name 'missing' is not defined", refused.second, refused.second_length);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_debug_pane_view.toggle, CliDebugPaneViewCfg,
@@ -361,13 +361,13 @@ void test_the_console_runs_a_piece_on_into_its_line(void)
     TEST_ASSERT_EQUAL_INT(1, event_read("output", "{\"category\":\"telemetry\",\"output\":\"hidden\\n\"}"));
     TEST_ASSERT_EQUAL_UINT(3u, rows_of(CLI_DEBUG_VIEW_CONSOLE));
     const CliDebugPaneRow first = row_of(CLI_DEBUG_VIEW_CONSOLE, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_LINE, first.kind);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDOUT, first.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_LINE, first.type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDOUT, first.line_type);
     CLI_TEST_ASSERT_TEXT("abcdef", first.text, first.text_length);
     const CliDebugPaneRow next = row_of(CLI_DEBUG_VIEW_CONSOLE, 1u);
     CLI_TEST_ASSERT_TEXT("next", next.text, next.text_length);
     const CliDebugPaneRow error = row_of(CLI_DEBUG_VIEW_CONSOLE, 2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, error.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, error.line_type);
     TEST_ASSERT_EQUAL_INT(1, error.failed);
     CLI_TEST_ASSERT_TEXT("oops", error.text, error.text_length);
 }
@@ -404,7 +404,7 @@ void test_enter_in_the_console_evaluates_in_the_chosen_frame(void)
     entered("x");
     TEST_ASSERT_EQUAL_UINT(2u, rows_of(CLI_DEBUG_VIEW_CONSOLE));
     const CliDebugPaneRow typed = row_of(CLI_DEBUG_VIEW_CONSOLE, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_INPUT, typed.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_INPUT, typed.line_type);
     CLI_TEST_ASSERT_TEXT("> x", typed.text, typed.text_length);
     const CliDebugPaneRow none = row_of(CLI_DEBUG_VIEW_CONSOLE, 1u);
     CLI_TEST_ASSERT_TEXT("Nothing is being debugged.", none.text, none.text_length);
@@ -414,11 +414,11 @@ void test_enter_in_the_console_evaluates_in_the_chosen_frame(void)
     CLI_TEST_ASSERT_TEXT("Evaluate in the chosen frame, then Enter", field.placeholder, field.placeholder_length);
     entered("count");
     const CliDebugPaneRow result = row_of(CLI_DEBUG_VIEW_CONSOLE, 3u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_RESULT, result.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_RESULT, result.line_type);
     CLI_TEST_ASSERT_TEXT("3", result.text, result.text_length);
     entered("missing");
     const CliDebugPaneRow refused = row_of(CLI_DEBUG_VIEW_CONSOLE, 5u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, refused.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, refused.line_type);
     CLI_TEST_ASSERT_TEXT("name 'missing' is not defined", refused.text, refused.text_length);
     EMBED_CALL(cli_debug_pane_view.view_set, CliDebugPaneViewCfg, .view = CLI_DEBUG_VIEW_FRAMES);
     EMBED_CALL(cli_debug_pane_input.field, CliDebugPaneInputCfg, .field_out = &field);
@@ -458,7 +458,7 @@ void test_each_step_reaches_its_request(void)
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_debug_pane_bar.run, CliDebugPaneBarCfg, .at = CLI_DEBUG_STEP_CONTINUE,
                                         .root = CHECK_ROOT));
     TEST_ASSERT_EQUAL_STRING("continue", s_how);
-    TEST_ASSERT_EQUAL_INT(1, row_of(CLI_DEBUG_VIEW_FRAMES, 0u).kind == CLI_DEBUG_ROW_NOTICE);
+    TEST_ASSERT_EQUAL_INT(1, row_of(CLI_DEBUG_VIEW_FRAMES, 0u).type == CLI_DEBUG_ROW_NOTICE);
     TEST_ASSERT_EQUAL_INT(1, item_of(CLI_DEBUG_STEP_PAUSE).enabled);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_debug_pane_bar.run, CliDebugPaneBarCfg, .at = CLI_DEBUG_STEP_PAUSE,
                                         .root = CHECK_ROOT));
@@ -480,7 +480,7 @@ void test_each_step_reaches_its_request(void)
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_debug_pane_bar.run, CliDebugPaneBarCfg, .at = CLI_DEBUG_STEP_CONTINUE,
                                         .root = CHECK_ROOT));
     const CliDebugPaneRow refused = row_of(CLI_DEBUG_VIEW_CONSOLE, rows_of(CLI_DEBUG_VIEW_CONSOLE) - 1u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, refused.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_STDERR, refused.line_type);
     CLI_TEST_ASSERT_TEXT("the adapter refused the step", refused.text, refused.text_length);
     TEST_ASSERT_EQUAL_UINT(3u, rows_of(CLI_DEBUG_VIEW_FRAMES));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_debug_pane_bar.run, CliDebugPaneBarCfg, .at = CLI_DEBUG_STEP_STOP,
@@ -495,13 +495,13 @@ void test_continued_exited_and_terminated_change_the_rows_and_the_status_line(vo
 {
     TEST_ASSERT_EQUAL_INT(1, stop_read());
     TEST_ASSERT_EQUAL_INT(1, event_read("continued", "{\"threadId\":7}"));
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, row_of(CLI_DEBUG_VIEW_FRAMES, 0u).kind);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, row_of(CLI_DEBUG_VIEW_VARIABLES, 0u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, row_of(CLI_DEBUG_VIEW_FRAMES, 0u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_ROW_NOTICE, row_of(CLI_DEBUG_VIEW_VARIABLES, 0u).type);
     const CliDebugPaneStatus running = status_of();
     CLI_TEST_ASSERT_TEXT("Running prog.py under debugpy", running.text, running.length);
     TEST_ASSERT_EQUAL_INT(1, event_read("exited", "{\"exitCode\":2}"));
     const CliDebugPaneRow exited = row_of(CLI_DEBUG_VIEW_CONSOLE, 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_CONSOLE, exited.line_kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_LINE_CONSOLE, exited.line_type);
     CLI_TEST_ASSERT_TEXT("prog.py ended with exit code 2.", exited.text, exited.text_length);
     TEST_ASSERT_EQUAL_INT(1, event_read("terminated", "{}"));
     const CliDebugPaneStatus ended = status_of();

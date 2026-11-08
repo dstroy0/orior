@@ -175,7 +175,7 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
   const opWords = unique(hol.rows.filter((r) => single(r) && cell(r, "kind") === "core op").map((r) => cell(r, "word")));
   const plainWords = unique(hol.rows.filter((r) => single(r) && !["type", "core op"].includes(cell(r, "kind"))).map((r) => cell(r, "word")));
   const gTable = gType?.table;
-  const byKind = (kind) => (gTable ? gTable.rows.filter((row) => rowOf(gTable, row).kind === kind) : []);
+  const byType = (type) => (gTable ? gTable.rows.filter((row) => rowOf(gTable, row).kind === type) : []);
   return {
     id: "g",
     grammar: null,
@@ -192,10 +192,10 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
         [/__gsm__\(/g, "gsm block"],
         [/^\s*#\s*\w+/g, "preprocessor"],
       ];
-      for (const [shape, kind] of shapes) {
+      for (const [shape, type] of shapes) {
         for (const found of line.matchAll(shape)) {
           if (gTable && at.col >= found.index && at.col <= found.index + found[0].length) {
-            return { ...span(at.line, found.index, found.index + found[0].length), parts: hoverText(byKind(kind), gTable) };
+            return { ...span(at.line, found.index, found.index + found[0].length), parts: hoverText(byType(type), gTable) };
           }
         }
       }
@@ -208,14 +208,14 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
       }
       const rows = hol.rows.filter((row) => cell(row, "word") === word.text);
       if (!rows.length) {
-        return word.text === "use" && gTable ? { from: word.from, to: word.to, parts: hoverText(byKind("use"), gTable) } : null;
+        return word.text === "use" && gTable ? { from: word.from, to: word.to, parts: hoverText(byType("use"), gTable) } : null;
       }
       return {
         from: word.from,
         to: word.to,
         parts: rows.map((row) => {
           const names = cell(row, "names") ? `: ${cell(row, "names")}` : "";
-          return `**${word.text}**\n\n${cell(row, "kind")}${names}\n\n_${hol.columns[column(hol, "chosen_by")]} ${cell(row, "chosen_by")}_`;
+          return `**${word.text}**\n\n${cell(row, "type")}${names}\n\n_${hol.columns[column(hol, "chosen_by")]} ${cell(row, "chosen_by")}_`;
         }),
       };
     },
@@ -223,7 +223,7 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
       if (!wordBefore(doc, at).text) {
         return [];
       }
-      const make = (label, kind, detail) => ({ label, kind, detail, insert: label });
+      const make = (label, type, detail) => ({ label, kind: type, detail, insert: label });
       return [
         ...typeWords.map((w) => make(w, "type", "type")),
         ...opWords.map((w) => make(w, "operator", "core op")),

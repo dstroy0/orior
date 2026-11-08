@@ -51,12 +51,12 @@ void test_each_formatter_names_a_language(void)
 {
     static CliJson s_json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &s_json, .nodes_more = 0u, .text_more = 0ull);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = manifest, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = manifest, .type = CFG_JSON_ARRAY));
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = manifest, .index = at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = manifest, .index = at);
         const unsigned int formats = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = tool, .name = "formats");
-        TEST_ASSERT_TRUE((EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = tool, .name = "format") == CLI_JSON_NONE) || (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = formats, .kind = CFG_JSON_ARRAY) && (s_json.node[formats].count > 0u)));
+        TEST_ASSERT_TRUE((EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = tool, .name = "format") == CLI_JSON_NONE) || (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = formats, .type = CFG_JSON_ARRAY) && (s_json.node[formats].count > 0u)));
     }
     g_cli_guard->persistent_buf_release(s_json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));

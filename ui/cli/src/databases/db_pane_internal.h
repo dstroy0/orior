@@ -14,7 +14,7 @@
 typedef struct CliDbPaneCtx CliDbPaneCtx;
 
 // the form's fields: its name, host, port, user, database, file and the machine ssh goes through; its rows' places:
-// a field, the kind's choice, the matters box, the guard's choice, the buttons and the refusal; and the kinds and the
+// a field, the type's choice, the matters box, the guard's choice, the buttons and the refusal; and the types and the
 // guards a choice steps through
 #define CLI_DB_FORM_NAME 0u
 #define CLI_DB_FORM_HOST 1u
@@ -24,24 +24,24 @@ typedef struct CliDbPaneCtx CliDbPaneCtx;
 #define CLI_DB_FORM_FILE 5u
 #define CLI_DB_FORM_SSH 6u
 #define CLI_DB_FORM_FIELDS 7u
-#define CLI_DB_FORM_KIND 7u
+#define CLI_DB_FORM_TYPE 7u
 #define CLI_DB_FORM_MATTERS 8u
 #define CLI_DB_FORM_GUARD 9u
 #define CLI_DB_FORM_BUTTONS 10u
 #define CLI_DB_FORM_REFUSAL 11u
 #define CLI_DB_FORM_ROWS 12u
-#define CLI_DB_FORM_KINDS 3u
+#define CLI_DB_FORM_TYPES 3u
 #define CLI_DB_FORM_GUARDS 2u
 
-// A node of the schema: its label's, its kind's and its detail's places in the text with their bytes, its path's
+// A node of the schema: its label's, its type's and its detail's places in the text with their bytes, its path's
 // names' places, how many, its parent's place, CLI_DB_PANE_NONE at the top, its children's first place and how many,
 // its depth, and whether it is a leaf, open, read and a failed level's sentence
 typedef struct
 {
     unsigned long long label;
     unsigned long long label_length;
-    unsigned long long kind;
-    unsigned long long kind_length;
+    unsigned long long type;
+    unsigned long long type_length;
     unsigned long long detail;
     unsigned long long detail_length;
     unsigned long long path[CLI_DB_PANE_PATH];
@@ -56,13 +56,13 @@ typedef struct
     unsigned char failed;
 } CliDbPaneNode;
 
-// The form: its fields, each in a cell sized to it, the kind and the guard chosen, whether the connection matters,
+// The form: its fields, each in a cell sized to it, the type and the guard chosen, whether the connection matters,
 // the field that has the keys, CLI_DB_PANE_NONE for none, whether it edits a connection and the name it had, the
 // refusal of the last save in a cell sized to it, its rows' places and how many, and whether it is open
 typedef struct
 {
     CliTyped field[CLI_DB_FORM_FIELDS];
-    unsigned int kind;
+    unsigned int type;
     unsigned int guard;
     int matters;
     unsigned int focused;
@@ -148,11 +148,11 @@ typedef struct
 
 extern CliDbPaneState g_cli_db_pane_state;
 
-// the labels of the connections laid again in a cell sized to them, each its name, its kind and the open mark; the
+// the labels of the connections laid again in a cell sized to them, each its name, its type and the open mark; the
 // sentence row set to `text`, a failure's where `failed`, none where `text` is NULL; the schema let go; the level
 // under the node `at`, or the top where it is CLI_DB_PANE_NONE, read from the chosen connection's schema link and
 // stored after the nodes, a failure stored as one failed node: 1, or 0 where the cells cannot meet it; the rows shown
-// laid again from the open nodes; the form's rows laid again for its kind; and the chosen connection opened, its
+// laid again from the open nodes; the form's rows laid again for its type; and the chosen connection opened, its
 // password `text` where it is not NULL: 1, or 0 with the ask for its password opened where the server refused, else
 // the sentence row its failure
 void cli_db_pane_labels_laid(const CliDbPaneCtx *args);

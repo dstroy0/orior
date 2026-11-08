@@ -369,8 +369,8 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
             EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = folder, .b = first->path,
                        .between = "/", .out = file, .capacity = sizeof(file));
             walk.target = (CliCargoTarget){
-                first->kind,
-                (first->kind == CLI_CARGO_LIB)
+                first->type,
+                (first->type == CLI_CARGO_LIB)
                     ? NULL
                     : EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = first->name,
                                  .length = cellul.len(&(CatenaFinitaCfg){.src = first->name, .cap = CLI_POOL_BYTES}))};

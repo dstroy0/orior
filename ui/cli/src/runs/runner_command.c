@@ -177,7 +177,7 @@ EMBED_INLINE int cli_step_arguments(const RunnerCommandCtx *args)
             EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = arg->text[1]);
         const char *const c =
             EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = arg->text[2]);
-        switch (arg->kind)
+        switch (arg->type)
         {
         case CLI_ARG_LIT:
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
@@ -263,7 +263,7 @@ EMBED_INLINE void cli_setting(const RunnerCommandCtx *args)
     mmgr_line_put(args->set, value);
 }
 
-// The settings a cross build's kind gives, put on the command
+// The settings a cross build's type gives, put on the command
 typedef struct
 {
     CliCommand *command;
@@ -376,34 +376,34 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
         const char *const input_b = EMBED_CALL(cli_first, RunnerCommandCtx, .values = values, .key = b);
         const char *const raw_a =
             EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = values, .key = a);
-        if ((arg->kind == CLI_ARG_ENV) && (input_a != NULL))
+        if ((arg->type == CLI_ARG_ENV) && (input_a != NULL))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = a,
                        .value = (args->step->program == CLI_PROGRAM_BASH)
                                     ? EMBED_CALL(cli_for_bash, RunnerCommandCtx, .value = input_a, .out = bashed)
                                     : input_a);
         }
-        else if (arg->kind == CLI_ARG_SET)
+        else if (arg->type == CLI_ARG_SET)
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = a, .value = b);
         }
-        else if ((arg->kind == CLI_ARG_SET_FROM) && (input_b != NULL))
+        else if ((arg->type == CLI_ARG_SET_FROM) && (input_b != NULL))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = a,
                        .value = input_b);
         }
-        else if ((arg->kind == CLI_ARG_SET_WHEN) && (raw_a != NULL) &&
+        else if ((arg->type == CLI_ARG_SET_WHEN) && (raw_a != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = raw_a, .other = b, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = c, .value = d);
         }
-        else if ((arg->kind == CLI_ARG_ENV_BUT) && (input_a != NULL) &&
+        else if ((arg->type == CLI_ARG_ENV_BUT) && (input_a != NULL) &&
                  (!cellul.eq(&(CatenaFinitaCfg){.src = input_a, .other = b, .cap = CLI_POOL_BYTES})))
         {
             EMBED_CALL(cli_setting, RunnerCommandCtx, .command = command, .set = args->set, .name = a,
                        .value = input_a);
         }
-        else if (arg->kind == CLI_ARG_FOLDER)
+        else if (arg->type == CLI_ARG_FOLDER)
         {
             char folder[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = a, .joined = folder);
@@ -414,17 +414,17 @@ EMBED_INLINE void cli_settings(const RunnerCommandCtx *args)
             mmgr_line_put(args->moved, a);
             mmgr_line_put(args->moved, " &&");
         }
-        else if (arg->kind == CLI_ARG_SOURCE_DATE)
+        else if (arg->type == CLI_ARG_SOURCE_DATE)
         {
             EMBED_CALL(cli_source_date, RunnerCommandCtx, .root = root, .command = command, .set = args->set);
         }
-        else if (arg->kind == CLI_ARG_CROSS)
+        else if (arg->type == CLI_ARG_CROSS)
         {
             CliCrossed crossed = {command, args->set};
-            EMBED_CALL(cli_executables_kind.cross_env, CliExecutablesKindCfg, .kind = a, .values = values,
+            EMBED_CALL(cli_executables_type.cross_env, CliExecutablesTypeCfg, .type = a, .values = values,
                        .each = cli_cross_each, .context = &crossed);
         }
-        else if (arg->kind == CLI_ARG_UNPATH)
+        else if (arg->type == CLI_ARG_UNPATH)
         {
             EMBED_CALL(cli_unpath, RunnerCommandCtx, .name = a, .command = command, .set = args->set);
         }
@@ -510,8 +510,8 @@ EMBED_INLINE int cli_path_given(const RunnerCommandCtx *args)
     for (unsigned int at = 0u; at < args->step->args; at += 1u)
     {
         const CliArg *const arg = &args->catalog->arg[args->step->first + at];
-        if ((arg->kind == CLI_ARG_UNPATH) ||
-            ((arg->kind == CLI_ARG_SET) &&
+        if ((arg->type == CLI_ARG_UNPATH) ||
+            ((arg->type == CLI_ARG_SET) &&
              (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
                                                              .catalog_read = args->catalog, .text_u32 = arg->text[0]),
                                            .other = "PATH",

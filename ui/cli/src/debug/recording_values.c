@@ -24,8 +24,8 @@ EMBED_INLINE void read_changes(const RecordingValuesCtx *args)
                    .at_u64 = g_cli_replay->recording.steps[args->step].record, .record = &record);
     const unsigned int changed = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = json, .array = record, .index = 3u);
-    for (unsigned int member = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = changed, .kind = CFG_JSON_OBJECT)
+    for (unsigned int member = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = changed, .type = CFG_JSON_OBJECT)
                                    ? json->node[changed].first
                                    : CLI_JSON_NONE;
          member != CLI_JSON_NONE; member = json->node[member].next)

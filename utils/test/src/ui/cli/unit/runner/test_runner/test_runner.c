@@ -58,9 +58,9 @@ static void setting_job_created(void)
 {
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog_emptied(), .id = "run", .group = "build", .title = "run", .file = "run.sh", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .program = CLI_PROGRAM_BASH, .text = "run.sh", .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_VALUE, .a = "mode", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_ENV, .a = "KLQ_SEED", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_ENV, .a = "KLQ_TRACE", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = &s_catalog, .type_u32 = CLI_ARG_VALUE, .a = "mode", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = &s_catalog, .type_u32 = CLI_ARG_ENV, .a = "KLQ_SEED", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = &s_catalog, .type_u32 = CLI_ARG_ENV, .a = "KLQ_TRACE", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
     EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "mode", .value = "pair");
     EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "KLQ_SEED", .value = "2");
@@ -71,7 +71,7 @@ static void conditional_job_created(const char *trace)
 {
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog_emptied(), .id = "build", .group = "build", .title = "build", .file = "build.sh", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .program = CLI_PROGRAM_BASH, .text = "build.sh", .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_SET_WHEN, .a = "trace", .b = "verbose", .c = "SHELLOPTS", .d = "xtrace", .separated = 0);
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = &s_catalog, .type_u32 = CLI_ARG_SET_WHEN, .a = "trace", .b = "verbose", .c = "SHELLOPTS", .d = "xtrace", .separated = 0);
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
     EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "trace", .value = trace);
 }

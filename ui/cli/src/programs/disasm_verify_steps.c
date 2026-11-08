@@ -92,7 +92,7 @@ int cli_disasm_adjacent(const CliDisasmVerifyPathCfg *args)
     {
         count += 1u;
     }
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->compiler, .out = folder) &&
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->compiler, .out = folder) &&
         EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = count,
                    .path = path))
     {

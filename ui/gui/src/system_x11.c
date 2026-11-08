@@ -54,8 +54,8 @@ struct GuiSystem
 #define GUI_MOVERESIZE_MOVE 8L
 // the milliseconds of one refresh of the screen, taken as 60 a second: the core protocol carries no rate
 #define GUI_FRAME_MS 17u
-// the windows that stand at once: the main one and Preferences'
-#define SYSTEM_WINDOWS 2u
+// the windows that stand at once: the main one, Preferences' and the dialog's
+#define SYSTEM_WINDOWS 3u
 
 static GuiSystem s_systems[SYSTEM_WINDOWS];
 // the icon property's words: each icon's width and height and then its pixels
@@ -557,7 +557,7 @@ GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
     GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's two windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already stand");
         return NULL;
     }
     system->events = events;
@@ -595,7 +595,7 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's two windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already stand");
         return NULL;
     }
     system->events = events;
@@ -799,13 +799,13 @@ void gui_system_on_position(const GuiSystemPositionCfg *args)
     args->position_out->width = (unsigned int)attributes.width;
     args->position_out->height = (unsigned int)attributes.height;
     args->position_out->maximized = 0;
-    Atom kind;
+    Atom type;
     int format = 0;
     unsigned long count = 0UL;
     unsigned long left = 0UL;
     unsigned char *states = NULL;
     if ((XGetWindowProperty(args->system_read->display, args->system_read->window, args->system_read->state, 0L, 32L,
-                            False, XA_ATOM, &kind, &format, &count, &left, &states) == Success) &&
+                            False, XA_ATOM, &type, &format, &count, &left, &states) == Success) &&
         (states != NULL))
     {
         const Atom *const each = (const Atom *)states;

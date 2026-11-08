@@ -38,7 +38,7 @@ static unsigned long long range_number(unsigned int finding, const char *end, co
 {
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = finding, .name = "range"), .name = end), .name = name);
     unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = number, .kind = CFG_JSON_NUMBER) && (at < s_json->node[number].length); at += 1ull)
+    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = number, .type = CFG_JSON_NUMBER) && (at < s_json->node[number].length); at += 1ull)
     {
         value = value * 10ull + (unsigned long long)(s_json->text[s_json->node[number].text + at] - '0');
     }

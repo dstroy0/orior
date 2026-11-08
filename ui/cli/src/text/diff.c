@@ -36,7 +36,7 @@ typedef struct
     unsigned long long *hash_now;
     long long *v;
     long long *trace;
-    unsigned char *step_kind;
+    unsigned char *step_type;
     unsigned int *step_index;
     unsigned int steps;
 } CliDiff;
@@ -67,7 +67,7 @@ typedef struct
     const CliRuns *runs;
     long long x;
     long long y;
-    unsigned char kind;
+    unsigned char type;
     long long index;
 } DiffCtx;
 
@@ -98,7 +98,7 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     s_diff->hash_then = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->then_lines);
     s_diff->hash_now = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->now_lines);
     s_diff->v = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * ((2ULL * most) + 3ULL));
-    s_diff->step_kind = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = both);
+    s_diff->step_type = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = both);
     s_diff->step_index = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * both);
     return 1;
 }
@@ -152,11 +152,11 @@ EMBED_INLINE long long cli_run(const DiffCtx *args)
     return (long long)at;
 }
 
-// a step put: the kind and the line it concerns
+// a step put: the type and the line it concerns
 EMBED_INLINE void cli_step(const DiffCtx *args)
 {
     // the steps are at most the lines of both, which the capacity contains, and an index is below 2^32
-    s_diff->step_kind[s_diff->steps] = args->kind;
+    s_diff->step_type[s_diff->steps] = args->type;
     s_diff->step_index[s_diff->steps] = (unsigned int)args->index;
     s_diff->steps += 1u;
 }
@@ -236,34 +236,34 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
         {
             x -= 1;
             y -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .kind = DIFF_STEP_EQUAL, .index = x);
+            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_EQUAL, .index = x);
         }
         if (x == back_x)
         {
             y -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .kind = DIFF_STEP_IN, .index = y);
+            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_IN, .index = y);
         }
         else
         {
             x -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .kind = DIFF_STEP_OUT, .index = x);
+            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_OUT, .index = x);
         }
     }
     while ((x > 0) && (y > 0))
     {
         x -= 1;
         y -= 1;
-        EMBED_CALL(cli_step, DiffCtx, .kind = DIFF_STEP_EQUAL, .index = x);
+        EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_EQUAL, .index = x);
     }
     // the steps were found from the end
     for (unsigned int at = 0u; at < (s_diff->steps / 2u); at += 1u)
     {
         const unsigned int other = s_diff->steps - 1u - at;
-        const unsigned char kind = s_diff->step_kind[at];
+        const unsigned char type = s_diff->step_type[at];
         const unsigned int index = s_diff->step_index[at];
-        s_diff->step_kind[at] = s_diff->step_kind[other];
+        s_diff->step_type[at] = s_diff->step_type[other];
         s_diff->step_index[at] = s_diff->step_index[other];
-        s_diff->step_kind[other] = kind;
+        s_diff->step_type[other] = type;
         s_diff->step_index[other] = index;
     }
     return 1;
@@ -303,14 +303,14 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
     unsigned int taken = 0u;
     for (unsigned int at = 0u; found && (at <= s_diff->steps); at += 1u)
     {
-        const unsigned char kind = (at < s_diff->steps) ? s_diff->step_kind[at] : (unsigned char)DIFF_STEP_EQUAL;
-        if (kind == DIFF_STEP_OUT)
+        const unsigned char type = (at < s_diff->steps) ? s_diff->step_type[at] : (unsigned char)DIFF_STEP_EQUAL;
+        if (type == DIFF_STEP_OUT)
         {
             taken += 1u;
             then_line += 1u;
             continue;
         }
-        if (kind == DIFF_STEP_IN)
+        if (type == DIFF_STEP_IN)
         {
             puts += 1u;
             line += 1u;

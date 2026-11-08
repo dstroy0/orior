@@ -16,7 +16,7 @@ typedef struct QueryLoopsErrMsgContextWordsCfg QueryLoopsErrMsgContextWordsCfg;
 typedef struct QueryLoopsContextErrMsgNameRunCfg QueryLoopsContextErrMsgNameRunCfg;
 typedef struct QueryLoopsErrMsgWordsCountInputCfg QueryLoopsErrMsgWordsCountInputCfg;
 typedef struct QueryLoopsContextErrMsgNameCfg QueryLoopsContextErrMsgNameCfg;
-typedef struct QueryLoopsRootKindsCfg QueryLoopsRootKindsCfg;
+typedef struct QueryLoopsRootTypesCfg QueryLoopsRootTypesCfg;
 typedef struct QueryLoopsContextErrMsgCfg QueryLoopsContextErrMsgCfg;
 typedef struct QueryLoopsErrMsgWordsCfg QueryLoopsErrMsgWordsCfg;
 typedef struct QueryLoopsContextErrMsgRulesetsCfg QueryLoopsContextErrMsgRulesetsCfg;
@@ -147,14 +147,14 @@ int query_sweep_run(const QueryLoopCfg *args);
 
 // the words the loops read, as their checks reach them: `--leave <word>` taken off `words`, `*count` of them, where
 // it is there, into `leave`, `supplied` set where it was: 1, or 0 with why given (commands.c); every name the table
-// contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count (commands_list.c);
+// contains a file of each of `types` of, sorted, into `names`, its list into `named`: their count (commands_list.c);
 // the names of the course's steps joined by `, `; and the index of the step `--from` names, the first where none is
 // named: 1, or 0 with why given (course.c); the base source the cross's words name, NULL where none: 1, or 0 with why
 // given (cross.c); the reading of a pulled table the words request, its mode in `mode`: 1, or 0 where they request a
 // pull, -1 with why given (tables_pull.c); the names a query's words give and whether it is dry: 1, or 0 with why
 // given, each file missing named; and the writer `write`'s words name, -1 with why given (write.c)
 int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args);
-unsigned int query_names_of_kinds(const QueryLoopsRootKindsCfg *args);
+unsigned int query_names_of_types(const QueryLoopsRootTypesCfg *args);
 void query_names_join(const QueryLoopsCfg *args);
 int query_course_from(const QueryLoopsErrMsgWordsCountCfg *args);
 int query_base_get(const QueryLoopsErrMsgWordsCfg *args);
@@ -267,11 +267,11 @@ struct QueryLoopsContextErrMsgNameCfg
     unsigned int count;
 };
 
-struct QueryLoopsRootKindsCfg
+struct QueryLoopsRootTypesCfg
 {
     const char *root;
-    const char *const *kinds;
-    unsigned int kind_count;
+    const char *const *types;
+    unsigned int type_count;
     char (*names)[QUERY_NAME_MAX_LEN];
     const char **named;
 };
@@ -549,11 +549,11 @@ EMBED_TABLE_STORAGE QueryLoopsErrMsgWordsCountInputNs query_loops_err_msg_words_
 
 typedef struct
 {
-    unsigned int (*whole)(const QueryLoopsRootKindsCfg *args);
-} QueryLoopsRootKindsNs;
-EMBED_TABLE_LAYOUT(QueryLoopsRootKindsNs, whole);
-EMBED_TABLE_STORAGE QueryLoopsRootKindsNs query_loops_root_kinds EMBED_UNUSED = {
-    .whole = query_names_of_kinds,
+    unsigned int (*whole)(const QueryLoopsRootTypesCfg *args);
+} QueryLoopsRootTypesNs;
+EMBED_TABLE_LAYOUT(QueryLoopsRootTypesNs, whole);
+EMBED_TABLE_STORAGE QueryLoopsRootTypesNs query_loops_root_types EMBED_UNUSED = {
+    .whole = query_names_of_types,
 };
 
 typedef struct

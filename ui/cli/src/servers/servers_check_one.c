@@ -296,7 +296,7 @@ static void check_one_request(const ServersCheckOneCtx *args)
     const char *uri = args->uri;
     const char *key = args->key;
     const CliServersSink *sink = args->sink;
-    const unsigned long long pid = EMBED_CALL(cli_lsp_size_kind.pid, CliLspSizeKindCfg, .lsp_read = args->one->server);
+    const unsigned long long pid = EMBED_CALL(cli_lsp_size_type.pid, CliLspSizeTypeCfg, .lsp_read = args->one->server);
     if (EMBED_CALL(check_one_reject, ServersCheckOneCtx, .pid = pid, .record = 0))
     {
         check_one_wait(args);
@@ -326,16 +326,16 @@ static void check_one_request(const ServersCheckOneCtx *args)
     }
     const char *const answer = reply.text;
     const unsigned long long size = reply.size;
-    unsigned long long kind_at = 0ULL;
-    unsigned long long kind_length = 0ULL;
+    unsigned long long type_at = 0ULL;
+    unsigned long long type_length = 0ULL;
     unsigned long long items_at = 0ULL;
     unsigned long long items_length = 0ULL;
-    char kind[16];
+    char type[16];
     if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer, .size_value = size, .name = "kind",
-                    .start = &kind_at, .length_pointer = &kind_length) ||
-        !EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = answer + kind_at, .length = kind_length,
-                    .out_capacity = kind, .capacity = sizeof(kind)) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "full", .cap = CLI_POOL_BYTES})))
+                    .start = &type_at, .length_pointer = &type_length) ||
+        !EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = answer + type_at, .length = type_length,
+                    .out_capacity = type, .capacity = sizeof(type)) ||
+        (!cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "full", .cap = CLI_POOL_BYTES})))
     {
         g_cli_guard->persistent_buf_release(reply.message, g_cli_servers_owner);
         return;
@@ -379,8 +379,8 @@ EMBED_INLINE void check_one_window_save(const ServersCheckOneCtx *args)
     const unsigned int array = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                           .json = &json, .text = args->gathered, .size = size, .nodes_more = 0u,
                                           .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_servers_owner);
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                       .node = array, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                       .node = array, .type = CFG_JSON_ARRAY)
                                 ? json.node[array].first
                                 : CLI_JSON_NONE;
          one != CLI_JSON_NONE; one = json.node[one].next)

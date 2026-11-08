@@ -180,12 +180,12 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args)
     }
     const CliJsonNode *const one = &args->json_read->node[args->node];
     *nodes += 1u;
-    *text += ((one->kind == CFG_JSON_STRING) || (one->kind == CFG_JSON_NUMBER)) ? (one->length + 1ULL) : 0ULL;
+    *text += ((one->type == CFG_JSON_STRING) || (one->type == CFG_JSON_NUMBER)) ? (one->length + 1ULL) : 0ULL;
     for (unsigned int child = one->first; (child != CLI_JSON_NONE) && (child < args->json_read->nodes);
          child = args->json_read->node[child].next)
     {
         // a member's key is stored again where the member is copied
-        *text += (one->kind == CFG_JSON_OBJECT)
+        *text += (one->type == CFG_JSON_OBJECT)
                      ? (cellul.len(&(CatenaFinitaCfg){.src = args->json_read->text + args->json_read->node[child].key,
                                                       .cap = CLI_POOL_BYTES}) +
                         1ULL)

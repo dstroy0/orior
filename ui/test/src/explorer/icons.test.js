@@ -30,9 +30,9 @@ test("every file has a mark and every folder the folder's shape, a character's w
   // The tree draws the rows in sight alone, so each row looked for is scrolled into sight first.
   const rows = () => [...document.querySelectorAll("#files .node")];
   await ui.waitFor(() => treeRowShown("kinds"), 10000);
-  const kinds = treeRowShown("kinds");
-  if (kinds.getAttribute("aria-expanded") !== "true") {
-    await ui.click(kinds);
+  const types = treeRowShown("kinds");
+  if (types.getAttribute("aria-expanded") !== "true") {
+    await ui.click(types);
   }
   await ui.waitFor(() => treeRowShown("kinds/model.onnx"), 10000);
   for (const row of rows()) {

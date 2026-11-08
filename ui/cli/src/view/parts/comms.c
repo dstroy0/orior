@@ -194,12 +194,12 @@ static void comms_row_draw(const GuiPaneCfg *args)
     int x = rect.x + pad;
     GuiColor name_color = palette->text;
     GuiColor status_color = palette->text_2;
-    if (row.kind == CLI_COMMS_ROW_GROUP)
+    if (row.type == CLI_COMMS_ROW_GROUP)
     {
         name_color = palette->text_2;
         status_color = palette->text_3;
     }
-    else if (row.kind == CLI_COMMS_ROW_MESSAGE)
+    else if (row.type == CLI_COMMS_ROW_MESSAGE)
     {
         x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = args->raster, .palette = palette, .frame = args->frame,
                        .table = args->table, .rect = rect, .clip = args->clip, .depth = 1u);
@@ -219,7 +219,7 @@ static void comms_row_draw(const GuiPaneCfg *args)
                                         .size = GUI_PANE_ROW_SIZE, .x_f32 = (float)x, .text = row.name,
                                         .length = row.name_length, .color = name_color);
     const float after_status = EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args,
-                                          .face = (row.kind == CLI_COMMS_ROW_MESSAGE) ? GUI_FACE_CODE : GUI_FACE_HEAD,
+                                          .face = (row.type == CLI_COMMS_ROW_MESSAGE) ? GUI_FACE_CODE : GUI_FACE_HEAD,
                                           .size = GUI_PANE_ROW_SIZE, .x_f32 = after_name + (float)gap,
                                           .text = row.status, .length = row.status_length, .color = status_color);
     if (row.detail_length != 0ULL)

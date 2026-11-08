@@ -145,41 +145,41 @@ const REST = 2000;
 const BREAKS = new Set(["file_write", "git_commit", "git_commit_parts"]);
 const breaks = { commanded: -Infinity, input: performance.now(), waiting: [], timer: 0, focus: false, listeners: [] };
 
-// Notices put away for good: each by its kind, kept with the reader's settings. A notice of a kind
+// Notices put away for good: each by its type, kept with the reader's settings. A notice of a type
 // put away shows no more and counts as nothing unseen; the bell still keeps it. Preferences brings a
-// kind back.
+// type back.
 const AWAY_KEY = "orior.notices-away";
 
 export function noticesAway() {
   try {
     const kept = JSON.parse(localStorage.getItem(AWAY_KEY) ?? "[]");
-    return Array.isArray(kept) ? kept.filter((kind) => typeof kind === "string") : [];
+    return Array.isArray(kept) ? kept.filter((type) => typeof type === "string") : [];
   } catch {
     return [];
   }
 }
 
-export function putAway(kind) {
+export function putAway(type) {
   const away = noticesAway();
-  if (!away.includes(kind)) {
-    localStorage.setItem(AWAY_KEY, JSON.stringify([...away, kind]));
+  if (!away.includes(type)) {
+    localStorage.setItem(AWAY_KEY, JSON.stringify([...away, type]));
   }
 }
 
-export function bringBack(kind) {
-  localStorage.setItem(AWAY_KEY, JSON.stringify(noticesAway().filter((one) => one !== kind)));
+export function bringBack(type) {
+  localStorage.setItem(AWAY_KEY, JSON.stringify(noticesAway().filter((one) => one !== type)));
 }
 
-// A notice's kind where it is given none: its first line, each number in it read as any, so that a
-// notice said again with another count is the same kind.
-export const kindOf = (text) => String(text).split("\n")[0].replace(/\d+/g, "#");
+// A notice's type where it is given none: its first line, each number in it read as any, so that a
+// notice said again with another count is the same type.
+export const typeOf = (text) => String(text).split("\n")[0].replace(/\d+/g, "#");
 
 // Puts a word on the bar for a moment: its first line, and all of it over it, at once where it
 // answers what the reader did and at the next break where it does not. A press takes it away, and
-// does `act` first where there is one; Silence beside it puts its kind away for good. The bell
+// does `act` first where there is one; Silence beside it puts its type away for good. The bell
 // keeps it.
-export function say(text, { failed = false, act = null, kind = null } = {}) {
-  const notice = { text: String(text), failed, act, at: Date.now(), kind: kind ?? kindOf(text) };
+export function say(text, { failed = false, act = null, type = null } = {}) {
+  const notice = { text: String(text), failed, act, at: Date.now(), kind: type ?? typeOf(text) };
   if (noticesAway().includes(notice.kind)) {
     keepNotice(notice, { seen: true });
     return;
@@ -286,8 +286,8 @@ function keepNotice(notice, { seen = false } = {}) {
   noticeListeners.forEach((listener) => listener());
 }
 
-function show({ text, failed, act, kind, ...notice }) {
-  keepNotice({ text, failed, kind, ...notice });
+function show({ text, failed, act, kind: type, ...notice }) {
+  keepNotice({ text, failed, kind: type, ...notice });
   const node = document.getElementById("status-said");
   const away = document.getElementById("status-said-away");
   const hide = () => {
@@ -309,7 +309,7 @@ function show({ text, failed, act, kind, ...notice }) {
     away.hidden = false;
     away.onclick = () => {
       hide();
-      putAway(kind);
+      putAway(type);
     };
   }
   saidTimer = window.setTimeout(hide, failed ? FAILED_FOR : SAID_FOR);

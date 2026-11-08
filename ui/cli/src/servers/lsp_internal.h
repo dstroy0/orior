@@ -10,7 +10,7 @@
 #include "lsp.h"
 
 typedef struct CliLspCtx CliLspCtx;
-typedef struct CliLspKindCtx CliLspKindCtx;
+typedef struct CliLspTypeCtx CliLspTypeCtx;
 
 // A request waiting on its answer: its id, where its answer is handed over, whether it came, and the error it came
 // with, empty where none did
@@ -63,14 +63,14 @@ void cli_lsp_readers_start(const CliLspCtx *args);
 void cli_lsp_end(const CliLspCtx *args);
 // each file a server has open let go, as it is let go; and the cells the files open are allocated in, counted: the
 // table of them, each one's URI while it is open, and the copies one walk over a server's files takes (lsp_files.c)
-void cli_lsp_files_let_go(const CliLspKindCtx *args);
+void cli_lsp_files_let_go(const CliLspTypeCtx *args);
 
 struct CliLspCtx
 {
     CliLsp *lsp;
 };
 
-struct CliLspKindCtx
+struct CliLspTypeCtx
 {
     const CliLsp *lsp_read;
 };
@@ -88,10 +88,10 @@ EMBED_TABLE_STORAGE CliLspNsTable cli_lsp_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*files_let_go)(const CliLspKindCtx *args);
-} CliLspKindNs;
-EMBED_TABLE_LAYOUT(CliLspKindNs, files_let_go);
-EMBED_TABLE_STORAGE CliLspKindNs cli_lsp_kind_internal EMBED_UNUSED = {
+    void (*files_let_go)(const CliLspTypeCtx *args);
+} CliLspTypeNs;
+EMBED_TABLE_LAYOUT(CliLspTypeNs, files_let_go);
+EMBED_TABLE_STORAGE CliLspTypeNs cli_lsp_type_internal EMBED_UNUSED = {
     .files_let_go = cli_lsp_files_let_go,
 };
 

@@ -287,17 +287,17 @@ EMBED_INLINE void xterm_rendition(const XtermCtx *args)
         {
             continue;
         }
-        const unsigned int kind = EMBED_CALL(xterm_number, XtermCtx, .numbers = numbers, .number_count = count,
+        const unsigned int type = EMBED_CALL(xterm_number, XtermCtx, .numbers = numbers, .number_count = count,
                                              .count = at + 1u, .value = 0ULL);
         unsigned int color = (value == 38u) ? style->foreground : style->background;
-        if (kind == 5u)
+        if (type == 5u)
         {
             color = CLI_TERMINAL_COLOR_INDEXED | (EMBED_CALL(xterm_number, XtermCtx, .numbers = numbers,
                                                              .number_count = count, .count = at + 2u, .value = 0ULL) &
                                                   0xffu);
             at += 2u;
         }
-        if (kind == 2u)
+        if (type == 2u)
         {
             // an empty color space may stand before the three parts, as 38:2::r:g:b
             const unsigned int from = (((at + 2u) < count) && (numbers[at + 2u] == XTERM_ABSENT)) ? at + 3u : at + 2u;
@@ -384,9 +384,9 @@ EMBED_INLINE int xterm_style_same(const XtermCtx *args)
 EMBED_INLINE void xterm_sgr_color(VerbaLinea *line, unsigned int color, unsigned int base, unsigned int bright,
                                   unsigned int wide)
 {
-    const unsigned int kind = color & CLI_TERMINAL_COLOR_KIND;
+    const unsigned int type = color & CLI_TERMINAL_COLOR_TYPE;
     const unsigned int index = color & 0xffu;
-    if (kind == CLI_TERMINAL_COLOR_INDEXED)
+    if (type == CLI_TERMINAL_COLOR_INDEXED)
     {
         mmgr_line_ch(line, ';');
         mmgr_line_decimal(line, (index < 8u) ? (base + index) : ((index < 16u) ? (bright + index - 8u) : wide), 1u);
@@ -396,7 +396,7 @@ EMBED_INLINE void xterm_sgr_color(VerbaLinea *line, unsigned int color, unsigned
             mmgr_line_decimal(line, index, 1u);
         }
     }
-    else if (kind == CLI_TERMINAL_COLOR_DIRECT)
+    else if (type == CLI_TERMINAL_COLOR_DIRECT)
     {
         mmgr_line_ch(line, ';');
         mmgr_line_decimal(line, wide, 1u);
@@ -1688,7 +1688,7 @@ unsigned int cli_terminal_xterm_spans(const CliTerminalXtermSpansCfg *args)
         }
         const unsigned int index = style.foreground & 0xffu;
         const unsigned int color =
-            (((style.foreground & CLI_TERMINAL_COLOR_KIND) == CLI_TERMINAL_COLOR_INDEXED) && (index < 16u))
+            (((style.foreground & CLI_TERMINAL_COLOR_TYPE) == CLI_TERMINAL_COLOR_INDEXED) && (index < 16u))
                 ? index
                 : CLI_TERMINAL_SPAN_PLAIN;
         const int bold = (style.marks & CLI_TERMINAL_BOLD) != 0u;

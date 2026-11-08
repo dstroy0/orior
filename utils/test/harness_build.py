@@ -39,6 +39,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from utils.tools import findroot  # noqa: E402
 
+import harness_rename  # noqa: E402
+
 ROOT = findroot.root()
 BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(BUILD, "harness", "out")
@@ -645,3 +647,4 @@ def register(sub):
     p = source.add_parser("tidy", help="clang-tidy with the static analyzer, and cppcheck, in the Linux image, their reports under build/sonarqube")
     p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src"], help="the folders read, from the top of the tree")
     p.set_defaults(fn=cmd_source_tidy)
+    harness_rename.register(source)

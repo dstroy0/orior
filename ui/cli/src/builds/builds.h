@@ -25,7 +25,7 @@ typedef struct CliBuildsItemsCfg CliBuildsItemsCfg;
 typedef struct CliBuildsLinesCfg CliBuildsLinesCfg;
 typedef struct CliBuildsFoundCfg CliBuildsFoundCfg;
 typedef struct CliBuildsPathTextCfg CliBuildsPathTextCfg;
-typedef struct CliBuildsItemsKindCfg CliBuildsItemsKindCfg;
+typedef struct CliBuildsItemsTypeCfg CliBuildsItemsTypeCfg;
 typedef struct CliBuildsTextSizeCfg CliBuildsTextSizeCfg;
 typedef struct CliBuildsPathRootCfg CliBuildsPathRootCfg;
 typedef struct CliBuildsACfg CliBuildsACfg;
@@ -38,7 +38,7 @@ typedef struct CliBuildsLineCfg CliBuildsLineCfg;
 typedef struct CliBuildsLinesAtCfg CliBuildsLinesAtCfg;
 typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 
-// the kinds of build file read here, 0 for none
+// the types of build file read here, 0 for none
 #define CLI_BUILD_GRADLE 1u
 #define CLI_BUILD_CATALOG 2u
 #define CLI_BUILD_MAVEN 3u
@@ -59,8 +59,8 @@ typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 #define CLI_BUILD_FIRST 16u
 #define CLI_BUILD_MSG_MIN_LEN 16384u
 
-// the kind of build file at `path`, by its name, 0 where it is none
-unsigned int cli_build_kind_get(const CliBuildsPathCfg *args);
+// the type of build file at `path`, by its name, 0 where it is none
+unsigned int cli_build_type_get(const CliBuildsPathCfg *args);
 
 // the diagnostics of the build file at `path` of the tree at `root`, `size` bytes of its text, written as the
 // protocol's array of them into `out`
@@ -157,7 +157,7 @@ void cli_build_run_fix(const CliBuildsFoundCfg *args);
 // a fix of the finding at `finding` that writes `size` bytes of `text` over the bytes `from` to `to` and over
 // `also_from` to `also_to` (builds_help.c)
 void cli_build_edit_fix_twice(const CliBuildsTextCfg *args);
-// the findings written as the protocol's array of diagnostics, each `{"range", "severity", "message": {"kind",
+// the findings written as the protocol's array of diagnostics, each `{"range", "severity", "message": {"type",
 // "value"}, "source": "orior", "code", "data": {"orior": fixes}}`
 void cli_build_findings_write(const CliBuildsCfg *args);
 
@@ -169,9 +169,9 @@ unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args);
 
 // the item of a value put where it stands after what was typed before the word the cursor is in: of
 // `maven.compiler.so` typed, `source` for `maven.compiler.source`; a value that does not start with what was typed is
-// left out; and plain items for `words`, `count` of them, each of `kind` with `detail`, `()` left off what each shows
+// left out; and plain items for `words`, `count` of them, each of `type` with `detail`, `()` left off what each shows
 void cli_build_relative(const CliBuildsItemsCfg *args);
-void cli_build_items(const CliBuildsItemsKindCfg *args);
+void cli_build_items(const CliBuildsItemsTypeCfg *args);
 
 // The names nearest one that is not known, near enough to be what was meant, the nearest first, at most three, each a
 // text of the caller's
@@ -229,7 +229,7 @@ struct CliBuildsItemsCfg
     unsigned long long token_size;
     const char *value;
     unsigned long long value_size;
-    const char *kind;
+    const char *type;
     const char *detail;
     unsigned long long detail_size;
 };
@@ -265,10 +265,10 @@ struct CliBuildsPathTextCfg
     void *context;
 };
 
-struct CliBuildsItemsKindCfg
+struct CliBuildsItemsTypeCfg
 {
     CliCompletions *items;
-    const char *kind;
+    const char *type;
     const char *detail;
     const char *const *words;
     unsigned int count;
@@ -354,14 +354,14 @@ struct CliBuildsSizeVersionCfg
 
 typedef struct
 {
-    unsigned int (*build_kind_get)(const CliBuildsPathCfg *args);
+    unsigned int (*build_type_get)(const CliBuildsPathCfg *args);
     void (*build_check)(const CliBuildsPathCfg *args);
     void (*build_complete)(const CliBuildsPathCfg *args);
     unsigned long long (*build_byte_at)(const CliBuildsPathCfg *args);
 } CliBuildsPathNs;
-EMBED_TABLE_LAYOUT(CliBuildsPathNs, build_kind_get, build_check, build_complete, build_byte_at);
+EMBED_TABLE_LAYOUT(CliBuildsPathNs, build_type_get, build_check, build_complete, build_byte_at);
 EMBED_TABLE_STORAGE CliBuildsPathNs cli_builds_path EMBED_UNUSED = {
-    .build_kind_get = cli_build_kind_get,
+    .build_type_get = cli_build_type_get,
     .build_check = cli_build_check,
     .build_complete = cli_build_complete,
     .build_byte_at = cli_build_byte_at,
@@ -485,10 +485,10 @@ EMBED_TABLE_STORAGE CliBuildsItemsNs cli_builds_items EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*build_items)(const CliBuildsItemsKindCfg *args);
-} CliBuildsItemsKindNs;
-EMBED_TABLE_LAYOUT(CliBuildsItemsKindNs, build_items);
-EMBED_TABLE_STORAGE CliBuildsItemsKindNs cli_builds_items_kind EMBED_UNUSED = {
+    void (*build_items)(const CliBuildsItemsTypeCfg *args);
+} CliBuildsItemsTypeNs;
+EMBED_TABLE_LAYOUT(CliBuildsItemsTypeNs, build_items);
+EMBED_TABLE_STORAGE CliBuildsItemsTypeNs cli_builds_items_type EMBED_UNUSED = {
     .build_items = cli_build_items,
 };
 

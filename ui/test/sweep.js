@@ -53,23 +53,23 @@
     return steps.join(" > ");
   };
   const keyOf = (element) => (element.id ? step(element) : `${path(element)} | ${label(element).replace(/\d+/g, "#")}`);
-  const kind = (element) => {
+  const type = (element) => {
     const tag = element.tagName.toLowerCase();
     const role = element.getAttribute("role") || "";
-    const type = (element.getAttribute("type") || "").toLowerCase();
+    const inputType = (element.getAttribute("type") || "").toLowerCase();
     if (tag === "select" || role === "combobox") {
       return tag === "select" ? "choice" : "field";
     }
-    if (tag === "input" && type === "file") {
+    if (tag === "input" && inputType === "file") {
       return "file";
     }
-    if ((tag === "input" && type === "range") || role === "slider") {
+    if ((tag === "input" && inputType === "range") || role === "slider") {
       return "range";
     }
-    if ((tag === "input" && ["checkbox", "radio"].includes(type)) || ["checkbox", "switch", "radio", "menuitemcheckbox", "menuitemradio"].includes(role)) {
+    if ((tag === "input" && ["checkbox", "radio"].includes(inputType)) || ["checkbox", "switch", "radio", "menuitemcheckbox", "menuitemradio"].includes(role)) {
       return "check";
     }
-    if ((tag === "input" && !["button", "submit", "reset", "image", "color", "hidden"].includes(type)) || tag === "textarea" || element.isContentEditable || role === "textbox") {
+    if ((tag === "input" && !["button", "submit", "reset", "image", "color", "hidden"].includes(inputType)) || tag === "textarea" || element.isContentEditable || role === "textbox") {
       return "field";
     }
     if (role === "menuitem" || role === "option") {
@@ -101,7 +101,7 @@
     for (const element of document.querySelectorAll(SELECTOR)) {
       const outer = element.parentElement?.closest(SELECTOR);
       const native = element.matches("button, a[href], input, select, textarea");
-      if (!shown(element) || (outer && !native && kind(element) === "button")) {
+      if (!shown(element) || (outer && !native && type(element) === "button")) {
         continue;
       }
       let key = keyOf(element);
@@ -115,7 +115,7 @@
       out.push({
         key,
         index: sweep.found.length,
-        kind: kind(element),
+        kind: type(element),
         label: label(element),
         disabled: Boolean(element.disabled) || element.getAttribute("aria-disabled") === "true",
         x: Math.round(x),

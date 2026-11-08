@@ -71,7 +71,7 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
         mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
         return NULL;
     }
-    dap->kind = CLI_DAP_PROGRAM;
+    dap->type = CLI_DAP_PROGRAM;
     dap->ends_program = ends_program;
     dap->emit = emit;
     dap->context = context;
@@ -131,7 +131,7 @@ CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
         dap->reserved = 0;
         return NULL;
     }
-    dap->kind = CLI_DAP_SOCKET;
+    dap->type = CLI_DAP_SOCKET;
     dap->ends_program = ends_program;
     dap->emit = emit;
     dap->context = context;

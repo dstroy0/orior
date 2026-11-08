@@ -348,7 +348,7 @@ EMBED_INLINE void changes_rolled(const ChangesCtx *args)
     {
         CliChangedRow row;
         if (EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) &&
-            (row.kind == CLI_CHANGES_ROW_FILE) && row.taken)
+            (row.type == CLI_CHANGES_ROW_FILE) && row.taken)
         {
             pane->file_reread(pane->context, row.path);
         }
@@ -572,7 +572,7 @@ EMBED_INLINE void changes_line_row_draw(const ChangesCtx *args)
                      .color = palette->text_2, .clip = pane->clip);
 }
 
-// the row drawn as its kind: a file, a change under one, or a line of a change
+// the row drawn as its type: a file, a change under one, or a line of a change
 static void changes_row_draw(const GuiPaneCfg *args)
 {
     CliChangedRow read;
@@ -580,7 +580,7 @@ static void changes_row_draw(const GuiPaneCfg *args)
     {
         return;
     }
-    switch (read.kind)
+    switch (read.type)
     {
     case CLI_CHANGES_ROW_FILE:
         EMBED_CALL(changes_file_row_draw, ChangesCtx, .pane = args, .row = &read);
@@ -598,8 +598,8 @@ static void changes_row_draw(const GuiPaneCfg *args)
 EMBED_INLINE int changes_box_end(const ChangesCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
-    const unsigned int depth = (args->row->kind == CLI_CHANGES_ROW_FILE)   ? 0u
-                               : (args->row->kind == CLI_CHANGES_ROW_HUNK) ? 1u
+    const unsigned int depth = (args->row->type == CLI_CHANGES_ROW_FILE)   ? 0u
+                               : (args->row->type == CLI_CHANGES_ROW_HUNK) ? 1u
                                                                            : 2u;
     // the depth is at most two guides, far inside an int
     return EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT) +
@@ -627,7 +627,7 @@ static int changes_press(const GuiPaneCfg *args)
             EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = args->row);
             return 0;
         }
-        if ((changed.kind == CLI_CHANGES_ROW_FILE) && changed.opens &&
+        if ((changed.type == CLI_CHANGES_ROW_FILE) && changed.opens &&
             (args->x <
              box_end + EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_EXPLORER_TWISTY)))
         {
@@ -635,7 +635,7 @@ static int changes_press(const GuiPaneCfg *args)
             return 0;
         }
     }
-    const int placed = changed.kind != CLI_CHANGES_ROW_FILE;
+    const int placed = changed.type != CLI_CHANGES_ROW_FILE;
     *args->open_out = (GuiPaneOpen){changed.path, {placed ? changed.from : 0ULL, 0ULL}, placed};
     return 1;
 }

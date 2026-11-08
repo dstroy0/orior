@@ -24,8 +24,8 @@ typedef struct
     unsigned long long length;
     CliProverMessage *message;
     unsigned long long text_size;
-    const char *kind;
-    unsigned long long kind_size;
+    const char *type;
+    unsigned long long type_size;
     unsigned int array;
     const char *line;
     unsigned long long number;
@@ -86,8 +86,8 @@ EMBED_INLINE int messages_position(const ValidateMessagesCtx *args)
                                            .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                                 .json_read = json, .object = object, .name = args->key),
                                            .name = args->part);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
+                    .type = CFG_JSON_NUMBER))
     {
         return 0;
     }
@@ -120,21 +120,21 @@ EMBED_INLINE unsigned long long messages_write(const ValidateMessagesCtx *args)
     return args->messages->used - args->length;
 }
 
-// a message put with its text and kind, where it and they fit
+// a message put with its text and type, where it and they fit
 EMBED_INLINE void messages_append(const ValidateMessagesCtx *args)
 {
     const char *text = args->text;
     unsigned long long text_size = args->text_size;
-    const char *kind = args->kind;
-    unsigned long long kind_size = args->kind_size;
+    const char *type = args->type;
+    unsigned long long type_size = args->type_size;
     args->message->text =
         EMBED_CALL(messages_write, ValidateMessagesCtx, .messages = args->messages, .text = text, .length = text_size);
     args->message->text_size = text_size;
-    args->message->kind =
-        EMBED_CALL(messages_write, ValidateMessagesCtx, .messages = args->messages, .text = kind, .length = kind_size);
-    args->message->kind_size = kind_size;
+    args->message->type =
+        EMBED_CALL(messages_write, ValidateMessagesCtx, .messages = args->messages, .text = type, .length = type_size);
+    args->message->type_size = type_size;
     if ((args->messages->count < CLI_VALIDATE_MESSAGES) && (args->message->text != CLI_VALIDATE_NONE) &&
-        (args->message->kind != CLI_VALIDATE_NONE))
+        (args->message->type != CLI_VALIDATE_NONE))
     {
         args->messages->message[args->messages->count] = *args->message;
         args->messages->count += 1u;
@@ -221,26 +221,26 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
             message.severity = 3u;
         }
         unsigned long long text_size = 0ULL;
-        unsigned long long kind_size = 0ULL;
+        unsigned long long type_size = 0ULL;
         const char *const text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = value, .name = "data"),
                        .length_pointer = &text_size);
-        const char *const kind =
+        const char *const type =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = value, .name = "kind"),
-                       .length_pointer = &kind_size);
+                       .length_pointer = &type_size);
         EMBED_CALL(messages_append, ValidateMessagesCtx, .messages = args->messages, .message = &message,
-                   .text = (text != NULL) ? text : "", .text_size = text_size, .kind = (kind != NULL) ? kind : "",
-                   .kind_size = kind_size);
+                   .text = (text != NULL) ? text : "", .text_size = text_size, .type = (type != NULL) ? type : "",
+                   .type_size = type_size);
     }
     if (loose.at > 0ULL)
     {
         CliProverMessage message = {1u, 0u, 0u, 0u, 1u, 0ULL, 0ULL, 0ULL, 0ULL};
         EMBED_CALL(messages_append, ValidateMessagesCtx, .messages = args->messages, .message = &message,
-                   .text = s_loose, .text_size = loose.at, .kind = "", .kind_size = 0ULL);
+                   .text = s_loose, .text_size = loose.at, .type = "", .type_size = 0ULL);
     }
 }
 
@@ -278,8 +278,8 @@ int cli_validate_barrier_get(const CliValidateMessagesCtx *args)
     {
         const CliBarrier *const barrier = &tool->barriers[at];
         const int stopped =
-            EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json, .array = barrier->kinds,
-                       .text = args->messages_read->text + args->message->kind, .length = args->message->kind_size) ||
+            EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json, .array = barrier->types,
+                       .text = args->messages_read->text + args->message->type, .length = args->message->type_size) ||
             EMBED_CALL(messages_any_in, ValidateMessagesCtx, .json = json, .array = barrier->phrases, .text = text,
                        .length = args->message->text_size);
         if (stopped && !EMBED_CALL(messages_any_in, ValidateMessagesCtx, .json = json, .array = barrier->unless,

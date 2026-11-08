@@ -22,11 +22,11 @@ typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 #define CLI_RUST_PATH 1u
 #define CLI_RUST_MARK 2u
 
-// A token: its kind, its letter where it is a sign, where its text starts in the file and its bytes where it is a word,
+// A token: its type, its letter where it is a sign, where its text starts in the file and its bytes where it is a word,
 // and the line it stands on, counted from 0
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int letter;
     unsigned long long start;
     unsigned int size;
@@ -65,7 +65,7 @@ extern CliCargoScan g_cli_cargo_scan;
 // A target and its first file, as a path from the package's folder
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     char name[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
 } CliCargoFirst;

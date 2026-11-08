@@ -370,7 +370,7 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_deploy_index_path_internal.record_path, CliDeployIndexPathCtx, .index = args->index,
                     .path_out = path) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
     {
         return;
     }

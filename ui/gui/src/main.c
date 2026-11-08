@@ -16,10 +16,12 @@
 
 static GuiSystem *s_system;
 static GuiSystem *s_preferences;
+static GuiSystem *s_dialog;
 
 // each window's events come with the surface they are of
 static const unsigned int s_main_surface = CLI_VIEW_MAIN;
 static const unsigned int s_preferences_surface = CLI_VIEW_PREFERENCES;
+static const unsigned int s_dialog_surface = CLI_VIEW_DIALOG;
 
 static void main_woken_elsewhere(void *context)
 {
@@ -32,7 +34,7 @@ static void main_woken_elsewhere(void *context)
 
 static void main_sized(const GuiEachWidthHeightScaleCfg *args)
 {
-    const CliViewEvent event = {.kind = CLI_VIEW_EVENT_SIZED,
+    const CliViewEvent event = {.type = CLI_VIEW_EVENT_SIZED,
                                 .surface = *(const unsigned int *)args->context,
                                 .width = args->width,
                                 .height = args->height,
@@ -44,7 +46,7 @@ static void main_sized(const GuiEachWidthHeightScaleCfg *args)
 static void main_input(const GuiEachInputCfg *args)
 {
     const CliViewEvent event = {
-        .kind = CLI_VIEW_EVENT_INPUT, .surface = *(const unsigned int *)args->context, .input = *args->input};
+        .type = CLI_VIEW_EVENT_INPUT, .surface = *(const unsigned int *)args->context, .input = *args->input};
     cli_view_event(&event);
 }
 
@@ -64,9 +66,21 @@ static void main_preferences_close(void)
     }
 }
 
+// the dialog's window closed where it stands open, its owner taking input again as it goes
+static void main_dialog_close(void)
+{
+    if (s_dialog != NULL)
+    {
+        EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = s_dialog);
+        EMBED_CALL(gui_system_table.free, GuiSystemCfg, .system = s_dialog);
+        s_dialog = NULL;
+    }
+}
+
 static void main_closing(void *context)
 {
     (void)context;
+    main_dialog_close();
     main_preferences_close();
     CliWindowPosition place;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = s_system, .position_out = &place);
@@ -84,7 +98,7 @@ static void main_preferences_nothing(void *context)
 static void main_preferences_closing(void *context)
 {
     (void)context;
-    const CliViewEvent event = {.kind = CLI_VIEW_EVENT_CLOSING, .surface = CLI_VIEW_PREFERENCES};
+    const CliViewEvent event = {.type = CLI_VIEW_EVENT_CLOSING, .surface = CLI_VIEW_PREFERENCES};
     cli_view_event(&event);
 }
 
@@ -93,9 +107,17 @@ static void main_preferences_displayed(const GuiEachDisplayedCfg *args)
     (void)args;
 }
 
+// the system asking to close the dialog's window: the view told, and an order after closes it
+static void main_dialog_closing(void *context)
+{
+    (void)context;
+    const CliViewEvent event = {.type = CLI_VIEW_EVENT_CLOSING, .surface = CLI_VIEW_DIALOG};
+    cli_view_event(&event);
+}
+
 static void main_displayed(const GuiEachDisplayedCfg *args)
 {
-    const CliViewEvent event = {.kind = CLI_VIEW_EVENT_DISPLAYED, .flag = args->displayed};
+    const CliViewEvent event = {.type = CLI_VIEW_EVENT_DISPLAYED, .flag = args->displayed};
     cli_view_event(&event);
 }
 
@@ -103,7 +125,7 @@ static void main_motion(void *context)
 {
     (void)context;
     const CliViewEvent event = {
-        .kind = CLI_VIEW_EVENT_MOTION,
+        .type = CLI_VIEW_EVENT_MOTION,
         .flag = EMBED_CALL(gui_system_position.motion_reduce, GuiSystemPositionCfg, .system_read = s_system)};
     cli_view_event(&event);
 }
@@ -132,12 +154,12 @@ static void main_preferences_open(const CliViewOrder *order)
                                .context = (void *)&s_preferences_surface, .err_msg = &why);
     if (s_preferences == NULL)
     {
-        const CliViewEvent refused = {.kind = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_PREFERENCES};
+        const CliViewEvent refused = {.type = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_PREFERENCES};
         cli_view_event(&refused);
         return;
     }
     const CliViewEvent sized = {
-        .kind = CLI_VIEW_EVENT_SIZED,
+        .type = CLI_VIEW_EVENT_SIZED,
         .surface = CLI_VIEW_PREFERENCES,
         .width = order->width,
         .height = height,
@@ -145,11 +167,61 @@ static void main_preferences_open(const CliViewOrder *order)
     cli_view_event(&sized);
 }
 
+// The dialog's window opened modal in the middle of the window that owns it, at the size asked and no larger than the
+// owner. Its size goes to the view with the scale it stands at, or the view hears that the system refused it
+static void main_dialog_open(const CliViewOrder *order)
+{
+    static const GuiSystemEvents s_events = {main_sized,
+                                             main_input,
+                                             main_preferences_nothing,
+                                             main_dialog_closing,
+                                             main_hit,
+                                             main_preferences_displayed,
+                                             main_preferences_nothing};
+    GuiSystem *const owner =
+        ((order->owner == CLI_VIEW_PREFERENCES) && (s_preferences != NULL)) ? s_preferences : s_system;
+    CliWindowPosition over;
+    EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = owner, .position_out = &over);
+    const unsigned int width = (order->width < over.width) ? order->width : over.width;
+    const unsigned int height = (order->height < over.height) ? order->height : over.height;
+    // a window's sides are far inside what an int represents
+    const CliWindowPosition place = {over.x + (((int)over.width - (int)width) / 2),
+                                     over.y + (((int)over.height - (int)height) / 2), width, height, 0};
+    char error_text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
+    s_dialog = EMBED_CALL(gui_system_position_title.owner_open, GuiSystemPositionTitleCfg, .owner = owner,
+                          .place = &place, .title = "orior", .events = &s_events,
+                          .context = (void *)&s_dialog_surface, .err_msg = &why, .modal = 1);
+    if (s_dialog == NULL)
+    {
+        const CliViewEvent refused = {.type = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_DIALOG};
+        cli_view_event(&refused);
+        return;
+    }
+    const CliViewEvent sized = {
+        .type = CLI_VIEW_EVENT_SIZED,
+        .surface = CLI_VIEW_DIALOG,
+        .width = width,
+        .height = height,
+        .scale = EMBED_CALL(gui_system_position.scale, GuiSystemPositionCfg, .system_read = s_dialog)};
+    cli_view_event(&sized);
+}
+
+// the system that shows `surface`, NULL where its window no longer stands
+static GuiSystem *main_system_of(unsigned int surface)
+{
+    if (surface == CLI_VIEW_PREFERENCES)
+    {
+        return s_preferences;
+    }
+    return (surface == CLI_VIEW_DIALOG) ? s_dialog : s_system;
+}
+
 // a raster shown on its surface, the view told once it has been; a surface no longer standing has nothing to show it on
 static void main_present(const CliViewOrder *order)
 {
-    GuiSystem *const system = (order->surface == CLI_VIEW_PREFERENCES) ? s_preferences : s_system;
-    if ((system != NULL) && (order->kind == CLI_VIEW_ORDER_PRESENT))
+    GuiSystem *const system = main_system_of(order->surface);
+    if ((system != NULL) && (order->type == CLI_VIEW_ORDER_PRESENT))
     {
         EMBED_CALL(gui_system_raster.present, GuiSystemRasterCfg, .system = system, .raster = &order->raster);
     }
@@ -158,7 +230,7 @@ static void main_present(const CliViewOrder *order)
         EMBED_CALL(gui_system_raster.present_part, GuiSystemRasterCfg, .system = system, .raster = &order->raster,
                    .part = order->part);
     }
-    const CliViewEvent shown = {.kind = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
+    const CliViewEvent shown = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
     cli_view_event(&shown);
 }
 
@@ -169,7 +241,7 @@ static void main_woken(void *context)
     CliViewOrder order;
     while ((s_system != NULL) && cli_view_order(&order))
     {
-        switch (order.kind)
+        switch (order.type)
         {
         case CLI_VIEW_ORDER_PRESENT:
         case CLI_VIEW_ORDER_PRESENT_PART:
@@ -183,6 +255,12 @@ static void main_woken(void *context)
             break;
         case CLI_VIEW_ORDER_PREFERENCES_CLOSE:
             main_preferences_close();
+            break;
+        case CLI_VIEW_ORDER_DIALOG_OPEN:
+            main_dialog_open(&order);
+            break;
+        case CLI_VIEW_ORDER_DIALOG_CLOSE:
+            main_dialog_close();
             break;
         case CLI_VIEW_ORDER_ICON:
             EMBED_CALL(gui_system_title_icon.icon, GuiSystemTitleIconCfg, .system = s_system,

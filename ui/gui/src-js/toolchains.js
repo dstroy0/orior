@@ -174,21 +174,21 @@ export async function showToolchains(sheet) {
   const adding = element("form", { className: "tools-add", hidden: true });
   const field = (label, input) => element("label", { className: "report-row" }, element("span", { textContent: label }), input);
   const input = (props) => element("input", { className: "report-field", type: "text", spellcheck: false, ...props });
-  function addForm(kind) {
+  function addForm(type) {
     const groups = element("datalist", { id: "tools-groups" }, ...(read.groups ?? []).map((group) => element("option", { value: group })));
     const name = input({ ariaLabel: "Name", required: true });
-    const parts = kind === "group" ? [field("Group", name)] : [];
+    const parts = type === "group" ? [field("Group", name)] : [];
     const group = input({ ariaLabel: "Group", value: read.groups?.at(-1) ?? "", required: true });
     group.setAttribute("list", "tools-groups");
     const uses = input({ ariaLabel: "For" });
     const programs = input({ ariaLabel: "Programs", placeholder: "zig, zig.exe", required: true });
     const version = input({ ariaLabel: "Version", value: "--version" });
     const page = input({ ariaLabel: "Install Page", type: "url", placeholder: "https://" });
-    if (kind === "tool") {
+    if (type === "tool") {
       parts.push(field("Name", name), field("Group, one here or a new one", group), field("For", uses), field("Programs, by the names it runs as", programs), field("Says its version when given", version), field("Install Page", page));
     }
     const cancel = button("Cancel", () => (adding.hidden = true));
-    adding.replaceChildren(element("h3", { textContent: kind === "group" ? "Add Group" : "Add Toolchain" }), groups, ...parts, element("div", { className: "prefs-actions" }, element("button", { type: "submit", className: "primary", textContent: "Add" }), cancel));
+    adding.replaceChildren(element("h3", { textContent: type === "group" ? "Add Group" : "Add Toolchain" }), groups, ...parts, element("div", { className: "prefs-actions" }, element("button", { type: "submit", className: "primary", textContent: "Add" }), cancel));
     adding.onsubmit = (event) => {
       event.preventDefault();
       const words = (text) => text.split(/[,\s]+/).map((one) => one.trim()).filter(Boolean);
@@ -201,8 +201,8 @@ export async function showToolchains(sheet) {
         version: words(version.value).length ? words(version.value) : null,
         install: page.value.trim() ? { any: page.value.trim() } : {},
       };
-      const work = kind === "group" ? () => invoke("toolchain_add_group", { name: name.value }) : () => invoke("toolchain_add", { tool });
-      act(work, (id) => (kind === "group" ? `Added the group ${name.value.trim()}.` : `Added ${id}.`)).then(() => {
+      const work = type === "group" ? () => invoke("toolchain_add_group", { name: name.value }) : () => invoke("toolchain_add", { tool });
+      act(work, (id) => (type === "group" ? `Added the group ${name.value.trim()}.` : `Added ${id}.`)).then(() => {
         if (!said.textContent.startsWith("Added")) {
           return;
         }

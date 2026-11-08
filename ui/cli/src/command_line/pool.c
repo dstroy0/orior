@@ -34,7 +34,7 @@ typedef struct
 
 typedef struct
 {
-    const char *kind;
+    const char *type;
     const VerbaLinea *line;
     PoolOwnerRead *owners;
     VerbaLinea *out;
@@ -42,14 +42,14 @@ typedef struct
     unsigned long long temporary;
 } PoolCtx;
 
-// A line of the pool's log: written to the run this process is a member of as the record `cells/<kind>`, and to the
+// A line of the pool's log: written to the run this process is a member of as the record `cells/<type>`, and to the
 // process's error stream, where the harness saves the window's
 EMBED_INLINE void pool_log(const PoolCtx *args)
 {
-    cli_pool_reported(args->kind, args->line);
+    cli_pool_reported(args->type, args->line);
     if (mmgr_line_ok(args->line))
     {
-        (void)fprintf(stderr, "cells %s %.*s\n", args->kind, (int)args->line->at, args->line->out);
+        (void)fprintf(stderr, "cells %s %.*s\n", args->type, (int)args->line->at, args->line->out);
     }
 }
 
@@ -75,7 +75,7 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
     mmgr_line_ch(&line, ' ');
     mmgr_line_decimal(&line, (unsigned long long)bytes, 1u);
     mmgr_line_put(&line, " bytes: refused");
-    EMBED_CALL(pool_log, PoolCtx, .kind = "misnamed", .line = &line);
+    EMBED_CALL(pool_log, PoolCtx, .type = "misnamed", .line = &line);
 }
 
 // the turnstiles the option's storage has capacity for, which the machine's processors are bounded to, and the rows of

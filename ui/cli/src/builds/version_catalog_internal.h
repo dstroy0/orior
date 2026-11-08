@@ -216,7 +216,7 @@ extern CliVersionsNames g_cli_versions_libraries;
 // whether `names` contains it; a finding that `size` bytes of `text` over `from` to `to` is a snapshot, with the fix
 // that refreshes the build's dependencies; an error over an entry: its key between backticks, then `rest`; the fixes
 // that change the span `from` to `to` to each name of `known`, `count` of them, or of `names`, near `name`, between
-// `open` and `close` in their titles; the keys of a table no table of its kind knows, its keys `known`, each a finding;
+// `open` and `close` in their titles; the keys of a table no table of its type knows, its keys `known`, each a finding;
 // a version checked; and the version a library's or a plugin's table names, by `version` or `version.ref`, of the thing
 // at `coordinates` (version_catalog_check.c)
 int cli_versions_names_get(const CliVersionCatalogNameCtx *args);

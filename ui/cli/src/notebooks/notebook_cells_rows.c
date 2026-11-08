@@ -53,7 +53,7 @@ typedef struct
 EMBED_INLINE unsigned int source_rows(const NotebookRowsCtx *args)
 {
     const CliNotebookCell *const cell = &args->model_read->cell[args->cell];
-    return ((cell->kind == CLI_NOTEBOOK_MARKDOWN) && (args->model_read->focused != args->cell)) ? 1u : cell->lines;
+    return ((cell->type == CLI_NOTEBOOK_MARKDOWN) && (args->model_read->focused != args->cell)) ? 1u : cell->lines;
 }
 
 void cli_notebook_model_rows_settled(const CliNotebookModelCtx *args)
@@ -94,7 +94,7 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
         CliNotebookCell *const cell = &model->cell[at];
         int stale = 0;
         for (unsigned int other = 0u;
-             (cell->kind == CLI_NOTEBOOK_CODE) && (cell->last_run != 0u) && !stale && (other < model->cells);
+             (cell->type == CLI_NOTEBOOK_CODE) && (cell->last_run != 0u) && !stale && (other < model->cells);
              other += 1u)
         {
             const CliNotebookCell *const one = &model->cell[other];
@@ -103,7 +103,7 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
                                .last_run = one->last_run, .edited = one->edited, .gone = 0);
         }
         for (unsigned int gone = 0u;
-             (cell->kind == CLI_NOTEBOOK_CODE) && (cell->last_run != 0u) && !stale && (gone < model->gone_count);
+             (cell->type == CLI_NOTEBOOK_CODE) && (cell->last_run != 0u) && !stale && (gone < model->gone_count);
              gone += 1u)
         {
             stale = EMBED_CALL(stands_on, NotebookRowsCtx, .model_read = model, .cell = at,
@@ -177,11 +177,11 @@ EMBED_INLINE int row_read(const NotebookRowsCtx *args)
                  ((model->focused == place) ? CLI_NOTEBOOK_FLAG_FOCUSED : 0u) |
                  (cell->running ? CLI_NOTEBOOK_FLAG_RUNNING : 0u) | (cell->failed ? CLI_NOTEBOOK_FLAG_FAILED : 0u) |
                  (cell->stale ? CLI_NOTEBOOK_FLAG_STALE : 0u) |
-                 ((cell->kind == CLI_NOTEBOOK_MARKDOWN) ? CLI_NOTEBOOK_FLAG_MARKDOWN : 0u);
+                 ((cell->type == CLI_NOTEBOOK_MARKDOWN) ? CLI_NOTEBOOK_FLAG_MARKDOWN : 0u);
     if (inner < sources)
     {
-        const int laid_whole = (cell->kind == CLI_NOTEBOOK_MARKDOWN) && (model->focused != place);
-        row->kind = laid_whole ? CLI_NOTEBOOK_ROW_MARKDOWN : CLI_NOTEBOOK_ROW_SOURCE;
+        const int laid_whole = (cell->type == CLI_NOTEBOOK_MARKDOWN) && (model->focused != place);
+        row->type = laid_whole ? CLI_NOTEBOOK_ROW_MARKDOWN : CLI_NOTEBOOK_ROW_SOURCE;
         row->line = inner;
         return 1;
     }
@@ -196,13 +196,13 @@ EMBED_INLINE int row_read(const NotebookRowsCtx *args)
     const unsigned int at = within - output->row;
     row->output = place_output;
     row->flags |= (output->stderr_stream ? CLI_NOTEBOOK_FLAG_STDERR : 0u);
-    row->kind = CLI_NOTEBOOK_ROW_OUTPUT;
+    row->type = CLI_NOTEBOOK_ROW_OUTPUT;
     if ((output->rows == output->lines) || (at < CLI_NOTEBOOK_CUT_LINES))
     {
         row->line = at;
         return 1;
     }
-    row->kind = (at == CLI_NOTEBOOK_CUT_LINES) ? CLI_NOTEBOOK_ROW_CUT : CLI_NOTEBOOK_ROW_OUTPUT;
+    row->type = (at == CLI_NOTEBOOK_CUT_LINES) ? CLI_NOTEBOOK_ROW_CUT : CLI_NOTEBOOK_ROW_OUTPUT;
     row->line = (at == CLI_NOTEBOOK_CUT_LINES) ? CLI_NOTEBOOK_CUT_LINES : (output->lines - (output->rows - at));
     return 1;
 }
@@ -233,7 +233,7 @@ int cli_notebook_model_block(const CliNotebookCellsRowCfg *args)
     const CliNotebookCell *const cell = &model->cell[args->at];
     *args->block = (CliNotebookBlock){model->first_row[args->at],
                                       model->first_row[args->at + 1u] - model->first_row[args->at],
-                                      cell->kind,
+                                      cell->type,
                                       cell->stale,
                                       cell->failed,
                                       cell->running};
@@ -252,7 +252,7 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
     switch (args->which)
     {
     case CLI_NOTEBOOK_TEXT_COUNT: {
-        if ((cell == NULL) || (cell->kind != CLI_NOTEBOOK_CODE))
+        if ((cell == NULL) || (cell->type != CLI_NOTEBOOK_CODE))
         {
             break;
         }
@@ -421,13 +421,13 @@ EMBED_INLINE unsigned int parts_gathered(const NotebookRowsCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         row_part[at] = CLI_NOTEBOOK_NONE;
-        const int sourced = (row[at].kind == CLI_NOTEBOOK_ROW_SOURCE) || (row[at].kind == CLI_NOTEBOOK_ROW_MARKDOWN);
-        if (!sourced && (row[at].kind != CLI_NOTEBOOK_ROW_OUTPUT))
+        const int sourced = (row[at].type == CLI_NOTEBOOK_ROW_SOURCE) || (row[at].type == CLI_NOTEBOOK_ROW_MARKDOWN);
+        if (!sourced && (row[at].type != CLI_NOTEBOOK_ROW_OUTPUT))
         {
             continue;
         }
         const unsigned int output = sourced ? CLI_NOTEBOOK_NONE : row[at].output;
-        const int whole = row[at].kind == CLI_NOTEBOOK_ROW_MARKDOWN;
+        const int whole = row[at].type == CLI_NOTEBOOK_ROW_MARKDOWN;
         RowsPart *const before = (parts != 0u) ? &part[parts - 1u] : NULL;
         if ((before != NULL) && !whole && !before->whole && (before->cell == row[at].cell) &&
             (before->output == output) && (before->last + 1ULL == row[at].line))
@@ -550,9 +550,9 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
         }
         framed->label = laid.at;
         const unsigned int which =
-            (row[at].kind == CLI_NOTEBOOK_ROW_CUT)                                      ? CLI_NOTEBOOK_TEXT_CUT
-            : ((row[at].kind == CLI_NOTEBOOK_ROW_SOURCE) && (row[at].line == 0ULL))     ? CLI_NOTEBOOK_TEXT_COUNT
-            : ((row[at].kind == CLI_NOTEBOOK_ROW_MARKDOWN) && (framed->length == 0ULL)) ? CLI_NOTEBOOK_TEXT_PLACEHOLDER
+            (row[at].type == CLI_NOTEBOOK_ROW_CUT)                                      ? CLI_NOTEBOOK_TEXT_CUT
+            : ((row[at].type == CLI_NOTEBOOK_ROW_SOURCE) && (row[at].line == 0ULL))     ? CLI_NOTEBOOK_TEXT_COUNT
+            : ((row[at].type == CLI_NOTEBOOK_ROW_MARKDOWN) && (framed->length == 0ULL)) ? CLI_NOTEBOOK_TEXT_PLACEHOLDER
                                                                                         : CLI_NOTEBOOK_NONE;
         EMBED_CALL(sentence_written, NotebookRowsCtx, .model_read = model, .which = which, .cell = row[at].cell,
                    .output = row[at].output, .out = &laid);

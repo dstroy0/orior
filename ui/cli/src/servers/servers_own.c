@@ -36,7 +36,7 @@ typedef struct
 int cli_servers_own_reads(const CliServersPathSizeRootSinkCtx *args)
 {
     const char *path = args->path;
-    return (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) != 0u) ||
+    return (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) != 0u) ||
            EMBED_CALL(cli_schema.reads, CliSchemaCfg, .path = path);
 }
 
@@ -60,7 +60,7 @@ EMBED_INLINE void own_check(const ServersOwnCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     VerbaLinea *out = args->out;
-    if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) != 0u)
+    if (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) != 0u)
     {
         EMBED_CALL(cli_builds_path.build_check, CliBuildsPathCfg, .root = root, .path = path, .text = text,
                    .size = size, .out = out);

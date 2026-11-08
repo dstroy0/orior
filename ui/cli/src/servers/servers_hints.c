@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_hints.c: what a server can do, as its capabilities name it; the spans Expand Selection steps through, the
 // tree's, read off the editor's text by the roles its grammar names (symbols_spans.c); and the hints a server writes in
-// the text and not into it, each its place, its text, its kind, 1 a type, 2 a parameter's name and 0 any other, and
+// the text and not into it, each its place, its text, its type, 1 a type, 2 a parameter's name and 0 any other, and
 // whether a space stands before it and after it. A file given its server as slices is asked of the tree alone: its
 // hints are the names of the parameters its calls' arguments are given to (symbols_hints.c)
 #include "../code/symbols.h"
@@ -33,7 +33,7 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
     const char *name = args->name;
     unsigned long long length = 0ULL;
     const char *const capabilities =
-        EMBED_CALL(cli_lsp_size_kind.capabilities, CliLspSizeKindCfg, .lsp_read = args->server, .size = &length);
+        EMBED_CALL(cli_lsp_size_type.capabilities, CliLspSizeTypeCfg, .lsp_read = args->server, .size = &length);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
@@ -48,10 +48,10 @@ int cli_servers_capable(const CliServersServerCtx *args)
     const unsigned int member =
         EMBED_CALL(hints_capability, ServersHintsCtx, .server = args->server, .name = args->name);
     const int capable = (member != CLI_JSON_NONE) &&
-                        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
-                                    .node = member, .kind = CFG_JSON_NULL) &&
-                        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
-                                    .node = member, .kind = CFG_JSON_FALSE);
+                        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_capable,
+                                    .node = member, .type = CFG_JSON_NULL) &&
+                        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_capable,
+                                    .node = member, .type = CFG_JSON_FALSE);
     g_cli_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -62,10 +62,10 @@ int cli_servers_capable_true(const CliServersServerCtx *args)
 {
     const unsigned int member =
         EMBED_CALL(hints_capability, ServersHintsCtx, .server = args->server, .name = args->name);
-    const int capable = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
+    const int capable = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_capable,
                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                       .json_read = &s_capable, .object = member, .name = args->inner),
-                                   .kind = CFG_JSON_TRUE);
+                                   .type = CFG_JSON_TRUE);
     g_cli_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -79,8 +79,8 @@ int cli_servers_capable_command(const CliServersServerCommandCtx *args)
     const unsigned int commands = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                              .json_read = &s_capable, .object = member, .name = "commands");
     int list_entries = 0;
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_capable,
-                                       .node = commands, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_capable,
+                                       .node = commands, .type = CFG_JSON_ARRAY)
                                 ? s_capable.node[commands].first
                                 : CLI_JSON_NONE;
          !list_entries && (one != CLI_JSON_NONE); one = s_capable.node[one].next)
@@ -126,7 +126,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
                                           .size_pointer = &size, .owner = g_cli_servers_owner)
                              : NULL;
     char *const text = (branch != NULL) ? branch
-                                        : EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
+                                        : EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
                                                      .path = path, .size_pointer = &size);
     CliServersSpanned spanned = {args->out, 0};
     mmgr_line_ch(args->out, '[');

@@ -53,7 +53,7 @@ typedef struct CliDiffViewAtRowLengthCfg CliDiffViewAtRowLengthCfg;
 // it, each none in this view
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     int has_left;
     unsigned int left_line;
     const unsigned short *left_units;
@@ -73,7 +73,7 @@ typedef struct
     int right;
     unsigned int from;
     unsigned int to;
-    unsigned int kind;
+    unsigned int type;
 } CliDiffViewMark;
 
 // the view opened from `source` for the tree at `root`: the file at `path`, or the shown view's file where `path` is

@@ -96,14 +96,14 @@ EMBED_INLINE unsigned int resolve_pointer(const SchemaResolveCtx *args)
         {
             return CLI_JSON_NONE;
         }
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = at,
-                       .kind = CFG_JSON_OBJECT))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = at,
+                       .type = CFG_JSON_OBJECT))
         {
             at = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = at,
                             .name = token);
         }
-        else if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = at,
-                            .kind = CFG_JSON_ARRAY))
+        else if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = at,
+                            .type = CFG_JSON_ARRAY))
         {
             char *stop = NULL;
             const unsigned long index = strtoul(token, &stop, 10);
@@ -129,8 +129,8 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
     unsigned int node = args->node;
     const char *name = args->name;
     unsigned long long size = args->size;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = node,
-                   .kind = CFG_JSON_OBJECT))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = node,
+                   .type = CFG_JSON_OBJECT))
     {
         unsigned long long length = 0ULL;
         const char *const anchor = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
@@ -151,10 +151,10 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
             return node;
         }
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = node,
-                    .kind = CFG_JSON_OBJECT) &&
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = node,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = node,
+                    .type = CFG_JSON_OBJECT) &&
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = node,
+                    .type = CFG_JSON_ARRAY))
     {
         return CLI_JSON_NONE;
     }
@@ -297,7 +297,7 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
     *named = 0;
     const CliSchemaNode *const root =
         (args->read->root != CLI_SCHEMA_NONE) ? &args->read->node[args->read->root] : NULL;
-    for (unsigned int at = ((root != NULL) && (root->kind == CLI_SCHEMA_OBJECT)) ? root->first : CLI_SCHEMA_NONE;
+    for (unsigned int at = ((root != NULL) && (root->type == CLI_SCHEMA_OBJECT)) ? root->first : CLI_SCHEMA_NONE;
          at != CLI_SCHEMA_NONE; at = args->read->member[at].next)
     {
         const CliSchemaMember *const member = &args->read->member[at];
@@ -310,7 +310,7 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
             continue;
         }
         const CliSchemaNode *const value = (member->value != CLI_SCHEMA_NONE) ? &args->read->node[member->value] : NULL;
-        if ((value == NULL) || (value->kind != CLI_SCHEMA_TEXT))
+        if ((value == NULL) || (value->type != CLI_SCHEMA_TEXT))
         {
             break;
         }

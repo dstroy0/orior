@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The symbols of a file for the outline: what each line declares, found by the line's own shape in
-// the file's language. A symbol is { name, kind, line, depth }: its name, what it is, the line it is
+// the file's language. A symbol is { name, type, line, depth }: its name, what it is, the line it is
 // on counted from the document's first, and how deep it sits, by its indent or its heading's level.
 // A language with no rules here has no symbols, and a document longer than LIMIT is not read.
 
@@ -14,7 +14,7 @@ const LIMIT = 50000;
 // The deepest a symbol is drawn.
 const DEEPEST = 5;
 
-// Each rule is a pattern and a kind. The pattern's first group is the line's indent and its second
+// Each rule is a pattern and a type. The pattern's first group is the line's indent and its second
 // the symbol's name.
 const RULES = {
   javascript: [
@@ -97,10 +97,10 @@ function byRules(doc, rules) {
   const found = [];
   for (let line = 0; line < doc.count; line += 1) {
     const text = doc.line(line);
-    for (const [pattern, kind] of rules) {
+    for (const [pattern, type] of rules) {
       const match = text.match(pattern);
       if (match) {
-        found.push({ name: match[2].trim(), kind, line, indent: columns(match[1]) });
+        found.push({ name: match[2].trim(), kind: type, line, indent: columns(match[1]) });
         break;
       }
     }
@@ -148,7 +148,7 @@ export function regionsOf(doc) {
   return found;
 }
 
-// A file's symbols with the regions its comments mark among them, each region a symbol of kind
+// A file's symbols with the regions its comments mark among them, each region a symbol of type
 // "region" with the line it ends on, and every symbol inside a region a level deeper for each region
 // that holds it at its depth or above it.
 export function structureOf(language, doc) {

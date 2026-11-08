@@ -138,8 +138,8 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
     spec->name = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = name,
                             .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_listing.json,
-                    .node = args->root, .kind = CFG_JSON_OBJECT) ||
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_listing.json,
+                    .node = args->root, .type = CFG_JSON_OBJECT) ||
         !EMBED_CALL(jupyter_member, JupyterSpecsCtx, .object = args->root, .name = "display_name", .fallback = NULL,
                     .at = &spec->display_name, .spec = spec) ||
         !EMBED_CALL(jupyter_member, JupyterSpecsCtx, .object = args->root, .name = "language", .fallback = NULL,
@@ -153,8 +153,8 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     }
     const unsigned int argv = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_listing.json, .object = args->root, .name = "argv");
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_listing.json, .node = argv,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_listing.json, .node = argv,
+                    .type = CFG_JSON_ARRAY))
     {
         return 0;
     }
@@ -179,8 +179,8 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     }
     const unsigned int env = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                         .json_read = &s_listing.json, .object = args->root, .name = "env");
-    if ((env != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = &s_listing.json, .node = env, .kind = CFG_JSON_OBJECT))
+    if ((env != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = &s_listing.json, .node = env, .type = CFG_JSON_OBJECT))
     {
         return 0;
     }
@@ -206,8 +206,8 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
                                             .json_read = &s_listing.json, .object = args->root, .name = "install");
     spec->install = CLI_KERNEL_NONE;
     if ((install != CLI_JSON_NONE) &&
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_listing.json,
-                    .node = install, .kind = CFG_JSON_NULL) &&
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_listing.json,
+                    .node = install, .type = CFG_JSON_NULL) &&
         !EMBED_CALL(jupyter_member, JupyterSpecsCtx, .object = args->root, .name = "install", .fallback = NULL,
                     .at = &spec->install, .spec = spec))
     {

@@ -169,10 +169,10 @@ int cli_checkers_reads_tree(const CliCheckersCfg *args)
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = tool, .name = "checker");
     const int tree =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "tree"),
-                   .kind = CFG_JSON_ARRAY);
+                   .type = CFG_JSON_ARRAY);
     g_cli_guard->persistent_buf_release(s_work_state->json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
@@ -192,10 +192,10 @@ int cli_checkers_reads_input(const CliCheckersCfg *args)
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = tool, .name = "checker");
     const int input =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "stdin"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     g_cli_guard->persistent_buf_release(s_work_state->json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
@@ -427,10 +427,10 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = tool, .name = "checker");
     const int stdin_read =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "stdin"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     unsigned long long size = 0ULL;
     const unsigned char *const mapped = (stdin_read && (args->text == NULL))
                                             ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
@@ -486,10 +486,10 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
     const unsigned int tool = EMBED_CALL(cli_checker_get, CheckersCtx, .manifest = cli_manifest(), .id = args->id);
     const unsigned int spec = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = tool, .name = "checker");
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                        .json_read = &s_work_state->json, .object = spec, .name = "tree"),
-                    .kind = CFG_JSON_ARRAY))
+                    .type = CFG_JSON_ARRAY))
     {
         mmgr_line_put(args->out, "[]");
         g_cli_guard->persistent_buf_release(s_work_state->json.node,

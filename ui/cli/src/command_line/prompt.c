@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // prompt.c: the one ask. Its sentence, its statement and its buttons' labels stand in one cell sized to them with
 // their ends, laid as the ask opens; its field stands in a cell of its own sized to the letters typed, with the count
-// of its letters following each change; and its rows are kinds laid as the ask opens, a number a row. An answer hands
+// of its letters following each change; and its rows are types laid as the ask opens, a number a row. An answer hands
 // the field's text to the continuation with the ask already cleared, so that the continuation may open another
 #include "prompt.h"
 
 // The ask: its cell, the sentence's and the statement's bytes and places in it, the buttons' labels in it with their
 // bytes and how many, its mode, its field and the letters the field carries, its continuation with its context,
-// whether it stands, and its rows' kinds and how many
+// whether it stands, and its rows' types and how many
 typedef struct
 {
     char *cell;
@@ -25,7 +25,7 @@ typedef struct
     void (*then)(const CliPromptCfg *args);
     void *context;
     int asked;
-    unsigned int row_kind[4];
+    unsigned int row_type[4];
     unsigned int rows;
 } Prompt;
 
@@ -125,21 +125,21 @@ int cli_prompt_open(const CliPromptCfg *args)
     // the rows as the mode lays them: the sentence, the statement where one is asked about, the field where the mode
     // takes one, and the buttons where there are any
     unsigned int rows = 0u;
-    s_prompt.row_kind[rows] = CLI_PROMPT_ROW_SENTENCE;
+    s_prompt.row_type[rows] = CLI_PROMPT_ROW_SENTENCE;
     rows += 1u;
     if (s_prompt.statement != NULL)
     {
-        s_prompt.row_kind[rows] = CLI_PROMPT_ROW_STATEMENT;
+        s_prompt.row_type[rows] = CLI_PROMPT_ROW_STATEMENT;
         rows += 1u;
     }
     if (args->mode != CLI_PROMPT_CONFIRM)
     {
-        s_prompt.row_kind[rows] = CLI_PROMPT_ROW_FIELD;
+        s_prompt.row_type[rows] = CLI_PROMPT_ROW_FIELD;
         rows += 1u;
     }
     if (count != 0u)
     {
-        s_prompt.row_kind[rows] = CLI_PROMPT_ROW_BUTTONS;
+        s_prompt.row_type[rows] = CLI_PROMPT_ROW_BUTTONS;
         rows += 1u;
     }
     s_prompt.rows = rows;
@@ -185,8 +185,8 @@ int cli_prompt_row_read(const CliPromptRowsCfg *args)
     }
     CliPromptRow *const row = args->row;
     *row = (CliPromptRow){0};
-    row->kind = s_prompt.row_kind[args->at];
-    switch (row->kind)
+    row->type = s_prompt.row_type[args->at];
+    switch (row->type)
     {
     case CLI_PROMPT_ROW_SENTENCE:
         row->text = s_prompt.sentence;

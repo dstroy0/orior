@@ -204,7 +204,7 @@ int query_pairs_configs(const QueryPairsPartContextCtx *args)
     const QueryContext *context = args->context;
     QueryRun *run = args->run_out;
     VerbaLinea *err_msg = args->err_msg;
-    static const char *const s_kinds[3] = {"khw", "ksc", "kqr"};
+    static const char *const s_types[3] = {"khw", "ksc", "kqr"};
     static char s_paths[7][QUERY_PATH_MAX_LEN];
     static const char *s_read[7];
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -214,7 +214,7 @@ int query_pairs_configs(const QueryPairsPartContextCtx *args)
         mmgr_line_put(&line, QUERY_TABLE "/");
         mmgr_line_put(&line, args->part);
         mmgr_line_ch(&line, '.');
-        mmgr_line_put(&line, s_kinds[at]);
+        mmgr_line_put(&line, s_types[at]);
         mmgr_line_finish(&line);
         EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = name,
                    .path_out = s_paths[at]);
@@ -355,7 +355,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
         mmgr_line_put(err_msg, "no stick: run orior_cli protocol stick");
         return -1;
     }
-    static const char *const s_kinds[3] = {"khw", "ksc", "kqr"};
+    static const char *const s_types[3] = {"khw", "ksc", "kqr"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         char name[QUERY_PATH_MAX_LEN];
@@ -364,7 +364,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
         mmgr_line_put(&line, QUERY_TABLE "/");
         mmgr_line_put(&line, mode->part);
         mmgr_line_ch(&line, '.');
-        mmgr_line_put(&line, s_kinds[at]);
+        mmgr_line_put(&line, s_types[at]);
         mmgr_line_finish(&line);
         EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = name,
                    .path_out = path);
@@ -373,7 +373,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
             mmgr_line_put(err_msg, "no ");
             mmgr_line_put(err_msg, mode->part);
             mmgr_line_ch(err_msg, '.');
-            mmgr_line_put(err_msg, s_kinds[at]);
+            mmgr_line_put(err_msg, s_types[at]);
             mmgr_line_put(err_msg, " beside the bridge: --part names no part the tree contains");
             return -1;
         }

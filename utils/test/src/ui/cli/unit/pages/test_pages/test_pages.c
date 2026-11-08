@@ -70,7 +70,7 @@ static unsigned long long integer_member(const CliJson *json, unsigned int node,
 {
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = node, .name = name);
     unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = number, .kind = CFG_JSON_NUMBER) && (at < json->node[number].length); at += 1ull)
+    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = number, .type = CFG_JSON_NUMBER) && (at < json->node[number].length); at += 1ull)
     {
         // a digit's value is below 10
         value = value * 10ull + (unsigned long long)(json->text[json->node[number].text + at] - '0');
@@ -83,7 +83,7 @@ static PagesShape shape_of(unsigned long long size)
 {
     unsigned int shape = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(s_out, size, &shape);
-    const PagesShape read = {integer_member(json, shape, "lines"), EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = shape, .name = "indexed"), .kind = CFG_JSON_TRUE)};
+    const PagesShape read = {integer_member(json, shape, "lines"), EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = shape, .name = "indexed"), .type = CFG_JSON_TRUE)};
     return read;
 }
 

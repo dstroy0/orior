@@ -39,7 +39,7 @@ static void file_written(const char *dir, const char *path, const char *text)
     char file[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = path, .joined = file);
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file, .out = folder))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = file, .out = folder))
     {
         (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     }
@@ -257,7 +257,7 @@ void test_a_spec_that_collects_a_folder_names_its_program_in_the_folder(void)
     TEST_ASSERT_EQUAL_STRING(program_in("dist/bundle/", "app"), path);
 }
 
-void test_another_kind_of_spec_names_no_program(void)
+void test_another_type_of_spec_names_no_program(void)
 {
     char exe[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];

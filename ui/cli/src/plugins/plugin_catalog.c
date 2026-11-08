@@ -101,7 +101,7 @@ void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)
         return;
     }
     char parent[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->base, .out = parent))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->base, .out = parent))
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_POOL_BYTES});
         mmgr_line_put(args->out, parent);
@@ -117,26 +117,26 @@ void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)
     mmgr_line_put(args->out, args->address);
 }
 
-// the name serde gives a value's kind where it is not the kind wanted
-EMBED_INLINE const char *catalog_kind(const PluginCatalogCtx *args)
+// the name serde gives a value's type where it is not the type wanted
+EMBED_INLINE const char *catalog_type(const PluginCatalogCtx *args)
 {
-    static const char *const kinds[7] = {"map", "sequence", "string", "number", "boolean", "boolean", "null"};
-    return (args->node == CLI_JSON_NONE) ? "null" : kinds[args->json->node[args->node].kind];
+    static const char *const types[7] = {"map", "sequence", "string", "number", "boolean", "boolean", "null"};
+    return (args->node == CLI_JSON_NONE) ? "null" : types[args->json->node[args->node].type];
 }
 
 void cli_plugin_catalog_invalid(const CliPluginCatalogWhereCtx *args)
 {
     mmgr_line_put(args->err_msg, args->where);
     mmgr_line_put(args->err_msg, ": invalid type: ");
-    mmgr_line_put(args->err_msg, EMBED_CALL(catalog_kind, PluginCatalogCtx, .json = args->json, .node = args->node));
+    mmgr_line_put(args->err_msg, EMBED_CALL(catalog_type, PluginCatalogCtx, .json = args->json, .node = args->node));
     mmgr_line_put(args->err_msg, ", expected ");
     mmgr_line_put(args->err_msg, args->required);
 }
 
 int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args)
 {
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                    .node = args->entry_u32, .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                    .node = args->entry_u32, .type = CFG_JSON_OBJECT))
     {
         EMBED_CALL(cli_plugin_catalog_where_internal.invalid, CliPluginCatalogWhereCtx, .where = args->where,
                    .json = args->json, .node = args->entry_u32, .required = "struct Entry", .err_msg = args->err_msg);
@@ -146,8 +146,8 @@ int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args)
     {
         const unsigned int field = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = args->entry_u32, .name = s_texts[at]);
-        if ((field != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                    .json_read = args->json, .node = field, .kind = CFG_JSON_STRING))
+        if ((field != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                    .json_read = args->json, .node = field, .type = CFG_JSON_STRING))
         {
             EMBED_CALL(cli_plugin_catalog_where_internal.invalid, CliPluginCatalogWhereCtx, .where = args->where,
                        .json = args->json, .node = field, .required = "a string", .err_msg = args->err_msg);
@@ -158,8 +158,8 @@ int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args)
     {
         const unsigned int field = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = args->entry_u32, .name = s_lists[at]);
-        if ((field != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                    .json_read = args->json, .node = field, .kind = CFG_JSON_ARRAY))
+        if ((field != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                    .json_read = args->json, .node = field, .type = CFG_JSON_ARRAY))
         {
             EMBED_CALL(cli_plugin_catalog_where_internal.invalid, CliPluginCatalogWhereCtx, .where = args->where,
                        .json = args->json, .node = field, .required = "a sequence", .err_msg = args->err_msg);
@@ -171,10 +171,10 @@ int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args)
                          .array = field, .index = item) != CLI_JSON_NONE);
              item += 1u)
         {
-            if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+            if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                             .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                .json_read = args->json, .array = field, .index = item),
-                            .kind = CFG_JSON_STRING))
+                            .type = CFG_JSON_STRING))
             {
                 EMBED_CALL(cli_plugin_catalog_where_internal.invalid, CliPluginCatalogWhereCtx, .where = args->where,
                            .json = args->json,

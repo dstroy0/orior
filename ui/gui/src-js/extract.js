@@ -112,8 +112,8 @@ function namesIn(s, from, to, cols = null) {
     const coded = codeInStrings(text, id);
     for (const match of text.slice(start, end).matchAll(/[A-Za-z_$][\w$]*/g)) {
       const col = start + match.index;
-      const kind = s.highlight.classAt(line, col);
-      if (/t-comment/.test(kind) || (/t-string/.test(kind) && !coded.some(([a, b]) => a <= col && col < b))) {
+      const type = s.highlight.classAt(line, col);
+      if (/t-comment/.test(type) || (/t-string/.test(type) && !coded.some(([a, b]) => a <= col && col < b))) {
         continue;
       }
       const before = text.slice(0, col).trimEnd();

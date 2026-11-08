@@ -37,9 +37,9 @@ static void event_recorded(const CliEachJsonSizeCfg *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
-// the first line reported of `kind`, and of the result `id` where it is not NULL, after the `from`th line: its node in the shared tree, CLI_JSON_NONE
+// the first line reported of `type`, and of the result `id` where it is not NULL, after the `from`th line: its node in the shared tree, CLI_JSON_NONE
 // where none is; how many lines there are into `lines`
-static unsigned int line_found(const char *kind, const char *id, unsigned int from, unsigned int *lines)
+static unsigned int line_found(const char *type, const char *id, unsigned int from, unsigned int *lines)
 {
     const unsigned long long size = s_events_at;
     memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_events, .bytes = size});
@@ -55,9 +55,9 @@ static unsigned int line_found(const char *kind, const char *id, unsigned int fr
             unsigned int one = CLI_JSON_NONE;
             const CliJson *const read = cli_unity_parsed(s_seen + at, length, &one);
             const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = read, .object = one, .name = "outcome");
-            const int kind_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "kind"), .other = kind, .cap = CLI_POOL_BYTES});
+            const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "kind"), .other = type, .cap = CLI_POOL_BYTES});
             const int id_matches = (id == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(outcome, "id"), .other = id, .cap = CLI_POOL_BYTES});
-            if (kind_matches && id_matches)
+            if (type_matches && id_matches)
             {
                 s_json = read;
                 found = one;
@@ -73,7 +73,7 @@ static unsigned int line_found(const char *kind, const char *id, unsigned int fr
 static long long integer_member(unsigned int node, const char *name)
 {
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = node, .name = name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = number, .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = number, .type = CFG_JSON_NUMBER))
     {
         return -1ll;
     }

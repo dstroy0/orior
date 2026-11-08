@@ -100,8 +100,8 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
         read = CLI_JSON_NONE;
     }
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
-    const unsigned int root = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                         .node = read, .kind = CFG_JSON_OBJECT)
+    const unsigned int root = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                         .node = read, .type = CFG_JSON_OBJECT)
                                   ? read
                                   : CLI_JSON_NONE;
     if (args->copied && (root == CLI_JSON_NONE))
@@ -124,12 +124,12 @@ EMBED_INLINE int cli_answer(const ReportCtx *args)
     const unsigned int root = EMBED_CALL(cli_settings, ReportCtx, .json = &json, .copied = 0);
     const unsigned int answer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                            .object = root, .name = "auto_report");
-    const int answered = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                    .node = answer, .kind = CFG_JSON_TRUE) ||
-                         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                    .node = answer, .kind = CFG_JSON_FALSE);
-    *on = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = answer,
-                     .kind = CFG_JSON_TRUE);
+    const int answered = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                    .node = answer, .type = CFG_JSON_TRUE) ||
+                         EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                    .node = answer, .type = CFG_JSON_FALSE);
+    *on = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = answer,
+                     .type = CFG_JSON_TRUE);
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -195,7 +195,7 @@ int cli_report_set_auto(const CliReportOnCfg *args)
         return 0;
     }
     char folder[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder) &&
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder) &&
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
     {
         mmgr_line_put(args->err_msg, folder);
@@ -206,11 +206,11 @@ int cli_report_set_auto(const CliReportOnCfg *args)
     const unsigned int settings_node = EMBED_CALL(cli_settings, ReportCtx, .json = &json, .copied = 1);
     // the answer first, then the window's own settings as they are
     const unsigned int made =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json, .type = CFG_JSON_OBJECT);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = made,
                .name = "auto_report",
-               .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json,
-                                   .kind = args->on ? CFG_JSON_TRUE : CFG_JSON_FALSE));
+               .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json,
+                                   .type = args->on ? CFG_JSON_TRUE : CFG_JSON_FALSE));
     for (unsigned int member = (settings_node != CLI_JSON_NONE) ? json.node[settings_node].first : CLI_JSON_NONE;
          member != CLI_JSON_NONE; member = json.node[member].next)
     {

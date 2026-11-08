@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_read.c: a text's leaves, the tokens of the grammar of the plugin its extension opens it as or of the language
 // named, and a file's declarations read off them: every token whose name holds the segment `declaration` names a
-// declaration, its kind the rest of the name past that segment, as `identifier.declaration.function` names a function.
+// declaration, its type the rest of the name past that segment, as `identifier.declaration.function` names a function.
 // No language is read here but by its plugin's grammar and what its plugin says
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -101,7 +101,7 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args)
 }
 
 // One line's leaves read: each run whose token names a declaration handed on, the run's text its name and the rest
-// of its token's name its kind
+// of its token's name its type
 static void cli_symbols_line(const CliLeavesEachCfg *args)
 {
     CliSymbolsLine *const read_state = (CliSymbolsLine *)args->context;
@@ -119,13 +119,13 @@ static void cli_symbols_line(const CliLeavesEachCfg *args)
                 ? EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = line, .size = size,
                              .col = args->leaves->col[run + 1u], .byte = &byte, .at = &at)
                 : size;
-        const char *const kind =
+        const char *const type =
             EMBED_CALL(cli_symbols_name_internal.declares, CliSymbolsNameCtx,
                        .name = args->leaves->text + args->leaves->name_at[args->leaves->name[run]]);
-        if ((kind != NULL) && (kind[0] != '\0') && (to > from))
+        if ((type != NULL) && (type[0] != '\0') && (to > from))
         {
             EMBED_CALL(read_state->each, CliDeclaredCfg, .context = read_state->context, .name = line + from,
-                       .length = to - from, .kind = kind, .line = read_state->line);
+                       .length = to - from, .type = type, .line = read_state->line);
         }
     }
     read_state->line += 1u;
@@ -145,7 +145,7 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &err_msg, .owner = g_cli_code_owner);
-    const char *const kind =
+    const char *const type =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -154,12 +154,12 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
             : NULL;
     const int language =
         (root != CLI_JSON_NONE) &&
-        ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_POOL_BYTES}));
+        ((type == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "language", .cap = CLI_POOL_BYTES}));
     const int grammared =
-        language && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+        language && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &json, .object = root, .name = "grammar"),
-                               .kind = CFG_JSON_OBJECT);
+                               .type = CFG_JSON_OBJECT);
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);

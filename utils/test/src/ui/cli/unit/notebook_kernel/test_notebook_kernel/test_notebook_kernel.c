@@ -104,7 +104,7 @@ static int output_shows(const CliNotebookModel *model, unsigned int cell, const 
     for (unsigned int at = 0u; (frame != NULL) && (at < frame->count); at += 1u)
     {
         const CliNotebookFrameRow *const row = &frame->row[at];
-        found = found || ((row->row.kind == CLI_NOTEBOOK_ROW_OUTPUT) && (row->row.cell == cell) &&
+        found = found || ((row->row.type == CLI_NOTEBOOK_ROW_OUTPUT) && (row->row.cell == cell) &&
                           (row->length == CLI_UNITY_LENGTH(expected)) &&
                           (memor.cmp(&(MemoriaCfg){.src = frame->bytes + row->text, .other = expected,
                                                    .bytes = row->length}) == 0));

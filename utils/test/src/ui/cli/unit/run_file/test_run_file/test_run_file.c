@@ -27,11 +27,11 @@ void test_every_run_line_of_the_manifest_closes_its_placeholders(void)
 {
     static CliJson s_json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &s_json, .nodes_more = 0u, .text_more = 0ull);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = manifest, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = manifest, .type = CFG_JSON_ARRAY));
     for (unsigned int tool = s_json.node[manifest].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
     {
         const unsigned int runs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = tool, .name = "runs");
-        const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = runs, .kind = CFG_JSON_OBJECT) ? s_json.node[runs].first : CLI_JSON_NONE;
+        const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = runs, .type = CFG_JSON_OBJECT) ? s_json.node[runs].first : CLI_JSON_NONE;
         for (unsigned int run = first; run != CLI_JSON_NONE; run = s_json.node[run].next)
         {
             const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = run, .length_pointer = NULL);

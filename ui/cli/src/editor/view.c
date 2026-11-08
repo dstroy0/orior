@@ -42,14 +42,14 @@ typedef struct CliViewEdit
     struct CliViewEdit *before;
     struct CliViewEdit *after;
 } CliViewEdit;
-// A step: its first and last edits, how many, the kind of edit it holds and when its last was written, and where the
+// A step: its first and last edits, how many, the type of edit it holds and when its last was written, and where the
 // cursor and the anchor stood before it and after it
 typedef struct
 {
     CliViewEdit *first;
     CliViewEdit *last;
     unsigned int edits;
-    unsigned int kind;
+    unsigned int type;
     unsigned long long at_ms;
     CliPosition cursor_before;
     CliPosition anchor_before;
@@ -158,7 +158,7 @@ typedef struct
     CliViewFoldSeen *seen;
     unsigned long long count;
 } CliViewFoldsSeen;
-// the size of the views table, the most edits a step holds before it closes, the kinds of edit, the lines read
+// the size of the views table, the most edits a step holds before it closes, the types of edit, the lines read
 // about the cursor each way for the bracket pair at it, the work state for the state the first of them is entered in,
 // the most pairs and quotes a language has, and the work state for its pattern of a line that opens a block
 #define CLI_VIEWS 64u
@@ -173,11 +173,11 @@ typedef struct
 #define CLI_VIEW_STATE 1024u
 // the matches find saves at the most
 #define CLI_VIEW_MATCHES 100000ULL
-#define CLI_VIEW_KIND_NONE 0u
-#define CLI_VIEW_KIND_TYPE 1u
-#define CLI_VIEW_KIND_SPACE 2u
-#define CLI_VIEW_KIND_DELETE 3u
-#define CLI_VIEW_KIND_DELETE_FORWARD 4u
+#define CLI_VIEW_TYPE_NONE 0u
+#define CLI_VIEW_TYPE_TYPE 1u
+#define CLI_VIEW_TYPE_SPACE 2u
+#define CLI_VIEW_TYPE_DELETE 3u
+#define CLI_VIEW_TYPE_DELETE_FORWARD 4u
 
 static CliView *s_views;
 // the place of the view shown and of the one shown before it, each -1 for none
@@ -240,7 +240,7 @@ typedef struct
     unsigned long long append_bytes;
     unsigned long long append_spans;
     CliViewEdit *made;
-    unsigned int kind;
+    unsigned int type;
     unsigned long long length;
     CliPosition cursor;
     CliPosition anchor;
@@ -381,8 +381,8 @@ EMBED_INLINE void view_pairs_read(const ViewCtx *args)
     CliView *const view = args->view;
     const CliJson *const json = args->json;
     view->pairs = 0u;
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->node,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = args->node,
+                    .type = CFG_JSON_ARRAY))
     {
         view->pair_open[0] = '(';
         view->pair_close[0] = ')';
@@ -464,8 +464,8 @@ static void view_plugin_read(const CliEachPluginCfg *args)
                                   .array = block, .index = 1u));
     view->quotes = 0u;
     EMBED_CALL(view_pairs_read, ViewCtx, .view = view, .json = &json, .node = pairs);
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = quotes,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = quotes,
+                   .type = CFG_JSON_ARRAY))
     {
         for (unsigned int at = 0u; (at < json.node[quotes].count) && (view->quotes < CLI_VIEW_QUOTES); at += 1u)
         {
@@ -1789,12 +1789,12 @@ EMBED_INLINE CliViewEdit *view_edit_cell(const ViewCtx *args)
     return made;
 }
 
-// the edit in its cell written to the text, `append_length` bytes at its `put`, and recorded in a step of `kind`,
-// joined to the last step where it is of the same kind and came within CLI_VIEW_JOINED milliseconds; the cursor and the
+// the edit in its cell written to the text, `append_length` bytes at its `put`, and recorded in a step of `type`,
+// joined to the last step where it is of the same type and came within CLI_VIEW_JOINED milliseconds; the cursor and the
 // anchor put after the text written: 1, or 0 with why given and the cell given back
 static int view_edit_cell_write(const ViewCtx *args)
 {
-    unsigned int kind = args->kind;
+    unsigned int type = args->type;
     // the edit made, a paged text's through the pages, and the line cell read anew after it
     const CliEdit edit = {args->made->from, args->made->to, args->made->put, args->made->append_length};
     const CliEdit *const edits[1] = {&edit};
@@ -1812,7 +1812,7 @@ static int view_edit_cell_write(const ViewCtx *args)
     const unsigned long long now = cli_clock_milliseconds();
     EMBED_CALL(view_steps_cut, ViewCtx, .view = args->view, .from_u32 = args->view->done);
     CliViewStep *step = (args->view->steps != 0u) ? &args->view->step[args->view->steps - 1u] : NULL;
-    const int joined = (step != NULL) && (kind != CLI_VIEW_KIND_NONE) && (step->kind == kind) &&
+    const int joined = (step != NULL) && (type != CLI_VIEW_TYPE_NONE) && (step->type == type) &&
                        (now - step->at_ms <= CLI_VIEW_JOINED) && (step->edits < CLI_VIEW_STEP_EDITS);
     if (!joined)
     {
@@ -1847,7 +1847,7 @@ static int view_edit_cell_write(const ViewCtx *args)
         }
         step = &args->view->step[args->view->steps];
         memor.set(&(MemoriaCfg){.dst = step, .val = 0, .bytes = sizeof(*step)});
-        step->kind = kind;
+        step->type = type;
         step->cursor_before = args->view->cursor;
         step->anchor_before = args->view->anchor;
         args->view->steps += 1u;
@@ -1883,7 +1883,7 @@ EMBED_INLINE int view_edit(const ViewCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = made->put, .src = args->text, .bytes = args->length});
     made->put[args->length] = '\0';
     made->append_length = args->length;
-    return EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = args->kind,
+    return EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = args->type,
                       .err_msg = args->err_msg);
 }
 
@@ -1947,7 +1947,7 @@ EMBED_INLINE int view_type(const ViewCtx *args)
     CliPosition to;
     EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = args->text,
-                      .length = args->length, .kind = args->kind, .err_msg = args->err_msg);
+                      .length = args->length, .type = args->type, .err_msg = args->err_msg);
 }
 
 // the cursor and the anchor put where an edit leaves them, the last step done recording them so redo puts them back
@@ -2209,7 +2209,7 @@ EMBED_INLINE int view_newline(const ViewCtx *args)
         mmgr_line_put_n(&line, text + 1, prefix_bytes);
         if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from,
                         .to = (CliPosition){to.line, to.col + gap}, .text = text, .length = line.at,
-                        .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg))
+                        .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg))
         {
             return 0;
         }
@@ -2218,7 +2218,7 @@ EMBED_INLINE int view_newline(const ViewCtx *args)
         return 1;
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = text, .length = line.at,
-                      .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
+                      .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg);
 }
 
 // the letter before the cursor taken out, or the selection; a pair's opener before the cursor and its closer after
@@ -2228,7 +2228,7 @@ EMBED_INLINE int view_backspace(const ViewCtx *args)
     if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
         return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ULL,
-                          .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                          .type = CLI_VIEW_TYPE_DELETE, .err_msg = args->err_msg);
     }
     const CliPosition at = args->view->cursor;
     if (at.col == 0ULL)
@@ -2237,7 +2237,7 @@ EMBED_INLINE int view_backspace(const ViewCtx *args)
                    ? 1
                    : EMBED_CALL(view_edit, ViewCtx, .view = args->view,
                                 .from = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = at), .to = at,
-                                .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                                .text = "", .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE, .err_msg = args->err_msg);
     }
     if ((at.col < EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = at.line)) &&
         EMBED_CALL(view_on_pair, ViewCtx, .view_read = args->view,
@@ -2247,7 +2247,7 @@ EMBED_INLINE int view_backspace(const ViewCtx *args)
     {
         return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){at.line, at.col - 1ULL},
                           .to = (CliPosition){at.line, at.col + 1ULL}, .text = "", .length = 0ULL,
-                          .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                          .type = CLI_VIEW_TYPE_DELETE, .err_msg = args->err_msg);
     }
     if (!args->view->indent.tabs || (args->view->indent.tabs == -1))
     {
@@ -2262,13 +2262,13 @@ EMBED_INLINE int view_backspace(const ViewCtx *args)
             const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
             const unsigned long long back = (at.col % step != 0ULL) ? at.col % step : step;
             return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){at.line, at.col - back},
-                              .to = at, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
+                              .to = at, .text = "", .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE,
                               .err_msg = args->err_msg);
         }
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view,
                       .from = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = at), .to = at, .text = "",
-                      .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE, .err_msg = args->err_msg);
+                      .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE, .err_msg = args->err_msg);
 }
 
 // the letter at the cursor taken out, or the selection; at a line's end the next line joined to it
@@ -2277,7 +2277,7 @@ EMBED_INLINE int view_delete(const ViewCtx *args)
     if (EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
     {
         return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "", .length = 0ULL,
-                          .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
+                          .type = CLI_VIEW_TYPE_DELETE_FORWARD, .err_msg = args->err_msg);
     }
     const CliPosition at = args->view->cursor;
     const CliPosition next = EMBED_CALL(view_right, ViewCtx, .view = args->view, .place = at);
@@ -2286,7 +2286,7 @@ EMBED_INLINE int view_delete(const ViewCtx *args)
         return 1;
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = at, .to = next, .text = "", .length = 0ULL,
-                      .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
+                      .type = CLI_VIEW_TYPE_DELETE_FORWARD, .err_msg = args->err_msg);
 }
 
 // a tab typed: an indentation's step at the cursor, spaces to the next stop or a tab
@@ -2295,7 +2295,7 @@ EMBED_INLINE int view_on_tab(const ViewCtx *args)
     if (args->view->indent.tabs == 1)
     {
         return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = "\t", .length = 1ULL,
-                          .kind = CLI_VIEW_KIND_SPACE, .err_msg = args->err_msg);
+                          .type = CLI_VIEW_TYPE_SPACE, .err_msg = args->err_msg);
     }
     const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
     CliPosition from;
@@ -2308,7 +2308,7 @@ EMBED_INLINE int view_on_tab(const ViewCtx *args)
     const unsigned long long count = (spaces < sizeof(text)) ? spaces : sizeof(text) - 1ULL;
     memor.set(&(MemoriaCfg){.dst = text, .val = ' ', .bytes = count});
     return EMBED_CALL(view_type, ViewCtx, .view = args->view, .text = text, .length = count,
-                      .kind = CLI_VIEW_KIND_SPACE, .err_msg = args->err_msg);
+                      .type = CLI_VIEW_TYPE_SPACE, .err_msg = args->err_msg);
 }
 
 // the span from `from` to `to` of the text written into `out` as UTF-8, each line but the last followed by "\n"
@@ -2368,7 +2368,7 @@ EMBED_INLINE int view_letter_wrap(const ViewCtx *args)
     EMBED_CALL(view_span_write, ViewCtx, .view = args->view, .from = from, .to = args->to, .out = &wrapped);
     EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &wrapped, .letter = args->letter);
     const int written = EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = args->to, .text = cell,
-                                   .length = wrapped.at, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
+                                   .length = wrapped.at, .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg);
     g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
     if (!written)
     {
@@ -2410,7 +2410,7 @@ EMBED_INLINE int view_letter_outdent(const ViewCtx *args)
     }
     mmgr_line_put_n(&line, args->text, args->length);
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){from.line, 0ULL}, .to = args->to,
-                      .text = lead, .length = line.at, .kind = args->kind, .err_msg = args->err_msg);
+                      .text = lead, .length = line.at, .type = args->type, .err_msg = args->err_msg);
 }
 
 // one letter typed, `length` bytes of `text` as the unit `letter`: a closer typed before itself steps over it; an
@@ -2459,7 +2459,7 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
             mmgr_line_put_n(&line, args->text, args->length);
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = close);
             if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = both,
-                            .length = line.at, .kind = args->kind, .err_msg = args->err_msg))
+                            .length = line.at, .type = args->type, .err_msg = args->err_msg))
             {
                 return 0;
             }
@@ -2474,10 +2474,10 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
         (EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = from.line) >= from.col))
     {
         return EMBED_CALL(view_letter_outdent, ViewCtx, .view = args->view, .text = args->text, .length = args->length,
-                          .from = from, .to = to, .kind = args->kind, .err_msg = args->err_msg);
+                          .from = from, .to = to, .type = args->type, .err_msg = args->err_msg);
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = args->text,
-                      .length = args->length, .kind = args->kind, .err_msg = args->err_msg);
+                      .length = args->length, .type = args->type, .err_msg = args->err_msg);
 }
 
 EMBED_INLINE int view_pair(const ViewCtx *args);
@@ -2598,7 +2598,7 @@ EMBED_INLINE int view_cell_replace(const ViewCtx *args)
         EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = cursor_transferred, .extend = 1, .saved = 0);
         return 1;
     }
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = args->made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = args->made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -2707,7 +2707,7 @@ static int view_lines_move(const ViewCtx *args)
                                 args->view->cursor.col};
     const CliPosition anchor = {args->up ? args->view->anchor.line - 1ULL : args->view->anchor.line + 1ULL,
                                 args->view->anchor.col};
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -2748,7 +2748,7 @@ EMBED_INLINE int view_lines_copy(const ViewCtx *args)
                                 args->view->cursor.col};
     const CliPosition anchor = {args->view->anchor.line + (((args->view->anchor.line > last) || !args->up) ? by : 0ULL),
                                 args->view->anchor.col};
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -2775,7 +2775,7 @@ EMBED_INLINE int view_lines_delete(const ViewCtx *args)
         follows ? (CliPosition){last + 1ULL, 0ULL}
                 : (CliPosition){last, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = last)};
     if (!EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = "", .length = 0ULL,
-                    .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg))
+                    .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -2893,7 +2893,7 @@ static int view_lines_indent(const ViewCtx *args)
     {
         return 1;
     }
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -3058,7 +3058,7 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
     {
         return 1;
     }
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -3119,7 +3119,7 @@ EMBED_INLINE int view_block_comment(const ViewCtx *args)
     const CliPosition start = EMBED_CALL(view_position_end, ViewCtx, .from = from, .text = put, .bytes = saved_from);
     const CliPosition end =
         EMBED_CALL(view_position_end, ViewCtx, .from = from, .text = put, .bytes = saved_from + saved_bytes);
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -3162,7 +3162,7 @@ EMBED_INLINE int view_line_insert(const ViewCtx *args)
         at += 1ULL;
     }
     made->append_length = at;
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -3623,7 +3623,7 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
     const CliPosition anchor = args->view->anchor;
     const CliPosition end =
         EMBED_CALL(view_position_end, ViewCtx, .from = from, .text = made->put, .bytes = made->append_length);
-    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .kind = CLI_VIEW_KIND_NONE,
+    if (!EMBED_CALL(view_edit_cell_write, ViewCtx, .view = args->view, .made = made, .type = CLI_VIEW_TYPE_NONE,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -3949,7 +3949,7 @@ EMBED_INLINE int view_mod_line_key(const ViewCtx *args)
         *reserved =
             EMBED_CALL(view_edit, ViewCtx, .view = args->view,
                        .from = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor),
-                       .to = args->view->cursor, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
+                       .to = args->view->cursor, .text = "", .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE,
                        .err_msg = args->err_msg);
         return 1;
     }
@@ -3961,7 +3961,7 @@ EMBED_INLINE int view_mod_line_key(const ViewCtx *args)
         *reserved =
             EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = args->view->cursor,
                        .to = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor),
-                       .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
+                       .text = "", .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE_FORWARD, .err_msg = args->err_msg);
         return 1;
     }
     return 0;
@@ -4241,7 +4241,7 @@ EMBED_INLINE void view_point(const ViewCtx *args)
 }
 
 // text the input gives taken: typed into find's query where find has the focus, a byte a unit at the most, else into
-// the text at the cursor, one letter as a letter typed and a space or more as an edit of its own kind: 1, or 0 with
+// the text at the cursor, one letter as a letter typed and a space or more as an edit of its own type: 1, or 0 with
 // why given where the edit fails
 EMBED_INLINE int view_input_text(const ViewCtx *args)
 {
@@ -4258,10 +4258,10 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
                                                            .text = input->text, .size = input->length) == 1ULL);
     const int blank =
         (input->length != 0ULL) && ((input->text[0] == ' ') || (input->text[0] == '\t') || (input->text[0] == '\n'));
-    unsigned int kind = CLI_VIEW_KIND_NONE;
+    unsigned int type = CLI_VIEW_TYPE_NONE;
     if (one)
     {
-        kind = blank ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_TYPE;
+        type = blank ? CLI_VIEW_TYPE_SPACE : CLI_VIEW_TYPE_TYPE;
     }
     unsigned long long consumed = 0ULL;
     const unsigned int letter = one ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = input->text,
@@ -4283,9 +4283,9 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
     if (one && !blank && (letter < 0x10000u))
     {
         return EMBED_CALL(view_letter_type, ViewCtx, .view = view, .text = input->text, .length = input->length,
-                          .letter = letter, .kind = kind, .err_msg = args->err_msg);
+                          .letter = letter, .type = type, .err_msg = args->err_msg);
     }
-    return EMBED_CALL(view_type, ViewCtx, .view = view, .text = input->text, .length = input->length, .kind = kind,
+    return EMBED_CALL(view_type, ViewCtx, .view = view, .text = input->text, .length = input->length, .type = type,
                       .err_msg = args->err_msg);
 }
 
@@ -4312,7 +4312,7 @@ int cli_view_input(const CliViewInputCfg *args)
     }
     int reserved = 1;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
-    switch (args->input->kind)
+    switch (args->input->type)
     {
     case CLI_VIEW_KEY: {
         reserved =
@@ -4359,7 +4359,7 @@ int cli_view_input(const CliViewInputCfg *args)
         const CliPosition from = {view->cursor.line, view->cursor.col - back};
         reserved =
             EMBED_CALL(view_edit, ViewCtx, .view = view, .from = from, .to = view->cursor, .text = args->input->text,
-                       .length = args->input->length, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
+                       .length = args->input->length, .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg);
         break;
     }
     case CLI_VIEW_POSITION: {
@@ -4792,7 +4792,7 @@ void cli_view_map_release(CliDocumentMap *map)
     g_cli_guard->persistent_buf_release(map, g_cli_views_owner);
 }
 
-int cli_view_path(const CliViewPathKindCfg *args)
+int cli_view_path(const CliViewPathTypeCfg *args)
 {
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
@@ -4817,7 +4817,7 @@ int cli_view_served_set(const CliViewFullCfg *args)
     return view != NULL;
 }
 
-int cli_view_serve(const CliViewFullKindCfg *args)
+int cli_view_serve(const CliViewFullTypeCfg *args)
 {
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     const int served = (view != NULL) && (view->served[0] != '\0');
@@ -5031,9 +5031,9 @@ void cli_view_words_release(CliDocumentWords *words)
     g_cli_guard->persistent_buf_release(words, g_cli_views_owner);
 }
 
-// the kind of a step of edits the CLI answers while its edits are written, which joins them; the step stands of no
-// kind once they are, so no edit after joins it
-#define CLI_VIEW_KIND_EDITS 5u
+// the type of a step of edits the CLI answers while its edits are written, which joins them; the step stands of no
+// type once they are, so no edit after joins it
+#define CLI_VIEW_TYPE_EDITS 5u
 
 int cli_view_edits_apply(const CliViewEditsCfg *args)
 {
@@ -5067,16 +5067,16 @@ int cli_view_edits_apply(const CliViewEditsCfg *args)
         // the first edit begins a step of its own, and each after it joins that step
         written =
             EMBED_CALL(view_edit_cell_write, ViewCtx, .view = view, .made = made,
-                       .kind = (step == NULL) ? CLI_VIEW_KIND_NONE : CLI_VIEW_KIND_EDITS, .err_msg = args->err_msg);
+                       .type = (step == NULL) ? CLI_VIEW_TYPE_NONE : CLI_VIEW_TYPE_EDITS, .err_msg = args->err_msg);
         if (written && (step == NULL))
         {
             step = &view->step[view->steps - 1u];
-            step->kind = CLI_VIEW_KIND_EDITS;
+            step->type = CLI_VIEW_TYPE_EDITS;
         }
     }
     if (step != NULL)
     {
-        step->kind = CLI_VIEW_KIND_NONE;
+        step->type = CLI_VIEW_TYPE_NONE;
         EMBED_CALL(view_move, ViewCtx, .view = view, .place = args->edit[0].from, .extend = 0, .saved = 0);
         step->cursor_after = view->cursor;
         step->anchor_after = view->anchor;
@@ -5132,7 +5132,7 @@ int cli_view_vim_edit(const CliViewVimCfg *args)
     VerbaLinea *const err_msg = (args->err_msg != NULL) ? args->err_msg : &own;
     return (view != NULL) &&
            EMBED_CALL(view_edit, ViewCtx, .view = view, .from = args->from, .to = args->to, .text = args->text,
-                      .length = args->length, .kind = CLI_VIEW_KIND_NONE, .err_msg = err_msg);
+                      .length = args->length, .type = CLI_VIEW_TYPE_NONE, .err_msg = err_msg);
 }
 
 int cli_view_vim_indent(const CliViewVimCfg *args)

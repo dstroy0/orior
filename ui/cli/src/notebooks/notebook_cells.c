@@ -11,7 +11,7 @@
 
 // the nodes and text bytes a notebook's tree has past what its text counts, the most times a read is tried again in a
 // tree twice as large, the milliseconds a kernel has to stop as its notebook closes, and the nodes and bytes a
-// message's tree has for its output's kind put into it
+// message's tree has for its output's type put into it
 #define CELLS_NODES_MORE 64u
 #define CELLS_NODES_LINE 16u
 #define CELLS_TEXT_MORE 4096ULL
@@ -33,7 +33,7 @@ typedef struct
     const char *name;
     unsigned int cell;
     unsigned int output;
-    unsigned int kind;
+    unsigned int type;
     int stderr_stream;
     const char *text;
     unsigned long long size;
@@ -75,8 +75,8 @@ EMBED_INLINE unsigned int number_of(const NotebookCellsCtx *args)
 {
     const unsigned int node =
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = args->json_read, .node = args->node, .name = args->name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_read, .node = node,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json_read, .node = node,
+                    .type = CFG_JSON_NUMBER))
     {
         return CLI_NOTEBOOK_NONE;
     }
@@ -228,8 +228,8 @@ int cli_notebook_model_source_stored(const CliNotebookModelCtx *args)
     {
         return 0;
     }
-    const char *const grammar = (cell->kind == CLI_NOTEBOOK_CODE)       ? model->kernel_language
-                                : (cell->kind == CLI_NOTEBOOK_MARKDOWN) ? "markdown"
+    const char *const grammar = (cell->type == CLI_NOTEBOOK_CODE)       ? model->kernel_language
+                                : (cell->type == CLI_NOTEBOOK_MARKDOWN) ? "markdown"
                                                                         : "";
     EMBED_CALL(text_colored, NotebookCellsCtx, .name = grammar, .text = key);
     // a cell's lines are bounded by the document store's lines, far below the 32-bit place no count reaches
@@ -370,7 +370,7 @@ EMBED_INLINE int output_text_stored(const NotebookCellsCtx *args)
     return 1;
 }
 
-// an output of `kind` put after the outputs of the cell `cell`, its text `size` bytes of `text` and its JSON
+// an output of `type` put after the outputs of the cell `cell`, its text `size` bytes of `text` and its JSON
 // `json_size` bytes of `json_text`, the outputs taken anew one more: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int output_put(const NotebookCellsCtx *args)
 {
@@ -394,7 +394,7 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
                                 .bytes = (model->outputs - place) * sizeof(CliNotebookOutput)});
     }
     grown[place] =
-        (CliNotebookOutput){model->next_serial, args->kind, args->stderr_stream, 1u, 1u, 0u, 0, 0, 0ULL, 0ULL};
+        (CliNotebookOutput){model->next_serial, args->type, args->stderr_stream, 1u, 1u, 0u, 0, 0, 0ULL, 0ULL};
     model->next_serial += 1u;
     g_cli_guard->persistent_buf_release(model->output, g_cli_notebook_open_owner);
     model->output = grown;
@@ -408,7 +408,7 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
                      .json_size = args->json_size);
     (void)EMBED_CALL(output_text_stored, NotebookCellsCtx, .model = model, .cell = args->cell, .output = place,
                      .text = args->text, .size = args->size);
-    cell->failed = cell->failed || (args->kind == CLI_NOTEBOOK_ERROR);
+    cell->failed = cell->failed || (args->type == CLI_NOTEBOOK_ERROR);
     EMBED_CALL(cli_notebook_model_internal.outputs_settled, CliNotebookModelCtx, .model = model, .cell = args->cell);
     return 1;
 }
@@ -468,7 +468,7 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
     const CliNotebookCell *const cell = &model->cell[args->cell];
     const int stderr_stream = cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "stderr", .cap = 8ULL});
     const unsigned int last = (cell->outputs != 0u) ? (cell->output_first + cell->outputs - 1u) : CLI_NOTEBOOK_NONE;
-    const int joined = (last != CLI_NOTEBOOK_NONE) && (model->output[last].kind == CLI_NOTEBOOK_STREAM) &&
+    const int joined = (last != CLI_NOTEBOOK_NONE) && (model->output[last].type == CLI_NOTEBOOK_STREAM) &&
                        (model->output[last].stderr_stream == stderr_stream);
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     unsigned long long before = 0ULL;
@@ -506,7 +506,7 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
     int put = 0;
     if (!joined)
     {
-        put = EMBED_CALL(output_put, NotebookCellsCtx, .model = model, .cell = args->cell, .kind = CLI_NOTEBOOK_STREAM,
+        put = EMBED_CALL(output_put, NotebookCellsCtx, .model = model, .cell = args->cell, .type = CLI_NOTEBOOK_STREAM,
                          .stderr_stream = stderr_stream, .text = scratch, .size = bytes, .json_text = json.out,
                          .json_size = json.at);
     }
@@ -524,13 +524,13 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
 }
 
 // the output node `node` of the tree, a notebook's or a message's content, put after the outputs of the cell `cell`
-// as `kind`, its text the stream's, the error's traceback, or the text/plain of its data, and its JSON the node
+// as `type`, its text the stream's, the error's traceback, or the text/plain of its data, and its JSON the node
 // written: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
 {
     const CliJson *const json = args->json_read;
     const unsigned int node = args->node;
-    if (args->kind == CLI_NOTEBOOK_STREAM)
+    if (args->type == CLI_NOTEBOOK_STREAM)
     {
         unsigned long long size = 0ULL;
         const char *const text = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json, .node = node,
@@ -544,8 +544,8 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     const unsigned int traceback =
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "traceback");
     unsigned long long shown = 0ULL;
-    for (unsigned int line = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = traceback, .kind = CFG_JSON_ARRAY)
+    for (unsigned int line = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = traceback, .type = CFG_JSON_ARRAY)
                                  ? json->node[traceback].first
                                  : CLI_JSON_NONE;
          line != CLI_JSON_NONE; line = json->node[line].next)
@@ -557,7 +557,7 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
         EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json,
                    .node = EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "data"),
                    .name = "text/plain", .length_pointer = &plain);
-    shown += (args->kind == CLI_NOTEBOOK_ERROR) ? 0ULL : plain;
+    shown += (args->type == CLI_NOTEBOOK_ERROR) ? 0ULL : plain;
     const unsigned long long json_capacity =
         EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = json, .node = node,
                    .out = NULL, .indent = 0u, .sorted = 0);
@@ -567,10 +567,10 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
         return 0;
     }
     VerbaLinea text = {scratch, shown + 1ULL, 0ULL};
-    if (args->kind == CLI_NOTEBOOK_ERROR)
+    if (args->type == CLI_NOTEBOOK_ERROR)
     {
-        for (unsigned int line = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                            .node = traceback, .kind = CFG_JSON_ARRAY)
+        for (unsigned int line = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                            .node = traceback, .type = CFG_JSON_ARRAY)
                                      ? json->node[traceback].first
                                      : CLI_JSON_NONE;
              line != CLI_JSON_NONE; line = json->node[line].next)
@@ -590,19 +590,19 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = node,
                .out = &written, .indent = 0u, .sorted = 0);
     const int put = EMBED_CALL(output_put, NotebookCellsCtx, .model = args->model, .cell = args->cell,
-                               .kind = args->kind, .stderr_stream = args->kind == CLI_NOTEBOOK_ERROR, .text = scratch,
+                               .type = args->type, .stderr_stream = args->type == CLI_NOTEBOOK_ERROR, .text = scratch,
                                .size = text.at, .json_text = written.out, .json_size = written.at);
     g_cli_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
     return put;
 }
 
-// the kind an output's type `name` stands for, CLI_NOTEBOOK_NONE for none
-EMBED_INLINE unsigned int output_kind(const NotebookCellsCtx *args)
+// the type an output's type `name` stands for, CLI_NOTEBOOK_NONE for none
+EMBED_INLINE unsigned int output_type(const NotebookCellsCtx *args)
 {
-    static const char *const s_kinds[] = {"stream", "execute_result", "display_data", "error"};
-    for (unsigned int at = 0u; at < (sizeof(s_kinds) / sizeof(s_kinds[0])); at += 1u)
+    static const char *const s_types[] = {"stream", "execute_result", "display_data", "error"};
+    for (unsigned int at = 0u; at < (sizeof(s_types) / sizeof(s_types[0])); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_kinds[at], .cap = 16ULL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_types[at], .cap = 16ULL}))
         {
             return at;
         }
@@ -684,14 +684,14 @@ EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
          node = json->node[node].next)
     {
         CliNotebookCell *const cell = &model->cell[at];
-        const char *const type = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json, .node = node,
+        const char *const type_name = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json, .node = node,
                                             .name = "cell_type", .length_pointer = NULL);
         *cell = (CliNotebookCell){0};
         cell->serial = model->next_serial;
         model->next_serial += 1u;
-        cell->kind = cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "markdown", .cap = 16ULL})
+        cell->type = cellul.eq(&(CatenaFinitaCfg){.src = type_name, .other = "markdown", .cap = 16ULL})
                          ? CLI_NOTEBOOK_MARKDOWN
-                     : cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "raw", .cap = 16ULL}) ? CLI_NOTEBOOK_RAW
+                     : cellul.eq(&(CatenaFinitaCfg){.src = type_name, .other = "raw", .cap = 16ULL}) ? CLI_NOTEBOOK_RAW
                                                                                                 : CLI_NOTEBOOK_CODE;
         cell->origin = node;
         cell->count =
@@ -707,18 +707,18 @@ EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
         }
         const unsigned int outputs =
             EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "outputs");
-        for (unsigned int output = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = json, .node = outputs, .kind = CFG_JSON_ARRAY)
+        for (unsigned int output = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = json, .node = outputs, .type = CFG_JSON_ARRAY)
                                        ? json->node[outputs].first
                                        : CLI_JSON_NONE;
              output != CLI_JSON_NONE; output = json->node[output].next)
         {
-            const unsigned int kind =
-                EMBED_CALL(output_kind, NotebookCellsCtx,
+            const unsigned int type =
+                EMBED_CALL(output_type, NotebookCellsCtx,
                            .name = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = json, .node = output,
                                               .name = "output_type", .length_pointer = NULL));
-            if ((kind != CLI_NOTEBOOK_NONE) && !EMBED_CALL(node_output_put, NotebookCellsCtx, .model = model,
-                                                           .json_read = json, .node = output, .cell = at, .kind = kind))
+            if ((type != CLI_NOTEBOOK_NONE) && !EMBED_CALL(node_output_put, NotebookCellsCtx, .model = model,
+                                                           .json_read = json, .node = output, .cell = at, .type = type))
             {
                 return 0;
             }
@@ -913,21 +913,21 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
         (cell->origin != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .node = cell->origin, .to = json,
                          .from = &model->json)
-            : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+            : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_OBJECT);
     if (cell->origin == CLI_JSON_NONE)
     {
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = node,
                    .name = "metadata",
-                   .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
-                                       .kind = CFG_JSON_OBJECT));
+                   .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json,
+                                       .type = CFG_JSON_OBJECT));
     }
-    const char *const type = (cell->kind == CLI_NOTEBOOK_MARKDOWN) ? "markdown"
-                             : (cell->kind == CLI_NOTEBOOK_RAW)    ? "raw"
+    const char *const type_name = (cell->type == CLI_NOTEBOOK_MARKDOWN) ? "markdown"
+                             : (cell->type == CLI_NOTEBOOK_RAW)    ? "raw"
                                                                    : "code";
     EMBED_CALL(
         cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = node, .name = "cell_type",
-        .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
-                            .text = type, .length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = 16ULL})));
+        .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = json,
+                            .text = type_name, .length = cellul.len(&(CatenaFinitaCfg){.src = type_name, .cap = 16ULL})));
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
@@ -936,10 +936,10 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
                                     .owner = g_cli_notebook_open_owner);
     EMBED_CALL(
         cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = node, .name = "source",
-        .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
+        .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = json,
                             .text = (source != NULL) ? source : "", .length = (source != NULL) ? size : 0ULL));
     g_cli_guard->persistent_buf_release(source, g_cli_notebook_open_owner);
-    if (cell->kind != CLI_NOTEBOOK_CODE)
+    if (cell->type != CLI_NOTEBOOK_CODE)
     {
         EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = json, .object = node,
                    .name = "outputs");
@@ -948,7 +948,7 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
         return json->full ? CLI_JSON_NONE : node;
     }
     const unsigned int outputs =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_ARRAY);
     for (unsigned int at = 0u; at < cell->outputs; at += 1u)
     {
         const CliNotebookOutput *const output = &model->output[cell->output_first + at];
@@ -972,10 +972,10 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = node,
                .name = "execution_count",
                .value = (cell->count != CLI_NOTEBOOK_NONE)
-                            ? EMBED_CALL(cli_json_tree_text_length_kind.json_number_init, CliJsonTreeTextLengthKindCfg,
+                            ? EMBED_CALL(cli_json_tree_text_length_type.json_number_init, CliJsonTreeTextLengthTypeCfg,
                                          .json = json, .text = count, .length = count_line.at)
-                            : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
-                                         .kind = CFG_JSON_NULL));
+                            : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json,
+                                         .type = CFG_JSON_NULL));
     return json->full ? CLI_JSON_NONE : node;
 }
 
@@ -988,12 +988,12 @@ EMBED_INLINE void kernelspec_written(const NotebookCellsCtx *args)
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = json, .node = args->node, .name = "metadata");
     if (metadata == CLI_JSON_NONE)
     {
-        metadata = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+        metadata = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_OBJECT);
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->node,
                    .name = "metadata", .value = metadata);
     }
     const unsigned int spec =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_OBJECT);
     const char *const field[3] = {"display_name", "language", "name"};
     const char *const value[3] = {model->kernel_display, model->kernel_language, model->kernel_name};
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -1001,7 +1001,7 @@ EMBED_INLINE void kernelspec_written(const NotebookCellsCtx *args)
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = spec,
                    .name = field[at],
                    .value =
-                       EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                       EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                   .json = json, .text = value[at],
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = value[at], .cap = CLI_NAME_MAX_LEN})));
     }
@@ -1053,7 +1053,7 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .node = model->root,
                                          .to = &json, .from = &model->json);
     const unsigned int cells =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json, .type = CFG_JSON_ARRAY);
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
         const unsigned int written = EMBED_CALL(cell_written, NotebookCellsCtx, .model = model, .cell = at,
@@ -1125,12 +1125,12 @@ EMBED_INLINE unsigned int cell_answered(const NotebookCellsCtx *args)
     return CLI_NOTEBOOK_NONE;
 }
 
-// the kind of a message `name` of a cell's run, the output kinds, then one more for each of the run's other messages,
+// the type of a message `name` of a cell's run, the output types, then one more for each of the run's other messages,
 // CLI_NOTEBOOK_NONE for a message of no run
 #define CELLS_INPUT 4u
 #define CELLS_CLEAR 5u
 #define CELLS_REPLY 6u
-EMBED_INLINE unsigned int message_kind(const NotebookCellsCtx *args)
+EMBED_INLINE unsigned int message_type(const NotebookCellsCtx *args)
 {
     static const char *const s_messages[] = {"stream",        "execute_result", "display_data", "error",
                                              "execute_input", "clear_output",   "execute_reply"};
@@ -1158,7 +1158,7 @@ EMBED_INLINE void status_read(const NotebookCellsCtx *args)
 }
 
 // one message of `size` bytes of `text` applied to the model: 1 where it changed it, 0 where it is of no run or of no
-// kind a cell takes, and 2 where the run it answers is not yet bound, the message to stand in the ring
+// type a cell takes, and 2 where the run it answers is not yet bound, the message to stand in the ring
 EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
@@ -1169,36 +1169,36 @@ EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->text, .size = args->size, .err_msg = &err_msg, .owner = g_cli_notebook_open_owner,
                    .nodes_more = CELLS_MESSAGE_NODES, .text_more = CELLS_MESSAGE_TEXT);
-    const char *const type = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = &json, .node = root,
+    const char *const type_name = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = &json, .node = root,
                                         .name = "msg_type", .length_pointer = NULL);
     const char *const parent = EMBED_CALL(string_of, NotebookCellsCtx, .json_read = &json, .node = root,
                                           .name = "parent", .length_pointer = NULL);
     const unsigned int content =
         EMBED_CALL(member_of, NotebookCellsCtx, .json_read = &json, .node = root, .name = "content");
-    const unsigned int kind = EMBED_CALL(message_kind, NotebookCellsCtx, .name = type);
+    const unsigned int type = EMBED_CALL(message_type, NotebookCellsCtx, .name = type_name);
     const unsigned int cell = EMBED_CALL(cell_answered, NotebookCellsCtx, .model = model, .name = parent);
     unsigned int applied = 0u;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "status", .cap = 16ULL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = type_name, .other = "status", .cap = 16ULL}))
     {
         EMBED_CALL(status_read, NotebookCellsCtx, .model = model, .json_read = &json, .node = content);
         applied = 1u;
     }
-    else if ((kind != CLI_NOTEBOOK_NONE) && (cell == CLI_NOTEBOOK_NONE))
+    else if ((type != CLI_NOTEBOOK_NONE) && (cell == CLI_NOTEBOOK_NONE))
     {
         applied = (parent[0] != '\0') ? 2u : 0u;
     }
-    else if (kind == CELLS_INPUT)
+    else if (type == CELLS_INPUT)
     {
         model->cell[cell].count =
             EMBED_CALL(number_of, NotebookCellsCtx, .json_read = &json, .node = content, .name = "execution_count");
         applied = 1u;
     }
-    else if (kind == CELLS_CLEAR)
+    else if (type == CELLS_CLEAR)
     {
         EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model, .cell = cell);
         applied = 1u;
     }
-    else if (kind == CELLS_REPLY)
+    else if (type == CELLS_REPLY)
     {
         const unsigned int count =
             EMBED_CALL(number_of, NotebookCellsCtx, .json_read = &json, .node = content, .name = "execution_count");
@@ -1207,22 +1207,22 @@ EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
         model->cell[cell].run_id[0] = '\0';
         applied = 1u;
     }
-    else if (kind != CLI_NOTEBOOK_NONE)
+    else if (type != CLI_NOTEBOOK_NONE)
     {
         // an output's content becomes the output a notebook stores, its type put into it and its transient data let go
-        const char *const output_type = (kind == CLI_NOTEBOOK_STREAM)   ? "stream"
-                                        : (kind == CLI_NOTEBOOK_RESULT) ? "execute_result"
-                                        : (kind == CLI_NOTEBOOK_ERROR)  ? "error"
+        const char *const output_type = (type == CLI_NOTEBOOK_STREAM)   ? "stream"
+                                        : (type == CLI_NOTEBOOK_RESULT) ? "execute_result"
+                                        : (type == CLI_NOTEBOOK_ERROR)  ? "error"
                                                                         : "display_data";
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = content,
                    .name = "output_type",
-                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                   .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                        .json = &json, .text = output_type,
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = output_type, .cap = 16ULL})));
         EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = &json, .object = content,
                    .name = "transient");
         (void)EMBED_CALL(node_output_put, NotebookCellsCtx, .model = model, .json_read = &json, .node = content,
-                         .cell = cell, .kind = kind);
+                         .cell = cell, .type = type);
         applied = 1u;
     }
     if ((applied == 1u) && (cell != CLI_NOTEBOOK_NONE))

@@ -39,7 +39,7 @@ struct CliDap
 {
     int reserved;
     unsigned int refs;
-    unsigned int kind;
+    unsigned int type;
     int ends_program;
     CliWords words;
     char path[CLI_PATH_TEXT];

@@ -125,7 +125,7 @@ EMBED_INLINE int find_text_order(const SymbolsFindCtx *args)
     return 0;
 }
 
-// whether one found ranks before another: more points, then by name, path, kind and line
+// whether one found ranks before another: more points, then by name, path, type and line
 EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
 {
     if (args->one_scored_pointer->points != args->other_scored_pointer->points)
@@ -160,8 +160,8 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
                          : EMBED_CALL(find_text_order, SymbolsFindCtx, .one = one_file, .one_at = one_file->path,
                                       .other = other_file, .other_at = other_file->path);
     order = (order != 0) ? order
-                         : EMBED_CALL(find_text_order, SymbolsFindCtx, .one = one_file, .one_at = left.kind,
-                                      .other = other_file, .other_at = right.kind);
+                         : EMBED_CALL(find_text_order, SymbolsFindCtx, .one = one_file, .one_at = left.type,
+                                      .other = other_file, .other_at = right.type);
     return (order != 0) ? (order < 0) : (left.line < right.line);
 }
 
@@ -216,7 +216,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
                                .count = count, .capacity = capacity);
         }
     }
-    // each found's name, kind, path and line of text in one line laid after the list, a line of text no longer than its
+    // each found's name, type, path and line of text in one line laid after the list, a line of text no longer than its
     // most
     const unsigned long long text_capacity =
         (count * ((3ULL * CLI_PATH_MAX_LEN) + (4ULL * CLI_SYMBOL_LINE_MAX))) + 1ULL;
@@ -245,8 +245,8 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text,
                        .text_bytes = (const unsigned char *)(scratch + symbol->name), .length = symbol->length);
             mmgr_line_ch(&text, '\0');
-            found->kind = text.out + text.at;
-            mmgr_line_put(&text, scratch + symbol->kind);
+            found->type = text.out + text.at;
+            mmgr_line_put(&text, scratch + symbol->type);
             mmgr_line_ch(&text, '\0');
             found->path = text.out + text.at;
             mmgr_line_put(&text, path);

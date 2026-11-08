@@ -249,8 +249,8 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
     EMBED_CALL(cli_recording_path_internal.read, CliRecordingPathCtx, .path = out);
     const unsigned int code_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = message, .name = "code");
-    const char *const written = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                           .json_read = args->json, .node = code_node, .kind = CFG_JSON_NUMBER)
+    const char *const written = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                           .json_read = args->json, .node = code_node, .type = CFG_JSON_NUMBER)
                                     ? args->json->text + args->json->node[code_node].text
                                     : NULL;
     const unsigned long long digits = (written != NULL) ? args->json->node[code_node].length : 0ULL;

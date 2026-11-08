@@ -10,7 +10,7 @@ typedef struct
     unsigned int depth;
     const unsigned char *bytes;
     unsigned long long bytes_size;
-    unsigned int kind;
+    unsigned int type;
     const char *name;
     const CliParts *parts;
     unsigned int from;
@@ -20,13 +20,13 @@ typedef struct
     VerbaLinea *err_msg;
 } ArchiveWriteCtx;
 
-// The bytes of an archive of `kind` named `name`, at `depth` among those the path runs through, with the member the
+// The bytes of an archive of `type` named `name`, at `depth` among those the path runs through, with the member the
 // parts from `from` lead to set to `data`, a path that runs on into an archive inside it changing that one, written
 // into the level's `written`: 1 with their count into `size`, or 0 with why given
 static int cli_replace(const ArchiveWriteCtx *args)
 {
     const unsigned char *bytes = args->bytes;
-    unsigned int kind = args->kind;
+    unsigned int type = args->type;
     const char *name = args->name;
     const CliParts *parts = args->parts;
     unsigned int from = args->from;
@@ -35,7 +35,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
     unsigned long long *size = args->size;
     VerbaLinea *err_msg = args->err_msg;
     CliLevels *const levels = g_cli_archive_levels;
-    if (kind == CLI_ARCHIVE_QRY)
+    if (type == CLI_ARCHIVE_QRY)
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " is a run's record of what it did, and is not written back");
@@ -51,7 +51,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
     unsigned long long unpacked = 0ULL;
     EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = name, .out_capacity = inner);
     if (!EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx, .bytes = bytes,
-                    .size = args->bytes_size, .kind = kind, .inner = inner, .members = &levels->members[args->depth],
+                    .size = args->bytes_size, .type = type, .inner = inner, .members = &levels->members[args->depth],
                     .unpacked = &levels->unpacked[args->depth], .unpacked_size = &unpacked, .err_msg = err_msg))
     {
         return 0;
@@ -71,7 +71,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
         unsigned long long changed_size = data_size;
         if (cut != parts->count)
         {
-            const unsigned int nested = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = path);
+            const unsigned int nested = EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = path);
             if (nested == CLI_ARCHIVE_NONE)
             {
                 mmgr_line_put(err_msg, path);
@@ -87,11 +87,11 @@ static int cli_replace(const ArchiveWriteCtx *args)
             unsigned long long nested_size = 0ULL;
             if (!EMBED_CALL(
                     cli_archive_bytes_internal.data_get, CliArchiveBytesCtx, .bytes = bytes, .size = args->bytes_size,
-                    .kind = kind, .unpacked_bytes = levels->unpacked[args->depth].bytes,
+                    .type = type, .unpacked_bytes = levels->unpacked[args->depth].bytes,
                     .unpacked_size_value = unpacked, .members_read = &levels->members[args->depth], .member = member,
                     .out_buffer_pointer = &levels->inner[args->depth], .out_size = &nested_size, .err_msg = err_msg) ||
                 !EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = args->depth + 1u,
-                            .bytes = levels->inner[args->depth].bytes, .bytes_size = nested_size, .kind = nested,
+                            .bytes = levels->inner[args->depth].bytes, .bytes_size = nested_size, .type = nested,
                             .name = path, .parts = parts, .from = cut, .data = data, .data_size = data_size,
                             .size = &changed_size, .err_msg = err_msg))
             {
@@ -101,7 +101,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
         }
         // the level written anew contains the archive as it was and the member changed, with an eighth and a page over
         CliByteBuffer *const written = &levels->written[args->depth];
-        const unsigned long long whole = (kind == CLI_ARCHIVE_TARGZ) ? unpacked : args->bytes_size;
+        const unsigned long long whole = (type == CLI_ARCHIVE_TARGZ) ? unpacked : args->bytes_size;
         if (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx,
                         .buffer_pointer = written,
                         .need = EMBED_CALL(cli_archive_bytes_size_at_internal.grow, CliArchiveBytesSizeAtCtx,
@@ -110,14 +110,14 @@ static int cli_replace(const ArchiveWriteCtx *args)
         {
             return 0;
         }
-        if (kind == CLI_ARCHIVE_ZIP)
+        if (type == CLI_ARCHIVE_ZIP)
         {
             return EMBED_CALL(cli_archive_bytes_size_internal.zip_with, CliArchiveBytesSizeCtx, .bytes = bytes,
                               .size = args->bytes_size, .target = member, .data = changed, .data_size = changed_size,
                               .out = written->bytes, .capacity = written->capacity, .out_size = size,
                               .err_msg = err_msg);
         }
-        if (kind == CLI_ARCHIVE_TAR)
+        if (type == CLI_ARCHIVE_TAR)
         {
             return EMBED_CALL(cli_archive_bytes_size_internal.tar_with, CliArchiveBytesSizeCtx, .bytes = bytes,
                               .size = args->bytes_size, .target = member, .data = changed, .data_size = changed_size,
@@ -125,7 +125,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
                               .err_msg = err_msg);
         }
         unsigned long long tar_size = 0ULL;
-        if ((kind == CLI_ARCHIVE_TARGZ) &&
+        if ((type == CLI_ARCHIVE_TARGZ) &&
             (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx,
                          .buffer_pointer = &levels->tar,
                          .need = EMBED_CALL(cli_archive_bytes_size_at_internal.grow, CliArchiveBytesSizeAtCtx,
@@ -138,7 +138,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
         {
             return 0;
         }
-        *size = (kind == CLI_ARCHIVE_TARGZ)
+        *size = (type == CLI_ARCHIVE_TARGZ)
                     ? EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = levels->tar.bytes, .size = tar_size,
                                  .out = written->bytes, .capacity = written->capacity)
                     : EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = changed, .size = changed_size,
@@ -178,14 +178,14 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     }
     unsigned long long written = 0ULL;
     int done = EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = 0u, .bytes = descent.bytes, .bytes_size = descent.size,
-                          .kind = descent.kind, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
+                          .type = descent.type, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
                           .data_size = args->size, .size = &written, .err_msg = args->err_msg);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)descent.bytes, (g_cli_editor_owner));
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char adjacent[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     VerbaLinea line = {adjacent, sizeof(adjacent), 0ULL};
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file, .out = folder))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = file, .out = folder))
     {
         mmgr_line_put(&line, folder);
         mmgr_line_ch(&line, '/');

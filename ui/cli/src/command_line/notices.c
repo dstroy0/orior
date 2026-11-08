@@ -3,8 +3,8 @@
 // notices.c: the notices, as statusbar.js shows them. A notice that answers what the reader did, a press or a key that
 // gives a command within CLI_NOTICES_ANSWERS_MS, shows at once; any other needs nothing done and waits for a break in
 // the work: a save, or the keys at rest CLI_NOTICES_REST_MS, where every one waiting but the last goes to the list and
-// the last shows. Focus stops every notice until it ends. A notice's kind is its first line with each run of digits
-// read as any count; a kind put away shows no more, the list still taking it. Every notice shown or set aside stands
+// the last shows. Focus stops every notice until it ends. A notice's type is its first line with each run of digits
+// read as any count; a type put away shows no more, the list still taking it. Every notice shown or set aside stands
 // in the list the bell opens, the newest last, CLI_NOTICES_LISTED at the most
 #include "command_line.h"
 
@@ -13,27 +13,27 @@
 #include "commands.h"
 #include "pool.h"
 
-// the notices the list takes at the most, and as many wait at the most; and the key of orior's folder the kinds put
+// the notices the list takes at the most, and as many wait at the most; and the key of orior's folder the types put
 // away stand under, a line each
 #define CLI_NOTICES_LISTED 200u
 #define CLI_NOTICES_AWAY_KEY "notices-away"
 
-// A notice in one cell: its first line and a NUL, the lines after its first and a NUL, then its kind and a NUL; where
-// the lines after the first stand and where its kind stands; whether it is a failure's; and the clock's reading as it
+// A notice in one cell: its first line and a NUL, the lines after its first and a NUL, then its type and a NUL; where
+// the lines after the first stand and where its type stands; whether it is a failure's; and the clock's reading as it
 // came
 typedef struct
 {
     char *cell;
     const char *rest;
-    const char *kind;
+    const char *type;
     int failed;
     unsigned long long at_ms;
 } CliNotice;
 
 // The notices: the list, a ring in a cell, the oldest's place, how many and how many came since the bell was opened;
 // those waiting for a break, a ring in a cell, the oldest's place and how many; the notice shown, read in place in its
-// cell in the list, NULL for none, its kind, and whether it is a failure's; when it goes; whether Focus is on and how
-// many wait on it; when the reader last commanded and last gave any input; and the kinds put away, a line each, NULL
+// cell in the list, NULL for none, its type, and whether it is a failure's; when it goes; whether Focus is on and how
+// many wait on it; when the reader last commanded and last gave any input; and the types put away, a line each, NULL
 // for none, in a cell of the notices' own where `away_owned` is 1 and else read in place where orior's folder was read
 typedef struct
 {
@@ -45,7 +45,7 @@ typedef struct
     unsigned int waiting_first;
     unsigned int waiting_count;
     const char *shown;
-    const char *shown_kind;
+    const char *shown_type;
     int shown_failed;
     unsigned long long shown_until_ms;
     int focus;
@@ -62,7 +62,7 @@ typedef struct
 {
     const char *text;
     char *owned;
-    const char *kind;
+    const char *type;
     int failed;
     int seen;
     CliNotice *notice;
@@ -78,7 +78,7 @@ EMBED_INLINE unsigned long long notices_first_line(const CliNoticesCtx *args)
 }
 
 // `text`, the caller's and gone once it returns, written once as a notice in a cell of its own: its first line and a
-// NUL, the lines after it and a NUL, then its kind, its first line each run of digits written as '#'; 1, or 0 where the
+// NUL, the lines after it and a NUL, then its type, its first line each run of digits written as '#'; 1, or 0 where the
 // cells cannot meet it
 EMBED_INLINE int notices_built(const CliNoticesCtx *args)
 {
@@ -93,18 +93,18 @@ EMBED_INLINE int notices_built(const CliNoticesCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->text, .bytes = size + 1ULL});
     cell[first] = '\0';
     const char *const rest = (first < size) ? (cell + first + 1ULL) : (cell + first);
-    VerbaLinea kind = {cell + size + 1ULL, first + 1ULL, 0ULL};
+    VerbaLinea type = {cell + size + 1ULL, first + 1ULL, 0ULL};
     for (unsigned long long at = 0ULL; at < first;)
     {
         const unsigned long long digit =
             EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
                        .size = first, .classes = CLI_TEXT_DIGITS, .set = "");
-        mmgr_line_put_n(&kind, args->text + at, digit - at);
+        mmgr_line_put_n(&type, args->text + at, digit - at);
         at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->text, .at = digit,
                         .size = first, .classes = CLI_TEXT_DIGITS, .set = "");
-        mmgr_line_put(&kind, (digit < first) ? "#" : "");
+        mmgr_line_put(&type, (digit < first) ? "#" : "");
     }
-    (void)mmgr_line_finish(&kind);
+    (void)mmgr_line_finish(&type);
     *args->notice = (CliNotice){cell, rest, cell + size + 1ULL, args->failed, cli_clock_milliseconds()};
     return 1;
 }
@@ -114,7 +114,7 @@ EMBED_INLINE void notices_hidden(const CliNoticesCtx *args)
 {
     (void)args;
     s_notices.shown = NULL;
-    s_notices.shown_kind = NULL;
+    s_notices.shown_type = NULL;
     s_notices.shown_failed = 0;
 }
 
@@ -164,23 +164,23 @@ EMBED_INLINE void notices_shown(const CliNoticesCtx *args)
         return;
     }
     s_notices.shown = notice.cell;
-    s_notices.shown_kind = notice.kind;
+    s_notices.shown_type = notice.type;
     s_notices.shown_failed = notice.failed;
     s_notices.shown_until_ms =
         cli_clock_milliseconds() + (notice.failed ? CLI_NOTICES_FAILED_MS : CLI_NOTICES_SHOWN_MS);
 }
 
-// whether the kind `kind` is put away
+// whether the type `type` is put away
 EMBED_INLINE int notices_away(const CliNoticesCtx *args)
 {
     const char *line = s_notices.away;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES});
     while ((line != NULL) && (*line != '\0'))
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES});
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = line, .at = 0ULL, .size = size, .set = "\n");
-        if ((end == length) && (memor.cmp(&(MemoriaCfg){.src = line, .other = args->kind, .bytes = length}) == 0))
+        if ((end == length) && (memor.cmp(&(MemoriaCfg){.src = line, .other = args->type, .bytes = length}) == 0))
         {
             return 1;
         }
@@ -189,7 +189,7 @@ EMBED_INLINE int notices_away(const CliNoticesCtx *args)
     return 0;
 }
 
-// the kinds put away, the cell `owned` they were written in taken as they stand, and saved in orior's folder
+// the types put away, the cell `owned` they were written in taken as they stand, and saved in orior's folder
 EMBED_INLINE void notices_away_set(const CliNoticesCtx *args)
 {
     char *const away = args->owned;
@@ -238,7 +238,7 @@ void cli_notice_post(const char *text, int failed)
     {
         return;
     }
-    if (EMBED_CALL(notices_away, CliNoticesCtx, .kind = notice.kind))
+    if (EMBED_CALL(notices_away, CliNoticesCtx, .type = notice.type))
     {
         (void)EMBED_CALL(notices_listed, CliNoticesCtx, .notice_read = &notice, .seen = 1);
         return;
@@ -319,20 +319,20 @@ void cli_notices_press(unsigned int part)
         cli_notices_focus(0);
         return;
     }
-    const char *const kind = s_notices.shown_kind;
-    if ((part == CLI_NOTICES_PRESS_SILENCE) && (kind != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .kind = kind))
+    const char *const type = s_notices.shown_type;
+    if ((part == CLI_NOTICES_PRESS_SILENCE) && (type != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
     {
         const unsigned long long had =
             (s_notices.away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_POOL_BYTES})
                                      : 0ULL;
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
         char *const joined = g_cli_guard->persistent_buf_alloc(had + length + 2ULL, g_cli_command_line_owner);
         if (joined != NULL)
         {
             VerbaLinea line = {joined, had + length + 2ULL, 0ULL};
             mmgr_line_put(&line, (s_notices.away != NULL) ? s_notices.away : "");
             mmgr_line_put(&line, (had != 0ULL) ? "\n" : "");
-            mmgr_line_put(&line, kind);
+            mmgr_line_put(&line, type);
             (void)mmgr_line_finish(&line);
             EMBED_CALL(notices_away_set, CliNoticesCtx, .owned = joined);
         }
@@ -353,14 +353,19 @@ void cli_notices_focus(int on)
     }
 }
 
-void cli_notices_show_again(const char *kind)
+const char *cli_notices_away(void)
 {
-    if ((s_notices.away == NULL) || !EMBED_CALL(notices_away, CliNoticesCtx, .kind = kind))
+    return s_notices.away;
+}
+
+void cli_notices_show_again(const char *type)
+{
+    if ((s_notices.away == NULL) || !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
     {
         return;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_notices.away, .cap = CLI_POOL_BYTES});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
     char *const left = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (left == NULL)
     {
@@ -372,7 +377,7 @@ void cli_notices_show_again(const char *kind)
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = s_notices.away, .at = at, .size = size, .set = "\n");
         const int same = ((end - at) == length) &&
-                         (memor.cmp(&(MemoriaCfg){.src = s_notices.away + at, .other = kind, .bytes = length}) == 0);
+                         (memor.cmp(&(MemoriaCfg){.src = s_notices.away + at, .other = type, .bytes = length}) == 0);
         if (!same)
         {
             mmgr_line_put(&line, (line.at != 0ULL) ? "\n" : "");
@@ -424,7 +429,7 @@ void cli_notices_restore(const CliStateEntries *entries)
     {
         g_cli_guard->persistent_buf_release(s_notices.away, g_cli_command_line_owner);
     }
-    // read in place in the entries, which stand as long as the window does; a kind put away later writes a cell of
+    // read in place in the entries, which stand as long as the window does; a type put away later writes a cell of
     // the notices' own
     s_notices.away = (char *)away;
     s_notices.away_owned = 0;

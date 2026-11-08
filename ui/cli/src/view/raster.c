@@ -10,6 +10,7 @@
 #include "../command_line/cli_internal.h"
 
 #include <math.h>
+#include <stdint.h>
 
 int gui_rect_empty(const GuiRasterRectCfg *args)
 {
@@ -311,12 +312,92 @@ EMBED_INLINE unsigned int raster_corner_cover(const GuiRasterCtx *args)
                       .row = args->y);
 }
 
+// The line a rounded fill with a stroke draws: each edge that meets a rounded corner filled the stroke wide, and each
+// rounded corner's square laid with the share of a pixel inside the outer arc less the share inside the inner arc. The
+// inner arc is the stroke in from the outer, on the rectangle the stroke in from each edge that the line runs along
+static void raster_ring(const GuiRasterRectColorCfg *args)
+{
+    const unsigned int corners = (args->corners != 0u) ? args->corners : 15u;
+    const GuiRect rect = args->rect;
+    // the corners' squares are radius by radius, which an int holds
+    const int side = (int)args->radius;
+    const int stroke = args->stroke;
+    const int top = (corners & (GUI_RASTER_CORNER_TOP_LEFT | GUI_RASTER_CORNER_TOP_RIGHT)) != 0u;
+    const int bottom = (corners & (GUI_RASTER_CORNER_BOTTOM_LEFT | GUI_RASTER_CORNER_BOTTOM_RIGHT)) != 0u;
+    const int left = (corners & (GUI_RASTER_CORNER_TOP_LEFT | GUI_RASTER_CORNER_BOTTOM_LEFT)) != 0u;
+    const int right = (corners & (GUI_RASTER_CORNER_TOP_RIGHT | GUI_RASTER_CORNER_BOTTOM_RIGHT)) != 0u;
+    // each edge runs between its corners' squares, and on through a corner that is not rounded
+    const int from_x = rect.x + (((corners & GUI_RASTER_CORNER_TOP_LEFT) != 0u) ? side : 0);
+    const int to_x = rect.x + rect.width - (((corners & GUI_RASTER_CORNER_TOP_RIGHT) != 0u) ? side : 0);
+    const int foot_from_x = rect.x + (((corners & GUI_RASTER_CORNER_BOTTOM_LEFT) != 0u) ? side : 0);
+    const int foot_to_x = rect.x + rect.width - (((corners & GUI_RASTER_CORNER_BOTTOM_RIGHT) != 0u) ? side : 0);
+    const int left_from_y = rect.y + (((corners & GUI_RASTER_CORNER_TOP_LEFT) != 0u) ? side : 0);
+    const int left_to_y = rect.y + rect.height - (((corners & GUI_RASTER_CORNER_BOTTOM_LEFT) != 0u) ? side : 0);
+    const int right_from_y = rect.y + (((corners & GUI_RASTER_CORNER_TOP_RIGHT) != 0u) ? side : 0);
+    const int right_to_y = rect.y + rect.height - (((corners & GUI_RASTER_CORNER_BOTTOM_RIGHT) != 0u) ? side : 0);
+    const GuiRect edges[4] = {{from_x, rect.y, top ? to_x - from_x : 0, stroke},
+                              {foot_from_x, rect.y + rect.height - stroke, bottom ? foot_to_x - foot_from_x : 0, stroke},
+                              {rect.x, left_from_y, left ? stroke : 0, left_to_y - left_from_y},
+                              {rect.x + rect.width - stroke, right_from_y, right ? stroke : 0, right_to_y - right_from_y}};
+    for (unsigned int edge = 0u; edge < 4u; edge += 1u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = edges[edge],
+                   .color = args->color);
+    }
+    // the inner rectangle: the stroke in from each edge the line runs along
+    const GuiRect inner = {rect.x + (left ? stroke : 0), rect.y + (top ? stroke : 0),
+                           rect.width - (left ? stroke : 0) - (right ? stroke : 0),
+                           rect.height - (top ? stroke : 0) - (bottom ? stroke : 0)};
+    const unsigned int inner_radius = (side > stroke) ? (unsigned int)(side - stroke) : 0u;
+    const unsigned int alpha = GUI_ALPHA_OF(args->color);
+    const unsigned int bits[4] = {GUI_RASTER_CORNER_TOP_LEFT, GUI_RASTER_CORNER_TOP_RIGHT, GUI_RASTER_CORNER_BOTTOM_LEFT,
+                                  GUI_RASTER_CORNER_BOTTOM_RIGHT};
+    const int square_x[4] = {rect.x, rect.x + rect.width - side, rect.x, rect.x + rect.width - side};
+    const int square_y[4] = {rect.y, rect.y, rect.y + rect.height - side, rect.y + rect.height - side};
+    for (unsigned int corner = 0u; corner < 4u; corner += 1u)
+    {
+        if ((corners & bits[corner]) == 0u)
+        {
+            continue;
+        }
+        const GuiRect square = EMBED_CALL(
+            gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = (GuiRect){square_x[corner], square_y[corner], side, side},
+            .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
+        for (int y = square.y; y < square.y + square.height; y += 1)
+        {
+            for (int x = square.x; x < square.x + square.width; x += 1)
+            {
+                const unsigned int outer_cover =
+                    EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = rect, .radius = args->radius, .x = x, .y = y);
+                const int within = (x >= inner.x) && (x < inner.x + inner.width) && (y >= inner.y) &&
+                                   (y < inner.y + inner.height);
+                const unsigned int inner_cover =
+                    within ? EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = inner, .radius = inner_radius, .x = x,
+                                        .y = y)
+                           : 0u;
+                const unsigned int cover = (outer_cover > inner_cover) ? outer_cover - inner_cover : 0u;
+                if (cover != 0u)
+                {
+                    // two shares of 255 multiplied are a share of 255 once divided by 255
+                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+                               .color = args->color, .share = ((alpha * cover) + 127u) / 255u);
+                }
+            }
+        }
+    }
+}
+
 void gui_raster_round(const GuiRasterRectColorCfg *args)
 {
     GuiRect on;
     if (!EMBED_CALL(raster_drawn, GuiRasterCtx, .raster_read = args->raster, .rect = args->rect, .color = args->color,
                     .on_out = &on))
     {
+        return;
+    }
+    if ((args->stroke > 0) && (args->radius != 0u))
+    {
+        raster_ring(args);
         return;
     }
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
@@ -339,8 +420,17 @@ void gui_raster_round(const GuiRasterRectColorCfg *args)
         }
         for (int x = on.x; x < on.x + on.width; x += 1)
         {
-            const unsigned int cover = EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->rect,
-                                                  .radius = args->radius, .x = x, .y = y);
+            // a pixel in the square of a corner the fill does not round is covered whole
+            const int left = x < args->rect.x + side;
+            const int right = x >= args->rect.x + args->rect.width - side;
+            const int top = y < args->rect.y + side;
+            const unsigned int corner = top ? (left ? GUI_RASTER_CORNER_TOP_LEFT : GUI_RASTER_CORNER_TOP_RIGHT)
+                                            : (left ? GUI_RASTER_CORNER_BOTTOM_LEFT : GUI_RASTER_CORNER_BOTTOM_RIGHT);
+            const int square = left || right;
+            const int square_kept = square && (args->corners != 0u) && ((args->corners & corner) == 0u);
+            const unsigned int cover = square_kept ? 255u
+                                                   : EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->rect,
+                                                                .radius = args->radius, .x = x, .y = y);
             if (cover != 0u)
             {
                 // two shares of 255 multiplied are a share of 255 once divided by 255
@@ -1304,42 +1394,47 @@ unsigned int gui_raster_order(const GuiRasterRectCfg *args)
     return ((across & 1u) << 3u) | ((down & 1u) << 2u) | (((across >> 1u) & 1u) << 1u) | ((down >> 1u) & 1u);
 }
 
-// a channel of `color` put down over `background_fill` with the dot's `share` of it from 0 to 1 and the dither's
-// `threshold` in levels of 255: the color's share and the threshold laid over the ground's rest, as the page's shader
-// blends a premultiplied dot over what stands
-EMBED_INLINE unsigned int raster_dot_channel(const GuiRasterCtx *args)
+// One pixel's square in 32.32 fixed point: 2^32
+#define RASTER_DOT_ONE_SQUARED 4294967296LL
+// The common denominator of a dot's levels, 255 * 2^21: a share in 2^-16 of a pixel's cover and of 1/255 of the ink,
+// and a dither threshold in 1/32 of a level, both hold whole over it
+#define RASTER_DOT_DENOMINATOR (255LL << 21)
+
+typedef struct
 {
-    const float laid = ((float)args->color_u32 * args->share_f32) + args->threshold;
-    float within;
-    if (laid < 0.0f)
+    unsigned int color;
+    unsigned int background;
+    unsigned int ink;
+    int64_t inside;
+    int x;
+    int y;
+} GuiRasterDotCtx;
+
+// One channel of a dot's pixel, from 0 to 255: the float dot's arithmetic held whole over RASTER_DOT_DENOMINATOR.
+// `inside` is radius + 0.5 less the distance, in 16.16, and above 0. The cover is `inside` to at most one pixel. The
+// share is the cover by the ink over 255. The threshold is the order less 7.5, over 16. The level is the color by
+// the share plus the threshold, in 0 to 255, plus the ground by what the share leaves of it. The level rounds once
+EMBED_INLINE unsigned int raster_dot_level(const GuiRasterDotCtx *args)
+{
+    const int64_t cover = (args->inside > 65536) ? 65536 : args->inside;
+    // the share by 255 * 2^16, and the threshold by 32
+    const int64_t share = cover * (int64_t)args->ink;
+    const int64_t threshold = (2 * (int64_t)gui_raster_order(&(GuiRasterRectCfg){.x = args->x, .y = args->y})) - 15;
+    // the share's alpha, 255 * share + threshold, and the color's part, color * share + threshold, both over the
+    // denominator
+    const int64_t alpha = (share * 32) + (threshold * 65536);
+    const int64_t laid = ((int64_t)args->color * share * 32) + (threshold * 255 * 65536);
+    const int64_t alpha_within = (alpha < 0) ? 0 : ((alpha > RASTER_DOT_DENOMINATOR) ? RASTER_DOT_DENOMINATOR : alpha);
+    const int64_t within =
+        (laid < 0) ? 0 : ((laid > 255 * RASTER_DOT_DENOMINATOR) ? 255 * RASTER_DOT_DENOMINATOR : laid);
+    const int64_t level = within + ((int64_t)args->background * (RASTER_DOT_DENOMINATOR - alpha_within));
+    if (level >= 255 * RASTER_DOT_DENOMINATOR)
     {
-        within = 0.0f;
+        return 255u;
     }
-    else if (laid > 255.0f)
-    {
-        within = 255.0f;
-    }
-    else
-    {
-        within = laid;
-    }
-    const float alpha = (args->share_f32 * 255.0f) + args->threshold;
-    float rest;
-    if (alpha < 0.0f)
-    {
-        rest = 1.0f;
-    }
-    else if (alpha > 255.0f)
-    {
-        rest = 0.0f;
-    }
-    else
-    {
-        rest = 1.0f - (alpha / 255.0f);
-    }
-    const float out = within + ((float)args->background_u32 * rest);
-    // a channel from 0 to 255, rounded, is a byte
-    return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);
+    // One rounding to the nearest level: the shift and the division by the constant 255 are two floors of the one
+    // quotient, and two floors of a positive quotient give the floor of the whole
+    return (unsigned int)(((level + (RASTER_DOT_DENOMINATOR / 2)) >> 21) / 255);
 }
 
 void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
@@ -1387,7 +1482,8 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
 
 void gui_raster_dot(const GuiRasterColorCfg *args)
 {
-    const float text_color = (float)GUI_ALPHA_OF(args->color) / 255.0f;
+    // the dot's ink is its color's alpha, from 0 to 255
+    const unsigned int ink = GUI_ALPHA_OF(args->color);
     const float reach = args->radius_f32 + 1.0f;
     // the square about the dot, its sides whole pixels, is far inside what an int represents
     const int left = (int)floorf(args->x_f32 - reach);
@@ -1400,29 +1496,52 @@ void gui_raster_dot(const GuiRasterColorCfg *args)
         .other = EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->clip)
                      ? whole
                      : EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->clip, .other = whole));
+    if ((ink == 0u) || EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on))
+    {
+        return;
+    }
+    // The center and the edge are in 16.16 fixed point. A float position below 2^11 holds at most 13 fraction bits,
+    // so the scale by 2^16 is exact. The edge is radius + 0.5, as the float dot adds it
+    const int64_t center_x = (int64_t)(args->x_f32 * 65536.0f);
+    const int64_t center_y = (int64_t)(args->y_f32 * 65536.0f);
+    const int64_t edge = (int64_t)((args->radius_f32 + 0.5f) * 65536.0f);
+    // a squared distance in 32.32 at or past the edge's square gives no cover, and needs no root
+    const int64_t edge_squared = edge * edge;
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
+        const int64_t down = ((int64_t)row * 65536) + 32768 - center_y;
+        const int64_t across = ((int64_t)on.x * 65536) + 32768 - center_x;
+        // The squared distance along the row is a quadratic in the column. Two adds step it to the next pixel: the
+        // first difference is 2 * across * 2^16 + 2^32, and the second difference is 2^33
+        int64_t distance_squared = (across * across) + (down * down);
+        int64_t step = (2 * across * 65536) + RASTER_DOT_ONE_SQUARED;
+        // the pixel lies on the raster: its coordinates are not negative
+        GuiColor *at = &args->raster->pixels[((unsigned int)row * args->raster->width) + (unsigned int)on.x];
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
-            const float inside = args->radius_f32 -
-                                 hypotf(((float)column + 0.5f) - args->x_f32, ((float)row + 0.5f) - args->y_f32) + 0.5f;
-            if (inside <= 0.0f)
+            if (distance_squared < edge_squared)
             {
-                continue;
+                // The root of the exact 32.32 square is the distance in 16.16. The hardware root of a double
+                // rounds correctly, and the conversion truncates it to 2^-16 of a pixel
+                const int64_t inside = edge - (int64_t)sqrt((double)distance_squared);
+                if (inside > 0)
+                {
+                    const GuiColor ground = *at;
+                    *at = GUI_RGB(
+                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_RED_OF(args->color),
+                                   .background = GUI_RED_OF(ground), .ink = ink, .inside = inside, .x = column,
+                                   .y = row),
+                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_GREEN_OF(args->color),
+                                   .background = GUI_GREEN_OF(ground), .ink = ink, .inside = inside, .x = column,
+                                   .y = row),
+                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_BLUE_OF(args->color),
+                                   .background = GUI_BLUE_OF(ground), .ink = ink, .inside = inside, .x = column,
+                                   .y = row));
+                }
             }
-            const float share = text_color * ((inside < 1.0f) ? inside : 1.0f);
-            const float threshold =
-                ((float)EMBED_CALL(gui_raster_rect.order, GuiRasterRectCfg, .x = column, .y = row) - 7.5f) / 16.0f;
-            // the pixel lies on the raster: its coordinates are not negative
-            GuiColor *const at =
-                &args->raster->pixels[((unsigned int)row * args->raster->width) + (unsigned int)column];
-            *at =
-                GUI_RGB(EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_RED_OF(*at),
-                                   .color_u32 = GUI_RED_OF(args->color), .share_f32 = share, .threshold = threshold),
-                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_GREEN_OF(*at),
-                                   .color_u32 = GUI_GREEN_OF(args->color), .share_f32 = share, .threshold = threshold),
-                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_BLUE_OF(*at),
-                                   .color_u32 = GUI_BLUE_OF(args->color), .share_f32 = share, .threshold = threshold));
+            distance_squared += step;
+            step += 2 * RASTER_DOT_ONE_SQUARED;
+            at += 1;
         }
     }
 }

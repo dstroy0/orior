@@ -223,8 +223,8 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
                                              .language = language, .sink = &sink, .spec = spec, .err_msg = &err_msg)
                                 : NULL;
         unsigned long long size = 0ULL;
-        char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_alloc,
-                                                         CliServersPathSizeKindCfg, .path = path, .size_pointer = &size)
+        char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type.text_alloc,
+                                                         CliServersPathSizeTypeCfg, .path = path, .size_pointer = &size)
                                             : NULL;
         char id[CLI_NAME_MAX_LEN];
         if (text != NULL)

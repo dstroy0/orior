@@ -34,11 +34,11 @@ const EMPTY_USAGES = "Find Usages (Shift+F12) on a symbol lists each place it is
 // The fix mark: a bulb, drawn in the color of the line's worst diagnostic.
 const BULB = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6a4.6 4.6 0 0 0-2.7 8.3c.5.4.8 1 .8 1.6v.5h3.8v-.5c0-.6.3-1.2.8-1.6A4.6 4.6 0 0 0 8 1.6Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 13.6h3.6M6.7 15h2.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
 
-// The places the symbol at the cursor is defined at, used at, or called from, as `kind` asks,
+// The places the symbol at the cursor is defined at, used at, or called from, as `type` asks,
 // "definition", "usages" or "callers": each its file, its line and column from 0, and the text of the
 // line where the server gives it, with the name asked about. Null after saying why there is nothing
 // to ask.
-export async function placesHere(kind) {
+export async function placesHere(type) {
   const found = served();
   if (!found) {
     return null;
@@ -46,11 +46,11 @@ export async function placesHere(kind) {
   const word = wordAt(found.s.doc, found.head);
   const name = word?.text ?? "the symbol";
   await flush(found.tab);
-  if (kind === "definition") {
+  if (type === "definition") {
     const places = (await asked("lsp_definition", found.at).catch(() => [])) ?? [];
     return { name, places: places.map((one) => ({ path: one.path, line: one.line, col: one.col, text: "" })) };
   }
-  if (kind === "usages") {
+  if (type === "usages") {
     const usages = (await asked("lsp_references", found.at, 61000)) ?? [];
     return { name, places: usages.map((one) => ({ path: one.path, line: one.from.line, col: one.from.col, text: one.text })) };
   }

@@ -40,9 +40,9 @@ function schedule() {
 }
 
 async function refresh() {
-  const kind = state.kind;
-  const listed = await invoke(kind === "docker" ? "containers_list" : "pods_list").catch((error) => ({ items: [], problem: String(error) }));
-  if (kind === state.kind) {
+  const type = state.kind;
+  const listed = await invoke(type === "docker" ? "containers_list" : "pods_list").catch((error) => ({ items: [], problem: String(error) }));
+  if (type === state.kind) {
     draw(listed);
   }
   schedule();
@@ -135,13 +135,13 @@ async function openIn(name, given = null) {
 
 const quoted = (text) => `'${text.replace(/'/g, "'\\''")}'`;
 
-// The window shows `kind`, Docker's containers or Kubernetes' pods, and reads them again.
-async function showKind(kind) {
+// The window shows `type`, Docker's containers or Kubernetes' pods, and reads them again.
+async function showType(type) {
   toggleContainers(true);
-  if (state.kind !== kind) {
-    state.kind = kind;
+  if (state.kind !== type) {
+    state.kind = type;
     state.shown = null;
-    parts.bar.querySelectorAll(".profile-tab").forEach((one, at) => one.setAttribute("aria-pressed", String((at === 0 ? "docker" : "pods") === kind)));
+    parts.bar.querySelectorAll(".profile-tab").forEach((one, at) => one.setAttribute("aria-pressed", String((at === 0 ? "docker" : "pods") === type)));
     parts.list.replaceChildren();
     show("", "");
   }
@@ -160,14 +160,14 @@ function shellLine(key, container = null) {
 
 // The window's menu and its controls as commands, by the names commands.json gives them, each run
 // from the window or from the command line with a container's name, or a pod as namespace/name.
-const kindOf = (key) => (key.includes("/") ? "pods" : "docker");
+const typeOf = (key) => (key.includes("/") ? "pods" : "docker");
 
 export const containerCommands = {
-  "containers-kind": ([kind]) => showKind(kind === "pods" ? "pods" : "docker"),
+  "containers-kind": ([type]) => showType(type === "pods" ? "pods" : "docker"),
   "containers-read": () => refresh(),
-  "container-logs": async ([key, container]) => (await showKind(kindOf(key)), logsOf(key, container ?? null)),
-  "container-run": async ([name, ...line]) => (await showKind("docker"), runIn(name, line.length ? line.join(" ") : null)),
-  "container-terminal": async ([key, container]) => (await showKind(kindOf(key)), state.hooks.terminal(shellLine(key, container ?? null))),
+  "container-logs": async ([key, container]) => (await showType(typeOf(key)), logsOf(key, container ?? null)),
+  "container-run": async ([name, ...line]) => (await showType("docker"), runIn(name, line.length ? line.join(" ") : null)),
+  "container-terminal": async ([key, container]) => (await showType(typeOf(key)), state.hooks.terminal(shellLine(key, container ?? null))),
   "container-open": ([name, folder]) => openIn(name, folder ?? null),
   "container-start": ([name]) => act(name, "start"),
   "container-stop": ([name]) => act(name, "stop"),
@@ -216,11 +216,11 @@ export function containersShown() {
 export function startContainers(hooks) {
   state.hooks = hooks;
   parts.panel = document.getElementById("containers");
-  const tab = (kind, label) => {
+  const tab = (type, label) => {
     const button = element("button", { className: "profile-tab", type: "button", textContent: label });
-    button.setAttribute("aria-pressed", String(state.kind === kind));
+    button.setAttribute("aria-pressed", String(state.kind === type));
     button.addEventListener("click", () => {
-      state.kind = kind;
+      state.kind = type;
       state.shown = null;
       parts.bar.querySelectorAll(".profile-tab").forEach((one) => one.setAttribute("aria-pressed", String(one === button)));
       parts.list.replaceChildren();

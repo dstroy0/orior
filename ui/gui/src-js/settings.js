@@ -66,27 +66,27 @@ export function settingsChanged(keys) {
   }
 }
 
-// Tells `listener` the settings the files changed, each by its key without `orior.` and a kind's as
-// `[kind] key`, each time the files are read again.
+// Tells `listener` the settings the files changed, each by its key without `orior.` and a type's as
+// `[type] key`, each time the files are read again.
 export function onSettings(listener) {
   listeners.push(listener);
 }
 
-// The settings in force as settings.rs read them: over, under, own, from, kinds, files, problems.
+// The settings in force as settings.rs read them: over, under, own, from, types, files, problems.
 export function settingsInForce() {
   return layers;
 }
 
-// The setting `key` of the files of the language `kind`, or null.
-export function kindSetting(kind, key) {
-  return layers.kinds[kind]?.[key] ?? null;
+// The setting `key` of the files of the language `type`, or null.
+export function typeSetting(type, key) {
+  return layers.kinds[type]?.[key] ?? null;
 }
 
 const textsOf = (read) => [...Object.keys(read.over), ...Object.keys(read.under)];
-const kindKeys = (read) => Object.entries(read.kinds).flatMap(([kind, set]) => Object.keys(set).map((key) => `[${kind}] ${key}`));
-const kindText = (read, name) => {
-  const [, kind, key] = name.match(/^\[(.*)\] (.*)$/);
-  return read.kinds[kind]?.[key] ?? null;
+const typeKeys = (read) => Object.entries(read.kinds).flatMap(([type, set]) => Object.keys(set).map((key) => `[${type}] ${key}`));
+const typeText = (read, name) => {
+  const [, type, key] = name.match(/^\[(.*)\] (.*)$/);
+  return read.kinds[type]?.[key] ?? null;
 };
 
 // Reads the settings in force for the tree at `at` again, and tells each listener those that changed.
@@ -96,13 +96,13 @@ export async function readSettings(at = root) {
   const read = await invoke("settings_layers", { tree, root }).catch((error) => ({ ...EMPTY, problems: [String(error)] }));
   const keys = new Set([...textsOf(layers), ...textsOf(read)]);
   const before = new Map([...keys].map((key) => [key, localStorage.getItem(`orior.${key}`)]));
-  const kinds = new Set([...kindKeys(layers), ...kindKeys(read)]);
-  const kindsBefore = new Map([...kinds].map((name) => [name, kindText(layers, name)]));
+  const types = new Set([...kindKeys(layers), ...kindKeys(read)]);
+  const typesBefore = new Map([...kinds].map((name) => [name, typeText(layers, name)]));
   layers = { ...EMPTY, ...read };
   said.clear();
   const changed = new Set([...keys].filter((key) => localStorage.getItem(`orior.${key}`) !== before.get(key)));
-  for (const name of kinds) {
-    if (kindText(layers, name) !== kindsBefore.get(name)) {
+  for (const name of types) {
+    if (typeText(layers, name) !== typesBefore.get(name)) {
       changed.add(name);
     }
   }

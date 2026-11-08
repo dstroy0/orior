@@ -62,7 +62,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     {
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = dir, .src = args->project, .cap = CLI_PATH_MAX_LEN});
     }
-    else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->file, .out = dir))
+    else if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->file, .out = dir))
     {
         dir[0] = '\0';
     }
@@ -76,7 +76,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
                           .src = args->program,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->program,
+    else if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->program,
                          .out = folder) ||
              !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = &first,
                          .count = 1u, .path = runs))

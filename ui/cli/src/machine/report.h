@@ -63,7 +63,7 @@ enum
 
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     char url[CLI_REPORT_URL];
 } CliFiled;
 

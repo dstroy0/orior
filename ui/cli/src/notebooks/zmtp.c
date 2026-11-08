@@ -24,7 +24,7 @@ typedef struct
     unsigned char *body_bytes;
     unsigned long long capacity;
     unsigned long long *size_pointer;
-    const char *kind;
+    const char *type;
     VerbaLinea *err_msg;
 } ZmtpCtx;
 // the head of a frame of `size` bytes with `flags` written into `head`, sized for 9: how many bytes it takes
@@ -157,7 +157,7 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
         return 0;
     }
     unsigned char ready[64];
-    const size_t kind_length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES});
+    const size_t type_length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES});
     unsigned int at = 0u;
     ready[at++] = 5u;
     memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = "READY", .bytes = 5u});
@@ -168,10 +168,10 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
         // a socket's type is a few letters, which a 32-bit length stores
-        ready[at++] = (unsigned char)((kind_length >> (24u - (8u * byte))) & 0xffu);
+        ready[at++] = (unsigned char)((type_length >> (24u - (8u * byte))) & 0xffu);
     }
-    memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = args->kind, .bytes = kind_length});
-    at += (unsigned int)kind_length;
+    memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = args->type, .bytes = type_length});
+    at += (unsigned int)type_length;
     unsigned char answer[4096];
     unsigned int flags = 0u;
     unsigned long long size = 0ULL;
@@ -195,12 +195,12 @@ int cli_zmtp_connect(const CliZmtpSocketHostCfg *args)
     {
         return 0;
     }
-    if (!EMBED_CALL(cli_zmtp_greet, ZmtpCtx, .socket = args->socket_out, .kind = args->kind, .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_zmtp_greet, ZmtpCtx, .socket = args->socket_out, .type = args->type, .err_msg = args->err_msg))
     {
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = args->socket_out);
         return 0;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "SUB", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "SUB", .cap = CLI_POOL_BYTES}))
     {
         const unsigned char subscribe = 1u;
         const CliZmtpFrame frame = {&subscribe, 1ULL};

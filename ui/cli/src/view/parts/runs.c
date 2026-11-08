@@ -105,7 +105,7 @@ static void runs_row_draw(const GuiPaneCfg *args)
     const int pointed = args->pane_read->pointed == (int)args->row;
     char digits[64];
     VerbaLinea line = {digits, sizeof(digits), 0ULL};
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_RUNS_ROW_EMPTY:
         (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .face = GUI_FACE_HEAD,

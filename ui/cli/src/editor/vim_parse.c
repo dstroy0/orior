@@ -136,7 +136,7 @@ EMBED_INLINE void parse_operated(const VimParseCtx *args)
             command->status = CLI_VIM_PARSE_WAIT;
             return;
         }
-        command->object_kind = target;
+        command->object_type = target;
         command->object_of = tokens->token[tokens->at];
         tokens->at += 1u;
         command->status = CLI_VIM_PARSE_WHOLE;
@@ -196,7 +196,7 @@ void cli_vim_parse(const CliVimCtx *args)
         {
             return;
         }
-        command->object_kind = name;
+        command->object_type = name;
         command->object_of = tokens.token[tokens.at];
         command->status = CLI_VIM_PARSE_WHOLE;
         return;

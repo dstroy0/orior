@@ -107,7 +107,7 @@ export function moved() {
 }
 
 // Input first. A key or a press marks the status block's input active, and until it has rested
-// INPUT_REST every piece of work off the rows on screen is kept here, one of each kind, and done
+// INPUT_REST every piece of work off the rows on screen is kept here, one of each type, and done
 // once input stops.
 //
 // The caret holds still while input is active. A caret that blinks starts its blink again each
@@ -128,9 +128,9 @@ export function inputting() {
   }, INPUT_REST);
 }
 
-export function later(kind, run) {
+export function later(type, run) {
   if (status.input.active) {
-    this.deferred.set(kind, run);
+    this.deferred.set(type, run);
   } else {
     run();
   }
@@ -212,8 +212,8 @@ export function wordLeft(p) {
   while (at > 0 && /\s/.test(text[at - 1])) {
     at -= 1;
   }
-  const kind = isWordChar(text[at - 1]);
-  while (at > 0 && !/\s/.test(text[at - 1]) && isWordChar(text[at - 1]) === kind) {
+  const type = isWordChar(text[at - 1]);
+  while (at > 0 && !/\s/.test(text[at - 1]) && isWordChar(text[at - 1]) === type) {
     at -= 1;
   }
   return pos(p.line, at);
@@ -228,8 +228,8 @@ export function wordRight(p) {
   while (at < text.length && /\s/.test(text[at])) {
     at += 1;
   }
-  const kind = isWordChar(text[at]);
-  while (at < text.length && !/\s/.test(text[at]) && isWordChar(text[at]) === kind) {
+  const type = isWordChar(text[at]);
+  while (at < text.length && !/\s/.test(text[at]) && isWordChar(text[at]) === type) {
     at += 1;
   }
   return pos(p.line, at);

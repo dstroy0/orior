@@ -104,7 +104,7 @@ EMBED_INLINE void parse_parameters(const InspectPyParseCtx *args)
             EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src,
                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset + 1u),
                        .words = s_after, .count = 4u);
-        if ((tok->kind == CLI_PY_NAME) && (depth == 1) && before && after && (s_param_count < CLI_INSPECT_TOKENS / 4u))
+        if ((tok->type == CLI_PY_NAME) && (depth == 1) && before && after && (s_param_count < CLI_INSPECT_TOKENS / 4u))
         {
             s_params[s_param_count] = line->first + offset;
             s_param_count += 1u;
@@ -387,20 +387,20 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
     for (unsigned int offset = 0u; offset < line->count; offset += 1u)
     {
         const CliInspectTok *const tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset);
-        if ((tok->kind == CLI_PY_NAME) && tok->field)
+        if ((tok->type == CLI_PY_NAME) && tok->field)
         {
             continue;
         }
         unsigned char class_of = CLI_INSPECT_NONE;
-        if (tok->kind == CLI_PY_STR)
+        if (tok->type == CLI_PY_STR)
         {
             class_of = CLI_INSPECT_STRING;
         }
-        else if (tok->kind == CLI_PY_NUMBER)
+        else if (tok->type == CLI_PY_NUMBER)
         {
             class_of = CLI_INSPECT_NUMBER;
         }
-        else if (tok->kind == CLI_PY_NAME)
+        else if (tok->type == CLI_PY_NAME)
         {
             class_of =
                 EMBED_CALL(parse_name_class, InspectPyParseCtx, .src = src, .line = line, .offset = offset,
@@ -415,7 +415,7 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
         }
         EMBED_CALL(cli_inspect_from_to_internal.paint, CliInspectFromToCtx, .from = tok->from, .to = tok->to,
                    .class_of = class_of);
-        if (tok->kind == CLI_PY_STR)
+        if (tok->type == CLI_PY_STR)
         {
             EMBED_CALL(parse_string, InspectPyParseCtx, .src = src, .tok = tok, .parsed = parsed);
         }

@@ -34,10 +34,10 @@ typedef struct CliCargoTestsCfg CliCargoTestsCfg;
 #define CLI_CARGO_BIN 1u
 #define CLI_CARGO_TEST 2u
 
-// A target of a package as Cargo builds it: its kind, and its name, NULL for the library
+// A target of a package as Cargo builds it: its type, and its name, NULL for the library
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *name;
 } CliCargoTarget;
 

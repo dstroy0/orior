@@ -13,6 +13,7 @@
 #include "framebuffer.h"
 #include "ground.h"
 #include "parts/busy.h"
+#include "parts/dialog.h"
 #include "parts/editor.h"
 #include "parts/hover.h"
 #include "parts/menubar.h"
@@ -38,7 +39,7 @@ typedef struct GuiWindowCfg GuiWindowCfg;
 typedef struct GuiWindowHitsCfg GuiWindowHitsCfg;
 typedef struct GuiWindowAutohideCfg GuiWindowAutohideCfg;
 typedef struct GuiWindowInputCfg GuiWindowInputCfg;
-typedef struct GuiWindowInputKindCfg GuiWindowInputKindCfg;
+typedef struct GuiWindowInputTypeCfg GuiWindowInputTypeCfg;
 typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
 typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 
@@ -115,10 +116,22 @@ typedef struct GuiWindow
     GuiPreferenceValues preference_values;
     GuiRaster preferences_raster;
     unsigned long long preferences_capacity;
+    GuiBackground preferences_ground;
+    GuiRaster preferences_ground_raster;
     unsigned int display_width;
     unsigned int display_height;
     int preferences_pending;
     int preferences_system_scale;
+    GuiDialog dialog;
+    GuiRaster dialog_raster;
+    unsigned long long dialog_capacity;
+    GuiBackground dialog_ground;
+    GuiRaster dialog_ground_raster;
+    int dialog_pending;
+    int dialog_system_scale;
+    unsigned int dialog_owner;
+    int dialog_held;
+    GuiDialogChange dialog_answer;
     GuiPaletteOwn palette_own;
     int system_scale;
     GuiAutohide claim;
@@ -181,7 +194,7 @@ int gui_window_resize(const GuiWindowWidthCfg *args);
 // main window's its; where the pointer on the input stands, as the names above give the places; and its frame drawn
 // into its own raster, the frame owed no more
 void gui_window_preferences_resize(const GuiWindowWidthCfg *args);
-void gui_window_preferences_input(const GuiWindowInputKindCfg *args);
+void gui_window_preferences_input(const GuiWindowInputTypeCfg *args);
 unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args);
 void gui_window_preferences_draw(const GuiWindowCfg *args);
 // the window started on the tree the command line found, `woken` waking the view's thread from any thread: the settings
@@ -205,7 +218,7 @@ void gui_window_hits(const GuiWindowHitsCfg *args);
 void gui_window_preferences_hits(const GuiWindowHitsCfg *args);
 // where the pointer on the input stands; and an input in the main window, as its table says
 unsigned int gui_window_hit(const GuiWindowInputCfg *args);
-void gui_window_input(const GuiWindowInputKindCfg *args);
+void gui_window_input(const GuiWindowInputTypeCfg *args);
 // on the window's thread, the modules stepped: the commands come through the door run, the servers' reports and the
 // panels' timers taken, the terminal's shells drained, the notices' and the menus' timers taken, lines the walk colored
 // taken into the frame, what orior takes in RAM read when its time comes; each that changed owing a frame
@@ -273,7 +286,7 @@ struct GuiWindowInputCfg
     const GuiWindow *window_read;
 };
 
-struct GuiWindowInputKindCfg
+struct GuiWindowInputTypeCfg
 {
     GuiWindow *window;
     const GuiInput *input;
@@ -345,11 +358,11 @@ EMBED_TABLE_STORAGE GuiWindowWidthNs gui_window_width EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*preferences_input)(const GuiWindowInputKindCfg *args);
-    void (*input)(const GuiWindowInputKindCfg *args);
-} GuiWindowInputKindNs;
-EMBED_TABLE_LAYOUT(GuiWindowInputKindNs, preferences_input, input);
-EMBED_TABLE_STORAGE GuiWindowInputKindNs gui_window_input_kind EMBED_UNUSED = {
+    void (*preferences_input)(const GuiWindowInputTypeCfg *args);
+    void (*input)(const GuiWindowInputTypeCfg *args);
+} GuiWindowInputTypeNs;
+EMBED_TABLE_LAYOUT(GuiWindowInputTypeNs, preferences_input, input);
+EMBED_TABLE_STORAGE GuiWindowInputTypeNs gui_window_input_type EMBED_UNUSED = {
     .preferences_input = gui_window_preferences_input,
     .input = gui_window_input,
 };
@@ -401,6 +414,109 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliWindowIconNs, icon);
 EMBED_TABLE_STORAGE CliWindowIconNs cli_window_icon EMBED_UNUSED = {
     .icon = gui_window_icon,
+};
+
+// The dialog's system window (window_dialog.c), modal over the surface that owns it. A caller asks it with the texts
+// and the surface that owns it. Where `held` is set, the door's held command takes the answer, the pressed button's
+// label or nothing for a close. Else `dialog_answer` keeps the answer for the caller. The dialog shows only one ask at
+// a time, so a second ask while one shows is refused
+typedef struct GuiWindowDialogAskCfg GuiWindowDialogAskCfg;
+typedef struct GuiWindowDialogWantCfg GuiWindowDialogWantCfg;
+int gui_window_dialog_ask(const GuiWindowDialogAskCfg *args);
+// the size the dialog's client wants at the main window's scale
+void gui_window_dialog_want(const GuiWindowDialogWantCfg *args);
+// its client sized at the scale the system draws it at; an input in it; where the pointer on the input stands; what a
+// pixel stands on, written into `hits`; its frame drawn into its own raster; and the dialog closed with no answer, as
+// the system asks
+void gui_window_dialog_resize(const GuiWindowWidthCfg *args);
+void gui_window_dialog_input(const GuiWindowInputTypeCfg *args);
+unsigned int gui_window_dialog_hit(const GuiWindowInputCfg *args);
+void gui_window_dialog_hits(const GuiWindowHitsCfg *args);
+void gui_window_dialog_draw(const GuiWindowCfg *args);
+void gui_window_dialog_close(const GuiWindowCfg *args);
+struct GuiWindowDialogAskCfg
+{
+    GuiWindow *window;
+    unsigned int owner;
+    const char *title;
+    const char *body;
+    const char *const *labels;
+    unsigned int count;
+    unsigned int preferred;
+    int held;
+    int error;
+};
+
+struct GuiWindowDialogWantCfg
+{
+    GuiWindow *window;
+    unsigned int *width_pointer;
+    unsigned int *height_pointer;
+};
+
+typedef struct
+{
+    int (*ask)(const GuiWindowDialogAskCfg *args);
+} GuiWindowDialogAskNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogAskNs, ask);
+EMBED_TABLE_STORAGE GuiWindowDialogAskNs gui_window_dialog_asking EMBED_UNUSED = {
+    .ask = gui_window_dialog_ask,
+};
+
+typedef struct
+{
+    void (*want)(const GuiWindowDialogWantCfg *args);
+} GuiWindowDialogWantNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogWantNs, want);
+EMBED_TABLE_STORAGE GuiWindowDialogWantNs gui_window_dialog_wanting EMBED_UNUSED = {
+    .want = gui_window_dialog_want,
+};
+
+typedef struct
+{
+    void (*resize)(const GuiWindowWidthCfg *args);
+} GuiWindowDialogWidthNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogWidthNs, resize);
+EMBED_TABLE_STORAGE GuiWindowDialogWidthNs gui_window_dialog_width EMBED_UNUSED = {
+    .resize = gui_window_dialog_resize,
+};
+
+typedef struct
+{
+    void (*input)(const GuiWindowInputTypeCfg *args);
+} GuiWindowDialogInputTypeNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogInputTypeNs, input);
+EMBED_TABLE_STORAGE GuiWindowDialogInputTypeNs gui_window_dialog_input_type EMBED_UNUSED = {
+    .input = gui_window_dialog_input,
+};
+
+typedef struct
+{
+    unsigned int (*hit)(const GuiWindowInputCfg *args);
+} GuiWindowDialogInputNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogInputNs, hit);
+EMBED_TABLE_STORAGE GuiWindowDialogInputNs gui_window_dialog_input_hit EMBED_UNUSED = {
+    .hit = gui_window_dialog_hit,
+};
+
+typedef struct
+{
+    void (*hits)(const GuiWindowHitsCfg *args);
+} GuiWindowDialogHitsNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogHitsNs, hits);
+EMBED_TABLE_STORAGE GuiWindowDialogHitsNs gui_window_dialog_hits_table EMBED_UNUSED = {
+    .hits = gui_window_dialog_hits,
+};
+
+typedef struct
+{
+    void (*draw)(const GuiWindowCfg *args);
+    void (*close)(const GuiWindowCfg *args);
+} GuiWindowDialogNs;
+EMBED_TABLE_LAYOUT(GuiWindowDialogNs, draw, close);
+EMBED_TABLE_STORAGE GuiWindowDialogNs gui_window_dialog_table EMBED_UNUSED = {
+    .draw = gui_window_dialog_draw,
+    .close = gui_window_dialog_close,
 };
 
 #endif

@@ -78,13 +78,13 @@ const CliOutcome *cli_command_line_launched(void);
 // the notices (notices.c), as the page's status bar shows them: the notice `text` posted, a failure's where `failed` is
 // 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any other
 // waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus stops every one until it ends; a
-// notice whose kind is put away shows not at all; one shown stands CLI_NOTICES_SHOWN_MS on the status bar, a failure's
-// CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its kind away for good,
+// notice whose type is put away shows not at all; one shown stands CLI_NOTICES_SHOWN_MS on the status bar, a failure's
+// CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its type away for good,
 // saved in orior's folder. Any input, a press of the pointer, or the key `name` while the editor takes the keys where
 // `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press on the
 // status bar's
-// part `part`; Focus on or off; the kind `kind` shown again; the timers whose time came taken, 1 where anything
-// changed; the clock's reading of the next timer, 0 for none; the kinds put away read in place in `entries` as the
+// part `part`; Focus on or off; the type `type` shown again; the timers whose time came taken, 1 where anything
+// changed; the clock's reading of the next timer, 0 for none; the types put away read in place in `entries` as the
 // window begins, which stand until the window ends; and every notice let go as the window ends, before its entries go
 #define CLI_NOTICES_ANSWERS_MS 1500ULL
 #define CLI_NOTICES_REST_MS 2000ULL
@@ -97,7 +97,7 @@ void cli_notices_key(const char *name, int editing);
 void cli_notices_break(void);
 void cli_notices_press(unsigned int part);
 void cli_notices_focus(int on);
-void cli_notices_show_again(const char *kind);
+void cli_notices_show_again(const char *type);
 int cli_notices_step(void);
 unsigned long long cli_notices_due_ms(void);
 void cli_notices_restore(const CliStateEntries *entries);
@@ -108,6 +108,8 @@ const char *cli_notice_shown(void);
 int cli_notice_failed(void);
 int cli_notices_focused(void);
 unsigned int cli_notices_waiting(void);
+// the types of notice put away, one a line, NULL where none is
+const char *cli_notices_away(void);
 
 struct CliCommandLineInputCfg
 {

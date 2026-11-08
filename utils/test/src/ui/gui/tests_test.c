@@ -35,10 +35,10 @@ static void reported(const char *json)
     cli_tests_pane_event(&(CliEachJsonSizeCfg){.context = NULL, .json = json, .size = strlen(json)});
 }
 
-// the row `at`, into `row`: whether it is of `kind` with the name `name`
-static int row_is(unsigned int at, unsigned int kind, const char *name, CliTestsRow *row)
+// the row `at`, into `row`: whether it is of `type` with the name `name`
+static int row_is(unsigned int at, unsigned int type, const char *name, CliTestsRow *row)
 {
-    return EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = at, .row = row) && (row->kind == kind) &&
+    return EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = at, .row = row) && (row->type == type) &&
            (row->name_length == strlen(name)) && (strncmp(row->name, name, row->name_length) == 0);
 }
 
@@ -126,7 +126,7 @@ int main(void)
     reported("{\"kind\":\"coverage\",\"run\":1,\"files\":[{\"file\":\"pkg/c.py\",\"ran\":[1,2,3],\"missed\":[9,5]}]}");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 8u, "the coverage takes a head and a row");
     cli_check(EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = 6u, .row = &row) &&
-                  (row.kind == CLI_TESTS_ROW_COVER_HEAD) && (row.passed == 3u) && (row.failed == 2u),
+                  (row.type == CLI_TESTS_ROW_COVER_HEAD) && (row.passed == 3u) && (row.failed == 2u),
               "the coverage's head counts the lines that ran and were missed");
     cli_check(row_is(7u, CLI_TESTS_ROW_COVER, "pkg/c.py", &row) && (row.passed == 3u) && (row.failed == 2u) &&
                   (row.line == 5ULL),

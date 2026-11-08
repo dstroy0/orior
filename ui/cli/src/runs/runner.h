@@ -80,13 +80,13 @@ enum
 // the most pages a run's end names
 #define CLI_VIEWS_MAX 256u
 
-// What a run reports: its kind and number; for its start, its job; for a line, its stream, "stdout", "stderr" or
+// What a run reports: its type and number; for its start, its job; for a line, its stream, "stdout", "stderr" or
 // "command", and its text; for its end, its exit code where it has one, whether it was stopped, the pages it wrote by
 // their paths in the tree, and the program it made, by its path in the tree where it is in the tree; and the
 // milliseconds since the run started
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned long long run;
     const char *job;
     const char *stream;

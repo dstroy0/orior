@@ -5,8 +5,8 @@
 // listed by file under the filter chosen, the new code's first where the tree focuses on it; and the
 // locations of an issue or hotspot, its flows, laid on the files they fall in.
 
-// What each kind of finding is called, by the kind.
-const KINDS = { issue: "Issue", hotspot: "Security Hotspot", taint: "Taint Vulnerability", risk: "Dependency Risk" };
+// What each type of finding is called, by the type.
+const TYPES = { issue: "Issue", hotspot: "Security Hotspot", taint: "Taint Vulnerability", risk: "Dependency Risk" };
 
 // The filters findings are shown by, by the filter's id.
 const FILTERS = { all: "All", fixable: "Fix Available", open: "Open Files", high: "High Severity", current: "Current File" };
@@ -39,13 +39,13 @@ orior.server.on("sonarlint/publishDependencyRisks", ({ uri, diagnostics }) => {
   sonar.risks.set(uri, diagnostics ?? []);
 });
 
-// Every finding: its kind, its file's URI and the diagnostic the server gave.
+// Every finding: its type, its file's URI and the diagnostic the server gave.
 function everyFinding() {
   const all = [];
-  for (const [kind, map] of [["issue", issues], ["hotspot", sonar.hotspots], ["taint", sonar.taints], ["risk", sonar.risks]]) {
+  for (const [type, map] of [["issue", issues], ["hotspot", sonar.hotspots], ["taint", sonar.taints], ["risk", sonar.risks]]) {
     for (const [uri, diagnostics] of map) {
       for (const finding of diagnostics) {
-        all.push({ kind, uri, finding });
+        all.push({ kind: type, uri, finding });
       }
     }
   }
@@ -71,28 +71,28 @@ async function filtered({ uri, finding }, active) {
 }
 
 // The row of a finding: what it says, its rule, its place, and what can be done with it.
-async function findingRow({ kind, uri, finding }, at) {
+async function findingRow({ kind: type, uri, finding }, at) {
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = (await treePathOf(uri)) ?? pathOfUri(uri);
-  const status = data.status !== undefined && kind === "hotspot" ? ` | ${["To review", "Acknowledged", "Fixed", "Safe"][data.status] ?? data.status}` : "";
+  const status = data.status !== undefined && type === "hotspot" ? ` | ${["To review", "Acknowledged", "Fixed", "Safe"][data.status] ?? data.status}` : "";
   const actions = [button("Show", "finding-show", String(at))];
-  if (kind === "issue" || kind === "taint") {
+  if (type === "issue" || type === "taint") {
     actions.push(button("Actions", "finding-actions", String(at)));
   }
-  if (kind === "taint") {
+  if (type === "taint") {
     actions.push(button("Resolve", "finding-resolve", String(at)), button("Open on Server", "finding-browse", String(at)));
   }
-  if (kind === "hotspot") {
+  if (type === "hotspot") {
     actions.push(button("Change Status", "hotspot-status", String(at)));
     if (finding.source === "Remote_Hotspot" || data.serverIssueKey) {
       actions.push(button("Review on Server", "hotspot-browse", String(at)));
     }
   }
-  if (kind === "risk") {
+  if (type === "risk") {
     actions.push(button("Change Status", "risk-status", String(at)));
   }
-  return `<tr><td>${escaped(finding.message?.value ?? finding.message)}<br><span class="quiet">${escaped(KINDS[kind])}${data.impactSeverity !== undefined ? ` | ${IMPACTS[data.impactSeverity] ?? ""}` : ""}${status} (${escaped(finding.code ?? "unknown")})</span></td><td>${escaped(path)}<br><span class="quiet">Ln ${place.line + 1}, Col ${place.character}</span></td><td>${actions.join("")}</td></tr>`;
+  return `<tr><td>${escaped(finding.message?.value ?? finding.message)}<br><span class="quiet">${escaped(TYPES[type])}${data.impactSeverity !== undefined ? ` | ${IMPACTS[data.impactSeverity] ?? ""}` : ""}${status} (${escaped(finding.code ?? "unknown")})</span></td><td>${escaped(path)}<br><span class="quiet">Ln ${place.line + 1}, Col ${place.character}</span></td><td>${actions.join("")}</td></tr>`;
 }
 
 // The findings listed, as the panel numbers them.
@@ -142,14 +142,14 @@ onPressed("finding-show", async (value) => {
   if (!one) {
     return;
   }
-  const { kind, uri, finding } = one;
+  const { kind: type, uri, finding } = one;
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = await treePathOf(uri);
-  if (path !== null && kind !== "risk") {
+  if (path !== null && type !== "risk") {
     await orior.open(path, place.line, place.character);
   }
-  if (kind === "hotspot") {
+  if (type === "hotspot") {
     await orior.server.request("sonarlint/showHotspotLocations", { hotspotKey: data.entryKey, fileUri: uri }).catch(() => {});
     if (finding.source === "Remote_Hotspot" || data.serverIssueKey) {
       const details = await orior.server.request("sonarlint/getHotspotDetails", { hotspotId: data.entryKey, fileUri: uri }).catch(() => null);
@@ -159,10 +159,10 @@ onPressed("finding-show", async (value) => {
     } else {
       await orior.server.notify("sonarlint/showHotspotRuleDescription", { hotspotId: data.entryKey, fileUri: uri });
     }
-  } else if (kind === "taint") {
+  } else if (type === "taint") {
     await serverCommand("SonarLint.ShowTaintVulnerabilityFlows", data.serverIssueKey, connectionOfTree());
     await serverCommand("SonarLint.ShowIssueDetailsCodeAction", data.entryKey, uri);
-  } else if (kind === "issue") {
+  } else if (type === "issue") {
     await serverCommand("SonarLint.ShowIssueFlows", data.entryKey, uri);
     await serverCommand("SonarLint.ShowIssueDetailsCodeAction", data.entryKey, uri);
   } else {

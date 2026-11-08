@@ -98,7 +98,7 @@ function draw(listed, channels) {
 // What the window shows, for the tests: each part's and each channel's row, and the pane's title
 // and text.
 export function commsShown() {
-  const rows = (kind) => [...parts.list.querySelectorAll(`.comms-${kind}`)].map((one) => ({ name: one.dataset.key, status: one.querySelector(".status").textContent, detail: one.querySelector(".detail").textContent }));
+  const rows = (type) => [...parts.list.querySelectorAll(`.comms-${type}`)].map((one) => ({ name: one.dataset.key, status: one.querySelector(".status").textContent, detail: one.querySelector(".detail").textContent }));
   return { parts: rows("part"), channels: rows("channel"), title: parts.title.textContent, out: parts.out.textContent };
 }
 

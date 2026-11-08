@@ -393,20 +393,20 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->text, .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}),
                    .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_executables_owner);
-    if ((package == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                  .json_read = &json, .node = package, .kind = CFG_JSON_OBJECT))
+    if ((package == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                  .json_read = &json, .node = package, .type = CFG_JSON_OBJECT))
     {
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
-    const char *const kind =
+    const char *const type =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                       .object = package, .name = "type"),
                    .length_pointer = NULL);
-    *module = (kind != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "module", .cap = CLI_POOL_BYTES}));
+    *module = (type != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "module", .cap = CLI_POOL_BYTES}));
     const char *full = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                      .json_read = &json, .object = package, .name = "name"),
@@ -431,8 +431,8 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
                    .name = name, .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}),
                    .value = entry);
     }
-    else if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = bin,
-                        .kind = CFG_JSON_OBJECT))
+    else if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = bin,
+                        .type = CFG_JSON_OBJECT))
     {
         for (unsigned int member = json.node[bin].first; member != CLI_JSON_NONE; member = json.node[member].next)
         {

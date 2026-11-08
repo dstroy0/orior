@@ -16,7 +16,7 @@
 
 typedef struct CliCrumbsCfg CliCrumbsCfg;
 
-// a crumb's kind: a folder, the file, a declaration; the most crumbs a file shows; and the key the setting is saved
+// a crumb's type: a folder, the file, a declaration; the most crumbs a file shows; and the key the setting is saved
 // under
 #define CLI_CRUMB_FOLDER 0u
 #define CLI_CRUMB_FILE 1u
@@ -24,11 +24,11 @@ typedef struct CliCrumbsCfg CliCrumbsCfg;
 #define CLI_CRUMBS_MOST 64u
 #define CLI_CRUMBS_KEY "breadcrumbs"
 
-// A crumb: its kind, its text, `length` bytes, standing until the crumbs are read again, and how deep it stands, a
+// A crumb: its type, its text, `length` bytes, standing until the crumbs are read again, and how deep it stands, a
 // folder's place in the path or a declaration's depth in the outline
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *text;
     unsigned long long length;
     unsigned int depth;

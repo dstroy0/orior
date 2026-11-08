@@ -40,9 +40,9 @@ typedef struct
 EMBED_INLINE void cli_set(const CatalogJobsCtx *args)
 {
     CliCatalog *catalog = args->catalog;
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "set",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_VALUE, .a = "set",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "samples",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "samples",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
@@ -52,7 +52,7 @@ EMBED_INLINE void cli_choice(const CatalogJobsCtx *args)
     CliCatalog *catalog = args->catalog;
     const char *key = args->key;
     int required = args->required;
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = key, .type = "choice",
                .required = required);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -106,25 +106,25 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
 
     EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = "ingest/track_driver",
                .group = "ingest", .title = "track_driver --ingest", .file = file, .about = about, .opens = "");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "source", .kind = "dir",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "source", .type = "dir",
                .required = 1);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "axes", .kind = "word",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "axes", .type = "word",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "channel", .kind = "word",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "channel", .type = "word",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "save-dir",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "set", .type = "save-dir",
                .required = 1);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "samples", .type = "words",
                .required = 0);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_LIT, .a = "--ingest",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_LIT, .a = "--ingest",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--source",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--source",
                .b = "source", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--axes",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--axes",
                .b = "axes", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--channel",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--channel",
                .b = "channel", .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
 
@@ -132,9 +132,9 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
                .group = "run", .title = "track_driver --run", .file = file, .about = about, .opens = "");
     EMBED_CALL(cli_choice, CatalogJobsCtx, .catalog = catalog, .key = "cfg", .list = s_jobs->runs.path, .count = runs,
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "cfg-out", .kind = "save",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "cfg-out", .type = "save",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "run", .kind = "many",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "run", .type = "many",
                .required = 0);
     for (unsigned int at = 0u; at < parts; at += 1u)
     {
@@ -142,19 +142,19 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
                    .choice = s_jobs->parts.name[at]);
     }
     EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "dir",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "set", .type = "dir",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "samples", .type = "words",
                .required = 0);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--cfg",
                .b = "cfg", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg-out",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--cfg-out",
                .b = "cfg-out", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_EACH, .a = "--run",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_EACH, .a = "--run",
                .b = "run", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
 
@@ -162,24 +162,24 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
                .group = "render", .title = "track_driver --vis", .file = file, .about = about, .opens = "");
     EMBED_CALL(cli_choice, CatalogJobsCtx, .catalog = catalog, .key = "cfg", .list = s_jobs->runs.path, .count = runs,
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "vis", .kind = "save",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "vis", .type = "save",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "export", .kind = "save",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "export", .type = "save",
                .required = 0);
     EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "dir",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "set", .type = "dir",
                .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "samples", .type = "words",
                .required = 0);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--cfg",
                .b = "cfg", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--vis",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--vis",
                .b = "vis", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--export",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_FLAG, .a = "--export",
                .b = "export", .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
     g_cli_guard->persistent_buf_release(reserved, g_cli_catalog_owner);
@@ -218,8 +218,8 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
                    .relative_out = script);
         EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
                    .group = "run", .path = navier, .title = NULL, .opens = "");
-        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "program",
-                   .kind = "choice", .required = 1);
+        EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "program",
+                   .type = "choice", .required = 1);
         for (unsigned int at = 0u; at < programs; at += 1u)
         {
             EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
@@ -229,9 +229,9 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
                    .count = configs, .required = 1);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                    .program = CLI_PROGRAM_BASH, .text = script, .tool_program = NULL, .system = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "program", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "cfg",
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_VALUE, .a = "cfg",
                    .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
     char qasm[CLI_PATH_MAX_LEN];
@@ -247,8 +247,8 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = qasm, .relative_out = script);
         EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
                    .group = "run", .path = qasm, .title = NULL, .opens = "");
-        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "circuit",
-                   .kind = "choice-or-file", .required = 1);
+        EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "circuit",
+                   .type = "choice-or-file", .required = 1);
         for (unsigned int at = 0u; at < circuits; at += 1u)
         {
             EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
@@ -257,9 +257,9 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
         EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                    .program = CLI_PROGRAM_BASH, .text = script, .tool_program = NULL, .system = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS,
                    .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "circuit", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
 }
@@ -296,14 +296,14 @@ EMBED_INLINE void cli_view(const CatalogJobsCtx *args)
     }
     EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
                .group = "view", .path = path, .title = title, .opens = "views");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "input", .kind = "file",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "input", .type = "file",
                .required = 0);
     EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "input",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_VALUE, .a = "input",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
@@ -400,7 +400,7 @@ EMBED_INLINE void cli_stage_script(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
@@ -471,7 +471,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
             EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                        .program = CLI_PROGRAM_PYTHON, .text = s_jobs->paths.path[each], .tool_program = NULL,
                        .system = 0);
-            EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+            EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS,
                        .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         }
     }

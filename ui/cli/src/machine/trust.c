@@ -92,20 +92,20 @@ EMBED_INLINE void cli_state_read(const TrustCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = json, .path = path,
                    .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_machine_owner);
-    const int object = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                  .node = root, .kind = CFG_JSON_OBJECT);
+    const int object = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                  .node = root, .type = CFG_JSON_OBJECT);
     *trusted = object ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                    .object = root, .name = "trusted")
                       : CLI_JSON_NONE;
     *refused = object ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                    .object = root, .name = "refused")
                       : CLI_JSON_NONE;
-    *trusted = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = *trusted,
-                          .kind = CFG_JSON_ARRAY)
+    *trusted = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = *trusted,
+                          .type = CFG_JSON_ARRAY)
                    ? *trusted
                    : CLI_JSON_NONE;
-    *refused = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = *refused,
-                          .kind = CFG_JSON_ARRAY)
+    *refused = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = *refused,
+                          .type = CFG_JSON_ARRAY)
                    ? *refused
                    : CLI_JSON_NONE;
 }

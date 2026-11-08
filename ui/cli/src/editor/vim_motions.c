@@ -69,7 +69,7 @@ int cli_vim_backward(const CliVimCtx *args)
     return 0;
 }
 
-unsigned int cli_vim_kind(const CliVimCtx *args)
+unsigned int cli_vim_type(const CliVimCtx *args)
 {
     if ((args->letter == CLI_VIM_LINE_END) || EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = args->letter))
     {
@@ -137,9 +137,9 @@ EMBED_INLINE CliPosition motions_word_start(const CliVimCtx *args)
 {
     CliPosition at = args->place;
     const unsigned int start =
-        EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+        EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                    .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
-    while ((start != 0u) && (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+    while ((start != 0u) && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                                         .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx,
                                                              .key = args->key, .place = at)) == start))
     {
@@ -148,7 +148,7 @@ EMBED_INLINE CliPosition motions_word_start(const CliVimCtx *args)
             return args->place;
         }
     }
-    while (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+    while (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                       .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
                                            .place = at)) == 0u)
     {
@@ -172,7 +172,7 @@ EMBED_INLINE CliPosition motions_word_end(const CliVimCtx *args)
     CliPosition at = args->place;
     int more = EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = args->place,
                           .place_out = &at);
-    while (more && (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+    while (more && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                                .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
                                                     .place = at)) == 0u))
     {
@@ -182,14 +182,14 @@ EMBED_INLINE CliPosition motions_word_end(const CliVimCtx *args)
     {
         return args->place;
     }
-    const unsigned int kind =
-        EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+    const unsigned int type =
+        EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                    .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
     CliPosition next = at;
     while (EMBED_CALL(cli_vim_motions_internal.forward, CliVimCtx, .key = args->key, .place = at, .place_out = &next) &&
-           (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+           (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                        .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
-                                            .place = next)) == kind))
+                                            .place = next)) == type))
     {
         at = next;
     }
@@ -203,7 +203,7 @@ EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
     int more = EMBED_CALL(cli_vim_motions_internal.backward, CliVimCtx, .key = args->key, .place = args->place,
                           .place_out = &at);
     while (more &&
-           (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+           (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                        .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
                                             .place = at)) == 0u) &&
            !((at.col == 0ULL) && (EMBED_CALL(motions_length, CliVimCtx, .key = args->key, .line = at.line) == 0ULL)))
@@ -215,17 +215,17 @@ EMBED_INLINE CliPosition motions_word_back(const CliVimCtx *args)
     {
         return (CliPosition){0ULL, 0ULL};
     }
-    const unsigned int kind =
-        EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+    const unsigned int type =
+        EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                    .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key, .place = at));
     CliPosition back = at;
     while (
-        (kind != 0u) &&
+        (type != 0u) &&
         EMBED_CALL(cli_vim_motions_internal.backward, CliVimCtx, .key = args->key, .place = at, .place_out = &back) &&
         (back.line == at.line) &&
-        (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = args->big,
+        (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = args->big,
                     .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
-                                         .place = back)) == kind))
+                                         .place = back)) == type))
     {
         at = back;
     }

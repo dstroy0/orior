@@ -23,7 +23,7 @@ typedef struct
     int first;
     HANDLE handle;
     HANDLE shut;
-    int kind;
+    int type;
     void *bytes;
     DWORD size;
     DWORD *moved;
@@ -39,7 +39,7 @@ EMBED_INLINE HANDLE ipc_instance(const WindowsDoorCtx *args)
                             PIPE_UNLIMITED_INSTANCES, CLI_IPC_PIPE_CAPACITY, CLI_IPC_PIPE_CAPACITY, 0u, NULL);
 }
 
-// one overlapped operation on `handle`, begun by `kind` (0 a read, 1 a write, 2 a join waited for) and waited for: the
+// one overlapped operation on `handle`, begun by `type` (0 a read, 1 a write, 2 a join waited for) and waited for: the
 // bytes it moved into `moved`: 1, or 0 where it failed
 static int ipc_overlap(const WindowsDoorCtx *args)
 {
@@ -58,11 +58,11 @@ static int ipc_overlap(const WindowsDoorCtx *args)
         return 0;
     }
     BOOL started;
-    if (args->kind == 0)
+    if (args->type == 0)
     {
         started = ReadFile(args->handle, bytes, args->size, NULL, &work);
     }
-    else if (args->kind == 1)
+    else if (args->type == 1)
     {
         started = WriteFile(args->handle, bytes, args->size, NULL, &work);
     }
@@ -74,7 +74,7 @@ static int ipc_overlap(const WindowsDoorCtx *args)
     {
         const DWORD error = GetLastError();
         // a process that joined before the wait began needs no wait
-        if ((args->kind == 2) && (error == ERROR_PIPE_CONNECTED))
+        if ((args->type == 2) && (error == ERROR_PIPE_CONNECTED))
         {
             CloseHandle(work.hEvent);
             *moved = 0u;
@@ -157,7 +157,7 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
     // the waiting instance's handle was a pointer's width when it was stored
     const HANDLE joined = (HANDLE)(uintptr_t)args->listener->waiting;
     DWORD moved = 0u;
-    const int joining = EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .kind = 2,
+    const int joining = EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .type = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
@@ -221,7 +221,7 @@ int cli_ipc_read(const CliIpcEndBytesCtx *args)
         // a piece is at most what a DWORD counts
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
-                        .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 0, .bytes = into + at, .size = piece,
+                        .shut = (HANDLE)(uintptr_t)args->end->shut, .type = 0, .bytes = into + at, .size = piece,
                         .moved = &moved) ||
             (moved == 0u))
         {
@@ -243,7 +243,7 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
         if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
-                        .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 1, .bytes = (void *)(uintptr_t)(from + at),
+                        .shut = (HANDLE)(uintptr_t)args->end->shut, .type = 1, .bytes = (void *)(uintptr_t)(from + at),
                         .size = piece, .moved = &moved) ||
             (moved == 0u))
         {

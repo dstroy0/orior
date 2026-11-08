@@ -35,15 +35,15 @@ export function formsOf(text) {
       return;
     }
     const [, indent, name, value, rest] = match;
-    let kind = "string";
+    let type = "string";
     let choices = null;
     const bounds = {};
     if (rest.trim().startsWith("[")) {
-      kind = "choice";
+      type = "choice";
       choices = [...rest.matchAll(/"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?)/g)].map((one) => one[1] ?? one[2] ?? one[3]);
     } else {
-      const type = rest.match(/type\s*:\s*["']?(\w+)/)?.[1];
-      kind = type ?? (/^["']/.test(value) ? "string" : /^(True|False)$/.test(value) ? "boolean" : /^-?\d/.test(value) ? "number" : "raw");
+      const declaredType = rest.match(/type\s*:\s*["']?(\w+)/)?.[1];
+      type = declaredType ?? (/^["']/.test(value) ? "string" : /^(True|False)$/.test(value) ? "boolean" : /^-?\d/.test(value) ? "number" : "raw");
       for (const key of ["min", "max", "step"]) {
         const found = rest.match(new RegExp(`${key}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`));
         if (found) {
@@ -51,7 +51,7 @@ export function formsOf(text) {
         }
       }
     }
-    fields.push({ line: index, indent, name, value, kind, choices, bounds, rest });
+    fields.push({ line: index, indent, name, value, kind: type, choices, bounds, rest });
   });
   return fields;
 }
@@ -123,8 +123,8 @@ export function drawForms(book, cell, host) {
 // The richest form of a display's data the window shows: an image, HTML, Markdown, then text.
 function shownData(data, cell, index) {
   if (data["image/png"] || data["image/jpeg"] || data["image/gif"]) {
-    const kind = data["image/png"] ? "image/png" : data["image/jpeg"] ? "image/jpeg" : "image/gif";
-    return element("img", { className: "nb-image", src: `data:${kind};base64,${String(data[kind]).replace(/\s+/g, "")}` });
+    const type = data["image/png"] ? "image/png" : data["image/jpeg"] ? "image/jpeg" : "image/gif";
+    return element("img", { className: "nb-image", src: `data:${type};base64,${String(data[type]).replace(/\s+/g, "")}` });
   }
   if (data["image/svg+xml"]) {
     return element("img", { className: "nb-image", src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data["image/svg+xml"])}` });
@@ -243,7 +243,7 @@ export function drawMarks(book) {
 }
 
 // The map at the notebook's right: a block for each cell, as tall as the cell, colored by its
-// kind and its state, and the part in view framed.
+// type and its state, and the part in view framed.
 export function drawMap(book) {
   const map = document.querySelector("#notebook .nb-map");
   const scroller = document.querySelector("#notebook .nb-cells");

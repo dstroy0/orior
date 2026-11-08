@@ -62,7 +62,7 @@ int main(void)
               "and colored by the xterm grammar");
     cli_document_walk();
     cli_check(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = ""), "a view opens on it");
-    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = 3u, .columns = 40u};
+    const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 3u, .columns = 40u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &why);
 
     GuiTerminal terminal;

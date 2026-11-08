@@ -266,8 +266,8 @@ EMBED_INLINE void complete_branches_reached(const SchemaCompleteCtx *args)
     {
         const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                             .map = args->schema, .name = s_words[word_text]);
-        if ((word_text < 3u) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = all, .kind = CFG_JSON_ARRAY))
+        if ((word_text < 3u) && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = all, .type = CFG_JSON_ARRAY))
         {
             for (unsigned int one = json->node[all].first; one != CLI_JSON_NONE; one = json->node[one].next)
             {
@@ -307,8 +307,8 @@ EMBED_INLINE void complete_key_reached(const SchemaCompleteCtx *args)
     }
     const unsigned int patterns = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                              .map = args->schema, .name = "patternProperties");
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                       .node = patterns, .kind = CFG_JSON_OBJECT)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                       .node = patterns, .type = CFG_JSON_OBJECT)
                                 ? json->node[patterns].first
                                 : CLI_JSON_NONE;
          one != CLI_JSON_NONE; one = json->node[one].next)
@@ -325,8 +325,8 @@ EMBED_INLINE void complete_key_reached(const SchemaCompleteCtx *args)
     }
     const unsigned int additional = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                                .map = args->schema, .name = "additionalProperties");
-    if (!any && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                           .node = additional, .kind = CFG_JSON_OBJECT))
+    if (!any && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                           .node = additional, .type = CFG_JSON_OBJECT))
     {
         EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = args->text, .schema = additional, .base = args->base,
                    .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
@@ -342,16 +342,16 @@ EMBED_INLINE void complete_index_reached(const SchemaCompleteCtx *args)
                                     .name = "prefixItems");
     const unsigned int items =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "items");
-    if ((tuple == CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                               .json_read = json, .node = items, .kind = CFG_JSON_ARRAY))
+    if ((tuple == CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                               .json_read = json, .node = items, .type = CFG_JSON_ARRAY))
     {
         tuple = items;
     }
     const unsigned int positioned =
         EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = tuple,
                    .index = g_cli_schema_spot.step[args->at_u32].index);
-    const unsigned int rest = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                         .node = items, .kind = CFG_JSON_OBJECT)
+    const unsigned int rest = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                         .node = items, .type = CFG_JSON_OBJECT)
                                   ? items
                                   : EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                                .map = args->schema, .name = "additionalItems");
@@ -367,8 +367,8 @@ EMBED_INLINE void complete_index_reached(const SchemaCompleteCtx *args)
 static void complete_schemas_at(const SchemaCompleteCtx *args)
 {
     if ((args->depth > CLI_SCHEMA_DEEPEST) || (args->schema == CLI_SCHEMA_NONE) ||
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &g_cli_schema_store->json,
-                    .node = args->schema, .kind = CFG_JSON_OBJECT))
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &g_cli_schema_store->json,
+                    .node = args->schema, .type = CFG_JSON_OBJECT))
     {
         return;
     }
@@ -409,20 +409,20 @@ void cli_schema_detail(const CliSchemaJsonOutCtx *args)
         mmgr_line_put_n(args->out, description, line);
         return;
     }
-    const unsigned int kind = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = args->json,
+    const unsigned int type = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = args->json,
                                          .map = args->schema, .name = "type");
-    if (kind == CLI_JSON_NONE)
+    if (type == CLI_JSON_NONE)
     {
         return;
     }
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                        .json_read = args->json, .node = kind, .length_pointer = &size);
+                                        .json_read = args->json, .node = type, .length_pointer = &size);
     if (text != NULL)
     {
         mmgr_line_put_n(args->out, text, size);
         return;
     }
-    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = kind,
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = type,
                .out = args->out, .indent = 0u, .sorted = 1);
 }
 

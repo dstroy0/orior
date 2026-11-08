@@ -9,14 +9,14 @@
 
 typedef struct CliDebugStartCfg CliDebugStartCfg;
 
-// A session's plan: the kind of its start, the test it runs, its language, whether it is a recorded run, the program a
+// A session's plan: the type of its start, the test it runs, its language, whether it is a recorded run, the program a
 // CMake or Meson build makes from its file, the adapter's spec in the session's start capacity, the toolchain's name
 // and id, and the adapter's program; the request, launch or attach, its arguments in the start capacity, the session's
 // name, the session that started it; and the address of a debugger already listening, and whether ending the session
 // ends the program there
 typedef struct
 {
-    char kind[16];
+    char type[16];
     char id[CLI_PATH_MAX_LEN];
     char language[CLI_NAME_MAX_LEN];
     int recording;

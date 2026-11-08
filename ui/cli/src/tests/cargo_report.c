@@ -488,7 +488,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                               .src = folder,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
         }
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
         {
             going = 0;
             continue;

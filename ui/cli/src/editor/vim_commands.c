@@ -243,10 +243,10 @@ void cli_vim_operate(const CliVimCtx *args)
         span = (CliVimSpan){
             1, {from.line, 0ULL}, {last, EMBED_CALL(commands_length, CliVimCtx, .key = args->key, .line = last)}, 1};
     }
-    else if (command->object_kind != 0u)
+    else if (command->object_type != 0u)
     {
         EMBED_CALL(cli_vim_motions_internal.object, CliVimCtx, .key = args->key, .from = from,
-                   .how = command->object_kind, .letter = command->object_of, .count = command->count,
+                   .how = command->object_type, .letter = command->object_of, .count = command->count,
                    .counted = command->counted, .span = &span);
         if (!span.found)
         {
@@ -258,7 +258,7 @@ void cli_vim_operate(const CliVimCtx *args)
         unsigned int motion = command->motion;
         const int word = (motion == 'w') || (motion == 'W');
         if ((command->name == 'c') && word &&
-            (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .big = motion == 'W',
+            (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = motion == 'W',
                         .letter = EMBED_CALL(cli_vim_motions_internal.letter_at, CliVimCtx, .key = args->key,
                                              .place = from)) != 0u))
         {
@@ -514,12 +514,12 @@ EMBED_INLINE void commands_word_searched(const CliVimCtx *args)
     const unsigned long long col = (head.col < length) ? head.col : length - 1ULL;
     unsigned long long start = col + 1ULL;
     while ((start > 0ULL) &&
-           (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .letter = units[start - 1ULL]) == 1u))
+           (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .letter = units[start - 1ULL]) == 1u))
     {
         start -= 1ULL;
     }
     unsigned long long end = col + 1ULL;
-    while ((end < length) && (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .letter = units[end]) == 1u))
+    while ((end < length) && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .letter = units[end]) == 1u))
     {
         end += 1ULL;
     }

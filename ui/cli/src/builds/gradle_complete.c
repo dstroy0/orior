@@ -87,7 +87,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
     static const unsigned int s_order[4] = {CLI_VERSIONS_LIBRARIES, CLI_VERSIONS_VERSIONS, CLI_VERSIONS_PLUGINS,
                                             CLI_VERSIONS_BUNDLES};
     static const char *const s_leads[4] = {"", "versions.", "plugins.", "bundles."};
-    static const char *const s_kinds[4] = {"module", "constant", "module", "module"};
+    static const char *const s_types[4] = {"module", "constant", "module", "module"};
     for (unsigned int one = 0u; one < 4u; one += 1u)
     {
         for (unsigned int at = 0u; at < aliases.count; at += 1u)
@@ -105,7 +105,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
             {
                 EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->rest,
                            .token_size = args->remainder_size, .value = s_value, .value_size = value.at,
-                           .kind = s_kinds[one], .detail = aliases.text + alias->about_at,
+                           .type = s_types[one], .detail = aliases.text + alias->about_at,
                            .detail_size = alias->about_size);
             }
         }
@@ -147,7 +147,7 @@ EMBED_INLINE void complete_declare(const GradleCompleteCtx *args)
     {
         (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
                          .label = g_cli_gradle.declared[at], .label_size = g_cli_gradle.declared_size[at],
-                         .kind = "function", .detail = "declared configuration", .detail_size = 22u,
+                         .type = "function", .detail = "declared configuration", .detail_size = 22u,
                          .insert = g_cli_gradle.declared[at], .insert_size = g_cli_gradle.declared_size[at],
                          .snippet = 0);
     }
@@ -209,25 +209,25 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     {
         if (EMBED_CALL(complete_settings, GradleCompleteCtx, .path = args->path))
         {
-            EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                       .words = s_settings_top, .count = 9u, .kind = "keyword", .detail = "settings");
+            EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                       .words = s_settings_top, .count = 9u, .type = "keyword", .detail = "settings");
         }
         else
         {
             unsigned int count = 0u;
             const char *const *const words = EMBED_CALL(cli_gradle_size_internal.block_words, CliGradleSizeCtx,
                                                         .name = "allprojects", .size = 11u, .count = &count);
-            EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items, .words = words,
-                       .count = count, .kind = "keyword", .detail = "Gradle");
+            EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items, .words = words,
+                       .count = count, .type = "keyword", .detail = "Gradle");
         }
     }
     else if (EMBED_CALL(cli_gradle_internal.block_by_name, CliGradleCtx, .block = &g_cli_gradle.block[inner],
                         .name = "dependencies"))
     {
-        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                   .words = g_cli_gradle_configurations, .count = 30u, .kind = "function", .detail = "configuration");
-        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
-                   .words = g_cli_gradle_helpers, .count = 12u, .kind = "function", .detail = "dependencies");
+        EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                   .words = g_cli_gradle_configurations, .count = 30u, .type = "function", .detail = "configuration");
+        EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
+                   .words = g_cli_gradle_helpers, .count = 12u, .type = "function", .detail = "dependencies");
         // the script's lines a cell of their count, each line's start, given back once the declared are read
         unsigned long long count = 1ULL;
         for (unsigned long long byte = 0ULL; byte < size; byte += 1ULL)
@@ -257,8 +257,8 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         unsigned int count = 0u;
         const char *const *const words = EMBED_CALL(cli_gradle_size_internal.block_words, CliGradleSizeCtx,
                                                     .name = s_name, .size = name_size, .count = &count);
-        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items, .words = words,
-                   .count = count, .kind = "keyword", .detail = s_name);
+        EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items, .words = words,
+                   .count = count, .type = "keyword", .detail = s_name);
     }
     CliGradleScript *const script = &g_cli_gradle;
     g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);

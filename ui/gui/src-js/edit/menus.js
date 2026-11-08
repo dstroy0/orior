@@ -359,7 +359,7 @@ export function setMarginLine(on = !marginLine()) {
 }
 
 // The editor and its split as the settings in force give them, once a file changes them: each
-// editor's own settings, Vim's keys, the formatter's line, each kind of file's theme, and the
+// editor's own settings, Vim's keys, the formatter's line, each type of file's theme, and the
 // breadcrumbs.
 export function takeSettings() {
   for (const editor of [state.editor, state.split?.editor].filter(Boolean)) {

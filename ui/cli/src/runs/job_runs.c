@@ -19,11 +19,11 @@
 
 CliJobRunsStore g_cli_job_runs_store = {.chosen = CLI_CATALOG_NONE, .focus = CLI_JOB_RUNS_FILTER};
 
-// A report in the inbox: its kind, its run, its line's stream, its text's bytes, which follow the record, and for an
+// A report in the inbox: its type, its run, its line's stream, its text's bytes, which follow the record, and for an
 // end its code where it has one and whether the run was stopped
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int stream;
     unsigned long long run;
     unsigned long long length;
@@ -359,7 +359,7 @@ void cli_job_runs_begin(const CliJobRunsWokenCfg *args)
     s_woken = args->woken;
 }
 
-// what a run the pane starts reports, on the run's thread, stored as the store's report: its kind and its stream read
+// what a run the pane starts reports, on the run's thread, stored as the store's report: its type and its stream read
 // off the runner's words
 static void job_runs_emit(const CliEachEventCfg *args)
 {
@@ -369,8 +369,8 @@ static void job_runs_emit(const CliEachEventCfg *args)
     const int command_stream =
         (event->stream != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = event->stream, .other = "command", .cap = 8ULL});
     EMBED_CALL(cli_job_runs_report.store, CliJobRunsReportCfg,
-               .kind = (event->kind == CLI_RUN_EVENT_START)  ? CLI_JOB_RUNS_STARTED
-                       : (event->kind == CLI_RUN_EVENT_LINE) ? CLI_JOB_RUNS_LINE
+               .type = (event->type == CLI_RUN_EVENT_START)  ? CLI_JOB_RUNS_STARTED
+                       : (event->type == CLI_RUN_EVENT_LINE) ? CLI_JOB_RUNS_LINE
                                                              : CLI_JOB_RUNS_ENDED,
                .run = event->run, .job = event->job,
                .stream =
@@ -382,14 +382,14 @@ const CliRunSink cli_job_runs_sink = {job_runs_emit, NULL};
 
 void cli_job_runs_reported(const CliJobRunsReportCfg *args)
 {
-    const char *const text = (args->kind == CLI_JOB_RUNS_STARTED) ? args->job
-                             : (args->kind == CLI_JOB_RUNS_LINE)  ? args->text
+    const char *const text = (args->type == CLI_JOB_RUNS_STARTED) ? args->job
+                             : (args->type == CLI_JOB_RUNS_LINE)  ? args->text
                                                                   : NULL;
     const unsigned long long length =
         (text != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_LINES_TEXT}) : 0ULL;
     const unsigned long long record = (sizeof(JobRunsReport) + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL);
     const unsigned long long bytes = record + ((length + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL));
-    const JobRunsReport report = {args->kind, args->stream,   args->run,    length,
+    const JobRunsReport report = {args->type, args->stream,   args->run,    length,
                                   args->code, args->has_code, args->stopped};
     EMBED_CALL(lock_taken, JobRunsCtx, .at = 0u);
     if (s_inbox_used + bytes > s_inbox_capacity)
@@ -445,7 +445,7 @@ int cli_job_runs_step(const CliJobRunsWokenCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = &report, .src = inbox + at, .bytes = sizeof(report)});
         const char *const text = (const char *)(inbox + at + record);
         at += record + ((report.length + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL));
-        if (report.kind == CLI_JOB_RUNS_STARTED)
+        if (report.type == CLI_JOB_RUNS_STARTED)
         {
             EMBED_CALL(start_read, JobRunsCtx, .report = &report, .text = text);
             continue;
@@ -455,7 +455,7 @@ int cli_job_runs_step(const CliJobRunsWokenCfg *args)
         {
             continue;
         }
-        if (report.kind == CLI_JOB_RUNS_LINE)
+        if (report.type == CLI_JOB_RUNS_LINE)
         {
             EMBED_CALL(line_read, JobRunsCtx, .report = &report, .text = text, .at = place);
         }

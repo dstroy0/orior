@@ -76,10 +76,10 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     {
         return 0;
     }
-    entry = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = entry,
-                       .kind = CFG_JSON_OBJECT)
+    entry = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = entry,
+                       .type = CFG_JSON_OBJECT)
                 ? entry
-                : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_OBJECT);
+                : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json, .type = CFG_JSON_OBJECT);
     const unsigned int had = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                         .object = entry, .name = args->id);
     if ((had != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = &json,
@@ -121,8 +121,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
                                          .read_state = &s_found, .text = args->found, .size = args->size);
     const CliJson *const json = &s_found.json;
     // the files whose findings changed, in a cell of one place for each file the findings name
-    const unsigned int files = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = root, .kind = CFG_JSON_ARRAY)
+    const unsigned int files = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = root, .type = CFG_JSON_ARRAY)
                                    ? json->node[root].count
                                    : 0u;
     unsigned int *const changed_files =
@@ -137,8 +137,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
     {
         const unsigned int items = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                               .json_read = json, .array = pair, .index = 1u);
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = items,
-                        .kind = CFG_JSON_ARRAY) ||
+        if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = items,
+                        .type = CFG_JSON_ARRAY) ||
             !EMBED_CALL(findings_file_get, ServersFindingsCtx, .pair = pair, .uri = uri, .key = key))
         {
             continue;

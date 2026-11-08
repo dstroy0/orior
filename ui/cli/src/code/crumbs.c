@@ -16,11 +16,11 @@
 #define CRUMBS_PAST (~0ULL)
 #define CRUMBS_DIGITS 24u
 
-// A crumb as it stands in the cell: its kind, where its text starts among the texts and its bytes, its depth, and for
+// A crumb as it stands in the cell: its type, where its text starts among the texts and its bytes, its depth, and for
 // a declaration its row of the outline
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int text;
     unsigned int length;
     unsigned int depth;
@@ -239,7 +239,7 @@ int cli_crumbs_row(const CliCrumbsCfg *args)
         return 0;
     }
     const CrumbStored *const stored = &s_crumbs.row[args->at];
-    *args->row = (CliCrumbRow){stored->kind, s_crumbs.text + stored->text, stored->length, stored->depth};
+    *args->row = (CliCrumbRow){stored->type, s_crumbs.text + stored->text, stored->length, stored->depth};
     return 1;
 }
 
@@ -371,12 +371,12 @@ int cli_crumbs_menu(const CliCrumbsCfg *args)
         return 0;
     }
     const CrumbStored *const stored = &s_crumbs.row[args->at];
-    if (stored->kind == CLI_CRUMB_SYMBOL)
+    if (stored->type == CLI_CRUMB_SYMBOL)
     {
         return EMBED_CALL(crumbs_symbol_menu, CrumbsCtx, .at = stored->outline, .depth = stored->depth);
     }
     // a folder's own entries, and a file's folder's: the path up to the crumb's end, or up to the separator before it
-    const unsigned int end = (stored->kind == CLI_CRUMB_FOLDER) ? stored->text + stored->length
+    const unsigned int end = (stored->type == CLI_CRUMB_FOLDER) ? stored->text + stored->length
                                                                 : ((stored->text > 0u) ? stored->text - 1u : 0u);
     return EMBED_CALL(crumbs_folder_menu, CrumbsCtx, .root = args->root, .at = end);
 }

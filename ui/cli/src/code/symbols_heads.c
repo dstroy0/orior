@@ -152,8 +152,8 @@ EMBED_INLINE void cli_type_literal(const SymbolsHeadsCtx *args)
     }
     if (seen && ((is & (CLI_LEAF_NUMBER | CLI_LEAF_STRING)) != 0u))
     {
-        const char *const kind = ((is & CLI_LEAF_NUMBER) != 0u) ? "number" : "string";
-        memor.cpy(&(MemoriaCfg){.dst = args->type->text, .src = kind, .bytes = 7u});
+        const char *const type = ((is & CLI_LEAF_NUMBER) != 0u) ? "number" : "string";
+        memor.cpy(&(MemoriaCfg){.dst = args->type->text, .src = type, .bytes = 7u});
         args->type->is = is & (CLI_LEAF_NUMBER | CLI_LEAF_STRING);
     }
 }
@@ -255,7 +255,7 @@ int cli_symbols_type_fits(const CliSymbolsArgumentCtx *args)
     {
         return (args->parameter->is & strings) != 0u;
     }
-    // a parameter typed by its default's literal alone takes an argument of a type of the same kind
+    // a parameter typed by its default's literal alone takes an argument of a type of the same type
     if ((args->parameter->is & CLI_LEAF_NUMBER) != 0u)
     {
         return ((args->argument->is & numbers) != 0u) && ((args->argument->is & CLI_LEAF_MEMORY) == 0u);

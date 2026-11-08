@@ -44,7 +44,7 @@ typedef struct QueryNameCtx QueryNameCtx;
 typedef struct QueryNameOutCtx QueryNameOutCtx;
 typedef struct QueryFromCtx QueryFromCtx;
 typedef struct QueryPathSecondsCtx QueryPathSecondsCtx;
-typedef struct QueryPathSecondsKindCtx QueryPathSecondsKindCtx;
+typedef struct QueryPathSecondsTypeCtx QueryPathSecondsTypeCtx;
 typedef struct QueryPathsCtx QueryPathsCtx;
 typedef struct QueryTextCtx QueryTextCtx;
 typedef struct QueryFolderMaxCtx QueryFolderMaxCtx;
@@ -182,7 +182,7 @@ int query_is_folder(const QueryPathSecondsCtx *args);
 int query_modify(const QueryPathSecondsCtx *args);
 unsigned long long query_now(void);
 // the moment the file at `path` last changed set to `seconds` since 1970: 1, or 0 where it could not be set
-int query_modified_set(const QueryPathSecondsKindCtx *args);
+int query_modified_set(const QueryPathSecondsTypeCtx *args);
 // this thread paused `milliseconds`
 void query_pause(const QueryMillisecondsCtx *args);
 // `path` as a full path, without the `\\?\` prefix Windows gives a canonical one, into `full`, sized for `capacity`
@@ -502,7 +502,7 @@ struct QueryPathSecondsCtx
     unsigned long long *seconds;
 };
 
-struct QueryPathSecondsKindCtx
+struct QueryPathSecondsTypeCtx
 {
     const char *path;
     unsigned long long seconds_value;
@@ -678,10 +678,10 @@ EMBED_TABLE_STORAGE QueryPathBytesSizeNs query_path_bytes_size_internal EMBED_UN
 
 typedef struct
 {
-    int (*modified_set)(const QueryPathSecondsKindCtx *args);
-} QueryPathSecondsKindNs;
-EMBED_TABLE_LAYOUT(QueryPathSecondsKindNs, modified_set);
-EMBED_TABLE_STORAGE QueryPathSecondsKindNs query_path_seconds_kind_internal EMBED_UNUSED = {
+    int (*modified_set)(const QueryPathSecondsTypeCtx *args);
+} QueryPathSecondsTypeNs;
+EMBED_TABLE_LAYOUT(QueryPathSecondsTypeNs, modified_set);
+EMBED_TABLE_STORAGE QueryPathSecondsTypeNs query_path_seconds_type_internal EMBED_UNUSED = {
     .modified_set = query_modified_set,
 };
 

@@ -51,14 +51,14 @@ typedef struct CliValidateIdCtx CliValidateIdCtx;
 // a place of the work state's texts that contains none
 #define CLI_VALIDATE_NONE (~0ull)
 
-// A limit of the machine: its name and what it is, the arrays of the kinds and the words of the messages it stops a
+// A limit of the machine: its name and what it is, the arrays of the types and the words of the messages it stops a
 // check with and of the words, `not` in its plugin.json, those messages do not contain, the word that sets it, and
 // where it starts, how many times it grows a step and how far it goes
 typedef struct
 {
     const char *name;
     const char *about;
-    unsigned int kinds;
+    unsigned int types;
     unsigned int phrases;
     unsigned int unless;
     const char *lift;
@@ -113,7 +113,7 @@ typedef struct
 } CliCodeWord;
 
 // A message of the prover's, as `lean --json` writes one a line: its severity, lines from 0 and columns, and where its
-// text and its kind are in the messages' texts
+// text and its type are in the messages' texts
 typedef struct
 {
     unsigned int severity;
@@ -123,8 +123,8 @@ typedef struct
     unsigned int end_col;
     unsigned long long text;
     unsigned long long text_size;
-    unsigned long long kind;
-    unsigned long long kind_size;
+    unsigned long long type;
+    unsigned long long type_size;
 } CliProverMessage;
 
 // The messages of one check and the texts they take
@@ -136,7 +136,7 @@ typedef struct
     unsigned long long used;
 } CliProverMessages;
 
-// One thing the check found: its place, severity and kind, the barrier that stopped the check there, -1 for none, and
+// One thing the check found: its place, severity and type, the barrier that stopped the check there, -1 for none, and
 // where its message and what lifting it came to are in the findings' texts, CLI_VALIDATE_NONE for none
 typedef struct
 {
@@ -145,7 +145,7 @@ typedef struct
     unsigned int end_line;
     unsigned int end_col;
     unsigned int severity;
-    const char *kind;
+    const char *type;
     int barrier;
     unsigned long long message;
     unsigned long long lifted;
@@ -223,7 +223,7 @@ void cli_validate_theorems_in(void);
 void cli_validate_flags_in(void);
 
 // the messages in a check's output, a line that is no message recorded as an error with no place, as a crash writes
-// one, into `messages`; the barrier a message shows stopped the check, by its kind or its words, -1 for none; the
+// one, into `messages`; the barrier a message shows stopped the check, by its type or its words, -1 for none; the
 // axioms a theorem rests on, from the message that answers the line requesting for them: 1 with the name's start and
 // size and the list's, 0 where the message answers none, `none` 1 where it rests on no axioms (validate_messages.c)
 void cli_validate_messages_get(const CliValidateSizeCtx *args);

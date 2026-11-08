@@ -352,7 +352,7 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
         return;
     }
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->manifest, .out = folder))
     {
         memor.cpy(&(MemoriaCfg){.dst = folder, .src = ".", .bytes = 2u});
     }

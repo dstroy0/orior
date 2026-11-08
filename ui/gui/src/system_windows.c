@@ -5,7 +5,7 @@
 // hit test, the compositor rounding its corners and drawing its one-pixel border; the raster it is handed flipped
 // through the graphics device or blitted into the client as a top-down 32-bit bitmap; the thread woken by a message
 // posted to the window, inside the system's own drag loop too; the scale and the refresh rate read from the window's
-// monitor. The records of the two windows that stand at once are this file's own
+// monitor. The records of the three windows that stand at once are this file's own
 #define _WIN32_WINNT 0x0A00
 #define UNICODE
 #define _UNICODE
@@ -61,13 +61,17 @@ struct GuiSystem
     int device_tried;
     DWORD leave_watched;
     int owner;
+    int least_width;
+    int least_height;
+    // the window a modal window disables while it stands, NULL for a window that is not modal
+    HWND modal_owner;
 };
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
 // the rows one notch of the wheel scrolls
 #define GUI_WHEEL_ROWS 3
-// the windows that stand at once: the main one and Preferences'
-#define SYSTEM_WINDOWS 2u
+// the windows that stand at once: the main one, Preferences' and the dialog's
+#define SYSTEM_WINDOWS 3u
 
 static GuiSystem s_systems[SYSTEM_WINDOWS];
 
@@ -669,7 +673,10 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case WM_NCACTIVATE:
         // the window taking or losing the focus: its border colored for the state, and the system told not to paint
         // its own frame over the client, which -1 in place of the update region does
-        EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
+        if ((system == NULL) || !system->owner)
+        {
+            EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
+        }
         return DefWindowProcW(window, message, pixel_width, (LPARAM)-1);
     case WM_NCPAINT:
         // there is no non-client area to paint
@@ -703,11 +710,13 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         }
         return 0;
     case WM_GETMINMAXINFO: {
-        // the least size the window is dragged to, at its monitor's scale; a size at a scale is far inside a LONG
+        // The least size the window is dragged to: the size a window owned opened at, else the main window's least, at
+        // its monitor's scale. A size at a scale is far inside a LONG
         MINMAXINFO *const limits = (MINMAXINFO *)low;
         const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
-        limits->ptMinTrackSize.x = (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
-        limits->ptMinTrackSize.y = (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
+        const int owned = (system != NULL) && system->owner;
+        limits->ptMinTrackSize.x = owned ? (LONG)system->least_width : (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
+        limits->ptMinTrackSize.y = owned ? (LONG)system->least_height : (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
         // maximized it fills the part of its monitor the taskbar leaves, its frame past those edges
         MONITORINFO info;
         info.cbSize = sizeof(info);
@@ -964,7 +973,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
     }
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the program's two windows already stand");
+        mmgr_line_put(args->err_msg, "the program's three windows already stand");
         return NULL;
     }
     memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
@@ -1035,7 +1044,20 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
         return NULL;
     }
     system->owner = 1;
+    // a window owned is dragged no smaller than it opened, the size its owner asked for it; a place's sides are far
+    // inside what an int represents
+    system->least_width = (int)args->place->width;
+    system->least_height = (int)args->place->height;
+    // a window owned paints its own border, rounded as the compositor rounds its corners, so the compositor draws none
+    const COLORREF none = DWMWA_COLOR_NONE;
+    DwmSetWindowAttribute(system->window, DWMWA_BORDER_COLOR, &none, sizeof(none));
     ShowWindow(system->window, SW_SHOW);
+    // A modal window disables its owner, so the system refuses the owner's input until the modal window closes
+    if (args->modal)
+    {
+        system->modal_owner = args->owner->window;
+        EnableWindow(system->modal_owner, FALSE);
+    }
     return system;
 }
 
@@ -1081,6 +1103,12 @@ void *gui_system_native(const GuiSystemPositionCfg *args)
 void gui_system_close(const GuiSystemCfg *args)
 {
     EMBED_CALL(system_device_release, SystemWindowsCtx, .device = &args->system->device);
+    // The owner of a modal window takes input again before the modal window goes, so the system gives it the focus
+    if (args->system->modal_owner != NULL)
+    {
+        EnableWindow(args->system->modal_owner, TRUE);
+        args->system->modal_owner = NULL;
+    }
     if (args->system->window != NULL)
     {
         DestroyWindow(args->system->window);

@@ -31,8 +31,8 @@ EMBED_INLINE const char *answer_text(const RecordingAnswerCtx *args)
     unsigned long long *length = args->length;
     const unsigned int node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                          .object = args->arguments, .name = name);
-    const char *const text = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = node, .kind = CFG_JSON_STRING)
+    const char *const text = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = node, .type = CFG_JSON_STRING)
                                  ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                               .json_read = json, .node = node, .length_pointer = length)
                                  : NULL;
@@ -199,14 +199,14 @@ EMBED_INLINE int answer_exception(const RecordingAnswerCtx *args)
     {
         if (recording->raised[at].step == g_cli_replay->at)
         {
-            const char *const kind = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                                                .at = recording->raised[at].kind);
+            const char *const type = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
+                                                .at = recording->raised[at].type);
             const char *const message = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
                                                    .at = recording->raised[at].message);
             mmgr_line_put(args->body, "{\"exceptionId\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
-                       .text_bytes = (const unsigned char *)kind,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}));
+                       .text_bytes = (const unsigned char *)type,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(args->body, ",\"description\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                        .text_bytes = (const unsigned char *)message,

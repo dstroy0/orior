@@ -109,7 +109,7 @@ void test_a_call_parses_with_its_three_arguments(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_python_paths_size_internal.py_read_state_alloc, CliPythonPathsSizeCtx, .size = sizeof(s_call)));
     const unsigned int expr = EMBED_CALL(cli_python_paths_text_internal.py_parse, CliPythonPathsTextCtx, .text = s_call, .length = sizeof(s_call) - 1u);
     TEST_ASSERT_NOT_EQUAL(CLI_PY_NONE, expr);
-    TEST_ASSERT_EQUAL_INT(CLI_EXPR_CALL, g_cli_py.expr[expr].kind);
+    TEST_ASSERT_EQUAL_INT(CLI_EXPR_CALL, g_cli_py.expr[expr].type);
     TEST_ASSERT_EQUAL_UINT(3u, g_cli_py.expr[expr].count);
     cli_py_read_state_free();
 }
@@ -128,7 +128,7 @@ void test_a_tuple_parses_with_its_two_items(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_python_paths_size_internal.py_read_state_alloc, CliPythonPathsSizeCtx, .size = sizeof(s_text)));
     const unsigned int expr = EMBED_CALL(cli_python_paths_text_internal.py_parse, CliPythonPathsTextCtx, .text = s_text, .length = sizeof(s_text) - 1u);
     TEST_ASSERT_NOT_EQUAL(CLI_PY_NONE, expr);
-    TEST_ASSERT_EQUAL_INT(CLI_EXPR_MANY, g_cli_py.expr[expr].kind);
+    TEST_ASSERT_EQUAL_INT(CLI_EXPR_MANY, g_cli_py.expr[expr].type);
     TEST_ASSERT_EQUAL_UINT(2u, g_cli_py.expr[expr].count);
     cli_py_read_state_free();
 }

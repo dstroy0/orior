@@ -14,13 +14,13 @@ import { openAt } from "./save.js";
 import { drawTabs, tabOf, tabOfSession } from "./tabs.js";
 
 // Refactorings across files: each file's edits written into the tab that holds it, a tab opened for
-// a file none holds, every file's as one step of one kind, `group:` and a number, which ties them:
+// a file none holds, every file's as one step of one type, `group:` and a number, which ties them:
 // Undo or Redo in any of them takes the step back or brings it again in all of them.
 let groups = 0;
 
 async function applyGroup(files) {
   groups += 1;
-  const kind = `group:${groups}`;
+  const type = `group:${groups}`;
   for (const file of files.filter((one) => one.edits.length)) {
     if (!tabOf(file.path)) {
       await load(file.path).catch(() => {});
@@ -33,9 +33,9 @@ async function applyGroup(files) {
     }
     const edits = file.edits.map(({ from, to, text }) => ({ from: { line: from.line - s.base, col: from.col }, to: { line: to.line - s.base, col: to.col }, text }));
     if (state.editor?.s === s) {
-      state.editor.change(edits, kind);
+      state.editor.change(edits, type);
     } else {
-      s.doc.change(edits, kind, s.selections);
+      s.doc.change(edits, type, s.selections);
       s.selections = s.selections.map((sel) => ({ anchor: s.doc.clamp(sel.anchor), head: s.doc.clamp(sel.head), goal: null }));
       s.doc.settle(s.selections);
     }
@@ -45,15 +45,15 @@ async function applyGroup(files) {
   drawTabs();
 }
 
-// Takes back, or brings again, the step of `kind` in every tab but the one whose editor already does.
-export function undoGroup(kind, back, own) {
+// Takes back, or brings again, the step of `type` in every tab but the one whose editor already does.
+export function undoGroup(type, back, own) {
   for (const tab of state.tabs) {
     const doc = tab.session?.doc;
     if (!doc || doc === own) {
       continue;
     }
     const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
-    if (step?.kind !== kind) {
+    if (step?.kind !== type) {
       continue;
     }
     doc.writer = tab.session;

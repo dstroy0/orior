@@ -21,12 +21,12 @@ static char s_insert_done[64];
 static char s_lite_root[CLI_PATH_MAX_LEN];
 static int s_lite_version_named;
 
-// the connection `name` of `kind`, the rest empty, into `connection`
-static void connection_set(CliDbConnection *connection, const char *name, const char *kind)
+// the connection `name` of `type`, the rest empty, into `connection`
+static void connection_set(CliDbConnection *connection, const char *name, const char *type)
 {
     memor.set(&(MemoriaCfg){.dst = connection, .val = 0, .bytes = sizeof(*connection)});
     memor.cpy(&(MemoriaCfg){.dst = connection->name, .src = name, .bytes = CLI_UNITY_LENGTH(name) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = connection->kind, .src = kind, .bytes = CLI_UNITY_LENGTH(kind) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = connection->type, .src = type, .bytes = CLI_UNITY_LENGTH(type) + 1u});
 }
 
 // `text` copied into `out`, which is sized for its text and its 0
@@ -179,15 +179,15 @@ static void password_created(char *marked, unsigned long long capacity)
     (void)mmgr_line_finish(&made);
 }
 
-// a connection of `kind` to a port nothing listens on, with a password, asserted refused and the password wiped
-static void assert_password_wiped(const char *kind)
+// a connection of `type` to a port nothing listens on, with a password, asserted refused and the password wiped
+static void assert_password_wiped(const char *type)
 {
     char root[CLI_PATH_MAX_LEN];
     char marked[32];
     CliDbConnection connection;
     cli_unity_folder("db_password_wiped", root);
     password_created(marked, sizeof(marked));
-    connection_set(&connection, "closed", kind);
+    connection_set(&connection, "closed", type);
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.host, .src = "127.0.0.1", .cap = CLI_NAME_MAX_LEN});
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.user, .src = "app", .cap = CLI_NAME_MAX_LEN});
     connection.port = 1u;
@@ -255,7 +255,7 @@ void test_a_connections_account_names_its_server_and_its_tunnel(void)
     char account[256];
     VerbaLinea line = {account, sizeof(account), 0ull};
     connections_stored();
-    EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_prod, .out = &line);
+    EMBED_CALL(cli_db_connection_out_type.account, CliDbConnectionOutTypeCfg, .connection = &s_prod, .out = &line);
     CLI_TEST_ASSERT_TEXT("postgres://app@db.example:5432/app via me@bastion", account, line.at);
 }
 
@@ -297,7 +297,7 @@ void test_a_querys_first_page_comes_the_remainder_waiting(void)
     const unsigned int found = statement_run(s_lite, "SELECT n, name, b, NULL AS z FROM t ORDER BY n", 0, 100ull);
     const unsigned int rows = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = found, .name = "rows");
     TEST_ASSERT_EQUAL_UINT(100u, s_json->node[rows].count);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = found, .name = "done"), .kind = CFG_JSON_NULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = found, .name = "done"), .type = CFG_JSON_NULL));
 }
 
 void test_a_numbers_column_is_numeric(void)

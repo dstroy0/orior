@@ -62,7 +62,7 @@ EMBED_INLINE void complete_properties(const MavenCompleteCtx *args)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = s_model.text + s_model.name_at[at],
-                   .value_size = s_model.name_size[at], .kind = "constant",
+                   .value_size = s_model.name_size[at], .type = "constant",
                    .detail = s_model.text + s_model.value_at[at], .detail_size = s_model.value_size[at]);
     }
     g_cli_guard->persistent_buf_release(s_model.name_at, g_cli_maven_model_owner);
@@ -73,14 +73,14 @@ EMBED_INLINE void complete_properties(const MavenCompleteCtx *args)
                    .token_size = token_size, .value = g_cli_maven_project_properties[at],
                    .value_size =
                        cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_project_properties[at], .cap = CLI_POOL_BYTES}),
-                   .kind = "constant", .detail = "Maven", .detail_size = 5u);
+                   .type = "constant", .detail = "Maven", .detail_size = 5u);
     }
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = s_maven_input[at],
                    .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_maven_input[at], .cap = CLI_POOL_BYTES}),
-                   .kind = "constant", .detail = "Maven", .detail_size = 5u);
+                   .type = "constant", .detail = "Maven", .detail_size = 5u);
     }
 }
 
@@ -99,7 +99,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
     if (s_xml.opens == 0u)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
-                   .token_size = token_size, .value = "project", .value_size = 7u, .kind = "keyword", .detail = "POM",
+                   .token_size = token_size, .value = "project", .value_size = 7u, .type = "keyword", .detail = "POM",
                    .detail_size = 3u);
         return;
     }
@@ -140,7 +140,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = names[at],
                    .value_size = cellul.len(&(CatenaFinitaCfg){.src = names[at], .cap = CLI_POOL_BYTES}),
-                   .kind = "keyword", .detail = s_detail, .detail_size = detail.at);
+                   .type = "keyword", .detail = s_detail, .detail_size = detail.at);
         if ((items->count == first) || args->follows)
         {
             continue;
@@ -156,7 +156,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
         const CliCompletion pivot = *item;
         items->count = first;
         (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
-                         .label = items->text + pivot.label_at, .label_size = pivot.label_size, .kind = pivot.kind,
+                         .label = items->text + pivot.label_at, .label_size = pivot.label_size, .type = pivot.type,
                          .detail = items->text + pivot.detail_at, .detail_size = pivot.detail_size, .insert = s_insert,
                          .insert_size = insert.at, .snippet = 1);
     }
@@ -224,7 +224,7 @@ EMBED_INLINE void complete_repository(const MavenCompleteCtx *args)
         const char *const value = s_folders.text + s_folders.at[at];
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = value,
-                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES}), .kind = "module",
+                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_POOL_BYTES}), .type = "module",
                    .detail = "local repository", .detail_size = 16u);
     }
 }
@@ -353,7 +353,7 @@ EMBED_INLINE int complete_values(const MavenCompleteCtx *args)
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = list[at],
                    .value_size = cellul.len(&(CatenaFinitaCfg){.src = list[at], .cap = CLI_POOL_BYTES}),
-                   .kind = "value", .detail = s_detail, .detail_size = detail.at);
+                   .type = "value", .detail = s_detail, .detail_size = detail.at);
     }
     return 1;
 }
@@ -390,7 +390,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             mmgr_line_put_n(&insert, args->text + open->from, open->to - open->from);
             mmgr_line_ch(&insert, '>');
             (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
-                             .label = args->text + open->from, .label_size = open->to - open->from, .kind = "keyword",
+                             .label = args->text + open->from, .label_size = open->to - open->from, .type = "keyword",
                              .detail = "close", .detail_size = 5u, .insert = s_insert, .insert_size = insert.at,
                              .snippet = 0);
         }

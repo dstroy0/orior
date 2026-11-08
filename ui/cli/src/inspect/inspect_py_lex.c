@@ -217,7 +217,7 @@ static void lex_string(const InspectPyLexCtx *args)
                            .triple = triple, .fields = fields, .braces = &braces, .names = &names);
         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_STR,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_STR,
                .start = start, .from = from, .field = 0);
     for (unsigned int at = 0u; at < names; at += 1u)
     {
@@ -273,7 +273,7 @@ EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_NUMBER,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_NUMBER,
                .start = start, .from = from, .field = 0);
 }
 
@@ -313,7 +313,7 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
             *depth -= 1;
         }
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_OP, .start = start,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_OP, .start = start,
                .from = from, .field = 0);
 }
 
@@ -451,7 +451,7 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             }
             else
             {
-                EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = &scan, .kind = CLI_PY_NAME,
+                EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = &scan, .type = CLI_PY_NAME,
                            .start = start, .from = from, .field = 0);
             }
         }
@@ -502,7 +502,7 @@ int cli_py_opens(const CliInspectPySrcLineCfg *args)
 {
     const CliInspectTok *const last =
         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = args->line->count - 1u);
-    return (last->kind == CLI_PY_OP) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
+    return (last->type == CLI_PY_OP) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
                                                    .src = args->src, .tok = last, .word_text = ":");
 }
 

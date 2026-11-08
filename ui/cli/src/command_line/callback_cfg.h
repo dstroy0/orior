@@ -72,7 +72,7 @@ typedef struct
     void *context;
     const char *name;
     unsigned long long length;
-    const char *kind;
+    const char *type;
     unsigned int line;
 } CliDeclaredCfg;
 
@@ -158,8 +158,8 @@ typedef struct
 typedef struct
 {
     const void *context;
-    const char *kind;
-} CliEachKindCfg;
+    const char *type;
+} CliEachTypeCfg;
 
 typedef struct
 {
@@ -258,8 +258,8 @@ typedef struct
 {
     void *context;
     const char *path;
-    unsigned int kind;
-} CliEachPathKindCfg;
+    unsigned int type;
+} CliEachPathTypeCfg;
 
 typedef struct
 {

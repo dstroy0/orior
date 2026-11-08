@@ -86,9 +86,9 @@ typedef struct
     unsigned int owner;
     unsigned int window;
     unsigned int property;
-    unsigned int type;
+    unsigned int property_type;
     unsigned int format;
-    unsigned int kind;
+    unsigned int type;
     unsigned int *type_pointer;
     unsigned int target;
     const unsigned char *request;
@@ -334,7 +334,7 @@ void cli_clipboard_clear(void)
     (void)EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words, .input = "", .size = 0ULL, .out = NULL);
 }
 #else
-// the core protocol's atoms this file names by number, the kinds of what the server sends, the events it reports and
+// the core protocol's atoms this file names by number, the types of what the server sends, the events it reports and
 // the mask that asks for property changes, a window's class that takes input alone, and the value-mask bit that sets a
 // window's event mask
 #define CLI_X11_ATOM_ATOM 4u
@@ -513,10 +513,10 @@ EMBED_INLINE int x11_reply(const PosixClipboardCtx *args)
         {
             return 0;
         }
-        const unsigned int kind = args->packet[0] & 0x7fu;
-        if ((kind == CLI_X11_REPLY) || (kind == CLI_X11_ERROR))
+        const unsigned int type = args->packet[0] & 0x7fu;
+        if ((type == CLI_X11_REPLY) || (type == CLI_X11_ERROR))
         {
-            return kind == CLI_X11_REPLY;
+            return type == CLI_X11_REPLY;
         }
     }
 }
@@ -863,7 +863,7 @@ EMBED_INLINE int x11_owner_set(const PosixClipboardCtx *args)
     return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
-// `size` bytes of `bytes` put as the property `property` of `window`, of `type` in units of `format` bits, replacing
+// `size` bytes of `bytes` put as the property `property` of `window`, of `property_type` in units of `format` bits, replacing
 // what it had: 1, or 0 where the connection is gone
 EMBED_INLINE int x11_property_append(const PosixClipboardCtx *args)
 {
@@ -876,7 +876,7 @@ EMBED_INLINE int x11_property_append(const PosixClipboardCtx *args)
     EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = (unsigned int)(6ULL + (padded / 4ULL)));
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->window);
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->property);
-    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = args->type);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = args->property_type);
     request[16] = (unsigned char)args->format;
     request[17] = 0u;
     request[18] = 0u;
@@ -901,7 +901,7 @@ EMBED_INLINE int x11_property_delete(const PosixClipboardCtx *args)
     return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
-// the next event of `kind` for this connection's window, `property` where it is a property's change, waited for, every
+// the next event of `type` for this connection's window, `property` where it is a property's change, waited for, every
 // other event passed over: 1, or 0 where none came in time
 EMBED_INLINE int x11_event(const PosixClipboardCtx *args)
 {
@@ -921,7 +921,7 @@ EMBED_INLINE int x11_event(const PosixClipboardCtx *args)
             (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 4) == args->x11->window) &&
             (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 8) == args->property) &&
             (args->packet[16] == 0u);
-        if ((received == args->kind) && (ours || changed))
+        if ((received == args->type) && (ours || changed))
         {
             return 1;
         }
@@ -988,7 +988,7 @@ static int x11_convert(const PosixClipboardCtx *args)
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 20, .value = 0u);
     unsigned char packet[32];
     if (!EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request)) ||
-        !EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .kind = CLI_X11_SELECTION_NOTIFY, .property = 0u,
+        !EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .type = CLI_X11_SELECTION_NOTIFY, .property = 0u,
                     .packet = packet) ||
         (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = packet + 20) == 0u))
     {
@@ -1011,7 +1011,7 @@ static int x11_convert(const PosixClipboardCtx *args)
     args->out->at = before;
     for (size = 1ULL; size > 0ULL;)
     {
-        if (!EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .kind = CLI_X11_PROPERTY_NOTIFY,
+        if (!EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .type = CLI_X11_PROPERTY_NOTIFY,
                         .property = args->x11->atom[CLI_X11_PROPERTY], .packet = packet) ||
             !EMBED_CALL(x11_property_alloc, PosixClipboardCtx, .x11 = args->x11, .out = args->out,
                         .type_pointer = &type, .size_pointer = &size))
@@ -1126,7 +1126,7 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
             }
         }
         (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
-                         .type = CLI_X11_ATOM_ATOM, .format = 32u, .bytes = targets, .size = count * 4ULL);
+                         .property_type = CLI_X11_ATOM_ATOM, .format = 32u, .bytes = targets, .size = count * 4ULL);
         EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
         return;
     }
@@ -1142,7 +1142,7 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
     if (s_owner.size[place] <= whole)
     {
         (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
-                         .type = type, .format = 8u, .bytes = s_owner.content[place], .size = s_owner.size[place]);
+                         .property_type = type, .format = 8u, .bytes = s_owner.content[place], .size = s_owner.size[place]);
         EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
         return;
     }
@@ -1160,7 +1160,7 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
                .value = (s_owner.size[place] < 0xffffffffULL) ? (unsigned int)s_owner.size[place] : 0xffffffffu);
     (void)EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = x11, .bytes = receive, .size = sizeof(receive));
     (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
-                     .type = x11->atom[CLI_X11_INCR], .format = 32u, .bytes = size, .size = sizeof(size));
+                     .property_type = x11->atom[CLI_X11_INCR], .format = 32u, .bytes = size, .size = sizeof(size));
     EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
     s_owner.requestor = requestor;
     s_owner.property = property;
@@ -1185,7 +1185,7 @@ EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
     const unsigned long long left = (content != NULL) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ULL;
     const unsigned long long piece = (left < CLI_X11_SENT_MAX) ? left : CLI_X11_SENT_MAX;
     (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = &s_owner.x11, .window = s_owner.requestor,
-                     .property = s_owner.property, .type = s_owner.type, .format = 8u,
+                     .property = s_owner.property, .property_type = s_owner.type, .format = 8u,
                      .bytes = (content != NULL) ? content + s_owner.sent : "", .size = piece);
     s_owner.sent += piece;
     s_owner.sending = piece > 0ULL;
@@ -1207,18 +1207,18 @@ static void owner_run(void *context)
         unsigned long long size = 0ULL;
         serving = EMBED_CALL(x11_packet, PosixClipboardCtx, .x11 = x11, .packet = packet, .extra = s_reply,
                              .capacity = sizeof(s_reply), .size_pointer = &size, .wait = -1);
-        const unsigned int kind = packet[0] & 0x7fu;
-        if (serving && (kind == CLI_X11_SELECTION_CLEAR))
+        const unsigned int type = packet[0] & 0x7fu;
+        if (serving && (type == CLI_X11_SELECTION_CLEAR))
         {
             // a clear that came before this window took the clipboard back is past
             serving = s_owner.reowned;
             s_owner.reowned = 0;
         }
-        else if (serving && (kind == CLI_X11_SELECTION_REQUEST))
+        else if (serving && (type == CLI_X11_SELECTION_REQUEST))
         {
             EMBED_CALL(owner_request, PosixClipboardCtx, .request = packet);
         }
-        else if (serving && (kind == CLI_X11_PROPERTY_NOTIFY))
+        else if (serving && (type == CLI_X11_PROPERTY_NOTIFY))
         {
             EMBED_CALL(owner_piece_send, PosixClipboardCtx, .event = packet);
         }

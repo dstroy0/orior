@@ -14,15 +14,15 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
                    .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = args->err_msg, .owner = g_cli_machine_owner);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->chain->json,
-                    .node = root, .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &args->chain->json,
+                    .node = root, .type = CFG_JSON_OBJECT))
     {
         return 0;
     }
     const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &args->chain->json, .object = root, .name = "files");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = &args->chain->json, .node = files, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = &args->chain->json, .node = files, .type = CFG_JSON_ARRAY)
                                  ? args->chain->json.node[files].first
                                  : CLI_JSON_NONE;
          (item != CLI_JSON_NONE) && (args->chain->files < CLI_SETTINGS_DEEPEST);
@@ -35,8 +35,8 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
                        .length_pointer = NULL);
         const unsigned int values = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &args->chain->json, .object = item, .name = "values");
-        if ((file == NULL) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &args->chain->json, .node = values, .kind = CFG_JSON_OBJECT))
+        if ((file == NULL) || !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &args->chain->json, .node = values, .type = CFG_JSON_OBJECT))
         {
             continue;
         }
@@ -48,8 +48,8 @@ int cli_settings_chain_read(const CliSettingsChainCfg *args)
     }
     const unsigned int problems = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                              .json_read = &args->chain->json, .object = root, .name = "problems");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = &args->chain->json, .node = problems, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = &args->chain->json, .node = problems, .type = CFG_JSON_ARRAY)
                                  ? args->chain->json.node[problems].first
                                  : CLI_JSON_NONE;
          (item != CLI_JSON_NONE) && (args->chain->problems < CLI_SETTINGS_PROBLEMS);

@@ -76,14 +76,14 @@ EMBED_INLINE void array_items(const SchemaArrayCtx *args)
     const unsigned int items =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "items");
     unsigned int tuple = CLI_JSON_NONE;
-    if ((prefix != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = json, .node = prefix, .kind = CFG_JSON_ARRAY))
+    if ((prefix != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                .json_read = json, .node = prefix, .type = CFG_JSON_ARRAY))
     {
         tuple = prefix;
     }
     else if ((prefix == CLI_JSON_NONE) && (items != CLI_JSON_NONE) &&
-             EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = items,
-                        .kind = CFG_JSON_ARRAY))
+             EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = items,
+                        .type = CFG_JSON_ARRAY))
     {
         tuple = items;
     }

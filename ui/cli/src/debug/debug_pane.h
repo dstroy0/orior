@@ -28,7 +28,7 @@ typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 #define CLI_DEBUG_VIEW_CONSOLE 2u
 #define CLI_DEBUG_VIEWS 3u
 
-// the rows' kinds: a frame, a scope, a variable, a watch, a line of the console, and the notice a view shows where it
+// the rows' types: a frame, a scope, a variable, a watch, a line of the console, and the notice a view shows where it
 // has no rows of its own
 #define CLI_DEBUG_ROW_FRAME 0u
 #define CLI_DEBUG_ROW_SCOPE 1u
@@ -37,7 +37,7 @@ typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 #define CLI_DEBUG_ROW_LINE 4u
 #define CLI_DEBUG_ROW_NOTICE 5u
 
-// a console line's kinds: the program's output and its errors, the debugger's own words, an expression typed and
+// a console line's types: the program's output and its errors, the debugger's own words, an expression typed and
 // what it came to
 #define CLI_DEBUG_LINE_STDOUT 0u
 #define CLI_DEBUG_LINE_STDERR 1u
@@ -63,20 +63,20 @@ typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 #define CLI_DEBUG_FIELD_MAX 4096u
 #define CLI_DEBUG_DEPTH 12u
 
-// A row of a view: its kind; its depth under the scopes, 0 for a scope; whether it opens, a scope's or a variable's
+// A row of a view: its type; its depth under the scopes, 0 for a scope; whether it opens, a scope's or a variable's
 // children under it, and whether they are open; whether it is the frame chosen; whether its value failed, a watch's
-// that could not be evaluated or a line of errors; a console line's kind; three texts with their bytes, a frame's
+// that could not be evaluated or a line of errors; a console line's type; three texts with their bytes, a frame's
 // function, its file and line and its path, a variable's name, value and type, a watch's expression and value, a
 // line's text, a notice's sentence; and a frame's line counted from 0
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int depth;
     int opens;
     int open;
     int current;
     int failed;
-    unsigned int line_kind;
+    unsigned int line_type;
     const char *text;
     unsigned long long text_length;
     const char *second;

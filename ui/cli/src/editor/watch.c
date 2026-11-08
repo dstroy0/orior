@@ -10,11 +10,11 @@
 #include "files_internal.h"
 #include "watch_internal.h"
 
-// A change: its path's place in the list's texts, and its kind
+// A change: its path's place in the list's texts, and its type
 typedef struct
 {
     unsigned long long at;
-    unsigned int kind;
+    unsigned int type;
 } CliChange;
 // A list of changes: `count` of them in a cell of `change_bytes`, and their paths, `used` bytes in a cell of `bytes`;
 // each cell at their most
@@ -70,13 +70,13 @@ typedef struct
 {
     CliChanges *changes;
     const char *path;
-    unsigned int kind;
+    unsigned int type;
     unsigned int most;
     const CliChanges *changes_read;
     unsigned int index;
     CliBatch *batch;
 } WatchCtx;
-// the change of `kind` at `path` put after the list's: 1, or 0 where it contains `most` or the cellblock could not meet
+// the change of `type` at `path` put after the list's: 1, or 0 where it contains `most` or the cellblock could not meet
 // the capacity for it
 EMBED_INLINE int cli_change_append(const WatchCtx *args)
 {
@@ -100,7 +100,7 @@ EMBED_INLINE int cli_change_append(const WatchCtx *args)
     }
     memor.cpy(
         &(MemoriaCfg){.dst = args->changes->text + args->changes->used, .src = args->path, .bytes = (size_t)length});
-    args->changes->change[args->changes->count] = (CliChange){args->changes->used, args->kind};
+    args->changes->change[args->changes->count] = (CliChange){args->changes->used, args->type};
     args->changes->used += length;
     args->changes->count += 1u;
     return 1;
@@ -125,13 +125,13 @@ int cli_watch_stopping(void)
     return stop;
 }
 
-void cli_watch_change(const CliEachPathKindCfg *args)
+void cli_watch_change(const CliEachPathTypeCfg *args)
 {
     const char *path = args->path;
-    unsigned int kind = args->kind;
+    unsigned int type = args->type;
     if (!s_watching.stop)
     {
-        if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &s_watching.waiting, .path = path, .kind = kind,
+        if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &s_watching.waiting, .path = path, .type = type,
                         .most = CLI_WATCH_QUEUE))
         {
             s_watching.overflowed = 1;
@@ -147,7 +147,7 @@ EMBED_INLINE void cli_waiting_alloc(const WatchCtx *args)
     {
         if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &args->batch->changes,
                         .path = EMBED_CALL(cli_change_path, WatchCtx, .changes_read = &s_watching.waiting, .index = at),
-                        .kind = s_watching.waiting.change[at].kind, .most = CLI_WATCH_GATHERED))
+                        .type = s_watching.waiting.change[at].type, .most = CLI_WATCH_GATHERED))
         {
             args->batch->lost = 1;
         }
@@ -181,8 +181,8 @@ static int cli_gather(const WatchCtx *args)
     {
         const char *const path =
             EMBED_CALL(cli_change_path, WatchCtx, .changes_read = &args->batch->changes, .index = at);
-        const unsigned int kind = args->batch->changes.change[at].kind;
-        if (kind == CLI_CHANGE_LOST)
+        const unsigned int type = args->batch->changes.change[at].type;
+        if (type == CLI_CHANGE_LOST)
         {
             args->batch->lost = 1;
             git = 1;
@@ -209,7 +209,7 @@ static int cli_gather(const WatchCtx *args)
         const int dir = EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = full);
         const int tracked =
             (path[0] != '\0') && EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = root, .path = path);
-        if (tracked && (moved != NULL) && ((kind == CLI_CHANGE_ADDED) || (kind == CLI_CHANGE_REMOVED)))
+        if (tracked && (moved != NULL) && ((type == CLI_CHANGE_ADDED) || (type == CLI_CHANGE_REMOVED)))
         {
             moved[moves] = path;
             moves += 1u;
@@ -220,7 +220,7 @@ static int cli_gather(const WatchCtx *args)
             continue;
         }
         git = git || tracked;
-        if ((kind == CLI_CHANGE_ADDED) || (kind == CLI_CHANGE_REMOVED))
+        if ((type == CLI_CHANGE_ADDED) || (type == CLI_CHANGE_REMOVED))
         {
             const char *const slash = EMBED_CALL(
                 cli_text_byte.last, CliTextByteCfg, .text = path,
@@ -228,7 +228,7 @@ static int cli_gather(const WatchCtx *args)
             // the slash lies in the path, at or past its start
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
                        .path = path, .length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL);
-            if ((kind == CLI_CHANGE_ADDED) && !dir)
+            if ((type == CLI_CHANGE_ADDED) && !dir)
             {
                 EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->written,
                            .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
@@ -417,7 +417,7 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     {
         batch->lost =
             batch->lost || !EMBED_CALL(cli_change_append, WatchCtx, .changes = &batch->changes, .path = args->paths[at],
-                                       .kind = args->kinds[at], .most = CLI_WATCH_GATHERED);
+                                       .type = args->types[at], .most = CLI_WATCH_GATHERED);
     }
     const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch);
     if (any)

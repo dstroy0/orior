@@ -29,7 +29,7 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 #define CLI_JOB_RUNS_RETAINED 10u
 #define CLI_JOB_RUNS_FIELD_MAX 4096u
 
-// the rows' kinds: a group, a job, the chosen job's file and about, a param's field, a choice of the param focused, a
+// the rows' types: a group, a job, the chosen job's file and about, a param's field, a choice of the param focused, a
 // run of the chosen job, a line of the run shown, and the end of the run shown where it ended
 #define CLI_JOB_RUN_GROUP 0u
 #define CLI_JOB_RUN_JOB 1u
@@ -63,13 +63,13 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 #define CLI_JOB_RUNS_LINE 1u
 #define CLI_JOB_RUNS_ENDED 2u
 
-// A row: its kind; its text and its bytes, the group's name, the job's title, the file, the param's key, the choice,
+// A row: its type; its text and its bytes, the group's name, the job's title, the file, the param's key, the choice,
 // the run's number and state, the line's plain text or the end's word; a second text and its bytes, the about, the
 // param's value or its default; the guides it stands in; its flags; a line's stream; and a number, the jobs a group
 // lists or the run's
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *text;
     unsigned long long text_length;
     const char *second;
@@ -97,7 +97,7 @@ void cli_job_runs_begin(const CliJobRunsWokenCfg *args);
 int cli_job_runs_step(const CliJobRunsWokenCfg *args);
 void cli_job_runs_end(const CliJobRunsWokenCfg *args);
 // what a run reports stored from its thread under the lock and the view's thread woken, as the sink of a run the pane
-// starts stores it: its kind; its run's number; for its start, its job's id; for a line, its stream and its text; for
+// starts stores it: its type; its run's number; for its start, its job's id; for a line, its stream and its text; for
 // its end, its exit code where it has one and whether it was stopped
 void cli_job_runs_reported(const CliJobRunsReportCfg *args);
 // the jobs listed anew from `catalog` where it is handed, which then outlives the store's use of it, else from the
@@ -133,7 +133,7 @@ int cli_job_runs_live(const CliJobRunsRunCfg *args);
 
 struct CliJobRunsReportCfg
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned long long run;
     const char *job;
     unsigned int stream;

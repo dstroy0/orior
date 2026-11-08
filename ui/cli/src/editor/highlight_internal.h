@@ -48,7 +48,7 @@ typedef struct CliHighlightNameCtx CliHighlightNameCtx;
 
 #define CLI_HIGHLIGHT_STACK 256u
 
-// a token's kinds: a name, cases that pick one by the matched text, or one token for each group of the match
+// a token's types: a name, cases that pick one by the matched text, or one token for each group of the match
 enum
 {
     CLI_TOKEN_NAME,
@@ -56,10 +56,10 @@ enum
     CLI_TOKEN_GROUPS
 };
 
-// A token: its kind; a name's place among the names; or its cases or its groups, `count` from `first` in the cases
+// A token: its type; a name's place among the names; or its cases or its groups, `count` from `first` in the cases
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int name;
     unsigned int first;
     unsigned int count;

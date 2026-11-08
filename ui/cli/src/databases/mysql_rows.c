@@ -152,22 +152,22 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
         const unsigned int charset =
             ((at < size) ? definition[at] : 0u) | ((at + 1u < size) ? ((unsigned int)definition[at + 1u] << 8u) : 0u);
         const unsigned int code = (at + 6u < size) ? definition[at + 6u] : 253u;
-        const char *kind = EMBED_CALL(rows_type_name, MysqlRowsCtx, .code = code, .numeric = &column->numeric);
+        const char *type = EMBED_CALL(rows_type_name, MysqlRowsCtx, .code = code, .numeric = &column->numeric);
         if ((charset == 63u) && EMBED_CALL(rows_stringy, MysqlRowsCtx, .code = code))
         {
-            kind = ((code >= 249u) && (code <= 252u)) ? "blob" : "binary";
+            type = ((code >= 249u) && (code <= 252u)) ? "blob" : "binary";
         }
-        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ULL};
-        if (kind[0] == '\0')
+        VerbaLinea type_line = {column->type, sizeof(column->type), 0ULL};
+        if (type[0] == '\0')
         {
-            mmgr_line_put(&kind_line, "type ");
-            mmgr_line_decimal(&kind_line, code, 1u);
+            mmgr_line_put(&type_line, "type ");
+            mmgr_line_decimal(&type_line, code, 1u);
         }
         else
         {
-            mmgr_line_put(&kind_line, kind);
+            mmgr_line_put(&type_line, type);
         }
-        mmgr_line_finish(&kind_line);
+        mmgr_line_finish(&type_line);
         mysql->codes[mysql->head.column_count] = (unsigned char)code;
         mysql->charsets[mysql->head.column_count] = charset;
         mysql->head.column_count += 1u;

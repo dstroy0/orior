@@ -8,7 +8,7 @@ import { caret, empty, endOfSel, OPERATOR_END, startOf } from "../view.js";
 
 // Writes edits and sets the selections. `place` is given a function that carries a place in the
 // old text to the new and answers the selections, or, left out, every selection is carried.
-export function change(edits, kind, place) {
+export function change(edits, type, place) {
   const s = this.s;
   // a paged file's window of lines cut at the view's reach takes no edit until the view rests and its lines come whole
   if (s.readOnly || s.window?.cut) {
@@ -16,7 +16,7 @@ export function change(edits, kind, place) {
   }
   const before = this.copySelections();
   s.doc.writer = s;
-  const { edits: written } = s.doc.change(edits, kind, before);
+  const { edits: written } = s.doc.change(edits, type, before);
   s.doc.writer = null;
   const map = (p, after = false) => mapThrough(p, written, after);
   const next = place
@@ -34,10 +34,10 @@ export function change(edits, kind, place) {
 
 // Each selection gives one edit, { from, to, text }, with `select`, the offsets into its text the
 // selection goes to after, or null to leave the selection to be carried.
-export function edit(plan, kind) {
+export function edit(plan, type) {
   const plans = this.s.selections.map((sel, index) => plan(sel, index));
   const edits = plans.filter(Boolean).map(({ from, to, text }) => ({ from, to, text }));
-  return this.change(edits, kind, (map) =>
+  return this.change(edits, type, (map) =>
     plans.map((one, index) => {
       const sel = this.s.selections[index];
       if (!one) {

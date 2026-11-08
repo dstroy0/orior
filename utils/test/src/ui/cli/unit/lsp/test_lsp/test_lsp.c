@@ -308,7 +308,7 @@ void test_a_message_is_read_by_its_length_and_the_next_after_it(void)
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(body, size, &root);
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "result"), .name = "x");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = number, .kind = CFG_JSON_NUMBER));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = number, .type = CFG_JSON_NUMBER));
     TEST_ASSERT_EQUAL_CHAR('1', json->text[json->node[number].text]);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
     CLI_TEST_ASSERT_TEXT("{}", body, size);

@@ -53,7 +53,7 @@ static void lite_ready(void)
         CliDbConnection connection;
         memor.set(&(MemoriaCfg){.dst = &connection, .val = 0, .bytes = sizeof(connection)});
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.name, .src = "lite", .cap = CLI_NAME_MAX_LEN});
-        (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.kind, .src = "sqlite", .cap = 16ULL});
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.type, .src = "sqlite", .cap = 16ULL});
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.file, .src = "grid.db", .cap = CLI_PATH_MAX_LEN});
         s_lite = EMBED_CALL(cli_db_root.connect, CliDbRootCfg, .root = root, .config = &connection, .password = NULL,
                             .failure = &s_failure);
@@ -102,7 +102,7 @@ void test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end(void)
     TEST_ASSERT_EQUAL_UINT64(CLI_DB_GRID_PAGE + 1ULL, EMBED_CALL(cli_db_grid.rows, CliDbGridCfg, .at = 0ULL));
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = CLI_DB_GRID_PAGE, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_MORE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_MORE, row.type);
     unsigned long long length = 0ULL;
     const char *const sentence = EMBED_CALL(cli_db_grid.head_text, CliDbGridCfg, .length_out = &length);
     CLI_TEST_ASSERT_CONTAINS("lite: 200+ rows", sentence);
@@ -145,7 +145,7 @@ void test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind(vo
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_grid.cell, CliDbGridCfg, .at = 0ULL, .column_at = 0u, .cell = &cell));
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = 0ULL, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_WAIT, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_WAIT, row.type);
     // a view standing inside the stretch reads nothing
     TEST_ASSERT_FALSE(stepped(305ULL, 325ULL, 1200ULL));
 }
@@ -199,7 +199,7 @@ void test_a_failure_is_its_lines(void)
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(1ULL, EMBED_CALL(cli_db_grid.rows, CliDbGridCfg, .at = 0ULL));
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = 0ULL, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_FAILURE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_FAILURE, row.type);
     TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = row.text, .cap = row.length,
                                                         .other = "no_such_table", .other_cap = 32ULL}));
 }
@@ -211,7 +211,7 @@ void test_a_statement_with_no_rows_is_what_it_did(void)
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_db_grid.columns, CliDbGridCfg, .at = 0ULL));
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = 0ULL, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_NOTICE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_ROW_NOTICE, row.type);
     CLI_TEST_ASSERT_CONTAINS("1", row.text);
     EMBED_CALL(cli_db_grid.clear, CliDbGridCfg, .open = NULL);
     TEST_ASSERT_NULL(EMBED_CALL(cli_db_grid.open, CliDbGridCfg, .at = 0ULL));

@@ -14,10 +14,10 @@ typedef struct
     char path[CLI_PATH_MAX_LEN];
     unsigned int depth;
 } CliEnvFolder;
-// An environment found: its kind, its place in the tree, and where its requirements are read
+// An environment found: its type, its place in the tree, and where its requirements are read
 typedef struct
 {
-    const char *kind;
+    const char *type;
     char place[CLI_PATH_MAX_LEN];
     char requires_from[CLI_PATH_MAX_LEN];
 } CliFoundEnv;
@@ -45,7 +45,7 @@ typedef struct
 typedef struct
 {
     CliEnvSearch *search;
-    const char *kind;
+    const char *type;
     const char *place;
     const char *requires_from;
     const CliFoundEnv *one;

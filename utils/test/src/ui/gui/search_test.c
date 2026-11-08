@@ -29,15 +29,15 @@ static void file_written(const char *root, const char *relative, const char *tex
               relative);
 }
 
-// the row `at`, into `row`: whether it is of `kind` with the name or text `text`
-static int row_is(unsigned int at, unsigned int kind, const char *text, CliSearchRow *row)
+// the row `at`, into `row`: whether it is of `type` with the name or text `text`
+static int row_is(unsigned int at, unsigned int type, const char *text, CliSearchRow *row)
 {
-    if (!EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = at, .row = row) || (row->kind != kind))
+    if (!EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = at, .row = row) || (row->type != type))
     {
         return 0;
     }
-    const char *const one = (kind == CLI_SEARCH_ROW_FILE) ? row->name : row->text;
-    const unsigned long long length = (kind == CLI_SEARCH_ROW_FILE) ? row->name_length : row->text_length;
+    const char *const one = (type == CLI_SEARCH_ROW_FILE) ? row->name : row->text;
+    const unsigned long long length = (type == CLI_SEARCH_ROW_FILE) ? row->name_length : row->text_length;
     return (length == strlen(text)) && (strncmp(one, text, length) == 0);
 }
 

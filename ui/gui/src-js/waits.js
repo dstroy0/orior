@@ -138,9 +138,9 @@ export function startWaits() {
   state.node = document.getElementById("status-wait");
   // Where the pointer stands, from each pointer event: its coming onto an element, its moving and its
   // press.
-  for (const kind of ["pointerover", "pointermove", "pointerdown"]) {
+  for (const type of ["pointerover", "pointermove", "pointerdown"]) {
     document.addEventListener(
-      kind,
+      type,
       (event) => {
         state.under = event.target;
         state.at = { x: event.clientX, y: event.clientY };
@@ -149,8 +149,8 @@ export function startWaits() {
       { capture: true, passive: true },
     );
   }
-  for (const kind of ["pointerdown", "keydown"]) {
-    document.addEventListener(kind, () => (state.acted = performance.now()), true);
+  for (const type of ["pointerdown", "keydown"]) {
+    document.addEventListener(type, () => (state.acted = performance.now()), true);
   }
   onCalls((command, args, promise, stop) => {
     if (watches(command)) {

@@ -85,14 +85,14 @@ static int asked(const char *command, const char *word)
 // the key `name` pressed as the system hands it on
 static void key_pressed(const char *name)
 {
-    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &s_window, .input = GUI_KEY_INPUT(name));
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_KEY_INPUT(name));
     stepped();
 }
 
 // `text` typed as the system hands it on
 static void typed(const char *text)
 {
-    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &s_window,
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
                .input = GUI_TEXT_INPUT(text, strlen(text)));
     stepped();
 }
@@ -371,7 +371,7 @@ static void terminal_menu_checked(void)
     key_pressed("ContextMenu");
     cli_check((g_cli_menus_open.levels == 1u) && (g_cli_menus_open.level[0].pointed == 3),
               "the menu key on a menu open does nothing");
-    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &s_window,
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
                .input = &(GuiInput){.type = GUI_INPUT_MENU, .x = 700, .y = 200});
     cli_check(g_cli_menus_open.levels == 0u, "a right press away from it closes it");
     (void)asked("toggle", NULL);

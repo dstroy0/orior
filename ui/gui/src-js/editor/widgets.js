@@ -5,7 +5,7 @@
 // that can go where the cursor is, from its completion.
 //
 // A language's hover(doc, at) answers { from, to, parts } or null, each part a short text in which
-// **bold**, `code` and _slanted_ are marked, or { className, text } for a text drawn in a class. Its complete(doc, at) answers items { label, kind,
+// **bold**, `code` and _slanted_ are marked, or { className, text } for a text drawn in a class. Its complete(doc, at) answers items { label, type,
 // detail, doc, insert, snippet }, where a snippet's insert has stops written ${1:name}, or a promise of
 // them from a language server, and its completeNow(doc, at), where it has one, the items it answers
 // at once while the server's are awaited. The list stands at once on those and on the file's own
@@ -404,9 +404,9 @@ export class Suggest {
       const label = item.label.toLowerCase().startsWith(typed.toLowerCase()) && typed
         ? `<b>${escapeHtml(item.label.slice(0, typed.length))}</b>${escapeHtml(item.label.slice(typed.length))}`
         : escapeHtml(item.label);
-      const kind = escapeHtml(item.kind ?? "word");
+      const type = escapeHtml(item.kind ?? "word");
       const detail = item.detail ? `<span class="ed-item-detail">${escapeHtml(item.detail)}</span>` : "";
-      return `<div class="ed-item" data-index="${index}" aria-selected="${index === this.index}"><span class="ed-kind k-${kind}"></span><span class="ed-item-label">${label}</span>${detail}</div>`;
+      return `<div class="ed-item" data-index="${index}" aria-selected="${index === this.index}"><span class="ed-kind k-${type}"></span><span class="ed-item-label">${label}</span>${detail}</div>`;
     });
     this.list.innerHTML = rows.join("");
     const chosen = this.shown[this.index];

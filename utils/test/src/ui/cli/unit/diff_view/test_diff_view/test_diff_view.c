@@ -79,12 +79,12 @@ static int opened(unsigned int source, const char *path, const char *other_path,
                       .path = path, .other_path = other_path, .id = id, .other_id = other_id, .err_msg = &err_msg);
 }
 
-// the row `at` is `kind`, its left line `left`, NULL for none, and its right `right`
-static void row_is(unsigned int at, unsigned int kind, const char *left, const char *right)
+// the row `at` is `type`, its left line `left`, NULL for none, and its right `right`
+static void row_is(unsigned int at, unsigned int type, const char *left, const char *right)
 {
     CliDiffViewRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_diff_view_at_row_length.row, CliDiffViewAtRowLengthCfg, .at = at, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(kind, row.kind);
+    TEST_ASSERT_EQUAL_UINT(type, row.type);
     TEST_ASSERT_EQUAL_INT(left != NULL, row.has_left);
     TEST_ASSERT_EQUAL_INT(right != NULL, row.has_right);
     const char *const texts[2] = {left, right};

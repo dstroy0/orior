@@ -24,15 +24,15 @@ typedef struct CliViewFromCfg CliViewFromCfg;
 typedef struct CliViewCursorCfg CliViewCursorCfg;
 typedef struct CliViewInputCfg CliViewInputCfg;
 typedef struct CliViewCfg CliViewCfg;
-typedef struct CliViewPathKindCfg CliViewPathKindCfg;
-typedef struct CliViewFullKindCfg CliViewFullKindCfg;
+typedef struct CliViewPathTypeCfg CliViewPathTypeCfg;
+typedef struct CliViewFullTypeCfg CliViewFullTypeCfg;
 typedef struct CliViewFullCfg CliViewFullCfg;
 typedef struct CliViewSaveCfg CliViewSaveCfg;
 
 // what the window sends: a key, text typed, the pointer, a scroll, the view's size, and a completion accepted, whose
 // `text` replaces the `column` units before the cursor, a place, the cursor put at the line `row` and the unit
 // `column`, and a wheel turned, the top moved by its rows from where it stands; the pointer's events; the tab's width
-// in cells where nothing sets the indentation; and the milliseconds within which edits of one kind undo as one step
+// in cells where nothing sets the indentation; and the milliseconds within which edits of one type undo as one step
 #define CLI_VIEW_KEY 0u
 #define CLI_VIEW_TEXT 1u
 #define CLI_VIEW_POINTER 2u
@@ -49,7 +49,7 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 // the lines either side of the cursor the file's own words are taken from for a completion
 #define CLI_VIEW_WORD_LINES 3000ull
 
-// One input: its kind; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
+// One input: its type; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
 // its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line, and the furthest
 // line down a wheel takes the top to, CLI_VIEW_WHEEL_UNBOUND where the text's last line alone bounds it; a size's rows
 // and columns; whether the pointer stands in the gutter, where a press toggles the fold at its row; and a wheel's rows,
@@ -57,7 +57,7 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_WHEEL_UNBOUND (~0ULL)
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *name;
     const char *text;
     unsigned long long length;
@@ -220,13 +220,13 @@ unsigned long long cli_view_top(const char *key);
 int cli_view_cursor(const CliViewCursorCfg *args);
 // the file's path of the view under `key` into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no view is open
 // under it
-int cli_view_path(const CliViewPathKindCfg *args);
+int cli_view_path(const CliViewPathTypeCfg *args);
 // the view under `key` marked as served by its language server at the whole path `full`, or no longer where `full` is
 // empty: 1, or 0 where no view is open under it; the whole path into `full`, sized for CLI_PATH_MAX_LEN: 1 where the
 // view is served, else 0; whether any open view is served at the whole path `full`; and whether the view's text changed
 // since this was last asked, 1 once for each change
 int cli_view_served_set(const CliViewFullCfg *args);
-int cli_view_serve(const CliViewFullKindCfg *args);
+int cli_view_serve(const CliViewFullTypeCfg *args);
 int cli_view_serving(const CliViewFullCfg *args);
 int cli_view_changed_alloc(const CliViewCfg *args);
 // the save point of the view under `key`, the place in its steps its file was last written at, as Scintilla keeps
@@ -311,13 +311,13 @@ struct CliViewCfg
     const char *path;
 };
 
-struct CliViewPathKindCfg
+struct CliViewPathTypeCfg
 {
     const char *key;
     char *path_out;
 };
 
-struct CliViewFullKindCfg
+struct CliViewFullTypeCfg
 {
     const char *key;
     char *full_out;
@@ -384,10 +384,10 @@ EMBED_TABLE_STORAGE CliViewCursorNs cli_view_cursor_table EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*path)(const CliViewPathKindCfg *args);
-} CliViewPathKindNs;
-EMBED_TABLE_LAYOUT(CliViewPathKindNs, path);
-EMBED_TABLE_STORAGE CliViewPathKindNs cli_view_path_kind EMBED_UNUSED = {
+    int (*path)(const CliViewPathTypeCfg *args);
+} CliViewPathTypeNs;
+EMBED_TABLE_LAYOUT(CliViewPathTypeNs, path);
+EMBED_TABLE_STORAGE CliViewPathTypeNs cli_view_path_type EMBED_UNUSED = {
     .path = cli_view_path,
 };
 
@@ -404,10 +404,10 @@ EMBED_TABLE_STORAGE CliViewFullNs cli_view_full EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*serve)(const CliViewFullKindCfg *args);
-} CliViewFullKindNs;
-EMBED_TABLE_LAYOUT(CliViewFullKindNs, serve);
-EMBED_TABLE_STORAGE CliViewFullKindNs cli_view_full_kind EMBED_UNUSED = {
+    int (*serve)(const CliViewFullTypeCfg *args);
+} CliViewFullTypeNs;
+EMBED_TABLE_LAYOUT(CliViewFullTypeNs, serve);
+EMBED_TABLE_STORAGE CliViewFullTypeNs cli_view_full_type EMBED_UNUSED = {
     .serve = cli_view_serve,
 };
 

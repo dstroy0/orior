@@ -108,7 +108,7 @@ void test_a_notebook_and_a_percent_script_read_as_the_same_rows(void)
     {
         const CliNotebookRow notebook = row_of("nb:a", at);
         const CliNotebookRow script = row_of("nb:b", at);
-        TEST_ASSERT_EQUAL_UINT(notebook.kind, script.kind);
+        TEST_ASSERT_EQUAL_UINT(notebook.type, script.type);
         TEST_ASSERT_EQUAL_UINT(notebook.cell, script.cell);
         TEST_ASSERT_EQUAL_UINT64(notebook.line, script.line);
         TEST_ASSERT_EQUAL_UINT(notebook.flags, script.flags);
@@ -124,19 +124,19 @@ void test_a_row_is_found_among_the_sorted_starts_of_the_cells(void)
     }
     TEST_ASSERT_EQUAL_UINT(8u, EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a"));
     const CliNotebookRow first = row_of("nb:a", 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_SOURCE, first.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_SOURCE, first.type);
     TEST_ASSERT_TRUE((first.flags & CLI_NOTEBOOK_FLAG_FIRST) != 0u);
     const CliNotebookRow printed = row_of("nb:a", 2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_OUTPUT, printed.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_OUTPUT, printed.type);
     TEST_ASSERT_EQUAL_UINT(0u, printed.cell);
     const CliNotebookRow added = row_of("nb:a", 3u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_ADD, added.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_ADD, added.type);
     TEST_ASSERT_TRUE((added.flags & CLI_NOTEBOOK_FLAG_LAST) != 0u);
     const CliNotebookRow markdown = row_of("nb:a", 4u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_MARKDOWN, markdown.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_MARKDOWN, markdown.type);
     TEST_ASSERT_EQUAL_UINT(1u, markdown.cell);
     const CliNotebookRow last = row_of("nb:a", 6u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_SOURCE, last.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_SOURCE, last.type);
     TEST_ASSERT_EQUAL_UINT(2u, last.cell);
     CliNotebookRow past = {0};
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_cells_row.row, CliNotebookCellsRowCfg, .key = "nb:a", .at = 8u,
@@ -146,7 +146,7 @@ void test_a_row_is_found_among_the_sorted_starts_of_the_cells(void)
                                         .block = &block));
     TEST_ASSERT_EQUAL_UINT(4u, block.first_row);
     TEST_ASSERT_EQUAL_UINT(2u, block.row_count);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, block.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, block.type);
 }
 
 void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
@@ -169,14 +169,14 @@ void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
     TEST_ASSERT_EQUAL_INT(1, cell->failed);
     TEST_ASSERT_EQUAL_UINT(4u, cell->outputs);
     TEST_ASSERT_EQUAL_UINT(2u, model->output[cell->output_first].lines);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_RESULT, model->output[cell->output_first + 1u].kind);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_DISPLAY, model->output[cell->output_first + 2u].kind);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ERROR, model->output[cell->output_first + 3u].kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_RESULT, model->output[cell->output_first + 1u].type);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_DISPLAY, model->output[cell->output_first + 2u].type);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ERROR, model->output[cell->output_first + 3u].type);
     TEST_ASSERT_EQUAL_UINT(2u, model->output[cell->output_first + 3u].lines);
     TEST_ASSERT_TRUE(bytes_contain(model->output_text, model->output_used, "\"output_type\":\"display_data\""));
     TEST_ASSERT_FALSE(bytes_contain(model->output_text, model->output_used, "transient"));
     const CliNotebookRow printed = row_of("nb:a", 2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_OUTPUT, printed.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_OUTPUT, printed.type);
     TEST_ASSERT_TRUE((printed.flags & CLI_NOTEBOOK_FLAG_FAILED) != 0u);
 }
 
@@ -250,7 +250,7 @@ void test_a_cell_is_out_of_date_after_a_cell_it_stands_on_changes_runs_again_or_
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_focus.focus, CliNotebookEditFocusCfg, .key = "nb:a",
                                         .cell = 0u, .line = 0ULL, .column = 0ULL, .err_msg = &err_msg));
-    const CliViewInput typed = {.kind = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
+    const CliViewInput typed = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_focus.input, CliNotebookEditFocusCfg, .key = "nb:a",
                                         .input = &typed, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_INT(1, model->cell[2].stale);
@@ -334,7 +334,7 @@ void test_the_save_writes_the_notebook_and_clears_the_changed_mark(void)
     (void)opened("nb:a", full, s_notebook);
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_cells_save.dirty, CliNotebookCellsSaveCfg, .key = "nb:a"));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.add, CliNotebookEditCellCfg, .key = "nb:a",
-                                        .cell = 2u, .kind = CLI_NOTEBOOK_MARKDOWN));
+                                        .cell = 2u, .type = CLI_NOTEBOOK_MARKDOWN));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_save.dirty, CliNotebookCellsSaveCfg, .key = "nb:a"));
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -349,7 +349,7 @@ void test_the_save_writes_the_notebook_and_clears_the_changed_mark(void)
     const CliNotebookModel *const saved = opened("nb:b", full, (const char *)written);
     g_cli_guard->persistent_buf_release(written, g_cli_notebook_open_owner);
     TEST_ASSERT_EQUAL_UINT(4u, saved->cells);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, saved->cell[3].kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, saved->cell[3].type);
     TEST_ASSERT_EQUAL_UINT(1u, saved->cell[0].outputs);
     TEST_ASSERT_EQUAL_UINT(1u, saved->cell[0].count);
 }
@@ -397,6 +397,6 @@ void test_the_top_moves_by_the_wheel_and_to_a_place_and_stops_at_the_last_row(vo
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_frame.alloc, CliNotebookCellsFrameCfg, .key = "nb:a",
                                         .count = 5u, .frame_out = &frame));
     TEST_ASSERT_EQUAL_UINT64(3ULL, frame->top);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_ADD, frame->row[0].row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_ADD, frame->row[0].row.type);
     EMBED_CALL(cli_notebook_cells_frame.release, CliNotebookCellsFrameCfg, .frame_out = &frame);
 }

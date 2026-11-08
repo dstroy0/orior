@@ -193,8 +193,8 @@ EMBED_INLINE unsigned long long cli_span_is_whole_word(const CheckersReadCtx *ar
     unsigned int node = args->node;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = &s_read->json, .object = node, .name = args->key);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_read->json, .node = member,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_read->json, .node = member,
+                    .type = CFG_JSON_NUMBER))
     {
         return args->otherwise;
     }
@@ -275,8 +275,8 @@ EMBED_INLINE void cli_ruff_read(const CheckersReadCtx *args)
         const unsigned int edits = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = fix, .name = "edits");
         VerbaLinea fixes = {s_read->fixes, sizeof(s_read->fixes), 0ULL};
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = edits,
-                       .kind = CFG_JSON_ARRAY))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = edits,
+                       .type = CFG_JSON_ARRAY))
         {
             unsigned long long length = 0ULL;
             const char *const title = EMBED_CALL(cli_text, CheckersReadCtx, .node = fix, .key = "message",
@@ -361,10 +361,10 @@ EMBED_INLINE void cli_eslint_read(const CheckersReadCtx *args)
         {
             const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                 .json_read = json, .array = messages, .index = index);
-            const int has_end = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+            const int has_end = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                               .json_read = json, .object = one, .name = "endLine"),
-                                           .kind = CFG_JSON_NUMBER);
+                                           .type = CFG_JSON_NUMBER);
             CliFinding finding = {
                 EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ULL),
                 EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ULL),
@@ -425,10 +425,10 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
             severity = 4u;
         }
         char code[32] = "";
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = one, .name = "code"),
-                       .kind = CFG_JSON_NUMBER))
+                       .type = CFG_JSON_NUMBER))
         {
             VerbaLinea written = {code, sizeof(code), 0ULL};
             mmgr_line_put(&written, "SC");
@@ -437,10 +437,10 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
                 EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "code", .otherwise = 0ULL), 0u);
             mmgr_line_finish(&written);
         }
-        const int has_end = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+        const int has_end = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                           .json_read = json, .object = one, .name = "endLine"),
-                                       .kind = CFG_JSON_NUMBER);
+                                       .type = CFG_JSON_NUMBER);
         CliFinding finding = {
             EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ULL),
             EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ULL),

@@ -60,7 +60,7 @@ static void files_found(const char *const (*files)[2], unsigned int count, const
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = files[at][0], .joined = path);
-        if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+        if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
         {
             TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
         }
@@ -84,11 +84,11 @@ static void package_found(void)
     files_found(s_files, 9u, "cargo_found");
 }
 
-// a target written as `kind` or `kind:name`
+// a target written as `type` or `type:name`
 static void target_written(VerbaLinea *out, const CliCargoTarget *target)
 {
-    static const char *const s_kinds[3] = {"lib", "bin", "test"};
-    mmgr_line_put(out, s_kinds[(target->kind < 3u) ? target->kind : 0u]);
+    static const char *const s_types[3] = {"lib", "bin", "test"};
+    mmgr_line_put(out, s_types[(target->type < 3u) ? target->type : 0u]);
     if (target->name != NULL)
     {
         mmgr_line_ch(out, ':');

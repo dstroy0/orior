@@ -29,7 +29,7 @@ typedef struct
     char *out;
     unsigned long long capacity;
     const char *text;
-    unsigned int kind;
+    unsigned int type;
     const char *name;
     const char *path;
     unsigned int from;
@@ -206,11 +206,11 @@ void cli_cargo_firsts_free(void)
 // a target put with its first file
 EMBED_INLINE void found_first(const CargoTargetsCtx *args)
 {
-    unsigned int kind = args->kind;
+    unsigned int type = args->type;
     if (s_targets.count < s_targets.capacity)
     {
         CliCargoFirst *const first = &s_targets.firsts[s_targets.count];
-        first->kind = kind;
+        first->type = type;
         memor.cpy(
             &(MemoriaCfg){.dst = first->name,
                           .src = args->name,
@@ -288,7 +288,7 @@ static int found_entry_order(const void *left, const void *right)
                : EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = one->path, .other_pointer = other->path);
 }
 
-// the files Cargo finds on its own in `dir` of the package's folder, by their names, each put as a target of `kind`
+// the files Cargo finds on its own in `dir` of the package's folder, by their names, each put as a target of `type`
 // where the manifest lists none with that first file
 EMBED_INLINE void found_auto(const CargoTargetsCtx *args)
 {
@@ -305,7 +305,7 @@ EMBED_INLINE void found_auto(const CargoTargetsCtx *args)
         if (!EMBED_CALL(found_alloc, CargoTargetsCtx, .from = args->from, .to = args->to,
                         .path = s_targets.entries[at].path))
         {
-            EMBED_CALL(found_first, CargoTargetsCtx, .kind = args->kind, .name = s_targets.entries[at].name,
+            EMBED_CALL(found_first, CargoTargetsCtx, .type = args->type, .name = s_targets.entries[at].name,
                        .path = s_targets.entries[at].path);
         }
     }
@@ -453,7 +453,7 @@ EMBED_INLINE void found_listed(const CargoTargetsCtx *args)
     }
     mmgr_line_finish(&path_line);
     EMBED_CALL(found_clean, CargoTargetsCtx, .path_out = path);
-    EMBED_CALL(found_first, CargoTargetsCtx, .kind = entry->bin ? CLI_CARGO_BIN : CLI_CARGO_TEST, .name = entry->name,
+    EMBED_CALL(found_first, CargoTargetsCtx, .type = entry->bin ? CLI_CARGO_BIN : CLI_CARGO_TEST, .name = entry->name,
                .path = path);
 }
 
@@ -491,7 +491,7 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = lib, .joined = lib_full);
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = lib_full))
     {
-        EMBED_CALL(found_first, CargoTargetsCtx, .kind = CLI_CARGO_LIB, .name = "", .path = lib);
+        EMBED_CALL(found_first, CargoTargetsCtx, .type = CLI_CARGO_LIB, .name = "", .path = lib);
     }
     const unsigned int listing_first = s_targets.count;
     for (unsigned int one = 0u; one < list_entries; one += 1u)
@@ -507,16 +507,16 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     if (autobins && EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main_file) &&
         !EMBED_CALL(found_alloc, CargoTargetsCtx, .from = listing_first, .to = reserved, .path = "src/main.rs"))
     {
-        EMBED_CALL(found_first, CargoTargetsCtx, .kind = CLI_CARGO_BIN, .name = args->package, .path = "src/main.rs");
+        EMBED_CALL(found_first, CargoTargetsCtx, .type = CLI_CARGO_BIN, .name = args->package, .path = "src/main.rs");
     }
     if (autobins)
     {
-        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "src/bin", .kind = CLI_CARGO_BIN, .from = listing_first,
+        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "src/bin", .type = CLI_CARGO_BIN, .from = listing_first,
                    .to = reserved);
     }
     if (autotests)
     {
-        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .kind = CLI_CARGO_TEST, .from = listing_first,
+        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .type = CLI_CARGO_TEST, .from = listing_first,
                    .to = reserved);
     }
     g_cli_guard->persistent_buf_release(work, g_cli_cargo_owner);

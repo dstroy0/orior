@@ -13,7 +13,7 @@
 
 typedef struct CliNotebookModelCtx CliNotebookModelCtx;
 
-// an output's kinds: a stream, a run's value, data shown, and an error
+// an output's types: a stream, a run's value, data shown, and an error
 #define CLI_NOTEBOOK_STREAM 0u
 #define CLI_NOTEBOOK_RESULT 1u
 #define CLI_NOTEBOOK_DISPLAY 2u
@@ -27,7 +27,7 @@ typedef struct CliNotebookModelCtx CliNotebookModelCtx;
 // the end
 #define CLI_NOTEBOOK_KEY_MORE 24u
 
-// A cell of a model: the serial its document is keyed by, its kind, its node among the cells of the tree read where it
+// A cell of a model: the serial its document is keyed by, its type, its node among the cells of the tree read where it
 // was read, CLI_JSON_NONE for one added, its source's lines, its outputs' place among the model's and how many, the
 // rows its outputs take, its run count, CLI_NOTEBOOK_NONE before one, the clock of its last edit, of its first and of
 // its last run, 0 for none, whether it runs, failed and is out of date, and the id its run's messages answer, empty
@@ -35,7 +35,7 @@ typedef struct CliNotebookModelCtx CliNotebookModelCtx;
 typedef struct
 {
     unsigned int serial;
-    unsigned int kind;
+    unsigned int type;
     unsigned int origin;
     unsigned int lines;
     unsigned int output_first;
@@ -51,14 +51,14 @@ typedef struct
     char run_id[CLI_KERNEL_ID];
 } CliNotebookCell;
 
-// An output: the serial its document is keyed by, its kind, whether it is a stream written to stderr, its lines, the
+// An output: the serial its document is keyed by, its type, whether it is a stream written to stderr, its lines, the
 // rows it takes, the rows before it among its cell's outputs, whether it is shown whole past its cut, whether its text
 // ends a line, which its document leaves off, and its JSON as a notebook stores it, where it starts among the model's
 // output texts and its bytes
 typedef struct
 {
     unsigned int serial;
-    unsigned int kind;
+    unsigned int type;
     int stderr_stream;
     unsigned int lines;
     unsigned int rows;
@@ -141,7 +141,7 @@ void cli_notebook_model_outputs_settled(const CliNotebookModelCtx *args);
 // 1, or 0 where the cells cannot meet them; and every message waiting in the model's ring let go
 int cli_notebook_model_kernel_laid(const CliNotebookModelCtx *args);
 void cli_notebook_model_ring_cleared(const CliNotebookModelCtx *args);
-// the cell `cell`'s document stored with `size` bytes of `text` and colored by the grammar its kind and the kernel's
+// the cell `cell`'s document stored with `size` bytes of `text` and colored by the grammar its type and the kernel's
 // language take: 1, or 0 where the store refused it
 int cli_notebook_model_source_stored(const CliNotebookModelCtx *args);
 // the cells laid anew for `count` cells, the cells before `cell` standing, a cell of none at `cell` where `count` is

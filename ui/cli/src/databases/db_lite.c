@@ -374,7 +374,7 @@ static void lite_column(const CliEachItemSizeCfg *args)
         column->name[0] = '\0';
         (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->item, .length = args->size,
                          .out_capacity = column->name, .capacity = sizeof(column->name));
-        column->kind[0] = '\0';
+        column->type[0] = '\0';
         column->numeric = 0;
         lite->head.column_count += 1u;
     }

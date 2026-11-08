@@ -335,7 +335,7 @@ int cli_files_write_part(const CliFilesRootPathCfg *args)
     char name[CLI_PATH_MAX_LEN];
     char parent[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_files_path_name_internal.paste_name, CliFilesPathNameCtx, .path = target, .name = name) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = target, .out = parent))
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = target, .out = parent))
     {
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, " has no name");

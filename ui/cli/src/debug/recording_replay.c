@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "recording_internal.h"
 
-// a path of the tree as the replay compares it: whole, with one kind of slash, and without case on Windows, into `key`
+// a path of the tree as the replay compares it: whole, with one type of slash, and without case on Windows, into `key`
 void cli_replay_key(const CliRecordingPathCtx *args)
 {
     VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ULL};
@@ -302,8 +302,8 @@ static unsigned int s_stack[512][2];
 int cli_replay_integer(const CliRecordingJsonCtx *args)
 {
     unsigned long long *value = args->value;
-    const char *const text = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = args->id, .kind = CFG_JSON_NUMBER)
+    const char *const text = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = args->id, .type = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->id].text
                                  : NULL;
     const unsigned long long length = (text != NULL) ? args->json->node[args->id].length : 0ULL;

@@ -15,7 +15,7 @@ typedef struct CliPythonPathsOutCtx CliPythonPathsOutCtx;
 typedef struct CliPythonPathsTextCtx CliPythonPathsTextCtx;
 typedef struct CliPythonPathsCtx CliPythonPathsCtx;
 typedef struct CliPythonPathsAtCtx CliPythonPathsAtCtx;
-typedef struct CliPythonPathsTextKindCtx CliPythonPathsTextKindCtx;
+typedef struct CliPythonPathsTextTypeCtx CliPythonPathsTextTypeCtx;
 typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
 
 // the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
@@ -30,7 +30,7 @@ typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
 #define CLI_PY_NONE 0xffffffffu
 #define CLI_PY_PAIRS 256u
 
-// the kinds of an expression: a name, a string, a whole number, a call, an attribute, an index, two joined by `/`,
+// the types of an expression: a name, a string, a whole number, a call, an attribute, an index, two joined by `/`,
 // two added by `+`, and a tuple or a list
 enum
 {
@@ -45,11 +45,11 @@ enum
     CLI_EXPR_MANY
 };
 
-// An expression: its kind; its name or string in the texts; its number; the expression it is of, or the left of two;
+// An expression: its type; its name or string in the texts; its number; the expression it is of, or the left of two;
 // the index, or the right of two; and its arguments or items, `count` of them from `first` in the items
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int text;
     long long number;
     unsigned int left;
@@ -127,7 +127,7 @@ unsigned int cli_py_parse(const CliPythonPathsTextCtx *args);
 // and attributes writes, as `os.path.join`, into `out`: 1, or 0 where it writes none; what an expression may be, by
 // the names set, in the script; the folders in a folder, each a value a loop over its entries takes; and the folders
 // above a path, itself first, up to the top of its drive (python_paths_eval.c)
-void cli_py_value_append(const CliPythonPathsTextKindCtx *args);
+void cli_py_value_append(const CliPythonPathsTextTypeCtx *args);
 CliValues cli_py_values_from(const CliPythonPathsFirstCtx *args);
 int cli_py_dot(const CliPythonPathsExprCtx *args);
 CliValues cli_py_eval(const CliPythonPathsExprCtx *args);
@@ -185,7 +185,7 @@ struct CliPythonPathsAtCtx
     unsigned int at;
 };
 
-struct CliPythonPathsTextKindCtx
+struct CliPythonPathsTextTypeCtx
 {
     unsigned int text_u32;
 };
@@ -237,10 +237,10 @@ EMBED_TABLE_STORAGE CliPythonPathsAtNs cli_python_paths_at_internal EMBED_UNUSED
 
 typedef struct
 {
-    void (*py_value_append)(const CliPythonPathsTextKindCtx *args);
-} CliPythonPathsTextKindNs;
-EMBED_TABLE_LAYOUT(CliPythonPathsTextKindNs, py_value_append);
-EMBED_TABLE_STORAGE CliPythonPathsTextKindNs cli_python_paths_text_kind_internal EMBED_UNUSED = {
+    void (*py_value_append)(const CliPythonPathsTextTypeCtx *args);
+} CliPythonPathsTextTypeNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsTextTypeNs, py_value_append);
+EMBED_TABLE_STORAGE CliPythonPathsTextTypeNs cli_python_paths_text_type_internal EMBED_UNUSED = {
     .py_value_append = cli_py_value_append,
 };
 

@@ -13,10 +13,10 @@
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the most kinds of declaration of one file whose texts are read once and shared by its declarations
-#define CLI_SYMBOLS_KINDS 16u
-// The storage a walk goes through: one file's declarations as read, before they are stored, their names and kinds and
-// the declarations each in a cell at their most, how many and their bytes, and the place of each kind read among those
+// the most types of declaration of one file whose texts are read once and shared by its declarations
+#define CLI_SYMBOLS_TYPES 16u
+// The storage a walk goes through: one file's declarations as read, before they are stored, their names and types and
+// the declarations each in a cell at their most, how many and their bytes, and the place of each type read among those
 // texts; the one cell each file is read into, of the most a file read holds and the slack; the languages it reads its
 // files in, a cell of their own; and the folders and files mounted beside the tree as it started, each its name and its
 // whole path, how many
@@ -28,8 +28,8 @@ typedef struct
     unsigned int symbol_capacity;
     unsigned int read_count;
     unsigned int read_used;
-    unsigned int kind[CLI_SYMBOLS_KINDS];
-    unsigned int kinds;
+    unsigned int type[CLI_SYMBOLS_TYPES];
+    unsigned int types;
     unsigned char *file_bytes;
     CliSymbolsLanguages *languages;
     const char **mount_name;
@@ -63,8 +63,8 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // the thread walking the tree
 static CliThread s_thread;
 
-// none: a kind not read before in the file
-#define CLI_SYMBOLS_KIND_NEW 0xffffffffu
+// none: a type not read before in the file
+#define CLI_SYMBOLS_TYPE_NEW 0xffffffffu
 
 typedef struct
 {
@@ -84,25 +84,25 @@ EMBED_INLINE unsigned long long cli_branch_stamp(const SymbolsCtx *args)
     return (args->written ^ ((args->size << 44u) | (args->size >> 20u))) | 1ULL;
 }
 
-// A declaration read: its name, and its kind's text where the file's declarations have not read it before, after the
+// A declaration read: its name, and its type's text where the file's declarations have not read it before, after the
 // name with its NUL
 static void cli_leaf_declare(const CliDeclaredCfg *args)
 {
     CliTreeWalk *const read_state = (CliTreeWalk *)args->context;
-    unsigned int kind_at = CLI_SYMBOLS_KIND_NEW;
-    for (unsigned int at = 0u; (kind_at == CLI_SYMBOLS_KIND_NEW) && (at < read_state->kinds); at += 1u)
+    unsigned int type_at = CLI_SYMBOLS_TYPE_NEW;
+    for (unsigned int at = 0u; (type_at == CLI_SYMBOLS_TYPE_NEW) && (at < read_state->types); at += 1u)
     {
-        kind_at = cellul.eq(&(CatenaFinitaCfg){
-                      .src = read_state->read_text + read_state->kind[at], .other = args->kind, .cap = CLI_POOL_BYTES})
-                      ? read_state->kind[at]
-                      : CLI_SYMBOLS_KIND_NEW;
+        type_at = cellul.eq(&(CatenaFinitaCfg){
+                      .src = read_state->read_text + read_state->type[at], .other = args->type, .cap = CLI_POOL_BYTES})
+                      ? read_state->type[at]
+                      : CLI_SYMBOLS_TYPE_NEW;
     }
-    const unsigned long long kind_length =
-        (kind_at == CLI_SYMBOLS_KIND_NEW)
-            ? cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES}) + 1ULL
+    const unsigned long long type_length =
+        (type_at == CLI_SYMBOLS_TYPE_NEW)
+            ? cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES}) + 1ULL
             : 0ULL;
     if ((read_state->read_count >= (CLI_SYMBOLS_LARGEST / 4u)) ||
-        ((read_state->read_used + args->length + kind_length) > CLI_SYMBOLS_LARGEST))
+        ((read_state->read_used + args->length + type_length) > CLI_SYMBOLS_LARGEST))
     {
         return;
     }
@@ -120,19 +120,19 @@ static void cli_leaf_declare(const CliDeclaredCfg *args)
     }
     memor.cpy(
         &(MemoriaCfg){.dst = read_state->read_text + read_state->read_used, .src = args->name, .bytes = args->length});
-    if (kind_at == CLI_SYMBOLS_KIND_NEW)
+    if (type_at == CLI_SYMBOLS_TYPE_NEW)
     {
-        // a name and a kind are below a file's largest size, which an unsigned int counts
-        kind_at = read_state->read_used + (unsigned int)args->length;
+        // a name and a type are below a file's largest size, which an unsigned int counts
+        type_at = read_state->read_used + (unsigned int)args->length;
         memor.cpy(
-            &(MemoriaCfg){.dst = read_state->read_text + kind_at, .src = args->kind, .bytes = (size_t)kind_length});
-        read_state->kind[read_state->kinds] = kind_at;
-        read_state->kinds += (read_state->kinds < (CLI_SYMBOLS_KINDS - 1u)) ? 1u : 0u;
+            &(MemoriaCfg){.dst = read_state->read_text + type_at, .src = args->type, .bytes = (size_t)type_length});
+        read_state->type[read_state->types] = type_at;
+        read_state->types += (read_state->types < (CLI_SYMBOLS_TYPES - 1u)) ? 1u : 0u;
     }
-    const CliDeclaration symbol = {read_state->read_used, (unsigned int)args->length, kind_at, args->line};
+    const CliDeclaration symbol = {read_state->read_used, (unsigned int)args->length, type_at, args->line};
     read_state->read_symbols[read_state->read_count] = symbol;
     read_state->read_count += 1u;
-    read_state->read_used += (unsigned int)(args->length + kind_length);
+    read_state->read_used += (unsigned int)(args->length + type_length);
 }
 
 // the declarations read put as the branch at `path`, stamped `written`, in a cell of its own, which takes the place of
@@ -166,12 +166,12 @@ EMBED_INLINE int cli_branch_join(const SymbolsCtx *args)
     branch->count = args->walk_read->read_count;
     branch->seen = 1;
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch->bytes);
-    // the names and kinds read, after the path, each declaration's places among them moved with them
+    // the names and types read, after the path, each declaration's places among them moved with them
     const unsigned int texts = (unsigned int)(symbols_size + path_length);
     for (unsigned int at = 0u; at < args->walk_read->read_count; at += 1u)
     {
         args->walk_read->read_symbols[at].name += texts;
-        args->walk_read->read_symbols[at].kind += texts;
+        args->walk_read->read_symbols[at].type += texts;
     }
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .src = args->walk_read->read_symbols, .bytes = symbols_size});
@@ -228,7 +228,7 @@ static int cli_branch_walk(const SymbolsCtx *args)
     const unsigned long long read = mapped ? mapped_size : QRY_MEMBER_UNREAD;
     args->walk->read_count = 0u;
     args->walk->read_used = 0u;
-    args->walk->kinds = 0u;
+    args->walk->types = 0u;
     if (read != QRY_MEMBER_UNREAD)
     {
         memor.set(&(MemoriaCfg){.dst = args->walk->file_bytes + read, .val = 0, .bytes = CLI_FILE_SLACK});
@@ -421,8 +421,8 @@ static void cli_tree_path_list(const CliEachPathLengthCfg *args)
             file = EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = path, .folder = 0);
             if ((file != CLI_BRANCHES_MAX) && (listing->emit != NULL))
             {
-                EMBED_CALL(listing->emit, CliEachPathKindCfg, .context = listing->context, .path = path,
-                           .kind = CLI_CHANGE_ADDED);
+                EMBED_CALL(listing->emit, CliEachPathTypeCfg, .context = listing->context, .path = path,
+                           .type = CLI_CHANGE_ADDED);
             }
         }
         if (file != CLI_BRANCHES_MAX)
@@ -654,8 +654,8 @@ void cli_tree_relist(const CliSymbolsContextCfg *args)
                 char path[CLI_PATH_MAX_LEN];
                 EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
                            .path_out = path);
-                EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = path,
-                           .kind = CLI_CHANGE_REMOVED);
+                EMBED_CALL(args->emit, CliEachPathTypeCfg, .context = args->context, .path = path,
+                           .type = CLI_CHANGE_REMOVED);
             }
             EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = at);
         }
@@ -694,8 +694,8 @@ void cli_tree_stamp(const CliSymbolsContextCfg *args)
             g_cli_branches[at].written = stamp;
             if (moved && (args->emit != NULL))
             {
-                EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = path,
-                           .kind = CLI_CHANGE_MODIFIED);
+                EMBED_CALL(args->emit, CliEachPathTypeCfg, .context = args->context, .path = path,
+                           .type = CLI_CHANGE_MODIFIED);
             }
         }
     }
@@ -721,7 +721,7 @@ static unsigned long long cli_tree_mounts_word(void)
 
 // One include folder or file the compilation database names, joined to the tree at the top `context` is: mounted
 // beside it where it lies outside it
-static void cli_symbols_include_join(const CliEachPathKindCfg *args)
+static void cli_symbols_include_join(const CliEachPathTypeCfg *args)
 {
     const char *path = args->path;
     const char *const root = (const char *)args->context;
@@ -814,7 +814,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     s_walk->symbol_capacity = 0u;
     s_walk->read_count = 0u;
     s_walk->read_used = 0u;
-    s_walk->kinds = 0u;
+    s_walk->types = 0u;
     s_walk->file_bytes = g_cli_guard->persistent_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, g_cli_code_owner);
     s_thread.run = cli_tree_walk;
     s_thread.context = s_walk;

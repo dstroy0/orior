@@ -205,9 +205,9 @@ orior.server.on("sonarlint/openConnectionSettings", (cloud) => drawConnection(Bo
 // A connection the server asks to be made, as SonarQube opens an issue in the editor: made where the
 // reader trusts it, its id the answer.
 orior.server.on("sonarlint/assistCreatingConnection", async ({ isSonarCloud, serverUrlOrOrganisationKey, token, region }) => {
-  const kind = isSonarCloud ? "SonarQube Cloud organization" : "SonarQube Server instance";
+  const type = isSonarCloud ? "SonarQube Cloud organization" : "SonarQube Server instance";
   const warning = isSonarCloud ? "" : " Letting SonarQube for IDE connect to an untrusted SonarQube Server instance is potentially dangerous. If you don't trust this server, we recommend canceling this action and manually setting up Connected Mode.";
-  const answer = await chosen(`Do you trust this ${kind}? Ensure that the requesting ${isSonarCloud ? "organization" : "server URL"} '${serverUrlOrOrganisationKey}' matches your ${kind}.${warning}`, [`Connect to this ${kind}`]);
+  const answer = await chosen(`Do you trust this ${type}? Ensure that the requesting ${isSonarCloud ? "organization" : "server URL"} '${serverUrlOrOrganisationKey}' matches your ${type}.${warning}`, [`Connect to this ${type}`]);
   if (answer !== 0) {
     throw new Error("Automatic Connection setup was cancelled by the user");
   }

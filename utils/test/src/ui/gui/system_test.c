@@ -23,6 +23,7 @@ typedef struct
     unsigned int pointers;
     unsigned int lefts;
     unsigned int blurs;
+    unsigned int focuses;
     unsigned int pointer;
     unsigned int button;
     int x;
@@ -67,6 +68,11 @@ static void transferred_input(const GuiEachInputCfg *args)
     else if (args->input->type == GUI_INPUT_BLUR)
     {
         transferred->blurs += 1u;
+    }
+    else if (args->input->type == GUI_INPUT_FOCUS)
+    {
+        // the focus comes as the desktop gives it, and no pointer brings it
+        transferred->focuses += 1u;
     }
     else if (args->input->type != GUI_INPUT_MOVED)
     {

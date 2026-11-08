@@ -24,7 +24,7 @@ typedef struct
     unsigned long long size;
     unsigned int mode;
     unsigned long long time;
-    char kind;
+    char type;
     const char *path;
     const void *bytes;
     const CliDeployPair *preserved;
@@ -71,7 +71,7 @@ EMBED_INLINE void tar_header(const DeployTarCtx *args)
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 124, .width = 12u, .value = args->size, .digits = 11u);
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 136, .width = 12u, .value = args->time, .digits = 11u);
     memor.set(&(MemoriaCfg){.dst = args->header + 148, .bytes = 8u, .val = (uint8_t)' '});
-    args->header[156] = (unsigned char)args->kind;
+    args->header[156] = (unsigned char)args->type;
     memor.cpy(&(MemoriaCfg){.dst = args->header + 257, .src = "ustar", .bytes = 6u});
     memor.cpy(&(MemoriaCfg){.dst = args->header + 263, .src = "00", .bytes = 2u});
     unsigned long long sum = 0ULL;
@@ -123,7 +123,7 @@ EMBED_INLINE int tar_pax(const DeployTarCtx *args)
     mmgr_line_put_n(&pax_line, record, record_line.at);
     unsigned char header[CLI_DEPLOY_BLOCK];
     EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = "PaxHeader", .size = pax_line.at, .mode = 0644u,
-               .time = args->time, .kind = 'x');
+               .time = args->time, .type = 'x');
     return mmgr_line_ok(&pax_line) &&
            EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
            EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = pax, .size = pax_line.at);
@@ -182,7 +182,7 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
         }
         unsigned char header[CLI_DEPLOY_BLOCK];
         EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = file->path, .size = size, .mode = file->mode,
-                   .time = args->time, .kind = '0');
+                   .time = args->time, .type = '0');
         const int written =
             ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_POOL_BYTES}) <= 99u) ||
              EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&

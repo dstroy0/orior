@@ -97,8 +97,8 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
                                      ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &json, .object = root, .name = "grammar")
                                      : CLI_JSON_NONE;
-    const int has_grammar = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                       .node = grammar, .kind = CFG_JSON_OBJECT);
+    const int has_grammar = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                       .node = grammar, .type = CFG_JSON_OBJECT);
     if ((root != CLI_JSON_NONE) && !has_grammar)
     {
         mmgr_line_put(needle->err_msg, "the plugin ");
@@ -117,8 +117,8 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
                                                 .json_read = &json, .object = root, .name = "pairs")
                                    : CLI_JSON_NONE;
     if (needle->made &&
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = pairs,
-                   .kind = CFG_JSON_ARRAY) &&
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = pairs,
+                   .type = CFG_JSON_ARRAY) &&
         (needle->whole->at > 2ULL) && (needle->whole->out[needle->whole->at - 1ULL] == '}'))
     {
         needle->whole->at -= 1ULL;

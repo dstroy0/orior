@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_grid.c: a statement's result as the grid draws it. The adopt reads the run's answer into a tree for the call
-// alone and lays two cells: the head, a column a slot of numbers and a message line a slot, then every label, kind,
+// alone and lays two cells: the head, a column a slot of numbers and a message line a slot, then every label, type,
 // line and the title as texts with their ends; and the stretch, a start, a length and a null flag a cell, then every
 // cell's bytes. The result's sentence stands in a cell of its own, laid again as the rows read or the end change. The
 // step follows the first row in view with its speed and the smoothed time a read takes, and reads the stretch the view
@@ -17,14 +17,14 @@
 #define GRID_MORE "reading more\xE2\x80\xA6"
 #define GRID_NULL "NULL"
 
-// A column's numbers: its label's and its kind's places in the head's texts with their bytes, whether its values are
+// A column's numbers: its label's and its type's places in the head's texts with their bytes, whether its values are
 // numbers, its width and its start in letters from the first column
 typedef struct
 {
     unsigned long long label;
     unsigned long long label_length;
-    unsigned long long kind;
-    unsigned long long kind_length;
+    unsigned long long type;
+    unsigned long long type_length;
     int numeric;
     unsigned int width;
     unsigned long long start;
@@ -375,11 +375,11 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
                                          .object = root, .name = "zone");
     const unsigned int ms = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                        .object = root, .name = "ms");
-    const int has_columns = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                       .node = columns, .kind = CFG_JSON_ARRAY);
+    const int has_columns = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                       .node = columns, .type = CFG_JSON_ARRAY);
     const unsigned int column_count = has_columns ? json.node[columns].count : 0u;
-    const unsigned int notice_count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                 .json_read = &json, .node = notices, .kind = CFG_JSON_ARRAY)
+    const unsigned int notice_count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                 .json_read = &json, .node = notices, .type = CFG_JSON_ARRAY)
                                           ? json.node[notices].count
                                           : 0u;
     const unsigned long long tag_length = EMBED_CALL(string_length, GridCtx, .json = &json, .node = done);
@@ -439,18 +439,18 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
             laid->label_length = (label != NULL) ? length : 0ULL;
             laid->label = EMBED_CALL(head_put, GridCtx, .text = label, .size = laid->label_length, .count = used);
             used += laid->label_length + 1ULL;
-            const char *const kind =
+            const char *const type =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = column, .name = "kind"),
                            .length_pointer = &length);
-            laid->kind_length = (kind != NULL) ? length : 0ULL;
-            laid->kind = EMBED_CALL(head_put, GridCtx, .text = kind, .size = laid->kind_length, .count = used);
-            used += laid->kind_length + 1ULL;
-            laid->numeric = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+            laid->type_length = (type != NULL) ? length : 0ULL;
+            laid->type = EMBED_CALL(head_put, GridCtx, .text = type, .size = laid->type_length, .count = used);
+            used += laid->type_length + 1ULL;
+            laid->numeric = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                           .json_read = &json, .object = column, .name = "numeric"),
-                                       .kind = CFG_JSON_TRUE);
+                                       .type = CFG_JSON_TRUE);
         }
         for (unsigned int at = 0u; at < notice_count; at += 1u)
         {
@@ -469,8 +469,8 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
             s_grid.line[0] = (GridLine){s_grid.tag, s_grid.tag_length};
         }
         // the first page of rows, as many as the answer carries
-        const unsigned int page = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                             .json_read = &json, .node = rows, .kind = CFG_JSON_ARRAY)
+        const unsigned int page = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                             .json_read = &json, .node = rows, .type = CFG_JSON_ARRAY)
                                       ? json.node[rows].count
                                       : 0u;
         adopted =
@@ -554,8 +554,8 @@ int cli_db_grid_column(const CliDbGridCfg *args)
     // the starts are sums of widths of at most forty letters, far inside a signed count
     *args->column = (CliDbGridColumn){s_grid.head_text + laid->label,
                                       laid->label_length,
-                                      s_grid.head_text + laid->kind,
-                                      laid->kind_length,
+                                      s_grid.head_text + laid->type,
+                                      laid->type_length,
                                       laid->numeric,
                                       laid->width,
                                       (long long)laid->start - (long long)s_grid.column[s_grid.offset].start};
@@ -719,8 +719,8 @@ int cli_db_grid_read_ahead(const CliDbGridStepCfg *args)
     {
         const unsigned int rows = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                              .object = root, .name = "rows");
-        const unsigned int count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = &json, .node = rows, .kind = CFG_JSON_ARRAY)
+        const unsigned int count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = &json, .node = rows, .type = CFG_JSON_ARRAY)
                                        ? json.node[rows].count
                                        : 0u;
         changed = EMBED_CALL(stretch_laid, GridCtx, .json = &json, .node = rows, .rows = count, .from = from);

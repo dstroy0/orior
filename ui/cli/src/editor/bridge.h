@@ -8,7 +8,7 @@
 // src/cu/includes/file_defs/klq and klm.
 //
 // Only the line shapes are checked: `key`, `pair`, the verdict under a pair (`open` or `closed`), and a .klm's `key`,
-// `kind` and `breaks`. Every other line under a pair is retained as a note, its first word and the rest, and a line the
+// `type` and `breaks`. Every other line under a pair is retained as a note, its first word and the rest, and a line the
 // query adds later shows without a change here. A .klm's name and its key are read as two words even where they are
 // equal
 #ifndef BRIDGE_H
@@ -25,7 +25,7 @@ typedef struct CliBridgeCfg CliBridgeCfg;
 // persistent_buf_release releases, as the window and the command line read it: its node,
 // `{"dir", "klq": {"path", "keys": {name: {"line", "pairs": [{"first", "second", "line", "verdict": note or null,
 // "notes": [note...]}]}}, "identities": [note...]} or null, "maps": [{"path", "language", "names": {name: {"key",
-// "line", "kind": note or null, "breaks": [note...]}}}], "rulesets": [{"path", "entries": {name: [{"kind",
+// "line", "type": note or null, "breaks": [note...]}}}], "rulesets": [{"path", "entries": {name: [{"type",
 // "line"}]}}]}`, a note `{"word", "rest", "line"}` and each map's names in order; CLI_JSON_NONE where the tree is full
 unsigned int cli_bridge_read(const CliBridgeCfg *args);
 // a Lstar.klq's, a .klm's and a ruleset's text, at `path` in the tree, read into `json`: its node

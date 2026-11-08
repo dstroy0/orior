@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_notebook_edit.c: an open notebook's cells edited: one cell at a time has a view, a line put in grows the cell's
 // rows and moves the rows after it while a letter typed does not, the notebook's own keys are taken and others are
-// not, cells added, changed in kind, moved, cleared and deleted with the notebook marked changed and a deleted cell
+// not, cells added, changed in type, moved, cleared and deleted with the notebook marked changed and a deleted cell
 // that ran standing among the cells gone, and the menu of a cell refusing a move past either end
 #include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/notebooks/notebook_cells_internal.h"
@@ -81,12 +81,12 @@ void test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not(void)
     focused(0u, 1ULL, 8ULL);
     const unsigned int rows = rows_of();
     const unsigned int after = model->first_row[2];
-    const CliViewInput letter = {.kind = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
+    const CliViewInput letter = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
     handed(&letter);
     TEST_ASSERT_EQUAL_UINT(rows, rows_of());
     TEST_ASSERT_EQUAL_UINT(after, model->first_row[2]);
     TEST_ASSERT_TRUE(model->cell[0].edited != 0u);
-    const CliViewInput line = {.kind = CLI_VIEW_KEY, .name = "Enter"};
+    const CliViewInput line = {.type = CLI_VIEW_KEY, .name = "Enter"};
     handed(&line);
     TEST_ASSERT_EQUAL_UINT(3u, model->cell[0].lines);
     TEST_ASSERT_EQUAL_UINT(rows + 1u, rows_of());
@@ -121,7 +121,7 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     TEST_ASSERT_EQUAL_INT(0, model->dirty);
     const unsigned int rows = rows_of();
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.add, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 0u, .kind = CLI_NOTEBOOK_CODE));
+                                        .cell = 0u, .type = CLI_NOTEBOOK_CODE));
     TEST_ASSERT_EQUAL_UINT(4u, model->cells);
     TEST_ASSERT_EQUAL_UINT(1u, model->focused);
     TEST_ASSERT_EQUAL_UINT(rows + 2u, rows_of());
@@ -129,7 +129,7 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     model->dirty = 0;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.retype, CliNotebookEditCellCfg, .key = "edit:a",
                                         .cell = 1u));
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, model->cell[1].kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, model->cell[1].type);
     TEST_ASSERT_EQUAL_INT(1, model->dirty);
     const unsigned int serial = model->cell[0].serial;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a",

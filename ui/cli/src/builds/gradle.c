@@ -143,12 +143,12 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
     {
         const char *const rest = args->text + at;
         const unsigned long long left = args->size - at;
-        unsigned char kind = CLI_GRADLE_CODE;
+        unsigned char type = CLI_GRADLE_CODE;
         unsigned long long end = at;
         unsigned long long found = 0ULL;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = rest, .size = left, .prefix = "//"))
         {
-            kind = CLI_GRADLE_COMMENT;
+            type = CLI_GRADLE_COMMENT;
             end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest, .length_value = left,
                              .required = "\n", .size = 1u, .at_pointer = &found)
                       ? at + found
@@ -157,7 +157,7 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
         else if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = rest, .size = left,
                             .prefix = "/*"))
         {
-            kind = CLI_GRADLE_COMMENT;
+            type = CLI_GRADLE_COMMENT;
             end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest + 2u, .length_value = left - 2u,
                              .required = "*/", .size = 2u, .at_pointer = &found)
                       ? at + 2u + found + 2u
@@ -166,14 +166,14 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
         else if (EMBED_CALL(cli_text_at_size.quoted_end, CliTextAtSizeCfg, .text = args->text, .size = args->size,
                             .at = at, .end = &end))
         {
-            kind = CLI_GRADLE_STRING;
+            type = CLI_GRADLE_STRING;
         }
         else
         {
             at += 1u;
             continue;
         }
-        memor.set(&(MemoriaCfg){.dst = args->class_of + at, .val = kind, .bytes = (size_t)(end - at)});
+        memor.set(&(MemoriaCfg){.dst = args->class_of + at, .val = type, .bytes = (size_t)(end - at)});
         at = end;
     }
 }

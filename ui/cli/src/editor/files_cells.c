@@ -45,7 +45,7 @@ int cli_files_append(const CliFilesPathLengthCtx *args)
     return 1;
 }
 
-unsigned int cli_files_index(const CliFilesPathKindCfg *args)
+unsigned int cli_files_index(const CliFilesPathTypeCfg *args)
 {
     unsigned int low = 0u;
     unsigned int high = args->files->count;
@@ -66,9 +66,9 @@ unsigned int cli_files_index(const CliFilesPathKindCfg *args)
     return args->files->count;
 }
 
-int cli_files_contains(const CliFilesPathKindCfg *args)
+int cli_files_contains(const CliFilesPathTypeCfg *args)
 {
-    return EMBED_CALL(cli_files_path_kind.index, CliFilesPathKindCfg, .files = args->files, .path = args->path) <
+    return EMBED_CALL(cli_files_path_type.index, CliFilesPathTypeCfg, .files = args->files, .path = args->path) <
            args->files->count;
 }
 

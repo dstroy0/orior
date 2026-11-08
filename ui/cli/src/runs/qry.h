@@ -127,7 +127,7 @@ void cli_qry_runs_lose(const CliQryOutRootCfg *args);
 #define CLI_RUNS_ROW_LESSONS 9u
 #define CLI_RUNS_ROW_LESSON 10u
 
-// A row of the pane: its kind; a run row's path from the top of the tree; its texts, a folder row's folder, a run's
+// A row of the pane: its type; a run row's path from the top of the tree; its texts, a folder row's folder, a run's
 // name, a panic line's text, a question, an account's text with the expert in `second`, a record's name, a lesson's
 // cause with its carrier in `second` and its stand-in in `third`; `number`, a panic's or a record's sequence or the
 // count row's records; `size`, a run's or a record's bytes, or the count row's bytes after the .qry's last whole
@@ -135,7 +135,7 @@ void cli_qry_runs_lose(const CliQryOutRootCfg *args);
 // row is opened; and whether an account is the ruling
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *path;
     const char *text;
     unsigned long long text_length;

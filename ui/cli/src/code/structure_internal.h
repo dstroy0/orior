@@ -69,7 +69,7 @@ enum
 
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int x;
     unsigned int y;
 } CliStep;
@@ -142,8 +142,8 @@ typedef struct
     unsigned char out_used[CLI_STRUCTURE_LINES];
     unsigned char left[CLI_STRUCTURE_LINES];
     unsigned char right[CLI_STRUCTURE_LINES];
-    unsigned char left_kinds[CLI_STRUCTURE_LINES];
-    unsigned char right_kinds[CLI_STRUCTURE_LINES];
+    unsigned char left_types[CLI_STRUCTURE_LINES];
+    unsigned char right_types[CLI_STRUCTURE_LINES];
     unsigned int left_marks[CLI_STRUCTURE_TOKENS][4];
     unsigned int right_marks[CLI_STRUCTURE_TOKENS][4];
     unsigned int out_tokens[CLI_STRUCTURE_TOKENS];
@@ -166,11 +166,11 @@ extern CliStructureState *g_cli_structure;
 
 // the steps of a compare past its edits (structure_marks.c): the names renamed found, in order, their count; the
 // tokens of each moved line marked moved; each token of a change that is not moved marked; each line of a change given
-// its kind; two marks in order; and the compare written as the window reads it
+// its type; two marks in order; and the compare written as the window reads it
 unsigned int cli_structure_renames_find(const CliStructureCompareRenamesCtx *args);
 void cli_structure_moved_mark(const CliStructureCtx *args);
 void cli_structure_touched_mark(const CliStructureCtx *args);
-void cli_structure_lines_kind(const CliStructureCtx *args);
+void cli_structure_lines_type(const CliStructureCtx *args);
 int cli_structure_mark_order(const CliStructureOneCtx *args);
 
 struct CliStructureACtx
@@ -269,13 +269,13 @@ typedef struct
 {
     void (*moved_mark)(const CliStructureCtx *args);
     void (*touched_mark)(const CliStructureCtx *args);
-    void (*lines_kind)(const CliStructureCtx *args);
+    void (*lines_type)(const CliStructureCtx *args);
 } CliStructureNsTable;
-EMBED_TABLE_LAYOUT(CliStructureNsTable, moved_mark, touched_mark, lines_kind);
+EMBED_TABLE_LAYOUT(CliStructureNsTable, moved_mark, touched_mark, lines_type);
 EMBED_TABLE_STORAGE CliStructureNsTable cli_structure_internal EMBED_UNUSED = {
     .moved_mark = cli_structure_moved_mark,
     .touched_mark = cli_structure_touched_mark,
-    .lines_kind = cli_structure_lines_kind,
+    .lines_type = cli_structure_lines_type,
 };
 
 typedef struct

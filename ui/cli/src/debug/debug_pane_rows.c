@@ -7,7 +7,7 @@
 // CLI_DEBUG_DEPTH levels, read again whole as a frame is chosen or a row opens or closes; a row's key is its path of
 // labels, and the open set stores the keys whose rows stand the reverse of how they first stand, sorted by their bytes
 // and found by halving. Console: a ring of lines over one text cell, a piece of output with no line end running on
-// into the last line of its kind, the oldest line going past CLI_DEBUG_CONSOLE_LINES and its bytes with the next
+// into the last line of its type, the oldest line going past CLI_DEBUG_CONSOLE_LINES and its bytes with the next
 // compaction
 #include "debug_internal.h"
 #include "debug_pane_internal.h"
@@ -251,14 +251,14 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
         }
         unsigned long long name_length = 0ULL;
         unsigned long long value_length = 0ULL;
-        unsigned long long kind_length = 0ULL;
+        unsigned long long type_length = 0ULL;
         long long reference = 0LL;
         const char *const name = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "name",
                                             .length_out = &name_length);
         const char *const value = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "value",
                                              .length_out = &value_length);
-        const char *const kind = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "kind",
-                                            .length_out = &kind_length);
+        const char *const type = EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = one, .name = "kind",
+                                            .length_out = &type_length);
         (void)EMBED_CALL(rows_number, DebugPaneRowsCtx, .json = &json, .node = one, .name = "reference",
                          .value = &reference);
         char key[ROWS_KEY];
@@ -276,7 +276,7 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
         {
             break;
         }
-        entry->kind = CLI_DEBUG_ROW_VARIABLE;
+        entry->type = CLI_DEBUG_ROW_VARIABLE;
         entry->depth = args->depth;
         entry->opens = opens ? 1u : 0u;
         entry->open = open ? 1u : 0u;
@@ -285,8 +285,8 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
                                    .text = (value != NULL) ? value : "", .length = value_length);
         entry->second_length = value_length;
         entry->third = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store,
-                                  .text = (kind != NULL) ? kind : "", .length = kind_length);
-        entry->third_length = kind_length;
+                                  .text = (type != NULL) ? type : "", .length = type_length);
+        entry->third_length = type_length;
         entry->key = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store, .text = key,
                                 .length = keyed ? key_line.at : 0ULL);
         entry->key_length = keyed ? key_line.at : 0ULL;
@@ -310,7 +310,7 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
     {
         return;
     }
-    entry->kind = CLI_DEBUG_ROW_WATCH;
+    entry->type = CLI_DEBUG_ROW_WATCH;
     if (!args->framed)
     {
         return;
@@ -336,14 +336,14 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
             ? EMBED_CALL(rows_answer_read, DebugPaneRowsCtx, .tree = &json, .text = scratch, .length = out.at)
             : CLI_JSON_NONE;
     unsigned long long value_length = 0ULL;
-    unsigned long long kind_length = 0ULL;
+    unsigned long long type_length = 0ULL;
     const char *const value = (root != CLI_JSON_NONE)
                                   ? EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = root,
                                                .name = "value", .length_out = &value_length)
                                   : NULL;
-    const char *const kind = (root != CLI_JSON_NONE)
+    const char *const type = (root != CLI_JSON_NONE)
                                  ? EMBED_CALL(rows_member, DebugPaneRowsCtx, .json = &json, .node = root,
-                                              .name = "kind", .length_out = &kind_length)
+                                              .name = "kind", .length_out = &type_length)
                                  : NULL;
     const int failed = value == NULL;
     const unsigned long long refused = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL;
@@ -352,8 +352,8 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
                                .text = failed ? why : value, .length = failed ? refused : value_length);
     entry->second_length = failed ? refused : value_length;
     entry->third = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store,
-                              .text = (kind != NULL) ? kind : "", .length = kind_length);
-    entry->third_length = kind_length;
+                              .text = (type != NULL) ? type : "", .length = type_length);
+    entry->third_length = type_length;
     g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
     g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
 }
@@ -411,7 +411,7 @@ EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
         {
             break;
         }
-        entry->kind = CLI_DEBUG_ROW_SCOPE;
+        entry->type = CLI_DEBUG_ROW_SCOPE;
         entry->opens = opens ? 1u : 0u;
         entry->open = open ? 1u : 0u;
         entry->reference = reference;
@@ -520,7 +520,7 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
         {
             break;
         }
-        entry->kind = CLI_DEBUG_ROW_FRAME;
+        entry->type = CLI_DEBUG_ROW_FRAME;
         entry->reference = id;
         // the request writes a line counted from 0 in its low 32 bits
         entry->line = (unsigned int)(line & 0xffffffffLL);
@@ -655,7 +655,7 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
         const unsigned long long piece = end - from;
         CliDebugPaneEntry *const last =
             (console->count != 0u) ? &console->entry[(console->first + console->count - 1u) % console->capacity] : NULL;
-        const int runs_on = (last != NULL) && (last->line_kind == args->kind) && !last->ended;
+        const int runs_on = (last != NULL) && (last->line_type == args->type) && !last->ended;
         if (runs_on)
         {
             // the last line's text stands at the end of the cell, its end the cell's last byte used
@@ -685,9 +685,9 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
             {
                 return;
             }
-            line->kind = CLI_DEBUG_ROW_LINE;
-            line->line_kind = args->kind;
-            line->failed = (args->kind == CLI_DEBUG_LINE_STDERR) ? 1u : 0u;
+            line->type = CLI_DEBUG_ROW_LINE;
+            line->line_type = args->type;
+            line->failed = (args->type == CLI_DEBUG_LINE_STDERR) ? 1u : 0u;
             line->text = console->used;
             line->text_length = piece;
             line->ended = ended ? 1u : 0u;
@@ -729,12 +729,12 @@ EMBED_INLINE void rows_laid(const DebugPaneRowsCtx *args)
     const CliDebugPaneEntry *const entry = args->entry;
     const char *const text = args->store->text;
     CliDebugPaneRow *const row = args->row;
-    row->kind = entry->kind;
+    row->type = entry->type;
     row->depth = entry->depth;
     row->opens = entry->opens;
     row->open = entry->open;
     row->failed = entry->failed;
-    row->line_kind = entry->line_kind;
+    row->line_type = entry->line_type;
     row->line = entry->line;
     row->text = text + entry->text;
     row->text_length = entry->text_length;
@@ -757,7 +757,7 @@ int cli_debug_pane_row(const CliDebugPaneViewCfg *args)
         const char *const notice = (args->view == CLI_DEBUG_VIEW_VARIABLES) ? ROWS_VARIABLES_NONE
                                    : g_cli_debug_pane.has_session           ? ROWS_FRAMES_RUNNING
                                                                             : ROWS_FRAMES_NONE;
-        row->kind = CLI_DEBUG_ROW_NOTICE;
+        row->type = CLI_DEBUG_ROW_NOTICE;
         row->text = notice;
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = notice, .cap = 64ULL});
         return 1;
@@ -781,7 +781,7 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
         return 0;
     }
     const CliDebugPaneEntry *const entry = &variables->entry[args->at];
-    if (entry->kind == CLI_DEBUG_ROW_WATCH)
+    if (entry->type == CLI_DEBUG_ROW_WATCH)
     {
         // the watches stand first, the row's place the watch's
         CliDebugPaneStore *const watches = &g_cli_debug_pane.watches;

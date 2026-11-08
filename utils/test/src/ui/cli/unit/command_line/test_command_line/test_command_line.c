@@ -114,10 +114,10 @@ static void job_with_values(void)
 {
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 8u, .params = s_params, .params_max = 8u, .steps = s_steps, .steps_max = 8u, .request = s_args, .args_max = 8u, .lists = s_lists, .lists_max = 32u, .text_out = s_text, .text_max = 8192u);
     s_values_job = EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "run/x", .group = "test", .title = "x", .file = "", .about = "", .opens = "");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "cfg", .kind = "choice", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "cfg", .type = "choice", .required = 0);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "a.cfg");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "run", .kind = "many", .required = 0);
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "arguments", .kind = "words", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "run", .type = "many", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "arguments", .type = "words", .required = 0);
 }
 
 // the words of a run read as values of the job

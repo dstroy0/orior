@@ -324,7 +324,7 @@ int query_modify(const QueryPathSecondsCtx *args)
     return 1;
 }
 
-int query_modified_set(const QueryPathSecondsKindCtx *args)
+int query_modified_set(const QueryPathSecondsTypeCtx *args)
 {
     struct timespec times[2];
     times[0].tv_sec = 0;

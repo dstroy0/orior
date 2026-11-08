@@ -280,7 +280,7 @@ EMBED_INLINE int cli_write_on_to(const SettingsSyncImportCtx *args)
 {
     unsigned long long size = args->size;
     char parent[CLI_PATH_MAX_LEN];
-    if ((EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->to, .out = parent) &&
+    if ((EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->to, .out = parent) &&
          !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)) ||
         !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = args->to,
                     .bytes = args->text, .size = size))

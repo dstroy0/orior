@@ -41,7 +41,7 @@ int cli_files_create_file(const CliFilesRootErrMsgTextCfg *args)
         return 0;
     }
     char parent[CLI_PATH_MAX_LEN];
-    if ((EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) &&
+    if ((EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = parent) &&
          !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)) ||
         !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "",
                     .size = 0ULL))
@@ -113,7 +113,7 @@ int cli_files_write(const CliFilesRootErrMsgTextCfg *args)
 int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args)
 {
     char parent[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = parent))
     {
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, " has no folder");

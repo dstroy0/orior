@@ -283,7 +283,7 @@ function waitOn(node, pane, when, then) {
   waits.set(node, watcher);
 }
 
-// A name standing on the loading pane lifted off it, into a holder of the same kind over the window at
+// A name standing on the loading pane lifted off it, into a holder of the same type over the window at
 // the same place, so the pane fading and going under it takes nothing of the name with it: what gives
 // the name back to the pane.
 function lifted(node) {

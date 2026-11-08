@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_internal.h: what the executables sources share: the kinds of build script, a program one makes, the
-// readers of each kind's text (executables_scan.c), the tree's scripts read (executables_read.c), and the facts of this
+// executables_internal.h: what the executables sources share: the types of build script, a program one makes, the
+// readers of each type's text (executables_scan.c), the tree's scripts read (executables_read.c), and the facts of this
 // machine a job is made from (executables_jobs.c)
 #ifndef EXECUTABLES_INTERNAL_H
 #define EXECUTABLES_INTERNAL_H
@@ -41,18 +41,18 @@ typedef struct CliExecutablesSpecCtx CliExecutablesSpecCtx;
 typedef struct CliExecutablesTextLengthCtx CliExecutablesTextLengthCtx;
 typedef struct CliExecutablesCtx CliExecutablesCtx;
 
-// the kinds of build script read here, and none
+// the types of build script read here, and none
 enum
 {
-    CLI_KIND_CARGO,
-    CLI_KIND_CMAKE,
-    CLI_KIND_MESON,
-    CLI_KIND_GO,
-    CLI_KIND_DOTNET,
-    CLI_KIND_ZIG,
-    CLI_KIND_PYINSTALLER,
-    CLI_KIND_NPM,
-    CLI_KIND_NONE
+    CLI_TYPE_CARGO,
+    CLI_TYPE_CMAKE,
+    CLI_TYPE_MESON,
+    CLI_TYPE_GO,
+    CLI_TYPE_DOTNET,
+    CLI_TYPE_ZIG,
+    CLI_TYPE_PYINSTALLER,
+    CLI_TYPE_NPM,
+    CLI_TYPE_NONE
 };
 
 // the most programs the tree's scripts make, the most names one script gives, the most bytes of a script read, and how
@@ -65,13 +65,13 @@ enum
 
 #define CLI_EXECUTABLES_DEEP 5u
 
-// One program a build script makes: its kind, its name, the script's path, and what its kind needs beyond the name: a
+// One program a build script makes: its type, its name, the script's path, and what its type needs beyond the name: a
 // Go package's folder as `go build` takes it, the file a spec freezes by its path under the spec's folder, or a bin's
 // script by its path in the tree, in `detail`; whether a build.zig takes the optimize option; and a bin's builders, the
 // one taken unless instructed otherwise first, and whether its script is CommonJS
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     char name[CLI_NAME_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
     char detail[CLI_PATH_MAX_LEN];
@@ -96,7 +96,7 @@ typedef struct
 // (executables_found.c)
 void cli_executables_order(const CliExecutablesFoundCtx *args);
 
-// Names a script gives, each with a second text where its kind has one: a Go main's package, a bin's script
+// Names a script gives, each with a second text where its type has one: a Go main's package, a bin's script
 typedef struct
 {
     char name[CLI_EXECUTABLES_NAMES][CLI_NAME_MAX_LEN];
@@ -104,8 +104,8 @@ typedef struct
     unsigned int count;
 } CliNames;
 
-// the kind of build script a file's name is: CLI_KIND_NONE where it is none
-unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args);
+// the type of build script a file's name is: CLI_KIND_NONE where it is none
+unsigned int cli_executables_type_get(const CliExecutablesNameOutFolderCtx *args);
 // a name put after the names, with its second text, where the names contain it not already
 void cli_names_append(const CliExecutablesNameNamesCtx *args);
 
@@ -467,14 +467,14 @@ EMBED_TABLE_STORAGE CliExecutablesFoundNs cli_executables_found_internal EMBED_U
 
 typedef struct
 {
-    unsigned int (*kind_get)(const CliExecutablesNameOutFolderCtx *args);
+    unsigned int (*type_get)(const CliExecutablesNameOutFolderCtx *args);
     int (*join)(const CliExecutablesNameOutFolderCtx *args);
     int (*pass)(const CliExecutablesNameOutFolderCtx *args);
     void (*program_file)(const CliExecutablesNameOutFolderCtx *args);
 } CliExecutablesNameOutFolderNs;
-EMBED_TABLE_LAYOUT(CliExecutablesNameOutFolderNs, kind_get, join, pass, program_file);
+EMBED_TABLE_LAYOUT(CliExecutablesNameOutFolderNs, type_get, join, pass, program_file);
 EMBED_TABLE_STORAGE CliExecutablesNameOutFolderNs cli_executables_name_out_folder_internal EMBED_UNUSED = {
-    .kind_get = cli_executables_kind_get,
+    .type_get = cli_executables_type_get,
     .join = cli_executables_join,
     .pass = cli_executables_pass,
     .program_file = cli_program_file,

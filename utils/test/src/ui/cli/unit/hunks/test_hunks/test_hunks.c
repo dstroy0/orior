@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_hunks.c: the changes of a view against its last commit's file: a line put in, one taken out and one changed are
 // each one change with its mark; the change a line stands in is found, and for lines taken out the line above them;
-// the revert of each kind leaves the text the last commit's; stepping wraps both ways; the change shown carries its
+// the revert of each type leaves the text the last commit's; stepping wraps both ways; the change shown carries its
 // sentence, its lines and its settle; Escape closes it; and no key reads no change
 #include "ui/cli/src/editor/hunks.h"
 #include "ui/cli/src/command_line/pool.h"

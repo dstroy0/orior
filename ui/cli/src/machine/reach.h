@@ -16,10 +16,14 @@
 typedef struct CliReachMenuCfg CliReachMenuCfg;
 typedef struct CliReachCfg CliReachCfg;
 
-// the fields before a command's words; and the first byte of an answer, where the command ran and where it did not
+// The fields before a command's words. Then the first byte of an answer: the command ran, it did not, or the window
+// holds its answer until a person answers in the window. A held command sends the held byte first and its answer
+// after it. Last, what `run` returns for a command whose answer the window holds
 #define CLI_REACH_HEAD_FIELDS 3u
 #define CLI_REACH_DONE '1'
 #define CLI_REACH_REFUSED '0'
+#define CLI_REACH_HELD '2'
+#define CLI_REACH_HOLD 2
 
 // What the window answered: whether the command ran, and what it reported
 typedef struct
@@ -45,6 +49,10 @@ void cli_reach_forget(void);
 int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg);
 int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count));
 void cli_reach_close(void);
+// Where `run` returns CLI_REACH_HOLD, the door sends the held byte and keeps the command's thread asleep. This call
+// answers the held command later, `done` 1 with `text` or 0 for refused, and wakes its thread. It does nothing where
+// no command is held. The window holds one command at a time
+void cli_reach_held_answer(int done, const char *text);
 
 // `command` of `menu`, with `args`, `count` of them, sent to a window open on `root` among those stored in `home`, or,
 // with no tree named, to the one window open where there is only one, its answer into `answer`: 1, 0 with why given,

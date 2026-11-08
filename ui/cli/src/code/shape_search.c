@@ -99,7 +99,7 @@ EMBED_INLINE unsigned int search_pattern(const ShapeSearchCtx *args)
     // a statement's end and a block's close the pattern's own end puts are no parts of it
     unsigned int count = s_work_state->parts.count;
     while ((count > 0u) && (s_work_state->hole_of[count - 1u] == CLI_SHAPE_HOLES) &&
-           ((s_work_state->parts.kind[count - 1u] == CLI_SHAPE_BREAK) ||
+           ((s_work_state->parts.type[count - 1u] == CLI_SHAPE_BREAK) ||
             (s_work_state->parts.start[count - 1u] == s_work_state->parts.end[count - 1u])))
     {
         count -= 1u;
@@ -137,7 +137,7 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
         }
         const unsigned int from = s_work_state->matcher.bound_from[bound];
         unsigned int to = s_work_state->matcher.bound_to[bound];
-        while ((to > from) && (code->kind[to - 1u] == CLI_SHAPE_BREAK))
+        while ((to > from) && (code->type[to - 1u] == CLI_SHAPE_BREAK))
         {
             to -= 1u;
         }
@@ -155,7 +155,7 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
 // taken with it: 1, or 0 with the lock given back where the cellblock could not meet it
 EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
 {
-    // the starts and ends of both and each part's hole, then the kinds of both, then their roles
+    // the starts and ends of both and each part's hole, then the types of both, then their roles
     const unsigned long long words = (2ULL * args->code_capacity) + (3ULL * args->part_capacity);
     const unsigned long long bytes = 2ULL * ((unsigned long long)args->code_capacity + args->part_capacity);
     s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
@@ -164,14 +164,14 @@ EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
     {
         return 0;
     }
-    // the lists start past the work state, on a boundary of the work state's pointers, the kinds past the words and the
-    // roles past the kinds
+    // the lists start past the work state, on a boundary of the work state's pointers, the types past the words and the
+    // roles past the types
     unsigned int *const list_entries = (unsigned int *)(void *)(s_work_state + 1);
-    unsigned char *const kinds = (unsigned char *)(void *)(list_entries + words);
-    unsigned char *const roles = kinds + args->code_capacity + args->part_capacity;
+    unsigned char *const types = (unsigned char *)(void *)(list_entries + words);
+    unsigned char *const roles = types + args->code_capacity + args->part_capacity;
     s_work_state->code =
-        (CliShapeTokens){kinds, roles, list_entries, list_entries + args->code_capacity, 0u, args->code_capacity, 0};
-    s_work_state->parts = (CliShapeTokens){kinds + args->code_capacity,
+        (CliShapeTokens){types, roles, list_entries, list_entries + args->code_capacity, 0u, args->code_capacity, 0};
+    s_work_state->parts = (CliShapeTokens){types + args->code_capacity,
                                            roles + args->code_capacity,
                                            list_entries + (2ULL * args->code_capacity),
                                            list_entries + (2ULL * args->code_capacity) + args->part_capacity,
@@ -232,14 +232,14 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         unsigned int end = 0u;
         s_work_state->matcher.steps = 0u;
         s_work_state->matcher.bound_count = 0u;
-        if ((s_work_state->code.kind[at] == CLI_SHAPE_BREAK) ||
+        if ((s_work_state->code.type[at] == CLI_SHAPE_BREAK) ||
             !EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = &s_work_state->matcher,
                         .part = 0u, .at = at, .end = &end))
         {
             at += 1u;
             continue;
         }
-        while ((end > at) && (s_work_state->code.kind[end - 1u] == CLI_SHAPE_BREAK))
+        while ((end > at) && (s_work_state->code.type[end - 1u] == CLI_SHAPE_BREAK))
         {
             end -= 1u;
         }

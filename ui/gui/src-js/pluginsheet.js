@@ -30,7 +30,7 @@ function later(a, b) {
 }
 
 // Whether each of what `asks` asks for is among what `shown` named.
-const within = (asks, shown) => ["reads", "writes", "reaches"].every((kind) => (asks?.[kind] ?? []).every((one) => (shown?.[kind] ?? []).includes(one)));
+const within = (asks, shown) => ["reads", "writes", "reaches"].every((type) => (asks?.[type] ?? []).every((one) => (shown?.[type] ?? []).includes(one)));
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);

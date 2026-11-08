@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_quick.c: the quick open: a leading > lists the commands, the ones run last first with nothing after it and the
 // best match first with a query, at most CLI_QUICK_MOST; a leading : answers the line sentence clamped to the shown
-// view's lines, and a sentence with no view; @ lists the shown view's declarations with kind and line, and # the
-// tree's with path and line; Search Everywhere answers at most CLI_QUICK_EACH of each kind under headings, a kind with
+// view's lines, and a sentence with no view; @ lists the shown view's declarations with type and line, and # the
+// tree's with path and line; Search Everywhere answers at most CLI_QUICK_EACH of each type under headings, a type with
 // no rows standing with no heading; a step passes over a heading; the keys edit the typed text and move its caret;
 // `path:line:column` opens the path at the place counted from 0; the keys of a command open the box as the command
 // does; the double Shift opens Search Everywhere; and the rows asked again while the tree is read keep the chosen row
@@ -132,7 +132,7 @@ void test_a_leading_greater_lists_the_commands_the_ones_run_last_first(void)
     TEST_ASSERT_TRUE(text_is(view.placeholder, view.placeholder_length, "Type the name of a command to run."));
     const CliQuickRow first = row_at(0u);
     const CliQuickRow second = row_at(1u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_COMMAND, first.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_COMMAND, first.type);
     TEST_ASSERT_TRUE(text_is(first.label, first.label_length, "File: Save"));
     TEST_ASSERT_TRUE(text_is(first.detail, first.detail_length, "recently used"));
     TEST_ASSERT_TRUE(text_is(first.keys, first.keys_length, "Ctrl+S"));
@@ -154,7 +154,7 @@ void test_a_query_after_the_greater_marks_the_letters_it_matched(void)
     opened("palette", 0, "zzqqxx");
     const CliQuickRow none = row_at(0u);
     TEST_ASSERT_EQUAL_UINT(1u, viewed().rows);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_TEXT, none.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_TEXT, none.type);
     TEST_ASSERT_TRUE(text_is(none.label, none.label_length, "No matching commands"));
 }
 
@@ -176,15 +176,15 @@ void test_a_leading_colon_answers_the_line_clamped_to_the_view(void)
     (void)mmgr_line_finish(&gone_line);
     opened("line", 1, NULL);
     CliQuickRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_TEXT, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_TEXT, row.type);
     TEST_ASSERT_TRUE(text_is(row.label, row.label_length, asked));
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "40:3", .length = 4ULL, .now_ms = 1000ULL);
     row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_LINE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_LINE, row.type);
     TEST_ASSERT_TRUE(text_is(row.label, row.label_length, gone));
     CliQuickChoice choice;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.choose, CliQuickCfg, .at = CLI_QUICK_CHOSEN, .choice_out = &choice));
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_PATH, choice.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_PATH, choice.type);
     TEST_ASSERT_EQUAL_STRING("check.c", choice.path);
     TEST_ASSERT_TRUE(choice.placed);
     TEST_ASSERT_EQUAL_UINT64(shape.lines - 1ULL, choice.place.line);
@@ -197,7 +197,7 @@ void test_a_leading_colon_answers_the_line_clamped_to_the_view(void)
     TEST_ASSERT_TRUE(viewed().open);
 }
 
-void test_an_at_lists_the_views_declarations_with_kind_and_line(void)
+void test_an_at_lists_the_views_declarations_with_type_and_line(void)
 {
     opened("symbol", 1, NULL);
     const CliQuickView view = viewed();
@@ -211,7 +211,7 @@ void test_an_at_lists_the_views_declarations_with_kind_and_line(void)
     }
     TEST_ASSERT_TRUE(helper < view.rows);
     const CliQuickRow found = row_at(helper);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_SYMBOL, found.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_SYMBOL, found.type);
     TEST_ASSERT_TRUE(text_is(found.detail, found.detail_length, "function, line 2"));
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "main", .length = 4ULL, .now_ms = 1000ULL);
     const CliQuickRow best = row_at(0u);
@@ -229,7 +229,7 @@ void test_a_hash_lists_the_trees_declarations_with_path_and_line(void)
     EMBED_CALL(cli_symbols_root.tree_branches_walk, CliSymbolsRootCfg, .root = s_tree, .paths = paths, .count = 1u);
     opened("symbol-tree", 0, "gamma");
     const CliQuickRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_SYMBOL, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_SYMBOL, row.type);
     TEST_ASSERT_TRUE(text_is(row.label, row.label_length, "gamma_value"));
     TEST_ASSERT_TRUE(text_holds(row.detail, row.detail_length, ", decl.c:1"));
     CliQuickChoice choice;
@@ -246,7 +246,7 @@ void test_a_path_with_line_and_column_opens_the_place_counted_from_0(void)
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_tree);
     opened("file", 0, "view.rs:12:5");
     const CliQuickRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_FILE, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_FILE, row.type);
     TEST_ASSERT_TRUE(text_is(row.label, row.label_length, "view.rs"));
     TEST_ASSERT_TRUE(text_is(row.detail, row.detail_length, "src"));
     TEST_ASSERT_EQUAL_UINT(1u, row.label_mark_count);
@@ -266,7 +266,7 @@ void test_a_path_with_line_and_column_opens_the_place_counted_from_0(void)
     TEST_ASSERT_TRUE(text_is(opened_last.detail, opened_last.detail_length, "src  recently opened"));
 }
 
-void test_search_everywhere_answers_each_kind_under_its_heading(void)
+void test_search_everywhere_answers_each_type_under_its_heading(void)
 {
     opened("search-everywhere", 1, NULL);
     const CliQuickView view = viewed();
@@ -277,7 +277,7 @@ void test_search_everywhere_answers_each_kind_under_its_heading(void)
     for (unsigned int at = 0u; at < view.rows; at += 1u)
     {
         const CliQuickRow row = row_at(at);
-        if (row.kind == CLI_QUICK_ROW_HEADING)
+        if (row.type == CLI_QUICK_ROW_HEADING)
         {
             headings += 1u;
             run = 0u;
@@ -290,10 +290,10 @@ void test_search_everywhere_answers_each_kind_under_its_heading(void)
     const CliQuickRow first = row_at(0u);
     TEST_ASSERT_TRUE(text_is(first.label, first.label_length, "Files"));
     TEST_ASSERT_EQUAL_UINT(1u, view.chosen);
-    // a query no file and no declaration answers leaves those kinds with no heading
+    // a query no file and no declaration answers leaves those types with no heading
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "save all", .length = 8ULL, .now_ms = 1000ULL);
     const CliQuickRow actions = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_HEADING, actions.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_HEADING, actions.type);
     TEST_ASSERT_TRUE(text_is(actions.label, actions.label_length, "Actions"));
 }
 
@@ -307,7 +307,7 @@ void test_a_step_passes_over_a_heading_and_stops_at_the_first(void)
     unsigned int heading = 0u;
     for (unsigned int at = 1u; (heading == 0u) && (at < view.rows); at += 1u)
     {
-        heading = (row_at(at).kind == CLI_QUICK_ROW_HEADING) ? at : 0u;
+        heading = (row_at(at).type == CLI_QUICK_ROW_HEADING) ? at : 0u;
     }
     TEST_ASSERT_TRUE(heading > 1u);
     for (unsigned int at = 1u; at < heading; at += 1u)
@@ -374,10 +374,10 @@ void test_a_command_chosen_answers_its_word_and_runs_first_after(void)
 {
     opened("palette", 0, "close all editors");
     const CliQuickRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_COMMAND, row.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_COMMAND, row.type);
     CliQuickChoice choice;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.choose, CliQuickCfg, .at = 0u, .choice_out = &choice));
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_COMMAND, choice.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_COMMAND, choice.type);
     TEST_ASSERT_EQUAL_STRING("close-all", choice.command);
     const char *recent[2];
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = 1u,
@@ -401,7 +401,7 @@ void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void)
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "one", .length = 3ULL, .now_ms = 5000ULL);
     const CliQuickView view = viewed();
     TEST_ASSERT_EQUAL_UINT(3u, view.rows);
-    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_READING, row_at(2u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_QUICK_ROW_READING, row_at(2u).type);
     TEST_ASSERT_EQUAL_UINT64(5250ULL, EMBED_CALL(cli_quick.deadline_ms, CliQuickCfg, .at = 0u));
     EMBED_CALL(cli_quick.step, CliQuickCfg, .by = 1);
     const CliQuickRow chosen = row_at(1u);

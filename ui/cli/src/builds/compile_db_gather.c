@@ -75,8 +75,8 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
                                           .object = entry, .name = "command"),
                        .length_pointer = &size);
         int found = 0;
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = arguments,
-                       .kind = CFG_JSON_ARRAY))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = arguments,
+                       .type = CFG_JSON_ARRAY))
         {
             found = first != NULL;
             EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = compiler, .text = first, .otherwise = "");
@@ -178,7 +178,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
         g_cli_guard->persistent_buf_release((void *)(uintptr_t)there, (g_cli_build_owner));
         char folder[CLI_PATH_MAX_LEN];
-        if (!same && EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+        if (!same && EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
         {
             EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
             EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = out.out,
@@ -243,14 +243,14 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)
             char folder[CLI_PATH_MAX_LEN];
             entries = EMBED_CALL(cli_compile_db_path_internal.compile_json_read, CliCompileDbPathCtx, .json = json,
                                  .path = file->path);
-            entries = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                 .node = entries, .kind = CFG_JSON_ARRAY)
+            entries = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                 .node = entries, .type = CFG_JSON_ARRAY)
                           ? entries
-                          : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
-                                       .kind = CFG_JSON_ARRAY);
-            if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file->path,
+                          : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json,
+                                       .type = CFG_JSON_ARRAY);
+            if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = file->path,
                             .out = folder) ||
-                !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = project))
+                !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = project))
             {
                 project[0] = '\0';
             }
@@ -281,7 +281,7 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)
         g_cli_gather.project[place] = entry;
     }
     const unsigned int all =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_ARRAY);
     for (unsigned int at = 0u; at < g_cli_gather.projects; at += 1u)
     {
         const unsigned int entries = g_cli_gather.project[at].entries;
@@ -311,7 +311,7 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)
     EMBED_CALL(cli_write, CompileDbGatherCtx, .path = path, .entries = all);
     EMBED_CALL(cli_of_entries, CompileDbGatherCtx,
                .folder =
-                   EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder)
+                   EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder)
                        ? folder
                        : NULL,
                .entries = all, .database = args->database);

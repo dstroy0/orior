@@ -33,15 +33,15 @@ static const char *barrier_of(const CliProverMessage *message)
     return (barrier >= 0) ? g_cli_validate->tool.barriers[barrier].name : "";
 }
 
-// a message of `text` and `kind` placed in the messages' texts, of the first line
-static CliProverMessage message_of(const char *text, const char *kind)
+// a message of `text` and `type` placed in the messages' texts, of the first line
+static CliProverMessage message_of(const char *text, const char *type)
 {
-    CliProverMessage message = {1u, 0u, 0u, 0u, 1u, s_messages.used, CLI_UNITY_LENGTH(text), 0ull, CLI_UNITY_LENGTH(kind)};
+    CliProverMessage message = {1u, 0u, 0u, 0u, 1u, s_messages.used, CLI_UNITY_LENGTH(text), 0ull, CLI_UNITY_LENGTH(type)};
     memor.cpy(&(MemoriaCfg){.dst = s_messages.text + s_messages.used, .src = text, .bytes = CLI_UNITY_LENGTH(text)});
     s_messages.used += CLI_UNITY_LENGTH(text);
-    message.kind = s_messages.used;
-    memor.cpy(&(MemoriaCfg){.dst = s_messages.text + s_messages.used, .src = kind, .bytes = CLI_UNITY_LENGTH(kind)});
-    s_messages.used += CLI_UNITY_LENGTH(kind);
+    message.type = s_messages.used;
+    memor.cpy(&(MemoriaCfg){.dst = s_messages.text + s_messages.used, .src = type, .bytes = CLI_UNITY_LENGTH(type)});
+    s_messages.used += CLI_UNITY_LENGTH(type);
     return message;
 }
 
@@ -216,7 +216,7 @@ void test_an_instance_timeout_is_its_own_barrier(void)
     TEST_ASSERT_EQUAL_STRING("synthInstance.maxHeartbeats", barrier_of(&synth));
 }
 
-void test_a_messages_kind_names_its_barrier(void)
+void test_a_messages_type_names_its_barrier(void)
 {
     messages_emptied();
     const CliProverMessage depth = message_of("anything", "runtime.maxRecDepth");

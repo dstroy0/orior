@@ -68,20 +68,20 @@ EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
         path[(made > 0) ? made : 0] = '\0';
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
-        unsigned int kind;
+        unsigned int type;
         if ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))
         {
-            kind = CLI_CHANGE_ADDED;
+            type = CLI_CHANGE_ADDED;
         }
         else if ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME))
         {
-            kind = CLI_CHANGE_REMOVED;
+            type = CLI_CHANGE_REMOVED;
         }
         else
         {
-            kind = CLI_CHANGE_MODIFIED;
+            type = CLI_CHANGE_MODIFIED;
         }
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path, .kind = kind);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path, .type = type);
         if (next == 0u)
         {
             break;
@@ -120,8 +120,8 @@ static void cli_watch_read(void *context)
         }
         if (written == 0u)
         {
-            EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = "",
-                       .kind = CLI_CHANGE_LOST);
+            EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = "",
+                       .type = CLI_CHANGE_LOST);
         }
         else
         {

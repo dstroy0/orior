@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook's cells as nodes of the page: the bar under a cell that adds one after it, a cell's node, and what its
-// menu does: its kind changed, moved, its outputs cleared, deleted.
+// menu does: its type changed, moved, its outputs cleared, deleted.
 
 import { blurCell, cellFile, cellOf, drawNotebook, element, focusCell, state } from "../notebook.js";
 import { letMirrorGo } from "../edit/mirror.js";
@@ -12,8 +12,8 @@ import { debugCell, runCell } from "./kernel.js";
 
 // The bar under a cell that adds a cell after it, of code or of Markdown.
 export function addBar(book, after) {
-  const add = (kind) => {
-    const made = cellOf(book, { cell_type: kind, source: "", metadata: {} });
+  const add = (type) => {
+    const made = cellOf(book, { cell_type: type, source: "", metadata: {} });
     mirrorNewCell(book, made);
     const index = after ? book.cells.indexOf(after) + 1 : book.cells.length;
     book.cells.splice(index, 0, made);
@@ -51,7 +51,7 @@ function cellMenu(book, cell, event) {
   const items = [
     { label: "Run", run: () => runCell(book, cell) },
     { label: "Debug", disabled: !cellFile(book, cell), run: () => debugCell(book, cell) },
-    { label: cell.kind === "code" ? "Change to Markdown" : "Change to Code", run: () => changeKind(book, cell) },
+    { label: cell.kind === "code" ? "Change to Markdown" : "Change to Code", run: () => changeType(book, cell) },
     { label: "Move Up", disabled: book.cells.indexOf(cell) === 0, run: () => moveCell(book, cell, -1) },
     { label: "Move Down", disabled: book.cells.indexOf(cell) === book.cells.length - 1, run: () => moveCell(book, cell, 1) },
     { label: "Clear Outputs", run: () => clearOutputs(book, cell) },
@@ -60,7 +60,7 @@ function cellMenu(book, cell, event) {
   state.hooks.menu(items, event);
 }
 
-function changeKind(book, cell) {
+function changeType(book, cell) {
   if (book.focused === cell) {
     blurCell(book);
   }

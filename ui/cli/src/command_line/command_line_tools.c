@@ -109,8 +109,8 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     VerbaLinea opens = {row->opens, sizeof(row->opens), 0ULL};
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &s_json, .object = read, .name = "extensions");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
-                                          .node = extensions, .kind = CFG_JSON_ARRAY)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
+                                          .node = extensions, .type = CFG_JSON_ARRAY)
                                    ? s_json.node[extensions].first
                                    : CLI_JSON_NONE;
     for (unsigned int extension = first; extension != CLI_JSON_NONE; extension = s_json.node[extension].next)
@@ -227,7 +227,7 @@ EMBED_INLINE unsigned int tools_list(const CommandLineToolsCtx *args)
 {
     const char *text = args->text;
     const unsigned int list =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json, .type = CFG_JSON_ARRAY);
     const char *part = text;
     for (;;)
     {
@@ -243,7 +243,7 @@ EMBED_INLINE unsigned int tools_list(const CommandLineToolsCtx *args)
         {
             EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = list,
                        .value =
-                           EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                           EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                       .json = &s_json, .text = part + from, .length = to - from));
         }
         if (comma == NULL)
@@ -262,7 +262,7 @@ EMBED_INLINE void tools_set_text(const CommandLineToolsCtx *args)
     const char *text = args->text;
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = object,
                .name = name,
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = &s_json, .text = text,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
 }
@@ -289,12 +289,12 @@ EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
         return CLI_TOOLS_REFUSED;
     }
     const unsigned int block =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json, .type = CFG_JSON_ARRAY);
     for (unsigned int part = 1u; part <= 2u; part += 1u)
     {
         const char *const text = args->words[args->at + part];
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
-                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                   .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                        .json = &s_json, .text = text,
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
     }
@@ -364,7 +364,7 @@ EMBED_INLINE void tools_flag_refused(const CommandLineToolsCtx *args)
 EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
 {
     const unsigned int spec =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json, .type = CFG_JSON_OBJECT);
     static char s_name[1u << 12u];
     VerbaLinea name = {s_name, sizeof(s_name), 0ULL};
     int replace = 0;
@@ -444,7 +444,7 @@ EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
         return CLI_JSON_NONE;
     }
     const unsigned int tool =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json, .type = CFG_JSON_OBJECT);
     EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = tool, .name = "id", .text = "");
     EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = tool, .name = "name", .text = args->words[0]);
     EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = tool, .name = "group", .text = "");
@@ -452,7 +452,7 @@ EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
     EMBED_CALL(
         cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = tool,
         .name = "programs",
-        .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_ARRAY));
+        .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json, .type = CFG_JSON_ARRAY));
     for (unsigned int at = 1u; at < args->count; at += 2u)
     {
         if (at + 1u >= args->count)
@@ -485,8 +485,8 @@ EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
                                               .json_read = &s_json, .object = tool, .name = "install");
             if (install == CLI_JSON_NONE)
             {
-                install = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json,
-                                     .kind = CFG_JSON_OBJECT);
+                install = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &s_json,
+                                     .type = CFG_JSON_OBJECT);
                 EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
                            .object = tool, .name = "install", .value = install);
             }

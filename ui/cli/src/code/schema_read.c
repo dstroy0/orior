@@ -33,7 +33,7 @@ typedef struct
     const char *after;
     const char *stops;
     VerbaLinea *out;
-    unsigned char kind;
+    unsigned char type;
     unsigned int *first;
 } SchemaReadCtx;
 // the byte the reader stands at, -1 past the text's end
@@ -200,10 +200,10 @@ static void read_string(const SchemaReadCtx *args)
 
 static unsigned int read_value(const SchemaReadCtx *args);
 
-// a node made of `kind` from `from` to the reader's place: its place, CLI_SCHEMA_NONE where it does not fit
+// a node made of `type` from `from` to the reader's place: its place, CLI_SCHEMA_NONE where it does not fit
 EMBED_INLINE unsigned int read_node(const SchemaReadCtx *args)
 {
-    unsigned char kind = args->kind;
+    unsigned char type = args->type;
     unsigned long long from = args->from;
     CliSchemaRead *const read = args->reader->read;
     if (read->nodes >= read->nodes_max)
@@ -213,7 +213,7 @@ EMBED_INLINE unsigned int read_node(const SchemaReadCtx *args)
     }
     CliSchemaNode *const node = &read->node[read->nodes];
     memor.set(&(MemoriaCfg){.dst = node, .val = 0, .bytes = sizeof(*node)});
-    node->kind = kind;
+    node->type = type;
     node->from = from;
     node->to = args->reader->at;
     node->first = CLI_SCHEMA_NONE;
@@ -439,7 +439,7 @@ EMBED_INLINE unsigned int read_word(const SchemaReadCtx *args)
     }
     const unsigned int node =
         EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader,
-                   .kind = (is_true || is_false) ? CLI_SCHEMA_BOOL : CLI_SCHEMA_NULL, .from = args->from);
+                   .type = (is_true || is_false) ? CLI_SCHEMA_BOOL : CLI_SCHEMA_NULL, .from = args->from);
     if (node != CLI_SCHEMA_NONE)
     {
         args->reader->read->node[node].truth = is_true;
@@ -472,7 +472,7 @@ EMBED_INLINE unsigned int read_number(const SchemaReadCtx *args)
                    .before = "`", .middle = text + args->from, .size = size, .after = "` is no number");
     }
     const unsigned int node = EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader,
-                                         .kind = read ? CLI_SCHEMA_NUMBER : CLI_SCHEMA_NULL, .from = args->from);
+                                         .type = read ? CLI_SCHEMA_NUMBER : CLI_SCHEMA_NULL, .from = args->from);
     if (node != CLI_SCHEMA_NONE)
     {
         args->reader->read->node[node].number = value;
@@ -506,7 +506,7 @@ static unsigned int read_value(const SchemaReadCtx *args)
         args->reader->depth -= 1u;
         const unsigned int node =
             EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader,
-                       .kind = (byte == '{') ? CLI_SCHEMA_OBJECT : CLI_SCHEMA_ARRAY, .from = from);
+                       .type = (byte == '{') ? CLI_SCHEMA_OBJECT : CLI_SCHEMA_ARRAY, .from = from);
         if (node != CLI_SCHEMA_NONE)
         {
             args->reader->read->node[node].first = first;
@@ -520,7 +520,7 @@ static unsigned int read_value(const SchemaReadCtx *args)
         VerbaLinea text = {s_string, sizeof(s_string), 0ULL};
         EMBED_CALL(read_string, SchemaReadCtx, .reader = args->reader, .out = &text);
         const unsigned int node =
-            EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader, .kind = CLI_SCHEMA_TEXT, .from = from);
+            EMBED_CALL(read_node, SchemaReadCtx, .reader = args->reader, .type = CLI_SCHEMA_TEXT, .from = from);
         if (node != CLI_SCHEMA_NONE)
         {
             args->reader->read->node[node].text_at =

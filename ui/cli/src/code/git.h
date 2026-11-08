@@ -180,7 +180,7 @@ typedef struct
 
 // The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
 // the repository containing it, as rows in the order git lists them, the list standing until the next read, and under a
-// file whose changes are open, a row each change and a row each line of it. A row is of one of three kinds: a file,
+// file whose changes are open, a row each change and a row each line of it. A row is of one of three types: a file,
 // a change or a line. Every row carries the file's path from the tree's top and the file's place among the files. A
 // file's row carries its name, the last part of that path, the bytes of the folder before it, its state letter as
 // cli_git_change reads it, whether the next commit takes it, whether it takes it in part, some lines left out,
@@ -193,7 +193,7 @@ typedef struct
 #define CLI_CHANGES_ROW_LINE 2u
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *path;
     unsigned int file;
     const char *name;
@@ -349,7 +349,7 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
 #define CLI_GIT_LOG_QUERY_MAX 256u
 #define CLI_GIT_LOG_REST_MS 250ULL
 #define CLI_GIT_LOG_DAY 11u
-// the rows' kinds; and the head's actions: the field, which takes the keys, and the repository choice, which moves on
+// the rows' types; and the head's actions: the field, which takes the keys, and the repository choice, which moves on
 // to the next repository
 #define CLI_GIT_LOG_ROW_BRANCH 0u
 #define CLI_GIT_LOG_ROW_COMMIT 1u
@@ -357,14 +357,14 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
 #define CLI_GIT_LOG_ROW_NONE 3u
 #define CLI_GIT_LOG_FIELD 1u
 #define CLI_GIT_LOG_REPO 2u
-// A row: its kind; its text, the branch's name, the commit's subject, the file's name or the notice, and its bytes; a
+// A row: its type; its text, the branch's name, the commit's subject, the file's name or the notice, and its bytes; a
 // second text, the commits counted, the commit's author where authors show or the file's folder, and its bytes; a
 // file's path from the tree's top and its state letter; and a commit's id, its day as YYYY-MM-DD, whether its files
 // show, whether it merges, the column its dot stands in and the number of its line, how many columns its strokes
 // cross, its strokes, each [from, to, half, line] as the graph lays them, and how many branches and tags stand at it
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *text;
     unsigned long long text_length;
     const char *second;

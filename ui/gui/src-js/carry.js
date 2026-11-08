@@ -102,8 +102,8 @@ export function carryInto(section, { reloadOwn = null, pick }) {
     });
     return made;
   };
-  const chosen = (kind) => async () => {
-    const path = await pick(kind).catch(() => null);
+  const chosen = (type) => async () => {
+    const path = await pick(type).catch(() => null);
     if (typeof path === "string") {
       place.value = path;
       localStorage.setItem(PLACE, path);

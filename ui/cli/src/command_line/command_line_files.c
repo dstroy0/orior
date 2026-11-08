@@ -184,8 +184,8 @@ EMBED_INLINE unsigned int files_first(const CommandLineFilesCtx *args)
 {
     const unsigned int array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &s_work_state->json, .object = args->node, .name = args->name);
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                      .node = array, .kind = CFG_JSON_ARRAY)
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                      .node = array, .type = CFG_JSON_ARRAY)
                ? s_work_state->json.node[array].first
                : CLI_JSON_NONE;
 }
@@ -210,8 +210,8 @@ EMBED_INLINE double files_number(const CommandLineFilesCtx *args)
     const char *name = args->name;
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = &s_work_state->json, .object = node, .name = name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                    .node = number, .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                    .node = number, .type = CFG_JSON_NUMBER))
     {
         return 0.0;
     }
@@ -314,12 +314,12 @@ EMBED_INLINE void files_message_print(const CommandLineFilesCtx *args)
     }
 }
 
-// a finding of a report printed: the file, its line and column counted from 1, its kind and its message, then what it
+// a finding of a report printed: the file, its line and column counted from 1, its type and its message, then what it
 // lifted, where it gives it, on a line of its own set in by four spaces
 EMBED_INLINE void files_finding_print(const CommandLineFilesCtx *args)
 {
     const unsigned int finding = args->node;
-    const char *const kind = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "kind");
+    const char *const type = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "kind");
     const char *const message = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "message");
     const char *const lifted = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "lifted");
     VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
@@ -334,7 +334,7 @@ EMBED_INLINE void files_finding_print(const CommandLineFilesCtx *args)
         &line, (unsigned long long)EMBED_CALL(files_number, CommandLineFilesCtx, .node = finding, .name = "col") + 1ULL,
         1u);
     mmgr_line_put(&line, ": ");
-    mmgr_line_put(&line, (kind != NULL) ? kind : "");
+    mmgr_line_put(&line, (type != NULL) ? type : "");
     mmgr_line_put(&line, ": ");
     EMBED_CALL(files_message_print, CommandLineFilesCtx, .out = &line, .text = (message != NULL) ? message : "");
     if (lifted != NULL)
@@ -360,10 +360,10 @@ EMBED_INLINE void files_report_print(const CommandLineFilesCtx *args)
         EMBED_CALL(files_finding_print, CommandLineFilesCtx, .node = finding, .file = args->file);
     }
     const int passes =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = args->report, .name = "passes"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     const char *const verdict =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -442,10 +442,10 @@ EMBED_INLINE int files_validate(const CommandLineFilesCtx *args)
         }
         const unsigned int tree = EMBED_CALL(files_tree, CommandLineFilesCtx, .text = s_work_state->read,
                                              .size = mmgr_line_ok(&report) ? report.at : 0ULL);
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+        if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = &s_work_state->json, .object = tree, .name = "passes"),
-                        .kind = CFG_JSON_TRUE))
+                        .type = CFG_JSON_TRUE))
         {
             code = CLI_NO_CODE;
         }

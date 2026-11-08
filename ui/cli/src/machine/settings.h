@@ -10,8 +10,8 @@
 // - `windows`, `linux` and `macos`: settings for that system alone, standing over the file's others;
 // - `machine`, in the reader's own settings.json: settings for this machine alone, standing over the file's others and
 //   its system's, and never carried to another machine;
-// - `[kind]`, as `[markdown]`: the theme of each scheme, `theme.dark` and `theme.light`, the editor shows the files of
-//   the language `kind` in.
+// - `[type]`, as `[markdown]`: the theme of each scheme, `theme.dark` and `theme.light`, the editor shows the files of
+//   the language `type` in.
 //
 // Text in a value names another setting's value with `${setting:name}`, a variable of the system's environment with
 // `${env:NAME}`, the reader's home folder with `${home}`, the tree's folder with `${tree}`, and the system with
@@ -77,19 +77,19 @@ typedef struct
     unsigned int text;
 } CliLayerSource;
 
-// A setting of a kind of file: the kind, its key and its text
+// A setting of a type of file: the type, its key and its text
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int key;
     unsigned int text;
-} CliKindText;
+} CliTypeText;
 
 // The settings in force, as the page reads them over its own entries, each by its key without `orior.`: `over`, the
 // text of each a file stands over the reader's own settings.json with, and of each settings.json sets through a
 // variable, those in `own`; `under`, the text of each only the files settings.json takes set; `from`, each part of a
-// file that sets a setting, the one in force first, a kind's settings under `[kind] key`; `kinds`, the settings of each
-// kind of file; `own_file`, the reader's own settings.json as `from` names it, where it is there; and the files read,
+// file that sets a setting, the one in force first, a type's settings under `[type] key`; `types`, the settings of each
+// type of file; `own_file`, the reader's own settings.json as `from` names it, where it is there; and the files read,
 // the problems met and the system
 typedef struct
 {
@@ -103,8 +103,8 @@ typedef struct
     unsigned int owner;
     CliLayerSource from[CLI_LAYERS_SOURCES];
     unsigned int froms;
-    CliKindText kind[CLI_LAYERS_KEYS];
-    unsigned int kinds;
+    CliTypeText type[CLI_LAYERS_KEYS];
+    unsigned int types;
     unsigned int file[CLI_SETTINGS_DEEPEST * 2u];
     unsigned int files;
     unsigned int problem[CLI_SETTINGS_PROBLEMS * 2u];
@@ -116,7 +116,7 @@ typedef struct
 } CliLayers;
 
 // the system orior_cli runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
-// no setting: `allocs`, a system's, `machine` or a kind's
+// no setting: `allocs`, a system's, `machine` or a type's
 const char *cli_settings_system(void);
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args);
 // the file at `path` and each it takes, the one taken first, each shown by its path from `root` where it is under it,

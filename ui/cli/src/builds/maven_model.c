@@ -270,7 +270,7 @@ EMBED_INLINE int model_parent_pom(const MavenModelCtx *args)
     const CliXml *xml = args->xml;
     CliMavenMapped *mapped = args->mapped_pointer;
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
     {
         return 0;
     }
@@ -525,7 +525,7 @@ void cli_maven_program(const CliMavenOutCtx *args)
                                       .size = length) &&
                            ((after == '\0') || (after == '/') || (after == '\\'));
         if ((cellul.eq(&(CatenaFinitaCfg){.src = at, .other = args->root, .cap = CLI_POOL_BYTES})) || !inside ||
-            !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = at, .out = above))
+            !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = at, .out = above))
         {
             mmgr_line_put(&line, "mvn");
             (void)mmgr_line_finish(&line);

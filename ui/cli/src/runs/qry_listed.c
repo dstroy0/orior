@@ -884,13 +884,13 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
             continue;
         }
         if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                       .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_PANIC, .number = at}))
+                       .row = &(CliRunsRow){.type = CLI_RUNS_ROW_PANIC, .number = at}))
         {
             return 1;
         }
         for (unsigned int line = 0u; line < blob->lines; line += 1u)
         {
-            CliRunsRow row = {.kind = CLI_RUNS_ROW_PANIC_LINE, .number = at};
+            CliRunsRow row = {.type = CLI_RUNS_ROW_PANIC_LINE, .number = at};
             if (args->walk->count == args->walk->want)
             {
                 (void)EMBED_CALL(runs_line, QryListedCtx, .text = opened->text + blob->text, .size = blob->text_length,
@@ -906,7 +906,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     {
         const RunsConference *const one = &opened->conference[conference];
         if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                       .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_QUESTION,
+                       .row = &(CliRunsRow){.type = CLI_RUNS_ROW_QUESTION,
                                             .text = opened->text + one->question,
                                             .text_length = one->question_length}))
         {
@@ -921,7 +921,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
             }
             for (unsigned int line = 0u; line < blob->lines; line += 1u)
             {
-                CliRunsRow row = {.kind = CLI_RUNS_ROW_ACCOUNT, .number = at};
+                CliRunsRow row = {.type = CLI_RUNS_ROW_ACCOUNT, .number = at};
                 if (args->walk->count == args->walk->want)
                 {
                     (void)EMBED_CALL(runs_line, QryListedCtx, .text = opened->text + blob->text,
@@ -958,7 +958,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     if (EMBED_CALL(
             rows_put, QryListedCtx, .walk = args->walk,
             .row = &(CliRunsRow){
-                .kind = CLI_RUNS_ROW_COUNT, .number = opened->blobs, .size = opened->rest, .live = opened->live}))
+                .type = CLI_RUNS_ROW_COUNT, .number = opened->blobs, .size = opened->rest, .live = opened->live}))
     {
         return 1;
     }
@@ -967,7 +967,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     {
         const RunsBlob *const blob = &opened->blob[at];
         if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                       .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_BLOB,
+                       .row = &(CliRunsRow){.type = CLI_RUNS_ROW_BLOB,
                                             .text = (blob->name != RUNS_NO_TEXT) ? opened->text + blob->name : "",
                                             .text_length = (blob->name != RUNS_NO_TEXT) ? blob->name_length : 0ULL,
                                             .number = at,
@@ -991,7 +991,7 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
     }
     if (runs->runs == 0u)
     {
-        return EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk, .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_EMPTY});
+        return EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk, .row = &(CliRunsRow){.type = CLI_RUNS_ROW_EMPTY});
     }
     for (unsigned int at = 0u; at < runs->folders; at += 1u)
     {
@@ -1002,7 +1002,7 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
         }
         const char *const folder_path = runs->folder_text + folder->path;
         if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                       .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_FOLDER,
+                       .row = &(CliRunsRow){.type = CLI_RUNS_ROW_FOLDER,
                                             .text = (folder_path[0] != '\0') ? folder_path : ".",
                                             .text_length = (folder_path[0] != '\0')
                                                                ? cellul.len(&(CatenaFinitaCfg){.src = folder_path,
@@ -1016,7 +1016,7 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
             const RunsRun *const run = &runs->run[each];
             RunsOpened *const opened = EMBED_CALL(runs_opened_of, QryListedCtx, .path = runs->text + run->path);
             if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                           .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_RUN,
+                           .row = &(CliRunsRow){.type = CLI_RUNS_ROW_RUN,
                                                 .path = runs->text + run->path,
                                                 .text = runs->text + run->name,
                                                 .text_length = run->name_length,
@@ -1036,7 +1036,7 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
         {
             continue;
         }
-        if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk, .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_LESSONS}))
+        if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk, .row = &(CliRunsRow){.type = CLI_RUNS_ROW_LESSONS}))
         {
             return 1;
         }
@@ -1044,7 +1044,7 @@ EMBED_INLINE int rows_walk(const QryListedCtx *args)
         {
             const RunsLesson *const lesson = &runs->lesson[each];
             if (EMBED_CALL(rows_put, QryListedCtx, .walk = args->walk,
-                           .row = &(CliRunsRow){.kind = CLI_RUNS_ROW_LESSON,
+                           .row = &(CliRunsRow){.type = CLI_RUNS_ROW_LESSON,
                                                 .text = runs->text + lesson->cause,
                                                 .text_length = cellul.len(&(CatenaFinitaCfg){
                                                     .src = runs->text + lesson->cause, .cap = RUNS_TEXT}),
@@ -1082,7 +1082,7 @@ void cli_runs_pane_toggle(const CliRunsPaneCfg *args)
     Runs *const runs = s_runs;
     CliRunsRow row;
     if ((runs == NULL) || (args->root == NULL) ||
-        !EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = args->at, .row = &row) || (row.kind != CLI_RUNS_ROW_RUN))
+        !EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = args->at, .row = &row) || (row.type != CLI_RUNS_ROW_RUN))
     {
         return;
     }

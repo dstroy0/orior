@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A notebook's cells as branches on the window's side: each cell of the file a branch colored in its kind's language,
+// A notebook's cells as branches on the window's side: each cell of the file a branch colored in its type's language,
 // its session the mirror of it, a cell the reader adds a branch of no text that what is written in it follows, and a
 // cell deleted letting its branch go.
 

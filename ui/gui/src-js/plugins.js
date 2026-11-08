@@ -71,8 +71,8 @@ function revive(grammar) {
   return { ...grammar, tokenizer };
 }
 
-// A plugin's [pattern, kind] rules, each pattern made a pattern.
-const rulesOf = (list) => (Array.isArray(list) ? list.filter((one) => Array.isArray(one) && one.length === 2).map(([pattern, kind]) => [patternOf(pattern), String(kind)]) : []);
+// A plugin's [pattern, type] rules, each pattern made a pattern.
+const rulesOf = (list) => (Array.isArray(list) ? list.filter((one) => Array.isArray(one) && one.length === 2).map(([pattern, type]) => [patternOf(pattern), String(type)]) : []);
 
 // A plugin's [open, close] pairs of patterns, each made a pattern.
 const pairsOf = (list) => (Array.isArray(list) ? list.filter((one) => Array.isArray(one) && one.length === 2).map(([open, close]) => [patternOf(open), patternOf(close)]) : []);
@@ -84,7 +84,7 @@ function languageOf(plugin) {
   const lists = Object.entries(plugin.grammar ?? {}).filter(([, value]) => Array.isArray(value));
   const hovers = plugin.hovers && typeof plugin.hovers === "object" ? plugin.hovers : {};
   const snippets = Array.isArray(plugin.snippets) ? plugin.snippets.filter((one) => one && one.label && one.body) : [];
-  const kindOf = (list) => (/type/.test(list) ? "type" : /const|predefined/.test(list) ? "constant" : "keyword");
+  const typeOf = (list) => (/type/.test(list) ? "type" : /const|predefined/.test(list) ? "constant" : "keyword");
   return {
     id: plugin.id,
     name: plugin.name ?? plugin.id,
@@ -94,7 +94,7 @@ function languageOf(plugin) {
     quotes: plugin.quotes ?? ['"', "'"],
     indentAfter: plugin.indentAfter ? patternOf(plugin.indentAfter) : /[{[(]\s*$/,
     // The rules the outline reads a line by, each a pattern whose first group is the line's indent
-    // and whose second is the symbol's name, and its kind; and the headings and blocks that fold.
+    // and whose second is the symbol's name, and its type; and the headings and blocks that fold.
     outline: rulesOf(plugin.outline),
     sections,
     folds: sections.headings || sections.blocks.length ? (doc) => sectionFolds(doc, sections) : undefined,
@@ -112,7 +112,7 @@ function languageOf(plugin) {
               return [];
             }
             return [
-              ...lists.flatMap(([list, words]) => words.map((word) => ({ label: String(word), kind: kindOf(list), detail: list, insert: String(word) }))),
+              ...lists.flatMap(([list, words]) => words.map((word) => ({ label: String(word), kind: typeOf(list), detail: list, insert: String(word) }))),
               ...snippets.map((one) => ({ label: String(one.label), kind: "snippet", detail: "snippet", insert: String(one.body), snippet: true })),
             ];
           }

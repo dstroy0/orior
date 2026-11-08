@@ -176,7 +176,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
                        .word_text = "const") ||
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "let") ||
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "var");
-        const int named = (at + 1u < g_cli_inspect_toks) && (g_cli_inspect_tok[at + 1u].kind == CLI_JS_NAME);
+        const int named = (at + 1u < g_cli_inspect_toks) && (g_cli_inspect_tok[at + 1u].type == CLI_JS_NAME);
         const int supplied = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u,
                                         .word_text = "=") ||
                              EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u,
@@ -257,7 +257,7 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
         const int leaves = (g_cli_js_within[at] == args->open) &&
                            EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
                                       .words = s_leaves, .count = 4u) &&
-                           (g_cli_inspect_tok[at].kind == CLI_JS_NAME) &&
+                           (g_cli_inspect_tok[at].type == CLI_JS_NAME) &&
                            EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at - 1u,
                                       .words = s_starts, .count = 4u);
         if (!leaves)
@@ -323,7 +323,7 @@ EMBED_INLINE unsigned int facts_name_by_assignment(const InspectJsFactsCtx *args
         (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word_text = "=") ||
          EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u,
                     .word_text = ":")) &&
-        (g_cli_inspect_tok[at - 2u].kind == CLI_JS_NAME);
+        (g_cli_inspect_tok[at - 2u].type == CLI_JS_NAME);
     return assigned ? (at - 2u) : CLI_JS_NO;
 }
 
@@ -374,7 +374,7 @@ unsigned int cli_js_function_name(const CliInspectJsOpenCfg *args)
                                        : name;
         return EMBED_CALL(facts_name_by_assignment, InspectJsFactsCtx, .src = args->src, .at = start);
     }
-    return (g_cli_inspect_tok[name].kind == CLI_JS_NAME) ? name : CLI_JS_NO;
+    return (g_cli_inspect_tok[name].type == CLI_JS_NAME) ? name : CLI_JS_NO;
 }
 
 // the calls in the function whose body runs from `open` to `close`, outside the functions it contains: a name before a
@@ -398,7 +398,7 @@ EMBED_INLINE void facts_calls(const InspectJsFactsCtx *args)
                              EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end + 1u,
                                         .word_text = "{");
         const CliInspectTok *const tok = &g_cli_inspect_tok[at];
-        const int called = (tok->kind == CLI_JS_NAME) &&
+        const int called = (tok->type == CLI_JS_NAME) &&
                            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
                                       .word_text = "(") &&
                            !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
@@ -488,7 +488,7 @@ EMBED_INLINE void facts_imports(const InspectJsFactsCtx *args)
         while (
             (end < g_cli_inspect_toks) &&
             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ";") &&
-            !((g_cli_inspect_tok[end].kind == CLI_JS_NAME) &&
+            !((g_cli_inspect_tok[end].type == CLI_JS_NAME) &&
               (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
                           .word_text = "import") ||
                EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
@@ -502,7 +502,7 @@ EMBED_INLINE void facts_imports(const InspectJsFactsCtx *args)
         unsigned int one = at + 1u;
         while ((spec == CLI_JS_NO) && (one < end))
         {
-            const int stated = (g_cli_inspect_tok[one].kind == CLI_JS_STR) &&
+            const int stated = (g_cli_inspect_tok[one].type == CLI_JS_STR) &&
                                (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src,
                                            .at = one - 1u, .word_text = "from") ||
                                 (one == at + 1u));

@@ -96,6 +96,8 @@ struct GuiSystemPositionTitleCfg
     void *context;
     VerbaLinea *err_msg;
     GuiSystem *owner;
+    // 1 where the window is modal: its owner takes no input while it stands
+    int modal;
 };
 
 struct GuiSystemTitleIconCfg

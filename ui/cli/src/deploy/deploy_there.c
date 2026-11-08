@@ -169,8 +169,8 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
             ? EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &s_record, .path = path,
                          .nodes_more = 0u, .text_more = 0ULL, .err_msg = &none, .owner = g_cli_deploy_owner)
             : CLI_JSON_NONE;
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_record, .node = top,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_record, .node = top,
+                    .type = CFG_JSON_OBJECT))
     {
         return;
     }

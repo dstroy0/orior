@@ -89,11 +89,11 @@ void cli_vim_chosen_run(const CliVimCtx *args)
 {
     CliVimView *const view = &g_cli_vim_state.view[args->at];
     const CliVimCommand *const command = args->command;
-    if (command->object_kind != 0u)
+    if (command->object_type != 0u)
     {
         CliVimSpan object;
         EMBED_CALL(cli_vim_motions_internal.object, CliVimCtx, .key = args->key, .from = view->visual_head,
-                   .how = command->object_kind, .letter = command->object_of, .count = command->count,
+                   .how = command->object_type, .letter = command->object_of, .count = command->count,
                    .counted = command->counted, .span = &object);
         if (!object.found)
         {

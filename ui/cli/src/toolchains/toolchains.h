@@ -224,7 +224,7 @@ struct CliToolchainsErrMsgCfg
 struct CliToolchainsVersionsCfg
 {
     int versions;
-    int (*seen)(const CliEachKindCfg *args);
+    int (*seen)(const CliEachTypeCfg *args);
     const void *context_read;
     VerbaLinea *out;
 };

@@ -52,7 +52,7 @@ int cli_requests_nearest(const CliRequestsRootCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->path, .joined = file,
                     .err_msg = &err_msg) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file, .out = folder))
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = file, .out = folder))
     {
         return 0;
     }
@@ -68,7 +68,7 @@ int cli_requests_nearest(const CliRequestsRootCtx *args)
             return 1;
         }
         char above[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
         {
             return 0;
         }
@@ -108,8 +108,8 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
         mmgr_line_put_n(err_msg, why, read_err_msg.at);
         return CLI_JSON_NONE;
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = object,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = object,
+                    .type = CFG_JSON_OBJECT))
     {
         mmgr_line_put(err_msg, args->file);
         mmgr_line_put(err_msg, " contains no object of environments");
@@ -330,8 +330,8 @@ int cli_requests_values(const CliRequestsErrMsgRootCtx *args)
             const unsigned int set =
                 EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
                            .object = object, .name = (group == 0u) ? "$shared" : args->env);
-            for (unsigned int member = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                  .json_read = &s_json, .node = set, .kind = CFG_JSON_OBJECT)
+            for (unsigned int member = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                  .json_read = &s_json, .node = set, .type = CFG_JSON_OBJECT)
                                            ? s_json.node[set].first
                                            : CLI_JSON_NONE;
                  fits && (member != CLI_JSON_NONE); member = s_json.node[member].next)
@@ -373,10 +373,10 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
                                             .json_read = &s_json, .object = object, .name = args->env);
         const unsigned int ssl = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                             .json_read = &s_json, .object = set, .name = "SSLConfiguration");
-        verifies = !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
+        verifies = !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
                                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &s_json, .object = ssl, .name = "verifyHostCertificate"),
-                               .kind = CFG_JSON_FALSE);
+                               .type = CFG_JSON_FALSE);
         at += 1u;
     }
     g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
@@ -470,7 +470,7 @@ int cli_requests_private_init(const CliRequestsTextCfg *args)
     {
         return 0;
     }
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = inside, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = inside, .out = folder))
     {
         mmgr_line_put(args->err_msg, "the file has no folder");
         return 0;

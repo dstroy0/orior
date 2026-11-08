@@ -189,7 +189,7 @@ EMBED_INLINE void classes_bases(const InspectPyClassesCtx *args)
                         .word_text = "(") &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
                         .word_text = ")") &&
-            (tok->kind != CLI_PY_STR))
+            (tok->type != CLI_PY_STR))
         {
             mmgr_line_put_n(&base, src + tok->start, tok->end - tok->start);
         }
@@ -239,7 +239,7 @@ EMBED_INLINE void classes_body_line(const InspectPyClassesCtx *args)
         }
         return;
     }
-    if (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->inner, .at = 0u)->kind != CLI_PY_NAME)
+    if (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->inner, .at = 0u)->type != CLI_PY_NAME)
     {
         return;
     }
@@ -289,7 +289,7 @@ EMBED_INLINE void classes_method_line(const InspectPyClassesCtx *args)
                                          .tok = &toks[offset], .word_text = "self") &&
                               EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                          .tok = &toks[offset + 1u], .word_text = ".") &&
-                              (toks[offset + 2u].kind == CLI_PY_NAME) &&
+                              (toks[offset + 2u].type == CLI_PY_NAME) &&
                               ((offset == 0u) || !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
                                                              .src = src, .tok = &toks[offset - 1u], .word_text = "."));
         if (attribute)
@@ -331,7 +331,7 @@ EMBED_INLINE void classes_method_line(const InspectPyClassesCtx *args)
                              (offset + 3u < count) &&
                              EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                         .tok = &toks[offset + 3u], .word_text = ",");
-        if (reflects && (offset + 4u < count) && (toks[offset + 4u].kind == CLI_PY_STR))
+        if (reflects && (offset + 4u < count) && (toks[offset + 4u].type == CLI_PY_STR))
         {
             const CliInspectTok *const named = &toks[offset + 4u];
             unsigned int start = named->start;

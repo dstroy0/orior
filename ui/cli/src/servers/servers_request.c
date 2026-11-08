@@ -131,7 +131,7 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
     {
         const CliCompletion *const one = &s_items.item[at];
         bytes += (unsigned long long)one->label_size + one->detail_size + one->insert_size + 3ULL +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) + 1ULL;
+                 cellul.len(&(CatenaFinitaCfg){.src = one->type, .cap = CLI_POOL_BYTES}) + 1ULL;
     }
     CliServerItems *const items = g_cli_guard->persistent_buf_alloc(
         sizeof(*items) + (s_items.count * sizeof(CliServerItem)) + bytes, args->owner);
@@ -159,29 +159,29 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = s_items.text + one->insert_at, .bytes = one->insert_size});
         text[one->insert_size] = '\0';
         text += one->insert_size + 1ULL;
-        const unsigned long long kind = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) + 1ULL;
-        item->kind = text;
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = one->kind, .bytes = kind});
-        text += kind;
+        const unsigned long long type = cellul.len(&(CatenaFinitaCfg){.src = one->type, .cap = CLI_POOL_BYTES}) + 1ULL;
+        item->type = text;
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = one->type, .bytes = type});
+        text += type;
     }
     return items;
 }
 
-// a name the tree completes a word with put among the completions as what it is, a kind the tree names saved by the
-// page's own word for it, `word` for one it does not name, as an item saves its kind by pointer
+// a name the tree completes a word with put among the completions as what it is, a type the tree names saved by the
+// page's own word for it, `word` for one it does not name, as an item saves its type by pointer
 static void request_tree_item(const CliDeclaredCfg *args)
 {
-    const char *kind = args->kind;
-    static const char *const s_kinds[8] = {"function", "constant", "class",     "method",
+    const char *type = args->type;
+    static const char *const s_types[8] = {"function", "constant", "class",     "method",
                                            "module",   "variable", "parameter", "local"};
     const char *named = "word";
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        named = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = s_kinds[at], .cap = CLI_POOL_BYTES}) ? s_kinds[at]
+        named = cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_types[at], .cap = CLI_POOL_BYTES}) ? s_types[at]
                                                                                                         : named;
     }
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = args->name,
-                     .label_size = args->length, .kind = named, .detail = "", .detail_size = 0ULL, .insert = args->name,
+                     .label_size = args->length, .type = named, .detail = "", .detail_size = 0ULL, .insert = args->name,
                      .insert_size = args->length, .snippet = 0);
 }
 
@@ -200,7 +200,7 @@ EMBED_INLINE void request_tree_complete(const ServersRequestCtx *args)
                .out = &own_line);
     unsigned long long size = 0ULL;
     char *const text = (mmgr_line_finish(&own_line) != 0ULL)
-                           ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg, .path = path,
+                           ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg, .path = path,
                                         .size_pointer = &size)
                            : NULL;
     char quiet[256];
@@ -233,10 +233,10 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.checked_root, .bytes = sizeof(root)});
         unsigned long long size = 0ULL;
         char *const text = (root[0] != '\0')
-                               ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
+                               ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
                                             .path = path, .size_pointer = &size)
                                : NULL;
-        if ((text != NULL) && (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) != 0u))
+        if ((text != NULL) && (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) != 0u))
         {
             EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text,
                        .size = size, .line = line, .col = col, .items = &s_items);
@@ -265,13 +265,13 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
             requested = 1;
         }
         const CliJson *const json = &s_quick.json;
-        const unsigned int items = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = json, .node = root, .kind = CFG_JSON_ARRAY)
+        const unsigned int items = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = json, .node = root, .type = CFG_JSON_ARRAY)
                                        ? root
                                        : EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                     .json_read = json, .object = root, .name = "items");
-        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = items, .kind = CFG_JSON_ARRAY)
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = items, .type = CFG_JSON_ARRAY)
                                     ? json->node[items].first
                                     : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)

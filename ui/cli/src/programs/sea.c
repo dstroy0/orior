@@ -280,15 +280,15 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         const unsigned char *const header = args->program + phoff + (at * 56ULL);
-        unsigned long long kind = 0ULL;
+        unsigned long long type = 0ULL;
         unsigned long long offset = 0ULL;
         unsigned long long vaddr = 0ULL;
         unsigned long long memsz = 0ULL;
-        EMBED_CALL(cli_number, SeaCtx, .bytes = header, .size = 56ULL, .at = 0ULL, .width = 4u, .value = &kind);
+        EMBED_CALL(cli_number, SeaCtx, .bytes = header, .size = 56ULL, .at = 0ULL, .width = 4u, .value = &type);
         EMBED_CALL(cli_number, SeaCtx, .bytes = header, .size = 56ULL, .at = 8ULL, .width = 8u, .value = &offset);
         EMBED_CALL(cli_number, SeaCtx, .bytes = header, .size = 56ULL, .at = 16ULL, .width = 8u, .value = &vaddr);
         EMBED_CALL(cli_number, SeaCtx, .bytes = header, .size = 56ULL, .at = 40ULL, .width = 8u, .value = &memsz);
-        if (kind != 1ULL)
+        if (type != 1ULL)
         {
             continue;
         }
@@ -354,9 +354,9 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
         }
         unsigned char *const into = args->note->table + (put * 56ULL);
         memor.cpy(&(MemoriaCfg){.dst = into, .src = args->program + phoff + (at * 56ULL), .bytes = 56u});
-        unsigned long long kind = 0ULL;
-        EMBED_CALL(cli_number, SeaCtx, .bytes = into, .size = 56ULL, .at = 0ULL, .width = 4u, .value = &kind);
-        if (kind == 6ULL)
+        unsigned long long type = 0ULL;
+        EMBED_CALL(cli_number, SeaCtx, .bytes = into, .size = 56ULL, .at = 0ULL, .width = 4u, .value = &type);
+        if (type == 6ULL)
         {
             const unsigned long long fields[7] = {6ULL | (4ULL << 32u),
                                                   args->note->region,

@@ -44,7 +44,7 @@ int main(void)
               "the text is stored with a view open on it");
     char view_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea view_err = {view_why, sizeof(view_why), 0ULL};
-    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
+    const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &view_err);
     EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = s_key, .text = s_head, .size = sizeof(s_head) - 1u);
     cli_check(EMBED_CALL(cli_hunks.count, CliHunksCfg, .at = 0u) == 3u, "the text has three changes");

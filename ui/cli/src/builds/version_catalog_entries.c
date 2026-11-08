@@ -401,8 +401,8 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     s_check.found = found;
     char folder[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = above) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = above, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = above) ||
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = above, .out = folder))
     {
         VerbaLinea copy = {folder, sizeof(folder), 0ULL};
         mmgr_line_put(&copy, root);
@@ -438,34 +438,34 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
         const CliVersionsSection *const section = &g_cli_versions.section[at];
         const char *const name =
             EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = section->name_at);
-        unsigned int kind = 5u;
+        unsigned int type = 5u;
         for (unsigned int one = 0u; one < 5u; one += 1u)
         {
-            kind = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_sections[one], .cap = CLI_POOL_BYTES})) ? one
-                                                                                                                 : kind;
+            type = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_sections[one], .cap = CLI_POOL_BYTES})) ? one
+                                                                                                                 : type;
         }
-        if (kind == 5u)
+        if (type == 5u)
         {
             EMBED_CALL(entries_unknown_section, VersionCatalogEntriesCtx, .check = &s_check,
                        .section_versions_section_pointer = section);
             continue;
         }
-        for (unsigned int entry = section->first; (kind < 4u) && (entry != CLI_VERSIONS_NONE);
+        for (unsigned int entry = section->first; (type < 4u) && (entry != CLI_VERSIONS_NONE);
              entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
             EMBED_CALL(entries_alias, VersionCatalogEntriesCtx, .check = &s_check, .entry = field, .section = name,
                        .first = section->first);
-            if (kind == 0u)
+            if (type == 0u)
             {
                 EMBED_CALL(cli_version_catalog_check_entry_internal.versions_check_version,
                            CliVersionCatalogCheckEntryCtx, .check = &s_check, .entry = field);
             }
-            else if (kind == 1u)
+            else if (type == 1u)
             {
                 EMBED_CALL(entries_library, VersionCatalogEntriesCtx, .check = &s_check, .entry = field);
             }
-            else if (kind == 2u)
+            else if (type == 2u)
             {
                 EMBED_CALL(entries_bundle, VersionCatalogEntriesCtx, .check = &s_check, .entry = field);
             }

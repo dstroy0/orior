@@ -80,10 +80,11 @@ typedef struct
 #define CLI_POSITION_MIN_WIDTH 960u
 #define CLI_POSITION_MIN_HEIGHT 600u
 
-// the window's two surfaces
+// the window's surfaces: the main window, Preferences' window and the dialog's window
 #define CLI_VIEW_MAIN 0u
 #define CLI_VIEW_PREFERENCES 1u
-#define CLI_VIEW_SURFACES 2u
+#define CLI_VIEW_DIALOG 2u
+#define CLI_VIEW_SURFACES 3u
 
 // where the pointer stands: the client, the caption the system drags the window by, the borders and corners the system
 // resizes it by, and the three controls
@@ -124,7 +125,7 @@ typedef struct
 
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int surface;
     unsigned int width;
     unsigned int height;
@@ -135,19 +136,23 @@ typedef struct
 } CliViewEvent;
 
 // what the view orders of the system's thread: a raster shown on a surface, whole or the rows of `part`; the window
-// minimized, maximized or closed; Preferences' window opened at `width` by `height` over the main one, or closed; and
-// the two icons given to the system, which copies them
+// minimized, maximized or closed; Preferences' window opened at `width` by `height` over the main one, or closed; the
+// two icons given to the system, which copies them; and the dialog's window opened at `width` by `height`, modal over
+// the surface `owner`, or closed
 #define CLI_VIEW_ORDER_PRESENT 0u
 #define CLI_VIEW_ORDER_PRESENT_PART 1u
 #define CLI_VIEW_ORDER_ACT 2u
 #define CLI_VIEW_ORDER_PREFERENCES_OPEN 3u
 #define CLI_VIEW_ORDER_PREFERENCES_CLOSE 4u
 #define CLI_VIEW_ORDER_ICON 5u
+#define CLI_VIEW_ORDER_DIALOG_OPEN 6u
+#define CLI_VIEW_ORDER_DIALOG_CLOSE 7u
 
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int surface;
+    unsigned int owner;
     unsigned int act;
     unsigned int width;
     unsigned int height;

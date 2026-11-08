@@ -51,7 +51,7 @@ struct CliSymbolsLanguages
 };
 
 // whether the file at `path` is read by the languages for its declarations, its grammar naming one; its declarations
-// read by them, each handed to `each` with its kind, a text that stands while `each` runs; the leaves of `size` bytes
+// read by them, each handed to `each` with its type, a text that stands while `each` runs; the leaves of `size` bytes
 // of `text` read by them, in the language of the file at `path` or in the language `id`, the first line starting in
 // `state`, each line's handed to `each` from a copy of the text in a cell whose lines stand at the text's own bytes,
 // each line ended by a NUL: 1, or 0 where the language is none read here or the cells cannot meet the copy; and the
@@ -195,7 +195,7 @@ int cli_symbols_leaves_declare(const CliSymbolsPathCtx *args);
 // the leaves read as cli_symbols_leaves_save reads them, their cell on the lane the thread is on, for a read given back
 // before the lane is rewound
 int cli_symbols_leaves_temporary(const CliSymbolsPathCtx *args);
-// the kind a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
+// the type a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
 // (symbols_read.c)
 const char *cli_symbols_declares(const CliSymbolsNameCtx *args);
 const char *cli_leaf_text(const CliSymbolsReadLeafCtx *args);
@@ -302,11 +302,11 @@ typedef struct
 } CliEffectMacro;
 
 // An include folder or file of the file the walk starts from, as the tree holds it: its path in the tree, from its top
-// or under its mount's name, a place among the walk's texts, and its kind, a CLI_INCLUDE_ one
+// or under its mount's name, a place among the walk's texts, and its type, a CLI_INCLUDE_ one
 typedef struct
 {
     unsigned int path;
-    unsigned int kind;
+    unsigned int type;
 } CliEffectInclude;
 
 // what a slice's walk meets in an active region: a define or undefine, a declaration a branch's leaves name, and an
@@ -329,7 +329,7 @@ typedef struct
 
 // One thing a slice's walk met in an active region, in the order it met them: what it is, a CLI_SEEN_ one; the branch
 // it stands in, a place among the branches read whole; its line; its first leaf, its line's first, and for a directive
-// the leaf after its last; and for a declaration, the name it declares and its kind, places among the walk's texts, and
+// the leaf after its last; and for a declaration, the name it declares and its type, places among the walk's texts, and
 // the name's length
 typedef struct
 {
@@ -340,7 +340,7 @@ typedef struct
     unsigned int end;
     unsigned int name;
     unsigned int length;
-    unsigned int kind;
+    unsigned int type;
 } CliEffectSeen;
 
 typedef struct

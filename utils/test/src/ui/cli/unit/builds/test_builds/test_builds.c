@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_builds.c: build files: the kind goes by file name, values complete after what was typed, positions count UTF-16 columns,
+// test_builds.c: build files: the type goes by file name, values complete after what was typed, positions count UTF-16 columns,
 // and near names are offered
 #include "ui/cli/src/builds/builds.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -15,7 +15,7 @@ static const CliCompletions *completed(const char *typed)
     EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = &s_items, .token = typed, .token_size = CLI_UNITY_LENGTH(typed), .value = s_values[at], .value_size = CLI_UNITY_LENGTH(s_values[at]), .kind = "property", .detail = "", .detail_size = 0ull);
+        EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = &s_items, .token = typed, .token_size = CLI_UNITY_LENGTH(typed), .value = s_values[at], .value_size = CLI_UNITY_LENGTH(s_values[at]), .type = "property", .detail = "", .detail_size = 0ull);
     }
     return &s_items;
 }
@@ -57,28 +57,28 @@ void tearDown(void)
 
 void test_gradle_scripts_and_settings_are_gradle(void)
 {
-    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_GRADLE, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "a/build.gradle.kts"));
-    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_GRADLE, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "settings.gradle"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_GRADLE, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "a/build.gradle.kts"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_GRADLE, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "settings.gradle"));
 }
 
 void test_a_version_catalog_is_a_catalog(void)
 {
-    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_CATALOG, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "gradle/libs.versions.toml"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_CATALOG, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "gradle/libs.versions.toml"));
 }
 
 void test_a_pom_is_maven(void)
 {
-    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_MAVEN, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "x/pom.xml"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_MAVEN, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "x/pom.xml"));
 }
 
 void test_a_sconscript_is_scons(void)
 {
-    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_SCONS, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "src/SConscript"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BUILD_SCONS, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "src/SConscript"));
 }
 
 void test_a_cargo_manifest_is_none_of_them(void)
 {
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = "Cargo.toml"));
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = "Cargo.toml"));
 }
 
 void test_a_value_completes_after_what_was_typed(void)

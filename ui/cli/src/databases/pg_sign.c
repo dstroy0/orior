@@ -158,7 +158,7 @@ EMBED_INLINE int sign_password(const PgSignCtx *args)
     CliDbFailure *failure = args->failure;
     const void *const parts[2] = {args->text, ""};
     const unsigned long long sizes[2] = {args->size, 1ULL};
-    return EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = pg, .kind_value = 'p',
+    return EMBED_CALL(cli_pg_failure_type_internal.send, CliPgFailureTypeCtx, .pg = pg, .type_value = 'p',
                       .parts = parts, .sizes = sizes, .count = args->nul ? 2u : 1u, .failure = failure);
 }
 
@@ -421,19 +421,19 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
     }
     for (;;)
     {
-        unsigned char kind = 0u;
-        if (!EMBED_CALL(cli_pg_kind_internal.message, CliPgKindCtx, .pg = args->pg, .kind = &kind,
+        unsigned char type = 0u;
+        if (!EMBED_CALL(cli_pg_type_internal.message, CliPgTypeCtx, .pg = args->pg, .type = &type,
                         .failure = args->failure))
         {
             return 0;
         }
-        if ((kind == 'R') && !EMBED_CALL(sign_answer, PgSignCtx, .pg = args->pg, .user = args->user,
+        if ((type == 'R') && !EMBED_CALL(sign_answer, PgSignCtx, .pg = args->pg, .user = args->user,
                                          .password = args->password, .first_bare = first_bare, .nonce = nonce,
                                          .signature = signature, .begun = &begun, .failure = args->failure))
         {
             return 0;
         }
-        if (kind == 'K')
+        if (type == 'K')
         {
             args->pg->has_cancel = (args->pg->size >= 4u);
             memor.cpy(
@@ -451,16 +451,16 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = args->pg->cancel.secret, .src = args->pg->message + 4u, .bytes = args->pg->cancel.secret_size});
         }
-        if (kind == 'S')
+        if (type == 'S')
         {
             EMBED_CALL(cli_pg_body_internal.parameter_store, CliPgBodyCtx, .pg = args->pg, .body = args->pg->message,
                        .size = args->pg->size);
         }
-        if (kind == 'N')
+        if (type == 'N')
         {
             cli_pg_failure_password_internal.notice_store(args);
         }
-        if (kind == 'E')
+        if (type == 'E')
         {
             EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
                        .failure = args->failure);
@@ -485,7 +485,7 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
             }
             return 0;
         }
-        if (kind == 'Z')
+        if (type == 'Z')
         {
             args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
             return 1;

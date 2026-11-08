@@ -14,15 +14,15 @@ typedef struct CliDebugPaneCtx CliDebugPaneCtx;
 // no offset into a text cell: a text that could not be stored
 #define CLI_DEBUG_PANE_NONE 0xffffffffffffffffULL
 
-// One entry of a store: its kind, its depth, its console line's kind, its line counted from 0, whether it opens, is
+// One entry of a store: its type, its depth, its console line's type, its line counted from 0, whether it opens, is
 // open, failed and, for a console line, has its line end; four texts as offsets into the store's text cell with their
 // bytes, the row's three and its key in the open set; and the adapter's reference of its frame or its children, the
 // session of an event stored
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int depth;
-    unsigned int line_kind;
+    unsigned int line_type;
     unsigned int line;
     unsigned char opens;
     unsigned char open;
@@ -110,7 +110,7 @@ void cli_debug_pane_running_said(const CliDebugPaneCtx *args);
 // the bar's flags set from the session followed: whether each step can act and whether it is shown
 // (debug_pane_bar.c)
 void cli_debug_pane_bar_settle(const CliDebugPaneCtx *args);
-// `length` bytes of `text` written to the console as `kind`, a piece run on into the last line of its kind where that
+// `length` bytes of `text` written to the console as `type`, a piece run on into the last line of its type where that
 // has no line end, each line end ending a line, the oldest line going past CLI_DEBUG_CONSOLE_LINES; the chosen frame's
 // variables read again into the store of Variables, each watch evaluated in it, for the tree at `root`; the frames of
 // the stopped thread read into the store of Frames; and the session followed let go, `text` the status line, every
@@ -124,7 +124,7 @@ struct CliDebugPaneCtx
     CliDebugPaneStore *store;
     const char *text;
     unsigned long long length;
-    unsigned int kind;
+    unsigned int type;
     int failed;
     const char *root;
 };

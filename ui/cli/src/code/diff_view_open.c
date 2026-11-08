@@ -717,10 +717,10 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
         {
             const unsigned int from = (line < gone) ? left + line : CLI_DIFF_VIEW_NONE;
             const unsigned int into = (line < come) ? right + line : CLI_DIFF_VIEW_NONE;
-            const unsigned int kind = ((from != CLI_DIFF_VIEW_NONE) && (into != CLI_DIFF_VIEW_NONE)) ? CLI_CHANGED
+            const unsigned int type = ((from != CLI_DIFF_VIEW_NONE) && (into != CLI_DIFF_VIEW_NONE)) ? CLI_CHANGED
                                       : (from == CLI_DIFF_VIEW_NONE) ? CLI_DIFF_VIEW_ADDED
                                                                      : CLI_DIFF_VIEW_REMOVED;
-            view->row[laid] = (CliDiffViewLaid){from, into, kind, right + ((line < come) ? line : come)};
+            view->row[laid] = (CliDiffViewLaid){from, into, type, right + ((line < come) ? line : come)};
             laid += 1u;
         }
         left += gone;

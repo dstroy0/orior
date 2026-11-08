@@ -340,7 +340,7 @@ EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
     return name;
 }
 
-const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
+const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
 {
     const CliFiles *const files = cli_files_root_paths.view(args);
     if (files == NULL)
@@ -359,16 +359,16 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
         count += (ending != 0ULL) ? 2ULL : 1ULL;
         bytes += (length - name) + 1ULL + ((ending != 0ULL) ? (ending + 1ULL) : 0ULL);
     }
-    CliFiles *const kinds = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
-                                       .bytes = sizeof(*kinds) + (count * sizeof(unsigned int)) + bytes);
-    if (kinds == NULL)
+    CliFiles *const types = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
+                                       .bytes = sizeof(*types) + (count * sizeof(unsigned int)) + bytes);
+    if (types == NULL)
     {
         EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
         return NULL;
     }
-    unsigned int *const start = (unsigned int *)(void *)(kinds + 1);
+    unsigned int *const start = (unsigned int *)(void *)(types + 1);
     // two for each file, each file below what an unsigned int counts over two
-    *kinds = (CliFiles){start, 0u, (unsigned int)count, (char *)(start + count), 0ULL, bytes};
+    *types = (CliFiles){start, 0u, (unsigned int)count, (char *)(start + count), 0ULL, bytes};
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
@@ -376,17 +376,17 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
         unsigned long long ending = 0ULL;
         const unsigned long long name =
             EMBED_CALL(seen_name, FilesSeenCtx, .path = path, .length = length, .ending = &ending);
-        (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = kinds, .path = path + name,
+        (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = types, .path = path + name,
                          .length = length - name);
         if (ending != 0ULL)
         {
-            (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = kinds,
+            (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = types,
                              .path = path + length - ending, .length = ending);
         }
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-    (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = kinds);
-    return kinds;
+    (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = types);
+    return types;
 }
 
 // the tree listed behind the window, as a tree opens, for the first list or search

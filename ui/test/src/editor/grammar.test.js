@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A grammar as the page holds it: the classes a token's name is drawn in, a pair's depth among them, and every kind of
+// A grammar as the page holds it: the classes a token's name is drawn in, a pair's depth among them, and every type of
 // token a grammar's rules name noted for the themes.
 
-import { classOf, compile, tokenKinds } from "../../../gui/src-js/editor/grammar.js";
+import { classOf, compile, tokenKinds: tokenTypes } from "../../../gui/src-js/editor/grammar.js";
 
 const { test, assert } = window.__harness;
 
@@ -37,5 +37,5 @@ test("every kind of token a grammar's rules name is noted for the themes, a brac
     },
   });
   assert.ok(grammar.perLine, "the grammar's own settings are kept");
-  assert.ok(["comment.block", "delimiter.bracket", "identifier.plain", "keyword.flow"].every((kind) => tokenKinds().includes(kind)), "each kind compiled is named for the themes");
+  assert.ok(["comment.block", "delimiter.bracket", "identifier.plain", "keyword.flow"].every((type) => tokenTypes().includes(type)), "each kind compiled is named for the themes");
 });

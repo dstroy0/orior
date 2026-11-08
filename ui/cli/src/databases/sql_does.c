@@ -86,7 +86,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
            (count < CLI_SQL_WORDS))
     {
         const unsigned long long size = token.end - token.start;
-        if ((token.kind == CLI_SQL_MARK) && (size == 1u))
+        if ((token.type == CLI_SQL_MARK) && (size == 1u))
         {
             if (args->statement[token.start] == '(')
             {
@@ -101,7 +101,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
                 depth += 0LL;
             }
         }
-        else if (token.kind == CLI_SQL_WORD)
+        else if (token.type == CLI_SQL_WORD)
         {
             const CliSqlWord word_text = {token.start, token.end, depth};
             s_words[count] = word_text;
@@ -417,7 +417,7 @@ EMBED_INLINE void cli_dot(const SqlDoesCtx *args)
         const char *const word_text = args->statement + token->start;
         const unsigned long long size = token->end - token->start;
         const int dot = (size == 1u) && (word_text[0] == '.');
-        const int joined = (token->kind == CLI_SQL_WORD) || (token->kind == CLI_SQL_NAME) || dot;
+        const int joined = (token->type == CLI_SQL_WORD) || (token->type == CLI_SQL_NAME) || dot;
         const int after_dot = (line.at == 0ULL) || (args->out_capacity[line.at - 1u] == '.');
         if (!joined || (!after_dot && !dot))
         {
@@ -459,7 +459,7 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
                       .length = length, .dialect = dialect, .at = &place, .token = &token) &&
            (count < CLI_SQL_WORDS))
     {
-        if ((token.kind != CLI_SQL_SPACE) && (token.kind != CLI_SQL_COMMENT))
+        if ((token.type != CLI_SQL_SPACE) && (token.type != CLI_SQL_COMMENT))
         {
             s_tokens[count] = token;
             count += 1u;
@@ -488,11 +488,11 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
         at += 1u;
     }
     EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = at,
-               .out_capacity = args->shaped->kind);
+               .out_capacity = args->shaped->type);
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "truncate", .cap = CLI_POOL_BYTES})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "table", .cap = CLI_POOL_BYTES})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->type, .other = "table", .cap = CLI_POOL_BYTES})))
     {
-        memor.cpy(&(MemoriaCfg){.dst = args->shaped->kind,
+        memor.cpy(&(MemoriaCfg){.dst = args->shaped->type,
                                 .src = "table",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "table", .cap = CLI_POOL_BYTES}) + 1u});
     }
@@ -517,8 +517,8 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
     }
     args->shaped->has_on = 0;
     args->shaped->on[0] = '\0';
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "index", .cap = CLI_POOL_BYTES})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "trigger", .cap = CLI_POOL_BYTES})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->type, .other = "index", .cap = CLI_POOL_BYTES})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->type, .other = "trigger", .cap = CLI_POOL_BYTES})))
     {
         unsigned int found = 0u;
         while ((found < count) && !EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count,

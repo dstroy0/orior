@@ -97,7 +97,7 @@ static void write_parameter(const InspectPyWriteCtx *args)
     for (unsigned int part = args->first; (name_at == args->end) && (part < args->end); part += 1u)
     {
         name_at =
-            (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->header, .at = part)->kind == CLI_PY_NAME)
+            (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->header, .at = part)->type == CLI_PY_NAME)
                 ? part
                 : name_at;
     }
@@ -503,7 +503,7 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
         return 0;
     }
     const CliPyLine *const first = &g_cli_py_line[at + 1u];
-    int documented = (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = first, .at = 0u)->kind == CLI_PY_STR);
+    int documented = (EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = first, .at = 0u)->type == CLI_PY_STR);
     for (unsigned int part = 1u; documented && (part < first->count); part += 1u)
     {
         documented = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = first, .at = part)->field;

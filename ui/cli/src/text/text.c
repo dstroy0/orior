@@ -942,7 +942,7 @@ void cli_paths_sort(const CliTextPathsCfg *args)
     }
 }
 
-int cli_text_utf8_valid(const CliTextSizeKindCfg *args)
+int cli_text_utf8_valid(const CliTextSizeTypeCfg *args)
 {
     const unsigned char *text = args->text_bytes;
     unsigned long long at = 0ULL;

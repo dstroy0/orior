@@ -98,7 +98,7 @@ EMBED_INLINE unsigned int cli_slashed_init(const CompileDbCmakeCtx *args)
         .dst = slashed, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}) + 1u});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = slashed,
                .size = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
-    return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+    return EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                       .json = &g_cli_gather.json, .text = slashed,
                       .length = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}));
 }
@@ -262,28 +262,28 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->source, .relative = args->path, .joined = file);
     }
     const unsigned int arguments =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_ARRAY);
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                .value = EMBED_CALL(cli_slashed_init, CompileDbCmakeCtx, .text = args->compiler->path));
     for (unsigned int flag = 0u; flag < g_cli_gather.flags; flag += 1u)
     {
         const char *const text = g_cli_gather.flags_text.out + g_cli_gather.flag[flag];
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
-                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                   .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                        .json = json, .text = text,
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
     }
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = json, .text = args->msvc ? "/c" : "-c", .length = 2ULL));
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                .value = EMBED_CALL(cli_slashed_init, CompileDbCmakeCtx, .text = file));
     const unsigned int entry =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = CFG_JSON_OBJECT);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
                .name = "directory",
                .value =
-                   EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                   EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                               .json = json, .text = args->build,
                               .length = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_POOL_BYTES})));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
@@ -395,7 +395,7 @@ unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     CliReply reply = {NULL, 0ULL};
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->index_read,
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->index_read,
                     .out = folder) ||
         !EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = args->index_read, .reply_out = &reply))
     {
@@ -441,8 +441,8 @@ unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args)
     }
     const unsigned long long configuration = EMBED_CALL(cli_configuration_get, CompileDbCmakeCtx, .model = &model,
                                                         .configurations = configurations, .build = build);
-    const unsigned int entries = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg,
-                                            .json = &g_cli_gather.json, .kind = CFG_JSON_ARRAY);
+    const unsigned int entries = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg,
+                                            .json = &g_cli_gather.json, .type = CFG_JSON_ARRAY);
     const unsigned long long targets = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
                                                   .object = configuration, .key = "targets");
     for (unsigned long long at = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &model, .array = targets);

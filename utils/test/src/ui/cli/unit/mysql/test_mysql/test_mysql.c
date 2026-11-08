@@ -125,10 +125,10 @@ static void statements_run(CliMysql *my, const char *const *sql, unsigned int co
     }
 }
 
-// whether the column `at` of the head is `name` of `kind`, a number where `numeric`, the kind not compared where NULL
-static int column_is(const CliDbHead *head, unsigned int at, const char *name, const char *kind, int numeric)
+// whether the column `at` of the head is `name` of `type`, a number where `numeric`, the type not compared where NULL
+static int column_is(const CliDbHead *head, unsigned int at, const char *name, const char *type, int numeric)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].name, .other = name, .cap = CLI_POOL_BYTES}) && ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].kind, .other = kind, .cap = CLI_POOL_BYTES})) && (head->columns[at].numeric == numeric);
+    return cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].name, .other = name, .cap = CLI_POOL_BYTES}) && ((type == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].type, .other = type, .cap = CLI_POOL_BYTES})) && (head->columns[at].numeric == numeric);
 }
 
 // the server `name` names connected to as `user`, NULL where none answers or none is named

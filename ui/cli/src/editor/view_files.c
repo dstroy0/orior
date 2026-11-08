@@ -173,7 +173,7 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
             mmgr_line_put(err_msg, ": no view could be opened on it");
             return -1;
         }
-        const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
+        const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &sized, .err_msg = err_msg);
         // the view opened stands last in the table, which is fewer than an int counts
         at = (int)cli_view_count() - 1;
@@ -186,7 +186,7 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
     cli_view_show((unsigned int)at);
     if (placed_at != NULL)
     {
-        const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = placed_at->line, .column = placed_at->col};
+        const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = placed_at->line, .column = placed_at->col};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = cli_view_key((unsigned int)at),
                          .input = &placed, .err_msg = err_msg);
     }

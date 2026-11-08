@@ -3,15 +3,15 @@
 
 // Mermaid's diagrams as SVG, drawn here: flowcharts, sequence diagrams, pie charts, state diagrams,
 // class diagrams, entity-relationship diagrams, mind maps, Gantt charts, `journey` diagrams and git graphs. A
-// flowchart's nodes take their shapes and its edges their kinds and labels, laid out in ranks the way
+// flowchart's nodes take their shapes and its edges their types and labels, laid out in ranks the way
 // the chart runs, top down, bottom up, left to right or right to left, each rank ordered to cross as
 // few edges as a few sweeps find; states, classes, entities and a mind map's ideas are laid out the
-// same way, a class and an entity in a box of sections, each relation's kind marked at its ends with
+// same way, a class and an entity in a box of sections, each relation's type marked at its ends with
 // its counts beside them. A sequence diagram's participants stand in a row over their lifelines, its
 // messages and notes in order down them, its loops and alternatives framed. A pie's slices are drawn
 // with their shares beside them; a Gantt chart's tasks as bars over a scale of days, by section; a
 // `journey` diagram's tasks with each one's score; a git graph's commits along the lanes of their branches. A
-// diagram of another kind is shown as its text, its kind named.
+// diagram of another type is shown as its text, its type named.
 //
 // The same text gives the same drawing, kept: a diagram is laid out again only when its text changes.
 
@@ -29,40 +29,40 @@ export { parseSequence, sequenceSvg } from "./mermaid/sequence.js";
 const drawn = new Map();
 
 
-// The kind of diagram `text` is, by its first word.
-export const kindOf = (text) => text.trim().split(/\s/)[0];
+// The type of diagram `text` is, by its first word.
+export const typeOf = (text) => text.trim().split(/\s/)[0];
 
-// `text`, a Mermaid diagram, as SVG, or as its text with its kind named where it is a kind not drawn.
+// `text`, a Mermaid diagram, as SVG, or as its text with its type named where it is a type not drawn.
 export function mermaidSvg(text) {
   const source = text.replace(/\r\n?/g, "\n").trim();
   if (drawn.has(source)) {
     return drawn.get(source);
   }
-  const kind = kindOf(source);
+  const type = typeOf(source);
   let out;
   try {
-    if (kind === "graph" || kind === "flowchart") {
+    if (type === "graph" || type === "flowchart") {
       out = flowchartSvg(source);
-    } else if (kind === "stateDiagram" || kind === "stateDiagram-v2") {
+    } else if (type === "stateDiagram" || type === "stateDiagram-v2") {
       out = stateSvg(source);
-    } else if (kind === "classDiagram") {
+    } else if (type === "classDiagram") {
       out = classSvg(source);
-    } else if (kind === "erDiagram") {
+    } else if (type === "erDiagram") {
       out = erSvg(source);
-    } else if (kind === "mindmap") {
+    } else if (type === "mindmap") {
       out = mindmapSvg(source);
-    } else if (kind === "gantt") {
+    } else if (type === "gantt") {
       out = ganttSvg(source);
-    } else if (kind === "journey") {
+    } else if (type === "journey") {
       out = journeySvg(source);
-    } else if (kind === "gitGraph") {
+    } else if (type === "gitGraph") {
       out = gitGraphSvg(source);
-    } else if (kind === "sequenceDiagram") {
+    } else if (type === "sequenceDiagram") {
       out = sequenceSvg(source);
-    } else if (kind === "pie") {
+    } else if (type === "pie") {
       out = pieSvg(source);
     } else {
-      out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">A diagram of the kind ${escape(kind)} is shown as its text.</p>`;
+      out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">A diagram of the kind ${escape(type)} is shown as its text.</p>`;
     }
   } catch (error) {
     out = `<pre class="mermaid-text"><code>${escape(source)}</code></pre><p class="mermaid-said">The diagram was not drawn: ${escape(error.message)}</p>`;

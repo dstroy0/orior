@@ -86,8 +86,8 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                .out = args->spec->program, .capacity = sizeof(args->spec->program));
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = args->server, .name = "args");
-    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                      .node = arguments, .kind = CFG_JSON_ARRAY)
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                      .node = arguments, .type = CFG_JSON_ARRAY)
                                ? json->node[arguments].first
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->args < CLI_SERVERS_ARGS); at = json->node[at].next)
@@ -104,8 +104,8 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
     }
     const unsigned int languages = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = args->server, .name = "languages");
-    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                      .node = languages, .kind = CFG_JSON_ARRAY)
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                      .node = languages, .type = CFG_JSON_ARRAY)
                                ? json->node[languages].first
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->languages < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
@@ -123,8 +123,8 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
     }
     const unsigned int ids = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = args->server, .name = "ids");
-    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                      .node = ids, .kind = CFG_JSON_OBJECT)
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                      .node = ids, .type = CFG_JSON_OBJECT)
                                ? json->node[ids].first
                                : CLI_JSON_NONE;
          (at != CLI_JSON_NONE) && (args->spec->ids < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
@@ -154,10 +154,10 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                .out = args->spec->blocked_args, .capacity = sizeof(args->spec->blocked_args));
     EMBED_CALL(start_json, ServersStartCtx, .json = json, .object = args->server, .name = "trusted",
                .out = args->spec->trusted, .capacity = sizeof(args->spec->trusted));
-    args->spec->slices = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+    args->spec->slices = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                        .json_read = json, .object = args->server, .name = "slices"),
-                                    .kind = CFG_JSON_TRUE);
+                                    .type = CFG_JSON_TRUE);
 }
 
 int cli_servers_spec_for(const CliServersLanguageCtx *args)
@@ -173,8 +173,8 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
                                                .json_read = &manifest_json, .object = tool, .name = "server");
         const unsigned int languages = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &manifest_json, .object = server, .name = "languages");
-        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &manifest_json, .node = languages, .kind = CFG_JSON_ARRAY)
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &manifest_json, .node = languages, .type = CFG_JSON_ARRAY)
                                    ? manifest_json.node[languages].first
                                    : CLI_JSON_NONE;
              !found && (at != CLI_JSON_NONE); at = manifest_json.node[at].next)

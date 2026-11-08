@@ -27,12 +27,12 @@ function readNode(text, nodes) {
   const name = id[1];
   let shape = null;
   let label = null;
-  for (const [open, close, kind] of SHAPES) {
+  for (const [open, close, type] of SHAPES) {
     if (rest.startsWith(open)) {
       const end = rest.indexOf(close, open.length);
       if (end >= 0) {
         label = rest.slice(open.length, end).trim().replace(/^"(.*)"$/, "$1");
-        shape = kind;
+        shape = type;
         rest = rest.slice(end + close.length);
         break;
       }
@@ -82,7 +82,7 @@ export function parseFlowchart(text) {
       if (!plain && !worded) {
         break;
       }
-      const kind = plain ? plain[2] : worded[4];
+      const type = plain ? plain[2] : worded[4];
       const label = plain ? plain[3] ?? "" : worded[3];
       const both = Boolean((plain ?? worded)[1]);
       const next = readGroup(rest.slice((plain ?? worded)[0].length), nodes);
@@ -91,7 +91,7 @@ export function parseFlowchart(text) {
       }
       for (const from of group.ids) {
         for (const to of next.ids) {
-          edges.push({ from, to, label: label.trim(), dotted: kind.includes("."), thick: kind.startsWith("="), arrow: kind.endsWith(">") || kind.endsWith("o") || kind.endsWith("x"), end: kind.at(-1), both });
+          edges.push({ from, to, label: label.trim(), dotted: type.includes("."), thick: type.startsWith("="), arrow: type.endsWith(">") || type.endsWith("o") || type.endsWith("x"), end: type.at(-1), both });
         }
       }
       group = next;
@@ -295,7 +295,7 @@ export function flowchartSvg(text) {
 
 // ---- Charts of boxes and lines ----
 
-// The lines of a chart's edges, box to box: each with the marks its kind sets at its ends, dotted
+// The lines of a chart's edges, box to box: each with the marks its type sets at its ends, dotted
 // where it is, its label at its middle and the words of each end beside that end.
 function edgesSvg(edges, places) {
   const parts = [];
@@ -326,11 +326,11 @@ function edgesSvg(edges, places) {
 }
 
 // A chart of `nodes` and `edges` laid out as a flowchart runs `direction`, each node drawn by `draw`.
-export function chartSvg(direction, nodes, edges, draw, kind) {
+export function chartSvg(direction, nodes, edges, draw, type) {
   const chart = { direction, nodes, edges };
   const { places, total } = layoutFlowchart(chart);
   const boxes = nodes.map((node) => draw(node, places.get(node.id))).join("");
-  return svg(total.w, total.h, edgesSvg(edges, places) + boxes, kind);
+  return svg(total.w, total.h, edgesSvg(edges, places) + boxes, type);
 }
 
 export const plainNode = (node, place) => `<g class="mm-node-group" data-id="${escape(node.id)}">${shapeSvg(node, place)}${node.shape === "start" || node.shape === "end" || node.shape === "bar" ? "" : textAt(place.x, place.y, node.label)}</g>`;

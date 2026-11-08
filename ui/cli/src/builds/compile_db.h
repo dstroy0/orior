@@ -114,7 +114,7 @@ typedef void (*CliDefineEach)(const CliDefineEachCfg *args);
 // entry's file saving those its folder does not give it (compile_db_flags.c)
 void cli_compile_db_defines_get(const CliCompileDbRootCfg *args);
 
-// the kinds of an include folder or file, in the order a compiler searches the folders: a folder searched for an
+// the types of an include folder or file, in the order a compiler searches the folders: a folder searched for an
 // include in quotes alone (`-iquote`), a folder (`-I`, `/I`), a system folder (`-isystem`), a folder searched last
 // (`-idirafter`), and a file included before the first line (`-include`, `/FI`)
 #define CLI_INCLUDE_QUOTE 0u
@@ -123,8 +123,8 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args);
 #define CLI_INCLUDE_AFTER 3u
 #define CLI_INCLUDE_FORCED 4u
 // what each include folder or file is handed to: its whole path, its slashes `/`, a text that stands while `each`
-// runs, and its kind
-typedef void (*CliIncludeEach)(const CliEachPathKindCfg *args);
+// runs, and its type
+typedef void (*CliIncludeEach)(const CliEachPathTypeCfg *args);
 // each include folder and file of the file at `path`, from the top of the tree at `root`, from the tree's compilation
 // database handed to `each`, the folders in the order a compiler searches them and then the files included before its
 // first line: its own entry's, or a file no entry names takes those of the entry sharing the most of its folders

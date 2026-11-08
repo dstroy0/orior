@@ -91,7 +91,7 @@ void test_a_pair_reads_its_verdict(void)
 void test_every_other_line_under_a_pair_is_a_note(void)
 {
     const unsigned int notes = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = first_pair(klq_read()), .name = "notes");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = notes, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = notes, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_EQUAL_UINT(2u, s_json.node[notes].count);
     TEST_ASSERT_EQUAL_STRING("qualifier_coherence", text_of(EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = notes, .index = 0u), "word"));
     TEST_ASSERT_EQUAL_STRING("concept_coherence", text_of(EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = notes, .index = 1u), "word"));
@@ -101,7 +101,7 @@ void test_a_key_with_no_pair_has_none(void)
 {
     const unsigned int keys = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = klq_read(), .name = "keys");
     const unsigned int pairs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = keys, .name = "word_set"), .name = "pairs");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = pairs, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = pairs, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_EQUAL_UINT(0u, s_json.node[pairs].count);
 }
 
@@ -121,7 +121,7 @@ void test_a_name_and_its_key_are_read_separately(void)
     TEST_ASSERT_EQUAL_STRING("lane_core", text_of(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = map_names(), .name = "lane_body"), "key"));
 }
 
-void test_a_name_stores_its_kind(void)
+void test_a_name_stores_its_type(void)
 {
     const unsigned int body = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = map_names(), .name = "lane_body");
     TEST_ASSERT_EQUAL_STRING("nop", text_of(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = body, .name = "kind"), "rest"));

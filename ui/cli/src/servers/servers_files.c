@@ -228,7 +228,7 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
     return text != NULL;
 }
 
-char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args)
+char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);

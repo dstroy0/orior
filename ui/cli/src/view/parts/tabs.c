@@ -87,7 +87,10 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = args->frame->scale);
     const unsigned int count = cli_view_count();
-    int x = args->frame->tabs.x;
+    // the tabs stand clear of the work's lines: room above them, and room before the first
+    const int clear =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLEAR, .scale = args->frame->scale);
+    int x = args->frame->tabs.x + clear;
     for (unsigned int each = 0u; (each < args->at) && (each < count); each += 1u)
     {
         x += EMBED_CALL(tabs_width, TabsCtx, .glyphs = args->glyphs, .tab = each, .size = size,
@@ -97,9 +100,10 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
                                                             .tab = args->at, .size = size, .scale = args->frame->scale)
                                                : 0;
     // a tab stands whole in the row, which the claim lifts out of the work's head
-    return (GuiRect){x, args->frame->tabs_row.y, pixel_width,
-                     args->frame->tabs_row.height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
-                                                               .scale = args->frame->scale)};
+    return (GuiRect){x, args->frame->tabs_row.y + clear, pixel_width,
+                     args->frame->tabs_row.height - clear -
+                         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
+                                    .scale = args->frame->scale)};
 }
 
 GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args)
@@ -162,6 +166,7 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, share);
     const GuiColor ground = GUI_FRAME_FADED(args->palette->tab_background, share);
     const GuiColor shown_line = GUI_FRAME_FADED(args->palette->tab_line, share);
+    const GuiColor box_line = GUI_FRAME_FADED(args->palette->widget_line, share);
     const GuiColor mark = GUI_FRAME_FADED(args->palette->hover, share);
     const GuiColor text = GUI_FRAME_FADED(args->palette->text, share);
     const GuiColor text_2 = GUI_FRAME_FADED(args->palette->text_2, share);
@@ -186,30 +191,21 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         }
         // the tabs are fewer than an int counts
         const int displayed = (int)at == shown;
+        // Each tab a box, its top corners rounded and its foot open on the row's line, a line one pixel wide up its
+        // sides and over its top, and a gap before the next. The shown tab stands on the tab's ground in the tab's
+        // line; the others stand on the row's own ground in the widget's line
+        const unsigned int radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                             .pixels = GUI_TAB_RADIUS, .scale = scale);
+        const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
+        const GuiRect box = {met.x, met.y, met.width - gap, met.height};
+        const unsigned int top = GUI_RASTER_CORNER_TOP_LEFT | GUI_RASTER_CORNER_TOP_RIGHT;
         if (displayed)
         {
-            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = met,
-                       .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                          .pixels = GUI_TAB_RADIUS, .scale = scale),
-                       .color = ground);
-            const int line =
-                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_LINE, .scale = scale);
-            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                       .rect =
-                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){rect.x, rect.y, rect.width, line}, .other = args->frame->tabs),
-                       .color = shown_line);
-            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                       .rect =
-                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){rect.x, rect.y, line, rect.height}, .other = args->frame->tabs),
-                       .color = shown_line);
+            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box,
+                       .radius = radius, .color = ground, .corners = top);
         }
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){rect.x + rect.width - one, rect.y, one, rect.height},
-                                      .other = args->frame->tabs),
-                   .color = line_color);
+        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
+                   .color = displayed ? shown_line : box_line, .corners = top, .stroke = one);
         const int baseline =
             EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .top = rect.y, .pixel_height = rect.height);

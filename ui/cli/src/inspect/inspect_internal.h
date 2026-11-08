@@ -108,11 +108,11 @@ typedef struct
     unsigned int col;
 } CliInspectScan;
 
-// A token: its kind, as each language names its kinds; 1 in `field` where it is a name read inside a Python
+// A token: its type, as each language names its types; 1 in `field` where it is a name read inside a Python
 // f-string's field; its bytes from `start` to `end`; and its span
 typedef struct
 {
-    unsigned char kind;
+    unsigned char type;
     unsigned char field;
     unsigned int start;
     unsigned int end;
@@ -284,7 +284,7 @@ struct CliInspectSizeSrcStartsCtx
 struct CliInspectScanCtx
 {
     const CliInspectScan *scan;
-    unsigned char kind;
+    unsigned char type;
     unsigned long long start;
     CliInspectPosition from;
     int field;

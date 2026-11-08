@@ -41,8 +41,8 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
         const unsigned int node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                              .json_read = args->hits, .object = args->hit, .name = s_numbers[number]);
         mmgr_line_ch(&line, ':');
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->hits, .node = node,
-                       .kind = CFG_JSON_NUMBER))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->hits, .node = node,
+                       .type = CFG_JSON_NUMBER))
         {
             mmgr_line_put_n(&line, args->hits->text + args->hits->node[node].text, args->hits->node[node].length);
         }
@@ -124,8 +124,8 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
                    .text = found.out, .size = mmgr_line_ok(&found) ? found.at : 0ULL, .nodes_more = 0u,
                    .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_command_line_owner);
     g_cli_guard->persistent_buf_release(found.out, g_cli_command_line_owner);
-    const int any = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &hits,
-                               .node = list, .kind = CFG_JSON_ARRAY) &&
+    const int any = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &hits,
+                               .node = list, .type = CFG_JSON_ARRAY) &&
                     (hits.node[list].count != 0u);
     for (unsigned int hit = any ? hits.node[list].first : CLI_JSON_NONE; hit != CLI_JSON_NONE;
          hit = hits.node[hit].next)

@@ -31,7 +31,7 @@ typedef struct CliTerminalXtermSpansCfg CliTerminalXtermSpansCfg;
 #define CLI_TERMINAL_COLOR_DEFAULT 0u
 #define CLI_TERMINAL_COLOR_INDEXED 0x01000000u
 #define CLI_TERMINAL_COLOR_DIRECT 0x02000000u
-#define CLI_TERMINAL_COLOR_KIND 0xff000000u
+#define CLI_TERMINAL_COLOR_TYPE 0xff000000u
 
 // the most bytes of an operating-system command read, and the bytes the xterm answers the shell between two reads of
 // its answer

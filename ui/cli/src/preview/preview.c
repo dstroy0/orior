@@ -18,14 +18,14 @@
 #define PREVIEW_FRACTION 65536ULL
 #define PREVIEW_NONE_AT 0xffffffffu
 
-// A path's ending and the kind of preview it has
+// A path's ending and the type of preview it has
 typedef struct
 {
     const char *ending;
-    unsigned int kind;
+    unsigned int type;
 } PreviewEnding;
 
-// the endings of preview.js KINDS, in its order
+// the endings of preview.js TYPES, in its order
 static const PreviewEnding s_endings[] = {
     {"md", CLI_PREVIEW_MARKDOWN},   {"markdown", CLI_PREVIEW_MARKDOWN}, {"mdown", CLI_PREVIEW_MARKDOWN},
     {"mkd", CLI_PREVIEW_MARKDOWN},  {"mdx", CLI_PREVIEW_MARKDOWN},      {"html", CLI_PREVIEW_HTML},
@@ -38,7 +38,7 @@ static const PreviewEnding s_endings[] = {
 // the modes' words, as the setting saves them and the command reads them, in the modes' order
 static const char *const s_mode_words[3] = {"off", "beside", "alone"};
 
-// The preview: its mode; the kind of the view bound; the cell of the view's key and its path, each with its end, NULL
+// The preview: its mode; the type of the view bound; the cell of the view's key and its path, each with its end, NULL
 // while none is bound; the text last laid with its bytes, in a cell of its own; the items laid from it; whether they
 // stand for it; the width they were laid for and the rectangle's height, in the page's pixels; the scroll top; the
 // millisecond the text was last looked at; the view's top last seen; whether the cursor's line was seen and which it
@@ -46,7 +46,7 @@ static const char *const s_mode_words[3] = {"off", "beside", "alone"};
 typedef struct
 {
     unsigned int mode;
-    unsigned int kind;
+    unsigned int type;
     char *bound;
     const char *key;
     const char *path;
@@ -168,7 +168,7 @@ EMBED_INLINE void top_led(const PreviewCtx *args)
         return;
     }
     const CliViewInput scrolled = {
-        .kind = CLI_VIEW_SCROLL,
+        .type = CLI_VIEW_SCROLL,
         .top = EMBED_CALL(cli_preview_scroll.line_at, CliPreviewScrollCfg, .top_px = s_preview.top_px)};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -211,7 +211,7 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
         for (unsigned int at = items->block[block].item + 1u; same && (at < end); at += 1u)
         {
             const CliPreviewItem *const item = &items->item[at];
-            for (unsigned int letter = 0u; same && (item->kind == CLI_PREVIEW_ITEM_TEXT) && (letter < item->length);
+            for (unsigned int letter = 0u; same && (item->type == CLI_PREVIEW_ITEM_TEXT) && (letter < item->length);
                  letter += 1u)
             {
                 const unsigned char slug =
@@ -378,7 +378,7 @@ void cli_preview_begin(const CliPreviewCfg *args)
     }
 }
 
-unsigned int cli_preview_kind(const CliPreviewCfg *args)
+unsigned int cli_preview_type(const CliPreviewCfg *args)
 {
     const char *const path = (args->path != NULL) ? args->path : "";
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
@@ -405,7 +405,7 @@ unsigned int cli_preview_kind(const CliPreviewCfg *args)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = ending, .other = s_endings[at].ending, .cap = sizeof(ending)}))
         {
-            return s_endings[at].kind;
+            return s_endings[at].type;
         }
     }
     return CLI_PREVIEW_NONE;
@@ -445,7 +445,7 @@ int cli_preview_show(const CliPreviewCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
     const int viewed = (args->key != NULL) &&
-                       EMBED_CALL(cli_view_path_kind.path, CliViewPathKindCfg, .key = args->key, .path_out = path);
+                       EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = args->key, .path_out = path);
     if (!viewed)
     {
         const int was = s_preview.bound != NULL;
@@ -454,7 +454,7 @@ int cli_preview_show(const CliPreviewCfg *args)
         s_preview.bound = NULL;
         s_preview.key = NULL;
         s_preview.path = NULL;
-        s_preview.kind = CLI_PREVIEW_NONE;
+        s_preview.type = CLI_PREVIEW_NONE;
         s_preview.top_px = 0;
         return was;
     }
@@ -479,7 +479,7 @@ int cli_preview_show(const CliPreviewCfg *args)
     s_preview.bound = bound;
     s_preview.key = bound;
     s_preview.path = bound + key_bytes;
-    s_preview.kind = EMBED_CALL(cli_preview.kind, CliPreviewCfg, .path = s_preview.path);
+    s_preview.type = EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = s_preview.path);
     s_preview.top_px = 0;
     s_preview.looked_ms = 0ULL;
     s_preview.editor_top = cli_view_top(s_preview.key);
@@ -490,7 +490,7 @@ int cli_preview_show(const CliPreviewCfg *args)
 int cli_preview_step(const CliPreviewCfg *args)
 {
     int redrawn = EMBED_CALL(cli_preview.show, CliPreviewCfg, .key = args->key);
-    if ((s_preview.mode == CLI_PREVIEW_OFF) || (s_preview.kind != CLI_PREVIEW_MARKDOWN) || (s_preview.key == NULL))
+    if ((s_preview.mode == CLI_PREVIEW_OFF) || (s_preview.type != CLI_PREVIEW_MARKDOWN) || (s_preview.key == NULL))
     {
         return redrawn;
     }
@@ -560,7 +560,7 @@ int cli_preview_step(const CliPreviewCfg *args)
 unsigned long long cli_preview_deadline_ms(const CliPreviewCfg *args)
 {
     (void)args;
-    return ((s_preview.mode != CLI_PREVIEW_OFF) && (s_preview.kind == CLI_PREVIEW_MARKDOWN) && (s_preview.key != NULL))
+    return ((s_preview.mode != CLI_PREVIEW_OFF) && (s_preview.type == CLI_PREVIEW_MARKDOWN) && (s_preview.key != NULL))
                ? s_preview.looked_ms + CLI_PREVIEW_LOOK_MS
                : 0ULL;
 }
@@ -704,13 +704,13 @@ unsigned int cli_preview_mark_press(const CliPreviewMarkCfg *args)
          at += 1u)
     {
         const CliPreviewItem *const item = &items->item[at];
-        if ((item->kind == CLI_PREVIEW_ITEM_BLOCK) && (item->y > y))
+        if ((item->type == CLI_PREVIEW_ITEM_BLOCK) && (item->y > y))
         {
             break;
         }
         const int inside =
             (args->x >= item->x) && (args->x < item->x + item->width) && (y >= item->y) && (y < item->y + item->height);
-        if (inside && (item->kind == CLI_PREVIEW_ITEM_TEXT) && (item->link_length != 0u))
+        if (inside && (item->type == CLI_PREVIEW_ITEM_TEXT) && (item->link_length != 0u))
         {
             return EMBED_CALL(address_followed, PreviewCtx, .text = items->text + item->link,
                               .length = item->link_length, .open_out = open);

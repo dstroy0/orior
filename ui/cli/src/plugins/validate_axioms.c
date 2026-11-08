@@ -223,8 +223,8 @@ EMBED_INLINE int report_failed(const ValidateAxiomsCtx *args)
     {
         const CliFinding *const found = &g_cli_validate->findings[finding];
         if ((found->severity == 1u) &&
-            ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_POOL_BYTES})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_POOL_BYTES}))) &&
+            ((cellul.eq(&(CatenaFinitaCfg){.src = found->type, .other = "math", .cap = CLI_POOL_BYTES})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = found->type, .other = "barrier", .cap = CLI_POOL_BYTES}))) &&
             (found->line >= args->line) && (found->line < args->ends))
         {
             return 1;

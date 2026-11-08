@@ -34,13 +34,13 @@
 // what sets the parts of a hover apart
 #define CLI_PANELS_HOVER_BETWEEN "\n---\n"
 
-// One completion item: its label and the label in small letters, its kind, what it states of itself and what it
+// One completion item: its label and the label in small letters, its type, what it states of itself and what it
 // inserts, each with its length, and how it scores against the prefix
 typedef struct
 {
     const char *label;
     const char *lowered;
-    const char *kind;
+    const char *type;
     const char *detail;
     const char *insert;
     unsigned long long label_length;
@@ -184,7 +184,7 @@ EMBED_INLINE int panels_served(const PanelsCtx *args)
     (void)args;
     char full[CLI_PATH_MAX_LEN];
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    return (key != NULL) && EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full);
+    return (key != NULL) && EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full);
 }
 
 // a byte a word holds
@@ -299,7 +299,7 @@ void cli_servers_panels_pointer(const CliServersPanelsPointerCfg *args)
     }
 }
 
-// a declaration of the hover's word written: its own line as code, then its kind and place
+// a declaration of the hover's word written: its own line as code, then its type and place
 EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
 {
     const CliFoundDeclaration *const found = args->found;
@@ -309,7 +309,7 @@ EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
         mmgr_line_put(args->out, found->text);
         mmgr_line_put(args->out, "\n```\n\n");
     }
-    mmgr_line_put(args->out, found->kind);
+    mmgr_line_put(args->out, found->type);
     mmgr_line_put(args->out, " `");
     mmgr_line_put(args->out, found->path);
     mmgr_line_ch(args->out, ':');
@@ -334,7 +334,7 @@ static void panels_hover_tree_run(void *context)
     {
         const CliFoundDeclaration *const one = &found->found[at];
         bytes += cellul.len(&(CatenaFinitaCfg){.src = one->text, .cap = CLI_POOL_BYTES}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_POOL_BYTES}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = one->type, .cap = CLI_POOL_BYTES}) +
                  cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_POOL_BYTES}) + 64ULL;
     }
     char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_owner);
@@ -467,7 +467,7 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     char full[CLI_PATH_MAX_LEN];
     full[0] = '\0';
     if (!EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full))
+        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full))
     {
         full[0] = '\0';
     }
@@ -765,7 +765,7 @@ EMBED_INLINE PanelsCompletion *panels_completion_alloc(const PanelsCtx *args)
         PanelsItem *const item = &list->item[list->items];
         item->label = one->label;
         item->label_length = label_length;
-        item->kind = one->kind;
+        item->type = one->type;
         item->detail = one->detail;
         item->detail_length = cellul.len(&(CatenaFinitaCfg){.src = one->detail, .cap = CLI_POOL_BYTES});
         const unsigned long long insert_length =
@@ -816,7 +816,7 @@ EMBED_INLINE PanelsCompletion *panels_completion_alloc(const PanelsCtx *args)
             PanelsItem *const item = &list->item[list->items];
             item->label = label;
             item->label_length = label_length;
-            item->kind = "word";
+            item->type = "word";
             item->detail = "";
             item->detail_length = 0ULL;
             item->insert = label;
@@ -885,7 +885,7 @@ EMBED_INLINE void panels_items_post(const PanelsCtx *args)
     char full[CLI_PATH_MAX_LEN];
     PanelsCompletion *const list = s_panels.completion;
     if ((list == NULL) || !EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = args->key, .full_out = full))
+        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = args->key, .full_out = full))
     {
         return;
     }
@@ -998,7 +998,7 @@ EMBED_INLINE void panels_completion_accept(const PanelsCtx *args)
                                         ? (s_panels.cursor.col - list->from)
                                         : list->prefix_length;
     const CliViewInput accepted = {
-        .kind = CLI_VIEW_COMPLETE, .text = item->insert, .length = item->insert_length, .column = back};
+        .type = CLI_VIEW_COMPLETE, .text = item->insert, .length = item->insert_length, .column = back};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &accepted, .err_msg = &err_msg);
@@ -1181,14 +1181,14 @@ EMBED_INLINE void panels_signature_ask(const PanelsCtx *args)
     char full[CLI_PATH_MAX_LEN];
     CliPosition cursor;
     if ((key == NULL) || s_panels.signature_asking ||
-        !EMBED_CALL(cli_view_path_kind.path, CliViewPathKindCfg, .key = key, .path_out = path) ||
+        !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) ||
         !EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = key, .cursor = &cursor))
     {
         return;
     }
     full[0] = '\0';
     if (!EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full))
+        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full))
     {
         full[0] = '\0';
     }
@@ -1339,7 +1339,7 @@ static void panels_opened(const char *key, const char *path)
 static void panels_closing(const char *key)
 {
     char full[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full))
+    if (!EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full))
     {
         return;
     }
@@ -1360,7 +1360,7 @@ static void panels_sync_post(const PanelsCtx *args)
     (void)args;
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
     char full[CLI_PATH_MAX_LEN];
-    if ((key == NULL) || !EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = key, .full_out = full) ||
+    if ((key == NULL) || !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full) ||
         !EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
     {
         return;
@@ -1384,7 +1384,7 @@ static void panels_sync_post(const PanelsCtx *args)
 static void panels_view_run(const PanelsServeAsk *ask)
 {
     char full[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = ask->key, .full_out = full))
+    if (!EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = ask->key, .full_out = full))
     {
         return;
     }
@@ -1549,7 +1549,7 @@ int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
     *out = (CliCompletionRow){
         item->label,
         item->label_length,
-        item->kind,
+        item->type,
         item->detail,
         item->detail_length,
         ((list->prefix_length > 0ULL) && (item->score >= 4u)) ? (unsigned int)list->prefix_length : 0u};

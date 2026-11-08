@@ -426,14 +426,14 @@ int cli_lsp_answer_later(const CliLspCfg *args)
     return 1;
 }
 
-const char *cli_lsp_capabilities(const CliLspSizeKindCfg *args)
+const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args)
 {
     unsigned long long *size = args->size;
     *size = (args->lsp_read->capabilities != NULL) ? args->lsp_read->capabilities_size : 0ULL;
     return (args->lsp_read->capabilities != NULL) ? args->lsp_read->capabilities : "";
 }
 
-unsigned long long cli_lsp_pid(const CliLspSizeKindCfg *args)
+unsigned long long cli_lsp_pid(const CliLspSizeTypeCfg *args)
 {
     return args->lsp_read->spawned.id;
 }
@@ -512,7 +512,7 @@ void cli_lsp_unref(const CliLspContextCfg *args)
                          .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int read = (args->lsp->read_state == 0u);
-    EMBED_CALL(cli_lsp_kind_internal.files_let_go, CliLspKindCtx, .lsp_read = args->lsp);
+    EMBED_CALL(cli_lsp_type_internal.files_let_go, CliLspTypeCtx, .lsp_read = args->lsp);
     if (!read)
     {
         return;

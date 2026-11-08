@@ -5,7 +5,7 @@
 // each with the roles its grammar names, a bracket that opens or closes a pair, a region's bracket, and a statement's
 // end. A statement's end the leaves' reading puts at a line's end is a statement's end token, and a block's close it
 // puts where an indent returns a mark with its roles, each standing where the token before it ends. A pattern's
-// placeholders, `$name$` or `$name:kind$`, are the search's own and read off its text first, its grammar reading it
+// placeholders, `$name$` or `$name:type$`, are the search's own and read off its text first, its grammar reading it
 // with their bytes blank, each a name token at its bytes among the leaves'. Tokens past what their storage fits are not
 // read
 #include "shape_internal.h"
@@ -21,7 +21,7 @@ typedef struct
 typedef struct
 {
     CliShapeTokens *tokens;
-    unsigned char kind;
+    unsigned char type;
     unsigned char role;
     unsigned long long start;
     unsigned long long end;
@@ -46,7 +46,7 @@ EMBED_INLINE unsigned int shape_append(const ShapeCtx *args)
         args->tokens->full = 1;
         return args->tokens->most;
     }
-    args->tokens->kind[args->tokens->count] = args->kind;
+    args->tokens->type[args->tokens->count] = args->type;
     args->tokens->role[args->tokens->count] = args->role;
     args->tokens->start[args->tokens->count] = (unsigned int)args->start;
     args->tokens->end[args->tokens->count] = (unsigned int)args->end;
@@ -54,7 +54,7 @@ EMBED_INLINE unsigned int shape_append(const ShapeCtx *args)
     return args->tokens->count - 1u;
 }
 
-// a placeholder at `start` of the pattern, `$name$` or `$name:kind$`: 1 with it into `hole` and its end into `end`, or
+// a placeholder at `start` of the pattern, `$name$` or `$name:type$`: 1 with it into `hole` and its end into `end`, or
 // 0 where none is there
 EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
 {
@@ -71,15 +71,15 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     }
     const char *const inside = src + args->start + 1u;
     unsigned long long name_size = close;
-    const char *kind = inside + close;
-    unsigned long long kind_size = 0ULL;
+    const char *type = inside + close;
+    unsigned long long type_size = 0ULL;
     unsigned long long colon = 0ULL;
     if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = inside, .length_value = close, .required = ":",
                    .size = 1u, .at_pointer = &colon))
     {
         name_size = colon;
-        kind = inside + colon + 1u;
-        kind_size = close - colon - 1u;
+        type = inside + colon + 1u;
+        type_size = close - colon - 1u;
     }
     if (name_size == 0u)
     {
@@ -97,12 +97,12 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
         walk += length;
     }
     unsigned int exists = CLI_SHAPE_HOLE_EXPR;
-    if ((kind_size == 4u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "name", .bytes = 4u}) == 0))
+    if ((type_size == 4u) && (memor.cmp(&(MemoriaCfg){.src = type, .other = "name", .bytes = 4u}) == 0))
     {
         exists = CLI_SHAPE_HOLE_NAME;
     }
-    else if (((kind_size == 4u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "stmt", .bytes = 4u}) == 0)) ||
-             ((kind_size == 5u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "stmts", .bytes = 5u}) == 0)))
+    else if (((type_size == 4u) && (memor.cmp(&(MemoriaCfg){.src = type, .other = "stmt", .bytes = 4u}) == 0)) ||
+             ((type_size == 5u) && (memor.cmp(&(MemoriaCfg){.src = type, .other = "stmts", .bytes = 5u}) == 0)))
     {
         exists = CLI_SHAPE_HOLE_STMT;
     }
@@ -138,7 +138,7 @@ EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
 
 // what the leaf `leaf` of `read` is as a token: a string, a number, a name where it is a name, a keyword or a type,
 // else a mark
-EMBED_INLINE unsigned char shape_kind_get(const ShapeCtx *args)
+EMBED_INLINE unsigned char shape_type_get(const ShapeCtx *args)
 {
     const unsigned long long is = args->read->leaf[args->leaf].is;
     if ((is & CLI_LEAF_STRING) != 0u)
@@ -212,7 +212,7 @@ EMBED_INLINE void shape_leaves_append(const ShapeCtx *args)
              hole += 1u)
         {
             args->holes->hole[hole].token =
-                EMBED_CALL(shape_append, ShapeCtx, .tokens = args->tokens, .kind = CLI_SHAPE_NAME, .role = 0u,
+                EMBED_CALL(shape_append, ShapeCtx, .tokens = args->tokens, .type = CLI_SHAPE_NAME, .role = 0u,
                            .start = args->positions_read[hole].start, .end = args->positions_read[hole].end);
         }
         if ((leaf == read->count) || ((read->leaf[leaf].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u))
@@ -225,23 +225,23 @@ EMBED_INLINE void shape_leaves_append(const ShapeCtx *args)
             const unsigned long long at = (args->tokens->count > 0u) ? args->tokens->end[last] : 0ULL;
             const int ends = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                         .leaf = leaf, .roles = CLI_LEAF_STATEMENT);
-            if (!ends || (args->tokens->count == 0u) || (args->tokens->kind[last] != CLI_SHAPE_BREAK))
+            if (!ends || (args->tokens->count == 0u) || (args->tokens->type[last] != CLI_SHAPE_BREAK))
             {
                 (void)EMBED_CALL(shape_append, ShapeCtx, .tokens = args->tokens,
-                                 .kind = ends ? CLI_SHAPE_BREAK : CLI_SHAPE_PUNCT,
+                                 .type = ends ? CLI_SHAPE_BREAK : CLI_SHAPE_PUNCT,
                                  .role = ends ? 0u : EMBED_CALL(shape_role_get, ShapeCtx, .read = read, .leaf = leaf),
                                  .start = at, .end = at);
             }
             continue;
         }
-        const unsigned char kind = EMBED_CALL(shape_kind_get, ShapeCtx, .read = read, .leaf = leaf);
-        if ((kind == CLI_SHAPE_STR) && (args->tokens->count > 0u) && (args->tokens->kind[last] == CLI_SHAPE_STR) &&
+        const unsigned char type = EMBED_CALL(shape_type_get, ShapeCtx, .read = read, .leaf = leaf);
+        if ((type == CLI_SHAPE_STR) && (args->tokens->count > 0u) && (args->tokens->type[last] == CLI_SHAPE_STR) &&
             EMBED_CALL(shape_join, ShapeCtx, .src = args->src, .from = args->tokens->end[last], .to = from))
         {
             args->tokens->end[last] = (unsigned int)to;
             continue;
         }
-        (void)EMBED_CALL(shape_append, ShapeCtx, .tokens = args->tokens, .kind = kind,
+        (void)EMBED_CALL(shape_append, ShapeCtx, .tokens = args->tokens, .type = type,
                          .role = EMBED_CALL(shape_role_get, ShapeCtx, .read = read, .leaf = leaf), .start = from,
                          .end = to);
     }

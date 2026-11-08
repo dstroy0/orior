@@ -9,11 +9,11 @@
 #include "review_internal.h"
 #include "symbols.h"
 
-// A declaration of one side of a file: its name and kind and text as places in the pieces' texts, and its line
+// A declaration of one side of a file: its name and type and text as places in the pieces' texts, and its line
 typedef struct
 {
     unsigned int name;
-    unsigned int kind;
+    unsigned int type;
     unsigned int line;
     unsigned int text;
 } CliDecl;
@@ -209,7 +209,7 @@ EMBED_INLINE int cli_blank_line(const ReviewCompareCtx *args)
 {
     const char *text = args->side_read->text + args->side_read->start[args->line];
     unsigned long long length = args->side_read->length[args->line];
-    EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &text,
+    EMBED_CALL(cli_review_text_length_type_internal.trim, CliReviewTextLengthTypeCtx, .text_pointer = &text,
                .length_pointer = &length);
     return length == 0ULL;
 }
@@ -223,8 +223,8 @@ static void cli_declare(const CliDeclaredCfg *args)
         side->decl[side->decls] = (CliDecl){
             EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx, .text = args->name,
                        .length = length),
-            EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx, .text = args->kind,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES})),
+            EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx, .text = args->type,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES})),
             args->line, 0u};
         side->decls += 1u;
     }
@@ -264,7 +264,7 @@ EMBED_INLINE void cli_spans(const ReviewCompareCtx *args)
                                   .to = (first < lines) ? first : lines);
 }
 
-// how many declarations of a side before `at` share its name and kind
+// how many declarations of a side before `at` share its name and type
 EMBED_INLINE unsigned int cli_occurrence(const ReviewCompareCtx *args)
 {
     unsigned int count = 0u;
@@ -273,8 +273,8 @@ EMBED_INLINE unsigned int cli_occurrence(const ReviewCompareCtx *args)
         count += ((cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + args->side_read->decl[before].name,
                                                 .other = g_cli_review.texts + args->side_read->decl[args->at_u32].name,
                                                 .cap = CLI_POOL_BYTES})) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + args->side_read->decl[before].kind,
-                                                .other = g_cli_review.texts + args->side_read->decl[args->at_u32].kind,
+                  (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + args->side_read->decl[before].type,
+                                                .other = g_cli_review.texts + args->side_read->decl[args->at_u32].type,
                                                 .cap = CLI_POOL_BYTES})))
                      ? 1u
                      : 0u;
@@ -289,9 +289,9 @@ EMBED_INLINE int cli_same_trim(const ReviewCompareCtx *args)
     const char *other = args->other;
     unsigned long long one_length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
     unsigned long long other_length = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_POOL_BYTES});
-    EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &one,
+    EMBED_CALL(cli_review_text_length_type_internal.trim, CliReviewTextLengthTypeCtx, .text_pointer = &one,
                .length_pointer = &one_length);
-    EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &other,
+    EMBED_CALL(cli_review_text_length_type_internal.trim, CliReviewTextLengthTypeCtx, .text_pointer = &other,
                .length_pointer = &other_length);
     return (one_length == other_length) &&
            (memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = one_length}) == 0);
@@ -315,7 +315,7 @@ EMBED_INLINE CliReviewPiece cli_piece(const ReviewCompareCtx *args)
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.text + args->path,
                                                                                .cap = CLI_POOL_BYTES})),
                             args->decl->name,
-                            args->decl->kind,
+                            args->decl->type,
                             args->how,
                             0,
                             0u,
@@ -390,8 +390,8 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
                 (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[old].name,
                                               .other = g_cli_review.texts + one->name,
                                               .cap = CLI_POOL_BYTES})) &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[old].kind,
-                                              .other = g_cli_review.texts + one->kind,
+                (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[old].type,
+                                              .other = g_cli_review.texts + one->type,
                                               .cap = CLI_POOL_BYTES})) &&
                 (EMBED_CALL(cli_occurrence, ReviewCompareCtx, .side_read = was, .at_u32 = old) == occurrence);
             match = same ? old : match;
@@ -480,7 +480,7 @@ static void cli_pieces_sort(void)
     }
 }
 
-// a piece taken out matched to one added of its name and kind that retains the most of its lines, a move
+// a piece taken out matched to one added of its name and type that retains the most of its lines, a move
 static void cli_moves(void)
 {
     for (unsigned int index = 0u; index < s_compare->removeds; index += 1u)
@@ -496,8 +496,8 @@ static void cli_moves(void)
                 (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->name,
                                                .other = g_cli_review.texts + deleted->name,
                                                .cap = CLI_POOL_BYTES})) ||
-                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->kind,
-                                               .other = g_cli_review.texts + deleted->kind,
+                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->type,
+                                               .other = g_cli_review.texts + deleted->type,
                                                .cap = CLI_POOL_BYTES})))
             {
                 continue;

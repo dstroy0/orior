@@ -365,7 +365,7 @@ EMBED_INLINE void cli_slice_follow(const SymbolsSliceCtx *args)
         }
         const int function =
             cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
-                                                           .effect_read = effect, .at_value = one->kind),
+                                                           .effect_read = effect, .at_value = one->type),
                                          .other = "function",
                                          .cap = CLI_POOL_BYTES});
         int defined = 0;

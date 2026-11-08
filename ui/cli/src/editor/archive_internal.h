@@ -61,9 +61,9 @@ typedef struct
 int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args);
 unsigned long long cli_archive_grow(const CliArchiveBytesSizeAtCtx *args);
 
-// The members of an archive of `kind` whose bytes are `bytes`, read: what a gzipped archive contains, unzipped, into
+// The members of an archive of `type` whose bytes are `bytes`, read: what a gzipped archive contains, unzipped, into
 // `unpacked`, given the capacity its trailer specifies, its count into `unpacked_size`; and a member's bytes, by the
-// archive's kind, into `out`, given the capacity the member takes. Each 1, or 0 with why given (archive.c)
+// archive's type, into `out`, given the capacity the member takes. Each 1, or 0 with why given (archive.c)
 int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args);
 int cli_data_get(const CliArchiveBytesCtx *args);
 // the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, sized for CLI_NAME_MAX_LEN
@@ -101,13 +101,13 @@ typedef struct
     unsigned int count;
 } CliParts;
 
-// Where in an archive a path leads: the bytes of the innermost archive it runs into, that archive's kind and name, and
+// Where in an archive a path leads: the bytes of the innermost archive it runs into, that archive's type and name, and
 // the parts of the path left within it, from `left`
 typedef struct
 {
     const unsigned char *bytes;
     unsigned long long size;
-    unsigned int kind;
+    unsigned int type;
     char name[CLI_PATH_MAX_LEN];
     unsigned int left;
 } CliDescent;
@@ -116,7 +116,7 @@ typedef struct
 // joined by `/` into `out`, sized for CLI_PATH_MAX_LEN; the file member named `name` of the members, or NULL where
 // none is; the path's parts followed from the archive at `descent` on into each archive inside it they name, the
 // lock acquired, each archive's members read into the first level's: 1, or 0 with why given; and the archive a path
-// runs into opened, its file mapped, its kind and name, and the path's parts within it, `missing` specifying how a path
+// runs into opened, its file mapped, its type and name, and the path's parts within it, `missing` specifying how a path
 // that runs into no archive is reported: 1, or 0 with why given (archive_path.c)
 void cli_archive_parts_get(const CliArchiveErrMsgCtx *args);
 void cli_archive_join(const CliArchiveOutCtx *args);
@@ -132,7 +132,7 @@ struct CliArchiveBytesCtx
     const CliMembers *members_read;
     const CliMember *member;
     unsigned long long *out_size;
-    unsigned int kind;
+    unsigned int type;
     const unsigned char *unpacked_bytes;
     unsigned long long unpacked_size_value;
     CliByteBuffer *out_buffer_pointer;
@@ -157,7 +157,7 @@ struct CliArchiveBytesSizeErrMsgCtx
     unsigned long long size;
     VerbaLinea *err_msg;
     CliMembers *members;
-    unsigned int kind;
+    unsigned int type;
     const char *inner;
     CliByteBuffer *unpacked;
     unsigned long long *unpacked_size;

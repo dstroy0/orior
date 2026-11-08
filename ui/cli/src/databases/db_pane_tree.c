@@ -210,7 +210,7 @@ int cli_db_pane_level_read(const CliDbPaneCtx *args)
                           .err_msg = &err_msg, .owner = g_cli_db_pane_owner)
              : CLI_JSON_NONE;
     const unsigned int count = (root != CLI_JSON_NONE) ? json.node[root].count : 1u;
-    // the bytes the level's texts take: each node's label, kind, detail and path names with their ends, or the
+    // the bytes the level's texts take: each node's label, type, detail and path names with their ends, or the
     // failure's first line
     unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; (root != CLI_JSON_NONE) && (at < count); at += 1u)
@@ -260,8 +260,8 @@ int cli_db_pane_level_read(const CliDbPaneCtx *args)
         {
             node->label = EMBED_CALL(text_put, CliDbPaneCtx, .text = first_line);
             node->label_length = failed_line.at;
-            node->kind = EMBED_CALL(text_put, CliDbPaneCtx, .text = "");
-            node->detail = node->kind;
+            node->type = EMBED_CALL(text_put, CliDbPaneCtx, .text = "");
+            node->detail = node->type;
             node->leaf = 1u;
             node->failed = 1u;
             continue;
@@ -270,14 +270,14 @@ int cli_db_pane_level_read(const CliDbPaneCtx *args)
                                              .json_read = &json, .array = root, .index = at);
         node->label_length = EMBED_CALL(member_length, DbPaneTreeCtx, .json = &json, .node = item, .name = "label");
         node->label = EMBED_CALL(member_put, DbPaneTreeCtx, .json = &json, .node = item, .name = "label");
-        node->kind_length = EMBED_CALL(member_length, DbPaneTreeCtx, .json = &json, .node = item, .name = "kind");
-        node->kind = EMBED_CALL(member_put, DbPaneTreeCtx, .json = &json, .node = item, .name = "kind");
+        node->type_length = EMBED_CALL(member_length, DbPaneTreeCtx, .json = &json, .node = item, .name = "kind");
+        node->type = EMBED_CALL(member_put, DbPaneTreeCtx, .json = &json, .node = item, .name = "kind");
         node->detail_length = EMBED_CALL(member_length, DbPaneTreeCtx, .json = &json, .node = item, .name = "detail");
         node->detail = EMBED_CALL(member_put, DbPaneTreeCtx, .json = &json, .node = item, .name = "detail");
-        node->leaf = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+        node->leaf = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                    .json_read = &json, .object = item, .name = "leaf"),
-                                .kind = CFG_JSON_TRUE)
+                                .type = CFG_JSON_TRUE)
                          ? 1u
                          : 0u;
         const unsigned int names = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -426,12 +426,12 @@ int cli_db_pane_press(const CliDbPaneTreeCfg *args)
         {
             return 0;
         }
-        if (row.kind == CLI_PROMPT_ROW_BUTTONS)
+        if (row.type == CLI_PROMPT_ROW_BUTTONS)
         {
             (void)EMBED_CALL(cli_prompt.answer, CliPromptCfg, .at = args->choice);
             return 0;
         }
-        return row.kind == CLI_PROMPT_ROW_FIELD;
+        return row.type == CLI_PROMPT_ROW_FIELD;
     }
     if (pane->form.open)
     {
@@ -463,12 +463,12 @@ EMBED_INLINE int node_readable(const DbPaneTreeCtx *args)
 {
     const CliDbPaneState *const pane = &g_cli_db_pane_state;
     const CliDbPaneNode *const node = &pane->node[args->at];
-    const char *const kind = pane->text + node->kind;
-    static const char *const s_kinds[4] = {"table", "view", "materialized view", "foreign table"};
+    const char *const type = pane->text + node->type;
+    static const char *const s_types[4] = {"table", "view", "materialized view", "foreign table"};
     int readable = 0;
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        readable = readable || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = s_kinds[at], .cap = 32ULL});
+        readable = readable || cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_types[at], .cap = 32ULL});
     }
     return readable && (node->path_count == CLI_DB_PANE_PATH);
 }
@@ -524,7 +524,7 @@ EMBED_INLINE int first_rows_run(const DbPaneTreeCtx *args)
     }
     const char *const schema = args->name;
     const char *const table = args->table;
-    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = pane->connection[pane->chosen].kind);
+    const unsigned int dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = pane->connection[pane->chosen].type);
     char statement[3u * CLI_NAME_MAX_LEN];
     VerbaLinea line = {statement, sizeof(statement), 0ULL};
     (void)mmgr_line_put(&line, "SELECT * FROM ");

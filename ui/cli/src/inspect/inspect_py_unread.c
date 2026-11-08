@@ -137,7 +137,7 @@ EMBED_INLINE int unread_is_read(const InspectPyUnreadCtx *args)
     const CliInspectTok *toks = args->toks;
     unsigned int offset = args->offset;
     const CliInspectTok *const tok = &toks[offset];
-    if (tok->kind != CLI_PY_NAME)
+    if (tok->type != CLI_PY_NAME)
     {
         return 0;
     }
@@ -226,7 +226,7 @@ EMBED_INLINE void unread_as(const InspectPyUnreadCtx *args)
              EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "}"))
                 ? 1
                 : 0;
-        const int named = (offset + 1u < args->count) && (args->toks[offset + 1u].kind == CLI_PY_NAME);
+        const int named = (offset + 1u < args->count) && (args->toks[offset + 1u].type == CLI_PY_NAME);
         const int ended =
             (offset + 2u < args->count) && (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                                        .tok = &args->toks[offset + 2u], .word_text = ",") ||
@@ -277,7 +277,7 @@ EMBED_INLINE unsigned int unread_equals_found(const InspectPyUnreadCtx *args)
         if ((depth == 0) &&
             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = tok,
                        .word_text = "=") &&
-            (tok->kind == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
+            (tok->type == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
         {
             s_equals[equals] = offset;
             equals += 1u;
@@ -330,7 +330,7 @@ EMBED_INLINE void unread_tuple_skipped(const InspectPyUnreadCtx *args)
     {
         const int is_comma = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                                         .tok = &toks[at], .word_text = ",");
-        names_only = names_only && ((toks[at].kind == CLI_PY_NAME) || is_comma);
+        names_only = names_only && ((toks[at].type == CLI_PY_NAME) || is_comma);
         comma = comma || is_comma;
     }
     if (!names_only || !comma)
@@ -339,7 +339,7 @@ EMBED_INLINE void unread_tuple_skipped(const InspectPyUnreadCtx *args)
     }
     for (unsigned int at = args->start; at < args->equal; at += 1u)
     {
-        if (toks[at].kind == CLI_PY_NAME)
+        if (toks[at].type == CLI_PY_NAME)
         {
             EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = at);
         }
@@ -383,7 +383,7 @@ EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
         const int annotated = (targets > 2u) && (start == 0u) && (count > 1u) &&
                               EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                          .tok = &toks[1], .word_text = ":");
-        if (((targets == 1u) || annotated) && (toks[start].kind == CLI_PY_NAME) &&
+        if (((targets == 1u) || annotated) && (toks[start].type == CLI_PY_NAME) &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_keyword, CliInspectPySrcTokCfg, .src = src, .tok = &toks[start]))
         {
             EMBED_CALL(unread_target_set, InspectPyUnreadCtx, .src = src, .size = args->size, .toks = toks,
@@ -417,7 +417,7 @@ EMBED_INLINE void unread_declared(const InspectPyUnreadCtx *args)
 {
     for (unsigned int name = 1u; name < args->count; name += 1u)
     {
-        if (args->toks[name].kind == CLI_PY_NAME)
+        if (args->toks[name].type == CLI_PY_NAME)
         {
             EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_declared,
                        .at = args->src + args->toks[name].start,
@@ -436,10 +436,10 @@ EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
     int depth = 0;
     for (unsigned int at = 0u; at <= args->line->count; at += 1u)
     {
-        const int ends = (at == args->line->count) || ((toks[at].kind == CLI_PY_OP) && (depth == 0) &&
+        const int ends = (at == args->line->count) || ((toks[at].type == CLI_PY_OP) && (depth == 0) &&
                                                        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
                                                                   .src = src, .tok = &toks[at], .word_text = ";"));
-        if ((at < args->line->count) && (toks[at].kind == CLI_PY_OP))
+        if ((at < args->line->count) && (toks[at].type == CLI_PY_OP))
         {
             depth += EMBED_CALL(unread_depth_change, InspectPyUnreadCtx, .src = src, .tok = &toks[at]);
         }

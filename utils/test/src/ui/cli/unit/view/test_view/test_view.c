@@ -29,7 +29,7 @@ static CliViewInput view_key(const char *name)
 {
     CliViewInput input;
     memor.set(&(MemoriaCfg){.dst = &input, .val = 0, .bytes = sizeof(input)});
-    input.kind = CLI_VIEW_KEY;
+    input.type = CLI_VIEW_KEY;
     input.name = name;
     return input;
 }
@@ -38,7 +38,7 @@ static CliViewInput view_text(const char *text)
 {
     CliViewInput input;
     memor.set(&(MemoriaCfg){.dst = &input, .val = 0, .bytes = sizeof(input)});
-    input.kind = CLI_VIEW_TEXT;
+    input.type = CLI_VIEW_TEXT;
     input.text = text;
     input.length = CLI_UNITY_LENGTH(text);
     return input;
@@ -48,7 +48,7 @@ static CliViewInput view_pointer(unsigned int pointer, unsigned long long row, u
 {
     CliViewInput input;
     memor.set(&(MemoriaCfg){.dst = &input, .val = 0, .bytes = sizeof(input)});
-    input.kind = CLI_VIEW_POINTER;
+    input.type = CLI_VIEW_POINTER;
     input.pointer = pointer;
     input.row = row;
     input.column = column;
@@ -60,7 +60,7 @@ static CliViewInput view_pointer(unsigned int pointer, unsigned long long row, u
 static CliViewInput view_size(unsigned int rows)
 {
     CliViewInput input = view_key("");
-    input.kind = CLI_VIEW_SIZE;
+    input.type = CLI_VIEW_SIZE;
     input.rows = rows;
     input.columns = 80u;
     return input;
@@ -303,7 +303,7 @@ void test_a_wheel_moves_the_top_by_its_rows_from_where_it_stands_and_stops_at_th
 {
     fresh("a\nb\nc\nd\ne\nf");
     CliViewInput wheel = view_key("");
-    wheel.kind = CLI_VIEW_WHEEL;
+    wheel.type = CLI_VIEW_WHEEL;
     wheel.top = CLI_VIEW_WHEEL_UNBOUND;
     wheel.wheel_rows = 3LL;
     input_sent(&wheel);
@@ -323,7 +323,7 @@ void test_a_wheel_takes_the_top_no_further_down_than_the_line_it_is_bounded_at(v
 {
     fresh("a\nb\nc\nd\ne\nf");
     CliViewInput wheel = view_key("");
-    wheel.kind = CLI_VIEW_WHEEL;
+    wheel.type = CLI_VIEW_WHEEL;
     wheel.top = 2ull;
     wheel.wheel_rows = 4LL;
     input_sent(&wheel);
@@ -907,13 +907,13 @@ void test_a_view_served_records_the_servers_path_found_until_it_closes(void)
 {
     char full[CLI_PATH_MAX_LEN];
     words_view();
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = s_key2, .full_out = full));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = s_key2, .full_out = full));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = s_key2, .full = "/tree/check/words.txt"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full_kind.serve, CliViewFullKindCfg, .key = s_key2, .full_out = full));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = s_key2, .full_out = full));
     TEST_ASSERT_EQUAL_STRING("/tree/check/words.txt", full);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = "/tree/check/words.txt"));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = "/tree/check/other.txt"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_path_kind.path, CliViewPathKindCfg, .key = s_key2, .path_out = full));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = s_key2, .path_out = full));
     TEST_ASSERT_EQUAL_STRING("check/words.txt", full);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = "/tree/check/words.txt"));

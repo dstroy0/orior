@@ -243,7 +243,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
             mmgr_line_put(&line, EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                             .text_u32 = param->key));
             mmgr_line_put(&line, "  ");
-            mmgr_line_put(&line, param->kind);
+            mmgr_line_put(&line, param->type);
             mmgr_line_put(&line, param->required ? "  required" : "");
             if (fallback[0] != '\0')
             {
@@ -327,11 +327,11 @@ EMBED_INLINE void jobs_err_prefix(const CommandLineJobsCtx *args)
 static void jobs_run_event(const CliEachEventCfg *args)
 {
     // a blob the run's writer placed is the panel's, and the command line shows the console alone
-    if (args->event->kind == CLI_RUN_EVENT_START)
+    if (args->event->type == CLI_RUN_EVENT_START)
     {
         return;
     }
-    if (args->event->kind == CLI_RUN_EVENT_LINE)
+    if (args->event->type == CLI_RUN_EVENT_LINE)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "stdout", .cap = CLI_POOL_BYTES}))
         {

@@ -180,7 +180,7 @@ EMBED_INLINE unsigned int write_params_found(const InspectJsWriteCtx *args)
         const char *const word_text = EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at, .size = &length);
         int known = !EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_names, .at = word_text,
                                 .size_u32 = length) ||
-                    (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
+                    (g_cli_inspect_tok[at].type != CLI_JS_NAME);
         unsigned int index = 0u;
         while (!known && (index < params))
         {

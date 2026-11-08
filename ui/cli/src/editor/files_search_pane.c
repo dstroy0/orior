@@ -37,7 +37,7 @@ typedef struct
 } SearchFile;
 
 // The pane's data: the query, how it is read, the set chosen counted from 1 and 0 for the whole tree, how many sets
-// Preferences lists, the set's name in Preferences' text with its bytes, its patterns in a cell of the patterns' kind,
+// Preferences lists, the set's name in Preferences' text with its bytes, its patterns in a cell of the patterns' type,
 // whether a search waits and since when, whether rows stand for the query and how many, and the search's cell: the
 // report with its bytes, a SearchFile a file after it, and the bytes a regular expression matched in each line after
 // them, NULL where the query is plain text
@@ -523,7 +523,7 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     row->path = cli_search_standing_path(cli_search_standing_hit(first));
     if (under == 0u)
     {
-        row->kind = CLI_SEARCH_ROW_FILE;
+        row->type = CLI_SEARCH_ROW_FILE;
         row->name = row->path + found->name;
         row->name_length = found->length - found->name;
         row->folder_length = (found->name > 0u) ? found->name - 1u : 0u;
@@ -533,7 +533,7 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     }
     const unsigned int at = first + under - 1u;
     const CliSearchHit *const hit = cli_search_standing_hit(at);
-    row->kind = CLI_SEARCH_ROW_HIT;
+    row->type = CLI_SEARCH_ROW_HIT;
     row->line = hit->line;
     row->col = hit->col;
     row->text = (const char *)hit->text;

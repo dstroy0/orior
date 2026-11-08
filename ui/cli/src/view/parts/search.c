@@ -244,7 +244,7 @@ static void search_row_draw(const GuiPaneCfg *args)
     const int pad = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_PAD_LEFT);
     // the rows are fewer than an int counts
     const int pointed = args->pane_read->pointed == (int)args->row;
-    if (row.kind == CLI_SEARCH_ROW_FILE)
+    if (row.type == CLI_SEARCH_ROW_FILE)
     {
         int x = rect.x + pad;
         const int twisty = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_EXPLORER_TWISTY);
@@ -318,7 +318,7 @@ static int search_press(const GuiPaneCfg *args)
     {
         return 0;
     }
-    if (row.kind == CLI_SEARCH_ROW_FILE)
+    if (row.type == CLI_SEARCH_ROW_FILE)
     {
         EMBED_CALL(cli_search_pane.toggle, CliSearchPaneCfg, .at = args->row);
         return 0;

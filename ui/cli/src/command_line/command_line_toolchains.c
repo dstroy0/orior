@@ -164,8 +164,8 @@ static int toolchains_list(void)
                              : CLI_JSON_NONE,
         0ULL};
     g_cli_guard->persistent_buf_release(found_text, g_cli_toolchains_words_owner);
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
-                   .node = list_entries.found, .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
+                   .node = list_entries.found, .type = CFG_JSON_ARRAY))
     {
         for (unsigned int tool = s_json.node[list_entries.found].first; tool != CLI_JSON_NONE;
              tool = s_json.node[tool].next)

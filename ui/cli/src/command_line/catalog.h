@@ -17,10 +17,10 @@
 #include "embed_dispatch_layout.h"
 
 typedef struct CliCatalogJobsMaxCfg CliCatalogJobsMaxCfg;
-typedef struct CliCatalogKindCfg CliCatalogKindCfg;
+typedef struct CliCatalogTypeCfg CliCatalogTypeCfg;
 typedef struct CliCatalogIdGroupCfg CliCatalogIdGroupCfg;
 typedef struct CliCatalogTextProgramCfg CliCatalogTextProgramCfg;
-typedef struct CliCatalogKeyKindCfg CliCatalogKeyKindCfg;
+typedef struct CliCatalogKeyTypeCfg CliCatalogKeyTypeCfg;
 typedef struct CliCatalogFromCfg CliCatalogFromCfg;
 typedef struct CliCatalogFromIndexCfg CliCatalogFromIndexCfg;
 typedef struct CliCatalogIndexCfg CliCatalogIndexCfg;
@@ -44,7 +44,7 @@ typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
 #define CLI_TRACE_VERBOSE "verbose"
 #define CLI_TRACE_QUIET "quiet"
 
-// How a step's argument list is made from the values given. Each kind names the texts it contains in turn:
+// How a step's argument list is made from the values given. Each type names the texts it contains in turn:
 //   LIT text          written as it is
 //   VALUE key         the value of a param, where one is given
 //   FLAG flag key     a flag and then the value of a param, where one is given
@@ -68,8 +68,8 @@ typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
 //   FOLDER folder     no argument: the step runs in the folder named, a path in the tree, and not its top folder
 //   SOURCE_DATE       no argument: SOURCE_DATE_EPOCH set to the time of the commit the tree stands at, where the tree
 //                     is in git and it is not set
-//   CROSS kind        no argument: the C compiler and linker for the system and processor the job's params choose,
-//                     set in the step's environment where they are another machine's, for a build of the kind named
+//   CROSS type        no argument: the C compiler and linker for the system and processor the job's params choose,
+//                     set in the step's environment where they are another machine's, for a build of the type named
 enum
 {
     CLI_ARG_LIT,
@@ -108,18 +108,18 @@ enum
     CLI_PROGRAM_CREATED
 };
 
-// An argument: its kind, its texts as its kind names them, whether WORDS requires the separator, and the words WHEN
+// An argument: its type, its texts as its type names them, whether WORDS requires the separator, and the words WHEN
 // lists, `words` of the list from `first`
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int text[4];
     int separated;
     unsigned int first;
     unsigned int words;
 } CliArg;
 
-// A step: its program's kind, its texts (the script, the name or the toolchain, and the toolchain's program), whether
+// A step: its program's type, its texts (the script, the name or the toolchain, and the toolchain's program), whether
 // a made program runs with the system's PATH, and its arguments, `args` from `first`
 typedef struct
 {
@@ -131,13 +131,13 @@ typedef struct
     unsigned int args;
 } CliStep;
 
-// One input a job takes: its key; its kind, how the app prompts for it: one of `choices`, several of them, a file, a
+// One input a job takes: its key; its type, how the app prompts for it: one of `choices`, several of them, a file, a
 // folder, a path to write, a word, or free words added to the end; its choices, `choices` of the list from `first`;
 // its default; and whether it is required
 typedef struct
 {
     unsigned int key;
-    const char *kind;
+    const char *type;
     unsigned int first;
     unsigned int choices;
     unsigned int fallback;
@@ -219,10 +219,10 @@ const char *cli_catalog_at(const CliCatalogTextCfg *args);
 // param put on the last job; a choice put on the last param; a step put on the last job; an argument put on the last
 // step, its texts NULL past the last it contains; and a word put on the last argument's list
 unsigned int cli_catalog_job(const CliCatalogIdGroupCfg *args);
-void cli_catalog_param(const CliCatalogKeyKindCfg *args);
+void cli_catalog_param(const CliCatalogKeyTypeCfg *args);
 void cli_catalog_choice(const CliCatalogChoiceCfg *args);
 void cli_catalog_step(const CliCatalogTextProgramCfg *args);
-void cli_catalog_arg(const CliCatalogKindCfg *args);
+void cli_catalog_arg(const CliCatalogTypeCfg *args);
 void cli_catalog_word(const CliCatalogWordCfg *args);
 // the params of a free-words input, and of the build's trace, a choice of verbose or quiet, verbose the first
 void cli_catalog_words(const CliCatalogChoiceCfg *args);
@@ -278,10 +278,10 @@ struct CliCatalogJobsMaxCfg
     unsigned int text_max;
 };
 
-struct CliCatalogKindCfg
+struct CliCatalogTypeCfg
 {
     CliCatalog *catalog;
-    unsigned int kind_u32;
+    unsigned int type_u32;
     const char *a;
     const char *b;
     const char *c;
@@ -309,11 +309,11 @@ struct CliCatalogTextProgramCfg
     int system;
 };
 
-struct CliCatalogKeyKindCfg
+struct CliCatalogKeyTypeCfg
 {
     CliCatalog *catalog;
     const char *key;
-    const char *kind;
+    const char *type;
     int required;
 };
 
@@ -463,19 +463,19 @@ EMBED_TABLE_STORAGE CliCatalogIdGroupNs cli_catalog_id_group EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*param)(const CliCatalogKeyKindCfg *args);
-} CliCatalogKeyKindNs;
-EMBED_TABLE_LAYOUT(CliCatalogKeyKindNs, param);
-EMBED_TABLE_STORAGE CliCatalogKeyKindNs cli_catalog_key_kind EMBED_UNUSED = {
+    void (*param)(const CliCatalogKeyTypeCfg *args);
+} CliCatalogKeyTypeNs;
+EMBED_TABLE_LAYOUT(CliCatalogKeyTypeNs, param);
+EMBED_TABLE_STORAGE CliCatalogKeyTypeNs cli_catalog_key_type EMBED_UNUSED = {
     .param = cli_catalog_param,
 };
 
 typedef struct
 {
-    void (*arg)(const CliCatalogKindCfg *args);
-} CliCatalogKindNs;
-EMBED_TABLE_LAYOUT(CliCatalogKindNs, arg);
-EMBED_TABLE_STORAGE CliCatalogKindNs cli_catalog_kind EMBED_UNUSED = {
+    void (*arg)(const CliCatalogTypeCfg *args);
+} CliCatalogTypeNs;
+EMBED_TABLE_LAYOUT(CliCatalogTypeNs, arg);
+EMBED_TABLE_STORAGE CliCatalogTypeNs cli_catalog_type EMBED_UNUSED = {
     .arg = cli_catalog_arg,
 };
 

@@ -181,7 +181,7 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen,
                .name = args->id,
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = &json, .text = dir,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_POOL_BYTES})));
     const int saved = (path[0] != '\0') &&
@@ -378,8 +378,8 @@ static void found_current(const ToolchainsChosenCtx *args)
         }
         const unsigned int tools = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = root_node, .name = "tools");
-        for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                            .node = tools, .kind = CFG_JSON_OBJECT)
+        for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                            .node = tools, .type = CFG_JSON_OBJECT)
                                      ? json.node[tools].first
                                      : CLI_JSON_NONE;
              item != CLI_JSON_NONE; item = json.node[item].next)

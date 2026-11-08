@@ -126,10 +126,10 @@ async function opening(path) {
 }
 
 function blobRow(blob) {
-  const kind = blob.priority === 0 ? "panic" : blob.priority === 1 ? "critical" : "ordinary";
+  const type = blob.priority === 0 ? "panic" : blob.priority === 1 ? "critical" : "ordinary";
   return element(
     "div",
-    { className: `runs-blob ${kind}`, title: `${blob.name}, handed ${timeOf(blob.nanoseconds)}${blob.whole === false ? ", its bytes do not hold to its row's check" : ""}` },
+    { className: `runs-blob ${type}`, title: `${blob.name}, handed ${timeOf(blob.nanoseconds)}${blob.whole === false ? ", its bytes do not hold to its row's check" : ""}` },
     element("span", { className: "runs-seq", textContent: `#${blob.sequence}` }),
     element("span", { className: "runs-name", textContent: blob.name }),
     element("span", { className: "runs-size", textContent: sizeOf(blob.size) })

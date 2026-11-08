@@ -48,27 +48,27 @@ const char *cli_settings_system(void)
 #endif
 }
 
-int cli_settings_kind_get(const CliSettingsKeyCtx *args)
+int cli_settings_type_get(const CliSettingsKeyCtx *args)
 {
-    const char **kind = args->kind;
+    const char **type = args->type;
     unsigned long long *length = args->length_pointer;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     if ((size < 3ULL) || (args->key[0] != '[') || (args->key[size - 1ULL] != ']'))
     {
         return 0;
     }
-    *kind = args->key + 1;
+    *type = args->key + 1;
     *length = size - 2ULL;
     return 1;
 }
 
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
 {
-    const char *kind = NULL;
+    const char *type = NULL;
     unsigned long long length = 0ULL;
     int found = (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_allocs, .cap = CLI_POOL_BYTES})) ||
                 (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine, .cap = CLI_POOL_BYTES})) ||
-                EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = args->key, .kind = &kind,
+                EMBED_CALL(cli_settings_key_internal.type_get, CliSettingsKeyCtx, .key = args->key, .type = &type,
                            .length_pointer = &length);
     unsigned int at = 0u;
     while (!found && (at < 3u))
@@ -338,7 +338,7 @@ EMBED_INLINE void cli_takes_followed(const SettingsCtx *args)
     char joined[CLI_PATH_MAX_LEN];
     VerbaLinea join = {joined, sizeof(joined), 0ULL};
     if (!absolute &&
-        EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder))
+        EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = folder))
     {
         mmgr_line_put(&join, folder);
         mmgr_line_ch(&join, '/');
@@ -412,8 +412,8 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
                                           .json = &own, .text = plain_text, .size = plain.at, .nodes_more = 0u,
                                           .text_more = 0ULL, .err_msg = &reason, .owner = g_cli_settings_owner)
                              : CLI_JSON_NONE;
-    if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                 .json_read = &own, .node = values, .kind = CFG_JSON_OBJECT))
+    if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                 .json_read = &own, .node = values, .type = CFG_JSON_OBJECT))
     {
         mmgr_line_finish(&reason);
         char msg_buf[CLI_PATH_MAX_LEN + 2u];

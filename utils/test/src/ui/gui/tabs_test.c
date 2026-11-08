@@ -77,7 +77,7 @@ int main(void)
     numbers.claim = GUI_FIXED_ONE / 2;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     const GuiRect risen = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
-    cli_check((risen.y == frame.tabs_row.y) && (risen.height == frame.tabs_row.height - 1) && (risen.y < frame.tabs.y),
+    cli_check((risen.y == frame.tabs_row.y + GUI_TAB_CLEAR) && (risen.height == frame.tabs_row.height - GUI_TAB_CLEAR - 1) && (risen.y < frame.tabs.y),
               "halfway through the claim a tab stands whole in the row risen out of the work's head");
     g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;

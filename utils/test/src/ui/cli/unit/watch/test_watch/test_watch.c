@@ -6,7 +6,7 @@
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static const unsigned int s_kinds[5] = {CLI_CHANGE_ADDED, CLI_CHANGE_MODIFIED, CLI_CHANGE_MODIFIED, CLI_CHANGE_REMOVED, CLI_CHANGE_ADDED};
+static const unsigned int s_types[5] = {CLI_CHANGE_ADDED, CLI_CHANGE_MODIFIED, CLI_CHANGE_MODIFIED, CLI_CHANGE_REMOVED, CLI_CHANGE_ADDED};
 static const char *const s_paths[5] = {"src/b.rs", "src/a.rs", "src", "old.txt", ".git/objects/ab/cdef"};
 
 static char s_out[1u << 16u];
@@ -29,13 +29,13 @@ static void tree_written(const char *name)
     cli_unity_file(s_root, "src/a.rs", "one");
 }
 
-// a change reported, `path kind` appended to the others, `|` between them
-static void change_recorded(const CliEachPathKindCfg *args)
+// a change reported, `path type` appended to the others, `|` between them
+static void change_recorded(const CliEachPathTypeCfg *args)
 {
     mmgr_line_put(&s_seen_line, (s_seen_line.at > 0ull) ? "|" : "");
     mmgr_line_put(&s_seen_line, args->path);
     mmgr_line_ch(&s_seen_line, ' ');
-    mmgr_line_decimal(&s_seen_line, args->kind, 1u);
+    mmgr_line_decimal(&s_seen_line, args->type, 1u);
 }
 
 // a first poll of the tree, a file changed and a file added, and the second poll recorded, NUL-terminated in s_seen, once for the
@@ -57,14 +57,14 @@ static void tree_polled(void)
     (void)mmgr_line_finish(&s_seen_line);
 }
 
-// the seen changes contain `path` with `kind`
-static void assert_seen(const char *path, unsigned int kind)
+// the seen changes contain `path` with `type`
+static void assert_seen(const char *path, unsigned int type)
 {
     char required[CLI_PATH_MAX_LEN];
     VerbaLinea line = {required, sizeof(required), 0ull};
     mmgr_line_put(&line, path);
     mmgr_line_ch(&line, ' ');
-    mmgr_line_decimal(&line, kind, 1u);
+    mmgr_line_decimal(&line, type, 1u);
     (void)mmgr_line_finish(&line);
     CLI_TEST_ASSERT_CONTAINS(required, s_seen);
 }

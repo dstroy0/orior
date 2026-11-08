@@ -10,7 +10,7 @@ import { act, element, guides, paneOpen, state } from "../explorer.js";
 // arrow. Pinned, the pane shows the structure of the file pinned while another is open, a press on a
 // symbol going to that file, until it is unpinned or the file closes.
 
-const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
+const TYPE_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
 
 // The Outline holds the rows in sight and OUTLINE_MARGIN more on either side, space above and below
 // standing for the rest, each row made as it first comes near: a file of many thousands of symbols
@@ -60,7 +60,7 @@ function outlineRow(index) {
   const symbol = state.outline.symbols[index];
   const shown = state.outline.shownIn;
   const closed = state.outline.closed;
-  const [mark, color] = KIND_MARKS[symbol.kind] ?? ["▪", 7];
+  const [mark, color] = TYPE_MARKS[symbol.kind] ?? ["▪", 7];
   const key = `${symbol.line}:${symbol.name}`;
   const region = symbol.kind === "region";
   const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });

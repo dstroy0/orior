@@ -144,7 +144,7 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
         const char *const rest = text + at;
         const unsigned long long left = size - at;
         unsigned long long found = 0ULL;
-        unsigned char kind = CLI_SCONS_COMMENT;
+        unsigned char type = CLI_SCONS_COMMENT;
         unsigned long long end = size;
         if (rest[0] == '#')
         {
@@ -156,14 +156,14 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
         else if (EMBED_CALL(cli_text_at_size.quoted_end, CliTextAtSizeCfg, .text = text, .size = size, .at = at,
                             .end = &end))
         {
-            kind = CLI_SCONS_STRING;
+            type = CLI_SCONS_STRING;
         }
         else
         {
             at += 1u;
             continue;
         }
-        memor.set(&(MemoriaCfg){.dst = class_of + at, .val = kind, .bytes = (size_t)(end - at)});
+        memor.set(&(MemoriaCfg){.dst = class_of + at, .val = type, .bytes = (size_t)(end - at)});
         at = end;
     }
     return 1;

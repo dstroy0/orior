@@ -218,7 +218,7 @@ static int console_user_css(void)
 {
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
-    if (!EMBED_CALL(cli_path_err_msg_kind_internal.home_ensure_user_css, CliPathErrMsgKindCtx, .path_out = path,
+    if (!EMBED_CALL(cli_path_err_msg_type_internal.home_ensure_user_css, CliPathErrMsgTypeCtx, .path_out = path,
                     .err_msg = &err_msg))
     {
         EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);

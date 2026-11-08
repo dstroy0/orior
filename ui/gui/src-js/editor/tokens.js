@@ -11,7 +11,7 @@
 import { invoke, listen } from "../bridge.js";
 import { classOf } from "./grammar.js";
 
-export { classOf, compile, tokenKinds } from "./grammar.js";
+export { classOf, compile, tokenKinds: tokenTypes } from "./grammar.js";
 
 const PLAIN = [[0, ""]];
 

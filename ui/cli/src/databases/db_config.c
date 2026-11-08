@@ -24,26 +24,26 @@ typedef struct
 // config_release
 static CliDbConnection *s_connections;
 
-unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args)
+unsigned int cli_db_port(const CliDbConnectionOutTypeCfg *args)
 {
     if (args->connection->port != 0u)
     {
         return args->connection->port;
     }
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "mysql", .cap = CLI_POOL_BYTES}))
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "mysql", .cap = CLI_POOL_BYTES}))
                ? 3306u
                : 5432u;
 }
 
-void cli_db_account(const CliDbConnectionOutKindCfg *args)
+void cli_db_account(const CliDbConnectionOutTypeCfg *args)
 {
-    mmgr_line_put(args->out, args->connection->kind);
+    mmgr_line_put(args->out, args->connection->type);
     mmgr_line_put(args->out, "://");
     mmgr_line_put(args->out, args->connection->user);
     mmgr_line_ch(args->out, '@');
     mmgr_line_put(args->out, args->connection->host);
     mmgr_line_ch(args->out, ':');
-    mmgr_line_decimal(args->out, cli_db_connection_out_kind.port(args), 1u);
+    mmgr_line_decimal(args->out, cli_db_connection_out_type.port(args), 1u);
     mmgr_line_ch(args->out, '/');
     mmgr_line_put(args->out, args->connection->database);
     if (args->connection->ssh[0] != '\0')
@@ -104,8 +104,8 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
     }
     const unsigned int port = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = args->json, .object = args->node, .name = "port");
-    const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = args->json, .node = port, .kind = CFG_JSON_NUMBER)
+    const char *const digits = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = args->json, .node = port, .type = CFG_JSON_NUMBER)
                                    ? args->json->text + args->json->node[port].text
                                    : NULL;
     unsigned long long value = 0ULL;
@@ -121,7 +121,7 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "name",
                    .out = args->connection_out->name, .capacity = sizeof(args->connection_out->name)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "kind",
-                   .out = args->connection_out->kind, .capacity = sizeof(args->connection_out->kind)) &&
+                   .out = args->connection_out->type, .capacity = sizeof(args->connection_out->type)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "host",
                    .out = args->connection_out->host, .capacity = sizeof(args->connection_out->host)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "user",
@@ -136,17 +136,17 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
                    .out = args->connection_out->guard, .capacity = sizeof(args->connection_out->guard));
     if (!texts || !whole || (value > 65535ULL) ||
         ((matters != CLI_JSON_NONE) &&
-         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = matters,
-                     .kind = CFG_JSON_TRUE) &&
-         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = matters,
-                     .kind = CFG_JSON_FALSE)))
+         !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = matters,
+                     .type = CFG_JSON_TRUE) &&
+         !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = matters,
+                     .type = CFG_JSON_FALSE)))
     {
         mmgr_line_put(args->err_msg, "a connection names a setting of the wrong kind");
         return 0;
     }
     args->connection_out->port = (unsigned int)value;
-    args->connection_out->matters = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                               .json_read = args->json, .node = matters, .kind = CFG_JSON_TRUE);
+    args->connection_out->matters = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                               .json_read = args->json, .node = matters, .type = CFG_JSON_TRUE);
     return 1;
 }
 
@@ -212,10 +212,10 @@ static int config_read(const DbConfigCtx *args)
     }
     const int object =
         (root_node != CLI_JSON_NONE) &&
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = root_node,
-                   .kind = CFG_JSON_OBJECT) &&
-        ((connections == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                      .json_read = &json, .node = connections, .kind = CFG_JSON_ARRAY));
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = root_node,
+                   .type = CFG_JSON_OBJECT) &&
+        ((connections == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                      .json_read = &json, .node = connections, .type = CFG_JSON_ARRAY));
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -265,7 +265,7 @@ EMBED_INLINE void config_on_write(const DbConfigCtx *args)
     mmgr_line_ch(args->out_verba_linea_pointer, '{');
     EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "name", .text = args->connection->name,
                .always = 1);
-    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "kind", .text = args->connection->kind,
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "kind", .text = args->connection->type,
                .always = 1);
     EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "host", .text = args->connection->host,
                .always = 0);
@@ -362,11 +362,11 @@ int cli_db_save(const CliDbConnectionCfg *args)
         mmgr_line_put(args->err_msg, "a connection needs a name");
         return 0;
     }
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "postgres", .cap = CLI_POOL_BYTES})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "mysql", .cap = CLI_POOL_BYTES})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "sqlite", .cap = CLI_POOL_BYTES})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "postgres", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "mysql", .cap = CLI_POOL_BYTES})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "sqlite", .cap = CLI_POOL_BYTES})))
     {
-        mmgr_line_put(args->err_msg, args->connection->kind);
+        mmgr_line_put(args->err_msg, args->connection->type);
         mmgr_line_put(args->err_msg, " is no kind of database orior_cli supports: postgres, mysql or sqlite");
         return 0;
     }
@@ -431,7 +431,7 @@ int cli_db_remove(const CliDbRootNameCfg *args)
             char why[CLI_ERR_MSG_MAX_LEN];
             VerbaLinea account_line = {account, sizeof(account), 0ULL};
             VerbaLinea forgot = {why, sizeof(why), 0ULL};
-            EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_connections[at],
+            EMBED_CALL(cli_db_connection_out_type.account, CliDbConnectionOutTypeCfg, .connection = &s_connections[at],
                        .out = &account_line);
             mmgr_line_finish(&account_line);
             (void)EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx, .service = "database",
@@ -474,11 +474,11 @@ int cli_db_list(const CliDbOutRootCfg *args)
         char account[CLI_PATH_MAX_LEN];
         char password[CLI_NAME_MAX_LEN];
         VerbaLinea account_line = {account, sizeof(account), 0ULL};
-        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = connection,
+        EMBED_CALL(cli_db_connection_out_type.account, CliDbConnectionOutTypeCfg, .connection = connection,
                    .out = &account_line);
         mmgr_line_finish(&account_line);
         const int list_entries =
-            (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = connection->type, .other = "sqlite", .cap = CLI_POOL_BYTES})) &&
             EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account,
                        .out = password, .capacity = sizeof(password));
         mmgr_line_put(args->out, (at > 0) ? ",{\"connection\":" : "{\"connection\":");

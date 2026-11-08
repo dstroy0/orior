@@ -12,7 +12,7 @@ static const CliJson *menus_created(unsigned int *made)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     char path[CLI_PATH_MAX_LEN];
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_kind_internal.home_ensure_menus, CliPathErrMsgKindCtx, .path_out = path, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_type_internal.home_ensure_menus, CliPathErrMsgTypeCtx, .path_out = path, .err_msg = &err_msg));
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
     return cli_unity_parsed(s_text, size, made);
@@ -24,7 +24,7 @@ static void assert_empty_list(const char *key)
     unsigned int made = CLI_JSON_NONE;
     const CliJson *const json = menus_created(&made);
     const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = made, .name = key);
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list, .kind = CFG_JSON_ARRAY), key);
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = list, .type = CFG_JSON_ARRAY), key);
     TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, json->node[list].count, key);
 }
 

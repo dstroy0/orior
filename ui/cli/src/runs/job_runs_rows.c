@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // job_runs_rows.c: the Run pane's rows (job_runs.h). The rows stand in sections laid in order, each its first row,
-// its rows, their kind, the item they read and the flags of its one row, in one cell sized to them and laid anew as
+// its rows, their type, the item they read and the flags of its one row, in one cell sized to them and laid anew as
 // the store changes: a group's, a job's, the chosen job's file and about, a param's, the choices of the param focused,
 // a run's, the lines of the run shown and its end. A row is read by a binary search over the sections' starts, and its
 // texts point into the catalog, the form and the runs' cells
@@ -13,7 +13,7 @@ typedef struct
     unsigned int at;
     unsigned int start;
     unsigned int count;
-    unsigned int kind;
+    unsigned int type;
     unsigned int item;
     unsigned int flags;
     unsigned int row_at;
@@ -24,12 +24,12 @@ typedef struct
     unsigned long long other_length;
 } RowsCtx;
 
-// the section `at` written where the sections are handed, from the row `start`, `count` rows of `kind` reading `item`
+// the section `at` written where the sections are handed, from the row `start`, `count` rows of `type` reading `item`
 EMBED_INLINE void section_put(const RowsCtx *args)
 {
     if (args->section != NULL)
     {
-        args->section[args->at] = (CliJobRunsSection){args->start, args->count, args->kind, args->item, args->flags};
+        args->section[args->at] = (CliJobRunsSection){args->start, args->count, args->type, args->item, args->flags};
     }
 }
 
@@ -58,12 +58,12 @@ EMBED_INLINE unsigned int run_flags(const RowsCtx *args)
            ((run->run == store->shown) ? CLI_JOB_RUN_SHOWN : 0u);
 }
 
-// whether `kind` is one of the param kinds whose choices are the value itself
-EMBED_INLINE int kind_chosen(const RowsCtx *args)
+// whether `type` is one of the param types whose choices are the value itself
+EMBED_INLINE int type_chosen(const RowsCtx *args)
 {
     return cellul.eq(
-               &(CatenaFinitaCfg){.src = args->text, .other = CLI_JOB_RUNS_KIND_CHOICE, .cap = CLI_NAME_MAX_LEN}) ||
-           cellul.eq(&(CatenaFinitaCfg){.src = args->text, .other = CLI_JOB_RUNS_KIND_MANY, .cap = CLI_NAME_MAX_LEN});
+               &(CatenaFinitaCfg){.src = args->text, .other = CLI_JOB_RUNS_TYPE_CHOICE, .cap = CLI_NAME_MAX_LEN}) ||
+           cellul.eq(&(CatenaFinitaCfg){.src = args->text, .other = CLI_JOB_RUNS_TYPE_MANY, .cap = CLI_NAME_MAX_LEN});
 }
 
 // the chosen job's sections laid from `start` into `section` from `at`, where the sections are handed: how many
@@ -74,7 +74,7 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
     unsigned int at = args->at;
     unsigned int row = args->start;
     EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-               .kind = CLI_JOB_RUN_ABOUT, .item = args->job);
+               .type = CLI_JOB_RUN_ABOUT, .item = args->job);
     at += 1u;
     row += 1u;
     for (unsigned int param = 0u; param < store->form_params; param += 1u)
@@ -83,13 +83,13 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
         const unsigned int flags =
             (one->required ? CLI_JOB_RUN_REQUIRED : 0u) | ((param == store->focus) ? CLI_JOB_RUN_FOCUSED : 0u);
         EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-                   .kind = CLI_JOB_RUN_PARAM, .item = param, .flags = flags);
+                   .type = CLI_JOB_RUN_PARAM, .item = param, .flags = flags);
         at += 1u;
         row += 1u;
         if ((param == store->focus) && (one->choices != 0u))
         {
             EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = one->choices,
-                       .kind = CLI_JOB_RUN_CHOICE, .item = param);
+                       .type = CLI_JOB_RUN_CHOICE, .item = param);
             at += 1u;
             row += one->choices;
         }
@@ -102,7 +102,7 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
             continue;
         }
         EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-                   .kind = CLI_JOB_RUN_RUN, .item = run, .flags = EMBED_CALL(run_flags, RowsCtx, .item = run));
+                   .type = CLI_JOB_RUN_RUN, .item = run, .flags = EMBED_CALL(run_flags, RowsCtx, .item = run));
         at += 1u;
         row += 1u;
         if (one->run != store->shown)
@@ -112,14 +112,14 @@ EMBED_INLINE unsigned int chosen_laid(const RowsCtx *args)
         if (one->lines != 0u)
         {
             EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = one->lines,
-                       .kind = CLI_JOB_RUN_LINE, .item = run);
+                       .type = CLI_JOB_RUN_LINE, .item = run);
             at += 1u;
             row += one->lines;
         }
         if (!one->live)
         {
             EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-                       .kind = CLI_JOB_RUN_END, .item = run, .flags = EMBED_CALL(run_flags, RowsCtx, .item = run));
+                       .type = CLI_JOB_RUN_END, .item = run, .flags = EMBED_CALL(run_flags, RowsCtx, .item = run));
             at += 1u;
         }
     }
@@ -141,7 +141,7 @@ EMBED_INLINE unsigned int sections_laid(const RowsCtx *args)
             continue;
         }
         EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-                   .kind = CLI_JOB_RUN_GROUP, .item = group, .flags = one->open ? CLI_JOB_RUN_OPEN : 0u);
+                   .type = CLI_JOB_RUN_GROUP, .item = group, .flags = one->open ? CLI_JOB_RUN_OPEN : 0u);
         at += 1u;
         row += 1u;
         for (unsigned int member = 0u; one->open && (member < one->count); member += 1u)
@@ -154,7 +154,7 @@ EMBED_INLINE unsigned int sections_laid(const RowsCtx *args)
             const unsigned int flags = ((job == store->chosen) ? CLI_JOB_RUN_CHOSEN : 0u) |
                                        (EMBED_CALL(job_live, RowsCtx, .job = job) ? CLI_JOB_RUN_LIVE : 0u);
             EMBED_CALL(section_put, RowsCtx, .section = args->section, .at = at, .start = row, .count = 1u,
-                       .kind = CLI_JOB_RUN_JOB, .item = job, .flags = flags);
+                       .type = CLI_JOB_RUN_JOB, .item = job, .flags = flags);
             at += 1u;
             row += 1u;
             if (job != store->chosen)
@@ -258,9 +258,9 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
     const CliCatalog *const catalog = store->catalog;
     CliJobRunRow *const row = args->row_out;
     *row = (CliJobRunRow){0};
-    row->kind = section->kind;
+    row->type = section->type;
     row->flags = section->flags;
-    switch (section->kind)
+    switch (section->type)
     {
     case CLI_JOB_RUN_GROUP:
         row->text = store->group[section->item].name;
@@ -293,7 +293,7 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
         unsigned long long length = 0ULL;
         const char *const value =
             EMBED_CALL(cli_job_runs_internal.form_value, CliJobRunsCtx, .param = section->item, .length_out = &length);
-        if (section->kind == CLI_JOB_RUN_CHOICE)
+        if (section->type == CLI_JOB_RUN_CHOICE)
         {
             row->text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                    .text_u32 = catalog->list[param->first + offset]);
@@ -323,11 +323,11 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
     case CLI_JOB_RUN_RUN:
     case CLI_JOB_RUN_END: {
         const CliJobRunsRun *const run = &store->run[section->item];
-        const unsigned int from = (section->kind == CLI_JOB_RUN_END) ? run->word : 0u;
+        const unsigned int from = (section->type == CLI_JOB_RUN_END) ? run->word : 0u;
         row->text = run->state + from;
         row->text_length = run->state_length - from;
         row->number = run->run;
-        row->depth = (section->kind == CLI_JOB_RUN_END) ? 3u : 2u;
+        row->depth = (section->type == CLI_JOB_RUN_END) ? 3u : 2u;
         break;
     }
     default: {
@@ -342,7 +342,7 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
     }
     }
     // a text that is not a run's or a value's carries its end, its bytes counted to it
-    if ((row->text != NULL) && (row->text_length == 0ULL) && (section->kind != CLI_JOB_RUN_LINE))
+    if ((row->text != NULL) && (row->text_length == 0ULL) && (section->type != CLI_JOB_RUN_LINE))
     {
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = CLI_LINES_TEXT});
     }
@@ -361,7 +361,7 @@ int cli_job_runs_line_read(const CliJobRunsRowCfg *args)
         return 0;
     }
     const CliJobRunsSection *const section = &store->section[EMBED_CALL(section_at, RowsCtx, .row_at = args->row_at)];
-    if (section->kind != CLI_JOB_RUN_LINE)
+    if (section->type != CLI_JOB_RUN_LINE)
     {
         return 0;
     }
@@ -382,7 +382,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
     }
     const CliJobRunsSection *const section = &store->section[EMBED_CALL(section_at, RowsCtx, .row_at = args->row_at)];
     const unsigned int item = section->item;
-    switch (section->kind)
+    switch (section->type)
     {
     case CLI_JOB_RUN_GROUP:
         store->group[item].open = !store->group[item].open;
@@ -416,7 +416,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
         store->focus = item;
         EMBED_CALL(cli_job_runs_internal.sections_settle, CliJobRunsCtx, .values = NULL);
         const CliParam *const param = &store->catalog->param[store->catalog->job[store->chosen].param_first + item];
-        return !EMBED_CALL(kind_chosen, RowsCtx, .text = param->kind);
+        return !EMBED_CALL(type_chosen, RowsCtx, .text = param->type);
     }
     case CLI_JOB_RUN_CHOICE:
         EMBED_CALL(cli_job_runs_internal.choice_take, CliJobRunsCtx, .param = item,

@@ -30,7 +30,7 @@ static unsigned int statement_run(CliDbOpen *open, const char *statement, int an
     return found;
 }
 
-// the schema's level under `count` names, `kind label detail` of each joined by `|` into s_text
+// the schema's level under `count` names, `type label detail` of each joined by `|` into s_text
 static const char *children_of(const char *const *path, unsigned int count)
 {
     VerbaLinea read = {s_out, sizeof(s_out), 0ull};
@@ -52,12 +52,12 @@ static const char *children_of(const char *const *path, unsigned int count)
     return s_text;
 }
 
-// the connection `name` of `kind` at the host and port ORIOR_<server>_ADDRESS names, into s_connection
-static void connection_named(const char *name, const char *kind, const char *server, unsigned int port, const char *user, const char *database)
+// the connection `name` of `type` at the host and port ORIOR_<server>_ADDRESS names, into s_connection
+static void connection_named(const char *name, const char *type, const char *server, unsigned int port, const char *user, const char *database)
 {
     memor.set(&(MemoriaCfg){.dst = &s_connection, .val = 0, .bytes = sizeof(s_connection)});
     memor.cpy(&(MemoriaCfg){.dst = s_connection.name, .src = name, .bytes = CLI_UNITY_LENGTH(name) + 1ull});
-    memor.cpy(&(MemoriaCfg){.dst = s_connection.kind, .src = kind, .bytes = CLI_UNITY_LENGTH(kind) + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = s_connection.type, .src = type, .bytes = CLI_UNITY_LENGTH(type) + 1ull});
     cli_unity_server(server, port, s_connection.host, &s_connection.port);
     memor.cpy(&(MemoriaCfg){.dst = s_connection.user, .src = user, .bytes = CLI_UNITY_LENGTH(user) + 1ull});
     memor.cpy(&(MemoriaCfg){.dst = s_connection.database, .src = database, .bytes = CLI_UNITY_LENGTH(database) + 1ull});
@@ -184,7 +184,7 @@ void test_a_connection_that_matters_does_not_prompt_before_a_read(void)
     postgres_guarded("confirm");
     const unsigned int found = statement_run(s_open, "SELECT 1", 0);
     const unsigned int confirm = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = found, .name = "confirm");
-    TEST_ASSERT_TRUE((confirm == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = confirm, .kind = CFG_JSON_NULL));
+    TEST_ASSERT_TRUE((confirm == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = confirm, .type = CFG_JSON_NULL));
 }
 
 void test_a_read_only_connections_server_refuses_a_write(void)

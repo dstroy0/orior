@@ -108,8 +108,8 @@ EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
     {
         const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map,
                                             .name = s_words[word_text]);
-        for (unsigned int needs = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                             .node = all, .kind = CFG_JSON_OBJECT)
+        for (unsigned int needs = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                             .node = all, .type = CFG_JSON_OBJECT)
                                       ? json->node[all].first
                                       : CLI_JSON_NONE;
              needs != CLI_JSON_NONE; needs = json->node[needs].next)
@@ -135,8 +135,8 @@ EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
                 continue;
             }
             const CliSchemaMember *const one = &read->member[member];
-            if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = needs,
-                            .kind = CFG_JSON_ARRAY))
+            if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = needs,
+                            .type = CFG_JSON_ARRAY))
             {
                 EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = check, .node = node,
                            .schema = needs, .base = base, .key_schema_key = key, .depth = depth + 1u);
@@ -192,8 +192,8 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
                .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = check->read,
                                   .at = one->key_at),
                .size = one->key_size);
-    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                      .node = args->properties, .kind = CFG_JSON_OBJECT)
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                      .node = args->properties, .type = CFG_JSON_OBJECT)
                                ? json->node[args->properties].first
                                : CLI_JSON_NONE;
          at != CLI_JSON_NONE; at = json->node[at].next)
@@ -272,8 +272,8 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
     }
     const unsigned int required =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map, .name = "required");
-    if ((required != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                  .json_read = json, .node = required, .kind = CFG_JSON_ARRAY))
+    if ((required != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                  .json_read = json, .node = required, .type = CFG_JSON_ARRAY))
     {
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&msg, "This object has no ");
@@ -320,8 +320,8 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
                            .schema = schema, .base = args->base, .key_schema_key = here, .depth = args->depth + 1u);
             }
         }
-        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = patterns, .kind = CFG_JSON_OBJECT)
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = patterns, .type = CFG_JSON_OBJECT)
                                    ? json->node[patterns].first
                                    : CLI_JSON_NONE;
              at != CLI_JSON_NONE; at = json->node[at].next)

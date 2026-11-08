@@ -658,6 +658,7 @@
       "title": "Help",
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },
+        { "label": "Ask…", "command": "ask", "args": "[--error] <title> <body> <button> [<button>...]", "hidden": true },
         "-",
         { "label": "Report a Bug…", "command": "report", "args": "[library|cli|ui|unknown] [title]", "console": true },
         { "label": "Automatic Error Reports", "command": "auto-report", "args": "[on|off]", "console": true, "checks": "auto-report" },

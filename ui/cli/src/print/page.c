@@ -138,8 +138,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
     const unsigned int tab = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                         .object = args->node, .name = "tab");
     unsigned long long tab_value = 0ULL;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = tab,
-                   .kind = CFG_JSON_NUMBER))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = tab,
+                   .type = CFG_JSON_NUMBER))
     {
         const CfgJsonToken token = {CFG_JSON_NUMBER, args->json->node[tab].text,
                                     args->json->node[tab].text + args->json->node[tab].length, 0u, 0u};
@@ -147,8 +147,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
     }
     const unsigned int lines = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json, .object = args->node, .name = "lines");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = lines, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = lines, .type = CFG_JSON_ARRAY)
                                  ? args->json->node[lines].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = args->json->node[item].next)
@@ -163,8 +163,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                                                .json_read = args->json, .object = item, .name = "number");
         unsigned long long value = 0ULL;
         line->numbered = 0;
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = number,
-                       .kind = CFG_JSON_NUMBER))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = number,
+                       .type = CFG_JSON_NUMBER))
         {
             const CfgJsonToken token = {CFG_JSON_NUMBER, args->json->node[number].text,
                                         args->json->node[number].text + args->json->node[number].length, 0u, 0u};
@@ -175,8 +175,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
         line->runs = 0u;
         const unsigned int runs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                              .json_read = args->json, .object = item, .name = "runs");
-        for (unsigned int run = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                           .json_read = args->json, .node = runs, .kind = CFG_JSON_ARRAY)
+        for (unsigned int run = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                           .json_read = args->json, .node = runs, .type = CFG_JSON_ARRAY)
                                     ? args->json->node[runs].first
                                     : CLI_JSON_NONE;
              run != CLI_JSON_NONE; run = args->json->node[run].next)
@@ -206,15 +206,15 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
             run_at->color = EMBED_CALL(cli_text_store, PageCtx, .listing = listing_at,
                                        .text = (color != NULL) ? color : "", .length = color_length, .full = &full);
             run_at->color_length = (unsigned int)color_length;
-            run_at->bold = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+            run_at->bold = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                          .json_read = args->json, .object = run, .name = "bold"),
-                                      .kind = CFG_JSON_TRUE);
+                                      .type = CFG_JSON_TRUE);
             run_at->italic =
-                EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = run, .name = "italic"),
-                           .kind = CFG_JSON_TRUE);
+                           .type = CFG_JSON_TRUE);
             listing_at->runs += 1u;
             line->runs += 1u;
         }
@@ -241,15 +241,15 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = args->layout_out->paper, .src = (paper != NULL) ? paper : "a4", .cap = sizeof(args->layout_out->paper)});
     args->layout_out->landscape =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->node, .name = "landscape"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     args->layout_out->gray =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->node, .name = "gray"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     const char *const pages =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
@@ -261,8 +261,8 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
     const unsigned int copies = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json, .object = args->node, .name = "copies");
     unsigned long long value = 1ULL;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = copies,
-                   .kind = CFG_JSON_NUMBER))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = copies,
+                   .type = CFG_JSON_NUMBER))
     {
         const CfgJsonToken token = {CFG_JSON_NUMBER, args->json->node[copies].text,
                                     args->json->node[copies].text + args->json->node[copies].length, 0u, 0u};

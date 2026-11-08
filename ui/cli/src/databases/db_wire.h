@@ -14,7 +14,7 @@ typedef struct CliDbWireOutCfg CliDbWireOutCfg;
 // column's type name; and of the tag a statement ended with
 #define CLI_DB_FIELD 2048u
 #define CLI_DB_COLUMNS 1664u
-#define CLI_DB_KIND 64u
+#define CLI_DB_TYPE 64u
 #define CLI_DB_TAG 512u
 
 // What a server reported went wrong, in its own fields: the place in the statement it names, counted in characters from
@@ -32,7 +32,7 @@ typedef struct
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
-    char kind[CLI_DB_KIND];
+    char type[CLI_DB_TYPE];
     int numeric;
 } CliDbColumn;
 

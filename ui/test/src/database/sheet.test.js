@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The connection sheet: a connection made new with the fields its kind asks, changed, taken out or its password
+// The connection sheet: a connection made new with the fields its type asks, changed, taken out or its password
 // forgotten, and a connection's password asked for with whether the keychain keeps it.
 
 import { askPassword, connectionSheet } from "../../../gui/src-js/database/sheet.js";
@@ -21,9 +21,9 @@ test("a new connection's sheet asks a SQLite file alone, and saves what it was g
   assert.equal(sheet().querySelector("h2").textContent, "A new connection");
   assert.ok(!field("Host").hidden && field("File").hidden, "a server's fields for PostgreSQL");
   field("Name").querySelector("input").value = "local";
-  const kind = field("Kind").querySelector("select");
-  kind.value = "sqlite";
-  kind.dispatchEvent(new Event("change"));
+  const type = field("Kind").querySelector("select");
+  type.value = "sqlite";
+  type.dispatchEvent(new Event("change"));
   assert.ok(field("Host").hidden && field("Password").hidden && !field("File").hidden, "a file's field alone for SQLite");
   field("File").querySelector("input").value = " data/app.db ";
   sheet().querySelector("button.primary").click();

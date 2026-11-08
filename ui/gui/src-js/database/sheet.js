@@ -12,7 +12,7 @@ import { CHOSEN, chosen, element, state } from "./state.js";
 export function connectionSheet(given = null) {
   const field = (label, input) => element("label", { className: "report-row" }, element("span", { textContent: label }), input);
   const text = (value, props = {}) => element("input", { className: "report-field", type: "text", value: value ?? "", spellcheck: false, ...props });
-  const kind = element("select", { className: "report-field" }, ...["postgres", "mysql", "sqlite"].map((one) => element("option", { value: one, textContent: { postgres: "PostgreSQL", mysql: "MySQL or MariaDB", sqlite: "SQLite" }[one], selected: (given?.kind ?? "postgres") === one })));
+  const type = element("select", { className: "report-field" }, ...["postgres", "mysql", "sqlite"].map((one) => element("option", { value: one, textContent: { postgres: "PostgreSQL", mysql: "MySQL or MariaDB", sqlite: "SQLite" }[one], selected: (given?.kind ?? "postgres") === one })));
   const name = text(given?.name);
   const host = text(given?.host, { placeholder: "127.0.0.1" });
   const port = text(given?.port || "", { placeholder: "its kind's own" });
@@ -27,10 +27,10 @@ export function connectionSheet(given = null) {
   const served = [field("Host", host), field("Port", port), field("User", user), field("Database", database), field("Through ssh", ssh), field("Password", password)];
   const lite = [field("File", file)];
   const shown = () => {
-    served.forEach((one) => (one.hidden = kind.value === "sqlite"));
-    lite.forEach((one) => (one.hidden = kind.value !== "sqlite"));
+    served.forEach((one) => (one.hidden = type.value === "sqlite"));
+    lite.forEach((one) => (one.hidden = type.value !== "sqlite"));
   };
-  kind.addEventListener("change", shown);
+  type.addEventListener("change", shown);
   const save = element("button", { className: "primary", type: "submit", textContent: given ? "Save" : "Add" });
   // A connection that is there already can be taken out, and its password taken from the keychain.
   const acts = [save];
@@ -66,7 +66,7 @@ export function connectionSheet(given = null) {
     { className: "sheet-ask database-sheet" },
     element("h2", { textContent: given ? `The connection ${given.name}` : "A new connection" }),
     field("Name", name),
-    field("Kind", kind),
+    field("Kind", type),
     ...served,
     ...lite,
     element("label", { className: "report-row" }, matters, element("span", { textContent: "It matters: its writes are guarded" })),
@@ -80,7 +80,7 @@ export function connectionSheet(given = null) {
     event.preventDefault();
     const connection = {
       name: name.value.trim(),
-      kind: kind.value,
+      kind: type.value,
       host: host.value.trim(),
       port: Number(port.value) || 0,
       user: user.value.trim(),

@@ -24,7 +24,7 @@ typedef struct
     unsigned int includes;
 } CliDefineNode;
 // What a read works with and gives back as it ends: the folders read and the ids of the files' and folders' defines;
-// the folder of the entry being read; what the last word awaits, and of an include, its kind; and whether the cells
+// the folder of the entry being read; what the last word awaits, and of an include, its type; and whether the cells
 // refused it
 typedef struct
 {
@@ -37,7 +37,7 @@ typedef struct
     unsigned int id_capacity;
     const char *directory;
     unsigned int awaiting;
-    unsigned int awaited_kind;
+    unsigned int awaited_type;
     int refused;
 } CliFlagsReadState;
 // the most files, distinct defines, folders, defines of the files and folders together, defines given, and include
@@ -71,7 +71,7 @@ typedef struct
     unsigned int id;
     const char *define;
     const char *named;
-    unsigned int kind;
+    unsigned int type;
     const CliJson *json;
     unsigned int entry;
     const char *root;
@@ -93,7 +93,7 @@ EMBED_INLINE unsigned int flags_max(const CompileDbFlagsCtx *args)
     return (s_flags_entries < args->most) ? (unsigned int)s_flags_entries : args->most;
 }
 
-// what a word awaits the word after it to be: nothing, a define, or an include folder or file of a kind
+// what a word awaits the word after it to be: nothing, a define, or an include folder or file of a type
 #define CLI_FLAGS_AWAITS_NONE 0u
 #define CLI_FLAGS_AWAITS_DEFINE 1u
 #define CLI_FLAGS_AWAITS_INCLUDE 2u
@@ -112,11 +112,11 @@ typedef struct
     unsigned int define;
 } CliDefineNodeInput;
 
-// An include folder or file of a file: its whole path, a place among the texts, and its kind, a CLI_INCLUDE_ one
+// An include folder or file of a file: its whole path, a place among the texts, and its type, a CLI_INCLUDE_ one
 typedef struct
 {
     unsigned int path;
-    unsigned int kind;
+    unsigned int type;
 } CliIncludeWord;
 
 // What a read saves, under the lock: the tree and the database file it read with that file's time, the texts, the
@@ -246,7 +246,7 @@ EMBED_INLINE void cli_flags_define(const CompileDbFlagsCtx *args)
     }
 }
 
-// an include folder or file of the entry, `length` bytes, of `kind`, made whole from the entry's own folder where it
+// an include folder or file of the entry, `length` bytes, of `type`, made whole from the entry's own folder where it
 // is named from it, its slashes made `/`, put after the entry's others
 EMBED_INLINE void cli_flags_include(const CompileDbFlagsCtx *args)
 {
@@ -281,17 +281,17 @@ EMBED_INLINE void cli_flags_include(const CompileDbFlagsCtx *args)
         args->read_state->refused = 1;
         return;
     }
-    s_saved.include[s_saved.includes] = (CliIncludeWord){put, args->kind};
+    s_saved.include[s_saved.includes] = (CliIncludeWord){put, args->type};
     s_saved.includes += 1u;
 }
 
-// One flag of a command line: the flag's text, its length, and the kind of include it gives, CLI_JSON_NONE for a
+// One flag of a command line: the flag's text, its length, and the type of include it gives, CLI_JSON_NONE for a
 // define
 typedef struct
 {
     const char *flag;
     unsigned long long length;
-    unsigned int kind;
+    unsigned int type;
 } CliFlagWord;
 
 // the flags read, longest first where one begins another
@@ -325,7 +325,7 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         else
         {
             EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state, .named = args->word_text,
-                       .length = size, .kind = read_state->awaited_kind);
+                       .length = size, .type = read_state->awaited_type);
         }
         return;
     }
@@ -339,10 +339,10 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         }
         if (size == flag->length)
         {
-            read_state->awaiting = (flag->kind == CLI_JSON_NONE) ? CLI_FLAGS_AWAITS_DEFINE : CLI_FLAGS_AWAITS_INCLUDE;
-            read_state->awaited_kind = flag->kind;
+            read_state->awaiting = (flag->type == CLI_JSON_NONE) ? CLI_FLAGS_AWAITS_DEFINE : CLI_FLAGS_AWAITS_INCLUDE;
+            read_state->awaited_type = flag->type;
         }
-        else if (flag->kind == CLI_JSON_NONE)
+        else if (flag->type == CLI_JSON_NONE)
         {
             EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state,
                        .define = args->word_text + flag->length, .length = size - flag->length);
@@ -350,7 +350,7 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         else
         {
             EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state,
-                       .named = args->word_text + flag->length, .length = size - flag->length, .kind = flag->kind);
+                       .named = args->word_text + flag->length, .length = size - flag->length, .type = flag->type);
         }
         return;
     }
@@ -592,8 +592,8 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
                        .length_pointer = NULL);
         const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = json, .object = entry, .name = "arguments");
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = arguments,
-                       .kind = CFG_JSON_ARRAY))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = arguments,
+                       .type = CFG_JSON_ARRAY))
         {
             EMBED_CALL(cli_flags_arguments_read, CompileDbFlagsCtx, .json = json, .entries = arguments,
                        .read_state = args->read_state);
@@ -763,8 +763,8 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
         read_state.id = (unsigned int *)(void *)(work + folder_bytes);
         read_state.id_capacity = id_capacity;
     }
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = entries,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = entries,
+                   .type = CFG_JSON_ARRAY))
     {
         EMBED_CALL(cli_flags_entries, CompileDbFlagsCtx, .read_state = &read_state, .json = &json, .entries = entries);
         EMBED_CALL(cli_flags_lift, CompileDbFlagsCtx, .read_state = &read_state);
@@ -866,8 +866,8 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
         }
         if (!before)
         {
-            EMBED_CALL(args->each, CliEachPathKindCfg, .context = args->context, .path = path,
-                       .kind = s_saved.include[at].kind);
+            EMBED_CALL(args->each, CliEachPathTypeCfg, .context = args->context, .path = path,
+                       .type = s_saved.include[at].type);
         }
     }
 }
@@ -907,16 +907,16 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
             most = shared;
         }
     }
-    for (unsigned int kind = 0u; (nearest != CLI_JSON_NONE) && (kind < 5u); kind += 1u)
+    for (unsigned int type = 0u; (nearest != CLI_JSON_NONE) && (type < 5u); type += 1u)
     {
         const CliDefineNode *const file = &s_saved.file[nearest];
         for (unsigned int at = file->include_first; at < (file->include_first + file->includes); at += 1u)
         {
-            if (s_saved.include[at].kind == s_order[kind])
+            if (s_saved.include[at].type == s_order[type])
             {
-                EMBED_CALL(args->each, CliEachPathKindCfg, .context = args->context,
+                EMBED_CALL(args->each, CliEachPathTypeCfg, .context = args->context,
                            .path = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.include[at].path),
-                           .kind = s_order[kind]);
+                           .type = s_order[type]);
             }
         }
     }

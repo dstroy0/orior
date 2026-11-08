@@ -125,7 +125,7 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
     return (digits > 0u) && (at == size);
 }
 
-// The buffering of a page of rows: the connection, where the page is written, and whether SQLite's columns' kinds are
+// The buffering of a page of rows: the connection, where the page is written, and whether SQLite's columns' types are
 // read from the values
 typedef struct
 {
@@ -137,7 +137,7 @@ typedef struct
 } CliDbResultsReader;
 
 // a row read buffered: written to its file's pending bytes, its place marked, written into the page where one is
-// written, and its values' kinds read where SQLite's are
+// written, and its values' types read where SQLite's are
 static int results_row(const CliDbRowCfg *args)
 {
     const CliDbValue *values = args->values;
@@ -195,12 +195,12 @@ static int results_row(const CliDbRowCfg *args)
         const int integer = EMBED_CALL(results_integer, DbResultsCtx, .text = values[at].text, .size = values[at].size);
         const int real =
             !integer && EMBED_CALL(results_real, DbResultsCtx, .text = values[at].text, .size = values[at].size);
-        const char *const other_kind = real ? "real" : "text";
-        const char *const column_kind = integer ? "integer" : other_kind;
+        const char *const other_type = real ? "real" : "text";
+        const char *const column_type = integer ? "integer" : other_type;
         memor.cpy(
-            &(MemoriaCfg){.dst = column->kind,
-                          .src = column_kind,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_kind, .cap = CLI_POOL_BYTES}) + 1u});
+            &(MemoriaCfg){.dst = column->type,
+                          .src = column_type,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_type, .cap = CLI_POOL_BYTES}) + 1u});
         column->numeric = integer || real;
         reader->kinded[at] = 1;
     }
@@ -236,7 +236,7 @@ int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args)
     }
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = results->path, .bytes = "",
                      .size = 0ULL, .fresh = 1);
-    CliDbResultsReader reader = {args->open, args->out, 0ULL, args->link->kind == CLI_DB_LINK_LITE, {0}};
+    CliDbResultsReader reader = {args->open, args->out, 0ULL, args->link->type == CLI_DB_LINK_LITE, {0}};
     mmgr_line_ch(args->out, '[');
     const int read = EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = args->link,
                                 .count = args->page, .each_row = results_row, .context = &reader, .done = args->done,

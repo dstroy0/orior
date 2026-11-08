@@ -20,7 +20,7 @@ const RECENT_COMMANDS = "orior.palette.recent";
 
 const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null, pickId: null };
 
-// How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
+// How many of each type Search Everywhere shows, and how close two presses of Shift come to open it,
 // in milliseconds.
 const EVERYWHERE_EACH = 8;
 const DOUBLE_SHIFT = 400;
@@ -161,7 +161,7 @@ async function fileRows(query) {
 // The first `most` rows of `rows` that go somewhere, and the row that says the tree is being read.
 const firstOf = (rows, most) => [...rows.filter((row) => row.run).slice(0, most), ...rows.filter((row) => row.reading)];
 
-// A heading over the rows of one kind, which the keys step past.
+// A heading over the rows of one type, which the keys step past.
 const heading = (label) => ({ label, hits: [], run: null, heading: true });
 
 async function everywhereRows(text) {

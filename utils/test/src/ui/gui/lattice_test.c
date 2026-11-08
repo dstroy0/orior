@@ -46,25 +46,25 @@ int main(void)
 
     // the loop's stages
     const LatticeStageAt *at = lattice_stage(0.0);
-    cli_check((at->kind == LATTICE_SIDED) && (at->angle == 0.0) && (at->part == 0.0),
+    cli_check((at->type == LATTICE_SIDED) && (at->angle == 0.0) && (at->part == 0.0),
               "the loop begins at rest, the left side ordered");
     at = lattice_stage(36.0);
-    cli_check((at->kind == LATTICE_SPREAD) && adjacent(at->front, 0.55, 1e-9) && adjacent(at->part, 0.5, 1e-9),
+    cli_check((at->type == LATTICE_SPREAD) && adjacent(at->front, 0.55, 1e-9) && adjacent(at->part, 0.5, 1e-9),
               "halfway through the spread the front stands halfway across the ramp, eased");
     at = lattice_stage(66.0);
-    cli_check((at->kind == LATTICE_WHOLE) && adjacent(at->part, 0.5, 1e-9),
+    cli_check((at->type == LATTICE_WHOLE) && adjacent(at->part, 0.5, 1e-9),
               "halfway through the inversion the whole lattice is half loose");
     at = lattice_stage(90.0);
-    cli_check((at->kind == LATTICE_GATHER) && adjacent(at->angle, LATTICE_PI / 2.0, 1e-9),
+    cli_check((at->type == LATTICE_GATHER) && adjacent(at->angle, LATTICE_PI / 2.0, 1e-9),
               "the gathering orders from the top");
     at = lattice_stage(120.0);
-    cli_check((at->kind == LATTICE_SIDED) && adjacent(at->angle, LATTICE_PI * 0.75, 1e-9),
+    cli_check((at->type == LATTICE_SIDED) && adjacent(at->angle, LATTICE_PI * 0.75, 1e-9),
               "halfway through the first turn the side stands at three eighths");
     at = lattice_stage(152.0);
-    cli_check((at->kind == LATTICE_SIDED) && adjacent(at->angle, LATTICE_PI * 1.25, 1e-9),
+    cli_check((at->type == LATTICE_SIDED) && adjacent(at->angle, LATTICE_PI * 1.25, 1e-9),
               "the second turn counts the first");
     at = lattice_stage(200.0);
-    cli_check((at->kind == LATTICE_SIDED) && (at->angle == 0.0) && (at->part == 0.0),
+    cli_check((at->type == LATTICE_SIDED) && (at->angle == 0.0) && (at->part == 0.0),
               "the loop comes round after two hundred seconds");
 
     // the shades

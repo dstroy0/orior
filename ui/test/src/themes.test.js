@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Themes that reach further: a color for every kind of token a grammar names, an image behind the
+// Themes that reach further: a color for every type of token a grammar names, an image behind the
 // editor, file icons matched to names by patterns, and every color the window draws set by a variable
 // of the theme.
 
@@ -9,7 +9,7 @@ import { paletteOf, readTheme, themeText } from "../../gui/src-js/themes.js";
 import { invoke } from "../../gui/src-js/bridge.js";
 import { gitGraphSvg, journeySvg, pieSvg } from "../../gui/src-js/mermaid.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
-import { tokenKinds } from "../../gui/src-js/editor/tokens.js";
+import { tokenKinds: tokenTypes } from "../../gui/src-js/editor/tokens.js";
 import { iconOf } from "../../gui/src-js/explorer.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { scheme } from "../../gui/src-js/scheme.js";
@@ -28,7 +28,7 @@ async function opened(path, text) {
 
 test("a theme colors a kind of token the stylesheet has no color of its own for, and the rest keep theirs", async () => {
   await opened("themes_a.js", "const said = `one\\ntwo`;\n");
-  assert.ok(tokenKinds().includes("string.escape"), "a kind a grammar names");
+  assert.ok(tokenTypes().includes("string.escape"), "a kind a grammar names");
   assert.ok(paletteOf(scheme()).has("--t-string-escape"), "and its color in the palette");
   const editor = editing().editor;
   const escape = () => editor.host.querySelector(".t-string-escape");

@@ -126,7 +126,7 @@ void cli_inspect_tok_append(const CliInspectScanCtx *args)
     }
     // a text read is at most 4 GiB, which a token's bytes count
     g_cli_inspect_tok[g_cli_inspect_toks] = (CliInspectTok){
-        args->kind, (unsigned char)(args->field != 0),    (unsigned int)args->start, (unsigned int)args->scan->pos,
+        args->type, (unsigned char)(args->field != 0),    (unsigned int)args->start, (unsigned int)args->scan->pos,
         args->from, cli_inspect_scan_internal.place(args)};
     g_cli_inspect_toks += 1u;
 }

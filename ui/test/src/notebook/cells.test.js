@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook's cells as nodes of the page: the bar that adds a cell of code or Markdown after one, a cell's node with
-// its run button, count and out-of-date mark, and its menu: its kind changed, moved, its outputs cleared, deleted.
+// its run button, count and out-of-date mark, and its menu: its type changed, moved, its outputs cleared, deleted.
 
 import { addBar } from "../../../gui/src-js/notebook/cells.js";
 import { code, markdown, openedNotebook } from "../../notebooks.js";

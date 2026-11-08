@@ -47,7 +47,7 @@ unsigned char *cli_file_alloc_utf8(const CliPathCtx *args)
     unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                             .size_pointer = size, .owner = args->owner);
     if ((bytes != NULL) &&
-        !EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg, .text_bytes = bytes, .size = *size))
+        !EMBED_CALL(cli_text_size_type.utf8_valid, CliTextSizeTypeCfg, .text_bytes = bytes, .size = *size))
     {
         g_cli_guard->persistent_buf_release(bytes, args->owner);
         *size = 0ULL;

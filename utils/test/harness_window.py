@@ -35,6 +35,8 @@
     harness.py window poll [--minutes 2] [--step 2] [--id N]     system and window processor share, threads, handles,
                                                                  working set, commit, reserve and MMgr's telemetry
                                                                  each step, to build/harness/window_poll.tsv
+    harness.py window wiggle [--rounds 40] [--seed 1]            the system's cursor over the edges with a wobble:
+                                                                 activations, almost, near misses, passes, leaves
     harness.py window in-job --id N                           whether a process sits in a job
     harness.py window test [arg...]                              the window's suite, ui/test/src (harness_window_test.py)
     harness.py window motion [--port P] [--edges E] [--rounds N] the window's motions as each edge's part comes and goes,
@@ -212,7 +214,7 @@ def cmd_keys(a):
         return 1
     import harness_win32 as win
 
-    found = window_of(a.id)
+    found = window_of(a.id, a.title)
     if not found:
         return 1
     process_id, handle, _ = found
@@ -223,6 +225,16 @@ def cmd_keys(a):
     return 0
 
 
+def cmd_ask(a):
+    """A question asked in the window's dialog, modal over the window with the focus. The command waits until a person
+    answers, then prints the label of the button pressed; a close with no answer exits 1."""
+    words = [program(), "help", "ask"] + (["--error"] if a.error else []) + [a.title, a.body] + a.buttons
+    answered = subprocess.run(words, cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace")
+    sys.stdout.write(answered.stdout)
+    sys.stderr.write(answered.stderr)
+    return answered.returncode
+
+
 def cmd_chars(a):
     """Every character of the texts posted to the window as characters typed, one past the basic plane as its two
     surrogates, with no key pressed."""
@@ -230,7 +242,7 @@ def cmd_chars(a):
         return 1
     import harness_win32 as win
 
-    found = window_of(a.id)
+    found = window_of(a.id, a.title)
     if not found:
         return 1
     process_id, handle, _ = found
@@ -275,11 +287,11 @@ def cmd_click(a):
         return 1
     import harness_win32 as win
 
-    found = window_of(a.id)
+    found = window_of(a.id, a.title)
     if not found:
         return 1
     process_id, handle, _ = found
-    moved = [(a.to[0], a.to[1])] if a.to else []
+    moved =[(a.to[0], a.to[1])] if a.to else []
     for _ in range(a.count):
         win.pointer_sent(handle, a.x, a.y, True, True, moved, a.button)
     print("window %d pressed the %s button %d times at %d,%d%s" % (process_id, a.button, a.count, a.x, a.y,
@@ -294,11 +306,11 @@ def cmd_move(a):
         return 1
     import harness_win32 as win
 
-    found = window_of(a.id)
+    found = window_of(a.id, a.title)
     if not found:
         return 1
     process_id, handle, _ = found
-    via = [(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
+    via =[(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
     win.pointer_moved(handle, via + [(a.x, a.y)], a.pause)
     print("window %d pointer moved to %d,%d through %d places" % (process_id, a.x, a.y, len(via)))
     return 0
@@ -392,17 +404,21 @@ def cmd_watch(a):
     return 0
 
 
-def window_of(process_id):
-    """(id, handle, rect) of the window of a process, the one window.pid names where none is given."""
+def window_of(process_id, title=""):
+    """(id, handle, rect) of the window of a process, the one window.pid names where none is given; the process's
+    window of that title where a title is given, as Preferences."""
     import harness_win32 as win
 
     process_id = process_id or pid_read()
     if not process_id or not win.alive(process_id):
         print("no process %d" % process_id)
         return None
-    handle, _ = win.main_window(process_id)
+    if title:
+        handle, _ = win.titled_window(process_id, title)
+    else:
+        handle, _ = win.main_window(process_id)
     if not handle:
-        print("the process %d has no window" % process_id)
+        print("the process %d has no window%s" % (process_id, (" titled " + title) if title else ""))
         return None
     return process_id, handle, win.window_rect(handle)
 
@@ -416,6 +432,15 @@ def cmd_shot(a):
     if not found:
         return 1
     process_id, _, rect = found
+    if a.title:
+        # another window of the process, as Preferences, pictured whole from its top-left
+        handle, _ = win.titled_window(process_id, a.title)
+        if not handle:
+            print("window %d has no window titled %s" % (process_id, a.title))
+            return 1
+        rect = win.window_rect(handle)
+        a.width = rect[2] - rect[0]
+        a.height = rect[3] - rect[1]
     path = os.path.join(HARNESS_BUILD, "window_shot.png")
     win.png_written(path, win.screen_pixels(rect[0], rect[1], a.width, a.height))
     print("window %d at %d,%d to %d,%d, shot %d x %d: %s" % (process_id, *rect, a.width, a.height, path))
@@ -1224,6 +1249,109 @@ def cmd_poll(a):
     return 0
 
 
+WIGGLE_TYPES = ("activate", "almost", "near", "pass", "leave")
+WIGGLE_EDGES = ("top", "left", "bottom", "controls")
+
+
+def wiggle_path(start, end, steps, wobble, chance):
+    """The points from `start` to `end` in `steps`, each pushed aside by up to `wobble` pixels across the way and eased
+    in and out along it, as a hand moves a mouse."""
+    (x0, y0), (x1, y1) = start, end
+    length = max(1.0, ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5)
+    across = (-(y1 - y0) / length, (x1 - x0) / length)
+    points = []
+    drift = 0.0
+    for step in range(1, steps + 1):
+        share = step / steps
+        eased = share * share * (3.0 - 2.0 * share)
+        drift = 0.7 * drift + chance.uniform(-wobble, wobble)
+        fade = 1.0 - share
+        points.append((x0 + (x1 - x0) * eased + across[0] * drift * fade, y0 + (y1 - y0) * eased + across[1] * drift * fade))
+    return points
+
+
+def wiggle_target(edge, round_type, rect, chance):
+    """The screen point a round of `round_type` goes for at `edge` of the window `rect`, and the point it starts from."""
+    left, top, right, bottom = rect
+    width, height = right - left, bottom - top
+    short = {"activate": chance.randint(0, 3), "almost": chance.randint(0, 3), "near": chance.randint(10, 40),
+             "pass": chance.randint(0, 2), "leave": -chance.randint(10, 40)}[round_type]
+    inside = (left + width * chance.uniform(0.3, 0.7), top + height * chance.uniform(0.35, 0.65))
+    if edge == "top":
+        return (left + width * chance.uniform(0.2, 0.8), top + short), inside
+    if edge == "bottom":
+        return (left + width * chance.uniform(0.2, 0.8), bottom - 1 - short), inside
+    if edge == "left":
+        return (left + short, top + height * chance.uniform(0.2, 0.8)), inside
+    return (right - 1 - chance.randint(20, 120), top + short), inside
+
+
+def cmd_wiggle(a):
+    """The system's own cursor moved over the window for --rounds rounds, seeded by --seed. Each round goes at an edge
+    with a wobble, and does one of: rests there long enough to bring its part in, rests just under the delay, stops
+    short, passes through fast, or leaves the window and comes back. Every round is written to
+    build/harness/wiggle.tsv with its times, beside the frames' lines in window_errors.txt."""
+    if not windows_only():
+        return 1
+    import random
+
+    import harness_win32 as win
+
+    process_id = a.id or pid_read()
+    if not process_id or not win.alive(process_id):
+        print("no window running: harness.py window start")
+        return 1
+    handle, _ = win.main_window(process_id)
+    rect = win.window_rect(handle)
+    chance = random.Random(a.seed)
+    out = os.path.join(HARNESS_BUILD, "wiggle.tsv")
+    started = time.monotonic()
+    with open(out, "w", encoding="utf-8", newline="\n") as log:
+        log.write("round\tedge\tkind\tx\ty\trest_ms\tstart_s\talive\n")
+        for round_at in range(a.rounds):
+            edge = chance.choice(WIGGLE_EDGES)
+            round_type = chance.choice(WIGGLE_TYPES)
+            (x, y), inside = wiggle_target(edge, round_type, rect, chance)
+            rest_ms = {"activate": chance.randint(350, 900), "almost": chance.randint(150, 290),
+                       "near": chance.randint(200, 900), "pass": 0, "leave": chance.randint(50, 400)}[round_type]
+            at_s = time.monotonic() - started
+            steps = chance.randint(6, 14) if round_type == "pass" else chance.randint(20, 45)
+            pause = 0.004 if round_type == "pass" else chance.uniform(0.008, 0.016)
+            for point in wiggle_path(inside, (x, y), steps, chance.uniform(2.0, 14.0), chance):
+                win.cursor_set(*point)
+                time.sleep(pause)
+            if round_type == "pass":
+                # through the edge and on out of the band without slowing
+                for point in wiggle_path((x, y), inside, steps, 4.0, chance):
+                    win.cursor_set(*point)
+                    time.sleep(pause)
+            elif round_type == "leave":
+                time.sleep(rest_ms / 1000.0)
+                back = wiggle_target(edge, "activate", rect, chance)[0]
+                for point in wiggle_path((x, y), back, chance.randint(5, 10), 3.0, chance):
+                    win.cursor_set(*point)
+                    time.sleep(0.01)
+                time.sleep(chance.uniform(0.3, 0.8))
+            else:
+                # a resting hand still trembles a pixel or so
+                rested = 0.0
+                while rested < rest_ms / 1000.0:
+                    win.cursor_set(x + chance.randint(-1, 1), y + chance.randint(-1, 1))
+                    time.sleep(0.03)
+                    rested += 0.03
+            for point in wiggle_path((x, y), inside, chance.randint(15, 30), chance.uniform(2.0, 10.0), chance):
+                win.cursor_set(*point)
+                time.sleep(chance.uniform(0.008, 0.016))
+            time.sleep(chance.uniform(0.05, 0.6))
+            alive = win.alive(process_id)
+            log.write("%d\t%s\t%s\t%d\t%d\t%d\t%.3f\t%d\n" % (round_at, edge, round_type, x, y, rest_ms, at_s, alive))
+            if not alive:
+                print("the window ended in round %d: %s %s" % (round_at, edge, round_type))
+                return 1
+    print("%d rounds over %.1f s, the window alive, written to %s" % (a.rounds, time.monotonic() - started, out))
+    return 0
+
+
 def cmd_gpu(a):
     """The released window's process tree over --seconds: the processor time its processes used, and each second the
     share of the GPU's 3D engine they kept busy as the system counts it (typeperf over the GPU Engine counters), their
@@ -1347,10 +1475,18 @@ def register(sub):
     p.add_argument("names", nargs="+",
                    help="the keys in order: Right, Mod+Shift+Z, Alt+F4, Numpad7, 0x5B, or one character; window keymap lists them")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.add_argument("--title", default="", help="another window of the process by its title, as Preferences")
     p.set_defaults(fn=cmd_keys)
+    p = window.add_parser("ask", help="a question asked in the window's dialog, the button pressed printed once a person answers")
+    p.add_argument("title", help="the dialog's title")
+    p.add_argument("body", help="the dialog's text, its lines ended by a line end")
+    p.add_argument("buttons", nargs="+", help="one to four button labels, the first the one Enter presses")
+    p.add_argument("--error", action="store_true", help="the dialog tells of an error: its focus border stands in the error color")
+    p.set_defaults(fn=cmd_ask)
     p = window.add_parser("chars", help="text sent to the window as characters typed, any character, with no key pressed")
     p.add_argument("texts", nargs="+", help="the text, the words joined as given")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.add_argument("--title", default="", help="another window of the process by its title, as Preferences")
     p.set_defaults(fn=cmd_chars)
     p = window.add_parser("wheel", help="the wheel turned at a pixel of the window's client")
     p.add_argument("x", type=int)
@@ -1367,6 +1503,7 @@ def register(sub):
     p.add_argument("--count", type=int, default=1, help="how many presses in a row, two for a word, three for a line")
     p.add_argument("--button", choices=("left", "right", "middle"), default="left", help="the button pressed")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.add_argument("--title", default="", help="another window of the process by its title, as Preferences")
     p.set_defaults(fn=cmd_click)
     p = window.add_parser("move", help="the pointer moved to a pixel of the window's client with no button down")
     p.add_argument("x", type=int)
@@ -1374,6 +1511,7 @@ def register(sub):
     p.add_argument("--via", type=int, nargs="+", metavar="N", help="the places passed through on the way, x y pairs")
     p.add_argument("--pause", type=float, default=0.02, help="the seconds between one move and the next")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.add_argument("--title", default="", help="another window of the process by its title, as Preferences")
     p.set_defaults(fn=cmd_move)
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
@@ -1395,6 +1533,7 @@ def register(sub):
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--width", type=int, default=480)
     p.add_argument("--height", type=int, default=320)
+    p.add_argument("--title", default="", help="another window of the process pictured whole, by its title, as Preferences")
     p.set_defaults(fn=cmd_shot)
 
     p = window.add_parser("eval", help="an expression run on the window's page through its debugging port, its answer printed")
@@ -1513,6 +1652,13 @@ def register(sub):
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--owners", type=int, default=20, help="how many owners are printed, by peak")
     p.set_defaults(fn=cmd_poll)
+
+    p = window.add_parser("wiggle", help="the system's cursor moved over the window's edges with a wobble: activations, "
+                                          "almost, near misses, passes and leaves, to build/harness/wiggle.tsv")
+    p.add_argument("--rounds", type=int, default=40)
+    p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.set_defaults(fn=cmd_wiggle)
 
     p = window.add_parser("in-job", help="whether a process sits in a job")
     p.add_argument("--id", type=int, required=True)

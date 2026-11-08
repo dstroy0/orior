@@ -97,12 +97,12 @@ static CliRequestsRow row_at(unsigned int at)
     return row;
 }
 
-// the place of the first row of `kind` at or after `from`, the rows' count where none is
-static unsigned int row_of(unsigned int kind, unsigned int from)
+// the place of the first row of `type` at or after `from`, the rows' count where none is
+static unsigned int row_of(unsigned int type, unsigned int from)
 {
     const unsigned int rows = EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u);
     unsigned int at = from;
-    while ((at < rows) && (row_at(at).kind != kind))
+    while ((at < rows) && (row_at(at).type != type))
     {
         at += 1u;
     }
@@ -121,7 +121,7 @@ void test_a_request_with_no_answer_lays_the_row_that_reads_so(void)
     TEST_ASSERT_TRUE(followed(4ULL, 0));
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
     const CliRequestsRow none = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_NOTE, none.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_NOTE, none.type);
     CLI_TEST_ASSERT_TEXT("No answer yet. Ctrl+Enter sends the request the cursor stands in.", none.text,
                          none.text_length);
     CliRequestsRow past;
@@ -133,31 +133,31 @@ void test_the_line_reads_its_requests_answers_the_last_first(void)
     TEST_ASSERT_TRUE(followed(1ULL, 0));
     TEST_ASSERT_EQUAL_UINT(9u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
     const CliRequestsRow status = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_STATUS, status.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_STATUS, status.type);
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_TONE_FAILED, status.tone);
     CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", status.text, status.text_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_TIMES, row_at(1u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_TIMES, row_at(1u).type);
     const CliRequestsRow headers = row_at(2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_GROUP, headers.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_GROUP, headers.type);
     TEST_ASSERT_FALSE(headers.open);
     CLI_TEST_ASSERT_TEXT("Headers (1)", headers.text, headers.text_length);
     const CliRequestsRow sent = row_at(3u);
     CLI_TEST_ASSERT_TEXT("Sent", sent.text, sent.text_length);
     const CliRequestsRow body = row_at(4u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_BODY, body.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_BODY, body.type);
     CLI_TEST_ASSERT_TEXT("missing", body.text, body.text_length);
     const CliRequestsRow answers = row_at(5u);
     TEST_ASSERT_TRUE(answers.open);
     CLI_TEST_ASSERT_TEXT("Last answers", answers.text, answers.text_length);
     const CliRequestsRow newer = row_at(6u);
     const CliRequestsRow older = row_at(7u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_ANSWER, newer.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_ANSWER, newer.type);
     TEST_ASSERT_TRUE(newer.shown);
     TEST_ASSERT_FALSE(older.shown);
     CLI_TEST_ASSERT_TEXT("00:00:02  404  0.0 ms  7 B", newer.text, newer.text_length);
     CLI_TEST_ASSERT_TEXT("00:00:01  200  0.0 ms  7 B", older.text, older.text_length);
     const CliRequestsRow compare = row_at(8u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_COMPARE, compare.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_COMPARE, compare.type);
     TEST_ASSERT_TRUE(compare.inert);
 }
 
@@ -173,7 +173,7 @@ void test_a_group_opened_lays_its_headers_and_closes(void)
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 2u);
     TEST_ASSERT_EQUAL_UINT(10u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
     const CliRequestsRow header = row_at(3u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_HEADER, header.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_HEADER, header.type);
     CLI_TEST_ASSERT_TEXT("Content-Type: text/plain", header.text, header.text_length);
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 2u);
     TEST_ASSERT_EQUAL_UINT(9u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));

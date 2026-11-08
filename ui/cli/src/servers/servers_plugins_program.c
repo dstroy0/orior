@@ -99,8 +99,8 @@ void cli_servers_plugin_args(const CliServersJsonServerCtx *args)
 {
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = args->server_u32, .name = "args");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = arguments, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = arguments, .type = CFG_JSON_ARRAY)
                                  ? args->json->node[arguments].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = args->json->node[item].next)

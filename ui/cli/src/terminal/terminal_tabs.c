@@ -177,7 +177,7 @@ EMBED_INLINE int terminal_start_folder(const TerminalCtx *args)
 // the tab's view scrolled to the line `first` at its top
 EMBED_INLINE void terminal_scroll(const TerminalCtx *args)
 {
-    const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = args->first};
+    const CliViewInput scrolled = {.type = CLI_VIEW_SCROLL, .top = args->first};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = args->tab->key, .input = &scrolled,
@@ -293,7 +293,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     }
     (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = tab->key, .grammar = grammar,
                      .named = 0);
-    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = rows, .columns = tab->xterm.columns};
+    const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = rows, .columns = tab->xterm.columns};
     err_msg.at = 0ULL;
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &sized,
                      .err_msg = &err_msg);
@@ -375,7 +375,7 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
     (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = copied,
                      .text = text + ((start < size) ? start : size));
     g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
-    const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = cursor.line, .column = cursor.col};
+    const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = cursor.line, .column = cursor.col};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &placed,
@@ -433,7 +433,7 @@ EMBED_INLINE void terminal_fit(const TerminalCtx *args)
                         .columns = columns, .rows = rows))
     {
         EMBED_CALL(cli_terminal_shell.resize, CliTerminalShellCfg, .shell = &tab->shell, .xterm = &tab->xterm);
-        const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
+        const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = rows, .columns = columns};
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &sized,
@@ -922,7 +922,7 @@ EMBED_INLINE void terminal_point(const TerminalCtx *args)
         (units != NULL) ? EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg, .units = units,
                                      .count = count, .column = (unsigned int)args->column)
                         : args->column;
-    const CliViewInput pointed = {.kind = CLI_VIEW_POINTER,
+    const CliViewInput pointed = {.type = CLI_VIEW_POINTER,
                                   .pointer = args->pointer,
                                   .row = args->row,
                                   .column = column,
@@ -1000,7 +1000,7 @@ void cli_terminal_tabs_wheel(unsigned int view, int rows)
     TerminalTab *const tab = s_terminal.tab[at];
     // the view's top moved by the wheel's rows, down where positive, between the text's first line and the first line
     // of the screen drawn on
-    const CliViewInput wheeled = {.kind = CLI_VIEW_WHEEL, .wheel_rows = rows, .top = tab->xterm.base};
+    const CliViewInput wheeled = {.type = CLI_VIEW_WHEEL, .wheel_rows = rows, .top = tab->xterm.base};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &wheeled,

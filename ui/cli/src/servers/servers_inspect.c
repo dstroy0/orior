@@ -75,7 +75,7 @@ EMBED_INLINE int inspect_has_tree(const ServersInspectCtx *args)
            (cellul.eq(&(CatenaFinitaCfg){.src = s_tree_root, .other = args->root, .cap = CLI_POOL_BYTES}));
 }
 
-int cli_servers_tree_read(const CliServersRootKindCtx *args)
+int cli_servers_tree_read(const CliServersRootTypeCtx *args)
 {
     const int read = (s_tree_root[0] != '\0') && (s_tree_generation == inspect_generation());
     memor.cpy(&(MemoriaCfg){.dst = args->root_out, .src = s_tree_root, .bytes = CLI_PATH_MAX_LEN});
@@ -451,7 +451,7 @@ void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args)
     static CliServersSink s_sink;
     const int has_sink = g_cli_servers.has_sink;
     s_sink = g_cli_servers.sink;
-    if (has_sink && EMBED_CALL(cli_servers_root_kind_internal.tree_read, CliServersRootKindCtx, .root_out = root))
+    if (has_sink && EMBED_CALL(cli_servers_root_type_internal.tree_read, CliServersRootTypeCtx, .root_out = root))
     {
         EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = args->path, .text = args->text, .size = args->size, .sink = &s_sink);

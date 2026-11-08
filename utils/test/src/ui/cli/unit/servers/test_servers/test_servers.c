@@ -137,7 +137,7 @@ static unsigned int event_items(unsigned int at, const char *member)
     const char *const json = cellul.chr(&(CatenaFinitaCfg){.src = s_events[at], .cap = CLI_POOL_BYTES, .byte = ' '});
     const unsigned int read = text_parsed((json != NULL) ? json + 1 : "null");
     const unsigned int array = (member != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = read, .name = member) : read;
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = array, .kind = CFG_JSON_ARRAY) ? s_json->node[array].count : 0u;
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = array, .type = CFG_JSON_ARRAY) ? s_json->node[array].count : 0u;
 }
 
 // a file's diagnostics published, `items` of them
@@ -420,7 +420,7 @@ void test_a_completion_is_named_by_what_it_inserts(void)
     const CliCompletion *const item = &s_items.item[0];
     TEST_ASSERT_EQUAL_UINT(1u, s_items.count);
     TEST_ASSERT_TRUE(cli_unity_completes(&s_items, "printf"));
-    TEST_ASSERT_EQUAL_STRING("function", item->kind);
+    TEST_ASSERT_EQUAL_STRING("function", item->type);
     CLI_TEST_ASSERT_TEXT("int printf(const char *, ...)", s_items.text + item->detail_at, item->detail_size);
 }
 
@@ -433,7 +433,7 @@ void test_the_settings_on_by_default_stay_on(void)
 {
     const unsigned int python = text_parsed(server_requested("workspace/configuration", "{\"items\":[{\"section\":\"python\"},{\"section\":\"python.analysis\"}]}"));
     const unsigned int analysis = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = python, .index = 0u), .name = "analysis");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = analysis, .name = "useLibraryCodeForTypes"), .kind = CFG_JSON_TRUE));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = analysis, .name = "useLibraryCodeForTypes"), .type = CFG_JSON_TRUE));
 }
 
 void test_pythons_analysis_is_alike_either_way(void)

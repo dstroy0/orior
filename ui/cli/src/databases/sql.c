@@ -16,7 +16,7 @@ unsigned int cli_sql_dialect(const CliSqlCfg *args)
                : CLI_SQL_POSTGRES;
 }
 
-// no token read yet, a kind no token takes
+// no token read yet, a type no token takes
 #define CLI_SQL_UNREAD 0xffffffffu
 
 // A statement as its tokens are read: where its first and last tokens start and end, whether one is read; how many of
@@ -141,7 +141,7 @@ EMBED_INLINE void cli_block_comment(const SqlCtx *args)
     }
 }
 
-// a run of spaces or a comment that starts at `*at`, `*at` moved past it: its kind, CLI_SQL_UNREAD where none starts
+// a run of spaces or a comment that starts at `*at`, `*at` moved past it: its type, CLI_SQL_UNREAD where none starts
 // there
 EMBED_INLINE unsigned int cli_sql_quiet(const SqlCtx *args)
 {
@@ -195,7 +195,7 @@ EMBED_INLINE int cli_dollar_quoted(const SqlCtx *args)
     return 1;
 }
 
-// a quoted run that starts at `*at` as the dialect quotes, a string or a name, `*at` moved past it: its kind,
+// a quoted run that starts at `*at` as the dialect quotes, a string or a name, `*at` moved past it: its type,
 // CLI_SQL_UNREAD where none starts there
 EMBED_INLINE unsigned int cli_sql_quoted(const SqlCtx *args)
 {
@@ -239,7 +239,7 @@ EMBED_INLINE unsigned int cli_sql_quoted(const SqlCtx *args)
     return CLI_SQL_UNREAD;
 }
 
-// a word, a number or one mark that starts at `*at` with `byte`, `*at` moved past it: its kind
+// a word, a number or one mark that starts at `*at` with `byte`, `*at` moved past it: its type
 EMBED_INLINE unsigned int cli_sql_bare(const SqlCtx *args)
 {
     unsigned long long *at = args->at;
@@ -271,18 +271,18 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     }
     const unsigned long long start = *at;
     const unsigned char byte = bytes[start];
-    unsigned int kind =
+    unsigned int type =
         EMBED_CALL(cli_sql_quiet, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .dialect = args->dialect);
-    if (kind == CLI_SQL_UNREAD)
+    if (type == CLI_SQL_UNREAD)
     {
-        kind = EMBED_CALL(cli_sql_quoted, SqlCtx, .bytes = bytes, .length = args->length, .at = at,
+        type = EMBED_CALL(cli_sql_quoted, SqlCtx, .bytes = bytes, .length = args->length, .at = at,
                           .dialect = args->dialect);
     }
-    if (kind == CLI_SQL_UNREAD)
+    if (type == CLI_SQL_UNREAD)
     {
-        kind = EMBED_CALL(cli_sql_bare, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .byte = byte);
+        type = EMBED_CALL(cli_sql_bare, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .byte = byte);
     }
-    args->token->kind = kind;
+    args->token->type = type;
     args->token->start = start;
     args->token->end = *at;
     return 1;
@@ -373,17 +373,17 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
     {
         const char *const word_text = text + token.start;
         const unsigned long long size = token.end - token.start;
-        if ((token.kind == CLI_SQL_SPACE) || (token.kind == CLI_SQL_COMMENT))
+        if ((token.type == CLI_SQL_SPACE) || (token.type == CLI_SQL_COMMENT))
         {
             continue;
         }
-        const int semicolon = (token.kind == CLI_SQL_MARK) && (size == 1u) && (word_text[0] == ';');
+        const int semicolon = (token.type == CLI_SQL_MARK) && (size == 1u) && (word_text[0] == ';');
         if (semicolon)
         {
             statement.depth -= statement.ending ? 1LL : 0LL;
             statement.ending = 0;
         }
-        else if (token.kind == CLI_SQL_WORD)
+        else if (token.type == CLI_SQL_WORD)
         {
             EMBED_CALL(cli_sql_word_read, SqlCtx, .statement = &statement, .text = word_text, .length = size);
         }

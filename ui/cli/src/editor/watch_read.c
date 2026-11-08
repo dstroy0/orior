@@ -39,8 +39,8 @@ EMBED_INLINE void cli_git_stamp(const WatchReadCtx *args)
                                              : 0ULL;
         if ((stamp != s_git_stamps[at]) && (args->emit != NULL))
         {
-            EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = s_git_paths[at],
-                       .kind = CLI_CHANGE_MODIFIED);
+            EMBED_CALL(args->emit, CliEachPathTypeCfg, .context = args->context, .path = s_git_paths[at],
+                       .type = CLI_CHANGE_MODIFIED);
         }
         s_git_stamps[at] = stamp;
     }

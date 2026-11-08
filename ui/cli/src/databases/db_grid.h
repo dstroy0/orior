@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_grid.h: the Database tool's right column as the window reads it, a statement's result as numbers. A run's answer
-// is adopted into two cells: the head, every column's label and kind, the result's sentence and its message lines;
+// is adopted into two cells: the head, every column's label and type, the result's sentence and its message lines;
 // and the stretch of rows stored, one start a cell into one text of every cell's bytes, a null flag a cell. Each
 // column's width in letters is the longest of its label and its first rows' cells, cut to a most, and its start the
 // sum of the widths before it, both laid once at the adopt. The window's draw reaches the first and last row it shows
@@ -15,7 +15,7 @@
 typedef struct CliDbGridCfg CliDbGridCfg;
 typedef struct CliDbGridStepCfg CliDbGridStepCfg;
 
-// the rows' kinds: a row of cells, a row not stored yet, the row past the rows read while the server has more, a line
+// the rows' types: a row of cells, a row not stored yet, the row past the rows read while the server has more, a line
 // of a failure, and a notice or what a statement with no rows did
 #define CLI_DB_GRID_ROW_CELLS 0u
 #define CLI_DB_GRID_ROW_WAIT 1u
@@ -34,23 +34,23 @@ typedef struct CliDbGridStepCfg CliDbGridStepCfg;
 #define CLI_DB_GRID_REST_MS 400ULL
 #define CLI_DB_GRID_SHARE 40ULL
 
-// A column: its label and its kind with their bytes, whether its values are numbers, its width in letters and its
+// A column: its label and its type with their bytes, whether its values are numbers, its width in letters and its
 // start in letters from the column the grid is panned to, below 0 for one panned off to the left
 typedef struct
 {
     const char *label;
     unsigned long long label_length;
-    const char *kind;
-    unsigned long long kind_length;
+    const char *type;
+    unsigned long long type_length;
     int numeric;
     unsigned int width;
     long long start;
 } CliDbGridColumn;
 
-// A row: its kind and its text with its bytes, a failure's or a notice's line, or the word a waiting row stands as
+// A row: its type and its text with its bytes, a failure's or a notice's line, or the word a waiting row stands as
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *text;
     unsigned long long length;
 } CliDbGridRow;

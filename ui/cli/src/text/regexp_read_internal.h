@@ -7,12 +7,12 @@
 #include "embed_dispatch_layout.h"
 #include "regexp.h"
 
-typedef struct CliRegexpReadKindCtx CliRegexpReadKindCtx;
+typedef struct CliRegexpReadTypeCtx CliRegexpReadTypeCtx;
 typedef struct CliRegexpReadCtx CliRegexpReadCtx;
 typedef struct CliRegexpReadErrorCtx CliRegexpReadErrorCtx;
 typedef struct CliRegexpReadLetterCtx CliRegexpReadLetterCtx;
 typedef struct CliRegexpReadValueCtx CliRegexpReadValueCtx;
-typedef struct CliRegexpReadLetterKindCtx CliRegexpReadLetterKindCtx;
+typedef struct CliRegexpReadLetterTypeCtx CliRegexpReadLetterTypeCtx;
 
 // the most alternatives, parts of a sequence and items of a class read at one level
 #define CLI_REGEXP_LEVEL_MAX 256u
@@ -37,22 +37,22 @@ typedef struct
 // a failure reported, `/<source>/: <why> at <place>`: CLI_REGEXP_FAILED
 unsigned int cli_fail(const CliRegexpReadErrorCtx *args);
 // the letter where reading stands, the letter taken, and the letter taken where it is the one wanted
-int cli_peek(const CliRegexpReadLetterKindCtx *args);
+int cli_peek(const CliRegexpReadLetterTypeCtx *args);
 int cli_next(const CliRegexpReadLetterCtx *args);
 int cli_eat(const CliRegexpReadCtx *args);
-// a node of `kind` made; `count` children put in the parts as one node of `kind`; each its index or CLI_REGEXP_FAILED
-unsigned int cli_node(const CliRegexpReadKindCtx *args);
-unsigned int cli_parent(const CliRegexpReadKindCtx *args);
+// a node of `type` made; `count` children put in the parts as one node of `type`; each its index or CLI_REGEXP_FAILED
+unsigned int cli_node(const CliRegexpReadTypeCtx *args);
+unsigned int cli_parent(const CliRegexpReadTypeCtx *args);
 // the decimal digits where reading stands into `value`: 1, or 0 where none stands there
 int cli_number(const CliRegexpReadValueCtx *args);
 // alternation and an atom (regexp_read.c, regexp_atoms.c)
 unsigned int cli_alternation(const CliRegexpReadCtx *args);
 unsigned int cli_atom(const CliRegexpReadCtx *args);
 
-struct CliRegexpReadKindCtx
+struct CliRegexpReadTypeCtx
 {
     CliRegexpReader *reader;
-    unsigned int kind;
+    unsigned int type;
     const unsigned int *children;
     unsigned int count;
 };
@@ -81,7 +81,7 @@ struct CliRegexpReadValueCtx
     unsigned int *value;
 };
 
-struct CliRegexpReadLetterKindCtx
+struct CliRegexpReadLetterTypeCtx
 {
     const CliRegexpReader *reader_read;
     unsigned int *letter;
@@ -98,10 +98,10 @@ EMBED_TABLE_STORAGE CliRegexpReadErrorNs cli_regexp_read_error_internal EMBED_UN
 
 typedef struct
 {
-    int (*peek)(const CliRegexpReadLetterKindCtx *args);
-} CliRegexpReadLetterKindNs;
-EMBED_TABLE_LAYOUT(CliRegexpReadLetterKindNs, peek);
-EMBED_TABLE_STORAGE CliRegexpReadLetterKindNs cli_regexp_read_letter_kind_internal EMBED_UNUSED = {
+    int (*peek)(const CliRegexpReadLetterTypeCtx *args);
+} CliRegexpReadLetterTypeNs;
+EMBED_TABLE_LAYOUT(CliRegexpReadLetterTypeNs, peek);
+EMBED_TABLE_STORAGE CliRegexpReadLetterTypeNs cli_regexp_read_letter_type_internal EMBED_UNUSED = {
     .peek = cli_peek,
 };
 
@@ -129,11 +129,11 @@ EMBED_TABLE_STORAGE CliRegexpReadNs cli_regexp_read_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*node)(const CliRegexpReadKindCtx *args);
-    unsigned int (*parent)(const CliRegexpReadKindCtx *args);
-} CliRegexpReadKindNs;
-EMBED_TABLE_LAYOUT(CliRegexpReadKindNs, node, parent);
-EMBED_TABLE_STORAGE CliRegexpReadKindNs cli_regexp_read_kind_internal EMBED_UNUSED = {
+    unsigned int (*node)(const CliRegexpReadTypeCtx *args);
+    unsigned int (*parent)(const CliRegexpReadTypeCtx *args);
+} CliRegexpReadTypeNs;
+EMBED_TABLE_LAYOUT(CliRegexpReadTypeNs, node, parent);
+EMBED_TABLE_STORAGE CliRegexpReadTypeNs cli_regexp_read_type_internal EMBED_UNUSED = {
     .node = cli_node,
     .parent = cli_parent,
 };

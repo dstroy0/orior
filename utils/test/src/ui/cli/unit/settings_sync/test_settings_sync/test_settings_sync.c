@@ -28,7 +28,7 @@ static void file_written(const char *name, const char *text)
     char path[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = name, .joined = path);
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
     {
         TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
     }
@@ -113,7 +113,7 @@ static unsigned int applications_recorded(void)
     EMBED_CALL(cli_settings_sync_home_to.allocations, CliSettingsSyncHomeToCfg, .home = s_two, .out = &out);
     unsigned int allocations = CLI_JSON_NONE;
     s_json = cli_unity_parsed(s_out, out.at, &allocations);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = allocations, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = allocations, .type = CFG_JSON_ARRAY));
     return s_json->node[allocations].count;
 }
 
@@ -205,7 +205,7 @@ void test_the_settings_that_differ_are_named_and_this_machines_own_are_not(void)
         const unsigned int place = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at);
         settings = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(place, "place"), .other = "settings.json", .cap = CLI_POOL_BYTES}) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = place, .name = "settings") : settings;
     }
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = settings, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = settings, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_EQUAL_UINT(3u, s_json->node[settings].count);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -229,7 +229,7 @@ void test_a_chosen_setting_is_applied(void)
 {
     settings_applied();
     const unsigned int zoom = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = s_settings, .name = "zoom");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = zoom, .kind = CFG_JSON_NUMBER));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = zoom, .type = CFG_JSON_NUMBER));
     CLI_TEST_ASSERT_TEXT("1.25", s_json->text + s_json->node[zoom].text, s_json->node[zoom].length);
 }
 
@@ -249,7 +249,7 @@ void test_this_machines_own_setting_stays(void)
 {
     settings_applied();
     const unsigned int budget = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = s_settings, .name = "memory-budget");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = budget, .kind = CFG_JSON_NUMBER));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = budget, .type = CFG_JSON_NUMBER));
     CLI_TEST_ASSERT_TEXT("400", s_json->text + s_json->node[budget].text, s_json->node[budget].length);
 }
 
@@ -257,7 +257,7 @@ void test_the_part_for_this_machine_alone_stays(void)
 {
     settings_applied();
     const unsigned int zoom = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = s_settings, .name = "machine"), .name = "zoom");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = zoom, .kind = CFG_JSON_NUMBER));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = zoom, .type = CFG_JSON_NUMBER));
     TEST_ASSERT_EQUAL_CHAR('2', s_json->text[s_json->node[zoom].text]);
 }
 

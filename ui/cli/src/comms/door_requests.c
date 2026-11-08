@@ -76,18 +76,18 @@ void cli_ipc_requests_serve(const CliIpcServeCfg *args)
             }
             continue;
         }
-        const char kind = (size != 0ULL) ? frame[0] : '\0';
+        const char type = (size != 0ULL) ? frame[0] : '\0';
         const unsigned long long channel_end = cli_ipc_field_end(frame, size, 1ULL);
         char answer[32];
         VerbaLinea out = {answer, sizeof(answer), 0ULL};
-        mmgr_line_ch(&out, CLI_IPC_KIND_ANSWER);
+        mmgr_line_ch(&out, CLI_IPC_TYPE_ANSWER);
         int done = 0;
-        if ((kind == CLI_IPC_KIND_LISTEN) && (channel_end != 0ULL))
+        if ((type == CLI_IPC_TYPE_LISTEN) && (channel_end != 0ULL))
         {
             done = EMBED_CALL(cli_ipc_serve_channel.ipc_listen_request, CliIpcServeChannelCfg, .joined = args->joined,
                               .channel = frame + 1, .err_msg = &err_msg);
         }
-        else if ((kind == CLI_IPC_KIND_SEND) && (channel_end != 0ULL))
+        else if ((type == CLI_IPC_TYPE_SEND) && (channel_end != 0ULL))
         {
             unsigned long long delivered = 0ULL;
             unsigned long long moved = 0ULL;

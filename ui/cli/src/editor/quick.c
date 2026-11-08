@@ -3,7 +3,7 @@
 // quick.c: the quick open's whole logic. The typed text stands in a cell sized to it; each change of it asks the rows
 // anew: they are written into a cell for that ask alone, at most CLI_QUICK_MOST of them, then into one cell sized to
 // them, each row a set of offsets into the cell's text and its marks. The menus' commands are read once into a cell
-// sized to them; the best rows of a kind are found in one pass into a bounded list in score order, a row's place in it
+// sized to them; the best rows of a type are found in one pass into a bounded list in score order, a row's place in it
 // found by a binary search
 #include "quick.h"
 
@@ -56,12 +56,12 @@ static const char *const s_prefixes[QUICK_OPENERS] = {"", ">", ":", "@", "#", ""
 // the keys that edit the typed text: Backspace, Delete, Left, Right, Home, End and the paste
 #define QUICK_KEYS 7u
 
-// A row as it stands in its cell: its kind; its label, detail and keys, each an offset into the cell's text with its
+// A row as it stands in its cell: its type; its label, detail and keys, each an offset into the cell's text with its
 // bytes; its marks, the first an offset into the cell's marks, the label's pairs then the detail's; what it opens, a
 // path or a command word, an offset with its bytes; and the place in the path where `placed`
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int label;
     unsigned int label_length;
     unsigned int detail;
@@ -156,7 +156,7 @@ typedef struct
     unsigned int hit_count;
     unsigned int from;
     unsigned int at;
-    unsigned int kind;
+    unsigned int type;
     unsigned int most;
     unsigned int count;
     int grouped;
@@ -168,7 +168,7 @@ typedef struct
     unsigned long long first;
     unsigned long long last;
     const char *query;
-    const char *kind_text;
+    const char *type_text;
     const char *path;
     char *label_out;
     unsigned long long *path_length;
@@ -218,7 +218,7 @@ EMBED_INLINE unsigned int quick_put(const QuickCtx *args)
     return count;
 }
 
-// a row of `kind` begun after the build's rows, its texts empty at the text's end and its marks after the build's:
+// a row of `type` begun after the build's rows, its texts empty at the text's end and its marks after the build's:
 // the row, or NULL where the rows are CLI_QUICK_MOST
 EMBED_INLINE QuickRow *quick_row_begun(const QuickCtx *args)
 {
@@ -231,7 +231,7 @@ EMBED_INLINE QuickRow *quick_row_begun(const QuickCtx *args)
     build->rows += 1u;
     // the build's text is CLI_QUICK_MOST rows of QUICK_ROW_BYTES at the most, far inside an unsigned int
     const unsigned int end = (unsigned int)build->text.at;
-    *row = (QuickRow){args->kind, end, 0u, end, 0u, end, 0u, build->marks, 0u, 0u, end, 0u, 0u, 0u, 0};
+    *row = (QuickRow){args->type, end, 0u, end, 0u, end, 0u, build->marks, 0u, 0u, end, 0u, 0u, 0u, 0};
     return row;
 }
 
@@ -284,11 +284,11 @@ EMBED_INLINE unsigned int quick_marked(const QuickCtx *args)
     return pairs;
 }
 
-// a row that goes nowhere, of `kind`, reading `text`
+// a row that goes nowhere, of `type`, reading `text`
 EMBED_INLINE void quick_said(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
-    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = args->kind);
+    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = args->type);
     if (row == NULL)
     {
         return;
@@ -303,7 +303,7 @@ EMBED_INLINE void quick_said(const QuickCtx *args)
 EMBED_INLINE void quick_file_row(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
-    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_FILE);
+    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_FILE);
     if (row == NULL)
     {
         return;
@@ -415,7 +415,7 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
     if (ranked.reading)
     {
         build->reading = 1;
-        EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_READING, .text = QUICK_READING);
+        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
     }
     g_cli_guard->persistent_buf_release(ranked.cell, g_cli_quick_owner);
 }
@@ -548,7 +548,7 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const QuickCommand *const command = &s_quick.command[s_top[at].at];
-        QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_COMMAND);
+        QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_COMMAND);
         if (row == NULL)
         {
             return;
@@ -592,7 +592,7 @@ EMBED_INLINE void quick_line(const QuickCtx *args)
     if ((s_quick.key[0] == '\0') || (s_quick.path[0] == '\0') ||
         !EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = s_quick.key, .shape = &shape))
     {
-        EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_TEXT, .text = QUICK_LINE_NONE);
+        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_TEXT, .text = QUICK_LINE_NONE);
         return;
     }
     // the line, then the column after a colon, each of its digits
@@ -612,7 +612,7 @@ EMBED_INLINE void quick_line(const QuickCtx *args)
     const unsigned long long lines = (shape.lines != 0ULL) ? shape.lines : 1ULL;
     if (!whole || (numbers[0] == 0ULL))
     {
-        QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_TEXT);
+        QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_TEXT);
         if (row != NULL)
         {
             mmgr_line_put(&build->text, QUICK_LINE_ASKED);
@@ -622,7 +622,7 @@ EMBED_INLINE void quick_line(const QuickCtx *args)
         }
         return;
     }
-    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_LINE);
+    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_LINE);
     if (row == NULL)
     {
         return;
@@ -650,7 +650,7 @@ EMBED_INLINE void quick_line(const QuickCtx *args)
 EMBED_INLINE void quick_symbol_row(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
-    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_SYMBOL);
+    QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_SYMBOL);
     if (row == NULL)
     {
         return;
@@ -671,7 +671,7 @@ EMBED_INLINE void quick_symbol_row(const QuickCtx *args)
     row->label_marks = EMBED_CALL(quick_marked, QuickCtx, .build = build, .at = row->label, .length = row->label_length,
                                   .hits = s_hit, .hit_count = hits, .from = 0u, .most = CLI_QUICK_MARKS);
     row->detail = (unsigned int)build->text.at;
-    mmgr_line_put(&build->text, args->kind_text);
+    mmgr_line_put(&build->text, args->type_text);
     const char *const path = args->path;
     if (args->in_tree)
     {
@@ -701,7 +701,7 @@ EMBED_INLINE void quick_outline(const QuickCtx *args)
     {
         if (!args->grouped)
         {
-            EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_TEXT, .text = QUICK_SYMBOLS_NONE);
+            EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_TEXT, .text = QUICK_SYMBOLS_NONE);
         }
         return;
     }
@@ -743,7 +743,7 @@ EMBED_INLINE void quick_outline(const QuickCtx *args)
         {
             // an outline's line is below CLI_OUTLINE_LINES_MOST, inside an unsigned int
             EMBED_CALL(quick_symbol_row, QuickCtx, .build = build, .text = row.name, .length = row.length,
-                       .query = query, .kind_text = row.kind, .path = s_quick.path, .at = (unsigned int)row.line);
+                       .query = query, .type_text = row.type, .path = s_quick.path, .at = (unsigned int)row.line);
         }
     }
 }
@@ -757,7 +757,7 @@ EMBED_INLINE void quick_tree(const QuickCtx *args)
     {
         if (!args->grouped)
         {
-            EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_TEXT, .text = QUICK_TREE_NONE);
+            EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_TEXT, .text = QUICK_TREE_NONE);
         }
         return;
     }
@@ -772,18 +772,18 @@ EMBED_INLINE void quick_tree(const QuickCtx *args)
         const CliFoundDeclaration *const one = &found->found[at];
         EMBED_CALL(quick_symbol_row, QuickCtx, .build = build, .text = one->name,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_PATH_MAX_LEN}), .query = query,
-                   .kind_text = one->kind, .path = one->path, .at = one->line, .in_tree = 1);
+                   .type_text = one->type, .path = one->path, .at = one->line, .in_tree = 1);
     }
     if ((found != NULL) && found->reading)
     {
         build->reading = 1;
-        EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_READING, .text = QUICK_READING);
+        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
     }
     g_cli_guard->persistent_buf_release(found, g_cli_quick_owner);
 }
 
 // Search Everywhere's rows for `length` bytes of `text`: the files, then with something typed what the tree declares
-// and with nothing what the shown view declares, then the commands, CLI_QUICK_EACH of each under its heading, a kind
+// and with nothing what the shown view declares, then the commands, CLI_QUICK_EACH of each under its heading, a type
 // with no rows standing with no heading
 EMBED_INLINE void quick_everywhere(const QuickCtx *args)
 {
@@ -794,7 +794,7 @@ EMBED_INLINE void quick_everywhere(const QuickCtx *args)
         const unsigned int rows = build->rows;
         const unsigned int marks = build->marks;
         const unsigned long long text = build->text.at;
-        EMBED_CALL(quick_said, QuickCtx, .build = build, .kind = CLI_QUICK_ROW_HEADING, .text = s_headings[group]);
+        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_HEADING, .text = s_headings[group]);
         if (group == 0u)
         {
             EMBED_CALL(quick_files, QuickCtx, .build = build, .text = args->text, .length = args->length,
@@ -854,7 +854,7 @@ EMBED_INLINE int quick_same(const QuickCtx *args)
     const QuickBuild *const build = args->build;
     const QuickRow *const was = &s_quick.row[args->at];
     const QuickRow *const now = &build->row[args->count];
-    return (was->kind == now->kind) && (was->label_length == now->label_length) &&
+    return (was->type == now->type) && (was->label_length == now->label_length) &&
            (was->detail_length == now->detail_length) &&
            (memor.cmp(&(MemoriaCfg){.src = s_quick.row_text + was->label,
                                     .other = build->text.out + now->label,
@@ -934,7 +934,7 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     }
     if (build.rows == 0u)
     {
-        EMBED_CALL(quick_said, QuickCtx, .build = &build, .kind = CLI_QUICK_ROW_TEXT,
+        EMBED_CALL(quick_said, QuickCtx, .build = &build, .type = CLI_QUICK_ROW_TEXT,
                    .text = (mode == CLI_QUICK_COMMANDS) ? QUICK_NO_COMMANDS : QUICK_NO_RESULTS);
     }
     // the chosen row found again among the new, else the first that is no heading
@@ -946,7 +946,7 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     }
     for (unsigned int at = 0u; (chosen == build.rows) && (at < build.rows); at += 1u)
     {
-        chosen = (build.row[at].kind != CLI_QUICK_ROW_HEADING) ? at : chosen;
+        chosen = (build.row[at].type != CLI_QUICK_ROW_HEADING) ? at : chosen;
     }
     const unsigned long long rows_bytes = (unsigned long long)build.rows * sizeof(QuickRow);
     const unsigned long long marks_bytes = (unsigned long long)build.marks * sizeof(unsigned int);
@@ -1073,7 +1073,7 @@ EMBED_INLINE void quick_view_taken(const QuickCtx *args)
         s_quick.key[0] = '\0';
         return;
     }
-    if (!EMBED_CALL(cli_view_path_kind.path, CliViewPathKindCfg, .key = s_quick.key, .path_out = s_quick.path))
+    if (!EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = s_quick.key, .path_out = s_quick.path))
     {
         s_quick.path[0] = '\0';
     }
@@ -1209,11 +1209,11 @@ void cli_quick_step(const CliQuickCfg *args)
         int next = (int)s_quick.chosen + args->by;
         next = (next < 0) ? 0 : ((next >= count) ? (count - 1) : next);
         // the next is among the rows, as clamped
-        while ((s_quick.row[next].kind == CLI_QUICK_ROW_HEADING) && ((next + way) >= 0) && ((next + way) < count))
+        while ((s_quick.row[next].type == CLI_QUICK_ROW_HEADING) && ((next + way) >= 0) && ((next + way) < count))
         {
             next += way;
         }
-        s_quick.chosen = (s_quick.row[next].kind != CLI_QUICK_ROW_HEADING) ? (unsigned int)next : s_quick.chosen;
+        s_quick.chosen = (s_quick.row[next].type != CLI_QUICK_ROW_HEADING) ? (unsigned int)next : s_quick.chosen;
         EMBED_CALL(quick_followed, QuickCtx, .now_ms = 0ULL);
     }
     if (args->scroll_by != 0)
@@ -1235,7 +1235,7 @@ int cli_quick_row(const CliQuickCfg *args)
     const QuickRow *const row = &s_quick.row[args->at];
     const unsigned int *const marks = s_quick.mark + row->marks;
     *args->row_out = (CliQuickRow){
-        row->kind,          s_quick.row_text + row->label,   row->label_length, s_quick.row_text + row->detail,
+        row->type,          s_quick.row_text + row->label,   row->label_length, s_quick.row_text + row->detail,
         row->detail_length, s_quick.row_text + row->keys,    row->keys_length,  marks,
         row->label_marks,   marks + (2u * row->label_marks), row->detail_marks};
     return 1;
@@ -1276,10 +1276,10 @@ int cli_quick_choose(const CliQuickCfg *args)
         return 0;
     }
     const QuickRow *const row = &s_quick.row[at];
-    const int path = ((row->kind == CLI_QUICK_ROW_FILE) || (row->kind == CLI_QUICK_ROW_LINE) ||
-                      (row->kind == CLI_QUICK_ROW_SYMBOL)) &&
+    const int path = ((row->type == CLI_QUICK_ROW_FILE) || (row->type == CLI_QUICK_ROW_LINE) ||
+                      (row->type == CLI_QUICK_ROW_SYMBOL)) &&
                      (row->target_length != 0u) && (row->target_length < sizeof(s_quick.chosen_path));
-    const int command = (row->kind == CLI_QUICK_ROW_COMMAND) && (row->target_length < sizeof(s_quick.chosen_command)) &&
+    const int command = (row->type == CLI_QUICK_ROW_COMMAND) && (row->target_length < sizeof(s_quick.chosen_command)) &&
                         (row->keys_length < sizeof(s_quick.chosen_keys));
     if (!path && !command)
     {

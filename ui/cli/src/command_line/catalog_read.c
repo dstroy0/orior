@@ -120,11 +120,11 @@ void cli_catalog_bash_alone(const CliCatalogPathCtx *args)
     }
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog, .program = CLI_PROGRAM_BASH,
                .text = file, .tool_program = NULL, .system = 0);
-    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+    EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     if (build)
     {
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SET_WHEN,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_SET_WHEN,
                    .a = CLI_TRACE, .b = CLI_TRACE_VERBOSE, .c = "SHELLOPTS", .d = "xtrace", .separated = 0);
     }
 }
@@ -359,9 +359,9 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                    .program = CLI_PROGRAM_BASH, .text = "src/sims/run.sh", .tool_program = NULL, .system = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_LIT, .a = sim,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_LIT, .a = sim,
                    .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS,
                    .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 1);
     }
     g_cli_guard->persistent_buf_release(sources.name, g_cli_catalog_owner);

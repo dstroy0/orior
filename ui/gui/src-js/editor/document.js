@@ -97,7 +97,7 @@ export function wordBefore(doc, p) {
 // The most lines one splice puts in as its arguments.
 const SPREAD = 1024;
 
-// Edits of one kind that follow each other inside this many milliseconds undo as one step.
+// Edits of one type that follow each other inside this many milliseconds undo as one step.
 const JOINED = 1200;
 
 export class Doc {
@@ -255,9 +255,9 @@ export class Doc {
   }
 
   // Writes a change the undo history keeps. `before` is what the caller restores on undo, its
-  // selections, and `kind` joins this change to the last one where both are typing of one kind and
+  // selections, and `type` joins this change to the last one where both are typing of one type and
   // no state has been made from the last one's.
-  change(edits, kind, before) {
+  change(edits, type, before) {
     const { edits: written, undo } = this.write(edits);
     if (!written.length) {
       return { edits: written, undo };
@@ -267,7 +267,7 @@ export class Doc {
     this.id = this.ids;
     const last = this.steps.get(from);
     const now = performance.now();
-    if (kind && last?.done && !last.sealed && last.kind === kind && now - last.at < JOINED && !this.forks.has(from)) {
+    if (type && last?.done && !last.sealed && last.kind === type && now - last.at < JOINED && !this.forks.has(from)) {
       last.edits.push(undo);
       this.steps.delete(from);
       last.to = this.id;
@@ -275,7 +275,7 @@ export class Doc {
       this.steps.set(this.id, last);
       this.next.set(last.from, this.id);
     } else {
-      this.steps.set(this.id, { kind, edits: [undo], done: true, before, after: before, from, to: this.id, at: now, made: Date.now(), sealed: false });
+      this.steps.set(this.id, { kind: type, edits: [undo], done: true, before, after: before, from, to: this.id, at: now, made: Date.now(), sealed: false });
       this.next.set(from, this.id);
       this.forks.add(from);
     }

@@ -91,12 +91,12 @@ int cli_home_plugins(const CliFolderCtx *args)
     return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "plugins", .path = args->folder_out);
 }
 
-int cli_home_user_css(const CliPathErrMsgKindCtx *args)
+int cli_home_user_css(const CliPathErrMsgTypeCtx *args)
 {
     return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "user.css", .path = args->path_out);
 }
 
-int cli_home_menus(const CliPathErrMsgKindCtx *args)
+int cli_home_menus(const CliPathErrMsgTypeCtx *args)
 {
     return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "menus.json", .path = args->path_out);
 }
@@ -143,9 +143,9 @@ EMBED_INLINE int cli_home_ensure(const HomeCtx *args)
     return 1;
 }
 
-int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args)
+int cli_home_ensure_menus(const CliPathErrMsgTypeCtx *args)
 {
-    if (!cli_path_err_msg_kind_internal.home_menus(args))
+    if (!cli_path_err_msg_type_internal.home_menus(args))
     {
         mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store menus in");
         return 0;
@@ -154,15 +154,15 @@ int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args)
                       .err_msg = args->err_msg);
 }
 
-int cli_settings_ensure(const CliPathErrMsgKindCtx *args)
+int cli_settings_ensure(const CliPathErrMsgTypeCtx *args)
 {
     return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = "{\n}\n",
                       .err_msg = args->err_msg);
 }
 
-int cli_home_ensure_user_css(const CliPathErrMsgKindCtx *args)
+int cli_home_ensure_user_css(const CliPathErrMsgTypeCtx *args)
 {
-    if (!cli_path_err_msg_kind_internal.home_user_css(args))
+    if (!cli_path_err_msg_type_internal.home_user_css(args))
     {
         mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store a stylesheet in");
         return 0;

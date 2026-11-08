@@ -118,13 +118,13 @@ class Sweeper:
         self.js((HERE / "sweep.js").read_text(encoding="utf-8"))
 
     def key(self, key, code, virtual, modifiers=0):
-        for kind in ("rawKeyDown", "keyUp"):
-            self.conn.call("Input.dispatchKeyEvent", timeout=5, type=kind, key=key, code=code, windowsVirtualKeyCode=virtual, nativeVirtualKeyCode=virtual, modifiers=modifiers)
+        for type in ("rawKeyDown", "keyUp"):
+            self.conn.call("Input.dispatchKeyEvent", timeout=5, type=type, key=key, code=code, windowsVirtualKeyCode=virtual, nativeVirtualKeyCode=virtual, modifiers=modifiers)
 
     def click(self, x, y, button="left"):
         self.conn.call("Input.dispatchMouseEvent", type="mouseMoved", x=x, y=y, button="none")
-        for kind in ("mousePressed", "mouseReleased"):
-            self.conn.call("Input.dispatchMouseEvent", type=kind, x=x, y=y, button=button, clickCount=1)
+        for type in ("mousePressed", "mouseReleased"):
+            self.conn.call("Input.dispatchMouseEvent", type=type, x=x, y=y, button=button, clickCount=1)
 
     def settle(self, cap):
         """Waits until the window has been still for QUIET, or `cap` seconds; says whether it was."""
@@ -191,13 +191,13 @@ class Sweeper:
         return found
 
     def act(self, control):
-        """What is done to a control by its kind, and the state put back after; says what was done."""
-        kind = control["kind"]
+        """What is done to a control by its type, and the state put back after; says what was done."""
+        type = control["kind"]
         before = self.js(f"window.__sweep.state({control['index']})")
-        if kind in ("button", "tab", "item", "tree"):
+        if type in ("button", "tab", "item", "tree"):
             self.click(control["x"], control["y"])
             return "pressed"
-        if kind == "check":
+        if type == "check":
             self.click(control["x"], control["y"])
             self.settle(self.options.settle)
             again = self.js(f"window.__sweep.locate({json.dumps(control['key'])})")
@@ -205,7 +205,7 @@ class Sweeper:
                 self.click(again["x"], again["y"])
                 return "turned and turned back"
             return "turned"
-        if kind == "field":
+        if type == "field":
             self.click(control["x"], control["y"])
             self.key("a", "KeyA", 65, modifiers=2)
             self.conn.call("Input.insertText", text=TYPED)
@@ -215,7 +215,7 @@ class Sweeper:
             if again is not None and before is not None:
                 self.js(f"window.__sweep.set({again['index']}, {json.dumps(before)})")
             return "typed into, Enter pressed, put back"
-        if kind == "choice":
+        if type == "choice":
             for option in range(control["options"]):
                 self.js(f"window.__sweep.set({control['index']}, {option})")
                 self.settle(self.options.settle)
@@ -225,7 +225,7 @@ class Sweeper:
                 control = again
             self.js(f"window.__sweep.set({control['index']}, {json.dumps(before)})")
             return f"set to each of {control['options']} options, put back"
-        if kind == "range":
+        if type == "range":
             least, most = self.js(f"window.__sweep.bounds({control['index']})")
             for value in (least, most):
                 self.js(f"window.__sweep.set({control['index']}, {json.dumps(value)})")
@@ -271,7 +271,7 @@ class Sweeper:
         if not fresh or len(surface["steps"]) >= self.options.depth:
             return len(fresh)
         self.queued.update(fresh)
-        name = f"{surface['name']} > {control['label'] or control['kind']}" + (" (right button)" if button == "right" else "")
+        name = f"{surface['name']} > {control['label'] or control['type']}" + (" (right button)" if button == "right" else "")
         self.surfaces.append({"name": name, "steps": surface["steps"] + [{"key": control["key"], "button": button}], "keys": fresh})
         return len(fresh)
 
@@ -322,7 +322,7 @@ class Sweeper:
                     self.records.append(record)
                     swept += 1
                     flag = "THREW" if record.get("errors") else ("failed call" if record.get("failed") else "")
-                    print(f"  {swept:5d} {record['kind']:6s} {record['label'][:40]:40s} {record['did'][:30]:30s} {flag}")
+                    print(f"  {swept:5d} {record['type']:6s} {record['label'][:40]:40s} {record['did'][:30]:30s} {flag}")
         finally:
             self.write()
             self.conn.close()
@@ -335,17 +335,17 @@ class Sweeper:
 def written(out, stamp, records, unreached, dialogs):
     """The sweep's records kept in sweep.json and told in sweep.md under `out`."""
     (out / "sweep.json").write_text(json.dumps({"records": records, "unreached": unreached, "dialogs": dialogs}, indent=1), encoding="utf-8")
-    kinds = collections.Counter(one["kind"] for one in records)
+    types = collections.Counter(one["kind"] for one in records)
     stopped = [one for one in records if one.get("did") in ("hung the page", "the window closed")]
     threw = [one for one in records if one.get("errors") and one not in stopped]
     failed = [one for one in records if one.get("failed") and not one.get("errors")]
     not_pressed = [one for one in records if one.get("did", "").startswith("not pressed")]
-    lines = [f"# The window's sweep, {stamp}", "", f"{len(records)} controls swept: " + ", ".join(f"{count} {kind}" for kind, count in sorted(kinds.items())) + ".", ""]
+    lines = [f"# The window's sweep, {stamp}", "", f"{len(records)} controls swept: " + ", ".join(f"{count} {type}" for type, count in sorted(types.items())) + ".", ""]
     lines += [f"{len(stopped)} hung the page or closed the window, {len(threw)} threw, {len(failed)} made a call that failed, {sum(len(one['keys']) for one in unreached)} could not be reached again, {len(not_pressed)} not pressed.", ""]
 
     def section(title, chosen, detail):
         lines.extend([f"## {title}", ""])
-        lines.extend(f"- {one['surface']} / {one['kind']} {one['label']!r}: {detail(one)}" for one in chosen)
+        lines.extend(f"- {one['surface']} / {one['type']} {one['label']!r}: {detail(one)}" for one in chosen)
         lines.append("")
 
     section("Hung the page or closed the window", stopped, lambda one: "; ".join(one["errors"])[:500])

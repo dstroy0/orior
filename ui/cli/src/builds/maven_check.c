@@ -363,7 +363,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
         EMBED_CALL(check_properties, MavenCheckCtx, .check = &s_check);
     }
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = folder))
     {
         VerbaLinea copy = {folder, sizeof(folder), 0ULL};
         mmgr_line_put(&copy, root);

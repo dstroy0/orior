@@ -46,7 +46,7 @@ void cli_db_pane_labels_laid(const CliDbPaneCtx *args)
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = pane->connection[at].name, .cap = CLI_NAME_MAX_LEN}) +
-                 cellul.len(&(CatenaFinitaCfg){.src = pane->connection[at].kind, .cap = 16ULL}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = pane->connection[at].type, .cap = 16ULL}) +
                  sizeof(PANE_OPEN_MARK) + 4ULL;
     }
     const unsigned long long starts = (unsigned long long)pane->connections * sizeof(unsigned long long);
@@ -61,7 +61,7 @@ void cli_db_pane_labels_laid(const CliDbPaneCtx *args)
         pane->label_at[at] = line.at;
         (void)mmgr_line_put(&line, pane->connection[at].name);
         (void)mmgr_line_put(&line, " (");
-        (void)mmgr_line_put(&line, pane->connection[at].kind);
+        (void)mmgr_line_put(&line, pane->connection[at].type);
         (void)mmgr_line_put(&line, (pane->open[at] != NULL) ? ")" PANE_OPEN_MARK : ")");
         mmgr_line_ch(&line, '\0');
     }
@@ -287,7 +287,7 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
     *row = (CliDbPaneRow){0};
     if (EMBED_CALL(pane_asking, DbPaneCtx, .at = 0u))
     {
-        row->kind = CLI_DB_PANE_ROW_PROMPT;
+        row->type = CLI_DB_PANE_ROW_PROMPT;
         return EMBED_CALL(cli_prompt_rows.row, CliPromptRowsCfg, .at = args->at, .row = &row->prompt);
     }
     if (pane->form.open)
@@ -300,7 +300,7 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
         {
             return 0;
         }
-        row->kind = CLI_DB_PANE_ROW_NOTE;
+        row->type = CLI_DB_PANE_ROW_NOTE;
         row->text = pane->note;
         row->text_length = pane->note_length;
         row->failed = pane->note_failed;
@@ -311,13 +311,13 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
         return 0;
     }
     const CliDbPaneNode *const node = &pane->node[pane->shown[args->at]];
-    row->kind = CLI_DB_PANE_ROW_NODE;
+    row->type = CLI_DB_PANE_ROW_NODE;
     row->depth = node->depth;
     row->text = pane->text + node->label;
     row->text_length = node->label_length;
     const int detailed = node->detail_length != 0ULL;
-    row->detail = pane->text + (detailed ? node->detail : node->kind);
-    row->detail_length = detailed ? node->detail_length : node->kind_length;
+    row->detail = pane->text + (detailed ? node->detail : node->type);
+    row->detail_length = detailed ? node->detail_length : node->type_length;
     row->opens = !node->leaf && !node->failed;
     row->open = node->open;
     row->failed = node->failed;

@@ -147,7 +147,7 @@ void test_json_reads_with_its_positions(void)
     EMBED_CALL(cli_schema_read_text_internal.read, CliSchemaReadTextCtx, .text = s_faulty_text, .size = sizeof(s_faulty_text) - 1u, .read_out = &s_read);
     TEST_ASSERT_NOT_EQUAL(CLI_SCHEMA_NONE, s_read.root);
     const CliSchemaNode *const root = &s_read.node[s_read.root];
-    TEST_ASSERT_EQUAL_INT(CLI_SCHEMA_OBJECT, root->kind);
+    TEST_ASSERT_EQUAL_INT(CLI_SCHEMA_OBJECT, root->type);
     TEST_ASSERT_EQUAL_UINT(3u, root->count);
     TEST_ASSERT_EQUAL_UINT64(4ull, s_read.member[root->first].from);
     g_cli_guard->persistent_buf_release(s_read.node, g_cli_schema_owner);

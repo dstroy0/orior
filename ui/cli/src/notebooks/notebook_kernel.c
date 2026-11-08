@@ -297,7 +297,7 @@ unsigned int cli_notebook_kernel_tools(const CliNotebookKernelStateCfg *args)
     int code = 0;
     for (unsigned int at = 0u; !code && (at < model->cells); at += 1u)
     {
-        code = model->cell[at].kind == CLI_NOTEBOOK_CODE;
+        code = model->cell[at].type == CLI_NOTEBOOK_CODE;
     }
     const unsigned int running =
         (model->kernel != NULL) ? (CLI_NOTEBOOK_TOOL_INTERRUPT | CLI_NOTEBOOK_TOOL_RESTART | CLI_NOTEBOOK_TOOL_STOP)
@@ -390,7 +390,7 @@ int cli_notebook_kernel_execute(const CliNotebookKernelRunCfg *args)
         return 0;
     }
     CliNotebookCell *const cell = &model->cell[args->cell];
-    if (cell->kind != CLI_NOTEBOOK_CODE)
+    if (cell->type != CLI_NOTEBOOK_CODE)
     {
         if (model->focused == args->cell)
         {
@@ -449,7 +449,7 @@ int cli_notebook_kernel_execute_all(const CliNotebookKernelRunCfg *args)
     int ran = model != NULL;
     for (unsigned int at = 0u; ran && (at < model->cells); at += 1u)
     {
-        if (model->cell[at].kind == CLI_NOTEBOOK_CODE)
+        if (model->cell[at].type == CLI_NOTEBOOK_CODE)
         {
             ran = EMBED_CALL(cli_notebook_kernel_run.run, CliNotebookKernelRunCfg, .key = args->key, .cell = at,
                              .err_msg = args->err_msg);

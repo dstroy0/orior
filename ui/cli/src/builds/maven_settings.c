@@ -68,8 +68,8 @@ int cli_maven_home(const CliMavenOutCtx *args)
     }
     char bin[CLI_PATH_MAX_LEN];
     return found &&
-           EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = program, .out = bin) &&
-           EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = bin,
+           EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = program, .out = bin) &&
+           EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = bin,
                       .out = args->out_capacity);
 }
 

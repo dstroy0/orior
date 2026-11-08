@@ -111,7 +111,7 @@ EMBED_INLINE int send_here(const DeploySendCtx *args)
         mmgr_line_put(&to_line, run->sent[index].path);
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = index, .out = &full_line);
         if ((mmgr_line_finish(&to_line) == 0ULL) || (mmgr_line_finish(&full_line) == 0ULL) ||
-            (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = to, .out = parent) &&
+            (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = to, .out = parent) &&
              !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)))
         {
             mmgr_line_put(args->err_msg, to);

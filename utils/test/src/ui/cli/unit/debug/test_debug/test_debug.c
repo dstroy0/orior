@@ -157,14 +157,14 @@ static void position_freed(CliDebugSession *place)
     place->reserved = 0;
 }
 
-// whether a tool of the manifest debugs `language`, or builds `kind`
-static int tool_has(const CliJson *json, unsigned int manifest, const char *language, const char *kind)
+// whether a tool of the manifest debugs `language`, or builds `type`
+static int tool_has(const CliJson *json, unsigned int manifest, const char *language, const char *type)
 {
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = manifest, .kind = CFG_JSON_ARRAY) ? json->node[manifest].first : CLI_JSON_NONE; tool != CLI_JSON_NONE; tool = json->node[tool].next)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = manifest, .type = CFG_JSON_ARRAY) ? json->node[manifest].first : CLI_JSON_NONE; tool != CLI_JSON_NONE; tool = json->node[tool].next)
     {
-        if (kind != NULL)
+        if (type != NULL)
         {
-            if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "builds"), .name = kind) != CLI_JSON_NONE)
+            if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "builds"), .name = type) != CLI_JSON_NONE)
             {
                 return 1;
             }
@@ -334,7 +334,7 @@ void test_debugpy_steps_only_in_the_users_code(void)
     const CliJson *const json = cli_unity_parsed(s_python, sizeof(s_python) - 1u, &read);
     const unsigned int arguments = step_tree_read("{\"program\":\"a.py\"}");
     EMBED_CALL(cli_debug_json_language_internal.step_arguments, CliDebugJsonLanguageCtx, .language = "python", .json = json, .stepping = read, .to = &s_step_tree, .arguments = arguments);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_step_tree, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_step_tree, .object = arguments, .name = "justMyCode"), .kind = CFG_JSON_TRUE));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_step_tree, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_step_tree, .object = arguments, .name = "justMyCode"), .type = CFG_JSON_TRUE));
 }
 
 void test_debugpy_skips_a_module_or_a_path(void)

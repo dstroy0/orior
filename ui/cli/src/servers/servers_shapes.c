@@ -76,8 +76,8 @@ int cli_servers_request_at(const CliServersPathCtx *args)
 
 unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx *args)
 {
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                    .node = args->node, .kind = CFG_JSON_NUMBER) ||
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                    .node = args->node, .type = CFG_JSON_NUMBER) ||
         (args->json->node[args->node].length == 0ULL))
     {
         return args->otherwise;
@@ -132,8 +132,8 @@ void cli_servers_markdown_get(const CliServersJsonOutCtx *args)
         mmgr_line_put_n(args->out, text, size);
         return;
     }
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                   .node = args->contents, .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                   .node = args->contents, .type = CFG_JSON_ARRAY))
     {
         // a part that writes nothing is left out with the break before it: each is measured before it is written
         int written = 0;
@@ -187,17 +187,17 @@ void cli_servers_markdown_get(const CliServersJsonOutCtx *args)
 
 typedef struct
 {
-    unsigned long long kind;
+    unsigned long long type;
     const CliJson *json;
     unsigned int one;
     const char *name;
     unsigned long long *size;
     VerbaLinea *out;
 } ServersShapesCtx;
-// the kind the editor shows for the protocol's kind of a completion
-EMBED_INLINE const char *shapes_kind_get(const ServersShapesCtx *args)
+// the type the editor shows for the protocol's type of a completion
+EMBED_INLINE const char *shapes_type_get(const ServersShapesCtx *args)
 {
-    switch (args->kind)
+    switch (args->type)
     {
     case 2ULL:
     case 3ULL:
@@ -304,15 +304,15 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args)
     unsigned long long detail_to = 0ULL;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = s_detail, .size = detail_size,
                .from_u64s = &detail_from, .to_u64s = &detail_to);
-    const char *const kind =
-        EMBED_CALL(shapes_kind_get, ServersShapesCtx,
-                   .kind = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
+    const char *const type =
+        EMBED_CALL(shapes_type_get, ServersShapesCtx,
+                   .type = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                                       .json = args->json,
                                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                          .json_read = args->json, .object = args->one, .name = "kind"),
                                       .otherwise = 1ULL));
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items, .label = name,
-                     .label_size = name_size, .kind = kind, .detail = s_detail + detail_from,
+                     .label_size = name_size, .type = type, .detail = s_detail + detail_from,
                      .detail_size = detail_to - detail_from, .insert = insert, .insert_size = insert_size,
                      .snippet = 0);
 }

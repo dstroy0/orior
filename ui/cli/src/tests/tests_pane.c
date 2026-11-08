@@ -309,7 +309,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
         row->path = tests->text + file->path;
         if (under == 0u)
         {
-            row->kind = CLI_TESTS_ROW_FILE;
+            row->type = CLI_TESTS_ROW_FILE;
             row->name = row->path + ((file->folder_length != 0ULL) ? file->folder_length + 1ULL : 0ULL);
             row->name_length = cellul.len(&(CatenaFinitaCfg){.src = row->name, .cap = CLI_PATH_MAX_LEN});
             row->folder_length = file->folder_length;
@@ -325,7 +325,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
             const unsigned int outcome = EMBED_ATOMIC_LOAD(&test->outcome);
             if (under == 0u)
             {
-                row->kind = CLI_TESTS_ROW_TEST;
+                row->type = CLI_TESTS_ROW_TEST;
                 row->name = tests->text + test->label;
                 row->name_length = test->label_length;
                 row->outcome = outcome;
@@ -339,7 +339,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
             {
                 if (under == 0u)
                 {
-                    row->kind = CLI_TESTS_ROW_MESSAGE;
+                    row->type = CLI_TESTS_ROW_MESSAGE;
                     row->name = tests->messages + test->message;
                     row->name_length = test->message_length;
                     row->outcome = outcome;
@@ -357,7 +357,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
     }
     if (under == 0u)
     {
-        row->kind = CLI_TESTS_ROW_COVER_HEAD;
+        row->type = CLI_TESTS_ROW_COVER_HEAD;
         for (unsigned int at = 0u; at < covers; at += 1u)
         {
             row->passed += tests->cover[at].ran;
@@ -366,7 +366,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
         return 1;
     }
     const TestsCover *const cover = &tests->cover[under - 1u];
-    row->kind = CLI_TESTS_ROW_COVER;
+    row->type = CLI_TESTS_ROW_COVER;
     row->path = tests->text + cover->path;
     row->name = row->path;
     row->name_length = cellul.len(&(CatenaFinitaCfg){.src = row->name, .cap = CLI_PATH_MAX_LEN});
@@ -498,8 +498,8 @@ EMBED_INLINE unsigned long long tests_integer(const TestsPaneCtx *args)
     const CliJson *json = args->json;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = args->node, .name = args->name);
-    const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = member, .kind = CFG_JSON_NUMBER)
+    const char *const digits = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = member, .type = CFG_JSON_NUMBER)
                                    ? json->text + json->node[member].text
                                    : "";
     return EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ULL,
@@ -513,8 +513,8 @@ EMBED_INLINE unsigned int tests_milliseconds(const TestsPaneCtx *args)
     const CliJson *json = args->json;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = args->node, .name = args->name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
+                    .type = CFG_JSON_NUMBER))
     {
         return 0u;
     }
@@ -637,8 +637,8 @@ EMBED_INLINE void tests_result(const TestsPaneCtx *args)
     test->milliseconds = EMBED_CALL(tests_milliseconds, TestsPaneCtx, .json = json, .node = outcome, .name = "seconds");
     const unsigned int line_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = outcome, .name = "line");
-    test->fail_placed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                   .node = line_node, .kind = CFG_JSON_NUMBER);
+    test->fail_placed = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                   .node = line_node, .type = CFG_JSON_NUMBER);
     test->fail_line = EMBED_CALL(tests_integer, TestsPaneCtx, .json = json, .node = outcome, .name = "line");
     // a failure's message keeps what the result's said where the details come after it with none
     unsigned long long message_length = 0ULL;
@@ -673,8 +673,8 @@ EMBED_INLINE void tests_coverage(const TestsPaneCtx *args)
     const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = args->node, .name = "files");
     unsigned int count = 0u;
-    for (unsigned int file = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = files, .kind = CFG_JSON_ARRAY)
+    for (unsigned int file = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = files, .type = CFG_JSON_ARRAY)
                                  ? json->node[files].first
                                  : CLI_JSON_NONE;
          (file != CLI_JSON_NONE) && (count < TESTS_COVERS); file = json->node[file].next)
@@ -693,12 +693,12 @@ EMBED_INLINE void tests_coverage(const TestsPaneCtx *args)
                                                .json_read = json, .object = file, .name = "missed");
         TestsCover *const cover = &tests->cover[count];
         *cover = (TestsCover){path, 0u, 0u, 0ULL};
-        cover->ran = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = ran,
-                                .kind = CFG_JSON_ARRAY)
+        cover->ran = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = ran,
+                                .type = CFG_JSON_ARRAY)
                          ? json->node[ran].count
                          : 0u;
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = missed,
-                       .kind = CFG_JSON_ARRAY))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = missed,
+                       .type = CFG_JSON_ARRAY))
         {
             cover->missed = json->node[missed].count;
             unsigned long long first = ~0ULL;
@@ -761,21 +761,21 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
                                          .json = json, .text = args->json, .size = args->size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_tests_pane_owner);
     unsigned long long length = 0ULL;
-    const char *const kind = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = root, .name = "kind",
+    const char *const type = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = root, .name = "kind",
                                         .file_out = (unsigned int *)&length);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "started", .cap = 16ULL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "started", .cap = 16ULL}))
     {
         EMBED_CALL(tests_started, TestsPaneCtx, .json = json, .node = root);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "result", .cap = 16ULL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "result", .cap = 16ULL}))
     {
         EMBED_CALL(tests_result, TestsPaneCtx, .json = json, .node = root);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "coverage", .cap = 16ULL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "coverage", .cap = 16ULL}))
     {
         EMBED_CALL(tests_coverage, TestsPaneCtx, .json = json, .node = root);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "done", .cap = 16ULL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "done", .cap = 16ULL}))
     {
         EMBED_CALL(tests_done, TestsPaneCtx, .json = json, .node = root);
     }

@@ -41,12 +41,12 @@ void tearDown(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
 }
 
-// the crumb `at` asserted of `kind` reading `text`
-static void crumb_is(unsigned int at, unsigned int kind, const char *text)
+// the crumb `at` asserted of `type` reading `text`
+static void crumb_is(unsigned int at, unsigned int type, const char *text)
 {
     CliCrumbRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.row, CliCrumbsCfg, .at = at, .row = &row));
-    TEST_ASSERT_EQUAL_UINT(kind, row.kind);
+    TEST_ASSERT_EQUAL_UINT(type, row.type);
     CLI_TEST_ASSERT_TEXT(text, row.text, row.length);
 }
 

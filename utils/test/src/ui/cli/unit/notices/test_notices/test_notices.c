@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_notices.c: the notices: one answering a command shown at once for five seconds, a failure fifteen in its first
 // line, one answering nothing waiting for the keys to rest or a break, Focus stopping every one until it ends, and
-// Silence putting a kind away until it is shown again
+// Silence putting a type away until it is shown again
 #include "ui/cli/src/command_line/command_line.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 #include <string.h>
@@ -118,7 +118,7 @@ void test_focus_stops_every_notice_until_it_ends(void)
     notices_rested();
 }
 
-void test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back(void)
+void test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
                                 .value = "build/harness/notices_home"));

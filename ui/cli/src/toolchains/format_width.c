@@ -100,7 +100,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char up[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = folder))
     {
         return 0;
     }
@@ -136,7 +136,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 return 1;
             }
         }
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = up) ||
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = up) ||
             (cellul.eq(&(CatenaFinitaCfg){.src = up, .other = folder, .cap = CLI_POOL_BYTES})))
         {
             return 0;

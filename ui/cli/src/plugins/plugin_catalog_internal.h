@@ -33,7 +33,7 @@ void cli_plugin_catalog_release(void);
 // the bytes at `address`, a web address or a file of this machine, requested for `purpose`, read into a cell of their
 // size as the work state's bytes, the bytes it contained given back first, their count into `size`, the lock acquired:
 // 1, or 0 with why given; `size` bytes at `text` read into the work state's tree, the tree it contained given back
-// first: its root, or CLI_JSON_NONE with why given; and that a value is not the kind wanted reported after `where`, as
+// first: its root, or CLI_JSON_NONE with why given; and that a value is not the type wanted reported after `where`, as
 // serde reports it (plugin_catalog.c)
 unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args);
 void cli_plugin_catalog_invalid(const CliPluginCatalogWhereCtx *args);

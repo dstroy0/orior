@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fill_comment.c: a block comment of documentation written again whole. Its lines are read without their stars, the
 // opening and the closing lines' text retained where they contain any; split into paragraphs at blank lines and at each
-// tag; each paragraph's words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in
+// tag; each paragraph's words filled under ` * `, and each run of tags of one type lined up: the tags, their types in
 // braces, the names of those that name one, and their descriptions each in one column, a description that runs past the
 // margin going on under its own first word. A run's tags are joined from their lines into a work state sized to the
 // comment's bytes it left out of the run
@@ -15,8 +15,8 @@ typedef struct
 {
     const char *tag;
     unsigned long long tag_size;
-    const char *kind;
-    unsigned long long kind_size;
+    const char *type;
+    unsigned long long type_size;
     const char *name;
     unsigned long long name_size;
     const char *description;
@@ -70,8 +70,8 @@ typedef struct
     const CliFillLine *first_read;
     const CliFillLine *last_read;
     unsigned long long *tag_size;
-    const char **kind;
-    unsigned long long *kind_size;
+    const char **type;
+    unsigned long long *type_size;
     CliFillTag *tag;
     VerbaLinea *out;
     unsigned long long width;

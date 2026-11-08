@@ -138,7 +138,7 @@ int cli_test_visit(const CliTestRunsRunLengthCtx *args);
 const char *cli_test_seen_outcome(const CliTestRunsRunLengthCtx *args);
 int cli_test_seen_any(const CliTestRunsRunLengthCtx *args);
 
-// a result reported, `{"kind": "result", "run", "outcome": {...}}`, its file NULL and its line -1 where it has none;
+// a result reported, `{"type": "result", "run", "outcome": {...}}`, its file NULL and its line -1 where it has none;
 // the lines a process writes to its output read until its end or the run's stop, each stored in its output file and
 // handed to `line`; its errors read whole into its errors file, on a thread of their own, waited for; and a file of the
 // run's folder read whole, NULL where it is not there (test_runs.c, test_read.c)

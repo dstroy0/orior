@@ -73,7 +73,7 @@ export function startKeyHints() {
     true,
   );
   window.addEventListener("keyup", (event) => MODIFIERS.has(event.key) && hide(), true);
-  for (const kind of ["pointerdown", "wheel", "blur"]) {
-    window.addEventListener(kind, hide, true);
+  for (const type of ["pointerdown", "wheel", "blur"]) {
+    window.addEventListener(type, hide, true);
   }
 }

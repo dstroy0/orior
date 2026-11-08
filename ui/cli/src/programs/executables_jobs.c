@@ -30,7 +30,7 @@ void cli_program_file(const CliExecutablesNameOutFolderCtx *args)
 void cli_folder_get(const CliExecutablesOutCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->script, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->script, .out = folder))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = folder,
@@ -170,7 +170,7 @@ EMBED_INLINE void cli_zig_command(const ExecutablesJobsCtx *args)
     mmgr_line_finish(&line);
 }
 
-void cli_executables_cross_env(const CliExecutablesKindCfg *args)
+void cli_executables_cross_env(const CliExecutablesTypeCfg *args)
 {
     const CliValues *values = args->values;
     char zig[CLI_PATH_MAX_LEN + 2u];
@@ -187,7 +187,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     mmgr_line_finish(&quoted);
     char target[CLI_NAME_MAX_LEN];
     char command[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "go", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "go", .cap = CLI_POOL_BYTES}))
     {
         const char *host_system = NULL;
         const char *host_processor = NULL;
@@ -217,7 +217,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         }
         return;
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "rust", .cap = CLI_POOL_BYTES}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "rust", .cap = CLI_POOL_BYTES}))
     {
         return;
     }
@@ -305,7 +305,7 @@ EMBED_INLINE void cli_choice(const ExecutablesJobsCtx *args)
 {
     CliCatalog *catalog = args->catalog;
     const char *key = args->key;
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = key, .type = "choice",
                .required = 1);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -314,8 +314,8 @@ EMBED_INLINE void cli_choice(const ExecutablesJobsCtx *args)
     }
 }
 
-// the params a kind of build takes before those every build takes
-EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
+// the params a type of build takes before those every build takes
+EMBED_INLINE void cli_type_params(const ExecutablesJobsCtx *args)
 {
     static const char *const s_profiles[2] = {"dev", "release"};
     static const char *const s_configs[4] = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"};
@@ -324,24 +324,24 @@ EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
     static const char *const s_dotnet_configs[2] = {"Debug", "Release"};
     static const char *const s_outputs[2] = {"files", "one file"};
     static const char *const s_optimize[4] = {"Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"};
-    if (args->exe->kind == CLI_KIND_CARGO)
+    if (args->exe->type == CLI_TYPE_CARGO)
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "profile", .choices = s_profiles,
                    .count = 2u);
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "target", .choices = s_rust_targets,
                    .count = 8u);
     }
-    else if (args->exe->kind == CLI_KIND_CMAKE)
+    else if (args->exe->type == CLI_TYPE_CMAKE)
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "config", .choices = s_configs,
                    .count = 4u);
     }
-    else if (args->exe->kind == CLI_KIND_MESON)
+    else if (args->exe->type == CLI_TYPE_MESON)
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "buildtype",
                    .choices = s_buildtypes, .count = 4u);
     }
-    else if (args->exe->kind == CLI_KIND_GO)
+    else if (args->exe->type == CLI_TYPE_GO)
     {
         const char *system = NULL;
         const char *processor = NULL;
@@ -377,19 +377,19 @@ EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "CGO_ENABLED", .choices = s_cgo,
                    .count = 3u);
     }
-    else if (args->exe->kind == CLI_KIND_DOTNET)
+    else if (args->exe->type == CLI_TYPE_DOTNET)
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "configuration",
                    .choices = s_dotnet_configs, .count = 2u);
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "output", .choices = s_outputs,
                    .count = 2u);
     }
-    else if ((args->exe->kind == CLI_KIND_ZIG) && args->exe->optimize)
+    else if ((args->exe->type == CLI_TYPE_ZIG) && args->exe->optimize)
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "optimize", .choices = s_optimize,
                    .count = 4u);
     }
-    else if ((args->exe->kind == CLI_KIND_NPM) && (args->exe->withs != 0u))
+    else if ((args->exe->type == CLI_TYPE_NPM) && (args->exe->withs != 0u))
     {
         EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "with", .choices = args->exe->with,
                    .count = args->exe->withs);
@@ -419,7 +419,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
         {
             char folder[CLI_PATH_MAX_LEN];
             const char *base = "";
-            if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = exe->script,
+            if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = exe->script,
                            .out = folder))
             {
                 base = folder;
@@ -436,13 +436,13 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
         if (EMBED_CALL(cli_executables_root_internal.job_begin, CliExecutablesRootCtx, .root = root, .exe = exe,
                        .title = title, .catalog = catalog))
         {
-            EMBED_CALL(cli_kind_params, ExecutablesJobsCtx, .exe = exe, .catalog = catalog);
+            EMBED_CALL(cli_type_params, ExecutablesJobsCtx, .exe = exe, .catalog = catalog);
             static const char *const s_then[3] = {"build", "run", "run as the system runs it"};
             EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = catalog, .key = "then", .choices = s_then,
                        .count = 3u);
             EMBED_CALL(cli_catalog_choice_table.trace, CliCatalogChoiceCfg, .catalog = catalog);
-            EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "folder",
-                       .kind = "dir", .required = 0);
+            EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = "folder",
+                       .type = "dir", .required = 0);
             EMBED_CALL(cli_executables_root_internal.steps, CliExecutablesRootCtx, .root = root, .exe = exe,
                        .catalog = catalog);
         }

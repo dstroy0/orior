@@ -35,13 +35,13 @@ typedef enum
     QUERY_LEARN_DRY,
     QUERY_LEARN_ENUMERATE,
     QUERY_LEARN_CLOCK
-} QueryLearnKind;
+} QueryLearnType;
 
-// a step read: its kind; the pass's name, the listing, the place or the clock's first offset in `word`; the base source
+// a step read: its type; the pass's name, the listing, the place or the clock's first offset in `word`; the base source
 // or the clock's count of words in `base`; the count of rounds
 typedef struct
 {
-    QueryLearnKind kind;
+    QueryLearnType type;
     const char *word_text;
     const char *base;
     unsigned int rounds;

@@ -133,7 +133,7 @@ EMBED_INLINE int cli_folder_layout(const SettingsSyncExportCtx *args)
                                           CliSettingsSyncTransferredAtCtx, .synced = &s_send.packed, .at = at),
                    .joined = path);
         const int made =
-            !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) ||
+            !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = parent) ||
             EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent);
         if (!made ||
             !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,

@@ -14,7 +14,7 @@ typedef struct
     unsigned int param;
     const char *bytes;
     unsigned long long length;
-    const char *kind;
+    const char *type;
     const char *text;
     unsigned int text_at;
 } FormCtx;
@@ -72,10 +72,10 @@ EMBED_INLINE void form_set(const FormCtx *args)
     store->form = form;
 }
 
-// whether `kind` is the param kind `text`
-EMBED_INLINE int form_kind_is(const FormCtx *args)
+// whether `type` is the param type `text`
+EMBED_INLINE int form_type_is(const FormCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = args->text, .cap = CLI_NAME_MAX_LEN});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = args->text, .cap = CLI_NAME_MAX_LEN});
 }
 
 void cli_job_runs_form_clear(const CliJobRunsCtx *args)
@@ -167,7 +167,7 @@ void cli_job_runs_values_fill(const CliJobRunsCtx *args)
             continue;
         }
         // each word of a choice of many a value of its own, any other value whole, each with its end
-        const int many = EMBED_CALL(form_kind_is, FormCtx, .kind = one->kind, .text = CLI_JOB_RUNS_KIND_MANY);
+        const int many = EMBED_CALL(form_type_is, FormCtx, .type = one->type, .text = CLI_JOB_RUNS_TYPE_MANY);
         char word[CLI_JOB_RUNS_FIELD_MAX];
         for (unsigned long long at = 0ULL; at < length;)
         {
@@ -199,7 +199,7 @@ void cli_job_runs_choice_take(const CliJobRunsCtx *args)
     unsigned long long length = 0ULL;
     const char *const value =
         EMBED_CALL(cli_job_runs_internal.form_value, CliJobRunsCtx, .param = args->param, .length_out = &length);
-    if (!EMBED_CALL(form_kind_is, FormCtx, .kind = one->kind, .text = CLI_JOB_RUNS_KIND_MANY))
+    if (!EMBED_CALL(form_type_is, FormCtx, .type = one->type, .text = CLI_JOB_RUNS_TYPE_MANY))
     {
         const int same = (length == choice_length) &&
                          (memor.cmp(&(MemoriaCfg){.src = value, .other = choice, .bytes = length}) == 0);

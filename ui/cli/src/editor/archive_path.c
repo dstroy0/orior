@@ -162,7 +162,7 @@ int cli_archive_split(const CliArchiveRootCfg *args)
            !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->file))
     {
         char above[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->file, .out = above))
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->file, .out = above))
         {
             return 0;
         }
@@ -194,7 +194,7 @@ int cli_archive_split(const CliArchiveRootCfg *args)
         base = args->file;
     }
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->file) ||
-        (EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base) == CLI_ARCHIVE_NONE))
+        (EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = base) == CLI_ARCHIVE_NONE))
     {
         return 0;
     }
@@ -219,7 +219,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
         EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = args->descent->name,
                    .out_capacity = inner);
         if (!EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx,
-                        .bytes = args->descent->bytes, .size = args->descent->size, .kind = args->descent->kind,
+                        .bytes = args->descent->bytes, .size = args->descent->size, .type = args->descent->type,
                         .inner = inner, .members = &g_cli_archive_levels->members[0],
                         .unpacked = &g_cli_archive_levels->unpacked[0], .unpacked_size = &unpacked,
                         .err_msg = args->err_msg))
@@ -234,14 +234,14 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
                        .from = args->descent->left, .to = cut, .out_capacity = path);
             const CliMember *const member = EMBED_CALL(cli_archive_internal.file_by_name, CliArchiveCtx,
                                                        .members_read = &g_cli_archive_levels->members[0], .name = path);
-            const unsigned int nested = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = path);
+            const unsigned int nested = EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = path);
             if ((member == NULL) || (nested == CLI_ARCHIVE_NONE))
             {
                 continue;
             }
             unsigned long long size = 0ULL;
             if (!EMBED_CALL(cli_archive_bytes_internal.data_get, CliArchiveBytesCtx, .bytes = args->descent->bytes,
-                            .size = args->descent->size, .kind = args->descent->kind,
+                            .size = args->descent->size, .type = args->descent->type,
                             .unpacked_bytes = g_cli_archive_levels->unpacked[0].bytes, .unpacked_size_value = unpacked,
                             .members_read = &g_cli_archive_levels->members[0], .member = member,
                             .out_buffer_pointer = &g_cli_archive_levels->inner[buffer], .out_size = &size,
@@ -251,7 +251,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
             }
             args->descent->bytes = g_cli_archive_levels->inner[buffer].bytes;
             args->descent->size = size;
-            args->descent->kind = nested;
+            args->descent->type = nested;
             memor.cpy(&(MemoriaCfg){.dst = args->descent->name,
                                     .src = path,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u});
@@ -367,7 +367,7 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
             continue;
         }
         const int archive = !deeper && !member->dir &&
-                            (EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = child) != CLI_ARCHIVE_NONE);
+                            (EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = child) != CLI_ARCHIVE_NONE);
         CliChild *const one = &args->found->item[args->found->count];
         args->found->count += 1u;
         one->name = EMBED_CALL(cli_text_store, ArchivePathCtx, .found = args->found, .text = child);
@@ -458,7 +458,7 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
     {
         base = file;
     }
-    args->descent->kind = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base);
+    args->descent->type = EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = base);
     args->descent->bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                       .size_pointer = &args->descent->size, .owner = g_cli_editor_owner);
     if (args->descent->bytes == NULL)
@@ -542,7 +542,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     unsigned long long unpacked = 0ULL;
     done =
         done && EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx,
-                           .bytes = descent.bytes, .size = descent.size, .kind = descent.kind, .inner = inner,
+                           .bytes = descent.bytes, .size = descent.size, .type = descent.type, .inner = inner,
                            .members = &g_cli_archive_levels->members[0], .unpacked = &g_cli_archive_levels->unpacked[0],
                            .unpacked_size = &unpacked, .err_msg = args->err_msg);
     const CliMember *const member =
@@ -558,7 +558,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     }
     unsigned long long data_size = 0ULL;
     done = done && EMBED_CALL(cli_archive_bytes_internal.data_get, CliArchiveBytesCtx, .bytes = descent.bytes,
-                              .size = descent.size, .kind = descent.kind,
+                              .size = descent.size, .type = descent.type,
                               .unpacked_bytes = g_cli_archive_levels->unpacked[0].bytes,
                               .unpacked_size_value = unpacked, .members_read = &g_cli_archive_levels->members[0],
                               .member = member, .out_buffer_pointer = &g_cli_archive_levels->written[0],

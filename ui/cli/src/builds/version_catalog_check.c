@@ -234,7 +234,7 @@ EMBED_INLINE void check_unknown_key(const VersionCatalogCheckCtx *args)
                .names = NULL, .from = args->field->from, .to = args->field->to, .open = "", .close = "");
 }
 
-// the keys of a table no table of its kind knows, each a finding
+// the keys of a table no table of its type knows, each a finding
 void cli_versions_keys(const CliVersionCatalogCheckCtx *args)
 {
     for (unsigned int at = args->table->first; at != CLI_VERSIONS_NONE; at = g_cli_versions.field[at].next)

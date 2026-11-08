@@ -278,17 +278,17 @@ export function rebase(css, base) {
     .replace(/@import\s+(["'])([^"']+)\1/g, (_, quote, url) => `@import ${quote}${absolute(url)}${quote}`);
 }
 
-// The page the text `text` of a file of kind "html", "svg" or "css" makes, as a document of its own
+// The page the text `text` of a file of type "html", "svg" or "css" makes, as a document of its own
 // whose addresses are read from `base`, the address of the file's folder. `sheet(href)` gives the
 // text and folder's address of a stylesheet the page links where a tab holds it, which the page
 // takes in place of the link. Null for SVG that does not read as XML.
-export function pageOf(kind, text, { base, sheet = () => null }) {
+export function pageOf(type, text, { base, sheet = () => null }) {
   let doc;
-  if (kind === "html") {
+  if (type === "html") {
     doc = new DOMParser().parseFromString(annotate(text), "text/html");
   } else {
     doc = document.implementation.createHTMLDocument("");
-    if (kind === "svg") {
+    if (type === "svg") {
       if (new DOMParser().parseFromString(text, "image/svg+xml").querySelector("parsererror")) {
         return null;
       }
@@ -334,7 +334,7 @@ function attributesOf(live, fresh) {
   return changed;
 }
 
-// Patches the element `live` to stand as `fresh` does, keeping each node of the same kind in the
+// Patches the element `live` to stand as `fresh` does, keeping each node of the same type in the
 // same place and changing only what differs; counts how many nodes it kept, changed, added and took
 // out into `counts`.
 export function morph(live, fresh, counts = { kept: 0, changed: 0, added: 0, removed: 0 }) {

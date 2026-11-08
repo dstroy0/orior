@@ -58,8 +58,8 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
                                   ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &json, .object = root, .name = "main")
                                   : CLI_JSON_NONE;
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                        .node = main, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                        .node = main, .type = CFG_JSON_ARRAY)
                                  ? json.node[main].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)

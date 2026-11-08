@@ -23,7 +23,7 @@ typedef struct CliQuickCfg CliQuickCfg;
 #define CLI_QUICK_TREE 4u
 #define CLI_QUICK_EVERYWHERE 5u
 
-// the kinds of row: a file, a command, a line, a declaration, a heading the keys step past, a sentence that goes
+// the types of row: a file, a command, a line, a declaration, a heading the keys step past, a sentence that goes
 // nowhere, and the last row while the tree is read, which has the rows asked again
 #define CLI_QUICK_ROW_FILE 0u
 #define CLI_QUICK_ROW_COMMAND 1u
@@ -38,7 +38,7 @@ typedef struct CliQuickCfg CliQuickCfg;
 #define CLI_QUICK_CHOSE_PATH 1u
 #define CLI_QUICK_CHOSE_COMMAND 2u
 
-// the most rows, the rows of each kind Search Everywhere shows, the milliseconds between the rows asked again while
+// the most rows, the rows of each type Search Everywhere shows, the milliseconds between the rows asked again while
 // the tree is read, the milliseconds two presses of Shift come within to open Search Everywhere, the most bytes typed,
 // the most marks of one row's label and detail together, and the row `at` that stands for the row chosen
 #define CLI_QUICK_MOST 200u
@@ -49,12 +49,12 @@ typedef struct CliQuickCfg CliQuickCfg;
 #define CLI_QUICK_MARKS 32u
 #define CLI_QUICK_CHOSEN 0xFFFFFFFFu
 
-// A row as the window draws it: its kind; its label, its detail drawn quieter after it and the keys of a command at
+// A row as the window draws it: its type; its label, its detail drawn quieter after it and the keys of a command at
 // the right end, each with its bytes; and the marks of the letters that matched, pairs of a byte offset and bytes,
 // `label_mark_count` pairs into the label and `detail_mark_count` into the detail
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *label;
     unsigned long long label_length;
     const char *detail;
@@ -84,11 +84,11 @@ typedef struct
     unsigned int scroll;
 } CliQuickView;
 
-// What a choice opens: its kind; a file's path from the tree's top and the place in it where `placed`; or a command's
+// What a choice opens: its type; a file's path from the tree's top and the place in it where `placed`; or a command's
 // word and its keys; each text standing until the next choice
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *path;
     CliPosition place;
     int placed;

@@ -81,18 +81,18 @@ EMBED_INLINE void rows_columns(const PgRowsCtx *args)
         const unsigned long long oid =
             (at + 10u <= size) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body + at + 6u, .width = 4u) : 0ULL;
         at += 18ULL;
-        const char *const kind = EMBED_CALL(rows_type_name, PgRowsCtx, .oid = oid, .numeric = &column->numeric);
-        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ULL};
-        if (kind[0] == '\0')
+        const char *const type = EMBED_CALL(rows_type_name, PgRowsCtx, .oid = oid, .numeric = &column->numeric);
+        VerbaLinea type_line = {column->type, sizeof(column->type), 0ULL};
+        if (type[0] == '\0')
         {
-            mmgr_line_put(&kind_line, "oid ");
-            mmgr_line_decimal(&kind_line, oid, 1u);
+            mmgr_line_put(&type_line, "oid ");
+            mmgr_line_decimal(&type_line, oid, 1u);
         }
         else
         {
-            mmgr_line_put(&kind_line, kind);
+            mmgr_line_put(&type_line, type);
         }
-        mmgr_line_finish(&kind_line);
+        mmgr_line_finish(&type_line);
         args->pg->head.column_count += 1u;
     }
 }
@@ -150,7 +150,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
     args->pg->has_failed = 0;
     const void *const parts[2] = {args->sql, ""};
     const unsigned long long sizes[2] = {args->size, 1ULL};
-    if (!EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'Q',
+    if (!EMBED_CALL(cli_pg_failure_type_internal.send, CliPgFailureTypeCtx, .pg = args->pg, .type_value = 'Q',
                     .parts = parts, .sizes = sizes, .count = 2u, .failure = failure))
     {
         return 0;
@@ -159,19 +159,19 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
     args->pg->head.tag[0] = '\0';
     for (;;)
     {
-        unsigned char kind = 0u;
-        if (!EMBED_CALL(cli_pg_kind_internal.message, CliPgKindCtx, .pg = args->pg, .kind = &kind, .failure = failure))
+        unsigned char type = 0u;
+        if (!EMBED_CALL(cli_pg_type_internal.message, CliPgTypeCtx, .pg = args->pg, .type = &type, .failure = failure))
         {
             return 0;
         }
-        if (kind == 'T')
+        if (type == 'T')
         {
             args->pg->read_state = 1;
             args->pg->head.rows = 1;
             EMBED_CALL(rows_columns, PgRowsCtx, .pg = args->pg);
             return 1;
         }
-        switch (kind)
+        switch (type)
         {
         case 'C': {
             EMBED_CALL(rows_tag, PgRowsCtx, .pg_read = args->pg, .tag = args->pg->head.tag);
@@ -196,7 +196,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
             static const char s_reason[] = "orior_cli sends no data to COPY FROM STDIN";
             const void *const reason[1] = {s_reason};
             const unsigned long long reason_size[1] = {sizeof(s_reason)};
-            if (!EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'f',
+            if (!EMBED_CALL(cli_pg_failure_type_internal.send, CliPgFailureTypeCtx, .pg = args->pg, .type_value = 'f',
                             .parts = reason, .sizes = reason_size, .count = 1u, .failure = failure))
             {
                 return 0;
@@ -212,7 +212,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
                               .src = "copy",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "copy", .cap = CLI_POOL_BYTES}) + 1u});
             memor.cpy(
-                &(MemoriaCfg){.dst = args->pg->head.columns[0].kind,
+                &(MemoriaCfg){.dst = args->pg->head.columns[0].type,
                               .src = "text",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_POOL_BYTES}) + 1u});
             args->pg->head.columns[0].numeric = 0;
@@ -251,12 +251,12 @@ int cli_pg_rows(const CliPgFailureCfg *args)
     // once the tag has come the rows are read on to the ReadyForQuery that follows it
     while ((read < args->count) || has_tag)
     {
-        unsigned char kind = 0u;
-        if (!EMBED_CALL(cli_pg_kind_internal.message, CliPgKindCtx, .pg = args->pg, .kind = &kind, .failure = failure))
+        unsigned char type = 0u;
+        if (!EMBED_CALL(cli_pg_type_internal.message, CliPgTypeCtx, .pg = args->pg, .type = &type, .failure = failure))
         {
             return 0;
         }
-        switch (kind)
+        switch (type)
         {
         case 'D': {
             const unsigned int values = EMBED_CALL(rows_row, PgRowsCtx, .pg = args->pg);

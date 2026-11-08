@@ -22,7 +22,7 @@ typedef struct CliPromptInputCfg CliPromptInputCfg;
 #define CLI_PROMPT_CONFIRM 1u
 #define CLI_PROMPT_PASSWORD 2u
 
-// the rows' kinds: the sentence, the statement, the field and the buttons
+// the rows' types: the sentence, the statement, the field and the buttons
 #define CLI_PROMPT_ROW_SENTENCE 0u
 #define CLI_PROMPT_ROW_STATEMENT 1u
 #define CLI_PROMPT_ROW_FIELD 2u
@@ -36,11 +36,11 @@ typedef struct CliPromptInputCfg CliPromptInputCfg;
 #define CLI_PROMPT_FIELD_MAX 4096ULL
 #define CLI_PROMPT_NONE 0xFFFFFFFFu
 
-// A row of the ask: its kind; its text and bytes, NULL for a password's field; whether the field is a password's and
+// A row of the ask: its type; its text and bytes, NULL for a password's field; whether the field is a password's and
 // how many letters it carries; and a buttons row's labels with their bytes, how many
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *text;
     unsigned long long length;
     int secret;

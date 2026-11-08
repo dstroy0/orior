@@ -9,9 +9,9 @@
 
 typedef struct CliPgFailurePasswordCtx CliPgFailurePasswordCtx;
 typedef struct CliPgFailureCtx CliPgFailureCtx;
-typedef struct CliPgFailureKindCtx CliPgFailureKindCtx;
+typedef struct CliPgFailureTypeCtx CliPgFailureTypeCtx;
 typedef struct CliPgCtx CliPgCtx;
-typedef struct CliPgKindCtx CliPgKindCtx;
+typedef struct CliPgTypeCtx CliPgTypeCtx;
 typedef struct CliPgBodyCtx CliPgBodyCtx;
 
 // the most connections at once; the bytes read off the socket at a time; the most bytes of one message's body; the
@@ -49,12 +49,12 @@ struct CliPg
     CliDbValue row[CLI_DB_COLUMNS];
 };
 
-// a message read off the connection, its kind into `kind` and its body into the connection's capacity: 1, or 0 with the
-// failure given; a message of `kind` sent, `count` parts of its body, each `sizes` bytes of `parts`: 1, or 0 with the
+// a message read off the connection, its type into `type` and its body into the connection's capacity: 1, or 0 with the
+// failure given; a message of `type` sent, `count` parts of its body, each `sizes` bytes of `parts`: 1, or 0 with the
 // failure given; what a server reported went wrong read from a message's body; a parameter the server reported
 // recorded; and a notice it gave recorded as the reader reads a failure (pg.c)
-int cli_pg_message(const CliPgKindCtx *args);
-int cli_pg_send(const CliPgFailureKindCtx *args);
+int cli_pg_message(const CliPgTypeCtx *args);
+int cli_pg_send(const CliPgFailureTypeCtx *args);
 void cli_pg_failure_get(const CliPgCtx *args);
 void cli_pg_parameter_store(const CliPgBodyCtx *args);
 void cli_pg_notice_store(const CliPgFailurePasswordCtx *args);
@@ -91,11 +91,11 @@ struct CliPgFailureCtx
     char *signature;
 };
 
-struct CliPgFailureKindCtx
+struct CliPgFailureTypeCtx
 {
     CliPg *pg;
     CliDbFailure *failure;
-    unsigned char kind_value;
+    unsigned char type_value;
     const void *const *parts;
     const unsigned long long *sizes;
     unsigned int count;
@@ -108,10 +108,10 @@ struct CliPgCtx
     unsigned long long size;
 };
 
-struct CliPgKindCtx
+struct CliPgTypeCtx
 {
     CliPg *pg;
-    unsigned char *kind;
+    unsigned char *type;
     CliDbFailure *failure;
 };
 
@@ -124,19 +124,19 @@ struct CliPgBodyCtx
 
 typedef struct
 {
-    int (*message)(const CliPgKindCtx *args);
-} CliPgKindNs;
-EMBED_TABLE_LAYOUT(CliPgKindNs, message);
-EMBED_TABLE_STORAGE CliPgKindNs cli_pg_kind_internal EMBED_UNUSED = {
+    int (*message)(const CliPgTypeCtx *args);
+} CliPgTypeNs;
+EMBED_TABLE_LAYOUT(CliPgTypeNs, message);
+EMBED_TABLE_STORAGE CliPgTypeNs cli_pg_type_internal EMBED_UNUSED = {
     .message = cli_pg_message,
 };
 
 typedef struct
 {
-    int (*send)(const CliPgFailureKindCtx *args);
-} CliPgFailureKindNs;
-EMBED_TABLE_LAYOUT(CliPgFailureKindNs, send);
-EMBED_TABLE_STORAGE CliPgFailureKindNs cli_pg_failure_kind_internal EMBED_UNUSED = {
+    int (*send)(const CliPgFailureTypeCtx *args);
+} CliPgFailureTypeNs;
+EMBED_TABLE_LAYOUT(CliPgFailureTypeNs, send);
+EMBED_TABLE_STORAGE CliPgFailureTypeNs cli_pg_failure_type_internal EMBED_UNUSED = {
     .send = cli_pg_send,
 };
 

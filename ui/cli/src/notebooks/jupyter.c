@@ -26,7 +26,7 @@ typedef struct
     long long code;
     CliSocket *socket;
     unsigned int port;
-    const char *kind;
+    const char *type;
     unsigned long long until;
     const char *text;
     const char *name;
@@ -145,14 +145,14 @@ static int jupyter_connected_while(const JupyterCtx *args)
 {
     CliSocket *socket = args->socket;
     unsigned int port = args->port;
-    const char *kind = args->kind;
+    const char *type = args->type;
     VerbaLinea *err_msg = args->err_msg;
     for (;;)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea refused = {why, sizeof(why), 0ULL};
         if (EMBED_CALL(cli_zmtp_socket_host.connect, CliZmtpSocketHostCfg, .socket_out = socket, .host = "127.0.0.1",
-                       .port = port, .kind = kind, .err_msg = &refused))
+                       .port = port, .type = type, .err_msg = &refused))
         {
             return 1;
         }
@@ -174,7 +174,7 @@ static int jupyter_connected_while(const JupyterCtx *args)
         if (cli_clock_milliseconds() > args->until)
         {
             mmgr_line_put(err_msg, "the kernel's ");
-            mmgr_line_put(err_msg, kind);
+            mmgr_line_put(err_msg, type);
             mmgr_line_put(err_msg, " socket did not open: ");
             mmgr_line_put_n(err_msg, why, refused.at);
             return 0;
@@ -351,11 +351,11 @@ EMBED_INLINE int jupyter_sockets_connect(const JupyterCtx *args)
 {
     CliKernel *kernel = args->kernel;
     if (!EMBED_CALL(jupyter_connected_while, JupyterCtx, .kernel = kernel, .socket = &kernel->shell,
-                    .port = args->ports[0], .kind = "DEALER", .until = args->until, .err_msg = args->err_msg) ||
+                    .port = args->ports[0], .type = "DEALER", .until = args->until, .err_msg = args->err_msg) ||
         !EMBED_CALL(jupyter_connected_while, JupyterCtx, .kernel = kernel, .socket = &kernel->control,
-                    .port = args->ports[3], .kind = "DEALER", .until = args->until, .err_msg = args->err_msg) ||
+                    .port = args->ports[3], .type = "DEALER", .until = args->until, .err_msg = args->err_msg) ||
         !EMBED_CALL(jupyter_connected_while, JupyterCtx, .kernel = kernel, .socket = &kernel->iopub,
-                    .port = args->ports[1], .kind = "SUB", .until = args->until, .err_msg = args->err_msg))
+                    .port = args->ports[1], .type = "SUB", .until = args->until, .err_msg = args->err_msg))
     {
         return 0;
     }

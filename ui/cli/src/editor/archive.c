@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// archive.c: the kind of archive a file is, an archive's members read by its kind, and a member's bytes
+// archive.c: the type of archive a file is, an archive's members read by its type, and a member's bytes
 #include "../runs/qry.h"
 #include "../text/text.h"
 #include "archive_internal.h"
@@ -8,7 +8,7 @@
 // the most names of a .qry's blobs read
 #define CLI_QRY_NAMES 4096u
 
-unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
+unsigned int cli_archive_type_get(const CliArchiveCfg *args)
 {
     static const char *const s_zips[10] = {".zip", ".jar",   ".war",  ".ear", ".whl",
                                            ".apk", ".nupkg", ".vsix", ".xpi", ".epub"};
@@ -29,7 +29,7 @@ unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
     const struct
     {
         const char *end;
-        unsigned int kind;
+        unsigned int type;
     } s_ends[5] = {{".qry", CLI_ARCHIVE_QRY},
                    {".tar.gz", CLI_ARCHIVE_TARGZ},
                    {".tgz", CLI_ARCHIVE_TARGZ},
@@ -41,7 +41,7 @@ unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
         if ((length >= size) && (cellul.eq(&(CatenaFinitaCfg){
                                     .src = lower + length - size, .other = s_ends[at].end, .cap = CLI_POOL_BYTES})))
         {
-            return s_ends[at].kind;
+            return s_ends[at].type;
         }
     }
     return CLI_ARCHIVE_NONE;
@@ -143,17 +143,17 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
     args->members->used = 1ULL;
     args->members->text[0] = '\0';
     *unpacked_size = 0ULL;
-    if (args->kind == CLI_ARCHIVE_ZIP)
+    if (args->type == CLI_ARCHIVE_ZIP)
     {
         return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.zip_members, CliArchiveBytesSizeErrMsgCtx,
                           .bytes = bytes, .size = size, .members = args->members, .err_msg = err_msg);
     }
-    if (args->kind == CLI_ARCHIVE_TAR)
+    if (args->type == CLI_ARCHIVE_TAR)
     {
         return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.tar_members, CliArchiveBytesSizeErrMsgCtx,
                           .bytes = bytes, .size = size, .members = args->members, .err_msg = err_msg);
     }
-    if ((args->kind == CLI_ARCHIVE_TARGZ) || (args->kind == CLI_ARCHIVE_GZ))
+    if ((args->type == CLI_ARCHIVE_TARGZ) || (args->type == CLI_ARCHIVE_GZ))
     {
         // a gzip's trailer ends with the low 32 bits of what it contains unpacked
         unsigned long long trailer_size = 0ULL;
@@ -173,7 +173,7 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
         {
             return 0;
         }
-        if (args->kind == CLI_ARCHIVE_TARGZ)
+        if (args->type == CLI_ARCHIVE_TARGZ)
         {
             return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.tar_members, CliArchiveBytesSizeErrMsgCtx,
                               .bytes = args->unpacked->bytes, .size = *unpacked_size, .members = args->members,
@@ -210,11 +210,11 @@ int cli_data_get(const CliArchiveBytesCtx *args)
     unsigned long long *out_size = args->out_size;
     const char *const name = args->members_read->text + args->member->name;
     unsigned long long length;
-    if (args->kind == CLI_ARCHIVE_GZ)
+    if (args->type == CLI_ARCHIVE_GZ)
     {
         length = args->unpacked_size_value;
     }
-    else if (args->kind == CLI_ARCHIVE_QRY)
+    else if (args->type == CLI_ARCHIVE_QRY)
     {
         length = EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = bytes, .size = size, .name = name);
     }
@@ -227,13 +227,13 @@ int cli_data_get(const CliArchiveBytesCtx *args)
     {
         return 0;
     }
-    if (args->kind == CLI_ARCHIVE_ZIP)
+    if (args->type == CLI_ARCHIVE_ZIP)
     {
         return EMBED_CALL(cli_archive_bytes_size_err_msg_members_internal.zip_data, CliArchiveBytesSizeErrMsgMembersCtx,
                           .bytes = bytes, .size = size, .members_read = args->members_read, .member = args->member,
                           .out = out->bytes, .capacity = out->capacity, .out_size = out_size, .err_msg = args->err_msg);
     }
-    if (args->kind == CLI_ARCHIVE_QRY)
+    if (args->type == CLI_ARCHIVE_QRY)
     {
         VerbaLinea line = {(char *)out->bytes, out->capacity, 0ULL};
         EMBED_CALL(cli_qry_out.member_join, CliQryOutCfg, .data = bytes, .size = size, .name = name, .out = &line);
@@ -246,9 +246,9 @@ int cli_data_get(const CliArchiveBytesCtx *args)
         *out_size = line.at;
         return 1;
     }
-    const unsigned char *const from = (args->kind == CLI_ARCHIVE_TAR) ? bytes : args->unpacked_bytes;
-    const unsigned long long from_size = (args->kind == CLI_ARCHIVE_TAR) ? size : args->unpacked_size_value;
-    const unsigned long long start = (args->kind == CLI_ARCHIVE_GZ) ? 0ULL : (args->member->at + 512ULL);
+    const unsigned char *const from = (args->type == CLI_ARCHIVE_TAR) ? bytes : args->unpacked_bytes;
+    const unsigned long long from_size = (args->type == CLI_ARCHIVE_TAR) ? size : args->unpacked_size_value;
+    const unsigned long long start = (args->type == CLI_ARCHIVE_GZ) ? 0ULL : (args->member->at + 512ULL);
     if ((start > from_size) || (length > (from_size - start)))
     {
         mmgr_line_put(args->err_msg, name);

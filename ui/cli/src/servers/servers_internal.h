@@ -77,7 +77,7 @@ typedef struct CliServersPathKeyCtx CliServersPathKeyCtx;
 typedef struct CliServersPathUriCtx CliServersPathUriCtx;
 typedef struct CliServersKeyCheckerCtx CliServersKeyCheckerCtx;
 typedef struct CliServersCtx CliServersCtx;
-typedef struct CliServersRootKindCtx CliServersRootKindCtx;
+typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 
 // the most servers running, toolchains that failed and that ended, words a server starts with, languages and
 // extensions' names of one, and checkers named
@@ -423,7 +423,7 @@ void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args);
 // the inspections' tree let go, as another tree opens; and the root the tree was read from into `root`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where it contains none
 void cli_servers_inspect_let_go(void);
-int cli_servers_tree_read(const CliServersRootKindCtx *args);
+int cli_servers_tree_read(const CliServersRootTypeCtx *args);
 // the diagnostics of each file whose server reports an attribute a class has not passed on whole again, as what a
 // class's family sets moved (servers_emit.c)
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args);
@@ -986,7 +986,7 @@ struct CliServersCtx
     const CliLsp *server_read;
 };
 
-struct CliServersRootKindCtx
+struct CliServersRootTypeCtx
 {
     char *root_out;
 };
@@ -1408,10 +1408,10 @@ EMBED_TABLE_STORAGE CliServersPathSizeLanguageNs cli_servers_path_size_language_
 
 typedef struct
 {
-    int (*tree_read)(const CliServersRootKindCtx *args);
-} CliServersRootKindNs;
-EMBED_TABLE_LAYOUT(CliServersRootKindNs, tree_read);
-EMBED_TABLE_STORAGE CliServersRootKindNs cli_servers_root_kind_internal EMBED_UNUSED = {
+    int (*tree_read)(const CliServersRootTypeCtx *args);
+} CliServersRootTypeNs;
+EMBED_TABLE_LAYOUT(CliServersRootTypeNs, tree_read);
+EMBED_TABLE_STORAGE CliServersRootTypeNs cli_servers_root_type_internal EMBED_UNUSED = {
     .tree_read = cli_servers_tree_read,
 };
 

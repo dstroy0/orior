@@ -49,7 +49,7 @@ typedef struct
     VerbaLinea *err_msg;
     const char *key;
     int added;
-    int (*seen)(const CliEachKindCfg *args);
+    int (*seen)(const CliEachTypeCfg *args);
     const void *context_read;
     unsigned long long length;
     unsigned long long *length_out;
@@ -61,8 +61,8 @@ EMBED_INLINE int cli_passed_over(const ToolchainsFindCtx *args)
     const CliJson *json = args->json;
     const unsigned int not_in = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = args->tool, .name = "notIn");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = not_in, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = not_in, .type = CFG_JSON_ARRAY)
                                  ? json->node[not_in].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
@@ -183,8 +183,8 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
     }
     const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                              .object = tool, .name = "programs");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = programs, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = programs, .type = CFG_JSON_ARRAY)
                                  ? json->node[programs].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
@@ -344,8 +344,8 @@ static int cli_version_get(const ToolchainsFindCtx *args)
                    .length_pointer = NULL);
     const unsigned int version = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                             .object = args->tool, .name = "version");
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = version,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = version,
+                    .type = CFG_JSON_ARRAY))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " is not queried for its version: running it opens a window or takes long");
@@ -441,8 +441,8 @@ EMBED_INLINE void cli_member_write(const ToolchainsFindCtx *args)
     VerbaLinea *out = args->out;
     const unsigned int value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = args->tool, .name = args->key);
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = value,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = value,
+                   .type = CFG_JSON_ARRAY))
     {
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = value,
                    .out = out, .indent = 0u, .sorted = 0);
@@ -477,8 +477,8 @@ EMBED_INLINE void cli_tool_names_write(const ToolchainsFindCtx *args)
     mmgr_line_put(args->out, ",\"formats\":");
     const unsigned int formats = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                             .object = args->tool, .name = "formats");
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = formats,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = formats,
+                   .type = CFG_JSON_ARRAY))
     {
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = formats,
                    .out = args->out, .indent = 0u, .sorted = 0);
@@ -489,30 +489,30 @@ EMBED_INLINE void cli_tool_names_write(const ToolchainsFindCtx *args)
     }
 }
 
-// whether a tool is used: it is needed, or `added` to the tree, or `seen` answers for one of the kinds it `uses`
+// whether a tool is used: it is needed, or `added` to the tree, or `seen` answers for one of the types it `uses`
 EMBED_INLINE int cli_tool_used(const ToolchainsFindCtx *args)
 {
     const CliJson *const json = args->json;
-    if (args->added || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+    if (args->added || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                      .json_read = json, .object = args->tool, .name = "needed"),
-                                  .kind = CFG_JSON_TRUE))
+                                  .type = CFG_JSON_TRUE))
     {
         return 1;
     }
     const unsigned int uses = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                          .object = args->tool, .name = "uses");
-    if ((args->seen == NULL) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                            .node = uses, .kind = CFG_JSON_ARRAY))
+    if ((args->seen == NULL) || !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                            .node = uses, .type = CFG_JSON_ARRAY))
     {
         return 0;
     }
     for (unsigned int use = json->node[uses].first; use != CLI_JSON_NONE; use = json->node[use].next)
     {
-        const char *const kind = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+        const char *const type = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = use, .length_pointer = NULL);
-        if ((kind != NULL) && EMBED_CALL(args->seen, CliEachKindCfg, .context = args->context_read,
-                                         .kind = (kind[0] == '*') ? (kind + 1) : kind))
+        if ((type != NULL) && EMBED_CALL(args->seen, CliEachTypeCfg, .context = args->context_read,
+                                         .type = (type[0] == '*') ? (type + 1) : type))
         {
             return 1;
         }
@@ -523,10 +523,10 @@ EMBED_INLINE int cli_tool_used(const ToolchainsFindCtx *args)
 // whether a tool's manifest lists its version command
 EMBED_INLINE int cli_tool_versioned(const ToolchainsFindCtx *args)
 {
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = args->json, .object = args->tool, .name = "version"),
-                      .kind = CFG_JSON_ARRAY);
+                      .type = CFG_JSON_ARRAY);
 }
 
 // a tool's setup, versioned, needed, added and used marks written into `out`; `text` is the tool's id, NULL where it
@@ -543,10 +543,10 @@ EMBED_INLINE void cli_tool_flags_write(const ToolchainsFindCtx *args)
     mmgr_line_put(args->out, EMBED_CALL(cli_tool_versioned, ToolchainsFindCtx, .json = json, .tool = args->tool)
                                  ? ",\"versioned\":true"
                                  : ",\"versioned\":false");
-    mmgr_line_put(args->out, EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+    mmgr_line_put(args->out, EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                            .json_read = json, .object = args->tool, .name = "needed"),
-                                        .kind = CFG_JSON_TRUE)
+                                        .type = CFG_JSON_TRUE)
                                  ? ",\"needed\":true"
                                  : ",\"needed\":false");
     const int added =
@@ -590,8 +590,8 @@ void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
     cli_toolchains_found_ref();
     mmgr_line_ch(out, '[');
     int first = 1;
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                        .node = manifest, .kind = CFG_JSON_ARRAY)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                        .node = manifest, .type = CFG_JSON_ARRAY)
                                  ? json.node[manifest].first
                                  : CLI_JSON_NONE;
          tool != CLI_JSON_NONE; tool = json.node[tool].next)

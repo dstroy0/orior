@@ -147,11 +147,14 @@ int main(void)
                              .time_ms = 10000ULL),
               "a pane shown where none showed takes its width at once and comes in over its slide");
     EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &slid, .strip = &sliding, .at = explorer, .time_ms = 11000ULL);
-    const int halfway = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11110ULL);
+    const int quarter = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11055ULL);
+    const int halfway = EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11120ULL);
     cli_check((EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11000ULL) == 0) &&
-                  (halfway > 0) && (halfway < GUI_FIXED_ONE) &&
+                  (quarter > 0) && (quarter < GUI_FIXED_ONE) && (halfway > GUI_FIXED_ONE) &&
+                  (halfway < GUI_FIXED_ONE + (GUI_FIXED_ONE / 10)) &&
                   (EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 11220ULL) == GUI_FIXED_ONE),
-              "a pane collapsed goes over its slide on the ease");
+              "a pane collapsed goes over its slide as a bead: on its way at a quarter, a little past its end at the "
+              "middle, and at its end as the slide ends");
     cli_check(EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &slid, .strip_read = &sliding,
                          .time_ms = 11219ULL) &&
                   !EMBED_CALL(gui_sides.stands, GuiSidesCfg, .sides_read = &slid, .strip_read = &sliding,

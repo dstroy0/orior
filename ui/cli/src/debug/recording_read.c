@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "recording_internal.h"
 
-// The counts a recording's lines give by their kinds, read off the text before the lines are read whole: the steps,
+// The counts a recording's lines give by their types, read off the text before the lines are read whole: the steps,
 // the frames by the largest number a call or a line names, the files by the largest number a file record names, the
 // threads and the raises
 typedef struct
@@ -73,36 +73,36 @@ EMBED_INLINE unsigned int read_digits(const RecordingReadCtx *args)
     return ((digits == 0ULL) || (value > 0xffffffffULL)) ? 0xffffffffu : (unsigned int)value;
 }
 
-// the counts of `size` bytes of `text`: each line's kind is the word its array opens with, and the number after it
-// where the kind takes one
+// the counts of `size` bytes of `text`: each line's type is the word its array opens with, and the number after it
+// where the type takes one
 EMBED_INLINE void read_on_count(const RecordingReadCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
     ReadCounts *counts = args->counts;
-    static const char *const s_kinds[5] = {"[\"line\",", "[\"call\",", "[\"file\",", "[\"thread\",", "[\"raise\","};
+    static const char *const s_types[5] = {"[\"line\",", "[\"call\",", "[\"file\",", "[\"thread\",", "[\"raise\","};
     *counts = (ReadCounts){0u, 0u, 0u, 0u, 0u};
     for (unsigned long long at = 0ULL; at < size;)
     {
         const unsigned long long end =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).stop;
-        for (unsigned int kind = 0u; kind < 5u; kind += 1u)
+        for (unsigned int type = 0u; type < 5u; type += 1u)
         {
             const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_kinds[kind], .cap = CLI_POOL_BYTES});
+                cellul.len(&(CatenaFinitaCfg){.src = s_types[type], .cap = CLI_POOL_BYTES});
             if ((end - at < length) ||
-                (memor.cmp(&(MemoriaCfg){.src = text + at, .other = s_kinds[kind], .bytes = (size_t)length}) != 0))
+                (memor.cmp(&(MemoriaCfg){.src = text + at, .other = s_types[type], .bytes = (size_t)length}) != 0))
             {
                 continue;
             }
             const unsigned int number =
                 EMBED_CALL(read_digits, RecordingReadCtx, .text = text, .size = end, .at = at + length);
             const unsigned int named = (number == 0xffffffffu) ? 0u : (number + 1u);
-            counts->steps += (kind == 0u) ? 1u : 0u;
-            counts->frames = ((kind <= 1u) && (named > counts->frames)) ? named : counts->frames;
-            counts->files = ((kind == 2u) && (named > counts->files)) ? named : counts->files;
-            counts->threads += (kind == 3u) ? 1u : 0u;
-            counts->raises += (kind == 4u) ? 1u : 0u;
+            counts->steps += (type == 0u) ? 1u : 0u;
+            counts->frames = ((type <= 1u) && (named > counts->frames)) ? named : counts->frames;
+            counts->files = ((type == 2u) && (named > counts->files)) ? named : counts->files;
+            counts->threads += (type == 3u) ? 1u : 0u;
+            counts->raises += (type == 4u) ? 1u : 0u;
             break;
         }
         at = end + 1ULL;
@@ -185,8 +185,8 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
                          .text = recording->text + at, .size = end - at, .nodes_more = 0u, .text_more = 0ULL,
                          .err_msg = &unread, .owner = g_cli_debug_owner)
             : CLI_JSON_NONE;
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = root,
-                      .kind = CFG_JSON_ARRAY)
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = root,
+                      .type = CFG_JSON_ARRAY)
                ? root
                : CLI_JSON_NONE;
 }
@@ -203,8 +203,8 @@ EMBED_INLINE unsigned long long read_number(const RecordingReadCtx *args)
 {
     const unsigned int node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                          .json_read = &s_json, .array = args->record, .index = args->at_u32);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = node,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = node,
+                    .type = CFG_JSON_NUMBER))
     {
         return 0ULL;
     }
@@ -247,7 +247,7 @@ EMBED_INLINE unsigned int read_by_name(const RecordingReadCtx *args)
 }
 
 // whether the text at place `at` of a record is `word`
-EMBED_INLINE int read_kind(const RecordingReadCtx *args)
+EMBED_INLINE int read_type(const RecordingReadCtx *args)
 {
     const char *const text =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
@@ -379,7 +379,7 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
     {
         step = 0u;
     }
-    const unsigned int kind =
+    const unsigned int type =
         EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 3u, .slashed = 0);
     const unsigned int message =
         EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 4u, .slashed = 0);
@@ -388,7 +388,7 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
         const CliRecordedRaise *const last = &recording->raised[recording->raised_count - 1u];
         const unsigned int here = (step < recording->step_count) ? recording->steps[step].depth : 0u;
         if ((cellul.eq(&(CatenaFinitaCfg){
-                .src = recording->names + last->kind, .other = recording->names + kind, .cap = CLI_POOL_BYTES})) &&
+                .src = recording->names + last->type, .other = recording->names + type, .cap = CLI_POOL_BYTES})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = recording->names + last->message,
                                           .other = recording->names + message,
                                           .cap = CLI_POOL_BYTES})) &&
@@ -399,7 +399,7 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
     }
     if (recording->raised_count < recording->raised_max)
     {
-        recording->raised[recording->raised_count] = (CliRecordedRaise){step, kind, message};
+        recording->raised[recording->raised_count] = (CliRecordedRaise){step, type, message};
         recording->raised_count += 1u;
     }
 }
@@ -452,11 +452,11 @@ void cli_recording_let_go(void)
     recording->cut = 0;
 }
 
-// a record of the recording read by its kind
+// a record of the recording read by its type
 EMBED_INLINE void read_store(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
-    if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "file"))
+    if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "file"))
     {
         const unsigned long long file = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
         for (; (recording->file_count <= file) && (recording->file_count < recording->file_max);
@@ -470,7 +470,7 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
                 EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 2u, .slashed = 1);
         }
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "thread") &&
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "thread") &&
              (recording->thread_count < recording->thread_max))
     {
         recording->thread_ids[recording->thread_count] =
@@ -479,33 +479,33 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
             EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 2u, .slashed = 0);
         recording->thread_count += 1u;
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "call"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "call"))
     {
         read_call(args);
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "line"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "line"))
     {
         read_line(args);
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "return"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "return"))
     {
         read_return(args);
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "raise"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "raise"))
     {
         read_raise(args);
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "cut"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "cut"))
     {
         recording->cut = 1;
     }
-    else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word_text = "end"))
+    else if (EMBED_CALL(read_type, RecordingReadCtx, .record = args->record, .word_text = "end"))
     {
         const unsigned int code = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = &s_json, .array = args->record, .index = 1u);
         long long value = 0LL;
-        int whole = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
-                               .node = code, .kind = CFG_JSON_NUMBER);
+        int whole = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
+                               .node = code, .type = CFG_JSON_NUMBER);
         const char *const text = whole ? s_json.text + s_json.node[code].text : "";
         const unsigned long long length = whole ? s_json.node[code].length : 0ULL;
         const int negative = (length > 0ULL) && (text[0] == '-');

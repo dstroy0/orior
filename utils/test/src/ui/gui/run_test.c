@@ -32,7 +32,7 @@ static void catalog_laid(void)
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "build/alpha",
                      .group = "build", .title = "Alpha build", .file = "src/alpha.sh", .about = "builds the alpha",
                      .opens = "");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "name", .kind = "word",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "name", .type = "word",
                .required = 1);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .text = "job.sh",
                .program = CLI_PROGRAM_BASH);
@@ -40,21 +40,21 @@ static void catalog_laid(void)
                      .group = "sim", .title = "Gamma sim", .file = "src/gamma.sh", .about = "a simulation", .opens = "");
 }
 
-// the row `at` of the CLI's rows, its kind into `kind`: 1, or 0 past the last
-static int row_kind(unsigned int at, unsigned int *kind)
+// the row `at` of the CLI's rows, its type into `type`: 1, or 0 past the last
+static int row_type(unsigned int at, unsigned int *type)
 {
     CliJobRunRow row;
     const int read = EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = at, .row_out = &row);
-    *kind = read ? row.kind : 0xffffffffu;
+    *type = read ? row.type : 0xffffffffu;
     return read;
 }
 
-// the first row of `kind`, the rows' count where none is
-static unsigned int row_of(unsigned int kind)
+// the first row of `type`, the rows' count where none is
+static unsigned int row_of(unsigned int type)
 {
     unsigned int at = 0u;
     unsigned int each = 0u;
-    while (row_kind(at, &each) && (each != kind))
+    while (row_type(at, &each) && (each != type))
     {
         at += 1u;
     }
@@ -62,10 +62,10 @@ static unsigned int row_of(unsigned int kind)
 }
 
 // a report stored as the store's sink stores a run's event from the run's thread
-static void reported(unsigned int kind, unsigned long long run, const char *job, unsigned int stream, const char *text)
+static void reported(unsigned int type, unsigned long long run, const char *job, unsigned int stream, const char *text)
 {
-    EMBED_CALL(cli_job_runs_report.store, CliJobRunsReportCfg, .kind = kind, .run = run, .job = job, .stream = stream,
-               .text = text, .has_code = kind == CLI_JOB_RUNS_ENDED);
+    EMBED_CALL(cli_job_runs_report.store, CliJobRunsReportCfg, .type = type, .run = run, .job = job, .stream = stream,
+               .text = text, .has_code = type == CLI_JOB_RUNS_ENDED);
 }
 
 // whether any pixel of `rect` differs from `ground`
@@ -162,8 +162,8 @@ int main(void)
                   (EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 3u),
               "a group's row pressed opens it and opens no file");
     (void)EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .pane = &pane, .open_out = &open);
-    unsigned int kind = 0u;
-    cli_check(row_kind(2u, &kind) && (kind == CLI_JOB_RUN_ABOUT) && row_kind(3u, &kind) && (kind == CLI_JOB_RUN_PARAM),
+    unsigned int type = 0u;
+    cli_check(row_type(2u, &type) && (type == CLI_JOB_RUN_ABOUT) && row_type(3u, &type) && (type == CLI_JOB_RUN_PARAM),
               "a job pressed is chosen, its file and its param under it");
 
     // a param pressed takes the keys, and the text and the keys reach its value
@@ -207,8 +207,8 @@ int main(void)
     cli_check(pane.keys && EMBED_CALL(cli_job_runs_field.focused, CliJobRunsFieldCfg, .length_out = NULL),
               "the field takes the keys for the filter");
     (void)EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "gamma", .length = 5ULL);
-    cli_check((EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 1u) && row_kind(0u, &kind) &&
-                  (kind == CLI_JOB_RUN_GROUP),
+    cli_check((EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 1u) && row_type(0u, &type) &&
+                  (type == CLI_JOB_RUN_GROUP),
               "the filter typed lists the groups whose jobs contain it alone");
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {

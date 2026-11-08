@@ -209,7 +209,7 @@ EMBED_INLINE void query_missing_files(const WriteCtx *args)
 {
     static const char *const s_language[2] = {"klm", "krs"};
     static const char *const s_part[3] = {"khw", "kqr", "ksc"};
-    const char *const *const kinds = args->language ? s_language : s_part;
+    const char *const *const types = args->language ? s_language : s_part;
     for (unsigned int at = 0u; at < (args->language ? 2u : 3u); at += 1u)
     {
         char file[QUERY_PATH_MAX_LEN];
@@ -217,7 +217,7 @@ EMBED_INLINE void query_missing_files(const WriteCtx *args)
         VerbaLinea line = {file, sizeof(file), 0ULL};
         mmgr_line_put(&line, args->name);
         mmgr_line_ch(&line, '.');
-        mmgr_line_put(&line, kinds[at]);
+        mmgr_line_put(&line, types[at]);
         mmgr_line_finish(&line);
         EMBED_CALL(query_table_by_name, WriteCtx, .context = args->context, .name = file, .path = path);
         if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))

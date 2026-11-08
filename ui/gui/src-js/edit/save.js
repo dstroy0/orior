@@ -184,16 +184,16 @@ export async function formatTab(tab, { saving: onSave = false } = {}) {
   }
 }
 
-// Puts `lines` in place of a session's own as one change of `kind`, which undo takes back, only the
+// Puts `lines` in place of a session's own as one change of `type`, which undo takes back, only the
 // lines that differ replaced. Says in how many places the text changed.
-function replaceLines(s, lines, kind) {
+function replaceLines(s, lines, type) {
   const doc = s.doc;
   const changes = lineChanges(doc.lines, lines);
   const edits = changes ? changes.hunks.map((hunk) => linesEdit(doc, hunk.then[0], hunk.then[1], lines.slice(hunk.now[0], hunk.now[1]))) : [{ from: { line: 0, col: 0 }, to: doc.end(), text: lines.join("\n") }];
   if (state.editor?.s === s) {
-    state.editor.change(edits, kind);
+    state.editor.change(edits, type);
   } else {
-    doc.change(edits, kind, s.selections);
+    doc.change(edits, type, s.selections);
     s.selections = s.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
     doc.settle(s.selections);
   }

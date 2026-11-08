@@ -102,15 +102,15 @@ void cli_gradle_build_root(const CliGradleRootCtx *args)
     const char *path = args->path;
     char start[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = start))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = start))
     {
         EMBED_CALL(gradle_copy, GradleBuildCtx, .from = args->root, .out = start);
     }
-    if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_CATALOG)
+    if (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_CATALOG)
     {
         EMBED_CALL(
             gradle_copy, GradleBuildCtx,
-            .from = EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = start, .out = above)
+            .from = EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = start, .out = above)
                         ? above
                         : args->root,
             .out = start);
@@ -128,7 +128,7 @@ void cli_gradle_build_root(const CliGradleRootCtx *args)
         }
         if ((cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->root, .cap = CLI_POOL_BYTES})) ||
             !EMBED_CALL(gradle_inside, GradleBuildCtx, .root = args->root, .folder = folder) ||
-            !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+            !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
         {
             EMBED_CALL(gradle_copy, GradleBuildCtx, .from = start, .out = args->out);
             return;

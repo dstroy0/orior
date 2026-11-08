@@ -356,18 +356,18 @@ typedef struct
 // still to gather
 static LatticePlane lattice_plane(const LatticeStageAt *at)
 {
-    if (at->kind == LATTICE_SPREAD)
+    if (at->type == LATTICE_SPREAD)
     {
         return (LatticePlane){1.0 / LATTICE_RAMP, 0.0, -at->front / LATTICE_RAMP, 0.0};
     }
-    if (at->kind == LATTICE_WHOLE)
+    if (at->type == LATTICE_WHOLE)
     {
         return (LatticePlane){0.0, 0.0, at->part, at->part};
     }
     const double dx = lattice_cos(at->angle);
     const double dy = lattice_sin(at->angle);
     const double along = 1.0 / ((lattice_absolute(dx) + lattice_absolute(dy)) * LATTICE_RAMP);
-    const double gathered = at->kind == LATTICE_GATHER ? 1.0 - at->part : 0.0;
+    const double gathered = at->type == LATTICE_GATHER ? 1.0 - at->part : 0.0;
     return (LatticePlane){dx * along, dy * along, (0.5 - LATTICE_ORDERED) / LATTICE_RAMP - 0.5 * (dx + dy) * along,
                           gathered};
 }

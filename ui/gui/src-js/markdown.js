@@ -26,7 +26,7 @@ const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 // The footnotes of the text being read: each by its name, its text and its number once cited.
 const notes = { defined: new Map(), cited: [] };
 
-// The kinds of alert a quote can open with, as GitHub names them.
+// The types of alert a quote can open with, as GitHub names them.
 const ALERTS = { NOTE: "Note", TIP: "Tip", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Caution" };
 
 export const escapeHtml = (text) => text.replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
@@ -195,8 +195,8 @@ function blockList(lines, base, resolve) {
       }
       const alert = body[0]?.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i);
       if (alert) {
-        const kind = alert[1].toUpperCase();
-        out.push(tagged("div", start, `<p class="markdown-alert-title">${ALERTS[kind]}</p>${blocks(body.slice(1), base + start + 1, resolve)}`, ` class="markdown-alert markdown-alert-${kind.toLowerCase()}"`));
+        const type = alert[1].toUpperCase();
+        out.push(tagged("div", start, `<p class="markdown-alert-title">${ALERTS[type]}</p>${blocks(body.slice(1), base + start + 1, resolve)}`, ` class="markdown-alert markdown-alert-${type.toLowerCase()}"`));
       } else {
         out.push(tagged("blockquote", start, blocks(body, base + start, resolve)));
       }

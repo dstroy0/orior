@@ -75,7 +75,7 @@ unsigned int cli_fail(const CliRegexpReadErrorCtx *args)
     return CLI_REGEXP_FAILED;
 }
 
-int cli_peek(const CliRegexpReadLetterKindCtx *args)
+int cli_peek(const CliRegexpReadLetterTypeCtx *args)
 {
     unsigned int *letter = args->letter;
     if (args->reader_read->at >= args->reader_read->length)
@@ -88,7 +88,7 @@ int cli_peek(const CliRegexpReadLetterKindCtx *args)
 
 int cli_next(const CliRegexpReadLetterCtx *args)
 {
-    const int there = EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
+    const int there = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
                                  .reader_read = args->reader, .letter = args->letter);
     args->reader->at += there ? 1u : 0u;
     return there;
@@ -97,7 +97,7 @@ int cli_next(const CliRegexpReadLetterCtx *args)
 int cli_eat(const CliRegexpReadCtx *args)
 {
     unsigned int letter = 0u;
-    if (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx, .reader_read = args->reader,
+    if (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = args->reader,
                    .letter = &letter) &&
         (letter == args->required))
     {
@@ -107,11 +107,11 @@ int cli_eat(const CliRegexpReadCtx *args)
     return 0;
 }
 
-// a node of `kind` made, its fields zero but its group none: its index, or CLI_REGEXP_FAILED where the pattern contains
+// a node of `type` made, its fields zero but its group none: its index, or CLI_REGEXP_FAILED where the pattern contains
 // as many as it can
-unsigned int cli_node(const CliRegexpReadKindCtx *args)
+unsigned int cli_node(const CliRegexpReadTypeCtx *args)
 {
-    unsigned int kind = args->kind;
+    unsigned int type = args->type;
     CliRegexp *const regexp = args->reader->regexp;
     if (regexp->nodes >= CLI_REGEXP_NODES)
     {
@@ -120,14 +120,14 @@ unsigned int cli_node(const CliRegexpReadKindCtx *args)
     }
     const unsigned int made = regexp->nodes;
     memor.set(&(MemoriaCfg){.dst = &regexp->node[made], .val = 0, .bytes = sizeof(regexp->node[made])});
-    regexp->node[made].kind = kind;
+    regexp->node[made].type = type;
     regexp->node[made].group = CLI_REGEXP_NONE;
     regexp->nodes += 1u;
     return made;
 }
 
-// the nodes `children`, `count` of them, put in the parts as one node of `kind`: its index
-unsigned int cli_parent(const CliRegexpReadKindCtx *args)
+// the nodes `children`, `count` of them, put in the parts as one node of `type`: its index
+unsigned int cli_parent(const CliRegexpReadTypeCtx *args)
 {
     unsigned int count = args->count;
     CliRegexp *const regexp = args->reader->regexp;
@@ -136,7 +136,7 @@ unsigned int cli_parent(const CliRegexpReadKindCtx *args)
         return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "more parts than a pattern allows");
     }
-    const unsigned int made = cli_regexp_read_kind_internal.node(args);
+    const unsigned int made = cli_regexp_read_type_internal.node(args);
     if (made == CLI_REGEXP_FAILED)
     {
         return made;
@@ -155,7 +155,7 @@ int cli_number(const CliRegexpReadValueCtx *args)
     const unsigned long long start = args->reader->at;
     unsigned long long read = 0ULL;
     unsigned int letter = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
+    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
                       .reader_read = args->reader, .letter = &letter) &&
            (letter >= '0') && (letter <= '9'))
     {
@@ -186,7 +186,7 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
     unsigned int letter = 0u;
     unsigned int min = 0u;
     unsigned int max = CLI_REGEXP_UNBOUNDED;
-    if (!EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx, .reader_read = reader,
+    if (!EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
                     .letter = &letter))
     {
         return args->atom;
@@ -217,7 +217,7 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
         if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = ','))
         {
             unsigned int peeked = 0u;
-            const int closes = EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
+            const int closes = EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx,
                                           .reader_read = reader, .letter = &peeked) &&
                                (peeked == '}');
             max = (!closes && EMBED_CALL(cli_regexp_read_value_internal.number, CliRegexpReadValueCtx, .reader = reader,
@@ -238,16 +238,16 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
     }
     }
     reader->at += 1u;
-    const unsigned int kind = reader->regexp->node[args->atom].kind;
-    if ((kind == CLI_REGEXP_START) || (kind == CLI_REGEXP_END) || (kind == CLI_REGEXP_BOUNDARY) ||
-        (kind == CLI_REGEXP_LOOK))
+    const unsigned int type = reader->regexp->node[args->atom].type;
+    if ((type == CLI_REGEXP_START) || (type == CLI_REGEXP_END) || (type == CLI_REGEXP_BOUNDARY) ||
+        (type == CLI_REGEXP_LOOK))
     {
         return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                           .why = "a quantifier after an assertion");
     }
     const int greedy = !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '?');
-    const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
-                                         .kind = CLI_REGEXP_REPEAT);
+    const unsigned int made = EMBED_CALL(cli_regexp_read_type_internal.node, CliRegexpReadTypeCtx, .reader = reader,
+                                         .type = CLI_REGEXP_REPEAT);
     if (made != CLI_REGEXP_FAILED)
     {
         CliRegexpNode *const node = &reader->regexp->node[made];
@@ -266,7 +266,7 @@ EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
     unsigned int parts[CLI_REGEXP_LEVEL_MAX];
     unsigned int count = 0u;
     unsigned int letter = 0u;
-    while (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx, .reader_read = reader,
+    while (EMBED_CALL(cli_regexp_read_letter_type_internal.peek, CliRegexpReadLetterTypeCtx, .reader_read = reader,
                       .letter = &letter) &&
            (letter != '|') && (letter != ')'))
     {
@@ -288,12 +288,12 @@ EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
     }
     if (count == 0u)
     {
-        return EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
-                          .kind = CLI_REGEXP_EMPTY);
+        return EMBED_CALL(cli_regexp_read_type_internal.node, CliRegexpReadTypeCtx, .reader = reader,
+                          .type = CLI_REGEXP_EMPTY);
     }
     return (count == 1u) ? parts[0]
-                         : EMBED_CALL(cli_regexp_read_kind_internal.parent, CliRegexpReadKindCtx, .reader = reader,
-                                      .kind = CLI_REGEXP_CONCAT, .children = parts, .count = count);
+                         : EMBED_CALL(cli_regexp_read_type_internal.parent, CliRegexpReadTypeCtx, .reader = reader,
+                                      .type = CLI_REGEXP_CONCAT, .children = parts, .count = count);
 }
 
 unsigned int cli_alternation(const CliRegexpReadCtx *args)
@@ -317,8 +317,8 @@ unsigned int cli_alternation(const CliRegexpReadCtx *args)
     } while (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = args->reader, .required = '|'));
     return (count == 1u)
                ? options[0]
-               : EMBED_CALL(cli_regexp_read_kind_internal.parent, CliRegexpReadKindCtx, .reader = args->reader,
-                            .kind = CLI_REGEXP_ALT, .children = options, .count = count);
+               : EMBED_CALL(cli_regexp_read_type_internal.parent, CliRegexpReadTypeCtx, .reader = args->reader,
+                            .type = CLI_REGEXP_ALT, .children = options, .count = count);
 }
 
 // Each alternative of every alternation given its first characters, a place whose character none of them can start
@@ -330,7 +330,7 @@ EMBED_INLINE void cli_ascii_know(const RegexpReadCtx *args)
     for (unsigned int index = 0u; index < regexp->nodes; index += 1u)
     {
         CliRegexpNode *const node = &regexp->node[index];
-        if ((node->kind != CLI_REGEXP_CHAR) && (node->kind != CLI_REGEXP_ANY) && (node->kind != CLI_REGEXP_CLASS))
+        if ((node->type != CLI_REGEXP_CHAR) && (node->type != CLI_REGEXP_ANY) && (node->type != CLI_REGEXP_CLASS))
         {
             continue;
         }
@@ -353,15 +353,15 @@ EMBED_INLINE void cli_ascii_know(const RegexpReadCtx *args)
 static int cli_anchor(const RegexpReadCtx *args)
 {
     const CliRegexpNode *const node = &args->regexp_read->node[args->index];
-    if (node->kind == CLI_REGEXP_START)
+    if (node->type == CLI_REGEXP_START)
     {
         return 1;
     }
-    if (node->kind == CLI_REGEXP_GROUP)
+    if (node->type == CLI_REGEXP_GROUP)
     {
         return EMBED_CALL(cli_anchor, RegexpReadCtx, .regexp_read = args->regexp_read, .index = node->child);
     }
-    return (node->kind == CLI_REGEXP_CONCAT) && (node->count > 0u) &&
+    return (node->type == CLI_REGEXP_CONCAT) && (node->count > 0u) &&
            EMBED_CALL(cli_anchor, RegexpReadCtx, .regexp_read = args->regexp_read,
                       .index = args->regexp_read->part[node->first]);
 }
@@ -371,25 +371,25 @@ static void cli_on_fill(const RegexpReadCtx *args)
     CliRegexp *regexp = args->regexp;
     unsigned int index = args->index;
     CliRegexpNode *const node = &regexp->node[index];
-    if ((node->kind == CLI_REGEXP_ALT) || (node->kind == CLI_REGEXP_CONCAT))
+    if ((node->type == CLI_REGEXP_ALT) || (node->type == CLI_REGEXP_CONCAT))
     {
         for (unsigned int at = 0u; at < node->count; at += 1u)
         {
             EMBED_CALL(cli_on_fill, RegexpReadCtx, .regexp = regexp, .index = regexp->part[node->first + at]);
         }
-        for (unsigned int at = 0u; (node->kind == CLI_REGEXP_ALT) && (at < node->count); at += 1u)
+        for (unsigned int at = 0u; (node->type == CLI_REGEXP_ALT) && (at < node->count); at += 1u)
         {
             regexp->part_first[node->first + at] =
                 EMBED_CALL(cli_regexp_index.first_get, CliRegexpIndexCfg, .regexp = regexp,
                            .index = regexp->part[node->first + at]);
         }
     }
-    else if (node->kind == CLI_REGEXP_REPEAT)
+    else if (node->type == CLI_REGEXP_REPEAT)
     {
         EMBED_CALL(cli_on_fill, RegexpReadCtx, .regexp = regexp, .index = node->child);
         node->one_way = EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = regexp, .index = node->child);
     }
-    else if ((node->kind == CLI_REGEXP_GROUP) || (node->kind == CLI_REGEXP_LOOK))
+    else if ((node->type == CLI_REGEXP_GROUP) || (node->type == CLI_REGEXP_LOOK))
     {
         EMBED_CALL(cli_on_fill, RegexpReadCtx, .regexp = regexp, .index = node->child);
     }

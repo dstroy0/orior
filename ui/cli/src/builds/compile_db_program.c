@@ -381,8 +381,8 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
     EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &model);
 }
 
-// the compiler's kind by its stem in lower case: MSVC for cl, Clang where the stem contains clang, else GNU
-EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args)
+// the compiler's type by its stem in lower case: MSVC for cl, Clang where the stem contains clang, else GNU
+EMBED_INLINE const char *cli_meson_compiler_type(const CompileDbProgramCtx *args)
 {
     char stem[CLI_NAME_MAX_LEN] = "";
     const char *name = args->compiler_read;
@@ -444,7 +444,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
                .joined = targets_path);
     if (!EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx,
                     .path = targets_path, .stamped = &stamped) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->info, .out = build) ||
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->info, .out = build) ||
         !EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = targets_path, .reply_out = &reply))
     {
         return;
@@ -510,7 +510,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
         }
         EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = found.config, .size = sizeof(found.config), .text = config);
         EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = found.compiler, .size = sizeof(found.compiler),
-                   .text = EMBED_CALL(cli_meson_compiler_kind, CompileDbProgramCtx, .compiler_read = compiler));
+                   .text = EMBED_CALL(cli_meson_compiler_type, CompileDbProgramCtx, .compiler_read = compiler));
         EMBED_CALL(cli_program_append, CompileDbProgramCtx,
                    .debugging = EMBED_CALL(cli_one_get, CompileDbProgramCtx, .text = config, .one = "debug",
                                            .other = "debugoptimized"),

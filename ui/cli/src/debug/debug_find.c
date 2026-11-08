@@ -146,8 +146,8 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
             (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &manifest_json,
                         .array = systems, .index = 0u) == CLI_JSON_NONE) ||
             EMBED_CALL(find_contains, DebugFindCtx, .json = &manifest_json, .array = systems, .text = system);
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &manifest_json,
-                       .node = debugger, .kind = CFG_JSON_OBJECT) &&
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &manifest_json,
+                       .node = debugger, .type = CFG_JSON_OBJECT) &&
             EMBED_CALL(find_contains, DebugFindCtx, .json = &manifest_json,
                        .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = &manifest_json, .object = debugger, .name = "languages"),
@@ -367,7 +367,7 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
     const char *out = args->out_text;
     CliWords *words = args->words_words_pointer;
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->program, .out = folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->program, .out = folder))
     {
         folder[0] = '\0';
     }

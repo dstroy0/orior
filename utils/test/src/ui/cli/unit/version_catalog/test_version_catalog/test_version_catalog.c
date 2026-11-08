@@ -168,7 +168,7 @@ void test_a_snapshot_is_a_note(void)
     const unsigned int snapshot = cli_unity_finding(catalog_findings(), "snapshot", NULL);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, snapshot);
     const unsigned int severity = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = snapshot, .name = "severity");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = severity, .kind = CFG_JSON_NUMBER));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = severity, .type = CFG_JSON_NUMBER));
     TEST_ASSERT_EQUAL_CHAR('3', s_json->text[s_json->node[severity].text]);
 }
 

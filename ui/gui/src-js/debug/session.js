@@ -30,16 +30,16 @@ export function sayState(text, failed = false) {
   drawSessions();
 }
 
-export function write(text, kind = "stdout") {
+export function write(text, type = "stdout") {
   const last = parts.out.lastElementChild;
   // A piece of output with no line end runs on into the next.
-  if (last && last.dataset.kind === kind && !last.dataset.ended) {
+  if (last && last.dataset.kind === type && !last.dataset.ended) {
     last.textContent += text;
   } else {
     parts.out.append(element("div", { className: "debug-line", textContent: text }));
   }
   const line = parts.out.lastElementChild;
-  line.dataset.kind = kind;
+  line.dataset.kind = type;
   if (text.endsWith("\n")) {
     line.dataset.ended = "true";
     line.textContent = line.textContent.replace(/\n$/, "");

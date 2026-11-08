@@ -93,8 +93,8 @@ EMBED_INLINE unsigned long long tests_integer(const AtTerminalTestsCtx *args)
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = node, .name = name);
     unsigned long long value = 0ULL;
-    const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = member, .kind = CFG_JSON_NUMBER)
+    const char *const digits = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = member, .type = CFG_JSON_NUMBER)
                                    ? json->text + json->node[member].text
                                    : "";
     value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = digits, .at = 0ULL,
@@ -122,8 +122,8 @@ EMBED_INLINE void tests_counts(const AtTerminalTestsCtx *args)
     mmgr_line_put(&line, " skipped in ");
     const unsigned int seconds = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                             .object = args->done, .name = "seconds");
-    const char *const written = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = seconds, .kind = CFG_JSON_NUMBER)
+    const char *const written = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = seconds, .type = CFG_JSON_NUMBER)
                                     ? json->text + json->node[seconds].text
                                     : "0";
     // the seconds to a tenth: the whole seconds, then the tenths rounded from the hundredths
@@ -175,12 +175,12 @@ static void tests_event(const CliEachJsonSizeCfg *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = args->json, .size = size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_command_line_owner);
-    const char *const kind =
+    const char *const type =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = root, .name = "kind"),
                    .length_pointer = NULL);
-    const char *const what = (kind != NULL) ? kind : "";
+    const char *const what = (type != NULL) ? type : "";
     if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "result", .cap = CLI_POOL_BYTES}))
     {
         const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -221,8 +221,8 @@ static void tests_event(const CliEachJsonSizeCfg *args)
     {
         const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = root, .name = "files");
-        for (unsigned int file = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                            .node = files, .kind = CFG_JSON_ARRAY)
+        for (unsigned int file = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                            .node = files, .type = CFG_JSON_ARRAY)
                                      ? json->node[files].first
                                      : CLI_JSON_NONE;
              file != CLI_JSON_NONE; file = json->node[file].next)
@@ -231,12 +231,12 @@ static void tests_event(const CliEachJsonSizeCfg *args)
                                                        .json_read = json, .object = file, .name = "ran");
             const unsigned int missed = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                    .json_read = json, .object = file, .name = "missed");
-            const unsigned int ran_count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                      .json_read = json, .node = run_result, .kind = CFG_JSON_ARRAY)
+            const unsigned int ran_count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                      .json_read = json, .node = run_result, .type = CFG_JSON_ARRAY)
                                                ? json->node[run_result].count
                                                : 0u;
-            const unsigned int missed_count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                         .json_read = json, .node = missed, .kind = CFG_JSON_ARRAY)
+            const unsigned int missed_count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                         .json_read = json, .node = missed, .type = CFG_JSON_ARRAY)
                                                   ? json->node[missed].count
                                                   : 0u;
             const char *const name =
@@ -366,8 +366,8 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     const char **const chosen_keys = chosen_positions + capacity;
     unsigned int positions = 0u;
     unsigned int keys = 0u;
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                       .node = all, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                       .node = all, .type = CFG_JSON_ARRAY)
                                 ? json->node[all].first
                                 : CLI_JSON_NONE;
          one != CLI_JSON_NONE; one = json->node[one].next)
@@ -402,8 +402,8 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
         }
         const unsigned int settings = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                  .json_read = json, .object = one, .name = "settings");
-        for (unsigned int setting = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                               .json_read = json, .node = settings, .kind = CFG_JSON_ARRAY)
+        for (unsigned int setting = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                               .json_read = json, .node = settings, .type = CFG_JSON_ARRAY)
                                         ? json->node[settings].first
                                         : CLI_JSON_NONE;
              setting != CLI_JSON_NONE; setting = json->node[setting].next)
@@ -452,8 +452,8 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
         {
             const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &consumed_tree, .object = consumed, .name = "files");
-            const unsigned int reserved = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                     .json_read = &consumed_tree, .node = files, .kind = CFG_JSON_ARRAY)
+            const unsigned int reserved = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                     .json_read = &consumed_tree, .node = files, .type = CFG_JSON_ARRAY)
                                               ? consumed_tree.node[files].count
                                               : 0u;
             unsigned long long id_size = 0ULL;

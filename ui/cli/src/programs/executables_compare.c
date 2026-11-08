@@ -435,7 +435,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = config) &&
             EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "dotnet", .name = "dotnet",
                        .path = dotnet, .err_msg = &unfound) &&
-            EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = dotnet, .out = dotnet_folder))
+            EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = dotnet, .out = dotnet_folder))
         {
             mmgr_line_put(args->displayed_verba_linea_pointer,
                           (args->displayed_verba_linea_pointer->at != 0ULL) ? " " : "");

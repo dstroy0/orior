@@ -34,16 +34,16 @@ EMBED_INLINE void objects_word(const CliVimCtx *args)
     }
     const unsigned long long at = (args->from.col < length - 1ULL) ? args->from.col : length - 1ULL;
     const unsigned int sort =
-        EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .letter = units[at], .big = args->big);
+        EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .letter = units[at], .big = args->big);
     unsigned long long start = at;
     unsigned long long end = at + 1ULL;
-    while ((start > 0ULL) && (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .letter = units[start - 1ULL],
+    while ((start > 0ULL) && (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .letter = units[start - 1ULL],
                                          .big = args->big) == sort))
     {
         start -= 1ULL;
     }
     while ((end < length) &&
-           (EMBED_CALL(cli_vim_motions_internal.kind, CliVimCtx, .letter = units[end], .big = args->big) == sort))
+           (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .letter = units[end], .big = args->big) == sort))
     {
         end += 1ULL;
     }

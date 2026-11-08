@@ -11,7 +11,7 @@ typedef struct CliReviewOneCtx CliReviewOneCtx;
 typedef struct CliReviewLineCtx CliReviewLineCtx;
 typedef struct CliReviewCtx CliReviewCtx;
 typedef struct CliReviewTextLengthCtx CliReviewTextLengthCtx;
-typedef struct CliReviewTextLengthKindCtx CliReviewTextLengthKindCtx;
+typedef struct CliReviewTextLengthTypeCtx CliReviewTextLengthTypeCtx;
 
 // the most files a change reviewed touches and the bytes of their texts; the most pieces and the bytes of their
 // texts; the bytes each text is read in; and the most calls the pieces make in all
@@ -39,14 +39,14 @@ typedef struct
     int has_now;
 } CliReviewFile;
 
-// A piece of the review: a declaration's file and name and kind, how the change touched it, the file it moved from
+// A piece of the review: a declaration's file and name and type, how the change touched it, the file it moved from
 // where that is another, its line, its text as it was and as it is, as places in the pieces' texts, and the pieces it
 // calls, `count` of them from `first` in the calls
 typedef struct
 {
     unsigned int path;
     unsigned int name;
-    unsigned int kind;
+    unsigned int type;
     const char *how;
     int has_from;
     unsigned int from;
@@ -101,7 +101,7 @@ unsigned long long cli_review_compared_bytes(void);
 // whitespace at its ends left off, into `same`, and the lines of the longer into `longest`, two texts of no lines
 // containing all alike: 1, or 0 where the cellblock could not meet the cell their lines are read into; and whether
 // `text` calls `name`: the name, not part of a longer one, then an opening parenthesis (review_text.c)
-void cli_review_trim(const CliReviewTextLengthKindCtx *args);
+void cli_review_trim(const CliReviewTextLengthTypeCtx *args);
 int cli_review_share(const CliReviewOneCtx *args);
 int cli_review_calls(const CliReviewCtx *args);
 
@@ -133,7 +133,7 @@ struct CliReviewTextLengthCtx
     unsigned long long length;
 };
 
-struct CliReviewTextLengthKindCtx
+struct CliReviewTextLengthTypeCtx
 {
     const char **text_pointer;
     unsigned long long *length_pointer;
@@ -161,10 +161,10 @@ EMBED_TABLE_STORAGE CliReviewLineNs cli_review_line_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*trim)(const CliReviewTextLengthKindCtx *args);
-} CliReviewTextLengthKindNs;
-EMBED_TABLE_LAYOUT(CliReviewTextLengthKindNs, trim);
-EMBED_TABLE_STORAGE CliReviewTextLengthKindNs cli_review_text_length_kind_internal EMBED_UNUSED = {
+    void (*trim)(const CliReviewTextLengthTypeCtx *args);
+} CliReviewTextLengthTypeNs;
+EMBED_TABLE_LAYOUT(CliReviewTextLengthTypeNs, trim);
+EMBED_TABLE_STORAGE CliReviewTextLengthTypeNs cli_review_text_length_type_internal EMBED_UNUSED = {
     .trim = cli_review_trim,
 };
 

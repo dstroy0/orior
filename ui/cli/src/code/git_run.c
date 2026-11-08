@@ -350,7 +350,7 @@ int cli_git_adjacent(const CliGitRootErrMsgCtx *args)
     {
         return 0;
     }
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = full, .out = args->folder))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = full, .out = args->folder))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->folder,
@@ -364,7 +364,7 @@ int cli_git_adjacent(const CliGitRootErrMsgCtx *args)
            (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = args->root, .cap = CLI_POOL_BYTES})))
     {
         char above[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->folder, .out = above))
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->folder, .out = above))
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = above,

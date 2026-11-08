@@ -209,13 +209,13 @@ static void dap_read(void *context)
                                  .size = &size, .owner = g_cli_debug_owner)) != NULL)
     {
         int transferred = 0;
-        char kind[32];
-        if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "type", .out = kind,
-                        .capacity = sizeof(kind)))
+        char type[32];
+        if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "type", .out = type,
+                        .capacity = sizeof(type)))
         {
-            kind[0] = '\0';
+            type[0] = '\0';
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "event", .cap = CLI_POOL_BYTES}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "event", .cap = CLI_POOL_BYTES}))
         {
             char event[256] = "";
             if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "event", .out = event,
@@ -229,11 +229,11 @@ static void dap_read(void *context)
                                             .name = "body", .start = &body, .length_pointer = &body_size);
             dap->emit(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ULL);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "response", .cap = CLI_POOL_BYTES}))
         {
             transferred = EMBED_CALL(dap_response, DapCtx, .dap = dap, .message = message, .size = size);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "request", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "request", .cap = CLI_POOL_BYTES}))
         {
             refused += 1ULL;
             EMBED_CALL(dap_reject, DapCtx, .dap = dap, .message_read = message, .size = size, .seq = refused);
@@ -476,13 +476,13 @@ void cli_dap_end(const CliDapCtx *args)
     {
         EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &args->dap->socket);
     }
-    if ((args->dap->kind == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ULL))
+    if ((args->dap->type == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ULL))
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->dap->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->dap->spawned);
         args->dap->ended = 1;
     }
-    if (args->dap->kind == CLI_DAP_WITHIN)
+    if (args->dap->type == CLI_DAP_WITHIN)
     {
         cli_dap_internal.within_let_go(args);
     }
@@ -536,7 +536,7 @@ void cli_dap_unref(const CliDapCfg *args)
         args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->dap->socket);
-    if (args->dap->kind == CLI_DAP_PROGRAM)
+    if (args->dap->type == CLI_DAP_PROGRAM)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->dap->spawned);
     }

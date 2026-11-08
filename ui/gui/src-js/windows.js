@@ -35,14 +35,14 @@ window.addEventListener("storage", (event) => {
   }
 });
 
-// What a message of `kind` for this window does.
-export function onTold(kind, run) {
-  heard.set(kind, run);
+// What a message of `type` for this window does.
+export function onTold(type, run) {
+  heard.set(type, run);
 }
 
-// Tells window `to` a message of `kind`.
-export function tell(to, kind, body) {
-  localStorage.setItem(TELL, JSON.stringify({ to, kind, body, at: Date.now() }));
+// Tells window `to` a message of `type`.
+export function tell(to, type, body) {
+  localStorage.setItem(TELL, JSON.stringify({ to, kind: type, body, at: Date.now() }));
   localStorage.removeItem(TELL);
 }
 

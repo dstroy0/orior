@@ -238,7 +238,7 @@ EMBED_TABLE_STORAGE CliTestingRootNs cli_testing_root EMBED_UNUSED = {
 // the most bytes of a summary with its end
 #define CLI_TESTS_SUMMARY 320u
 
-// A row of the pane: its kind; the file's path in the tree; its name, a file's own, a test's label, a message's first
+// A row of the pane: its type; the file's path in the tree; its name, a file's own, a test's label, a message's first
 // line or a coverage row's path, and the name's bytes; a file row's folder, the bytes of `path` before the name; the
 // outcome, a file's worst or a test's own; a file row's counts of passed, failed and skipped tests, a coverage row's
 // lines that ran in `passed` and missed in `failed`; whether a file row's tests show; a test row's time in
@@ -246,7 +246,7 @@ EMBED_TABLE_STORAGE CliTestingRootNs cli_testing_root EMBED_UNUSED = {
 // is written, a coverage row's first line missed
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *path;
     const char *name;
     unsigned long long name_length;

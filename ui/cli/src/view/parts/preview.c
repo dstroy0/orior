@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.c: the preview's items drawn as the CLI lays them, each kind in the raster's own strokes: a run of text in
+// preview.c: the preview's items drawn as the CLI lays them, each type in the raster's own strokes: a run of text in
 // its face and size, struck through or underlined by its flags; a box filled in its role and bordered in its stroke; a
 // rule; a line segment; and a block marked by the cursor's line outlined in the signal. Every color is a role the
 // palette answers; every place a page pixel the frame's scale lays
@@ -119,13 +119,13 @@ EMBED_INLINE void preview_text_draw(const PreviewCtx *args)
     }
 }
 
-// the item drawn at `place` as its kind, no further than `clip`
+// the item drawn at `place` as its type, no further than `clip`
 EMBED_INLINE void preview_item_draw(const PreviewCtx *args)
 {
     const GuiPreviewCfg *const preview = args->preview;
     const CliPreviewItem *const item = args->item;
     const GuiColor color = EMBED_CALL(preview_role_color, PreviewCtx, .preview = preview, .role = item->role);
-    switch (item->kind)
+    switch (item->type)
     {
     case CLI_PREVIEW_ITEM_TEXT:
         EMBED_CALL(preview_text_draw, PreviewCtx, .preview = preview, .item = item, .text = args->text,
@@ -228,7 +228,7 @@ void gui_preview_draw(const GuiPreviewCfg *args)
             (rect.x + EMBED_CALL(preview_scaled, PreviewCtx, .preview = args, .pixels = item->x + item->width)) - x,
             (rect.y + EMBED_CALL(preview_scaled, PreviewCtx, .preview = args, .pixels = item->y + item->height - top)) -
                 y};
-        if ((item->kind == CLI_PREVIEW_ITEM_BLOCK) && (place.y >= bottom))
+        if ((item->type == CLI_PREVIEW_ITEM_BLOCK) && (place.y >= bottom))
         {
             break;
         }

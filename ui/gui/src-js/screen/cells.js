@@ -36,7 +36,7 @@ function runHtml(text, style, cursor) {
   if (style.inverse) {
     [fg, bg] = [bg ?? "default-bg", fg ?? "default-fg"];
   }
-  for (const [color, kind] of [
+  for (const [color, type] of [
     [fg, "f"],
     [bg, "b"],
   ]) {
@@ -44,11 +44,11 @@ function runHtml(text, style, cursor) {
       continue;
     }
     if (typeof color === "number" && color < 16) {
-      classes.push(`t-${kind}${color}`);
+      classes.push(`t-${type}${color}`);
     } else if (color === "default-fg" || color === "default-bg") {
-      classes.push(`t-${kind}-${color}`);
+      classes.push(`t-${type}-${color}`);
     } else {
-      inline.push(`${kind === "f" ? "color" : "background"}:${typeof color === "number" ? cube(color) : color}`);
+      inline.push(`${type === "f" ? "color" : "background"}:${typeof color === "number" ? cube(color) : color}`);
     }
   }
   for (const [on, name] of [

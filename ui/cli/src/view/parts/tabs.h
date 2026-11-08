@@ -17,9 +17,9 @@ typedef struct GuiTabsGlyphsFrameCfg GuiTabsGlyphsFrameCfg;
 typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
 typedef struct GuiTabsCfg GuiTabsCfg;
 
-// the sizes in the page's pixels: a tab's text size, its padding at its left and its right, the gap between its name
-// and its close mark, its corner radius, the line along the shown tab's top and left, and the close mark's padding each
-// side
+// The sizes in the page's pixels: a tab's text size, its padding at its left and its right, and the gap between its
+// name and its close mark. Then its top corners' radius, the line along the shown tab's top and left, and the close
+// mark's padding each side. Last, the room the row keeps clear of the work's lines above the tabs and before the first
 #define GUI_TAB_SIZE 12u
 #define GUI_TAB_PAD_LEFT 14
 #define GUI_TAB_PAD_RIGHT 6
@@ -27,6 +27,9 @@ typedef struct GuiTabsCfg GuiTabsCfg;
 #define GUI_TAB_RADIUS 6
 #define GUI_TAB_LINE 2
 #define GUI_TAB_CLOSE_PAD 5
+#define GUI_TAB_CLEAR 3
+// the space between one tab's box and the next
+#define GUI_TAB_SPACE 2
 
 // the name the tab `at` shows, the last part of its file's path, its length into `length`
 const char *gui_tab_name(const GuiTabsCfg *args);

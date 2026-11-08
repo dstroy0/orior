@@ -15,12 +15,12 @@
 #define COMMS_GROUPS 2u
 #define COMMS_COUNTING 64u
 
-// An item of the Channels view: its kind, the part's or the channel's place in the layer's tables, its name, status
+// An item of the Channels view: its type, the part's or the channel's place in the layer's tables, its name, status
 // and detail as offsets into the text and their bytes, the first of its messages and how many stand under it, and
 // whether it refused a message
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int index;
     unsigned long long name;
     unsigned long long name_length;
@@ -210,13 +210,13 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
         const int channels_group = at == (1u + args->parts);
         const int is_part = !parts_group && (at <= args->parts);
         CommsItem laid = {0};
-        laid.kind = (parts_group || channels_group) ? CLI_COMMS_ROW_GROUP
+        laid.type = (parts_group || channels_group) ? CLI_COMMS_ROW_GROUP
                     : is_part                       ? CLI_COMMS_ROW_PART
                                                     : CLI_COMMS_ROW_CHANNEL;
-        laid.index = (laid.kind == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
+        laid.index = (laid.type == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
         laid.message_first = messages;
         laid.name = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-        if (laid.kind == CLI_COMMS_ROW_GROUP)
+        if (laid.type == CLI_COMMS_ROW_GROUP)
         {
             mmgr_line_put(line, parts_group ? "Parts" : "Channels");
             laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
@@ -225,7 +225,7 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
             laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
             laid.detail = laid.status + laid.status_length;
         }
-        else if (laid.kind == CLI_COMMS_ROW_PART)
+        else if (laid.type == CLI_COMMS_ROW_PART)
         {
             const CliCommsPart *const part = &g_cli_comms.parts[laid.index];
             mmgr_line_put(line, part->name);
@@ -396,7 +396,7 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     {
         first_row[at + 1u] = first_row[at] + 1u + item[at].messages;
         // the rows are fewer than an int counts
-        s_pane.current_row = ((item[at].kind == CLI_COMMS_ROW_CHANNEL) && (item[at].index == s_pane.current))
+        s_pane.current_row = ((item[at].type == CLI_COMMS_ROW_CHANNEL) && (item[at].index == s_pane.current))
                                  ? (int)first_row[at]
                                  : s_pane.current_row;
     }
@@ -481,7 +481,7 @@ int cli_comms_pane_row(const CliCommsPaneCfg *args)
     if (inner != 0u)
     {
         const CommsMessage *const message = &s_pane.message[item->message_first + inner - 1u];
-        row->kind = CLI_COMMS_ROW_MESSAGE;
+        row->type = CLI_COMMS_ROW_MESSAGE;
         row->name = s_pane.text + message->from;
         row->name_length = message->from_length;
         row->status = s_pane.text + message->body;
@@ -489,7 +489,7 @@ int cli_comms_pane_row(const CliCommsPaneCfg *args)
         row->detail = row->status + row->status_length;
         return 1;
     }
-    row->kind = item->kind;
+    row->type = item->type;
     row->name = s_pane.text + item->name;
     row->name_length = item->name_length;
     row->status = s_pane.text + item->status;
@@ -497,8 +497,8 @@ int cli_comms_pane_row(const CliCommsPaneCfg *args)
     row->detail = s_pane.text + item->detail;
     row->detail_length = item->detail_length;
     row->refused = item->refused;
-    row->open = (item->kind == CLI_COMMS_ROW_CHANNEL) && s_pane.open[item->index];
-    row->current = (item->kind == CLI_COMMS_ROW_CHANNEL) && (item->index == s_pane.current);
+    row->open = (item->type == CLI_COMMS_ROW_CHANNEL) && s_pane.open[item->index];
+    row->current = (item->type == CLI_COMMS_ROW_CHANNEL) && (item->index == s_pane.current);
     return 1;
 }
 
@@ -510,7 +510,7 @@ void cli_comms_pane_toggle(const CliCommsPaneCfg *args)
     }
     const unsigned int place = EMBED_CALL(comms_item_under, CommsViewCtx, .at = args->at, .key = s_pane.items);
     const CommsItem *const item = &s_pane.item[place];
-    if ((item->kind != CLI_COMMS_ROW_CHANNEL) || (args->at != s_pane.first_row[place]))
+    if ((item->type != CLI_COMMS_ROW_CHANNEL) || (args->at != s_pane.first_row[place]))
     {
         return;
     }

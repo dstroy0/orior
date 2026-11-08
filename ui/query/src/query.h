@@ -101,7 +101,7 @@ extern "C"
     typedef struct
     {
         const char *key;
-        const char *kind;
+        const char *type;
         const char *const *choices;
         unsigned int choice_count;
         int required;
@@ -119,11 +119,11 @@ extern "C"
         QUERY_WORD_EACH,
         QUERY_WORD_WORDS,
         QUERY_WORD_WHEN
-    } QueryWordKind;
+    } QueryWordType;
 
     typedef struct
     {
-        QueryWordKind kind;
+        QueryWordType type;
         const char *first;
         const char *second;
         const char *third;

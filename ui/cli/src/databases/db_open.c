@@ -31,12 +31,12 @@ EMBED_INLINE int open_link(const DbOpenCtx *args)
     const CliDbConnection *const config = &args->open->config;
     const char *const host = (config->host[0] != '\0') ? config->host : "127.0.0.1";
     if ((config->ssh[0] == '\0') ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "sqlite", .cap = CLI_POOL_BYTES})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = config->type, .other = "sqlite", .cap = CLI_POOL_BYTES})))
     {
         return EMBED_CALL(
             cli_db_link_internal.link_open, CliDbLinkCtx, .link = link, .root = args->open->root, .config = config,
             .password = args->open->password, .host = host,
-            .port = EMBED_CALL(cli_db_connection_out_kind.port, CliDbConnectionOutKindCfg, .connection = config),
+            .port = EMBED_CALL(cli_db_connection_out_type.port, CliDbConnectionOutTypeCfg, .connection = config),
             .runs = runs, .failure = failure);
     }
     if (!EMBED_CALL(cli_db_host_internal.tunnel_alive, CliDbHostCtx, .tunnel = &args->open->tunnel))
@@ -45,7 +45,7 @@ EMBED_INLINE int open_link(const DbOpenCtx *args)
         if (!EMBED_CALL(
                 cli_db_host_internal.tunnel_open, CliDbHostCtx, .tunnel = &args->open->tunnel, .through = config->ssh,
                 .host = host,
-                .port = EMBED_CALL(cli_db_connection_out_kind.port, CliDbConnectionOutKindCfg, .connection = config),
+                .port = EMBED_CALL(cli_db_connection_out_type.port, CliDbConnectionOutTypeCfg, .connection = config),
                 .failure = failure))
         {
             return 0;
@@ -74,13 +74,13 @@ void cli_db_zone_read(const CliDbFailureContextCtx *args)
     static const char s_zone[] = "SELECT IF(@@session.time_zone = 'SYSTEM', @@system_time_zone, @@session.time_zone)";
     char zone[CLI_NAME_MAX_LEN];
     VerbaLinea out = {zone, sizeof(zone) - 1u, 0ULL};
-    if (args->open->query.kind == CLI_DB_LINK_PG)
+    if (args->open->query.type == CLI_DB_LINK_PG)
     {
         const char *const tz_name =
             EMBED_CALL(cli_pg_name.parameter, CliPgNameCfg, .pg_read = args->open->query.pg, .name = "TimeZone");
         mmgr_line_put(&out, (tz_name != NULL) ? tz_name : "");
     }
-    else if (args->open->query.kind == CLI_DB_LINK_MY)
+    else if (args->open->query.type == CLI_DB_LINK_MY)
     {
         CliDbFailure failure;
         (void)EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = args->open->query.my,
@@ -129,7 +129,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     {
         char account[CLI_PATH_MAX_LEN];
         VerbaLinea account_line = {account, sizeof(account), 0ULL};
-        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = config,
+        EMBED_CALL(cli_db_connection_out_type.account, CliDbConnectionOutTypeCfg, .connection = config,
                    .out = &account_line);
         mmgr_line_finish(&account_line);
         if (!EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account,
@@ -153,11 +153,11 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
         return NULL;
     }
     const char *version;
-    if (open->query.kind == CLI_DB_LINK_PG)
+    if (open->query.type == CLI_DB_LINK_PG)
     {
         version = EMBED_CALL(cli_pg_name.parameter, CliPgNameCfg, .pg_read = open->query.pg, .name = "server_version");
     }
-    else if (open->query.kind == CLI_DB_LINK_MY)
+    else if (open->query.type == CLI_DB_LINK_MY)
     {
         version = EMBED_CALL(cli_mysql_cancel.version, CliMysqlCancelCfg, .mysql = open->query.my);
     }
@@ -203,7 +203,7 @@ static int open_with(const DbOpenCtx *args)
     CliDbLink *link = args->link;
     CliDbStop *stop = args->stop;
     int *has_stop = args->has_stop;
-    if (link->kind == CLI_DB_LINK_NONE)
+    if (link->type == CLI_DB_LINK_NONE)
     {
         if (!EMBED_CALL(open_link, DbOpenCtx, .open = args->open, .link = link, .runs = args->runs,
                         .failure = args->failure))
@@ -273,7 +273,7 @@ const char *cli_db_transaction(const CliDbErrMsgCfg *args)
         return "busy";
     }
     const char *const state =
-        (args->open->query.kind == CLI_DB_LINK_NONE)
+        (args->open->query.type == CLI_DB_LINK_NONE)
             ? "busy"
             : EMBED_CALL(cli_db_internal.link_transaction, CliDbCtx, .link_read = &args->open->query);
     return state;

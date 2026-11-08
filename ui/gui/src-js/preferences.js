@@ -9,7 +9,7 @@
 // searches in, and the keys: the set of keys, how a letter's key is bound, each key more than one
 // command holds, and each command's keys, set by pressing them. A color changed in the scheme's own
 // theme starts a theme of the reader's from it, and every change shows at once; the palette holds a
-// color for every kind of token a grammar names, and each color whose contrast with the color under
+// color for every type of token a grammar names, and each color whose contrast with the color under
 // it is too low for text is marked. A theme lays an image behind the editor and gives files icons
 // by patterns of their names. A theme copies out as text and reads back in from the clipboard.
 

@@ -33,8 +33,17 @@ EMBED_INLINE void sides_collapsed_set(const SidesCtx *args)
 {
     GuiSides *const sides = args->sides;
     const int to = args->collapsed ? GUI_FIXED_ONE : 0;
-    const int from = EMBED_CALL(sides_away_at, SidesCtx, .sides_read = sides, .time_ms = args->time_ms);
-    sides->slide = (args->still || (from == to)) ? (GuiSlide){to, to, 0ULL} : (GuiSlide){from, to, args->time_ms};
+    if (args->still)
+    {
+        sides->slide = (GuiSlide){.from = to, .to = to, .curve = GUI_CURVE_BEAD};
+    }
+    else
+    {
+        // the pane's slide is sent on from where it stands, a bead's speed kept with it
+        sides->slide.curve = GUI_CURVE_BEAD;
+        EMBED_CALL(gui_autohide_target.slide_to, GuiAutohideTargetCfg, .slide_out = &sides->slide, .to = to,
+                   .time_ms = args->time_ms, .lasts_ms = GUI_SIDES_SLIDE_MS);
+    }
     args->strip->collapsed = args->collapsed;
 }
 
@@ -53,7 +62,7 @@ void gui_sides_init(const GuiSidesCfg *args)
     sides->previewed = GUI_STRIP_NONE;
     sides->before_displayed = GUI_STRIP_NONE;
     sides->before_collapsed = 0;
-    sides->slide = (GuiSlide){0, 0, 0ULL};
+    sides->slide = (GuiSlide){.curve = GUI_CURVE_BEAD};
 }
 
 void gui_sides_settle(const GuiSidesCfg *args)
@@ -99,7 +108,7 @@ void gui_sides_toggle(const GuiSidesCfg *args)
     // a pane where none showed comes in from where a collapsed one stands
     if (!EMBED_CALL(sides_has_pane, SidesCtx, .strip_read = strip))
     {
-        sides->slide = (GuiSlide){GUI_FIXED_ONE, GUI_FIXED_ONE, 0ULL};
+        sides->slide = (GuiSlide){.from = GUI_FIXED_ONE, .to = GUI_FIXED_ONE, .curve = GUI_CURVE_BEAD};
     }
     strip->displayed = (int)args->at;
     EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,
@@ -249,7 +258,7 @@ int gui_sides_tick(const GuiSidesCfg *args)
         // a pane where none showed comes in from where a collapsed one stands
         if (!has_pane)
         {
-            sides->slide = (GuiSlide){GUI_FIXED_ONE, GUI_FIXED_ONE, 0ULL};
+            sides->slide = (GuiSlide){.from = GUI_FIXED_ONE, .to = GUI_FIXED_ONE, .curve = GUI_CURVE_BEAD};
         }
         strip->displayed = sides->icon;
         EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = 0, .still = args->still,

@@ -567,7 +567,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
             ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = path)
             : NULL;
     unsigned long long size = 0ULL;
-    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
+    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
                                                      .path = path, .size_pointer = &size)
                                         : NULL;
     if (text == NULL)
@@ -815,8 +815,8 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
                          : CLI_JSON_NONE;
     // a diagnostic's numbers written again are at most as long again as those it came with
     const unsigned long long mapped_capacity = (2ULL * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
-    char *const mapped_cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                         .node = array, .kind = CFG_JSON_ARRAY)
+    char *const mapped_cell = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                         .node = array, .type = CFG_JSON_ARRAY)
                                   ? g_cli_guard->temporary_buf_alloc(mapped_capacity, args->owner)
                                   : NULL;
     VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_capacity);

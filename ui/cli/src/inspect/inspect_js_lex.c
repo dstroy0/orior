@@ -102,8 +102,8 @@ EMBED_INLINE int lex_value_expected(const InspectJsLexCtx *args)
         return 1;
     }
     const unsigned int last = g_cli_inspect_toks - 1u;
-    const unsigned char kind = g_cli_inspect_tok[last].kind;
-    if (kind == CLI_JS_PUNCT)
+    const unsigned char type = g_cli_inspect_tok[last].type;
+    if (type == CLI_JS_PUNCT)
     {
         return !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = last,
                            .word_text = ")") &&
@@ -112,7 +112,7 @@ EMBED_INLINE int lex_value_expected(const InspectJsLexCtx *args)
                !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = last,
                            .word_text = "}");
     }
-    return (kind == CLI_JS_NAME) && EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = last,
+    return (type == CLI_JS_NAME) && EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = last,
                                                .words = s_before_value, .count = 14u);
 }
 
@@ -175,7 +175,7 @@ EMBED_INLINE void lex_regex(const InspectJsLexCtx *args)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_REGEX,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_REGEX,
                .start = start, .from = from, .field = 0);
 }
 
@@ -200,7 +200,7 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_PUNCT,
                .start = start, .from = from, .field = 0);
 }
 
@@ -318,13 +318,13 @@ static void lex(const InspectJsLexCtx *args)
         else if ((letter == '\'') || (letter == '"'))
         {
             EMBED_CALL(lex_string, InspectJsLexCtx, .scan = scan, .letter = letter);
-            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
         else if (letter == '`')
         {
             EMBED_CALL(lex_template, InspectJsLexCtx, .scan = scan);
-            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
         else if ((letter == '/') && EMBED_CALL(lex_value_expected, InspectJsLexCtx, .src = scan->src))
@@ -334,13 +334,13 @@ static void lex(const InspectJsLexCtx *args)
         else if (EMBED_CALL(lex_name_start, InspectJsLexCtx, .letter = letter) || (letter == '#'))
         {
             EMBED_CALL(lex_word, InspectJsLexCtx, .scan = scan);
-            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NAME,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_NAME,
                        .start = start, .from = from, .field = 0);
         }
         else if (((letter >= '0') && (letter <= '9')) || ((letter == '.') && (next >= '0') && (next <= '9')))
         {
             EMBED_CALL(lex_number, InspectJsLexCtx, .scan = scan);
-            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NUMBER,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_NUMBER,
                        .start = start, .from = from, .field = 0);
         }
         else if (EMBED_CALL(lex_bracket, InspectJsLexCtx, .letter = letter))
@@ -352,7 +352,7 @@ static void lex(const InspectJsLexCtx *args)
             }
             depth += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1 : -1;
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_JS_PUNCT,
                        .start = start, .from = from, .field = 0);
         }
         else
@@ -386,7 +386,7 @@ EMBED_INLINE unsigned char read_brace(const InspectJsLexCtx *args)
         {
             return CLI_JS_FUNCTION;
         }
-        const int named = (name != CLI_JS_NO) && (g_cli_inspect_tok[name].kind == CLI_JS_NAME) &&
+        const int named = (name != CLI_JS_NO) && (g_cli_inspect_tok[name].type == CLI_JS_NAME) &&
                           !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = name,
                                       .words = g_cli_js_control, .count = 7u);
         return named ? CLI_JS_FUNCTION : CLI_JS_BLOCK;
@@ -396,7 +396,7 @@ EMBED_INLINE unsigned char read_brace(const InspectJsLexCtx *args)
     {
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = back - 1u,
                        .word_text = "class") &&
-            (g_cli_inspect_tok[back - 1u].kind == CLI_JS_NAME))
+            (g_cli_inspect_tok[back - 1u].type == CLI_JS_NAME))
         {
             return CLI_JS_CLASS;
         }
@@ -412,7 +412,7 @@ EMBED_INLINE unsigned char read_brace(const InspectJsLexCtx *args)
     }
     static const char *const s_closers[4] = {")", "]", "}", ";"};
     static const char *const s_values[7] = {"return", "yield", "await", "case", "default", "in", "of"};
-    const int punct = (g_cli_inspect_tok[before].kind == CLI_JS_PUNCT) &&
+    const int punct = (g_cli_inspect_tok[before].type == CLI_JS_PUNCT) &&
                       !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = before,
                                   .words = s_closers, .count = 4u);
     return (punct || EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = before,
@@ -449,7 +449,7 @@ void cli_js_read(const CliInspectJsCfg *args)
             }
         }
         g_cli_js_within[at] = brace;
-        if (g_cli_inspect_tok[at].kind != CLI_JS_PUNCT)
+        if (g_cli_inspect_tok[at].type != CLI_JS_PUNCT)
         {
             continue;
         }
@@ -476,7 +476,7 @@ void cli_js_read(const CliInspectJsCfg *args)
     for (unsigned int at = 0u; at < g_cli_inspect_toks; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "{") &&
-            (g_cli_inspect_tok[at].kind == CLI_JS_PUNCT))
+            (g_cli_inspect_tok[at].type == CLI_JS_PUNCT))
         {
             g_cli_js_brace[at] = EMBED_CALL(read_brace, InspectJsLexCtx, .src = src, .at = at);
         }
@@ -486,7 +486,7 @@ void cli_js_read(const CliInspectJsCfg *args)
 int cli_js_is_read(const CliInspectJsAtWordCfg *args)
 {
     const CliInspectTok *const tok = &g_cli_inspect_tok[args->at];
-    if ((tok->kind != CLI_JS_NAME) ||
+    if ((tok->type != CLI_JS_NAME) ||
         EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = args->src, .at = args->at,
                    .words = g_cli_js_keywords, .count = 35u) ||
         (args->src[tok->start] == '#'))

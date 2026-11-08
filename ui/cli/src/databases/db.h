@@ -35,17 +35,17 @@ typedef struct CliDbRootCfg CliDbRootCfg;
 typedef struct CliDbConnectionErrMsgCfg CliDbConnectionErrMsgCfg;
 typedef struct CliDbRootNameCfg CliDbRootNameCfg;
 typedef struct CliDbConnectionCfg CliDbConnectionCfg;
-typedef struct CliDbConnectionOutKindCfg CliDbConnectionOutKindCfg;
+typedef struct CliDbConnectionOutTypeCfg CliDbConnectionOutTypeCfg;
 typedef struct CliDbErrMsgCfg CliDbErrMsgCfg;
 typedef struct CliDbCfg CliDbCfg;
 
-// A connection a tree names: its name; its kind, postgres, mysql or sqlite; its host, port, user and database; a SQLite
+// A connection a tree names: its name; its type, postgres, mysql or sqlite; its host, port, user and database; a SQLite
 // database's file, by its path in the tree or whole; the machine, as ssh names it, a tunnel to the server goes
 // through; whether it is one that matters, whose writes are guarded; and how, read-only or confirm
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
-    char kind[16];
+    char type[16];
     char host[CLI_NAME_MAX_LEN];
     unsigned int port;
     char user[CLI_NAME_MAX_LEN];
@@ -59,15 +59,15 @@ typedef struct
 // A connection open: its links, its tunnel and the rows it buffers
 typedef struct CliDbOpen CliDbOpen;
 
-// the port a connection's server listens at, its kind's own where none is named; the account the keychain stores its
+// the port a connection's server listens at, its type's own where none is named; the account the keychain stores its
 // password by into `out`; the connection a tree names `name` into `connection`: 1, or 0 with why given; the connection
 // object `node` of `json` read into `connection`: 1, or 0 with why given; the connection stored in databases.json in
 // place of the one of its name, or of `was` where it is renamed; and the connection `name` taken out of databases.json
 // and its password out of the keychain: each 1, or 0 with why given; and what the window shows of each connection, its
 // settings and whether it is open, with its transaction's state and its session's zone, the open connections `opens`,
 // `count` of them, written into `out`: 1, or 0 with why given (db_config.c)
-unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args);
-void cli_db_account(const CliDbConnectionOutKindCfg *args);
+unsigned int cli_db_port(const CliDbConnectionOutTypeCfg *args);
+void cli_db_account(const CliDbConnectionOutTypeCfg *args);
 int cli_db_by_name(const CliDbRootNameCfg *args);
 int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args);
 int cli_db_save(const CliDbConnectionCfg *args);
@@ -166,7 +166,7 @@ struct CliDbOutSizeCfg
     unsigned long long size;
     const char *text;
     unsigned long long offset;
-    const char *kind;
+    const char *type;
 };
 
 struct CliDbRootCfg
@@ -201,7 +201,7 @@ struct CliDbConnectionCfg
     const char *was;
 };
 
-struct CliDbConnectionOutKindCfg
+struct CliDbConnectionOutTypeCfg
 {
     const CliDbConnection *connection;
     VerbaLinea *out;
@@ -220,11 +220,11 @@ struct CliDbCfg
 
 typedef struct
 {
-    unsigned int (*port)(const CliDbConnectionOutKindCfg *args);
-    void (*account)(const CliDbConnectionOutKindCfg *args);
-} CliDbConnectionOutKindNs;
-EMBED_TABLE_LAYOUT(CliDbConnectionOutKindNs, port, account);
-EMBED_TABLE_STORAGE CliDbConnectionOutKindNs cli_db_connection_out_kind EMBED_UNUSED = {
+    unsigned int (*port)(const CliDbConnectionOutTypeCfg *args);
+    void (*account)(const CliDbConnectionOutTypeCfg *args);
+} CliDbConnectionOutTypeNs;
+EMBED_TABLE_LAYOUT(CliDbConnectionOutTypeNs, port, account);
+EMBED_TABLE_STORAGE CliDbConnectionOutTypeNs cli_db_connection_out_type EMBED_UNUSED = {
     .port = cli_db_port,
     .account = cli_db_account,
 };

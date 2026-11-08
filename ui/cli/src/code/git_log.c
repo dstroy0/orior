@@ -615,7 +615,7 @@ int cli_git_log_row(const CliGitLogCfg *args)
     {
         const CliRepository *const chosen =
             (log->repositories->count != 0u) ? &log->repositories->item[log->chosen] : NULL;
-        row->kind = CLI_GIT_LOG_ROW_BRANCH;
+        row->type = CLI_GIT_LOG_ROW_BRANCH;
         row->text = ((chosen != NULL) && chosen->has_branch)
                         ? EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                      .text_read = &log->repositories->text, .at = chosen->branch)
@@ -633,7 +633,7 @@ int cli_git_log_row(const CliGitLogCfg *args)
     row->id = EMBED_CALL(commit_id, GitLogCtx, .at = commit);
     if (under == 0u)
     {
-        row->kind = CLI_GIT_LOG_ROW_COMMIT;
+        row->type = CLI_GIT_LOG_ROW_COMMIT;
         row->text = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &log->graph->text,
                                .at = drawn->subject);
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = CLI_GIT_TEXT});
@@ -656,13 +656,13 @@ int cli_git_log_row(const CliGitLogCfg *args)
     }
     if (record->count == 0u)
     {
-        row->kind = CLI_GIT_LOG_ROW_NONE;
+        row->type = CLI_GIT_LOG_ROW_NONE;
         row->text = GIT_LOG_NONE;
         row->text_length = sizeof(GIT_LOG_NONE) - 1ULL;
         return 1;
     }
     const GitLogFile *const file = &record->file[under - 1u];
-    row->kind = CLI_GIT_LOG_ROW_FILE;
+    row->type = CLI_GIT_LOG_ROW_FILE;
     row->path = record->text + file->path;
     row->state = file->state;
     row->text = row->path + file->name;
@@ -777,13 +777,13 @@ int cli_git_log_menu(const CliGitLogCfg *args)
 {
     CliGitLogRow row;
     if (!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = args->at, .row = &row) ||
-        ((row.kind != CLI_GIT_LOG_ROW_COMMIT) && (row.kind != CLI_GIT_LOG_ROW_FILE)))
+        ((row.type != CLI_GIT_LOG_ROW_COMMIT) && (row.type != CLI_GIT_LOG_ROW_FILE)))
     {
         return 0;
     }
     // the rows run with the commit's id or the file's path, which stand in the cells while the menu is open
     cli_menus_own_begin();
-    if (row.kind == CLI_GIT_LOG_ROW_FILE)
+    if (row.type == CLI_GIT_LOG_ROW_FILE)
     {
         cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u});
         return 1;

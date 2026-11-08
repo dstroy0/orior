@@ -20,7 +20,7 @@ typedef struct CliIppMessageCfg CliIppMessageCfg;
 typedef struct CliIppMessageValueCfg CliIppMessageValueCfg;
 typedef struct CliIppMessageCodeCfg CliIppMessageCodeCfg;
 typedef struct CliIppTagCfg CliIppTagCfg;
-typedef struct CliIppMessageKindCfg CliIppMessageKindCfg;
+typedef struct CliIppMessageTypeCfg CliIppMessageTypeCfg;
 typedef struct CliIppMessageLowCfg CliIppMessageLowCfg;
 typedef struct CliIppMessageTagCfg CliIppMessageTagCfg;
 typedef struct CliIppCfg CliIppCfg;
@@ -49,7 +49,7 @@ typedef struct CliIppCodeCfg CliIppCodeCfg;
 
 #define CLI_IPP_BYTES (1u << 21u)
 
-// a value's kinds: a number, a truth, an enum, a range of two numbers, a text by its tag, and one orior_cli reads past
+// a value's types: a number, a truth, an enum, a range of two numbers, a text by its tag, and one orior_cli reads past
 enum
 {
     CLI_IPP_INTEGER,
@@ -60,10 +60,10 @@ enum
     CLI_IPP_OTHER
 };
 
-// A value of an attribute: its kind and tag, its number or the two of a range, and its bytes in the message's
+// A value of an attribute: its type and tag, its number or the two of a range, and its bytes in the message's
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int tag;
     int low;
     int high;
@@ -118,8 +118,8 @@ typedef struct
 void cli_ipp_begin(const CliIppMessageCodeCfg *args);
 void cli_ipp_group(const CliIppMessageTagCfg *args);
 void cli_ipp_attribute(const CliIppCfg *args);
-void cli_ipp_number(const CliIppMessageKindCfg *args);
-void cli_ipp_truth(const CliIppMessageKindCfg *args);
+void cli_ipp_number(const CliIppMessageTypeCfg *args);
+void cli_ipp_truth(const CliIppMessageTypeCfg *args);
 void cli_ipp_range(const CliIppMessageLowCfg *args);
 void cli_ipp_text(const CliIppMessageTagCfg *args);
 // `message` in IPP's encoding, version 2.0, its document left out; and the message `size` bytes contain read into
@@ -262,10 +262,10 @@ struct CliIppTagCfg
     unsigned int after;
 };
 
-struct CliIppMessageKindCfg
+struct CliIppMessageTypeCfg
 {
     CliIppMessage *message;
-    unsigned int kind;
+    unsigned int type;
     int value;
 };
 
@@ -332,11 +332,11 @@ EMBED_TABLE_STORAGE CliIppNs cli_ipp_table EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*number)(const CliIppMessageKindCfg *args);
-    void (*truth)(const CliIppMessageKindCfg *args);
-} CliIppMessageKindNs;
-EMBED_TABLE_LAYOUT(CliIppMessageKindNs, number, truth);
-EMBED_TABLE_STORAGE CliIppMessageKindNs cli_ipp_message_kind EMBED_UNUSED = {
+    void (*number)(const CliIppMessageTypeCfg *args);
+    void (*truth)(const CliIppMessageTypeCfg *args);
+} CliIppMessageTypeNs;
+EMBED_TABLE_LAYOUT(CliIppMessageTypeNs, number, truth);
+EMBED_TABLE_STORAGE CliIppMessageTypeNs cli_ipp_message_type EMBED_UNUSED = {
     .number = cli_ipp_number,
     .truth = cli_ipp_truth,
 };

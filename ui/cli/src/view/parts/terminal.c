@@ -376,13 +376,13 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
 // step, the 24 grays from 8 by tens, or red, green and blue; `color` where it is the default
 EMBED_INLINE GuiColor terminal_color(const TerminalCtx *args)
 {
-    const unsigned int kind = args->value & CLI_TERMINAL_COLOR_KIND;
+    const unsigned int type = args->value & CLI_TERMINAL_COLOR_TYPE;
     const unsigned int index = args->value & 0xffu;
-    if (kind == CLI_TERMINAL_COLOR_DIRECT)
+    if (type == CLI_TERMINAL_COLOR_DIRECT)
     {
         return GUI_RGB((args->value >> 16u) & 0xffu, (args->value >> 8u) & 0xffu, args->value & 0xffu);
     }
-    if (kind != CLI_TERMINAL_COLOR_INDEXED)
+    if (type != CLI_TERMINAL_COLOR_INDEXED)
     {
         return args->color;
     }
@@ -594,7 +594,7 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
         const int blue =
             EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "blue");
         const unsigned int shift = red ? 16u : (green ? 8u : 0u);
-        const unsigned int parts = ((*color & CLI_TERMINAL_COLOR_KIND) == CLI_TERMINAL_COLOR_DIRECT) ? *color : 0u;
+        const unsigned int parts = ((*color & CLI_TERMINAL_COLOR_TYPE) == CLI_TERMINAL_COLOR_DIRECT) ? *color : 0u;
         *color = (red || green || blue) ? (CLI_TERMINAL_COLOR_DIRECT | (parts & 0x00ffffffu & ~(0xffu << shift)) |
                                            (((number < 255u) ? number : 255u) << shift))
                                         : *color;

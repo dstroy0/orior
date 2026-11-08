@@ -24,7 +24,7 @@ test("a command neither side knows fails with its name", async () => {
 test("the picker answers the path chosen, or null where it is closed", async () => {
   assert.equal(await pick("dir"), null);
   assert.deepEqual(callsTo("pick").map((one) => one.args), [{ kind: "dir" }]);
-  calls.answer("pick", ({ kind }) => (kind === "save" ? "C:/chosen/file.txt" : null));
+  calls.answer("pick", ({ kind: type }) => (type === "save" ? "C:/chosen/file.txt" : null));
   assert.equal(await pick("save"), "C:/chosen/file.txt");
 });
 

@@ -22,7 +22,7 @@ typedef struct CliEnvsOutFolderCfg CliEnvsOutFolderCfg;
 
 // the cells the environments are found and their requirements read through, counted, each given back before the call
 
-// the environment at `place` in the tree at `root`, of `kind`, made ready to use into `environment`: for Pipenv, the
+// the environment at `place` in the tree at `root`, of `type`, made ready to use into `environment`: for Pipenv, the
 // virtual environment Pipenv stores for the folder; for Nix, the folders its development shell puts on the PATH. 1, or
 // 0 with why given
 int cli_envs_resolve(const CliEnvsRootCfg *args);
@@ -30,7 +30,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args);
 struct CliEnvsRootCfg
 {
     const char *root;
-    const char *kind;
+    const char *type;
     const char *place;
     CliTreeEnvironment *environment;
     VerbaLinea *err_msg;

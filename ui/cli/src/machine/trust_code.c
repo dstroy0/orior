@@ -282,7 +282,7 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
             mmgr_line_put_n(&line, file, (unsigned long long)(name - file));
             mmgr_line_put(&line, "Cargo.toml");
             is_code = (mmgr_line_finish(&line) != 0ULL) &&
-                      EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = files, .path = adjacent);
+                      EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = files, .path = adjacent);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))
         {
@@ -446,7 +446,7 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
             continue;
         }
         char above[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+        if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
         {
             going = 0;
             continue;

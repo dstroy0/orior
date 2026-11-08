@@ -193,8 +193,8 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
         s_environment.has_python;
     mmgr_line_ch(args->answer, '[');
     int first = 1;
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                        .node = items, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                        .node = items, .type = CFG_JSON_ARRAY)
                                  ? json->node[items].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)

@@ -109,7 +109,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
                        .token_size = token_size,
                        .value = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
                                            .at = field->key_at),
-                       .value_size = field->key_size, .kind = "constant", .detail = about_text,
+                       .value_size = field->key_size, .type = "constant", .detail = about_text,
                        .detail_size = about.at);
         }
     }
@@ -182,7 +182,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
             EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
                        .token_size = args->at_u64 - start, .value = s_sections[one],
                        .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_sections[one], .cap = CLI_POOL_BYTES}),
-                       .kind = "module", .detail = "section", .detail_size = 7u);
+                       .type = "module", .detail = "section", .detail_size = 7u);
         }
         return;
     }
@@ -280,6 +280,6 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
                    .token_size = args->at_u64 - start, .value = keys[one],
                    .value_size = cellul.len(&(CatenaFinitaCfg){.src = keys[one], .cap = CLI_POOL_BYTES}),
-                   .kind = "field", .detail = s_detail, .detail_size = detail.at);
+                   .type = "field", .detail = s_detail, .detail_size = detail.at);
     }
 }

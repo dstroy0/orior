@@ -144,7 +144,7 @@ unsigned int cli_catalog_job(const CliCatalogIdGroupCfg *args)
     return args->catalog->jobs - 1u;
 }
 
-void cli_catalog_param(const CliCatalogKeyKindCfg *args)
+void cli_catalog_param(const CliCatalogKeyTypeCfg *args)
 {
     if ((args->catalog->jobs == 0u) || (args->catalog->params >= args->catalog->params_max))
     {
@@ -153,7 +153,7 @@ void cli_catalog_param(const CliCatalogKeyKindCfg *args)
     }
     const CliParam param = {EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg,
                                        .catalog = args->catalog, .text = args->key),
-                            args->kind,
+                            args->type,
                             args->catalog->lists,
                             0u,
                             0u,
@@ -195,7 +195,7 @@ void cli_catalog_choice(const CliCatalogChoiceCfg *args)
     const unsigned int text = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg,
                                          .catalog = args->catalog, .text = args->choice);
     if ((param->choices == 0u) &&
-        (cellul.starts(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_POOL_BYTES})))
+        (cellul.starts(&(CatenaFinitaCfg){.src = param->type, .other = "choice", .cap = CLI_POOL_BYTES})))
     {
         param->fallback = text;
     }
@@ -222,7 +222,7 @@ void cli_catalog_step(const CliCatalogTextProgramCfg *args)
     args->catalog->job[args->catalog->jobs - 1u].steps += 1u;
 }
 
-void cli_catalog_arg(const CliCatalogKindCfg *args)
+void cli_catalog_arg(const CliCatalogTypeCfg *args)
 {
     if ((args->catalog->steps == 0u) || (args->catalog->args >= args->catalog->args_max))
     {
@@ -230,7 +230,7 @@ void cli_catalog_arg(const CliCatalogKindCfg *args)
         return;
     }
     const CliArg arg = {
-        args->kind_u32,
+        args->type_u32,
         {EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->a),
          EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->b),
          EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->c),
@@ -259,14 +259,14 @@ void cli_catalog_word(const CliCatalogWordCfg *args)
 
 void cli_catalog_words(const CliCatalogChoiceCfg *args)
 {
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->catalog, .key = "arguments",
-               .kind = "words", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = args->catalog, .key = "arguments",
+               .type = "words", .required = 0);
 }
 
 void cli_catalog_trace(const CliCatalogChoiceCfg *args)
 {
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->catalog, .key = CLI_TRACE,
-               .kind = "choice", .required = 1);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = args->catalog, .key = CLI_TRACE,
+               .type = "choice", .required = 1);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = args->catalog,
                .choice = CLI_TRACE_VERBOSE);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = args->catalog,
@@ -310,8 +310,8 @@ unsigned int cli_catalog_copy(const CliCatalogFromCfg *args)
     for (unsigned int at = 0u; (made != CLI_CATALOG_NONE) && (at < job->params); at += 1u)
     {
         const CliParam *const param = &args->from->param[job->param_first + at];
-        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->to,
-                   .key = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = param->key), .kind = param->kind,
+        EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = args->to,
+                   .key = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = param->key), .type = param->type,
                    .required = param->required);
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
@@ -337,7 +337,7 @@ unsigned int cli_catalog_copy(const CliCatalogFromCfg *args)
         for (unsigned int each = 0u; each < step->args; each += 1u)
         {
             const CliArg *const arg = &args->from->arg[step->first + each];
-            EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->to, .kind_u32 = arg->kind,
+            EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->to, .type_u32 = arg->type,
                        .a = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[0]),
                        .b = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[1]),
                        .c = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[2]),

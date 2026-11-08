@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A notebook's cells drawn: the fields a cell's #@param lines make and their values written back, each kind of
+// A notebook's cells drawn: the fields a cell's #@param lines make and their values written back, each type of
 // output, a long one cut to its ends, the counts and out-of-date marks, and the map beside the cells.
 
 import { LONG } from "../../../gui/src-js/notebook.js";

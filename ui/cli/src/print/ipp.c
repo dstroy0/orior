@@ -111,13 +111,13 @@ EMBED_INLINE void cli_value(const IppCtx *args)
     args->message->attribute[args->message->attributes - 1u].count += 1u;
 }
 
-void cli_ipp_number(const CliIppMessageKindCfg *args)
+void cli_ipp_number(const CliIppMessageTypeCfg *args)
 {
-    const CliIppValue made = {args->kind, (args->kind == CLI_IPP_ENUM) ? 0x23u : 0x21u, args->value, 0, 0u, 0u};
+    const CliIppValue made = {args->type, (args->type == CLI_IPP_ENUM) ? 0x23u : 0x21u, args->value, 0, 0u, 0u};
     EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
 }
 
-void cli_ipp_truth(const CliIppMessageKindCfg *args)
+void cli_ipp_truth(const CliIppMessageTypeCfg *args)
 {
     const CliIppValue made = {CLI_IPP_BOOLEAN, 0x22u, args->value ? 1 : 0, 0, 0u, 0u};
     EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
@@ -158,7 +158,7 @@ EMBED_INLINE void cli_value_encode(const IppCtx *args)
 {
     const CliIppValue *const value = args->value;
     // a number's bits are written as the 32 bits they are
-    switch (value->kind)
+    switch (value->type)
     {
     case CLI_IPP_INTEGER:
     case CLI_IPP_ENUM:
@@ -320,24 +320,24 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
         switch (tag[0])
         {
         case 0x21u:
-            value.kind = CLI_IPP_INTEGER;
+            value.type = CLI_IPP_INTEGER;
             value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
             break;
         case 0x22u:
-            value.kind = CLI_IPP_BOOLEAN;
+            value.type = CLI_IPP_BOOLEAN;
             value.low = (length >= 1ULL) && (raw[0] == 1u);
             break;
         case 0x23u:
-            value.kind = CLI_IPP_ENUM;
+            value.type = CLI_IPP_ENUM;
             value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
             break;
         case 0x33u:
-            value.kind = CLI_IPP_RANGE;
+            value.type = CLI_IPP_RANGE;
             value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
             value.high = (length >= 8ULL) ? EMBED_CALL(cli_sign, IppCtx, .raw = raw + 4u, .length = 4u) : 0;
             break;
         default:
-            value.kind = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
+            value.type = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
             value.bytes = EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = raw, .length = length);
             // a value is at most what the encoding's 16 bits count
             value.length = (unsigned int)length;
@@ -385,7 +385,7 @@ const CliIppAttribute *cli_ipp_get(const CliIppNameCfg *args)
 
 int cli_ipp_value_text(const CliIppMessageValueCfg *args)
 {
-    if (args->value_ipp_value_pointer->kind != CLI_IPP_TEXT)
+    if (args->value_ipp_value_pointer->type != CLI_IPP_TEXT)
     {
         return 0;
     }
@@ -415,5 +415,5 @@ int cli_ipp_first_number(const CliIppNameCfg *args)
     }
     const CliIppValue *const value = &args->message_read->value[attribute->first];
     *number = value->low;
-    return (value->kind == CLI_IPP_INTEGER) || (value->kind == CLI_IPP_ENUM);
+    return (value->type == CLI_IPP_INTEGER) || (value->type == CLI_IPP_ENUM);
 }

@@ -11,6 +11,8 @@
 #include "../command_line/command_line.h"
 #include "window.h"
 
+#include <stdio.h>
+
 // the events and the orders the rings hold, each a power of two, the bytes of the events' names and text on their way,
 // the bytes one event's name or text may take, the buffers a surface's map is handed over in and the rectangles a map
 // holds at the most
@@ -59,6 +61,8 @@ typedef struct
     CliWake ended;
     int presenting_main;
     int presenting_preferences;
+    int presenting_dialog;
+    int dialog_opened;
     int frame_ordered;
     unsigned long long presented_ms;
     unsigned int frame_ms;
@@ -71,6 +75,46 @@ typedef struct
 } CliView;
 
 static CliView s_view;
+
+// The frames' telemetry since its last line, on the view's thread alone: the whole frames drawn, the microseconds each
+// draw took and the most of them, the microseconds from a frame's order to its showing and the most of them, and
+// the passes of the view's loop that a moving part paced
+typedef struct
+{
+    unsigned long long frames;
+    unsigned long long moving_passes;
+    unsigned long long draw_us;
+    unsigned long long draw_most_us;
+    unsigned long long shown_us;
+    unsigned long long shown_most_us;
+    unsigned long long ordered_at_us;
+    unsigned long long line_at_us;
+} ViewFrameTelemetry;
+
+static ViewFrameTelemetry s_frame_telemetry;
+
+// the telemetry's line every GUI_MEMORY_MS to the error stream, as the cells' log is, its counts then cleared
+static void view_frame_telemetry_log(unsigned long long now_us)
+{
+    ViewFrameTelemetry *const told = &s_frame_telemetry;
+    if (now_us - told->line_at_us < GUI_MEMORY_MS * 1000ULL)
+    {
+        return;
+    }
+    if (told->frames != 0ULL)
+    {
+        (void)fprintf(stderr, "frames %llu draw %llu %llu shown %llu %llu moving %llu\n", told->frames,
+                      told->draw_us / told->frames, told->draw_most_us, told->shown_us / told->frames,
+                      told->shown_most_us, told->moving_passes);
+    }
+    told->frames = 0ULL;
+    told->moving_passes = 0ULL;
+    told->draw_us = 0ULL;
+    told->draw_most_us = 0ULL;
+    told->shown_us = 0ULL;
+    told->shown_most_us = 0ULL;
+    told->line_at_us = now_us;
+}
 
 unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
 {
@@ -159,8 +203,8 @@ static void view_hits_publish(unsigned int surface)
 
 void cli_view_event(const CliViewEvent *event)
 {
-    const int keyed = (event->kind == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_KEY);
-    const int typed = (event->kind == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_TEXT);
+    const int keyed = (event->type == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_KEY);
+    const int typed = (event->type == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_TEXT);
     const char *bytes;
     if (keyed)
     {
@@ -245,7 +289,7 @@ static void view_icons_order(void)
                    .size = GUI_ICON_LARGE))
     {
         const CliViewOrder order = {
-            .kind = CLI_VIEW_ORDER_ICON, .raster = s_view.icon_small, .raster_large = s_view.icon_large};
+            .type = CLI_VIEW_ORDER_ICON, .raster = s_view.icon_small, .raster_large = s_view.icon_large};
         (void)view_order_write(&order);
     }
 }
@@ -260,12 +304,12 @@ static void view_input(const GuiInput *input)
     {
         window->pressed = GUI_HIT_CLIENT;
     }
-    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = window, .input = input);
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = window, .input = input);
     if (released && (pressed != GUI_HIT_CLIENT) &&
         (EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = input) == pressed))
     {
         const unsigned int other_act = (pressed == GUI_HIT_MAXIMIZE) ? GUI_ACT_MAXIMIZE : GUI_ACT_CLOSE;
-        const CliViewOrder order = {.kind = CLI_VIEW_ORDER_ACT,
+        const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT,
                                     .act = (pressed == GUI_HIT_MINIMIZE) ? GUI_ACT_MINIMIZE : other_act};
         (void)view_order_write(&order);
     }
@@ -274,15 +318,24 @@ static void view_input(const GuiInput *input)
 // a raster's showing come back: the framebuffer a whole frame stood in shown, the two flipped
 static void view_presented(unsigned int surface)
 {
-    if (surface != CLI_VIEW_MAIN)
+    if (surface == CLI_VIEW_PREFERENCES)
     {
         s_view.presenting_preferences = 0;
+        return;
+    }
+    if (surface == CLI_VIEW_DIALOG)
+    {
+        s_view.presenting_dialog = 0;
         return;
     }
     s_view.presenting_main = 0;
     s_view.presented_ms = cli_clock_milliseconds();
     if (s_view.frame_ordered)
     {
+        const unsigned long long shown_us = cli_clock_microseconds() - s_frame_telemetry.ordered_at_us;
+        s_frame_telemetry.shown_us += shown_us;
+        s_frame_telemetry.shown_most_us =
+            (shown_us > s_frame_telemetry.shown_most_us) ? shown_us : s_frame_telemetry.shown_most_us;
         s_view.frame_ordered = 0;
         EMBED_CALL(gui_window_table.flip, GuiWindowCfg, .window = &s_view.window);
     }
@@ -292,12 +345,17 @@ static void view_presented(unsigned int surface)
 static void view_event(const CliViewEvent *event)
 {
     GuiWindow *const window = &s_view.window;
-    switch (event->kind)
+    switch (event->type)
     {
     case CLI_VIEW_EVENT_SIZED:
         if (event->surface == CLI_VIEW_PREFERENCES)
         {
             EMBED_CALL(gui_window_width.preferences_resize, GuiWindowWidthCfg, .window = window, .width = event->width,
+                       .height = event->height, .system_scale = event->scale);
+        }
+        else if (event->surface == CLI_VIEW_DIALOG)
+        {
+            EMBED_CALL(gui_window_dialog_width.resize, GuiWindowWidthCfg, .window = window, .width = event->width,
                        .height = event->height, .system_scale = event->scale);
         }
         else
@@ -309,9 +367,20 @@ static void view_event(const CliViewEvent *event)
         }
         break;
     case CLI_VIEW_EVENT_INPUT:
-        if (event->surface == CLI_VIEW_PREFERENCES)
+        // While the dialog shows, it is modal: the window that owns it takes no input but the focus coming and going
+        if (window->dialog.displayed && (event->surface == window->dialog_owner) &&
+            (event->input.type != GUI_INPUT_FOCUS) && (event->input.type != GUI_INPUT_BLUR))
         {
-            EMBED_CALL(gui_window_input_kind.preferences_input, GuiWindowInputKindCfg, .window = window,
+            break;
+        }
+        if (event->surface == CLI_VIEW_DIALOG)
+        {
+            EMBED_CALL(gui_window_dialog_input_type.input, GuiWindowInputTypeCfg, .window = window,
+                       .input = &event->input);
+        }
+        else if (event->surface == CLI_VIEW_PREFERENCES)
+        {
+            EMBED_CALL(gui_window_input_type.preferences_input, GuiWindowInputTypeCfg, .window = window,
                        .input = &event->input);
         }
         else
@@ -320,7 +389,11 @@ static void view_event(const CliViewEvent *event)
         }
         break;
     case CLI_VIEW_EVENT_CLOSING:
-        if (window->preferences.displayed)
+        if (event->surface == CLI_VIEW_DIALOG)
+        {
+            EMBED_CALL(gui_window_dialog_table.close, GuiWindowCfg, .window = window);
+        }
+        else if (window->preferences.displayed)
         {
             EMBED_CALL(gui_window_table.preferences_close, GuiWindowCfg, .window = window);
         }
@@ -335,6 +408,12 @@ static void view_event(const CliViewEvent *event)
         view_presented(event->surface);
         break;
     case CLI_VIEW_EVENT_REFUSED:
+        if (event->surface == CLI_VIEW_DIALOG)
+        {
+            EMBED_CALL(gui_window_dialog_table.close, GuiWindowCfg, .window = window);
+            s_view.dialog_opened = 0;
+            break;
+        }
         window->preferences.displayed = 0;
         s_view.preferences_opened = 0;
         break;
@@ -370,7 +449,7 @@ static void view_preferences_follow(void)
     GuiWindow *const window = &s_view.window;
     if (window->preferences.displayed && !s_view.preferences_opened)
     {
-        CliViewOrder order = {.kind = CLI_VIEW_ORDER_PREFERENCES_OPEN, .surface = CLI_VIEW_PREFERENCES};
+        CliViewOrder order = {.type = CLI_VIEW_ORDER_PREFERENCES_OPEN, .surface = CLI_VIEW_PREFERENCES};
         const int zoomed =
             (window->system_scale * (int)EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg,
                                                     .step = window->preference_values.zoom_step)) /
@@ -384,7 +463,7 @@ static void view_preferences_follow(void)
     }
     else if (!window->preferences.displayed && s_view.preferences_opened)
     {
-        const CliViewOrder order = {.kind = CLI_VIEW_ORDER_PREFERENCES_CLOSE, .surface = CLI_VIEW_PREFERENCES};
+        const CliViewOrder order = {.type = CLI_VIEW_ORDER_PREFERENCES_CLOSE, .surface = CLI_VIEW_PREFERENCES};
         if (view_order_write(&order))
         {
             s_view.preferences_opened = 0;
@@ -400,7 +479,7 @@ static void view_preferences_follow(void)
                        .hits = &s_view.hits[CLI_VIEW_PREFERENCES].buffer[s_view.hits[CLI_VIEW_PREFERENCES].back]);
             view_hits_publish(CLI_VIEW_PREFERENCES);
             const CliViewOrder order = {
-                .kind = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_PREFERENCES, .raster = window->preferences_raster};
+                .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_PREFERENCES, .raster = window->preferences_raster};
             if (view_order_write(&order))
             {
                 s_view.presenting_preferences = 1;
@@ -408,6 +487,54 @@ static void view_preferences_follow(void)
             else
             {
                 window->preferences_pending = 1;
+            }
+        }
+    }
+}
+
+// The dialog's window opened or closed as the dialog last stood, modal over the window that owns it. Its frame is
+// drawn and ordered shown where one is owed and none is on its way
+static void view_dialog_follow(void)
+{
+    GuiWindow *const window = &s_view.window;
+    if (window->dialog.displayed && !s_view.dialog_opened)
+    {
+        CliViewOrder order = {.type = CLI_VIEW_ORDER_DIALOG_OPEN, .surface = CLI_VIEW_DIALOG,
+                              .owner = window->dialog_owner};
+        EMBED_CALL(gui_window_dialog_wanting.want, GuiWindowDialogWantCfg, .window = window,
+                   .width_pointer = &order.width, .height_pointer = &order.height);
+        if (view_order_write(&order))
+        {
+            s_view.dialog_opened = 1;
+        }
+    }
+    else if (!window->dialog.displayed && s_view.dialog_opened)
+    {
+        const CliViewOrder order = {.type = CLI_VIEW_ORDER_DIALOG_CLOSE, .surface = CLI_VIEW_DIALOG,
+                                    .owner = window->dialog_owner};
+        if (view_order_write(&order))
+        {
+            s_view.dialog_opened = 0;
+            s_view.presenting_dialog = 0;
+        }
+    }
+    if (s_view.dialog_opened && window->dialog_pending && !s_view.presenting_dialog)
+    {
+        EMBED_CALL(gui_window_dialog_table.draw, GuiWindowCfg, .window = window);
+        if (window->dialog_raster.pixels != NULL)
+        {
+            EMBED_CALL(gui_window_dialog_hits_table.hits, GuiWindowHitsCfg, .window = window,
+                       .hits = &s_view.hits[CLI_VIEW_DIALOG].buffer[s_view.hits[CLI_VIEW_DIALOG].back]);
+            view_hits_publish(CLI_VIEW_DIALOG);
+            const CliViewOrder order = {
+                .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_DIALOG, .raster = window->dialog_raster};
+            if (view_order_write(&order))
+            {
+                s_view.presenting_dialog = 1;
+            }
+            else
+            {
+                window->dialog_pending = 1;
             }
         }
     }
@@ -421,7 +548,7 @@ static void view_part_order(GuiRect part)
     {
         return;
     }
-    const CliViewOrder order = {.kind = CLI_VIEW_ORDER_PRESENT_PART,
+    const CliViewOrder order = {.type = CLI_VIEW_ORDER_PRESENT_PART,
                                 .surface = CLI_VIEW_MAIN,
                                 .part = part,
                                 .raster = *((window->displayed != NULL) ? window->displayed : window->raster)};
@@ -439,7 +566,16 @@ static void view_frame(void)
     }
     if (window->pending)
     {
+        const unsigned long long draw_from_us = cli_clock_microseconds();
         EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = window);
+        const unsigned long long drawn_us = cli_clock_microseconds();
+        s_frame_telemetry.frames += 1ULL;
+        s_frame_telemetry.draw_us += drawn_us - draw_from_us;
+        s_frame_telemetry.draw_most_us = ((drawn_us - draw_from_us) > s_frame_telemetry.draw_most_us)
+                                             ? (drawn_us - draw_from_us)
+                                             : s_frame_telemetry.draw_most_us;
+        s_frame_telemetry.ordered_at_us = drawn_us;
+        view_frame_telemetry_log(drawn_us);
         if (window->raster->pixels == NULL)
         {
             return;
@@ -448,7 +584,7 @@ static void view_frame(void)
                    .hits = &s_view.hits[CLI_VIEW_MAIN].buffer[s_view.hits[CLI_VIEW_MAIN].back]);
         view_hits_publish(CLI_VIEW_MAIN);
         const CliViewOrder order = {
-            .kind = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_MAIN, .raster = *window->raster};
+            .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_MAIN, .raster = *window->raster};
         if (view_order_write(&order))
         {
             s_view.presenting_main = 1;
@@ -489,10 +625,11 @@ static void view_run(void *context)
             EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = window);
         }
         view_preferences_follow();
+        view_dialog_follow();
         // a command asked the window to close
         if (window->closing && !s_view.close_ordered)
         {
-            const CliViewOrder order = {.kind = CLI_VIEW_ORDER_ACT, .act = GUI_ACT_CLOSE};
+            const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT, .act = GUI_ACT_CLOSE};
             s_view.close_ordered = view_order_write(&order);
         }
         view_frame();
@@ -506,6 +643,19 @@ static void view_run(void *context)
         {
             s_view.tick_at_ms = 0ULL;
             EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
+            continue;
+        }
+        // While a part of the window moves, the frames follow the showing: the next frame is drawn as the last one is
+        // shown, and the device's flip queue holds each frame to the monitor's refresh. A timed wait sleeps to the
+        // system timer's step and misses refreshes, so a moving part does not wait on a timer
+        if (window->autohide_moving)
+        {
+            s_view.tick_at_ms = cli_clock_milliseconds();
+            s_frame_telemetry.moving_passes += 1ULL;
+            if (s_view.presenting_main)
+            {
+                EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
+            }
             continue;
         }
         const unsigned long long since_ms = cli_clock_milliseconds() - s_view.presented_ms;

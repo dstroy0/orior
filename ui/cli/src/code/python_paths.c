@@ -240,7 +240,7 @@ EMBED_INLINE CliValues cli_loop(const PythonPathsCtx *args)
 {
     unsigned int expr = args->expr;
     const CliExpr *const one = &g_cli_py.expr[expr];
-    if (one->kind != CLI_EXPR_CALL)
+    if (one->type != CLI_EXPR_CALL)
     {
         return EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx, .expr = expr);
     }
@@ -253,7 +253,7 @@ EMBED_INLINE CliValues cli_loop(const PythonPathsCtx *args)
     const int scans =
         named && ((cellul.eq(&(CatenaFinitaCfg){.src = dotted, .other = "os.scandir", .cap = CLI_POOL_BYTES})) ||
                   (cellul.eq(&(CatenaFinitaCfg){.src = dotted, .other = "os.listdir", .cap = CLI_POOL_BYTES})));
-    const int iterates = (callee->kind == CLI_EXPR_ATTR) &&
+    const int iterates = (callee->type == CLI_EXPR_ATTR) &&
                          (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_python_paths_at_internal.py_text,
                                                                          CliPythonPathsAtCtx, .at = callee->text),
                                                        .other = "iterdir",

@@ -64,16 +64,16 @@ orior.on("open", ({ path }) => {
   }
 });
 
-// The kinds of message the protocol numbers, by number.
-const MESSAGE_KINDS = { 1: "Error", 2: "Warning", 3: "Info", 4: "Log", 5: "Debug" };
+// The types of message the protocol numbers, by number.
+const MESSAGE_TYPES = { 1: "Error", 2: "Warning", 3: "Info", 4: "Log", 5: "Debug" };
 
-orior.server.on("window/logMessage", ({ type, message }) => logged(`${MESSAGE_KINDS[type] ?? "Log"}: ${message}`));
+orior.server.on("window/logMessage", ({ type, message }) => logged(`${MESSAGE_TYPES[type] ?? "Log"}: ${message}`));
 
 // A message the server shows goes to the log, and an error opens the panel as well: the server tells
 // of its connections and its status as it starts, which is the log's to hold and not the reader's to
 // dismiss.
 orior.server.on("window/showMessage", async ({ type, message }) => {
-  logged(`${MESSAGE_KINDS[type] ?? "Info"}: ${message}`);
+  logged(`${MESSAGE_TYPES[type] ?? "Info"}: ${message}`);
   if (type === 1) {
     await shown("ask", `<p class="fail">${escaped(message)}</p>`);
   }

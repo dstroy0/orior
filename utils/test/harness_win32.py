@@ -297,6 +297,23 @@ def processor_seconds(process_id):
 MEM_RESERVE = 0x2000
 
 
+def cursor_set(x, y):
+    """The system's own cursor moved to the screen point x, y, as a person's mouse moves it."""
+    user32.SetCursorPos(int(x), int(y))
+
+
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+
+
+def cursor_click(x, y):
+    """The system's own cursor moved to the screen point x, y and its left button pressed and let go there, as the
+    mouse does, the input going to whatever window lies under it."""
+    cursor_set(x, y)
+    user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+    user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+
 def handle_count(process_id):
     """The handles a process holds open, as the system counts them; None where it cannot be asked."""
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)
@@ -404,6 +421,26 @@ def main_window(process_id):
             user32.GetWindowTextW(handle, title, 512)
             found.append((handle, title.value))
             return False
+        return True
+
+    user32.EnumWindows(ENUM_WINDOWS(seen), 0)
+    return found[0] if found else (0, "")
+
+
+def titled_window(process_id, wanted):
+    """(handle, title) of a process's visible window whose title is `wanted`, owned or not, or (0, "") where it has
+    none."""
+    found = []
+
+    def seen(handle, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(handle, ctypes.byref(owner))
+        if owner.value == process_id and user32.IsWindowVisible(handle):
+            title = ctypes.create_unicode_buffer(512)
+            user32.GetWindowTextW(handle, title, 512)
+            if title.value == wanted:
+                found.append((handle, title.value))
+                return False
         return True
 
     user32.EnumWindows(ENUM_WINDOWS(seen), 0)
@@ -577,6 +614,32 @@ def _keyboard_left(mine, thread, attached):
         user32.AttachThreadInput(mine, thread, False)
 
 
+class _GuiThreadInfo(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint32), ("flags", ctypes.c_uint32), ("active", ctypes.c_void_p),
+                ("focus", ctypes.c_void_p), ("capture", ctypes.c_void_p), ("menu_owner", ctypes.c_void_p),
+                ("move_size", ctypes.c_void_p), ("caret", ctypes.c_void_p), ("caret_rect", ctypes.c_long * 4)]
+
+
+def _focused(thread):
+    """The window of the thread that holds the keyboard's focus, or None."""
+    info = _GuiThreadInfo()
+    info.cbSize = ctypes.sizeof(info)
+    if not user32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+        return None
+    return info.focus
+
+
+def _modifiers_up(handle, thread, modifiers, alt):
+    """Each modifier's release posted to the window and, as a keyboard sends it, to the window of its thread that holds
+    the focus now, where a key opened another window that took the focus."""
+    focused = _focused(thread)
+    targets = [handle] + ([focused] if focused and (focused != handle) else [])
+    for target in targets:
+        for modifier in reversed(modifiers):
+            message, low = _key_message(modifier, modifier == VK_LWIN, False, alt)
+            user32.PostMessageW(target, message, modifier, low)
+
+
 def keys_sent(handle, names):
     """The keys `names` pressed in the window as the keyboard presses them, each a chord the window names, Mod+Shift+Z,
     F5 or Right, a virtual key by its number, 0x5B, or one character, any the layout types: the modifiers down first, the
@@ -604,11 +667,13 @@ def keys_sent(handle, names):
         time.sleep(0.03)
         message, low = _key_message(key[0], key[1], False, alt)
         user32.PostMessageW(handle, message, key[0], low)
-        for modifier in reversed(modifiers):
-            message, low = _key_message(modifier, modifier == VK_LWIN, False, alt)
-            user32.PostMessageW(handle, message, modifier, low)
+        _modifiers_up(handle, thread, modifiers, alt)
         time.sleep(0.02)
         _keyboard_left(mine, thread, attached)
+        if modifiers:
+            # a window the chord opened takes the focus a moment later: the releases reach it there too
+            time.sleep(0.25)
+            _modifiers_up(handle, thread, modifiers, alt)
     return True
 
 

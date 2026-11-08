@@ -23,7 +23,7 @@ typedef struct
     const char *word_text;
     unsigned long long size;
     unsigned int *section;
-    const char **kind;
+    const char **type;
     unsigned int *path_from;
     const CliBuildLines *lines;
     CliBuildFindings *found;
@@ -105,17 +105,17 @@ EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
     return count;
 }
 
-// the alias sections of a chain's first word: the section, the kind it names, and where the alias's path starts
+// the alias sections of a chain's first word: the section, the type it names, and where the alias's path starts
 EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
 {
     unsigned int *section = args->section;
-    const char **kind = args->kind;
+    const char **type = args->type;
     unsigned int *path_from = args->path_from;
     static const char *const s_names[3] = {"versions", "plugins", "bundles"};
-    static const char *const s_kinds[3] = {"version", "plugin", "bundle"};
+    static const char *const s_types[3] = {"version", "plugin", "bundle"};
     static const unsigned int s_sections[3] = {CLI_VERSIONS_VERSIONS, CLI_VERSIONS_PLUGINS, CLI_VERSIONS_BUNDLES};
     *section = CLI_VERSIONS_LIBRARIES;
-    *kind = "library";
+    *type = "library";
     *path_from = 0u;
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -123,7 +123,7 @@ EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
             (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             *section = s_sections[at];
-            *kind = s_kinds[at];
+            *type = s_types[at];
             *path_from = 1u;
         }
     }
@@ -140,10 +140,10 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
     const unsigned long long *to = args->to_read;
     const char *const text = g_cli_gradle.text;
     unsigned int section = 0u;
-    const char *kind = NULL;
+    const char *type = NULL;
     unsigned int path_from = 0u;
     EMBED_CALL(references_section_get, GradleReferencesCtx, .word_text = text + from[0], .size = to[0] - from[0],
-               .section = &section, .kind = &kind, .path_from = &path_from);
+               .section = &section, .type = &type, .path_from = &path_from);
     if (path_from >= args->count)
     {
         return;
@@ -176,7 +176,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
     mmgr_line_ch(&msg, '.');
     mmgr_line_put_n(&msg, text + from[0], to[args->count - 1u] - from[0]);
     mmgr_line_put(&msg, "` names no ");
-    mmgr_line_put(&msg, kind);
+    mmgr_line_put(&msg, type);
     mmgr_line_put(&msg, " of `");
     mmgr_line_put(&msg, args->displayed);
     mmgr_line_ch(&msg, '`');

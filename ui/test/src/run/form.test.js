@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// A job's form: a field for each value it takes, of the kind the value is, the values given last remembered, and
+// A job's form: a field for each value it takes, of the type the value is, the values given last remembered, and
 // the values the form holds read back.
 
 import { field, remember, remembered, valuesFrom } from "../../../gui/src-js/run/form.js";

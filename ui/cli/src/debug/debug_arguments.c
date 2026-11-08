@@ -17,8 +17,8 @@ static const char s_spaces[] = " \t\n\r\f\v";
 int cli_debug_sign(const CliDebugJsonNodeCtx *args)
 {
     long long *value = args->value;
-    const char *const text = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = args->node, .kind = CFG_JSON_NUMBER)
+    const char *const text = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = args->node, .type = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->node].text
                                  : NULL;
     const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ULL;
@@ -56,8 +56,8 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args)
 int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args)
 {
     unsigned long long *value = args->value_u64s;
-    const char *const text = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = args->node, .kind = CFG_JSON_NUMBER)
+    const char *const text = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = args->node, .type = CFG_JSON_NUMBER)
                                  ? args->json->text + args->json->node[args->node].text
                                  : NULL;
     const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ULL;
@@ -77,8 +77,8 @@ int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args)
 
 int cli_debug_true(const CliDebugJsonNodeCtx *args)
 {
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                      .node = args->node, .kind = CFG_JSON_TRUE);
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                      .node = args->node, .type = CFG_JSON_TRUE);
 }
 
 const char *cli_debug_text(const CliDebugJsonNodeFallbackCtx *args)
@@ -244,8 +244,8 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
     CliJson *to = args->to;
     const CliJson *json = args->json;
     unsigned int from = args->from;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = from,
-                   .kind = CFG_JSON_STRING))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = from,
+                   .type = CFG_JSON_STRING))
     {
         unsigned long long length = 0ULL;
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
@@ -262,17 +262,17 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
             VerbaLinea written = {number, sizeof(number), 0ULL};
             mmgr_line_decimal(&written, value, 1u);
             mmgr_line_finish(&written);
-            return EMBED_CALL(cli_json_tree_text_length_kind.json_number_init, CliJsonTreeTextLengthKindCfg, .json = to,
+            return EMBED_CALL(cli_json_tree_text_length_type.json_number_init, CliJsonTreeTextLengthTypeCfg, .json = to,
                               .text = number);
         }
-        return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = to,
+        return EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = to,
                           .text = filled, .length = size);
     }
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = from,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = from,
+                   .type = CFG_JSON_ARRAY))
     {
         const unsigned int array =
-            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_ARRAY);
+            EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = to, .type = CFG_JSON_ARRAY);
         for (unsigned int item = json->node[from].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
             EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = array,
@@ -282,11 +282,11 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
         }
         return array;
     }
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = from,
-                   .kind = CFG_JSON_OBJECT))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = from,
+                   .type = CFG_JSON_OBJECT))
     {
         const unsigned int object =
-            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+            EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = to, .type = CFG_JSON_OBJECT);
         for (unsigned int member = json->node[from].first; member != CLI_JSON_NONE; member = json->node[member].next)
         {
             const unsigned int value = EMBED_CALL(arguments_fill, DebugArgumentsCtx, .to = to, .json = json,
@@ -298,7 +298,7 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
         return object;
     }
     return (from == CLI_JSON_NONE)
-               ? EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_NULL)
+               ? EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = to, .type = CFG_JSON_NULL)
                : EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = to, .from = json,
                             .node = from);
 }
@@ -347,8 +347,8 @@ EMBED_INLINE int arguments_names_path(const DebugArgumentsCtx *args)
 
 void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
 {
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->to,
-                    .node = args->arguments, .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->to,
+                    .node = args->arguments, .type = CFG_JSON_OBJECT))
     {
         return;
     }
@@ -363,10 +363,10 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
                                                         .json = args->json, .node = ours_index);
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->to,
                    .object = args->arguments, .name = "justMyCode",
-                   .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to,
-                                       .kind = ours_only ? CFG_JSON_TRUE : CFG_JSON_FALSE));
+                   .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->to,
+                                       .type = ours_only ? CFG_JSON_TRUE : CFG_JSON_FALSE));
         const unsigned int rules =
-            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to, .kind = CFG_JSON_ARRAY);
+            EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->to, .type = CFG_JSON_ARRAY);
         unsigned int count = 0u;
         for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                               .json_read = args->json, .array = skip, .index = at) != CLI_JSON_NONE;
@@ -385,16 +385,16 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
                 continue;
             }
             const unsigned int rule =
-                EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to, .kind = CFG_JSON_OBJECT);
+                EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->to, .type = CFG_JSON_OBJECT);
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->to, .object = rule,
                        .name = EMBED_CALL(arguments_names_path, DebugArgumentsCtx, .one = one) ? "path" : "module",
                        .value =
-                           EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                           EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                       .json = args->to, .text = trimmed, .length = length));
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->to, .object = rule,
                        .name = "include",
-                       .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to,
-                                           .kind = CFG_JSON_FALSE));
+                       .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->to,
+                                           .type = CFG_JSON_FALSE));
             EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->to, .array = rules,
                        .value = rule);
             count += 1u;
@@ -437,12 +437,12 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
     const unsigned int had = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->to,
                                         .object = args->arguments, .name = "initCommands");
     const unsigned int commands =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->to, .node = had,
-                   .kind = CFG_JSON_ARRAY)
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->to, .node = had,
+                   .type = CFG_JSON_ARRAY)
             ? EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = args->to, .node = had)
-            : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to, .kind = CFG_JSON_ARRAY);
+            : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->to, .type = CFG_JSON_ARRAY);
     EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->to, .array = commands,
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = args->to, .text = joined.out, .length = joined.at));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->to,
                .object = args->arguments, .name = "initCommands", .value = commands);

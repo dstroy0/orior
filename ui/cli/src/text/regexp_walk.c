@@ -49,7 +49,7 @@ CliRegexpFirst cli_regexp_first_get(const CliRegexpIndexCfg *args)
 {
     const CliRegexpNode *const node = &args->regexp->node[args->index];
     CliRegexpFirst set = {{0ULL, 0ULL}, 0, 0};
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_CHAR:
     case CLI_REGEXP_ANY:
@@ -106,7 +106,7 @@ static int cli_starts(const RegexpWalkCtx *args)
 {
     int *end = args->end;
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_CHAR:
         EMBED_CALL(cli_ascii_get, RegexpWalkCtx, .regexp = args->regexp, .node = args->index, .ascii = args->own);
@@ -124,11 +124,11 @@ static int cli_starts(const RegexpWalkCtx *args)
         for (unsigned int at = 0u; !*end && (at < node->count); at += 1u)
         {
             const CliRegexpItem *const item = &args->regexp->item[node->first + at];
-            if (item->kind == CLI_REGEXP_RANGE)
+            if (item->type == CLI_REGEXP_RANGE)
             {
                 *end = (item->high >= 128u) || args->regexp->fold;
             }
-            else if (item->kind == CLI_REGEXP_DIGIT)
+            else if (item->type == CLI_REGEXP_DIGIT)
             {
                 *end = item->negated;
             }
@@ -172,7 +172,7 @@ static int cli_starts(const RegexpWalkCtx *args)
 int cli_regexp_one_way(const CliRegexpIndexCfg *args)
 {
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_CHAR:
     case CLI_REGEXP_ANY:
@@ -222,7 +222,7 @@ int cli_regexp_one_way(const CliRegexpIndexCfg *args)
 unsigned long long cli_regexp_pass(const CliRegexpMatchIndexAtCtx *args)
 {
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_CHAR:
     case CLI_REGEXP_ANY:
@@ -302,7 +302,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
         return 0;
     }
     const CliRegexpNode *const node = &args->regexp->node[args->index];
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_EMPTY:
         return cli_regexp_match_index_internal.regexp_then(args);
@@ -359,7 +359,7 @@ int cli_regexp_walk(const CliRegexpMatchIndexCtx *args)
         }
         return 0;
     case CLI_REGEXP_REPEAT: {
-        const unsigned int child = args->regexp->node[node->child].kind;
+        const unsigned int child = args->regexp->node[node->child].type;
         if ((child == CLI_REGEXP_CHAR) || (child == CLI_REGEXP_ANY) || (child == CLI_REGEXP_CLASS))
         {
             return EMBED_CALL(cli_regexp_match_then_internal.regexp_count, CliRegexpMatchThenCtx,

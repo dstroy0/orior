@@ -55,10 +55,10 @@ static void committed(const char *message)
               message);
 }
 
-// the row `at`, into `row`: whether it is of `kind` with the text `text`
-static int row_is(unsigned int at, unsigned int kind, const char *text, CliGitLogRow *row)
+// the row `at`, into `row`: whether it is of `type` with the text `text`
+static int row_is(unsigned int at, unsigned int type, const char *text, CliGitLogRow *row)
 {
-    if (!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = at, .row = row) || (row->kind != kind))
+    if (!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = at, .row = row) || (row->type != type))
     {
         return 0;
     }

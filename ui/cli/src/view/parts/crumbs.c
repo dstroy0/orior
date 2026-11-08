@@ -78,8 +78,8 @@ float gui_crumbs_draw(const GuiCrumbsCfg *args)
         }
         const float start = x + before;
         GuiColor color = palette->status_text;
-        color = (row.kind == CLI_CRUMB_FILE) ? palette->bar_bright : color;
-        color = (row.kind == CLI_CRUMB_SYMBOL) ? palette->link : color;
+        color = (row.type == CLI_CRUMB_FILE) ? palette->bar_bright : color;
+        color = (row.type == CLI_CRUMB_SYMBOL) ? palette->link : color;
         x = EMBED_CALL(crumbs_text, CrumbsCtx, .crumbs = args, .x = start, .text = row.text, .length = row.length,
                        .color = color);
         // a crumb stands inside the bar, its pixels far inside an int

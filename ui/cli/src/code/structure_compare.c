@@ -16,7 +16,7 @@ typedef struct
     unsigned int steps;
     const CliSide *side;
     unsigned int line;
-    const unsigned char *kinds;
+    const unsigned char *types;
     unsigned int count;
     unsigned int run_out;
     unsigned int run_in;

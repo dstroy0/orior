@@ -119,10 +119,10 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
     const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = root, .name = "files");
     if ((id == NULL) || (from == NULL) ||
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = at,
-                    .kind = CFG_JSON_NUMBER) ||
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = files,
-                    .kind = CFG_JSON_ARRAY))
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = at,
+                    .type = CFG_JSON_NUMBER) ||
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = files,
+                    .type = CFG_JSON_ARRAY))
     {
         return 0;
     }
@@ -157,10 +157,10 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
                        .length_pointer = NULL);
         const unsigned int existed = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                 .json_read = json, .array = pair, .index = 1u);
-        const int truth = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                     .node = existed, .kind = CFG_JSON_TRUE);
-        if ((place == NULL) || (!truth && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                      .json_read = json, .node = existed, .kind = CFG_JSON_FALSE)))
+        const int truth = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                     .node = existed, .type = CFG_JSON_TRUE);
+        if ((place == NULL) || (!truth && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                      .json_read = json, .node = existed, .type = CFG_JSON_FALSE)))
         {
             return 0;
         }

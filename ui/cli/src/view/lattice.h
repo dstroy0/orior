@@ -41,9 +41,9 @@
 #define LATTICE_LEVELS_MOST 128u
 #define LATTICE_FITS 0.955
 
-// the kinds of stage: one side ordered at an angle, the order spreading from a front, the whole lattice at one
+// the types of stage: one side ordered at an angle, the order spreading from a front, the whole lattice at one
 // disorder, and the order gathering from the top; the shader compares them as 0.0 to 3.0
-enum LatticeStageKind
+enum LatticeStageType
 {
     LATTICE_SIDED = 0,
     LATTICE_SPREAD = 1,
@@ -51,11 +51,11 @@ enum LatticeStageKind
     LATTICE_GATHER = 3,
 };
 
-// where the loop stands: its stage's kind, the angle of a side, the front of a spread and the share of the stage
+// where the loop stands: its stage's type, the angle of a side, the front of a spread and the share of the stage
 // done, as doubles the page reads in this order
 typedef struct
 {
-    double kind;
+    double type;
     double angle;
     double front;
     double part;

@@ -83,8 +83,8 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
     }
     g_cli_guard->persistent_buf_release(plain_text, g_cli_state_owner);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_state_owner));
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = root,
-                   .kind = CFG_JSON_OBJECT))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = root,
+                   .type = CFG_JSON_OBJECT))
     {
         return root;
     }
@@ -95,8 +95,8 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
     return EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->json,
                       .nodes_max = args->nodes_more + 1u, .text_max = args->text_more,
                       .what = "an empty stored file's tree", .owner = g_cli_state_owner)
-               ? EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json,
-                            .kind = CFG_JSON_OBJECT)
+               ? EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->json,
+                            .type = CFG_JSON_OBJECT)
                : CLI_JSON_NONE;
 }
 
@@ -201,7 +201,7 @@ EMBED_INLINE void cli_entry_append(const StateCtx *args)
     unsigned long long length = args->length;
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->entries, .object = object,
                .name = args->key,
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = args->entries, .text = text, .length = length));
 }
 
@@ -270,7 +270,7 @@ int cli_state_read(const CliStateOutCfg *args)
         return 0;
     }
     const unsigned int object =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &entries, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &entries, .type = CFG_JSON_OBJECT);
     for (unsigned int file = 0u; file < 2u; file += 1u)
     {
         CliJson map;
@@ -403,8 +403,8 @@ CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
                    .text = read.out, .size = read.at, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &ignored,
                    .owner = g_cli_state_owner);
     g_cli_guard->persistent_buf_release(text_cell, g_cli_state_owner);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = root,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = root,
+                    .type = CFG_JSON_OBJECT))
     {
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),

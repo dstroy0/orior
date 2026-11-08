@@ -253,25 +253,25 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
 
 int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
 {
-    const CliRequestsText *const type = EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx,
+    const CliRequestsText *const content_type = EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx,
                                                    .answer = args->answer, .name = "Content-Type");
-    const char *kind = "";
+    const char *type = "";
     unsigned long long size = 0ULL;
-    if (type != NULL)
+    if (content_type != NULL)
     {
-        kind = args->answer->head + type->at;
-        size = type->size;
+        type = args->answer->head + content_type->at;
+        size = content_type->size;
     }
     static const char *const texts[7] = {"json", "xml", "javascript", "x-www-form-urlencoded",
                                          "yaml", "csv", "graphql"};
     int text = (size >= 5u) && EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
-                                          .text = kind, .size = 5u, .needle = "text/");
+                                          .text = type, .size = 5u, .needle = "text/");
     {
         unsigned int at = 0u;
         while (!text && (at < 7u))
         {
             text = EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
-                              .text = kind, .size = size, .needle = texts[at]);
+                              .text = type, .size = size, .needle = texts[at]);
             at += 1u;
         }
     }
@@ -283,16 +283,16 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         if ((size >= 6u) && EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
-                                       .text = kind, .size = 6u, .needle = starts[at]))
+                                       .text = type, .size = 6u, .needle = starts[at]))
         {
             return 0;
         }
     }
-    if (EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+    if (EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = type,
                    .size = size, .needle = "octet-stream") ||
-        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = type,
                    .size = size, .needle = "pdf") ||
-        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = type,
                    .size = size, .needle = "zip"))
     {
         return 0;

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.h: the live preview of the view shown, as the window draws it beside the text or alone over it: the kind of
+// preview.h: the live preview of the view shown, as the window draws it beside the text or alone over it: the type of
 // preview a file's path has, the mode chosen once for every file and saved, the view the preview is bound to, and the
 // step that lays the view's text out again as it changes, at most once a look, a Markdown text as items (preview.c,
 // preview_markdown.c). The items stand in three cells sized to them, the items with the blocks after them, the text the
@@ -22,7 +22,7 @@ typedef struct CliPreviewItemCfg CliPreviewItemCfg;
 typedef struct CliPreviewScrollCfg CliPreviewScrollCfg;
 typedef struct CliPreviewMarkCfg CliPreviewMarkCfg;
 
-// the kinds of preview a file has by its path's ending: none, Markdown, HTML, CSS, SVG, Mermaid, LaTeX, and a file of
+// the types of preview a file has by its path's ending: none, Markdown, HTML, CSS, SVG, Mermaid, LaTeX, and a file of
 // requests
 #define CLI_PREVIEW_NONE 0u
 #define CLI_PREVIEW_MARKDOWN 1u
@@ -42,7 +42,7 @@ typedef struct CliPreviewMarkCfg CliPreviewMarkCfg;
 #define CLI_PREVIEW_MODE_KEY "preview.mode"
 #define CLI_PREVIEW_LOOK_MS 200ULL
 
-// the kinds of item: a run of text, a box, a rule, a line segment from its corner across its width and height, and a
+// the types of item: a run of text, a box, a rule, a line segment from its corner across its width and height, and a
 // block's rectangle, drawn only while marked
 #define CLI_PREVIEW_ITEM_TEXT 0u
 #define CLI_PREVIEW_ITEM_BOX 1u
@@ -81,13 +81,13 @@ typedef struct CliPreviewMarkCfg CliPreviewMarkCfg;
 #define CLI_PREVIEW_OPEN_PLACE 2u
 #define CLI_PREVIEW_OPEN_OUT 3u
 
-// One item, a row of the items cell: its kind; its rectangle in the page's pixels from the preview's top left, a
+// One item, a row of the items cell: its type; its rectangle in the page's pixels from the preview's top left, a
 // segment's run across and down; a run's text, `length` bytes from `text` in the text cell, its face and its size in
 // the page's pixels; its color role, a box's stroke role and its corners' radius; its flags; the source line its block
 // starts on; and the address a link goes to, `link_length` bytes from `link` in the text cell, none where 0
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     int x;
     int y;
     int width;
@@ -143,17 +143,17 @@ typedef struct
     int top_px;
 } CliPreviewOpen;
 
-// the preview begun with the mode saved among `entries`, off where none is saved; the kind of preview the file at
+// the preview begun with the mode saved among `entries`, off where none is saved; the type of preview the file at
 // `path` has, CLI_PREVIEW_NONE for none; the mode; the mode set for every file and saved: the mode `word` reads,
 // off, beside or alone, where it is not NULL, else `mode` where the preview stands in another, and off where it stands
 // in `mode` already; the view under `key` bound, its path read from the views, the items let go and the top put at 0
-// where the view, its path or its kind changed: 1 where it did, NULL unbinding; and the step at `now_ms` for the view
+// where the view, its path or its type changed: 1 where it did, NULL unbinding; and the step at `now_ms` for the view
 // under `key` shown in a rectangle `width_px` by `height_px` frame pixels at `scale`: the view bound, the text laid out
 // again where it changed since the last look and a look is owed or the width moved, the top following the view's
 // where the editor moved it, and the block of the cursor's line marked: 1 where the preview draws anew; and when the
 // next look is owed, 0 for none
 void cli_preview_begin(const CliPreviewCfg *args);
-unsigned int cli_preview_kind(const CliPreviewCfg *args);
+unsigned int cli_preview_type(const CliPreviewCfg *args);
 unsigned int cli_preview_mode_get(const CliPreviewCfg *args);
 void cli_preview_mode_set(const CliPreviewCfg *args);
 int cli_preview_show(const CliPreviewCfg *args);
@@ -175,17 +175,17 @@ struct CliPreviewCfg
 typedef struct
 {
     void (*begin)(const CliPreviewCfg *args);
-    unsigned int (*kind)(const CliPreviewCfg *args);
+    unsigned int (*type)(const CliPreviewCfg *args);
     unsigned int (*mode_get)(const CliPreviewCfg *args);
     void (*mode_set)(const CliPreviewCfg *args);
     int (*show)(const CliPreviewCfg *args);
     int (*step)(const CliPreviewCfg *args);
     unsigned long long (*deadline_ms)(const CliPreviewCfg *args);
 } CliPreviewNs;
-EMBED_TABLE_LAYOUT(CliPreviewNs, begin, kind, mode_get, mode_set, show, step, deadline_ms);
+EMBED_TABLE_LAYOUT(CliPreviewNs, begin, type, mode_get, mode_set, show, step, deadline_ms);
 EMBED_TABLE_STORAGE CliPreviewNs cli_preview EMBED_UNUSED = {
     .begin = cli_preview_begin,
-    .kind = cli_preview_kind,
+    .type = cli_preview_type,
     .mode_get = cli_preview_mode_get,
     .mode_set = cli_preview_mode_set,
     .show = cli_preview_show,

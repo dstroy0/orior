@@ -387,7 +387,7 @@ int cli_runner_runs(const CliRunnerCommandCfg *args)
                                            .text_u32 = arg->text[0]);
         const char *const supplied =
             EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = args->values, .key = key);
-        if ((arg->kind == CLI_ARG_ONLY) &&
+        if ((arg->type == CLI_ARG_ONLY) &&
             ((supplied == NULL) || (!cellul.eq(&(CatenaFinitaCfg){
                                        .src = supplied,
                                        .other = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
@@ -396,7 +396,7 @@ int cli_runner_runs(const CliRunnerCommandCfg *args)
         {
             return 0;
         }
-        if ((arg->kind == CLI_ARG_INPUT) && ((supplied == NULL) || (supplied[0] == '\0')))
+        if ((arg->type == CLI_ARG_INPUT) && ((supplied == NULL) || (supplied[0] == '\0')))
         {
             return 0;
         }
@@ -427,8 +427,8 @@ int cli_runner_check(const CliRunnerErrMsgCfg *args)
             mmgr_line_put(args->err_msg, " needs a value");
             return 0;
         }
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_POOL_BYTES})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "many", .cap = CLI_POOL_BYTES})))
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->type, .other = "choice", .cap = CLI_POOL_BYTES})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = param->type, .other = "many", .cap = CLI_POOL_BYTES})))
         {
             continue;
         }

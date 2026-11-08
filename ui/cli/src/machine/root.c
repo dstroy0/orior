@@ -367,7 +367,7 @@ void cli_relative(const CliPathRootCtx *args)
     mmgr_line_finish(&line);
 }
 
-int cli_path_parent(const CliPathOutKindCtx *args)
+int cli_path_parent(const CliPathOutTypeCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long root = ((length >= 2ULL) && (args->path[1] == ':')) ? 3ULL : 1ULL;

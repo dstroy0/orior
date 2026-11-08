@@ -26,7 +26,7 @@ typedef struct
     unsigned long long size;
     unsigned long long from;
     unsigned long long to;
-    unsigned int kind;
+    unsigned int type;
     unsigned int element;
     unsigned long long name_from;
     unsigned long long name_to;
@@ -55,7 +55,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
     const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
     const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ULL, .most = CLI_XML_ERRORS);
-    // the lists laid one after another, the widest first, so that each starts where its kind may stand
+    // the lists laid one after another, the widest first, so that each starts where its type may stand
     const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
@@ -67,7 +67,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     {
         return 0;
     }
-    // each list's place in the cell is a multiple of its kind's width from the cell's start, as laid out above
+    // each list's place in the cell is a multiple of its type's width from the cell's start, as laid out above
     xml->element = (CliXmlElement *)(void *)cell;
     xml->element_capacity = elements;
     xml->comment_from = (unsigned long long *)(void *)(cell + element_bytes);
@@ -85,7 +85,7 @@ EMBED_INLINE void xml_error(const MavenXmlCtx *args)
     if (args->xml->errors < args->xml->error_capacity)
     {
         args->xml->error[args->xml->errors] =
-            (CliXmlError){args->from, args->to, args->kind, args->element, args->name_from, args->name_to};
+            (CliXmlError){args->from, args->to, args->type, args->element, args->name_from, args->name_to};
         args->xml->errors += 1u;
     }
 }
@@ -145,14 +145,14 @@ EMBED_INLINE void xml_closing(const MavenXmlCtx *args)
     if (depth == args->xml->opens)
     {
         EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml, .from = args->from, .to = args->to,
-                   .kind = CLI_XML_CLOSES_NONE, .element = CLI_XML_NONE, .name_from = args->from, .name_to = args->to);
+                   .type = CLI_XML_CLOSES_NONE, .element = CLI_XML_NONE, .name_from = args->from, .name_to = args->to);
         return;
     }
     for (unsigned int left = depth + 1u; left < args->xml->opens; left += 1u)
     {
         const CliXmlElement *const element = &args->xml->element[args->xml->open[left]];
         EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml, .from = element->from, .to = element->to,
-                   .kind = CLI_XML_NOT_CLOSED, .element = args->xml->open[left], .name_from = 0ULL, .name_to = 0ULL);
+                   .type = CLI_XML_NOT_CLOSED, .element = args->xml->open[left], .name_from = 0ULL, .name_to = 0ULL);
     }
     CliXmlElement *const element = &args->xml->element[args->xml->open[depth]];
     args->xml->opens = depth;
@@ -242,7 +242,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
             if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = found + open, .length_value = left - open,
                             .required = s_skip_close[skip], .size = close, .at_pointer = &end))
             {
-                EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + open, .kind = skip,
+                EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + open, .type = skip,
                            .element = CLI_XML_NONE, .name_from = 0ULL, .name_to = 0ULL);
                 return;
             }
@@ -274,7 +274,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         if (!EMBED_CALL(xml_tag_end, MavenXmlCtx, .xml_read = args->xml_out, .from = name_to, .end = &gt))
         {
             EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt,
-                       .to = (name_to > lt + 1u) ? name_to : lt + 1u, .kind = CLI_XML_TAG_OPEN, .element = CLI_XML_NONE,
+                       .to = (name_to > lt + 1u) ? name_to : lt + 1u, .type = CLI_XML_TAG_OPEN, .element = CLI_XML_NONE,
                        .name_from = 0ULL, .name_to = 0ULL);
             return;
         }
@@ -282,7 +282,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         if (name_to == name_from)
         {
             EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + 1u,
-                       .kind = CLI_XML_NO_ELEMENT, .element = CLI_XML_NONE, .name_from = 0ULL, .name_to = 0ULL);
+                       .type = CLI_XML_NO_ELEMENT, .element = CLI_XML_NONE, .name_from = 0ULL, .name_to = 0ULL);
             continue;
         }
         if (closing)
@@ -296,23 +296,23 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
 
 void cli_xml_error_write(const CliMavenXmlErrorCtx *args)
 {
-    if (args->error->kind < 4u)
+    if (args->error->type < 4u)
     {
         mmgr_line_put(args->out, "This `");
-        mmgr_line_put(args->out, s_skip_open[args->error->kind]);
+        mmgr_line_put(args->out, s_skip_open[args->error->type]);
         mmgr_line_put(args->out, "` is not closed with `");
-        mmgr_line_put(args->out, s_skip_close[args->error->kind]);
+        mmgr_line_put(args->out, s_skip_close[args->error->type]);
         mmgr_line_ch(args->out, '`');
     }
-    else if (args->error->kind == CLI_XML_TAG_OPEN)
+    else if (args->error->type == CLI_XML_TAG_OPEN)
     {
         mmgr_line_put(args->out, "This tag is not closed with `>`");
     }
-    else if (args->error->kind == CLI_XML_NO_ELEMENT)
+    else if (args->error->type == CLI_XML_NO_ELEMENT)
     {
         mmgr_line_put(args->out, "This `<` starts no element");
     }
-    else if (args->error->kind == CLI_XML_NOT_CLOSED)
+    else if (args->error->type == CLI_XML_NOT_CLOSED)
     {
         const CliXmlElement *const element = &args->xml->element[args->error->element];
         mmgr_line_put(args->out, "`<");

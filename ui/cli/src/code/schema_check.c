@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_check.c: a value checked against a schema: `true` allows it and `false` none; `$id` sets the base its
 // references are read from; `$ref` is followed; `deprecated` is noted on the key; `type`, `enum` and `const` are
-// checked to; the value's own bounds by its kind; `allOf` each, `anyOf` one and `oneOf` exactly one, the nearest
+// checked to; the value's own bounds by its type; `allOf` each, `anyOf` one and `oneOf` exactly one, the nearest
 // choice's findings given where none fits; `not`; and `if` with `then` or `else`. A trial's findings are those that are
 // no note. Values are checked CLI_SCHEMA_DEEPEST deep at most; the bases a check reads from are stored on one stack of
 // CLI_SCHEMA_BASES bytes, a base past it read as the one before
@@ -166,14 +166,14 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     {
         return 1;
     }
-    const char *const kind =
-        EMBED_CALL(cli_schema_internal.kind, CliSchemaCtx, .node_schema_node_pointer = &args->check->read->node[node]);
-    const unsigned int single = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = types, .kind = CFG_JSON_STRING)
+    const char *const type =
+        EMBED_CALL(cli_schema_internal.type, CliSchemaCtx, .node_schema_node_pointer = &args->check->read->node[node]);
+    const unsigned int single = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = types, .type = CFG_JSON_STRING)
                                     ? types
                                     : CLI_JSON_NONE;
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = types, .kind = CFG_JSON_ARRAY)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = types, .type = CFG_JSON_ARRAY)
                                    ? json->node[types].first
                                    : single;
     int any = 0;
@@ -189,10 +189,10 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
             continue;
         }
         any = 1;
-        fits |= ((cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
-                 (memor.cmp(&(MemoriaCfg){.src = allowed, .other = kind, .bytes = (size_t)size}) == 0)) ||
+        fits |= ((cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
+                 (memor.cmp(&(MemoriaCfg){.src = allowed, .other = type, .bytes = (size_t)size}) == 0)) ||
                 ((size == 6u) && (memor.cmp(&(MemoriaCfg){.src = allowed, .other = "number", .bytes = 6u}) == 0) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "integer", .cap = CLI_POOL_BYTES})));
+                 (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "integer", .cap = CLI_POOL_BYTES})));
     }
     if (!any || fits)
     {
@@ -201,8 +201,8 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     const CliSchemaNode *const value = &args->check->read->node[node];
     VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_put(&msg, "A value of type ");
-    EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = kind,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}), .out = &msg);
+    EMBED_CALL(cli_schema_size_out_internal.type_write, CliSchemaSizeOutCtx, .type = type,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}), .out = &msg);
     mmgr_line_put(&msg, " stands here, where the schema requires ");
     int first_listing = 1;
     for (unsigned int one = first; one != CLI_JSON_NONE;
@@ -214,7 +214,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
         if (allowed != NULL)
         {
             mmgr_line_put(&msg, first_listing ? "" : " or ");
-            EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = allowed, .size = size,
+            EMBED_CALL(cli_schema_size_out_internal.type_write, CliSchemaSizeOutCtx, .type = allowed, .size = size,
                        .out = &msg);
             first_listing = 0;
         }
@@ -271,8 +271,8 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
     const CliSchemaNode *const value = &args->check->read->node[node];
     const unsigned int choices =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "enum");
-    if ((choices != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                 .json_read = json, .node = choices, .kind = CFG_JSON_ARRAY))
+    if ((choices != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                 .json_read = json, .node = choices, .type = CFG_JSON_ARRAY))
     {
         int any = 0;
         for (unsigned int one = json->node[choices].first; !any && (one != CLI_JSON_NONE); one = json->node[one].next)
@@ -300,7 +300,7 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                 EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
                            .message = &msg, .lines = args->check->lines, .from = value->from, .to = value->to,
                            .severity = CLI_BUILD_WARNING, .code = "schema-enum");
-            if (value->kind == CLI_SCHEMA_TEXT)
+            if (value->type == CLI_SCHEMA_TEXT)
             {
                 EMBED_CALL(check_values_adjacent, SchemaCheckCtx, .check = args->check, .node = node, .json = json,
                            .choices = choices, .finding = finding);
@@ -372,8 +372,8 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
                          .severity = CLI_BUILD_WARNING, .code = "schema");
         return;
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->schema,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = args->schema,
+                    .type = CFG_JSON_OBJECT))
     {
         return;
     }
@@ -423,8 +423,8 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     if (EMBED_CALL(check_type, SchemaCheckCtx, .check = args->check, .node = args->node, .map = args->schema))
     {
         EMBED_CALL(check_values, SchemaCheckCtx, .check = args->check, .node = args->node, .map = args->schema);
-        const unsigned char kind = args->check->read->node[args->node].kind;
-        switch (kind)
+        const unsigned char type = args->check->read->node[args->node].type;
+        switch (type)
         {
         case CLI_SCHEMA_NUMBER: {
             EMBED_CALL(cli_schema_base_map_internal.number_check, CliSchemaBaseMapCtx, .check = args->check,
@@ -453,8 +453,8 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
         }
         const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                             .map = args->schema, .name = "allOf");
-        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = all, .kind = CFG_JSON_ARRAY)
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = all, .type = CFG_JSON_ARRAY)
                                     ? json->node[all].first
                                     : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)
@@ -467,8 +467,8 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
         {
             const unsigned int choices = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                                     .map = args->schema, .name = s_words[word_text]);
-            if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = choices,
-                           .kind = CFG_JSON_ARRAY))
+            if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = choices,
+                           .type = CFG_JSON_ARRAY))
             {
                 EMBED_CALL(check_choose, SchemaCheckCtx, .check = args->check, .node = args->node, .choices = choices,
                            .base = here, .key = args->key_schema_key, .depth = args->depth, .exactly = word_text == 1u);

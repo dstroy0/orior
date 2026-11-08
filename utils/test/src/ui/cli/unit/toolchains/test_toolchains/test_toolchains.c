@@ -36,10 +36,10 @@ static int s_zig_removed;
 static int s_empty_group_removed;
 static char s_groups_after[1024];
 
-// whether a tree of Python files alone contains a file of the name or the ending `kind`
-static int python_tree_contains(const CliEachKindCfg *args)
+// whether a tree of Python files alone contains a file of the name or the ending `type`
+static int python_tree_contains(const CliEachTypeCfg *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = ".py", .cap = CLI_POOL_BYTES});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = ".py", .cap = CLI_POOL_BYTES});
 }
 
 // whether the check reported tool `id` of its array `tools` is used
@@ -50,7 +50,7 @@ static int tool_used(const CliJson *json, unsigned int tools, const char *id)
         const char *const named = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "id"), .length_pointer = NULL);
         if ((named != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = named, .other = id, .cap = CLI_POOL_BYTES}))
         {
-            return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "used"), .kind = CFG_JSON_TRUE);
+            return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tool, .name = "used"), .type = CFG_JSON_TRUE);
         }
     }
     return 0;
@@ -76,7 +76,7 @@ static void reader_groups_read(char *out, unsigned long long capacity)
     (void)EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "user_toolchains.json", .path = path);
     const unsigned int read = EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &json, .path_read = path, .nodes_more = 0u, .text_more = 0ull);
     const unsigned int groups = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = read, .name = "groups");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = groups, .kind = CFG_JSON_ARRAY) ? json.node[groups].first : CLI_JSON_NONE; item != CLI_JSON_NONE; item = json.node[item].next)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = groups, .type = CFG_JSON_ARRAY) ? json.node[groups].first : CLI_JSON_NONE; item != CLI_JSON_NONE; item = json.node[item].next)
     {
         const char *const group = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = item, .length_pointer = NULL);
         mmgr_line_put(&line, (line.at > 0ull) ? "|" : "");
@@ -223,9 +223,9 @@ void test_the_jobs_need_git_bash_and_python(void)
     char needed[256];
     VerbaLinea line = {needed, sizeof(needed), 0ull};
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = manifest, .kind = CFG_JSON_ARRAY) ? json.node[manifest].first : CLI_JSON_NONE; tool != CLI_JSON_NONE; tool = json.node[tool].next)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = manifest, .type = CFG_JSON_ARRAY) ? json.node[manifest].first : CLI_JSON_NONE; tool != CLI_JSON_NONE; tool = json.node[tool].next)
     {
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "needed"), .kind = CFG_JSON_TRUE))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "needed"), .type = CFG_JSON_TRUE))
         {
             const char *const id = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "id"), .length_pointer = NULL);
             mmgr_line_put(&line, (line.at > 0ull) ? "|" : "");
@@ -245,7 +245,7 @@ void test_a_tree_of_python_files_uses_pythons_tools_and_the_tools_the_jobs_need(
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 0, .seen = python_tree_contains, .context_read = NULL, .out = &out);
     const CliJson *const json = cli_unity_parsed(s_out, out.at, &tools);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = tools, .kind = CFG_JSON_ARRAY));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = tools, .type = CFG_JSON_ARRAY));
     TEST_ASSERT_TRUE(tool_used(json, tools, "black"));
     TEST_ASSERT_TRUE(tool_used(json, tools, "ruff"));
     TEST_ASSERT_TRUE(tool_used(json, tools, "git"));
@@ -315,7 +315,7 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
     int once = 1;
     int named = 1;
     int paged = 1;
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = tools, .kind = CFG_JSON_ARRAY) ? json.node[tools].first : CLI_JSON_NONE; (tool != CLI_JSON_NONE) && (count < 512u); tool = json.node[tool].next)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = tools, .type = CFG_JSON_ARRAY) ? json.node[tools].first : CLI_JSON_NONE; (tool != CLI_JSON_NONE) && (count < 512u); tool = json.node[tool].next)
     {
         const char *const id = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "id"), .length_pointer = NULL);
         const char *const id_text = (id != NULL) ? id : "";
@@ -327,10 +327,10 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
         memor.cpy(&(MemoriaCfg){.dst = s_ids[count], .src = id_text, .bytes = CLI_UNITY_LENGTH(id_text) + 1u});
         count += 1u;
         const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "programs");
-        named = named && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = programs, .kind = CFG_JSON_ARRAY) && (json.node[programs].count > 0u);
+        named = named && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = programs, .type = CFG_JSON_ARRAY) && (json.node[programs].count > 0u);
         const unsigned int install = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = tool, .name = "install");
-        paged = paged && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = install, .kind = CFG_JSON_OBJECT) && (json.node[install].count > 0u);
-        for (unsigned int page = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = install, .kind = CFG_JSON_OBJECT) ? json.node[install].first : CLI_JSON_NONE; page != CLI_JSON_NONE; page = json.node[page].next)
+        paged = paged && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = install, .type = CFG_JSON_OBJECT) && (json.node[install].count > 0u);
+        for (unsigned int page = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = install, .type = CFG_JSON_OBJECT) ? json.node[install].first : CLI_JSON_NONE; page != CLI_JSON_NONE; page = json.node[page].next)
         {
             const char *const address = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = page, .length_pointer = NULL);
             paged = paged && (address != NULL) && cellul.starts(&(CatenaFinitaCfg){.src = address, .other = "https://", .cap = CLI_POOL_BYTES});

@@ -13,7 +13,7 @@ typedef struct CliWatchPathsCtx CliWatchPathsCtx;
 typedef struct CliWatchCtx CliWatchCtx;
 
 // a change put for the next batch, its path from the tree's top; whether the watch is stopping; the end of the thread
-void cli_watch_change(const CliEachPathKindCfg *args);
+void cli_watch_change(const CliEachPathTypeCfg *args);
 int cli_watch_stopping(void);
 void cli_watch_poll_end(void);
 
@@ -24,13 +24,13 @@ void cli_watch_poll_end(void);
 int cli_watch_first_read_state(const CliWatchCtx *args);
 void cli_watch_poll(void *context);
 
-// a change reported: its path from the tree's top, and its kind
-typedef void (*CliWatchChangeFn)(const CliEachPathKindCfg *args);
+// a change reported: its path from the tree's top, and its type
+typedef void (*CliWatchChangeFn)(const CliEachPathTypeCfg *args);
 
 // the tree at `root` read again and set against the last reading, each change since it handed to `emit` (watch_read.c)
 void cli_watch_read_again(const CliWatchCtx *args);
 
-// the changes `paths`, `count` of them, each of its kind in `kinds`, of the tree at `root` gathered and handed to
+// the changes `paths`, `count` of them, each of its type in `types`, of the tree at `root` gathered and handed to
 // `take` as a batch, while no watch runs: 1 where any are left (watch.c)
 int cli_watch_gathered_get(const CliWatchPathsCtx *args);
 
@@ -38,7 +38,7 @@ struct CliWatchPathsCtx
 {
     const char *root;
     const char *const *paths;
-    const unsigned int *kinds;
+    const unsigned int *types;
     unsigned int count;
     CliWatchTake take;
     void *context;
@@ -53,10 +53,10 @@ struct CliWatchCtx
 
 typedef struct
 {
-    void (*change)(const CliEachPathKindCfg *args);
-} CliEachPathKindNs;
-EMBED_TABLE_LAYOUT(CliEachPathKindNs, change);
-EMBED_TABLE_STORAGE CliEachPathKindNs cli_each_path_kind EMBED_UNUSED = {
+    void (*change)(const CliEachPathTypeCfg *args);
+} CliEachPathTypeNs;
+EMBED_TABLE_LAYOUT(CliEachPathTypeNs, change);
+EMBED_TABLE_STORAGE CliEachPathTypeNs cli_each_path_type EMBED_UNUSED = {
     .change = cli_watch_change,
 };
 

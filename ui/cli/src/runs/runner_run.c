@@ -360,7 +360,7 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_runs_wake);
 }
 
-// the steps of the run's job that run with its values into `ready`, each its kind and the place of its step, and the
+// the steps of the run's job that run with its values into `ready`, each its type and the place of its step, and the
 // signing put before the first that runs the made program where the job opens a `program` and the system signs: how
 // many
 EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)

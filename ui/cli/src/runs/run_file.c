@@ -162,7 +162,7 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
     {
         char parent[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line,
-                   .path = EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx,
+                   .path = EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx,
                                       .path = args->filling->path, .out = parent)
                                ? parent
                                : args->filling->root);
@@ -289,7 +289,7 @@ EMBED_INLINE int run_file_find(const RunFileCtx *args)
                                       .object = args->ways[way].tool, .name = "name"),
                    .length_pointer = NULL);
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = found_tool.program,
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = found_tool.program,
                     .out = folder))
     {
         folder[0] = '\0';

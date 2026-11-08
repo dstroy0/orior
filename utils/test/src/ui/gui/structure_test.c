@@ -63,7 +63,7 @@ int main(void)
     CliOutlineRow helper;
     CliOutlineRow entry;
     cli_check(row_with_name("helper", &helper) && (helper.line == 1ULL) && (helper.depth == 0u) &&
-                  (strcmp(helper.kind, "function") == 0),
+                  (strcmp(helper.type, "function") == 0),
               "helper is a function on the second line at the top level");
     cli_check(row_with_name("main", &entry) && (entry.line == 5ULL), "main is on the sixth line");
     CliOutlineRow first;

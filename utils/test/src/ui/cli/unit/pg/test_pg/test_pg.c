@@ -69,12 +69,12 @@ static void server_required(void)
     }
 }
 
-// the column `at` of the head is `name` of `kind`, a number where `numeric`
-static void assert_column(unsigned int at, const char *name, const char *kind, int numeric)
+// the column `at` of the head is `name` of `type`, a number where `numeric`
+static void assert_column(unsigned int at, const char *name, const char *type, int numeric)
 {
     const CliDbHead *const head = EMBED_CALL(cli_pg_cancel.head, CliPgCancelCfg, .pg_read = s_pg);
     TEST_ASSERT_EQUAL_STRING(name, head->columns[at].name);
-    TEST_ASSERT_EQUAL_STRING(kind, head->columns[at].kind);
+    TEST_ASSERT_EQUAL_STRING(type, head->columns[at].type);
     TEST_ASSERT_EQUAL_INT(numeric, head->columns[at].numeric);
 }
 

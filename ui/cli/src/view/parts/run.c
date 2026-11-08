@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// run.c: the Run pane's rows as the CLI's job runs answer them, each drawn by its kind from the row's texts and
+// run.c: the Run pane's rows as the CLI's job runs answer them, each drawn by its type from the row's texts and
 // flags, a line in its pieces as its spans cut it; its head, the filter's field, Start and Stop with the refusal under
 // them; and every press, key and text handed to the CLI, which decides what each does
 #include "run.h"
@@ -243,7 +243,7 @@ EMBED_INLINE void run_box_draw(const RunCtx *args)
                .inside = lit ? palette->signal : palette->editor_background);
 }
 
-// the row drawn as its kind, from its texts and flags: the chosen job and the run shown on the idle selection's ground
+// the row drawn as its type, from its texts and flags: the chosen job and the run shown on the idle selection's ground
 static void run_row_draw(const GuiPaneCfg *args)
 {
     CliJobRunRow row;
@@ -254,7 +254,7 @@ static void run_row_draw(const GuiPaneCfg *args)
     const GuiPalette *const palette = args->palette;
     const int share = EMBED_CALL(gui_pane_part.share, GuiPanePartCfg, .pane = args);
     // the rows are fewer than an int counts
-    if (((row.flags & (CLI_JOB_RUN_CHOSEN | CLI_JOB_RUN_SHOWN)) != 0u) && (row.kind != CLI_JOB_RUN_CHOICE) &&
+    if (((row.flags & (CLI_JOB_RUN_CHOSEN | CLI_JOB_RUN_SHOWN)) != 0u) && (row.type != CLI_JOB_RUN_CHOICE) &&
         (args->pane_read->pointed != (int)args->row))
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->clip,
@@ -265,7 +265,7 @@ static void run_row_draw(const GuiPaneCfg *args)
                    .table = args->table, .rect = args->rect, .clip = args->clip, .depth = row.depth);
     const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_RUN_GAP);
     float after = (float)x;
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_JOB_RUN_GROUP: {
         const int arrow = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_ARROW);
@@ -333,7 +333,7 @@ static void run_row_draw(const GuiPaneCfg *args)
         (void)EMBED_CALL(run_text_draw, RunCtx, .pane = args, .x_f32 = after, .text = row.text,
                          .length = row.text_length,
                          .color = EMBED_CALL(run_state_color, RunCtx, .pane = args, .row = &row),
-                         .face = (row.kind == CLI_JOB_RUN_RUN) ? GUI_FACE_HEAD : GUI_FACE_CODE);
+                         .face = (row.type == CLI_JOB_RUN_RUN) ? GUI_FACE_HEAD : GUI_FACE_CODE);
         return;
     }
 }

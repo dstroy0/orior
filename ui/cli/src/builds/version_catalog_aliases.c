@@ -144,20 +144,20 @@ EMBED_INLINE unsigned int aliases_text_store(const VersionCatalogAliasesCtx *arg
 }
 
 // the section of the aliases a section of the catalog read is, 4 where it is none of them
-EMBED_INLINE unsigned int aliases_kind(const VersionCatalogAliasesCtx *args)
+EMBED_INLINE unsigned int aliases_type(const VersionCatalogAliasesCtx *args)
 {
     static const char *const s_sections[4] = {"libraries", "versions", "plugins", "bundles"};
-    unsigned int kind = 4u;
+    unsigned int type = 4u;
     for (unsigned int one = 0u; one < 4u; one += 1u)
     {
-        kind = (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
+        type = (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
                                                                CliVersionCatalogCtx, .at = args->section->name_at),
                                              .other = s_sections[one],
                                              .cap = CLI_POOL_BYTES}))
                    ? one
-                   : kind;
+                   : type;
     }
-    return kind;
+    return type;
 }
 
 // the aliases' cells taken: as many aliases as the four sections' entries; and texts of the catalog's texts, which
@@ -170,7 +170,7 @@ EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
-        count += (EMBED_CALL(aliases_kind, VersionCatalogAliasesCtx, .section = section) < 4u) ? section->count : 0u;
+        count += (EMBED_CALL(aliases_type, VersionCatalogAliasesCtx, .section = section) < 4u) ? section->count : 0u;
     }
     count = (count < CLI_VERSIONS_ALIASES) ? count : CLI_VERSIONS_ALIASES;
     const unsigned long long capacity = g_cli_versions.used + (16ULL * count) + (2ULL * g_cli_versions.items);
@@ -251,8 +251,8 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
-        const unsigned int kind = EMBED_CALL(aliases_kind, VersionCatalogAliasesCtx, .section = section);
-        for (unsigned int entry = section->first; (kind < 4u) && (entry != CLI_VERSIONS_NONE);
+        const unsigned int type = EMBED_CALL(aliases_type, VersionCatalogAliasesCtx, .section = section);
+        for (unsigned int entry = section->first; (type < 4u) && (entry != CLI_VERSIONS_NONE);
              entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
@@ -273,7 +273,7 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
                 args->aliases->text[about_at + about.at] = '\0';
                 args->aliases->used += (unsigned int)about.at + 1u;
                 args->aliases->alias[args->aliases->count] =
-                    (CliVersionsAlias){kind, alias, field->key_size, about_at, (unsigned int)about.at};
+                    (CliVersionsAlias){type, alias, field->key_size, about_at, (unsigned int)about.at};
                 args->aliases->count += 1u;
             }
         }

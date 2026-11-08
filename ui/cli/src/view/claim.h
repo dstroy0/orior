@@ -48,18 +48,25 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 #define GUI_AUTOHIDE_TRAIL 16u
 
 // A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
-// claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one stands at them
+// claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one stands at them. A bead's slide
+// also keeps the speed it starts with, in GUI_FIXED_ONE a slide's length, so a slide sent on from mid-way keeps its
+// speed; `curve` is the slide's own curve, which a caller's curve other than the ease replaces
 typedef struct
 {
     int from;
     int to;
     unsigned long long start_ms;
+    int velocity;
+    unsigned int curve;
 } GuiSlide;
 
-// the curves a slide runs on: the page's ease, cubic-bezier(0.25, 0.1, 0.25, 1), and its ease-out,
-// cubic-bezier(0, 0, 0.58, 1)
+// The curves a slide runs on: the page's ease, cubic-bezier(0.25, 0.1, 0.25, 1); its ease-out,
+// cubic-bezier(0, 0, 0.58, 1); and the bead, a damped spring that a bead of water on glass moves as. The bead starts
+// from rest, goes past its end by about 5 percent, and settles at its end as the slide ends. A bead's number can
+// pass GUI_FIXED_ONE, so a slide that sets an opacity does not take it
 #define GUI_CURVE_EASE 0u
 #define GUI_CURVE_EASE_OUT 1u
+#define GUI_CURVE_BEAD 2u
 
 // A sample of the pointer's path: its position and time
 typedef struct
@@ -191,11 +198,15 @@ struct GuiAutohideTableCfg
     double y2;
 };
 
+// A slide sent to `to`: after `delay_ms`, at `time_ms` or the clock's now where 0, over `lasts_ms` or the claim's own
+// GUI_AUTOHIDE_ANIMATION_MS where 0
 struct GuiAutohideTargetCfg
 {
     GuiSlide *slide_out;
     int to;
     unsigned long long delay_ms;
+    unsigned long long time_ms;
+    unsigned long long lasts_ms;
 };
 
 struct GuiAutohideStateCfg

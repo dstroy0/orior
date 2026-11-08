@@ -57,10 +57,10 @@ export function onShortcut(event) {
   }
 }
 
-// The keys of the commands `items`, each for one kind of file, offered to the editor first: a key goes
-// to the command whose kind the file shown is, of those that share it, as Ctrl+Enter goes to Run
+// The keys of the commands `items`, each for one type of file, offered to the editor first: a key goes
+// to the command whose type the file shown is, of those that share it, as Ctrl+Enter goes to Run
 // Statement in an SQL file and to Send Request in a file of requests, and to the editor's own use of
-// the key where the file is of none of their kinds.
+// the key where the file is of none of their types.
 export function firstKeys(items, needs = NEEDS, run = runCommand) {
   const byKeys = new Map();
   for (const item of items) {

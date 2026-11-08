@@ -261,8 +261,8 @@ static void cli_tables_line(const CliDefsLineEachCfg *args)
     {
         const unsigned int columns = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = json, .object = list->list, .name = "columns");
-        for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                            .node = columns, .kind = CFG_JSON_ARRAY)
+        for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                            .node = columns, .type = CFG_JSON_ARRAY)
                                      ? json->node[columns].first
                                      : CLI_JSON_NONE;
              (item != CLI_JSON_NONE) && (list->columns < CLI_DEFS_CELLS); item = json->node[item].next)
@@ -396,8 +396,8 @@ EMBED_INLINE int cli_tables_lists_write(const PluginsTablesCtx *args)
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
-                       .kind = CFG_JSON_OBJECT) &&
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
+                       .type = CFG_JSON_OBJECT) &&
             (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = member,
                         .name = "table") != CLI_JSON_NONE))
         {
@@ -422,8 +422,8 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
     const char *name = args->name;
     const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                          .object = args->grammar, .name = name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = list,
+                    .type = CFG_JSON_ARRAY))
     {
         return 0u;
     }
@@ -539,8 +539,8 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(out, ':');
         if (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "tokenizer", .cap = CLI_POOL_BYTES}) ||
-            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
-                        .kind = CFG_JSON_OBJECT))
+            !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
+                        .type = CFG_JSON_OBJECT))
         {
             EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = member,
                        .out = out, .indent = 0u, .sorted = 0);
@@ -555,8 +555,8 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(out, ":[");
             unsigned int written = 0u;
-            for (unsigned int rule = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = json, .node = state, .kind = CFG_JSON_ARRAY)
+            for (unsigned int rule = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                .json_read = json, .node = state, .type = CFG_JSON_ARRAY)
                                          ? json->node[state].first
                                          : CLI_JSON_NONE;
                  rule != CLI_JSON_NONE; rule = json->node[rule].next)
@@ -646,8 +646,8 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
 {
     const unsigned int except = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json, .object = args->each_u32, .name = "except");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = except, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = except, .type = CFG_JSON_ARRAY)
                                  ? args->json->node[except].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = args->json->node[item].next)

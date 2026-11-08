@@ -410,13 +410,13 @@ EMBED_INLINE int query_stick_vendor(const StickCtx *args)
 static void query_engine_clear(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
-    static const char *const s_kinds[4] = {".sass", ".bin", ".dis", ".registers"};
+    static const char *const s_types[4] = {".sass", ".bin", ".dis", ".registers"};
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .byte = '.');
     for (unsigned int at = 0u; !args->is_folder && (dot != NULL) && (at < 4u); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = s_kinds[at], .cap = CLI_POOL_BYTES}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = s_types[at], .cap = CLI_POOL_BYTES}))
         {
             char path[QUERY_PATH_MAX_LEN];
             EMBED_CALL(query_in, StickCtx, .folder = (const char *)args->context, .name = name, .path = path);

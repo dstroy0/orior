@@ -130,7 +130,7 @@ static void report_barriers(void)
     }
 }
 
-// the mathematics a message of the kinds the audit specifies better goes taken out, the audit naming the gap with what
+// the mathematics a message of the types the audit specifies better goes taken out, the audit naming the gap with what
 // fills it
 static void report_repeats(void)
 {
@@ -143,15 +143,15 @@ static void report_repeats(void)
         int repeated = 0;
         for (unsigned int now = 0u;
              !repeated &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_POOL_BYTES})) &&
+             (cellul.eq(&(CatenaFinitaCfg){.src = finding->type, .other = "math", .cap = CLI_POOL_BYTES})) &&
              (now < last->count);
              now += 1u)
         {
             const CliProverMessage *const message = &last->message[now];
             repeated = (message->line == finding->line) && (message->col == finding->col) &&
                        EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
-                                  .array = g_cli_validate->tool.repeats, .text = last->text + message->kind,
-                                  .length = message->kind_size);
+                                  .array = g_cli_validate->tool.repeats, .text = last->text + message->type,
+                                  .length = message->type_size);
         }
         if (!repeated)
         {
@@ -288,7 +288,7 @@ EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
     }
 }
 
-// a finding written as `{"line", "col", "end_line", "end_col", "severity", "kind", "barrier", "message", "lifted"}`
+// a finding written as `{"line", "col", "end_line", "end_col", "severity", "type", "barrier", "message", "lifted"}`
 EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
 {
     VerbaLinea *out = args->out;
@@ -303,8 +303,8 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
     mmgr_line_put(out, ",\"severity\":");
     mmgr_line_decimal(out, args->finding->severity, 1u);
     mmgr_line_put(out, ",\"kind\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->finding->kind,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->kind, .cap = CLI_POOL_BYTES}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->finding->type,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->type, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"barrier\":");
     if (args->finding->barrier < 0)
     {
@@ -355,16 +355,16 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     {
         const CliFinding *const finding = &g_cli_validate->findings[at];
         const int error = (finding->severity == 1u);
-        math += (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "math", .cap = CLI_POOL_BYTES})))
+        math += (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->type, .other = "math", .cap = CLI_POOL_BYTES})))
                     ? 1ULL
                     : 0ULL;
         blocked +=
-            (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "barrier", .cap = CLI_POOL_BYTES})))
+            (error && (cellul.eq(&(CatenaFinitaCfg){.src = finding->type, .other = "barrier", .cap = CLI_POOL_BYTES})))
                 ? 1ULL
                 : 0ULL;
         gaps +=
-            (error && ((cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "flag", .cap = CLI_POOL_BYTES})) ||
-                       (cellul.eq(&(CatenaFinitaCfg){.src = finding->kind, .other = "axiom", .cap = CLI_POOL_BYTES}))))
+            (error && ((cellul.eq(&(CatenaFinitaCfg){.src = finding->type, .other = "flag", .cap = CLI_POOL_BYTES})) ||
+                       (cellul.eq(&(CatenaFinitaCfg){.src = finding->type, .other = "axiom", .cap = CLI_POOL_BYTES}))))
                 ? 1ULL
                 : 0ULL;
     }

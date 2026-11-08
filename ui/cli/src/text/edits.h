@@ -74,13 +74,13 @@ typedef struct
 #define CLI_COMPLETIONS_MAX 4096u
 #define CLI_COMPLETIONS_TEXT (1u << 20u)
 
-// A completion item: what it shows, its kind, what it states of itself and what it inserts, each a text of its items',
+// A completion item: what it shows, its type, what it states of itself and what it inserts, each a text of its items',
 // and whether what it inserts is a snippet, its stops written `$1` and `${1:name}`
 typedef struct
 {
     unsigned int label_at;
     unsigned int label_size;
-    const char *kind;
+    const char *type;
     unsigned int detail_at;
     unsigned int detail_size;
     unsigned int insert_at;
@@ -99,7 +99,7 @@ typedef struct
 } CliCompletions;
 
 // items made empty; an item put after the others: 1, or 0 where it does not fit; the items made unique by what they
-// show, the first of each retained; and an item written as the page reads one, `{"label", "kind", "detail", "insert"}`
+// show, the first of each retained; and an item written as the page reads one, `{"label", "type", "detail", "insert"}`
 // and `"snippet": true` where it is one (completions.c)
 void cli_completions_begin(const CliEditsItemsCfg *args);
 int cli_completion_append(const CliEditsItemsCfg *args);
@@ -110,7 +110,7 @@ struct CliEditsItemsCfg
     CliCompletions *items;
     const char *label;
     unsigned long long label_size;
-    const char *kind;
+    const char *type;
     const char *detail;
     unsigned long long detail_size;
     const char *insert;

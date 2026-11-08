@@ -26,7 +26,7 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_PAGE 200ULL
 #define CLI_DB_PANE_ANSWER (1ULL << 22u)
 
-// the rows' kinds: a sentence, a node of the schema, a field of the form, a choice of the form stepped by a press, a
+// the rows' types: a sentence, a node of the schema, a field of the form, a choice of the form stepped by a press, a
 // box of the form turned by a press, the form's buttons, and a row of the ask
 #define CLI_DB_PANE_ROW_NOTE 0u
 #define CLI_DB_PANE_ROW_NODE 1u
@@ -52,14 +52,14 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_FIRST_TOOL CLI_DB_PANE_CONNECT
 #define CLI_DB_PANE_LAST_TOOL CLI_DB_PANE_ROLLBACK
 
-// A row of the pane: its kind and its depth in the schema; its text and its bytes, a node's label, a sentence, or a
-// form row's label; its detail and its bytes, a node's kind or column type, a field's text, NULL for a password's, or
+// A row of the pane: its type and its depth in the schema; its text and its bytes, a node's label, a sentence, or a
+// form row's label; its detail and its bytes, a node's type or column type, a field's text, NULL for a password's, or
 // a choice's word; whether a node opens and whether it is open, whether a sentence or a level is a failure, whether a
 // field has the keys, whether a box is on, how many letters a password's field carries, and an ask's row or the form's
 // buttons
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int depth;
     const char *text;
     unsigned long long text_length;

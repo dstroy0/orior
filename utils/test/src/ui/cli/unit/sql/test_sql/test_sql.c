@@ -254,14 +254,14 @@ void test_a_created_table_is_named(void)
 {
     shaped("CREATE TABLE IF NOT EXISTS public.\"Orders\" (id int)", CLI_SQL_POSTGRES);
     TEST_ASSERT_EQUAL_STRING("create", s_shaped.verb);
-    TEST_ASSERT_EQUAL_STRING("table", s_shaped.kind);
+    TEST_ASSERT_EQUAL_STRING("table", s_shaped.type);
     TEST_ASSERT_EQUAL_STRING("public.\"Orders\"", s_shaped.name);
 }
 
 void test_a_created_index_names_its_table(void)
 {
     shaped("create unique index concurrently ix on only s.t (a)", CLI_SQL_POSTGRES);
-    TEST_ASSERT_EQUAL_STRING("index", s_shaped.kind);
+    TEST_ASSERT_EQUAL_STRING("index", s_shaped.type);
     TEST_ASSERT_EQUAL_STRING("ix", s_shaped.name);
     TEST_ASSERT_TRUE(s_shaped.has_on);
     TEST_ASSERT_EQUAL_STRING("s.t", s_shaped.on);
@@ -270,7 +270,7 @@ void test_a_created_index_names_its_table(void)
 void test_a_created_view_is_named(void)
 {
     shaped("create or replace materialized view v as select 1", CLI_SQL_POSTGRES);
-    TEST_ASSERT_EQUAL_STRING("view", s_shaped.kind);
+    TEST_ASSERT_EQUAL_STRING("view", s_shaped.type);
     TEST_ASSERT_EQUAL_STRING("v", s_shaped.name);
 }
 

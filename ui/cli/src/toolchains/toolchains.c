@@ -98,8 +98,8 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
     const unsigned int tools = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json_out, .object = bundled, .name = "tools");
     const unsigned int added =
-        (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out, .node = tools,
-                    .kind = CFG_JSON_ARRAY) &&
+        (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json_out, .node = tools,
+                    .type = CFG_JSON_ARRAY) &&
          (added_text != NULL))
             ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = args->json_out,
                          .text = (const char *)added_text, .size = added_size, .tokens = tokens,
@@ -107,15 +107,15 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
             : CLI_JSON_NONE;
     g_cli_guard->persistent_buf_release(tokens, g_cli_toolchains_owner);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)added_text, (g_cli_toolchains_owner));
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out, .node = tools,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json_out, .node = tools,
+                    .type = CFG_JSON_ARRAY))
     {
         return CLI_JSON_NONE;
     }
     const unsigned int theirs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json_out, .object = added, .name = "tools");
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json_out, .node = theirs, .kind = CFG_JSON_ARRAY)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json_out, .node = theirs, .type = CFG_JSON_ARRAY)
                                  ? args->json_out->node[theirs].first
                                  : CLI_JSON_NONE;
          tool != CLI_JSON_NONE;)
@@ -127,7 +127,7 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
     }
     // those for another system left out
     const unsigned int list_node =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json_out, .kind = CFG_JSON_ARRAY);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = args->json_out, .type = CFG_JSON_ARRAY);
     for (unsigned int tool = args->json_out->node[tools].first; tool != CLI_JSON_NONE;)
     {
         const unsigned int next = args->json_out->node[tool].next;
@@ -143,8 +143,8 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
 
 unsigned int cli_toolchains_tool(const CliToolchainsJsonManifestCfg *args)
 {
-    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json_out, .node = args->manifest, .kind = CFG_JSON_ARRAY)
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json_out, .node = args->manifest, .type = CFG_JSON_ARRAY)
                                  ? args->json_out->node[args->manifest].first
                                  : CLI_JSON_NONE;
          tool != CLI_JSON_NONE; tool = args->json_out->node[tool].next)
@@ -208,8 +208,8 @@ int cli_toolchains_tool_program_in(const CliToolchainsJsonDirCfg *args)
     unsigned int count = 0u;
     const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                              .json_read = args->json, .object = args->tool, .name = "programs");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = programs, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                        .json_read = args->json, .node = programs, .type = CFG_JSON_ARRAY)
                                  ? args->json->node[programs].first
                                  : CLI_JSON_NONE;
          (item != CLI_JSON_NONE) && (count < 64u); item = args->json->node[item].next)

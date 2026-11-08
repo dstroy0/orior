@@ -63,15 +63,15 @@ export async function openTo(at, path) {
     assert.ok(item, `${named(depth + 1)} is in its menu`);
     const heard = [];
     const hear = (event) => heard.push(`${event.type}:${event.target?.className || event.target?.nodeName || "window"}${event.type === "click" ? `[${event.target?.textContent?.trim()}]` : ""}:${Math.round(performance.now())}`);
-    const kinds = ["pointermove", "pointerdown", "pointerup", "click", "focusout", "blur", "resize", "keydown"];
-    kinds.forEach((kind) => window.addEventListener(kind, hear, true));
+    const types = ["pointermove", "pointerdown", "pointerup", "click", "focusout", "blur", "resize", "keydown"];
+    types.forEach((type) => window.addEventListener(type, hear, true));
     const aimed = item.getBoundingClientRect();
     await ui.click(item);
     heard.push(`aimed at ${label} at ${Math.round(aimed.top)}, now at ${Math.round(item.getBoundingClientRect().top)}`);
     menu = await ui.waitFor(() => openMenus()[depth + 1], 3000).catch(() => {
       const open = openMenus().map((one) => `${itemsIn(one).length} items at ${Math.round(one.getBoundingClientRect().top)}`);
       throw new Error(`${named(depth + 1)} did not open: ${open.length} menus open (${open.join(", ")}), the window ${innerWidth}x${innerHeight}; heard ${heard.join(" ")}; closed by ${(window.__removedMenus ?? []).slice(-3).join(" ||| ")}`);
-    }).finally(() => kinds.forEach((kind) => window.removeEventListener(kind, hear, true)));
+    }).finally(() => types.forEach((type) => window.removeEventListener(type, hear, true)));
   }
   return itemsIn(menu);
 }

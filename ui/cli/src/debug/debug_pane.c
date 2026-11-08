@@ -316,9 +316,9 @@ EMBED_INLINE void pane_stopped(const DebugPaneCtx *args)
         (raised != NULL))
     {
         EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = raised, .length = raised_length,
-                   .kind = CLI_DEBUG_LINE_STDERR);
+                   .type = CLI_DEBUG_LINE_STDERR);
         EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = "\n", .length = 1ULL,
-                   .kind = CLI_DEBUG_LINE_STDERR);
+                   .type = CLI_DEBUG_LINE_STDERR);
     }
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
 }
@@ -333,23 +333,23 @@ EMBED_INLINE void pane_output(const DebugPaneCtx *args)
                                             .name = "category", .length_out = &category_length);
     const char *const output = EMBED_CALL(pane_member, DebugPaneCtx, .json = args->json, .node = args->node,
                                           .name = "output", .length_out = &output_length);
-    const char *const kind = (category != NULL) ? category : "stdout";
-    if ((output == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "telemetry", .cap = 16ULL}))
+    const char *const type = (category != NULL) ? category : "stdout";
+    if ((output == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "telemetry", .cap = 16ULL}))
     {
         return;
     }
-    unsigned int line_kind = CLI_DEBUG_LINE_STDOUT;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "stderr", .cap = 16ULL}))
+    unsigned int line_type = CLI_DEBUG_LINE_STDOUT;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "stderr", .cap = 16ULL}))
     {
-        line_kind = CLI_DEBUG_LINE_STDERR;
+        line_type = CLI_DEBUG_LINE_STDERR;
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "console", .cap = 16ULL}) ||
-             cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "important", .cap = 16ULL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "console", .cap = 16ULL}) ||
+             cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "important", .cap = 16ULL}))
     {
-        line_kind = CLI_DEBUG_LINE_CONSOLE;
+        line_type = CLI_DEBUG_LINE_CONSOLE;
     }
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = output, .length = output_length,
-               .kind = line_kind);
+               .type = line_type);
 }
 
 // an exit written to the console as the debugger's words: the session's name, ended with exit code, the code
@@ -379,7 +379,7 @@ EMBED_INLINE void pane_exited(const DebugPaneCtx *args)
     }
     mmgr_line_put(&line, ".\n");
     EMBED_CALL(cli_debug_pane_internal.line_write, CliDebugPaneCtx, .text = sentence,
-               .length = mmgr_line_ok(&line) ? line.at : 0ULL, .kind = CLI_DEBUG_LINE_CONSOLE);
+               .length = mmgr_line_ok(&line) ? line.at : 0ULL, .type = CLI_DEBUG_LINE_CONSOLE);
 }
 
 // the event `event` of session `session` with `size` bytes of `body` read on the view's thread for the tree at

@@ -23,7 +23,7 @@ typedef struct GuiSuggestCfg GuiSuggestCfg;
 #define GUI_SUGGEST_MAX 416
 #define GUI_SUGGEST_DETAIL 288
 #define GUI_SUGGEST_DETAIL_HEIGHT 224
-#define GUI_SUGGEST_KIND 9
+#define GUI_SUGGEST_TYPE 9
 #define GUI_SUGGEST_PAD_X 9
 #define GUI_SUGGEST_GAP 8
 #define GUI_SUGGEST_PAD_Y 3

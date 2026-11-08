@@ -34,7 +34,7 @@ typedef struct CliLspPathOutCfg CliLspPathOutCfg;
 typedef struct CliLspSizePathCfg CliLspSizePathCfg;
 typedef struct CliLspCapacityPathCfg CliLspCapacityPathCfg;
 typedef struct CliLspCfg CliLspCfg;
-typedef struct CliLspSizeKindCfg CliLspSizeKindCfg;
+typedef struct CliLspSizeTypeCfg CliLspSizeTypeCfg;
 
 // the most requests that wait on answers at once, and the most bytes of what the server writes to its errors that are
 // retained
@@ -127,8 +127,8 @@ void cli_lsp_unref(const CliLspContextCfg *args);
 // what the server reported it can do, as it answered `initialize`, as JSON, its size into `size`; the process the
 // server runs as; whether it still runs; the last line it wrote to its errors, or nothing, into `out`; and the server
 // requested to end, and ended where it does not (lsp.c)
-const char *cli_lsp_capabilities(const CliLspSizeKindCfg *args);
-unsigned long long cli_lsp_pid(const CliLspSizeKindCfg *args);
+const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args);
+unsigned long long cli_lsp_pid(const CliLspSizeTypeCfg *args);
 int cli_lsp_alive(const CliLspContextCfg *args);
 void cli_lsp_complaint(const CliLspPathOutCfg *args);
 void cli_lsp_stop(const CliLspContextCfg *args);
@@ -321,7 +321,7 @@ struct CliLspCfg
     char *id;
 };
 
-struct CliLspSizeKindCfg
+struct CliLspSizeTypeCfg
 {
     unsigned long long *size;
     const CliLsp *lsp_read;
@@ -436,11 +436,11 @@ EMBED_TABLE_STORAGE CliLspContextNs cli_lsp_context EMBED_UNUSED = {
 
 typedef struct
 {
-    const char *(*capabilities)(const CliLspSizeKindCfg *args);
-    unsigned long long (*pid)(const CliLspSizeKindCfg *args);
-} CliLspSizeKindNs;
-EMBED_TABLE_LAYOUT(CliLspSizeKindNs, capabilities, pid);
-EMBED_TABLE_STORAGE CliLspSizeKindNs cli_lsp_size_kind EMBED_UNUSED = {
+    const char *(*capabilities)(const CliLspSizeTypeCfg *args);
+    unsigned long long (*pid)(const CliLspSizeTypeCfg *args);
+} CliLspSizeTypeNs;
+EMBED_TABLE_LAYOUT(CliLspSizeTypeNs, capabilities, pid);
+EMBED_TABLE_STORAGE CliLspSizeTypeNs cli_lsp_size_type EMBED_UNUSED = {
     .capabilities = cli_lsp_capabilities,
     .pid = cli_lsp_pid,
 };

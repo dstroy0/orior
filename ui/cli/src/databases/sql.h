@@ -28,7 +28,7 @@ enum
     CLI_SQL_SQLITE
 };
 
-// a token's kinds
+// a token's types
 enum
 {
     CLI_SQL_WORD,
@@ -51,10 +51,10 @@ enum
     CLI_DOES_OTHER
 };
 
-// A token: its kind and where it starts and ends in the text
+// A token: its type and where it starts and ends in the text
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned long long start;
     unsigned long long end;
 } CliSqlToken;
@@ -66,12 +66,12 @@ typedef struct
     unsigned long long end;
 } CliSqlSpan;
 
-// The object a statement that changes the schema names: what it does to it, its kind and its name as written, and,
+// The object a statement that changes the schema names: what it does to it, its type and its name as written, and,
 // for an index or a trigger, the table it is on where `has_on` is 1
 typedef struct
 {
     char verb[CLI_NAME_MAX_LEN];
-    char kind[CLI_NAME_MAX_LEN];
+    char type[CLI_NAME_MAX_LEN];
     char name[CLI_PATH_MAX_LEN];
     char on[CLI_PATH_MAX_LEN];
     int has_on;

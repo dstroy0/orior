@@ -14,7 +14,7 @@ void cli_page_adjacent(const CliPagesPathCtx *args)
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     VerbaLinea line = {args->adjacent, CLI_PATH_MAX_LEN, 0ULL};
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = parent))
     {
         mmgr_line_put(&line, parent);
         mmgr_line_ch(&line, '/');

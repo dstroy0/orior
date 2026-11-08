@@ -9,7 +9,7 @@
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { kindOf, lastDrawing, previewMode, resolveFrom, setPreview } from "../../gui/src-js/preview.js";
+import { kindOf: typeOf, lastDrawing, previewMode, resolveFrom, setPreview } from "../../gui/src-js/preview.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -37,8 +37,8 @@ function retype(text) {
 }
 
 test("each kind of file that sets how something looks has a preview, and no other", () => {
-  const kinds = ["a.md", "a.MARKDOWN", "b.html", "b.htm", "c.css", "d.svg", "e.mmd", "e.mermaid", "f.tex", "a.js", "a.rs", null].map(kindOf);
-  assert.deepEqual(kinds, ["markdown", "markdown", "html", "html", "css", "svg", "mermaid", "mermaid", "latex", null, null, null]);
+  const types = ["a.md", "a.MARKDOWN", "b.html", "b.htm", "c.css", "d.svg", "e.mmd", "e.mermaid", "f.tex", "a.js", "a.rs", null].map(typeOf);
+  assert.deepEqual(types, ["markdown", "markdown", "html", "html", "css", "svg", "mermaid", "mermaid", "latex", null, null, null]);
 });
 
 test("an address relative to the file is read from its own folder in the tree", () => {

@@ -18,7 +18,7 @@ static int row_with_name(const char *name, CliChangedRow *row)
 {
     for (unsigned int at = 0u; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = row); at += 1u)
     {
-        if ((row->kind == CLI_CHANGES_ROW_FILE) && (strcmp(name, row->name) == 0))
+        if ((row->type == CLI_CHANGES_ROW_FILE) && (strcmp(name, row->name) == 0))
         {
             return 1;
         }
@@ -31,7 +31,7 @@ static unsigned int row_of(const char *name)
 {
     unsigned int at = 0u;
     for (CliChangedRow each; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &each) &&
-                             ((each.kind != CLI_CHANGES_ROW_FILE) || (strcmp(each.name, name) != 0));)
+                             ((each.type != CLI_CHANGES_ROW_FILE) || (strcmp(each.name, name) != 0));)
     {
         at += 1u;
     }
@@ -42,7 +42,7 @@ static unsigned int row_of(const char *name)
 static int line_row_is(unsigned int at, int gone, const char *text)
 {
     CliChangedRow row;
-    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) || (row.kind != CLI_CHANGES_ROW_LINE) ||
+    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &row) || (row.type != CLI_CHANGES_ROW_LINE) ||
         (row.gone != gone) || (row.count != strlen(text)))
     {
         return 0;
@@ -357,7 +357,7 @@ int main(void)
               "the file's changes open under its row, one change and its three lines");
     CliChangedRow hunk;
     cli_check(EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = fresh_row + 1u, .row = &hunk) &&
-                  (hunk.kind == CLI_CHANGES_ROW_HUNK) && (hunk.from == 0u) && (hunk.to == 2u) && hunk.taken &&
+                  (hunk.type == CLI_CHANGES_ROW_HUNK) && (hunk.from == 0u) && (hunk.to == 2u) && hunk.taken &&
                   !hunk.part,
               "the change covers the newer text's first two lines, taken whole");
     cli_check(line_row_is(fresh_row + 2u, 1, "from elsewhere") && line_row_is(fresh_row + 3u, 0, "changed") &&

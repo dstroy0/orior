@@ -22,23 +22,23 @@ const char *cli_schema_text(const CliSchemaReadAtCtx *args)
     return (args->at < args->read->used) ? args->read->pool + args->at : "";
 }
 
-const char *cli_schema_kind(const CliSchemaCtx *args)
+const char *cli_schema_type(const CliSchemaCtx *args)
 {
-    static const char *const s_kinds[7] = {"", "object", "array", "string", "number", "boolean", "null"};
-    if ((args->node_schema_node_pointer->kind == CLI_SCHEMA_NUMBER) &&
+    static const char *const s_types[7] = {"", "object", "array", "string", "number", "boolean", "null"};
+    if ((args->node_schema_node_pointer->type == CLI_SCHEMA_NUMBER) &&
         isfinite(args->node_schema_node_pointer->number) &&
         (floor(args->node_schema_node_pointer->number) == args->node_schema_node_pointer->number))
     {
         return "integer";
     }
-    return s_kinds[args->node_schema_node_pointer->kind];
+    return s_types[args->node_schema_node_pointer->type];
 }
 
 unsigned int cli_schema_get(const CliSchemaJsonCtx *args)
 {
     return ((args->map != CLI_JSON_NONE) &&
-            EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                       .node = args->map, .kind = CFG_JSON_OBJECT))
+            EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                       .node = args->map, .type = CFG_JSON_OBJECT))
                ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                             .object = args->map, .name = args->name)
                : CLI_JSON_NONE;
@@ -53,23 +53,23 @@ const char *cli_schema_string(const CliSchemaJsonCtx *args)
 int cli_schema_true(const CliSchemaJsonNodeCtx *args)
 {
     return (args->node != CLI_JSON_NONE) &&
-           EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                      .node = args->node, .kind = CFG_JSON_TRUE);
+           EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                      .node = args->node, .type = CFG_JSON_TRUE);
 }
 
 int cli_schema_false(const CliSchemaJsonNodeCtx *args)
 {
     return (args->node != CLI_JSON_NONE) &&
-           EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                      .node = args->node, .kind = CFG_JSON_FALSE);
+           EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                      .node = args->node, .type = CFG_JSON_FALSE);
 }
 
 int cli_schema_number(const CliSchemaJsonNodeCtx *args)
 {
     double *value = args->value_f64s;
     if ((args->node == CLI_JSON_NONE) ||
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                    .node = args->node, .kind = CFG_JSON_NUMBER))
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                    .node = args->node, .type = CFG_JSON_NUMBER))
     {
         return 0;
     }
@@ -86,8 +86,8 @@ int cli_schema_u64(const CliSchemaJsonNodeValueU64sCtx *args)
 {
     unsigned long long *value = args->value_u64s;
     if ((args->node == CLI_JSON_NONE) ||
-        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                    .node = args->node, .kind = CFG_JSON_NUMBER))
+        !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                    .node = args->node, .type = CFG_JSON_NUMBER))
     {
         return 0;
     }
@@ -156,18 +156,18 @@ EMBED_INLINE unsigned int values_keys(const SchemaValuesCtx *args)
     return count;
 }
 
-// the kind of a file's value as JSON's values compare, a number that is not finite read as null
-EMBED_INLINE unsigned char values_kind(const SchemaValuesCtx *args)
+// the type of a file's value as JSON's values compare, a number that is not finite read as null
+EMBED_INLINE unsigned char values_type(const SchemaValuesCtx *args)
 {
-    return ((args->node->kind == CLI_SCHEMA_NUMBER) && !isfinite(args->node->number)) ? CLI_SCHEMA_NULL
-                                                                                      : args->node->kind;
+    return ((args->node->type == CLI_SCHEMA_NUMBER) && !isfinite(args->node->number)) ? CLI_SCHEMA_NULL
+                                                                                      : args->node->type;
 }
 
 int cli_schema_same(const CliSchemaReadJsonCtx *args)
 {
     const CliSchemaNode *const one = &args->read->node[args->node];
-    const CfgJsonKind kind = args->json->node[args->value].kind;
-    const unsigned char own = EMBED_CALL(values_kind, SchemaValuesCtx, .node = one);
+    const CfgJsonKind type = args->json->node[args->value].type;
+    const unsigned char own = EMBED_CALL(values_type, SchemaValuesCtx, .node = one);
     if (own == CLI_SCHEMA_NUMBER)
     {
         double other = 0.0;
@@ -188,15 +188,15 @@ int cli_schema_same(const CliSchemaReadJsonCtx *args)
     }
     if (own == CLI_SCHEMA_BOOL)
     {
-        return (kind == (one->truth ? CFG_JSON_TRUE : CFG_JSON_FALSE));
+        return (type == (one->truth ? CFG_JSON_TRUE : CFG_JSON_FALSE));
     }
     if (own == CLI_SCHEMA_NULL)
     {
-        return kind == CFG_JSON_NULL;
+        return type == CFG_JSON_NULL;
     }
     if (own == CLI_SCHEMA_ARRAY)
     {
-        if ((kind != CFG_JSON_ARRAY) || (args->json->node[args->value].count != one->count))
+        if ((type != CFG_JSON_ARRAY) || (args->json->node[args->value].count != one->count))
         {
             return 0;
         }
@@ -213,7 +213,7 @@ int cli_schema_same(const CliSchemaReadJsonCtx *args)
         }
         return 1;
     }
-    if ((kind != CFG_JSON_OBJECT) || (EMBED_CALL(values_keys, SchemaValuesCtx, .read = args->read,
+    if ((type != CFG_JSON_OBJECT) || (EMBED_CALL(values_keys, SchemaValuesCtx, .read = args->read,
                                                  .object = args->node) != args->json->node[args->value].count))
     {
         return 0;
@@ -239,16 +239,16 @@ int cli_schema_same_values(const CliSchemaReadOneCtx *args)
     unsigned int other = args->other;
     const CliSchemaNode *const left = &args->read->node[args->one];
     const CliSchemaNode *const right = &args->read->node[other];
-    const unsigned char kind = EMBED_CALL(values_kind, SchemaValuesCtx, .node = left);
-    if (kind != EMBED_CALL(values_kind, SchemaValuesCtx, .node = right))
+    const unsigned char type = EMBED_CALL(values_type, SchemaValuesCtx, .node = left);
+    if (type != EMBED_CALL(values_type, SchemaValuesCtx, .node = right))
     {
         return 0;
     }
-    if (kind == CLI_SCHEMA_NUMBER)
+    if (type == CLI_SCHEMA_NUMBER)
     {
         return left->number == right->number;
     }
-    if (kind == CLI_SCHEMA_TEXT)
+    if (type == CLI_SCHEMA_TEXT)
     {
         return (left->text_size == right->text_size) &&
                (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
@@ -257,15 +257,15 @@ int cli_schema_same_values(const CliSchemaReadOneCtx *args)
                                                             .read = args->read, .at = right->text_at),
                                         .bytes = left->text_size}) == 0);
     }
-    if (kind == CLI_SCHEMA_BOOL)
+    if (type == CLI_SCHEMA_BOOL)
     {
         return left->truth == right->truth;
     }
-    if (kind == CLI_SCHEMA_NULL)
+    if (type == CLI_SCHEMA_NULL)
     {
         return 1;
     }
-    if (kind == CLI_SCHEMA_ARRAY)
+    if (type == CLI_SCHEMA_ARRAY)
     {
         if (left->count != right->count)
         {
@@ -376,8 +376,8 @@ static void values_write(const SchemaValuesCtx *args)
     const CliSchemaRead *read = args->read;
     VerbaLinea *out = args->out;
     const CliSchemaNode *const one = &read->node[args->node_u32];
-    const unsigned char kind = EMBED_CALL(values_kind, SchemaValuesCtx, .node = one);
-    switch (kind)
+    const unsigned char type = EMBED_CALL(values_type, SchemaValuesCtx, .node = one);
+    switch (type)
     {
     case CLI_SCHEMA_NUMBER: {
         EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out, .value_f64 = one->number);
@@ -459,19 +459,19 @@ void cli_schema_number_show(const CliSchemaOutCtx *args)
     mmgr_line_put_n(args->out, raw, size);
 }
 
-void cli_schema_kind_write(const CliSchemaSizeOutCtx *args)
+void cli_schema_type_write(const CliSchemaSizeOutCtx *args)
 {
     const int an =
-        ((args->size == 6u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "object", .bytes = 6u}) == 0)) ||
-        ((args->size == 5u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "array", .bytes = 5u}) == 0)) ||
-        ((args->size == 7u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "integer", .bytes = 7u}) == 0));
-    if ((args->size == 4u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "null", .bytes = 4u}) == 0))
+        ((args->size == 6u) && (memor.cmp(&(MemoriaCfg){.src = args->type, .other = "object", .bytes = 6u}) == 0)) ||
+        ((args->size == 5u) && (memor.cmp(&(MemoriaCfg){.src = args->type, .other = "array", .bytes = 5u}) == 0)) ||
+        ((args->size == 7u) && (memor.cmp(&(MemoriaCfg){.src = args->type, .other = "integer", .bytes = 7u}) == 0));
+    if ((args->size == 4u) && (memor.cmp(&(MemoriaCfg){.src = args->type, .other = "null", .bytes = 4u}) == 0))
     {
         mmgr_line_put(args->out, "`null`");
         return;
     }
     mmgr_line_put(args->out, an ? "an " : "a ");
-    mmgr_line_put_n(args->out, args->kind, args->size);
+    mmgr_line_put_n(args->out, args->type, args->size);
 }
 
 int cli_schema_matches(const CliSchemaTextCtx *args)

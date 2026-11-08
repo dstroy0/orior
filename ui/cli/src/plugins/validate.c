@@ -91,7 +91,7 @@ EMBED_INLINE int validate_project_get(const ValidateCtx *args)
     const unsigned int marks = g_cli_validate->tool.project;
     char here[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    int has = EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = here);
+    int has = EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = here);
     while (has)
     {
         for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -112,7 +112,7 @@ EMBED_INLINE int validate_project_get(const ValidateCtx *args)
                 return 1;
             }
         }
-        has = EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = here, .out = above);
+        has = EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = here, .out = above);
         memor.cpy(&(MemoriaCfg){.dst = here, .src = above, .bytes = CLI_PATH_MAX_LEN});
     }
     return 0;
@@ -438,7 +438,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     mmgr_line_decimal(&copy_line, cli_process_own(), 1u);
     mmgr_line_put(&copy_line, ".lean");
     mmgr_line_finish(&copy_line);
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = copy_name, .joined = copy);
     }

@@ -275,7 +275,7 @@ int cli_templates_save(const CliTemplatesNameCfg *args)
         char parent[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = file, .joined = from);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->made, .relative = file, .joined = to);
-        if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = to, .out = parent) &&
+        if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = to, .out = parent) &&
             !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent))
         {
             EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);

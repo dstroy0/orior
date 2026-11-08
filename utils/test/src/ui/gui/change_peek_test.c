@@ -56,7 +56,7 @@ static void opened(const char *now, GuiEditor *editor)
               "the text is stored with a view open on it");
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
+    const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &err_msg);
     EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = NULL);
     EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = s_key, .text = s_head, .size = sizeof(s_head) - 1u);
@@ -152,7 +152,7 @@ int main(void)
                              .err_msg = &edit_err),
               "the revert's edits are written into the view");
     cli_check(text_is(s_head), "the view's text is the last commit's again");
-    const CliViewInput undo = {.kind = CLI_VIEW_KEY, .name = "Mod+Z"};
+    const CliViewInput undo = {.type = CLI_VIEW_KEY, .name = "Mod+Z"};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &undo, .err_msg = &edit_err);
     cli_check(text_is("one\nTWO\nthree\nfour\nfive\n"), "one undo brings the change back");
 

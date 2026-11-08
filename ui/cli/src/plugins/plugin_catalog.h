@@ -19,7 +19,7 @@ typedef struct CliPluginCatalogJsonCfg CliPluginCatalogJsonCfg;
 // `address` read from where `base` is, into `out`: as it is where it is whole, and beside `base` where it is not
 void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args);
 
-// the entry at `entry` of `json` checked as serde reads an entry, each field it gives of its kind, `where` named
+// the entry at `entry` of `json` checked as serde reads an entry, each field it gives of its type, `where` named
 // where one is not: 1, or 0 with why given; and a text field of an entry, empty where it gives none
 int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args);
 const char *cli_plugin_catalog_field(const CliPluginCatalogJsonCfg *args);

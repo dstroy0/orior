@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_form.c: the connection form as the Database pane's rows. Each field stands in a cell sized to its letters; the
-// rows are places laid again as the kind changes, the server's fields standing for PostgreSQL and MySQL and the file
+// rows are places laid again as the type changes, the server's fields standing for PostgreSQL and MySQL and the file
 // for SQLite, the guard's choice while the connection matters, and the refusal of the last save under the buttons. A
 // save writes the connection into databases.json, a rename through the name it had, and a remove takes it out; the
 // pane's text and keys go to the field that has the keys, or to the ask while the pane asks
 #include "db_pane_internal.h"
 
-// the kinds a connection is of, as databases.json stores them and as the choice reads them; the guards the same; the
+// the types a connection is of, as databases.json stores them and as the choice reads them; the guards the same; the
 // fields' labels; and the most bytes of a field
-static const char *const s_kinds[CLI_DB_FORM_KINDS] = {"postgres", "mysql", "sqlite"};
-static const char *const s_kind_words[CLI_DB_FORM_KINDS] = {"PostgreSQL", "MySQL or MariaDB", "SQLite"};
+static const char *const s_types[CLI_DB_FORM_TYPES] = {"postgres", "mysql", "sqlite"};
+static const char *const s_type_words[CLI_DB_FORM_TYPES] = {"PostgreSQL", "MySQL or MariaDB", "SQLite"};
 static const char *const s_guards[CLI_DB_FORM_GUARDS] = {"confirm", "read-only"};
 static const char *const s_guard_words[CLI_DB_FORM_GUARDS] = {"asks before each statement that writes",
                                                               "opens read-only"};
@@ -33,11 +33,11 @@ void cli_db_pane_form_laid(const CliDbPaneCtx *args)
 {
     (void)args;
     CliDbPaneForm *const form = &g_cli_db_pane_state.form;
-    const int lite = form->kind == 2u;
+    const int lite = form->type == 2u;
     unsigned int rows = 0u;
     form->row_place[rows] = CLI_DB_FORM_NAME;
     rows += 1u;
-    form->row_place[rows] = CLI_DB_FORM_KIND;
+    form->row_place[rows] = CLI_DB_FORM_TYPE;
     rows += 1u;
     if (lite)
     {
@@ -125,11 +125,11 @@ void cli_db_pane_form_open(const CliDbPaneCtx *args)
             mmgr_line_decimal(&line, connection->port, 1u);
             EMBED_CALL(field_set, DbFormCtx, .at = CLI_DB_FORM_PORT, .text = digits, .size = line.at);
         }
-        for (unsigned int at = 0u; at < CLI_DB_FORM_KINDS; at += 1u)
+        for (unsigned int at = 0u; at < CLI_DB_FORM_TYPES; at += 1u)
         {
-            form->kind = cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = s_kinds[at], .cap = 16ULL})
+            form->type = cellul.eq(&(CatenaFinitaCfg){.src = connection->type, .other = s_types[at], .cap = 16ULL})
                              ? at
-                             : form->kind;
+                             : form->type;
         }
         form->matters = connection->matters;
         form->guard =
@@ -149,7 +149,7 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
     const unsigned int place = form->row_place[args->at];
     if (place < CLI_DB_FORM_FIELDS)
     {
-        row->kind = CLI_DB_PANE_ROW_FIELD;
+        row->type = CLI_DB_PANE_ROW_FIELD;
         row->text = s_field_labels[place];
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = 32ULL});
         row->detail = (form->field[place].bytes != NULL) ? form->field[place].bytes : "";
@@ -159,28 +159,28 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
     }
     switch (place)
     {
-    case CLI_DB_FORM_KIND:
-        row->kind = CLI_DB_PANE_ROW_CHOICE;
+    case CLI_DB_FORM_TYPE:
+        row->type = CLI_DB_PANE_ROW_CHOICE;
         row->text = "Kind";
-        row->detail = s_kind_words[form->kind];
+        row->detail = s_type_words[form->type];
         break;
     case CLI_DB_FORM_MATTERS:
-        row->kind = CLI_DB_PANE_ROW_BOX;
+        row->type = CLI_DB_PANE_ROW_BOX;
         row->text = "It matters: its writes are guarded";
         row->on = form->matters;
         row->detail = "";
         break;
     case CLI_DB_FORM_GUARD:
-        row->kind = CLI_DB_PANE_ROW_CHOICE;
+        row->type = CLI_DB_PANE_ROW_CHOICE;
         row->text = "Guarded, it";
         row->detail = s_guard_words[form->guard];
         break;
     case CLI_DB_FORM_BUTTONS: {
-        row->kind = CLI_DB_PANE_ROW_BUTTONS;
+        row->type = CLI_DB_PANE_ROW_BUTTONS;
         row->text = "";
         row->detail = "";
         const char *const *const choices = form->editing ? s_save_choices : s_add_choices;
-        row->prompt.kind = CLI_PROMPT_ROW_BUTTONS;
+        row->prompt.type = CLI_PROMPT_ROW_BUTTONS;
         row->prompt.choices = form->editing ? 2u : 1u;
         for (unsigned int at = 0u; at < row->prompt.choices; at += 1u)
         {
@@ -190,7 +190,7 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
         return 1;
     }
     default:
-        row->kind = CLI_DB_PANE_ROW_NOTE;
+        row->type = CLI_DB_PANE_ROW_NOTE;
         row->text = form->refusal;
         row->text_length = form->refusal_length;
         row->failed = 1;
@@ -235,8 +235,8 @@ EMBED_INLINE void form_saved(const DbFormCtx *args)
     CliDbConnection connection;
     memor.set(&(MemoriaCfg){.dst = &connection, .val = 0, .bytes = sizeof(connection)});
     EMBED_CALL(field_copied, DbFormCtx, .at = CLI_DB_FORM_NAME, .dst = connection.name, .size = CLI_NAME_MAX_LEN);
-    (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.kind, .src = s_kinds[form->kind], .cap = 16ULL});
-    const int lite = form->kind == 2u;
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.type, .src = s_types[form->type], .cap = 16ULL});
+    const int lite = form->type == 2u;
     if (lite)
     {
         EMBED_CALL(field_copied, DbFormCtx, .at = CLI_DB_FORM_FILE, .dst = connection.file, .size = CLI_PATH_MAX_LEN);
@@ -314,8 +314,8 @@ int cli_db_pane_form_press(const CliDbPaneCtx *args)
     }
     switch (place)
     {
-    case CLI_DB_FORM_KIND:
-        form->kind = (form->kind + 1u) % CLI_DB_FORM_KINDS;
+    case CLI_DB_FORM_TYPE:
+        form->type = (form->type + 1u) % CLI_DB_FORM_TYPES;
         break;
     case CLI_DB_FORM_MATTERS:
         form->matters = !form->matters;

@@ -54,7 +54,7 @@ enum
 
 typedef struct CliRegexpThen
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int node;
     unsigned int index;
     unsigned int count;

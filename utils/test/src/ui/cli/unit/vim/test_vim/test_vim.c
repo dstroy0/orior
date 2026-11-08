@@ -34,7 +34,7 @@ static int sent(const CliViewInput *input)
 // a key pressed, by the window's name for it
 static void pressed(const char *name)
 {
-    const CliViewInput input = {.kind = CLI_VIEW_KEY, .name = name};
+    const CliViewInput input = {.type = CLI_VIEW_KEY, .name = name};
     TEST_ASSERT_TRUE(sent(&input));
 }
 
@@ -46,8 +46,8 @@ static void typed(const char *text)
     {
         char name[2] = {text[at], '\0'};
         name[0] = ((name[0] >= 'a') && (name[0] <= 'z')) ? (char)(name[0] - 'a' + 'A') : name[0];
-        const CliViewInput key = {.kind = CLI_VIEW_KEY, .name = name};
-        const CliViewInput letter = {.kind = CLI_VIEW_TEXT, .text = text + at, .length = 1ULL};
+        const CliViewInput key = {.type = CLI_VIEW_KEY, .name = name};
+        const CliViewInput letter = {.type = CLI_VIEW_TEXT, .text = text + at, .length = 1ULL};
         TEST_ASSERT_TRUE(sent(&key));
         TEST_ASSERT_TRUE(sent(&letter));
     }
@@ -62,7 +62,7 @@ static void fresh(const char *text)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = text,
                                 .size = CLI_UNITY_LENGTH(text), .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "check/vim.txt"));
-    const CliViewInput size = {.kind = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
+    const CliViewInput size = {.type = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
     TEST_ASSERT_TRUE(sent(&size));
     EMBED_CALL(cli_vim_view.set, CliVimCfg, .key = s_key, .on = 1);
 }

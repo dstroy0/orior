@@ -51,8 +51,8 @@ EMBED_INLINE void bridge_at(const CommandLineBridgeCtx *args)
     const unsigned int line = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = node, .name = "line");
     unsigned long long number = 0ULL;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                   .node = line, .kind = CFG_JSON_NUMBER))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                   .node = line, .type = CFG_JSON_NUMBER))
     {
         const CliJsonNode *const one = &s_work_state->json.node[line];
         for (unsigned long long at = 0ULL; at < one->length; at += 1ULL)
@@ -84,8 +84,8 @@ EMBED_INLINE void bridge_pair_counts(const CommandLineBridgeCtx *args)
 {
     const unsigned int pairs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &s_work_state->json, .object = args->key, .name = "pairs");
-    const unsigned int count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = pairs, .kind = CFG_JSON_ARRAY)
+    const unsigned int count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &s_work_state->json, .node = pairs, .type = CFG_JSON_ARRAY)
                                    ? s_work_state->json.node[pairs].count
                                    : 0u;
     if (count == 0u)
@@ -99,8 +99,8 @@ EMBED_INLINE void bridge_pair_counts(const CommandLineBridgeCtx *args)
     {
         const unsigned int verdict = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &s_work_state->json, .object = pair, .name = "verdict");
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                       .node = verdict, .kind = CFG_JSON_OBJECT))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                       .node = verdict, .type = CFG_JSON_OBJECT))
         {
             open += (cellul.eq(&(CatenaFinitaCfg){
                         .src = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = verdict, .name = "word"),
@@ -135,8 +135,8 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
     EMBED_CALL(bridge_out, CommandLineBridgeCtx, .line = &line);
     const unsigned int pairs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &s_work_state->json, .object = args->key, .name = "pairs");
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                    .node = pairs, .kind = CFG_JSON_ARRAY) ||
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                    .node = pairs, .type = CFG_JSON_ARRAY) ||
         (s_work_state->json.node[pairs].count == 0u))
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "  no pairs");
@@ -153,8 +153,8 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
         mmgr_line_put(&line, "  ");
         const unsigned int verdict = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &s_work_state->json, .object = pair, .name = "verdict");
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                       .node = verdict, .kind = CFG_JSON_OBJECT))
+        if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                       .node = verdict, .type = CFG_JSON_OBJECT))
         {
             static char s_verdict[1u << 12u];
             VerbaLinea verdict_line = {s_verdict, sizeof(s_verdict), 0ULL};
@@ -175,8 +175,8 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
         EMBED_CALL(bridge_out, CommandLineBridgeCtx, .line = &line);
         const unsigned int notes = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_work_state->json, .object = pair, .name = "notes");
-        const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = &s_work_state->json, .node = notes, .kind = CFG_JSON_ARRAY)
+        const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = &s_work_state->json, .node = notes, .type = CFG_JSON_ARRAY)
                                        ? s_work_state->json.node[notes].first
                                        : CLI_JSON_NONE;
         for (unsigned int note = first; note != CLI_JSON_NONE; note = s_work_state->json.node[note].next)
@@ -191,14 +191,14 @@ EMBED_INLINE void bridge_pairs(const CommandLineBridgeCtx *args)
     }
 }
 
-// the name each .klm gives the key, with its kind and what breaks it
+// the name each .klm gives the key, with its type and what breaks it
 EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
 {
     const char *name = args->name;
     const unsigned int maps = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = args->bridge, .name = "maps");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = maps, .kind = CFG_JSON_ARRAY)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &s_work_state->json, .node = maps, .type = CFG_JSON_ARRAY)
                                    ? s_work_state->json.node[maps].first
                                    : CLI_JSON_NONE;
     int any = 0;
@@ -207,8 +207,8 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
         const unsigned int names = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_work_state->json, .object = map, .name = "names");
         const unsigned int named_first =
-            EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                       .node = names, .kind = CFG_JSON_OBJECT)
+            EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                       .node = names, .type = CFG_JSON_OBJECT)
                 ? s_work_state->json.node[names].first
                 : CLI_JSON_NONE;
         for (unsigned int entry = named_first; entry != CLI_JSON_NONE; entry = s_work_state->json.node[entry].next)
@@ -235,19 +235,19 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
                 mmgr_line_put(&line, " -> ");
                 mmgr_line_put(&line, key);
             }
-            const unsigned int kind = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+            const unsigned int type = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                  .json_read = &s_work_state->json, .object = entry, .name = "kind");
-            if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                           .node = kind, .kind = CFG_JSON_OBJECT))
+            if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                           .node = type, .type = CFG_JSON_OBJECT))
             {
                 mmgr_line_put(&line, "  ");
-                mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = kind, .name = "rest"));
+                mmgr_line_put(&line, EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = type, .name = "rest"));
             }
             const unsigned int breaks = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                    .json_read = &s_work_state->json, .object = entry, .name = "breaks");
             const unsigned int broken_first =
-                EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                           .node = breaks, .kind = CFG_JSON_ARRAY)
+                EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                           .node = breaks, .type = CFG_JSON_ARRAY)
                     ? s_work_state->json.node[breaks].first
                     : CLI_JSON_NONE;
             for (unsigned int broken = broken_first; broken != CLI_JSON_NONE;
@@ -266,15 +266,15 @@ EMBED_INLINE void bridge_maps(const CommandLineBridgeCtx *args)
     }
 }
 
-// each ruleset's entries of the key's name, each with its kind
+// each ruleset's entries of the key's name, each with its type
 EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
 {
     const char *name = args->name;
     const unsigned int rulesets =
         EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
                    .object = args->bridge, .name = "rulesets");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = rulesets, .kind = CFG_JSON_ARRAY)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &s_work_state->json, .node = rulesets, .type = CFG_JSON_ARRAY)
                                    ? s_work_state->json.node[rulesets].first
                                    : CLI_JSON_NONE;
     int any = 0;
@@ -291,8 +291,8 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
                                             .json_read = &s_work_state->json, .object = ruleset, .name = "entries"),
                        .name = name);
         const unsigned int entry_first =
-            EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                       .node = entries, .kind = CFG_JSON_ARRAY)
+            EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                       .node = entries, .type = CFG_JSON_ARRAY)
                 ? s_work_state->json.node[entries].first
                 : CLI_JSON_NONE;
         for (unsigned int entry = entry_first; entry != CLI_JSON_NONE; entry = s_work_state->json.node[entry].next)
@@ -322,8 +322,8 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
     const unsigned int bridge = EMBED_CALL(cli_bridge.read, CliBridgeCfg, .json = &s_work_state->json, .root = root);
     const unsigned int klq = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                         .json_read = &s_work_state->json, .object = bridge, .name = "klq");
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                    .node = klq, .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state->json,
+                    .node = klq, .type = CFG_JSON_OBJECT))
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "no Lstar.klq in " CLI_BRIDGE_DIR);
         return CLI_NO_CODE;
@@ -344,8 +344,8 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
             return 0;
         }
     }
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = keys, .kind = CFG_JSON_OBJECT)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                          .json_read = &s_work_state->json, .node = keys, .type = CFG_JSON_OBJECT)
                                    ? s_work_state->json.node[keys].first
                                    : CLI_JSON_NONE;
     unsigned long long pad = 0ULL;

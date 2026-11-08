@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_file_writing.c: files written whole and sealed: a .gsm written in pieces has its bytes and a seal beside it holding the
-// root of those bytes, a file of an unsealed kind has no seal, and writing again replaces both
+// root of those bytes, a file of an unsealed type has no seal, and writing again replaces both
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_read[1u << 16u];
@@ -98,7 +98,7 @@ void test_writing_again_replaces_the_bytes_and_the_root(void)
     TEST_ASSERT_FALSE(seal_holds_root_of(s_gsm, s_first));
 }
 
-void test_sealed_kinds_are_g_gsm_and_the_k_files(void)
+void test_sealed_types_are_g_gsm_and_the_k_files(void)
 {
     TEST_ASSERT_TRUE(ksg_kind_sealed("a/b.g"));
     TEST_ASSERT_TRUE(ksg_kind_sealed("sm_86.krs"));

@@ -438,6 +438,6 @@ unsigned long long cli_json_value_end(const CliJsonTreeTextSizeCfg *args)
 
 int cli_utf8_valid(const CliJsonTreeSizeCfg *args)
 {
-    return EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg,
+    return EMBED_CALL(cli_text_size_type.utf8_valid, CliTextSizeTypeCfg,
                       .text_bytes = (const unsigned char *)args->bytes, .size = args->size);
 }

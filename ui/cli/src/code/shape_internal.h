@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// shape_internal.h: what the structural search's sources share: the tokens of a text, each its kind, its roles and its
+// shape_internal.h: what the structural search's sources share: the tokens of a text, each its type, its roles and its
 // bytes; the placeholders of a pattern; and the match of the pattern's parts against the code's tokens
 #ifndef SHAPE_INTERNAL_H
 #define SHAPE_INTERNAL_H
@@ -13,7 +13,7 @@ typedef struct CliShapeLanguagesCtx CliShapeLanguagesCtx;
 typedef struct CliShapeMatcherCtx CliShapeMatcherCtx;
 typedef struct CliShapeCtx CliShapeCtx;
 
-// the kinds of a token: a name, a number, a string, a mark, and, in a language whose plugin says a line's end ends a
+// the types of a token: a name, a number, a string, a mark, and, in a language whose plugin says a line's end ends a
 // statement, the end of a statement at a line's end
 #define CLI_SHAPE_NAME 0u
 #define CLI_SHAPE_NUMBER 1u
@@ -38,11 +38,11 @@ typedef struct CliShapeCtx CliShapeCtx;
 #define CLI_SHAPE_PATTERN 4096u
 #define CLI_SHAPE_HOLES 256u
 
-// The tokens of a text, in the storage its holder gives: each its kind, its roles and where it starts and ends; 1 in
+// The tokens of a text, in the storage its holder gives: each its type, its roles and where it starts and ends; 1 in
 // `full` where one did not fit
 typedef struct
 {
-    unsigned char *kind;
+    unsigned char *type;
     unsigned char *role;
     unsigned int *start;
     unsigned int *end;

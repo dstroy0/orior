@@ -55,7 +55,7 @@ EMBED_INLINE void cli_lines_get(const ReviewTextCtx *args)
     }
 }
 
-void cli_review_trim(const CliReviewTextLengthKindCtx *args)
+void cli_review_trim(const CliReviewTextLengthTypeCtx *args)
 {
     const char **text = args->text_pointer;
     unsigned long long *length = args->length_pointer;
@@ -107,13 +107,13 @@ int cli_review_share(const CliReviewOneCtx *args)
     {
         const char *right_text = other + second.start[right];
         unsigned long long right_length = second.length[right];
-        EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &right_text,
+        EMBED_CALL(cli_review_text_length_type_internal.trim, CliReviewTextLengthTypeCtx, .text_pointer = &right_text,
                    .length_pointer = &right_length);
         for (unsigned int left = 0u; left < first.lines; left += 1u)
         {
             const char *left_text = args->one + first.start[left];
             unsigned long long left_length = first.length[left];
-            EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx,
+            EMBED_CALL(cli_review_text_length_type_internal.trim, CliReviewTextLengthTypeCtx,
                        .text_pointer = &left_text, .length_pointer = &left_length);
             if (!used[left] && (left_length == right_length) &&
                 (memor.cmp(&(MemoriaCfg){.src = left_text, .other = right_text, .bytes = left_length}) == 0))

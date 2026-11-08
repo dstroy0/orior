@@ -308,12 +308,21 @@ struct GuiRasterXYCfg
     GuiRaster *picture;
 };
 
+// The corners a rounded fill rounds, a bit each; none set rounds all four. A rounded fill with a `stroke` draws a line
+// that many pixels wide in place of the whole: along each edge that meets a rounded corner, and round those corners
+#define GUI_RASTER_CORNER_TOP_LEFT 1u
+#define GUI_RASTER_CORNER_TOP_RIGHT 2u
+#define GUI_RASTER_CORNER_BOTTOM_LEFT 4u
+#define GUI_RASTER_CORNER_BOTTOM_RIGHT 8u
+
 struct GuiRasterRectColorCfg
 {
     GuiRect rect;
     GuiRaster *raster;
     GuiColor color;
     unsigned int radius;
+    unsigned int corners;
+    int stroke;
 };
 
 struct GuiRasterRadiusCfg

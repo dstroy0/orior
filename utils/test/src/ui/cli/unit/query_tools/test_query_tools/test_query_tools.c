@@ -251,7 +251,7 @@ void test_a_binary_older_than_its_sources_is_stale(void)
     char binary[QUERY_PATH_MAX_LEN];
     const QueryTool *const tool = writer_binary_named(binary);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = binary, .bytes = "", .size = 0ull));
-    TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_kind_internal.modified_set, QueryPathSecondsKindCtx, .path = binary, .seconds_value = 86400ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_type_internal.modified_set, QueryPathSecondsTypeCtx, .path = binary, .seconds_value = 86400ull));
     TEST_ASSERT_TRUE(EMBED_CALL(query_tools_root_tool_internal.stale, QueryToolsRootToolCtx, .root = s_root, .tool = tool, .binary = binary));
 }
 

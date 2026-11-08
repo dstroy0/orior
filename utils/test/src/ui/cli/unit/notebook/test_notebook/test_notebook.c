@@ -55,7 +55,7 @@ static const char *string_at(unsigned int node, const char *const *path, unsigne
     return (text != NULL) ? text : "";
 }
 
-// a notebook of `count` cells, each a kind and a source, read into the tree: its node
+// a notebook of `count` cells, each a type and a source, read into the tree: its node
 static unsigned int notebook_of(const char *const (*cells)[2], unsigned int count)
 {
     char text[2048];
@@ -83,7 +83,7 @@ static void source_written(unsigned int cell, VerbaLinea *line)
         mmgr_line_put(line, "gone");
         return;
     }
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = source, .kind = CFG_JSON_STRING))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json, .node = source, .type = CFG_JSON_STRING))
     {
         mmgr_line_put(line, EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = source, .length_pointer = NULL));
         return;
@@ -173,10 +173,10 @@ void test_a_cells_mark_names_its_title(void)
 
 void test_a_markdown_cell_reads_from_behind_its_comments(void)
 {
-    static const char *const s_kind[3] = {"cells", "#1", "cell_type"};
+    static const char *const s_type[3] = {"cells", "#1", "cell_type"};
     static const char *const s_source[3] = {"cells", "#1", "source"};
     const unsigned int notebook = read_as("s.py", s_script, sizeof(s_script) - 1u);
-    TEST_ASSERT_EQUAL_STRING("markdown", string_at(notebook, s_kind, 3u));
+    TEST_ASSERT_EQUAL_STRING("markdown", string_at(notebook, s_type, 3u));
     TEST_ASSERT_EQUAL_STRING("A note\n\non two lines", string_at(notebook, s_source, 3u));
 }
 
@@ -245,7 +245,7 @@ void test_a_diff_reads_sources_and_outputs(void)
     CLI_TEST_ASSERT_TEXT("# cell 1 (code)\nprint('hi')\nx = 1\n## stream\nhi\n# cell 2 (markdown)\n# Title\n", s_out, out.at);
 }
 
-void test_a_diff_reads_a_result_errors_and_the_kinds_of_an_outputs_data(void)
+void test_a_diff_reads_a_result_errors_and_the_types_of_an_outputs_data(void)
 {
     static const char outputs[] = "{\"cells\": [{\"cell_type\": \"code\", \"metadata\": {}, \"source\": [\"x\"], \"outputs\": ["
                                   "{\"output_type\": \"execute_result\", \"data\": {\"text/plain\": \"1\"}}, "

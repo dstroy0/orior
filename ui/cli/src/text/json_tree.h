@@ -25,28 +25,28 @@ typedef struct CliJsonTreeArrayCfg CliJsonTreeArrayCfg;
 typedef struct CliJsonTreeTextCfg CliJsonTreeTextCfg;
 typedef struct CliJsonTreeNodeCfg CliJsonTreeNodeCfg;
 typedef struct CliJsonTreeLengthOutCfg CliJsonTreeLengthOutCfg;
-typedef struct CliJsonTreeNodeKindCfg CliJsonTreeNodeKindCfg;
+typedef struct CliJsonTreeNodeTypeCfg CliJsonTreeNodeTypeCfg;
 typedef struct CliJsonTreeArrayIndexCfg CliJsonTreeArrayIndexCfg;
 typedef struct CliJsonTreeObjectCfg CliJsonTreeObjectCfg;
 typedef struct CliJsonTreeTextLengthCfg CliJsonTreeTextLengthCfg;
 typedef struct CliJsonTreeNodesCfg CliJsonTreeNodesCfg;
 typedef struct CliJsonTreeNodeLengthCfg CliJsonTreeNodeLengthCfg;
-typedef struct CliJsonTreeTextLengthKindCfg CliJsonTreeTextLengthKindCfg;
+typedef struct CliJsonTreeTextLengthTypeCfg CliJsonTreeTextLengthTypeCfg;
 typedef struct CliJsonTreeTextSizeCfg CliJsonTreeTextSizeCfg;
 typedef struct CliJsonTreeCfg CliJsonTreeCfg;
 typedef struct CliJsonTreeOutValueCfg CliJsonTreeOutValueCfg;
-typedef struct CliJsonTreeKindCfg CliJsonTreeKindCfg;
+typedef struct CliJsonTreeTypeCfg CliJsonTreeTypeCfg;
 typedef struct CliJsonTreeSizeCfg CliJsonTreeSizeCfg;
 
 // no node: a member or item not found, or a tree too full to make one
 #define CLI_JSON_NONE 0xffffffffu
 
-// One node: its kind, as cfg_json names kinds; its key in the text where it is an object's member; its text, a
+// One node: its type, as cfg_json names types; its key in the text where it is an object's member; its text, a
 // string's letters or a number as written, `length` bytes; its children from `first` to `last`, `count` of them, and
 // the node after it among its parent's
 typedef struct
 {
-    CfgJsonKind kind;
+    CfgJsonKind type;
     unsigned long long key;
     unsigned long long text;
     unsigned long long length;
@@ -99,18 +99,18 @@ void cli_json_extent(const CliJsonTreeNodeNodesCfg *args);
 // the file at `path` read mapped into a tree as cli_json_alloc reads one, the file let go as the read ends: its root,
 // or CLI_JSON_NONE with why given, the tree containing nothing where the file could not be read
 unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args);
-// a node made of `kind` with no children; a string made of `length` bytes of `text`; a number made as `text` writes it
-unsigned int cli_json_init(const CliJsonTreeKindCfg *args);
-unsigned int cli_json_string_init(const CliJsonTreeTextLengthKindCfg *args);
-unsigned int cli_json_number_init(const CliJsonTreeTextLengthKindCfg *args);
+// a node made of `type` with no children; a string made of `length` bytes of `text`; a number made as `text` writes it
+unsigned int cli_json_init(const CliJsonTreeTypeCfg *args);
+unsigned int cli_json_string_init(const CliJsonTreeTextLengthTypeCfg *args);
+unsigned int cli_json_number_init(const CliJsonTreeTextLengthTypeCfg *args);
 // the member `name` of the object `object`, or the `index`th item of the array `array`: CLI_JSON_NONE where none is,
-// or the node is not of that kind
+// or the node is not of that type
 unsigned int cli_json_member(const CliJsonTreeObjectCfg *args);
 unsigned int cli_json_item(const CliJsonTreeArrayIndexCfg *args);
 // the letters of a string node, NULL where the node is none or no string; its length into `length` where it is given
 const char *cli_json_string(const CliJsonTreeNodeLengthCfg *args);
-// whether a node is of `kind`, none never is
-int cli_json_is(const CliJsonTreeNodeKindCfg *args);
+// whether a node is of `type`, none never is
+int cli_json_is(const CliJsonTreeNodeTypeCfg *args);
 // `value` put as the member `name` of `object`, in the place of one it had, else after its last; the member `name`
 // taken out of `object`; `value` put after the last item of `array`
 void cli_json_set(const CliJsonTreeObjectNameCfg *args);
@@ -296,11 +296,11 @@ struct CliJsonTreeLengthOutCfg
     const unsigned char *text_bytes;
 };
 
-struct CliJsonTreeNodeKindCfg
+struct CliJsonTreeNodeTypeCfg
 {
     const CliJson *json_read;
     unsigned int node;
-    CfgJsonKind kind;
+    CfgJsonKind type;
 };
 
 struct CliJsonTreeArrayIndexCfg
@@ -338,7 +338,7 @@ struct CliJsonTreeNodeLengthCfg
     unsigned long long *length_pointer;
 };
 
-struct CliJsonTreeTextLengthKindCfg
+struct CliJsonTreeTextLengthTypeCfg
 {
     CliJson *json;
     const char *text;
@@ -364,10 +364,10 @@ struct CliJsonTreeOutValueCfg
     double value_f64;
 };
 
-struct CliJsonTreeKindCfg
+struct CliJsonTreeTypeCfg
 {
     CliJson *json;
-    CfgJsonKind kind;
+    CfgJsonKind type;
 };
 
 struct CliJsonTreeSizeCfg
@@ -467,20 +467,20 @@ EMBED_TABLE_STORAGE CliJsonTreeErrMsgNs cli_json_tree_err_msg EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*json_init)(const CliJsonTreeKindCfg *args);
-} CliJsonTreeKindNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeKindNs, json_init);
-EMBED_TABLE_STORAGE CliJsonTreeKindNs cli_json_tree_kind EMBED_UNUSED = {
+    unsigned int (*json_init)(const CliJsonTreeTypeCfg *args);
+} CliJsonTreeTypeNs;
+EMBED_TABLE_LAYOUT(CliJsonTreeTypeNs, json_init);
+EMBED_TABLE_STORAGE CliJsonTreeTypeNs cli_json_tree_type EMBED_UNUSED = {
     .json_init = cli_json_init,
 };
 
 typedef struct
 {
-    unsigned int (*json_string_init)(const CliJsonTreeTextLengthKindCfg *args);
-    unsigned int (*json_number_init)(const CliJsonTreeTextLengthKindCfg *args);
-} CliJsonTreeTextLengthKindNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeTextLengthKindNs, json_string_init, json_number_init);
-EMBED_TABLE_STORAGE CliJsonTreeTextLengthKindNs cli_json_tree_text_length_kind EMBED_UNUSED = {
+    unsigned int (*json_string_init)(const CliJsonTreeTextLengthTypeCfg *args);
+    unsigned int (*json_number_init)(const CliJsonTreeTextLengthTypeCfg *args);
+} CliJsonTreeTextLengthTypeNs;
+EMBED_TABLE_LAYOUT(CliJsonTreeTextLengthTypeNs, json_string_init, json_number_init);
+EMBED_TABLE_STORAGE CliJsonTreeTextLengthTypeNs cli_json_tree_text_length_type EMBED_UNUSED = {
     .json_string_init = cli_json_string_init,
     .json_number_init = cli_json_number_init,
 };
@@ -514,10 +514,10 @@ EMBED_TABLE_STORAGE CliJsonTreeNodeLengthNs cli_json_tree_node_length EMBED_UNUS
 
 typedef struct
 {
-    int (*json_is)(const CliJsonTreeNodeKindCfg *args);
-} CliJsonTreeNodeKindNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNodeKindNs, json_is);
-EMBED_TABLE_STORAGE CliJsonTreeNodeKindNs cli_json_tree_node_kind EMBED_UNUSED = {
+    int (*json_is)(const CliJsonTreeNodeTypeCfg *args);
+} CliJsonTreeNodeTypeNs;
+EMBED_TABLE_LAYOUT(CliJsonTreeNodeTypeNs, json_is);
+EMBED_TABLE_STORAGE CliJsonTreeNodeTypeNs cli_json_tree_node_type EMBED_UNUSED = {
     .json_is = cli_json_is,
 };
 

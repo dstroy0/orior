@@ -70,7 +70,7 @@ static void cli_git_hit_store(const CliEachHitCfg *args)
         return;
     }
     const unsigned int file =
-        EMBED_CALL(cli_files_path_kind.index, CliFilesPathKindCfg, .files = s_search.paths.files, .path = args->path);
+        EMBED_CALL(cli_files_path_type.index, CliFilesPathTypeCfg, .files = s_search.paths.files, .path = args->path);
     if (file < s_search.paths.count)
     {
         EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = &s_search.hits[0], .file = file,

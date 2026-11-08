@@ -240,8 +240,8 @@ static void launch_configure(const DebugLaunchCtx *args)
     const unsigned int session_at = (unsigned int)(args->place - g_cli_debug.sessions);
     const unsigned int breakpoints = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = json, .object = args->options, .name = "breakpoints");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = breakpoints, .kind = CFG_JSON_OBJECT)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = breakpoints, .type = CFG_JSON_OBJECT)
                                    ? json->node[breakpoints].first
                                    : CLI_JSON_NONE;
     for (unsigned int file = first; file != CLI_JSON_NONE; file = json->node[file].next)

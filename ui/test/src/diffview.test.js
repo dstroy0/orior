@@ -48,7 +48,7 @@ test("a file the last commit does not hold is all added, and two texts that do n
   await withHost(async (host) => {
     await showDiff(host, "new.txt", null, "a\nb");
     assert.equal(host.querySelector(".diff-sides").textContent, "not in the last commit");
-    assert.deepEqual(rowsOf(host).map(([kind]) => kind), ["added", "added"]);
+    assert.deepEqual(rowsOf(host).map(([type]) => type), ["added", "added"]);
     await showDiff(host, "same.txt", "a", "a", { sides: "one, then the other", same: "The two are the same." });
     assert.equal(host.querySelector(".diff-sides").textContent, "one, then the other");
     assert.equal(host.querySelector(".diff-empty").textContent, "The two are the same.");
@@ -59,7 +59,7 @@ test("a file the last commit does not hold is all added, and two texts that do n
 test("with white space set aside, lines that differ only in it stand level as the same, and the choice is kept", async () => {
   await withHost(async (host) => {
     await showDiff(host, "spaced.txt", "a  b\nc", "a b\nc");
-    assert.deepEqual(rowsOf(host).map(([kind]) => kind), ["changed", "same"]);
+    assert.deepEqual(rowsOf(host).map(([type]) => type), ["changed", "same"]);
     const box = host.querySelector(".diff-space:not(.diff-structure) input");
     box.checked = true;
     box.dispatchEvent(new Event("change"));

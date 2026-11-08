@@ -55,11 +55,11 @@ static void answered_again(const CliPromptCfg *args)
                                 .choices = s_connect_choices, .count = 1u, .then = answered));
 }
 
-// the row `at`'s kind, CLI_PROMPT_NONE past the last
-static unsigned int kind_at(unsigned int at)
+// the row `at`'s type, CLI_PROMPT_NONE past the last
+static unsigned int type_at(unsigned int at)
 {
     CliPromptRow row;
-    return EMBED_CALL(cli_prompt_rows.row, CliPromptRowsCfg, .at = at, .row = &row) ? row.kind : CLI_PROMPT_NONE;
+    return EMBED_CALL(cli_prompt_rows.row, CliPromptRowsCfg, .at = at, .row = &row) ? row.type : CLI_PROMPT_NONE;
 }
 
 // the field's row
@@ -68,7 +68,7 @@ static CliPromptRow field_row(void)
     CliPromptRow row = {0};
     for (unsigned int at = 0u; EMBED_CALL(cli_prompt_rows.row, CliPromptRowsCfg, .at = at, .row = &row); at += 1u)
     {
-        if (row.kind == CLI_PROMPT_ROW_FIELD)
+        if (row.type == CLI_PROMPT_ROW_FIELD)
         {
             return row;
         }
@@ -83,10 +83,10 @@ void test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order(void
                                 .sentence = "This DELETE reaches every row", .statement = "DELETE FROM t",
                                 .choices = s_run_choices, .count = 2u, .then = answered));
     TEST_ASSERT_EQUAL_UINT(3u, EMBED_CALL(cli_prompt_rows.rows, CliPromptRowsCfg, .at = 0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_SENTENCE, kind_at(0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_STATEMENT, kind_at(1u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, kind_at(2u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_NONE, kind_at(3u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_SENTENCE, type_at(0u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_STATEMENT, type_at(1u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, type_at(2u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_NONE, type_at(3u));
     CliPromptRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt_rows.row, CliPromptRowsCfg, .at = 1u, .row = &row));
     CLI_TEST_ASSERT_TEXT("DELETE FROM t", row.text, row.length);
@@ -100,9 +100,9 @@ void test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_prompt.open, CliPromptCfg, .mode = CLI_PROMPT_ASK_LINE, .sentence = "The file",
                                 .preset = "rows.csv", .choices = s_connect_choices, .count = 1u, .then = answered));
     TEST_ASSERT_EQUAL_UINT(3u, EMBED_CALL(cli_prompt_rows.rows, CliPromptRowsCfg, .at = 0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_SENTENCE, kind_at(0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_FIELD, kind_at(1u));
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, kind_at(2u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_SENTENCE, type_at(0u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_FIELD, type_at(1u));
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, type_at(2u));
     const CliPromptRow row = field_row();
     CLI_TEST_ASSERT_TEXT("rows.csv", row.text, row.length);
 }

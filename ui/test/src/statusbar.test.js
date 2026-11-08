@@ -3,12 +3,12 @@
 
 // Notices at the reader's breaks: one that answers a press shows at once, any other waits for a save,
 // a commit, a run's end or the keys at rest, and Focus holds every notice until it ends. Silence,
-// beside a notice, puts its kind away for good, and Preferences brings it back.
+// beside a notice, puts its type away for good, and Preferences brings it back.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { bringBack, focusOn, kindOf, noticesAway, noticesWaiting, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
+import { bringBack, focusOn, kindOf: typeOf, noticesAway, noticesWaiting, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -82,15 +82,15 @@ test("Focus holds every notice until it ends, even at a break, and then shows th
 });
 
 test("Silence beside a notice puts its kind away for good: said again, with another count, it shows no more", async () => {
-  const kind = kindOf("3 files could not be read");
-  bringBack(kind);
+  const type = typeOf("3 files could not be read");
+  bringBack(type);
   try {
     await ui.click("#statusbar");
     say("3 files could not be read");
     assert.ok(shown("3 files could not be read"));
     await ui.click("#status-said-away");
     assert.ok(said().hidden && document.getElementById("status-said-away").hidden, "the notice and its press go");
-    assert.ok(noticesAway().includes(kind), "its kind is put away");
+    assert.ok(noticesAway().includes(type), "its kind is put away");
     await ui.click("#statusbar");
     const unseen = noticesUnseen();
     say("7 files could not be read");
@@ -98,27 +98,27 @@ test("Silence beside a notice puts its kind away for good: said again, with anot
     assert.equal(noticesSaid().at(-1).text, "7 files could not be read", "the bell keeps it");
     assert.equal(noticesUnseen(), unseen, "and counts it as nothing unseen");
   } finally {
-    bringBack(kind);
+    bringBack(type);
   }
 });
 
 test("Preferences lists each notice put away and shows its kind again on a press", async () => {
-  const kind = kindOf("The tree has 12 plugins to update");
-  bringBack(kind);
+  const type = typeOf("The tree has 12 plugins to update");
+  bringBack(type);
   await ui.click("#statusbar");
   say("The tree has 12 plugins to update");
   await ui.click("#status-said-away");
   try {
     runCommand("preferences");
-    const row = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] .prefs-notice-away")].find((one) => one.textContent.includes(kind)), 5000);
+    const row = await ui.waitFor(() => [...document.querySelectorAll("dialog[open] .prefs-notice-away")].find((one) => one.textContent.includes(type)), 5000);
     await ui.click(row.querySelector("button"));
-    assert.ok(!noticesAway().includes(kind), "its kind is back");
+    assert.ok(!noticesAway().includes(type), "its kind is back");
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
     await ui.click("#statusbar");
     say("The tree has 12 plugins to update");
     assert.ok(shown("The tree has 12 plugins to update"), "and shows again");
   } finally {
-    bringBack(kind);
+    bringBack(type);
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   }
 });

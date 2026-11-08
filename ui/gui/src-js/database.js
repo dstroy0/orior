@@ -227,7 +227,7 @@ export async function drawTree() {
   }
 }
 
-const quoteName = (name, kind) => (kind === "mysql" ? `\`${name.replace(/`/g, "``")}\`` : `"${name.replace(/"/g, '""')}"`);
+const quoteName = (name, type) => (type === "mysql" ? `\`${name.replace(/`/g, "``")}\`` : `"${name.replace(/"/g, '""')}"`);
 
 function treeItems(event) {
   const row = event.target.closest(".db-node");
@@ -249,8 +249,8 @@ function treeItems(event) {
 // named after them, a name copied, and a level of the tree read again by its path.
 export const databaseCommands = {
   "db-first-rows": ([schema, table, name = chosen()]) => {
-    const kind = connectionOf(name)?.kind;
-    return runOn(name, `SELECT * FROM ${quoteName(schema, kind)}.${quoteName(table, kind)} LIMIT ${PAGE}`);
+    const type = connectionOf(name)?.kind;
+    return runOn(name, `SELECT * FROM ${quoteName(schema, type)}.${quoteName(table, type)} LIMIT ${PAGE}`);
   },
   "db-copy-name": ([name]) => copyText(name),
   "db-read-again": (path) => readAgain(path),

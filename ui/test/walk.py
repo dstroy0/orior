@@ -223,8 +223,8 @@ class Walker:
         try:
             return self.conn.evaluate(expression, timeout=timeout)
         except TimeoutError:
-            for kind in ("rawKeyDown", "keyUp"):
-                self.conn.call("Input.dispatchKeyEvent", timeout=5, type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
+            for type in ("rawKeyDown", "keyUp"):
+                self.conn.call("Input.dispatchKeyEvent", timeout=5, type=type, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
             try:
                 return self.conn.evaluate(expression, timeout=15)
             except TimeoutError:
@@ -376,7 +376,7 @@ class Walker:
         return flags
 
     def judge(self, ran, report, left):
-        """What a command's record says needs a look, each as (weight, kind, text)."""
+        """What a command's record says needs a look, each as (weight, type, text)."""
         flags = []
         if ran.get("missing"):
             return [(100, "missing", "no command of the window answers this item")]
@@ -499,7 +499,7 @@ class Walker:
                             record["leftAfterClearing"] = left
                             flags += self.judge(ran, report or {}, left)
                         flags += self.judge_memory(memory)
-                    record["flags"] = [{"weight": weight, "kind": kind, "text": text} for weight, kind, text in sorted(flags, reverse=True)]
+                    record["flags"] = [{"weight": weight, "kind": type, "text": text} for weight, type, text in sorted(flags, reverse=True)]
                 except Hung as error:
                     record["flags"] = [{"weight": 99, "kind": "hung the page", "text": str(error)[:300]}]
                     self.records.append(record)
@@ -591,7 +591,7 @@ class Walker:
             text = flag["text"].replace("|", "\\|").replace("\n", " ")
             shot = f"[shot]({record['shot']})" if record.get("shot") else ""
             frames = f"[frames]({record['frames']})" if record.get("frames") else ""
-            lines.append(f"| {weight} | `{record['command']}` | {record['path']} | {flag['kind']} | {text} | {shot} | {frames} |")
+            lines.append(f"| {weight} | `{record['command']}` | {record['path']} | {flag['type']} | {text} | {shot} | {frames} |")
         lines += ["", "## Every command", "", "| # | command | menu | worked ms | calls | slowest call | frames | longest frame | moved | shift | blocked |", "| ---: | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |"]
         for record in self.records:
             report = record.get("report")

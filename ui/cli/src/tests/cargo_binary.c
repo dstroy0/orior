@@ -19,7 +19,7 @@ typedef struct
 {
     const CliCargoTarget *target;
     const CliJson *json;
-    unsigned int kinds;
+    unsigned int types;
     const char *name;
     const CliCargoFound *one;
     const char *line;
@@ -30,7 +30,7 @@ typedef struct
     const char *package;
     VerbaLinea *err_msg;
 } CargoBinaryCtx;
-// whether Cargo's word of an artifact, its target's kinds and name, is of the target
+// whether Cargo's word of an artifact, its target's types and name, is of the target
 EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
 {
     const CliJson *json = args->json;
@@ -38,31 +38,31 @@ EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
     int is_bin = 0;
     int is_test = 0;
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                             .json_read = json, .array = args->kinds, .index = index) != CLI_JSON_NONE;
+                                             .json_read = json, .array = args->types, .index = index) != CLI_JSON_NONE;
          index += 1u)
     {
-        const char *const kind =
+        const char *const type =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                          .json_read = json, .array = args->kinds, .index = index),
+                                          .json_read = json, .array = args->types, .index = index),
                        .length_pointer = NULL);
-        if (kind == NULL)
+        if (type == NULL)
         {
             continue;
         }
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
         is_lib = is_lib ||
                  ((length >= 3u) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = kind + length - 3u, .other = "lib", .cap = CLI_POOL_BYTES}))) ||
-                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "proc-macro", .cap = CLI_POOL_BYTES}));
-        is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_POOL_BYTES}));
-        is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_POOL_BYTES}));
+                  (cellul.eq(&(CatenaFinitaCfg){.src = type + length - 3u, .other = "lib", .cap = CLI_POOL_BYTES}))) ||
+                 (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "proc-macro", .cap = CLI_POOL_BYTES}));
+        is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "bin", .cap = CLI_POOL_BYTES}));
+        is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "test", .cap = CLI_POOL_BYTES}));
     }
-    if (args->target->kind == CLI_CARGO_LIB)
+    if (args->target->type == CLI_CARGO_LIB)
     {
         return is_lib;
     }
-    if (args->target->kind == CLI_CARGO_BIN)
+    if (args->target->type == CLI_CARGO_BIN)
     {
         return is_bin &&
                (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_POOL_BYTES}));
@@ -111,11 +111,11 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
     const int named =
         (reason != NULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_POOL_BYTES})) &&
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = test,
-                   .kind = CFG_JSON_TRUE) &&
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = test,
+                   .type = CFG_JSON_TRUE) &&
         (executable != NULL) &&
         EMBED_CALL(binary_is, CargoBinaryCtx, .target = &args->one->target, .json = &json,
-                   .kinds = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                   .types = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                        .object = target, .name = "kind"),
                    .name = (name != NULL) ? name : "");
     if (named)
@@ -167,11 +167,11 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = args->one->manifest, .joined = manifest);
     const char *words[12] = {cargo, "test", "--no-run", "--message-format=json", "--package", args->one->package};
     unsigned int count = 6u;
-    if (args->one->target.kind == CLI_CARGO_LIB)
+    if (args->one->target.type == CLI_CARGO_LIB)
     {
         words[count] = "--lib";
     }
-    else if (args->one->target.kind == CLI_CARGO_BIN)
+    else if (args->one->target.type == CLI_CARGO_BIN)
     {
         words[count] = "--bin";
     }
@@ -180,7 +180,7 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
         words[count] = "--test";
     }
     count += 1u;
-    if (args->one->target.kind != CLI_CARGO_LIB)
+    if (args->one->target.type != CLI_CARGO_LIB)
     {
         words[count] = args->one->target.name;
         count += 1u;

@@ -37,7 +37,7 @@ static int sent(const char *key, const char *channel, const char *body)
                       .delivered = &delivered, .err_msg = &err_msg);
 }
 
-// the row `at` of the Channels view as the CLI lists it, a row of no kind where there is none
+// the row `at` of the Channels view as the CLI lists it, a row of no type where there is none
 static CliCommsRow row_at(unsigned int at)
 {
     CliCommsRow row = {0};
@@ -80,7 +80,7 @@ int main(void)
     cli_check((EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "comms") == table) && table->foot,
               "the Comms tool has the table, a foot table");
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = NULL);
-    cli_check((table->rows(&(GuiPaneCfg){.table = table}) == 2u) && (row_at(0u).kind == CLI_COMMS_ROW_GROUP) &&
+    cli_check((table->rows(&(GuiPaneCfg){.table = table}) == 2u) && (row_at(0u).type == CLI_COMMS_ROW_GROUP) &&
                   same(row_at(0u).name, row_at(0u).name_length, "Parts") &&
                   same(row_at(0u).status, row_at(0u).status_length, "0") &&
                   same(row_at(1u).name, row_at(1u).name_length, "Channels"),
@@ -137,7 +137,7 @@ int main(void)
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 4u, .open_out = &open) &&
                   (table->rows(&(GuiPaneCfg){.table = table}) == 7u) &&
-                  (row_at(5u).kind == CLI_COMMS_ROW_MESSAGE) &&
+                  (row_at(5u).type == CLI_COMMS_ROW_MESSAGE) &&
                   same(row_at(5u).name, row_at(5u).name_length, "alpha") &&
                   same(row_at(5u).status, row_at(5u).status_length, "{\"n\":1}") &&
                   (table->current(&(GuiPaneCfg){.table = table}) == 4),

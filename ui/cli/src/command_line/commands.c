@@ -524,7 +524,7 @@ static int commands_list_row(unsigned int list, unsigned int at, CliItem *item)
         }
         else
         {
-            read = (CliItem){"", "", "", "", "", "", 0, 1, 0, 0, 0u};
+            read = (CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1};
         }
         const int shows = (s_tokens[token].kind == CFG_JSON_STRING) ||
                           ((s_tokens[token].kind == CFG_JSON_OBJECT) && !read.hidden && !read.fill);
@@ -570,7 +570,7 @@ int cli_menus_row(unsigned int level, unsigned int at, CliItem *item)
     }
     // the titles folded from the bar, each a row of its menu's items
     const unsigned int title_menu = cli_menu_title_menu(g_cli_menus_open.shown + at);
-    *item = (CliItem){cli_menu_title_text(title_menu), "", "", "", "", "", 0, 0, 0, 0, cli_menu_list(title_menu)};
+    *item = (CliItem){.label = cli_menu_title_text(title_menu), .command = "", .keys = "", .args = "", .needs = "", .checks = "", .list = cli_menu_list(title_menu)};
     return 1;
 }
 
@@ -701,7 +701,7 @@ void cli_menus_own_row(const CliItem *item)
 
 void cli_menus_own_line(void)
 {
-    cli_menus_own_row(&(CliItem){"", "", "", "", "", "", 0, 1, 0, 0, 0u});
+    cli_menus_own_row(&(CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1});
 }
 
 int cli_menus_own_named(const char *command, const char *args)

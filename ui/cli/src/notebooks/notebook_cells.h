@@ -4,7 +4,7 @@
 // JSON or a percent script, laid out as a model under the key its view stands under. Each cell's source is a text of
 // the document store under `<key>#<id>`, colored by the kernel language's grammar or the markdown grammar, and each
 // output's text one under `<key>#<id>.<output>`, colored by the xterm grammar. The model lists the cells in order,
-// each with its kind, its run count, its outputs, whether it runs, failed or stands on cells changed since it ran,
+// each with its type, its run count, its outputs, whether it runs, failed or stands on cells changed since it ran,
 // and the rows it takes in the work: a row each line of its source, one for a markdown cell not being edited, a row
 // each line of its outputs, an output of more than twice CLI_NOTEBOOK_CUT_LINES lines cut to its first and last
 // lines with a row between them, and the row that adds a cell after it. The row each cell starts at stands in one
@@ -29,14 +29,14 @@ typedef struct CliNotebookCellsTextCfg CliNotebookCellsTextCfg;
 
 // no cell, output or place
 #define CLI_NOTEBOOK_NONE 0xffffffffu
-// a cell's kinds
+// a cell's types
 #define CLI_NOTEBOOK_CODE 0u
 #define CLI_NOTEBOOK_MARKDOWN 1u
 #define CLI_NOTEBOOK_RAW 2u
 // the lines an output shows at its start and at its end once it is cut
 #define CLI_NOTEBOOK_CUT_LINES 40u
 
-// A row's kinds: the row that adds a cell after its cell, a line of a cell's source, a markdown cell not being edited
+// A row's types: the row that adds a cell after its cell, a line of a cell's source, a markdown cell not being edited
 // laid as one row, a line of an output, and the row standing for the lines of a cut output not shown
 #define CLI_NOTEBOOK_ROW_ADD 0u
 #define CLI_NOTEBOOK_ROW_SOURCE 1u
@@ -65,24 +65,24 @@ typedef struct CliNotebookCellsTextCfg CliNotebookCellsTextCfg;
 #define CLI_NOTEBOOK_TEXT_MORE 4u
 #define CLI_NOTEBOOK_TEXT_PLACEHOLDER 5u
 
-// A row: its kind, its cell, the line of its source or of its output, the output it stands in, CLI_NOTEBOOK_NONE for
+// A row: its type, its cell, the line of its source or of its output, the output it stands in, CLI_NOTEBOOK_NONE for
 // a row of none, and its flags
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int cell;
     unsigned long long line;
     unsigned int output;
     unsigned int flags;
 } CliNotebookRow;
 
-// A cell as the map lays it: the row it starts at, the rows it takes, its kind, and whether it is out of date, failed
+// A cell as the map lays it: the row it starts at, the rows it takes, its type, and whether it is out of date, failed
 // or runs
 typedef struct
 {
     unsigned int first_row;
     unsigned int row_count;
-    unsigned int kind;
+    unsigned int type;
     int stale;
     int failed;
     int running;
@@ -135,7 +135,7 @@ int cli_notebook_model_open(const CliNotebookCellsOpenCfg *args);
 void cli_notebook_model_close(const CliNotebookCellsOpenCfg *args);
 // the model under `key` written to the file at `full` as the notebook it was read as, each cell's source, outputs and
 // run count as they stand, the kernel picked in its metadata, the model marked saved: 1, or 0 with why written; and 1
-// where a cell's source changed since it was read or saved, or a cell was added, moved, changed in kind, cleared or
+// where a cell's source changed since it was read or saved, or a cell was added, moved, changed in type, cleared or
 // deleted, or a kernel picked
 int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args);
 int cli_notebook_model_dirty(const CliNotebookCellsSaveCfg *args);

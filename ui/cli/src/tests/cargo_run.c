@@ -56,7 +56,7 @@ EMBED_INLINE int run_same_target(const CargoRunCtx *args)
     const CliCargoFound *other = args->other;
     return (cellul.eq(
                &(CatenaFinitaCfg){.src = args->one->manifest, .other = other->manifest, .cap = CLI_POOL_BYTES})) &&
-           (args->one->target.kind == other->target.kind) &&
+           (args->one->target.type == other->target.type) &&
            ((args->one->target.name == NULL) ||
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = args->one->target.name, .other = other->target.name, .cap = CLI_POOL_BYTES})));
@@ -315,10 +315,10 @@ static void run_worker(void *context)
 EMBED_INLINE void run_target_words(const CargoRunCtx *args)
 {
     CliWords *words = args->words;
-    const char *const program_word = (args->target->kind == CLI_CARGO_BIN) ? "--bin" : "--test";
+    const char *const program_word = (args->target->type == CLI_CARGO_BIN) ? "--bin" : "--test";
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-               .word_text = (args->target->kind == CLI_CARGO_LIB) ? "--lib" : program_word);
-    if (args->target->kind != CLI_CARGO_LIB)
+               .word_text = (args->target->type == CLI_CARGO_LIB) ? "--lib" : program_word);
+    if (args->target->type != CLI_CARGO_LIB)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                    .word_text = args->target->name);

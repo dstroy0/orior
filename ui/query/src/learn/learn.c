@@ -30,7 +30,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "registers", .cap = CLI_POOL_BYTES})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "costs", .cap = CLI_POOL_BYTES})))
     {
-        args->step->kind = QUERY_LEARN_PASS;
+        args->step->type = QUERY_LEARN_PASS;
         args->step->word_text = first;
         if (args->count == 1u)
         {
@@ -47,14 +47,14 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_POOL_BYTES})) && (args->count >= 2u))
     {
-        args->step->kind = QUERY_LEARN_SEED;
+        args->step->type = QUERY_LEARN_SEED;
         args->step->word_text = args->words[1];
         return 1;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "rounds", .cap = CLI_POOL_BYTES})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "dry", .cap = CLI_POOL_BYTES})))
     {
-        args->step->kind = (first[0] == 'r') ? QUERY_LEARN_ROUNDS : QUERY_LEARN_DRY;
+        args->step->type = (first[0] == 'r') ? QUERY_LEARN_ROUNDS : QUERY_LEARN_DRY;
         args->step->rounds = 1u;
         if (args->count >= 2u)
         {
@@ -73,13 +73,13 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "enumerate", .cap = CLI_POOL_BYTES})) &&
         (args->count >= 2u))
     {
-        args->step->kind = QUERY_LEARN_ENUMERATE;
+        args->step->type = QUERY_LEARN_ENUMERATE;
         args->step->word_text = args->words[1];
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "clock", .cap = CLI_POOL_BYTES}))
     {
-        args->step->kind = QUERY_LEARN_CLOCK;
+        args->step->type = QUERY_LEARN_CLOCK;
         args->step->word_text = (args->count >= 2u) ? args->words[1] : QUERY_CLOCK_FROM;
         args->step->base = (args->count >= 3u) ? args->words[2] : QUERY_CLOCK_WORDS;
         return 1;

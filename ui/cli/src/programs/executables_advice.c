@@ -78,10 +78,10 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                           .byte = '/') +
                1)
             : script;
-    const unsigned int kind =
-        EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
+    const unsigned int type =
+        EMBED_CALL(cli_executables_name_out_folder_internal.type_get, CliExecutablesNameOutFolderCtx, .name = base);
     char print_buf[CLI_PATH_MAX_LEN * 2u];
-    if ((kind == CLI_KIND_DOTNET) && (EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "NU1100") ||
+    if ((type == CLI_TYPE_DOTNET) && (EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "NU1100") ||
                                       EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "NU1101")))
     {
         const char *const arguments[5] = {"nuget", "list", "source", "--format", "short"};
@@ -108,7 +108,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
         }
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     }
-    if (kind == CLI_KIND_CARGO)
+    if (type == CLI_TYPE_CARGO)
     {
         // the target Rust's standard library is missing for, as the line that reports so names it
         const char *target = NULL;
@@ -154,7 +154,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                            "rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed");
         }
     }
-    if ((kind == CLI_KIND_PYINSTALLER) &&
+    if ((type == CLI_TYPE_PYINSTALLER) &&
         EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "No module named PyInstaller"))
     {
         char python[CLI_PATH_MAX_LEN];
@@ -181,7 +181,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
 
 char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args)
 {
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->spec,
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->spec,
                     .out = args->folder_out))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->folder_out,

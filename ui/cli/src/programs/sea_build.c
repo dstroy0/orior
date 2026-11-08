@@ -410,7 +410,7 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     }
 #endif
     char folder[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->made, .out = folder) &&
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->made, .out = folder) &&
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
     {
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = folder, .how = ": it could not be made",

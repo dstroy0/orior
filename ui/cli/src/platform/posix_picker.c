@@ -32,10 +32,10 @@ typedef struct
 } CliDbusWritten;
 #endif
 #if (!defined(_WIN32)) && !((defined(__APPLE__)))
-// A message read: its kind, the serial it answers, its object path, its member and its body
+// A message read: its type, the serial it answers, its object path, its member and its body
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int reply_serial;
     char path[256];
     char member[64];
@@ -88,7 +88,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
 {
     static const char *const s_scripts[3] = {"POSIX path of (choose file)", "POSIX path of (choose folder)",
                                              "POSIX path of (choose file name)"};
-    const char *const words[4] = {"osascript", "-e", s_scripts[(args->kind < 3u) ? args->kind : 0u], NULL};
+    const char *const words[4] = {"osascript", "-e", s_scripts[(args->type < 3u) ? args->type : 0u], NULL};
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     args->path_out[0] = '\0';
@@ -109,7 +109,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
     return chosen;
 }
 #else
-// the kinds of a D-Bus message, the fields of its header this file writes and reads, and its version
+// the types of a D-Bus message, the fields of its header this file writes and reads, and its version
 #define CLI_DBUS_CALL 1u
 #define CLI_DBUS_RETURN 2u
 #define CLI_DBUS_ERROR 3u
@@ -503,11 +503,11 @@ EMBED_INLINE int dbus_reply(const PosixPickerCtx *args)
         {
             return 0;
         }
-        if (((args->message_dbus_message_pointer->kind == CLI_DBUS_RETURN) ||
-             (args->message_dbus_message_pointer->kind == CLI_DBUS_ERROR)) &&
+        if (((args->message_dbus_message_pointer->type == CLI_DBUS_RETURN) ||
+             (args->message_dbus_message_pointer->type == CLI_DBUS_ERROR)) &&
             (args->message_dbus_message_pointer->reply_serial == args->serial))
         {
-            return args->message_dbus_message_pointer->kind == CLI_DBUS_RETURN;
+            return args->message_dbus_message_pointer->type == CLI_DBUS_RETURN;
         }
     }
 }
@@ -742,13 +742,13 @@ int cli_file_pick(const CliPathCapacityCtx *args)
     EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .capacity = sizeof(s_message),
                .serial = 3u, .destination = "org.freedesktop.portal.Desktop",
                .object = "/org/freedesktop/portal/desktop", .interface = "org.freedesktop.portal.FileChooser",
-               .member = (args->kind == CLI_PICK_SAVE) ? "SaveFile" : "OpenFile", .signature = "ssa{sv}",
+               .member = (args->type == CLI_PICK_SAVE) ? "SaveFile" : "OpenFile", .signature = "ssa{sv}",
                .body_length_at = &body_at);
     head = message.at;
     EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message, .text = "");
-    const char *const file_title = (args->kind == CLI_PICK_SAVE) ? "Save" : "Open";
+    const char *const file_title = (args->type == CLI_PICK_SAVE) ? "Save" : "Open";
     EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message,
-               .text = (args->kind == CLI_PICK_FOLDER) ? "Choose a folder" : file_title);
+               .text = (args->type == CLI_PICK_FOLDER) ? "Choose a folder" : file_title);
     const unsigned long long options_at = message.at;
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = &message, .value = 0u);
     EMBED_CALL(dbus_align, PosixPickerCtx, .message = &message, .alignment = 8ULL);
@@ -756,7 +756,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
     EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message, .text = "modal");
     EMBED_CALL(dbus_signature, PosixPickerCtx, .message = &message, .signature = "b");
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = &message, .value = 1u);
-    if (args->kind == CLI_PICK_FOLDER)
+    if (args->type == CLI_PICK_FOLDER)
     {
         EMBED_CALL(dbus_align, PosixPickerCtx, .message = &message, .alignment = 8ULL);
         EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message, .text = "directory");
@@ -780,7 +780,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
     {
         chosen = EMBED_CALL(dbus_message_read, PosixPickerCtx, .socket = bus, .bytes = s_message,
                             .capacity = sizeof(s_message), .message_dbus_message_pointer = &read);
-        const int answered = chosen && (read.kind == CLI_DBUS_SIGNAL) &&
+        const int answered = chosen && (read.type == CLI_DBUS_SIGNAL) &&
                              cellul.eq(&(CatenaFinitaCfg){.src = read.member, .other = "Response", .cap = 64u}) &&
                              cellul.eq(&(CatenaFinitaCfg){.src = read.path, .other = handle, .cap = sizeof(handle)});
         if (answered)

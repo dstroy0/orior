@@ -474,7 +474,7 @@ void test_a_file_saved_back_in_a_zip_reads_as_saved_and_the_others_are_unchanged
 
 void test_a_qry_is_a_runs_file_regardless_of_case(void)
 {
-    TEST_ASSERT_EQUAL_INT(CLI_ARCHIVE_QRY, EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = "build/qry/query1-x.QRY"));
+    TEST_ASSERT_EQUAL_INT(CLI_ARCHIVE_QRY, EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = "build/qry/query1-x.QRY"));
 }
 
 void test_a_runs_file_lists_a_name_with_slashes_in_folders_of_its_own(void)

@@ -70,8 +70,8 @@ export const RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF\u{10800}-\u{10FFF}\
 // they do not.
 export function runsRightToLeft(text) {
   const strong = [...text].flatMap((char) => {
-    const kind = RTL.test(char) ? "R" : /[\p{L}\p{N}]/u.test(char) ? "L" : null;
-    return char.length === 2 ? [kind, kind] : [kind];
+    const type = RTL.test(char) ? "R" : /[\p{L}\p{N}]/u.test(char) ? "L" : null;
+    return char.length === 2 ? [type, type] : [type];
   });
   const out = new Array(strong.length).fill(false);
   let before = null;

@@ -347,7 +347,7 @@ static void tests_row_draw(const GuiPaneCfg *args)
         EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
                    .size = row_size, .top = rect.y, .pixel_height = rect.height);
     const int right = rect.x + rect.width - pad;
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_TESTS_ROW_FILE: {
         int x = rect.x + pad;
@@ -508,12 +508,12 @@ static int tests_press(const GuiPaneCfg *args)
     {
         return 0;
     }
-    if (row.kind == CLI_TESTS_ROW_FILE)
+    if (row.type == CLI_TESTS_ROW_FILE)
     {
         EMBED_CALL(cli_tests_pane.toggle, CliTestsPaneCfg, .at = args->row);
         return 0;
     }
-    if ((row.kind != CLI_TESTS_ROW_TEST) && (row.kind != CLI_TESTS_ROW_COVER))
+    if ((row.type != CLI_TESTS_ROW_TEST) && (row.type != CLI_TESTS_ROW_COVER))
     {
         return 0;
     }

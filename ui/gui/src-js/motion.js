@@ -30,8 +30,8 @@ const SEEN = 2;
 
 const state = { hidden: document.hidden, waiting: new Set(), lost: 0, stoppedAt: null, acted: 0, pausedUntil: 0, lastFrame: 0, frame: 1000 / 60 };
 
-for (const kind of ["keydown", "pointerdown", "pointermove", "wheel", "scroll"]) {
-  document.addEventListener(kind, () => (state.acted = performance.now()), { capture: true, passive: true });
+for (const type of ["keydown", "pointerdown", "pointermove", "wheel", "scroll"]) {
+  document.addEventListener(type, () => (state.acted = performance.now()), { capture: true, passive: true });
 }
 
 // Takes the next `ms` of frames from the lowest work, for motion the page drives itself.

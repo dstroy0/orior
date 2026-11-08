@@ -3,7 +3,7 @@
 // host.c: orior_cli in a Flatpak's sandbox runs the machine's own programs on the machine. Inside the sandbox none of
 // the machine's compilers, SDKs and tools are there: each program on the machine's PATH is given a stand-in of the same
 // name in a folder of orior's own, put first on the PATH of orior_cli and of all it starts: a script that runs the
-// program on the machine through `flatpak-spawn --host`, in the folder it was started in, with the terminal's kind, the
+// program on the machine through `flatpak-spawn --host`, in the folder it was started in, with the terminal's type, the
 // language, and each variable ORIOR_HOST_ENV names. A job, a tool, a language server, git and the terminal's shell all
 // reach the machine's own that way. Outside a sandbox nothing changes
 #include "host.h"

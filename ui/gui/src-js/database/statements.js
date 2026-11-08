@@ -40,7 +40,7 @@ function placeAt(here, offset) {
   }
 }
 
-const kindOf = (name) => connectionOf(name)?.kind ?? "postgres";
+const typeOf = (name) => connectionOf(name)?.kind ?? "postgres";
 
 // The page counts text in UTF-16 units and the window's side and the servers count it in characters: the
 // characters before a place the page gives, and the units before a count of characters.
@@ -64,7 +64,7 @@ export async function runStatement() {
   let start = charsBefore(here.text, here.from);
   let statement = here.text.slice(here.from, here.to);
   if (!statement.trim()) {
-    const span = await invoke("db_statement_at", { text: here.text, offset: start, kind: kindOf(name) });
+    const span = await invoke("db_statement_at", { text: here.text, offset: start, kind: typeOf(name) });
     if (!span) {
       say("The cursor stands in no statement: Run File runs them all");
       return;
@@ -89,7 +89,7 @@ export async function runSqlFile() {
   if (!state.connections.length) {
     await readConnections();
   }
-  const spans = await invoke("db_statements", { text: here.text, kind: kindOf(name) });
+  const spans = await invoke("db_statements", { text: here.text, kind: typeOf(name) });
   const characters = [...here.text];
   let done = 0;
   for (const [from, to] of spans) {

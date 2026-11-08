@@ -181,13 +181,13 @@ int cli_ipp_print(const CliIppSizeErrMsgCfg *args)
     {
         EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "copies");
         // a count of copies is far below what an int represents
-        EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
+        EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_request, .type = CLI_IPP_INTEGER,
                    .value = (int)args->job->copies);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->job->format, .other = "application/pdf", .cap = CLI_POOL_BYTES}))
     {
         EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "orientation-requested");
-        EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_ENUM,
+        EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_request, .type = CLI_IPP_ENUM,
                    .value = args->job->landscape ? 4 : 3);
     }
     const int answered = EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = args->document,
@@ -210,7 +210,7 @@ int cli_ipp_job_state(const CliIppErrMsgUriCfg *args)
     int *state = args->state;
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x0009u, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "job-id");
-    EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
+    EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_request, .type = CLI_IPP_INTEGER,
                .value = args->id);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "requested-attributes");
     EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_KEYWORD,
@@ -243,7 +243,7 @@ int cli_ipp_cancel(const CliIppErrMsgUriCfg *args)
 {
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x0008u, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "job-id");
-    EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
+    EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_request, .type = CLI_IPP_INTEGER,
                .value = args->id);
     const int done =
         EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ULL, .err_msg = args->err_msg);

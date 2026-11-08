@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// input_event_test.c: the input's check: each input carries what its kind says and leaves the rest zero, and the table hands an input
-// to the function named for its kind and to nothing else
+// input_event_test.c: the input's check: each input carries what its type says and leaves the rest zero, and the table hands an input
+// to the function named for its type and to nothing else
 #include "../../../../../ui/gui/src/input_event.h"
 #include "../cli/cli_check.h"
 
@@ -39,7 +39,7 @@ int main(void)
     const GuiInput *const text = GUI_TEXT_INPUT("ab", 2ull);
     cli_check((text->type == GUI_INPUT_TEXT) && (text->size == 2ull) && (text->text[1] == 'b'), "text typed carries its bytes");
 
-    // the table hands each kind to the function it names, and a kind it names none for goes nowhere
+    // the table hands each type to the function it names, and a type it names none for goes nowhere
     GuiInputHandlers handlers = {{NULL}};
     handlers.by_type[GUI_INPUT_DOWN] = transferred_pressed;
     handlers.by_type[GUI_INPUT_MOVED] = transferred_moved;

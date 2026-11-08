@@ -35,11 +35,11 @@ EMBED_INLINE int cli_read(const WindowsRegistryCtx *args)
     {
         return 0;
     }
-    DWORD kind = 0u;
+    DWORD type = 0u;
     DWORD size = sizeof(s_data) - sizeof(wchar_t);
-    const LONG status = RegQueryValueExW(opened, wide_name, NULL, &kind, (LPBYTE)s_data, &size);
+    const LONG status = RegQueryValueExW(opened, wide_name, NULL, &type, (LPBYTE)s_data, &size);
     RegCloseKey(opened);
-    if ((status != ERROR_SUCCESS) || ((kind != REG_SZ) && (kind != REG_EXPAND_SZ)))
+    if ((status != ERROR_SUCCESS) || ((type != REG_SZ) && (type != REG_EXPAND_SZ)))
     {
         return 0;
     }

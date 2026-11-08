@@ -351,7 +351,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     s_pending_at = 0ULL;
     s_serve = args->serve;
     s_serve_context = args->serve_context;
-    dap->kind = CLI_DAP_WITHIN;
+    dap->type = CLI_DAP_WITHIN;
     dap->ends_program = 1;
     dap->emit = emit;
     dap->context = context;

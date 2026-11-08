@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Plugins that run code of their own, kind "script" (plugins.rs). Each runs in a worker of its own,
+// Plugins that run code of their own, type "script" (plugins.rs). Each runs in a worker of its own,
 // apart from the editor and from every other plugin: one that is slow or stuck holds up neither the
 // keys nor the others. Every second each is asked whether it is there; one that has not answered for
 // STUCK is named on the status bar with how long, the status bar shown while it stands, and Stop there
@@ -117,7 +117,7 @@ function allowedAll() {
 export function askedMore(reading) {
   const asks = reading.asks ?? { reads: [], writes: [], reaches: [] };
   const granted = allowedAll()[reading.id] ?? {};
-  const more = Object.fromEntries(["reads", "writes", "reaches"].map((kind) => [kind, asks[kind].filter((one) => !(granted[kind] ?? []).includes(one))]));
+  const more = Object.fromEntries(["reads", "writes", "reaches"].map((type) => [type, asks[type].filter((one) => !(granted[type] ?? []).includes(one))]));
   return Object.values(more).some((list) => list.length) ? more : null;
 }
 
@@ -164,11 +164,11 @@ function matches(pattern, path) {
   return found.test(path.replace(/\\/g, "/"));
 }
 
-// Refuses a plugin's call on `path` it did not ask for, as `kind`, reads or writes.
-function hold(one, kind, path) {
-  const patterns = one.asks?.[kind] ?? [];
+// Refuses a plugin's call on `path` it did not ask for, as `type`, reads or writes.
+function hold(one, type, path) {
+  const patterns = one.asks?.[type] ?? [];
   if (!patterns.some((pattern) => matches(pattern, path))) {
-    throw new Error(`${one.name} did not ask to ${kind === "reads" ? "read" : "write"} ${path}`);
+    throw new Error(`${one.name} did not ask to ${type === "reads" ? "read" : "write"} ${path}`);
   }
 }
 
@@ -181,7 +181,7 @@ const COLORS = ["--bg", "--surface", "--well", "--fg", "--fg-2", "--fg-3", "--li
 const state = { running: new Map(), hooks: null, timer: 0, node: null, told: new Set() };
 
 // The marks the running plugins lay on the file at `path`: each line's, from every plugin, as
-// [{ text, kind, title, plugin }].
+// [{ text, type, title, plugin }].
 export function marksOf(path) {
   const out = new Map();
   for (const one of state.running.values()) {

@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // settings_parts.c: the parts of a settings file: its own settings, its system's, and on the reader's own
-// settings.json its machine's, each with where it stands; and a kind of file's settings, each set aside
+// settings.json its machine's, each with where it stands; and a type of file's settings, each set aside
 #include "settings_internal.h"
 
-// the parts, their values and the kinds' settings, as settings_layers.c stores them under its lock
+// the parts, their values and the types' settings, as settings_layers.c stores them under its lock
 static CliPart *s_parts_of;
 static CliPartValue *s_values_of;
-static CliKindSet *s_kinds_of;
+static CliTypeSet *s_types_of;
 
 void cli_settings_parts_store(const CliSettingsPartsCtx *args)
 {
     s_parts_of = args->parts;
     s_values_of = args->values;
-    s_kinds_of = args->kinds;
+    s_types_of = args->types;
 }
 
 typedef struct
@@ -72,12 +72,12 @@ EMBED_INLINE unsigned int cli_value_append(const SettingsPartsCtx *args)
 }
 
 // the parts of one file put after the parts: its own settings, its system's, and on the reader's own settings.json its
-// machine's; a kind's settings put after the kinds
+// machine's; a type's settings put after the types
 unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
 {
     unsigned int parts = args->parts_u32;
     unsigned int *values = args->values_u32s;
-    unsigned int *kinds = args->kinds_u32s;
+    unsigned int *types = args->types_u32s;
     const CliJson *const json = &args->chain->json;
     const char *const name = args->chain->file[args->file];
     const unsigned int object = args->chain->values[args->file];
@@ -85,20 +85,20 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
     for (unsigned int member = json->node[object].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
         const char *const key = json->text + json->node[member].key;
-        const char *kind = NULL;
+        const char *type = NULL;
         unsigned long long length = 0ULL;
-        if (EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = key, .kind = &kind,
+        if (EMBED_CALL(cli_settings_key_internal.type_get, CliSettingsKeyCtx, .key = key, .type = &type,
                        .length_pointer = &length))
         {
-            if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
-                           .kind = CFG_JSON_OBJECT) &&
-                (*kinds < CLI_LAYER_PARTS))
+            if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
+                           .type = CFG_JSON_OBJECT) &&
+                (*types < CLI_LAYER_PARTS))
             {
-                s_kinds_of[*kinds] = (CliKindSet){args->chain, args->file, key, member};
-                *kinds += 1u;
+                s_types_of[*types] = (CliTypeSet){args->chain, args->file, key, member};
+                *types += 1u;
             }
-            else if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                 .node = member, .kind = CFG_JSON_OBJECT))
+            else if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                 .node = member, .type = CFG_JSON_OBJECT))
             {
                 EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = ": ",
                            .second = key, .third = " is an object of settings");
@@ -131,8 +131,8 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
                        .part = NULL, .first_u32 = first, .values = *values, .rank = rank);
     const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = object, .name = args->layers->system);
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = set,
-                   .kind = CFG_JSON_OBJECT))
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = set,
+                   .type = CFG_JSON_OBJECT))
     {
         const unsigned int system_first = *values;
         for (unsigned int member = json->node[set].first; member != CLI_JSON_NONE; member = json->node[member].next)
@@ -171,8 +171,8 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
     }
     const unsigned int machine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                             .object = object, .name = "machine");
-    if (args->own && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                .node = machine, .kind = CFG_JSON_OBJECT))
+    if (args->own && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                .node = machine, .type = CFG_JSON_OBJECT))
     {
         const unsigned int machine_first = *values;
         for (unsigned int member = json->node[machine].first; member != CLI_JSON_NONE; member = json->node[member].next)

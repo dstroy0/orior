@@ -314,8 +314,8 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
     }
     const unsigned int many = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                          .object = options, .name = "frameworks");
-    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                        .node = many, .kind = CFG_JSON_ARRAY)
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                        .node = many, .type = CFG_JSON_ARRAY)
                                  ? json.node[many].first
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
@@ -400,7 +400,7 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
             one + EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = one, .at = 0ULL,
                              .size = (unsigned long long)(end - one), .first = ',', .second = ' ');
         one = (stop < end) ? (stop + 2) : end;
-        // `name (kinds)`: the `)` at its end left off, then parted at its last ` (`
+        // `name (types)`: the `)` at its end left off, then parted at its last ` (`
         const char *close = stop;
         close = start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = start,
                                    .at = (unsigned long long)(close - start), .set = ")");
@@ -417,14 +417,14 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
         unsigned long long length = (unsigned long long)(split - start);
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &name,
                    .length_pointer = &length);
-        const char *const kinds = split + 2;
-        const unsigned long long kinds_length = (unsigned long long)(close - kinds);
+        const char *const types = split + 2;
+        const unsigned long long types_length = (unsigned long long)(close - types);
         int optional = 0;
         {
             unsigned long long at = 0ULL;
-            while (!optional && ((at + 8ULL) <= kinds_length))
+            while (!optional && ((at + 8ULL) <= types_length))
             {
-                optional = memor.cmp(&(MemoriaCfg){.src = kinds + at, .other = "optional", .bytes = 8u}) == 0;
+                optional = memor.cmp(&(MemoriaCfg){.src = types + at, .other = "optional", .bytes = 8u}) == 0;
                 at += 1ULL;
             }
         }
@@ -480,9 +480,9 @@ void cli_executables_built_advice(const CliExecutablesRootCfg *args)
                           .byte = '/') +
                1)
             : script;
-    const unsigned int kind =
-        EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
-    if (kind == CLI_KIND_DOTNET)
+    const unsigned int type =
+        EMBED_CALL(cli_executables_name_out_folder_internal.type_get, CliExecutablesNameOutFolderCtx, .name = base);
+    if (type == CLI_TYPE_DOTNET)
     {
         char file[CLI_PATH_MAX_LEN];
         char why[CLI_NAME_MAX_LEN];
@@ -493,7 +493,7 @@ void cli_executables_built_advice(const CliExecutablesRootCfg *args)
             EMBED_CALL(cli_dotnet_missing, ExecutablesDotnetCtx, .file = file, .sink = args->sink);
         }
     }
-    else if (kind == CLI_KIND_PYINSTALLER)
+    else if (type == CLI_TYPE_PYINSTALLER)
     {
         CliOwn own = {"", args->sink};
         char folder[CLI_PATH_MAX_LEN];

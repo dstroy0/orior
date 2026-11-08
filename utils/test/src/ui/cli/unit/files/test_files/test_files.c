@@ -257,18 +257,18 @@ void test_a_tree_its_repository_ignores_lists_its_files_from_the_disk(void)
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }
 
-void test_the_kinds_view_records_each_files_name_and_ending_once(void)
+void test_the_types_view_records_each_files_name_and_ending_once(void)
 {
     char tree[CLI_PATH_MAX_LEN];
     ignored_tree_written(tree);
-    const CliFiles *const kinds = EMBED_CALL(cli_files_root_paths.kinds_view, CliFilesRootPathsCfg, .root = tree);
-    TEST_ASSERT_NOT_NULL(kinds);
-    TEST_ASSERT_EQUAL_UINT64(3ull, kinds->count);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = kinds, .path = ".js"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = kinds, .path = "a.js"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = kinds, .path = "b.js"));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = kinds, .path = ".lean"));
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = kinds);
+    const CliFiles *const types = EMBED_CALL(cli_files_root_paths.types_view, CliFilesRootPathsCfg, .root = tree);
+    TEST_ASSERT_NOT_NULL(types);
+    TEST_ASSERT_EQUAL_UINT64(3ull, types->count);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = types, .path = ".js"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = types, .path = "a.js"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = types, .path = "b.js"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = types, .path = ".lean"));
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = types);
 }
 
 void test_a_file_git_would_track_is_tracked(void)

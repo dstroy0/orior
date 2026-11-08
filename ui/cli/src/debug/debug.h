@@ -60,7 +60,7 @@ typedef void (*CliDebugPathWritten)(const CliDebugPathWrittenCfg *args);
 
 // a session started as the object `start` of `json` specifies, in the tree at `root`, with the object `options`, its
 // events going to `emit`: what the session is into `out`, its number first, 1, or 0 with why given. `start` is tagged
-// by its "kind": "file" with "path" and "language", "test" with "id", "process" with "pid", "language" and "parent",
+// by its "type": "file" with "path" and "language", "test" with "id", "process" with "pid", "language" and "parent",
 // "address" with "host", "port" and "remote", "child" with "parent" and "config", and "record" with "path". `options`
 // contains "breakpoints", by file, "exceptions", "stepping" with "ours_only" and "skip", and "entry" (debug_start.c)
 int cli_debug_start(const CliDebugRootCfg *args);

@@ -16,7 +16,7 @@
 // done
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     char *path;
     size_t capacity;
     int chosen;
@@ -36,7 +36,7 @@ typedef struct
 // the dialog shown and what was chosen written into the pick's path as UTF-8
 EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
 {
-    const int saving = args->pick->kind == CLI_PICK_SAVE;
+    const int saving = args->pick->type == CLI_PICK_SAVE;
     IFileDialog *dialog = NULL;
     const HRESULT made = CoCreateInstance(saving ? &CLSID_FileSaveDialog : &CLSID_FileOpenDialog, NULL,
                                           CLSCTX_INPROC_SERVER, &IID_IFileDialog, (void **)&dialog);
@@ -45,7 +45,7 @@ EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
         return;
     }
     FILEOPENDIALOGOPTIONS options = 0u;
-    if ((args->pick->kind == CLI_PICK_FOLDER) && SUCCEEDED(IFileDialog_GetOptions(dialog, &options)))
+    if ((args->pick->type == CLI_PICK_FOLDER) && SUCCEEDED(IFileDialog_GetOptions(dialog, &options)))
     {
         (void)IFileDialog_SetOptions(dialog, options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
     }
@@ -81,7 +81,7 @@ static void picker_run(void *context)
 
 int cli_file_pick(const CliPathCapacityCtx *args)
 {
-    CliPick pick = {args->kind, args->path_out, args->capacity_bytes, 0, 0, {picker_run, NULL, CLI_PRIORITY_WORK}};
+    CliPick pick = {args->type, args->path_out, args->capacity_bytes, 0, 0, {picker_run, NULL, CLI_PRIORITY_WORK}};
     pick.thread.context = &pick;
     args->path_out[0] = '\0';
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &pick.thread))

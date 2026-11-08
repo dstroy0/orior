@@ -371,12 +371,12 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   });
   // A button of the mouse past its first three, and the wheel turned with a key pressed, run the command
   // that holds them, where one does.
-  for (const kind of ["mousedown", "mouseup"]) {
+  for (const type of ["mousedown", "mouseup"]) {
     window.addEventListener(
-      kind,
+      type,
       (event) => {
         const name = buttonName(event);
-        if (name && (kind === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runPressed(name))) {
+        if (name && (type === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runPressed(name))) {
           event.preventDefault();
         }
       },

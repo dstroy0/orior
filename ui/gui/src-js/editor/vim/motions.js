@@ -31,9 +31,9 @@ export function backward(p) {
   return p.line > 0 ? pos(p.line - 1, this.line(p.line - 1).length) : null;
 }
 
-// A letter's kind: 0 for space and line ends, 1 for a word's letters, 2 for any other; with `big`,
+// A letter's type: 0 for space and line ends, 1 for a word's letters, 2 for any other; with `big`,
 // 1 for every letter but space.
-export function kind(letter, big) {
+export function type(letter, big) {
   if (letter === "\n" || /\s/.test(letter)) {
     return 0;
   }
@@ -70,8 +70,8 @@ export function wordEnd(p, big) {
   if (!at) {
     return p;
   }
-  const kind = this.kind(this.charAt(at), big);
-  for (let next = this.forward(at); next && this.kind(this.charAt(next), big) === kind; next = this.forward(next)) {
+  const type = this.kind(this.charAt(at), big);
+  for (let next = this.forward(at); next && this.kind(this.charAt(next), big) === type; next = this.forward(next)) {
     at = next;
   }
   return at;
@@ -85,8 +85,8 @@ export function wordBack(p, big) {
   if (!at) {
     return pos(0, 0);
   }
-  const kind = this.kind(this.charAt(at), big);
-  for (let back = this.backward(at); kind && back && back.line === at.line && this.kind(this.charAt(back), big) === kind; back = this.backward(back)) {
+  const type = this.kind(this.charAt(at), big);
+  for (let back = this.backward(at); type && back && back.line === at.line && this.kind(this.charAt(back), big) === type; back = this.backward(back)) {
     at = back;
   }
   return at;
@@ -301,8 +301,8 @@ export function moveBy(motion, count) {
 
 // Text objects: the span of a word, of a quoted text on the line, or of a bracketed one around the
 // cursor, inside its marks for i and with them for a.
-export function object({ kind, of }, from, count) {
-  const inner = kind === "i";
+export function object({ kind: type, of }, from, count) {
+  const inner = type === "i";
   const text = this.line(from.line);
   if (of === "w" || of === "W") {
     if (!text.length) {

@@ -66,11 +66,11 @@ export function isNotebook(path) {
 // A cell of the model from a cell of the file; a cell the file gives no id takes one as Jupyter
 // makes them.
 export function cellOf(book, raw) {
-  const kind = raw.cell_type ?? "code";
-  const language = kind === "code" ? book.language : state.hooks.languageOf("cell.md");
+  const type = raw.cell_type ?? "code";
+  const language = type === "code" ? book.language : state.hooks.languageOf("cell.md");
   const cell = {
     id: raw.id ?? crypto.randomUUID().replaceAll("-", "").slice(0, 8),
-    kind,
+    kind: type,
     raw,
     session: new Session(raw.source ?? "", language),
     outputs: raw.outputs ? raw.outputs.slice() : [],

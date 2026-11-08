@@ -430,12 +430,12 @@ void cli_build_relative(const CliBuildsItemsCfg *args)
         return;
     }
     (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
-                     .label = args->value + base, .label_size = args->value_size - base, .kind = args->kind,
+                     .label = args->value + base, .label_size = args->value_size - base, .type = args->type,
                      .detail = args->detail, .detail_size = args->detail_size, .insert = args->value + base,
                      .insert_size = args->value_size - base, .snippet = 0);
 }
 
-void cli_build_items(const CliBuildsItemsKindCfg *args)
+void cli_build_items(const CliBuildsItemsTypeCfg *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -446,7 +446,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
             label -= 2u;
         }
         (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
-                         .label = args->words[at], .label_size = label, .kind = args->kind, .detail = args->detail,
+                         .label = args->words[at], .label_size = label, .type = args->type, .detail = args->detail,
                          .detail_size = cellul.len(&(CatenaFinitaCfg){.src = args->detail, .cap = CLI_POOL_BYTES}),
                          .insert = args->words[at],
                          .insert_size = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES}),

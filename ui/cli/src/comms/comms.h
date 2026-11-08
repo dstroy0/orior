@@ -170,14 +170,14 @@ struct CliCommsInnerCfg
 #define CLI_COMMS_READ 5u
 #define CLI_COMMS_FORWARD 64u
 #define CLI_COMMS_REFRESH_MS 1000ULL
-// a row's kind: a group's, a part's, a channel's, a stored message's
+// a row's type: a group's, a part's, a channel's, a stored message's
 #define CLI_COMMS_ROW_GROUP 0u
 #define CLI_COMMS_ROW_PART 1u
 #define CLI_COMMS_ROW_CHANNEL 2u
 #define CLI_COMMS_ROW_MESSAGE 3u
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     const char *name;
     unsigned long long name_length;
     const char *status;

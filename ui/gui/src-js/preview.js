@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The live preview: the file in the editor shown as it reads, beside its text or alone, as the reader
-// chooses once for every file it shows (View, Preview, Ctrl+K V), for each kind of file that sets how
+// chooses once for every file it shows (View, Preview, Ctrl+K V), for each type of file that sets how
 // something looks and runs nothing: Markdown, HTML and the CSS it takes, CSS over a page of its own,
 // SVG, Mermaid's diagrams and LaTeX; and the answers of a file of requests (requests.js). Each
 // change is drawn as it is typed, and the place the cursor stands in the text is marked in the
@@ -38,7 +38,7 @@ const KEY = "orior.preview";
 const LOOK = 200;
 const LATEST = 600;
 
-const KINDS = [
+const TYPES = [
   ["markdown", /\.(md|markdown|mdown|mkd|mdx)$/i],
   ["html", /\.(html?|xhtml)$/i],
   ["css", /\.css$/i],
@@ -50,11 +50,11 @@ const KINDS = [
 
 const state = { pane: null, kind: null, session: null, path: null, blocks: [], seen: null, timer: 0, idle: 0, paneSet: null, editorSet: null, scroller: null, diagram: null, frame: null, sheets: new Map(), linked: new Set(), last: null };
 
-// The kind of preview the file at `path` has: "markdown", "html", "css", "svg", "mermaid", "latex"
+// The type of preview the file at `path` has: "markdown", "html", "css", "svg", "mermaid", "latex"
 // or "requests", the answers of a file of requests, or null for a file that has none.
-export const kindOf = (path) => KINDS.find(([, pattern]) => pattern.test(path ?? ""))?.[0] ?? null;
+export const typeOf = (path) => TYPES.find(([, pattern]) => pattern.test(path ?? ""))?.[0] ?? null;
 
-export const isMarkdown = (path) => kindOf(path) === "markdown";
+export const isMarkdown = (path) => typeOf(path) === "markdown";
 
 // How the reader sees a file the preview shows: "off", "beside" its text, or "alone".
 export function previewMode() {
@@ -377,8 +377,8 @@ function follow(given) {
 export function apply() {
   const desk = document.querySelector("#mode-edit .desk");
   const { editor, active } = editing();
-  const kind = editor ? kindOf(active) : null;
-  const mode = kind ? previewMode() : "off";
+  const type = editor ? typeOf(active) : null;
+  const mode = type ? previewMode() : "off";
   desk.dataset.preview = mode;
   state.pane.hidden = mode === "off";
   state.pane.style.top = `${document.getElementById("tabs").offsetHeight}px`;
@@ -395,25 +395,25 @@ export function apply() {
     return;
   }
   // A stylesheet the page shown links stays under that page, swapped into it as it is typed.
-  const under = kind === "css" && state.kind === "html" && state.linked.has(active) && editing().sessionOf(state.path) === state.session;
-  if (!under && (state.session !== editor.s || state.path !== active || state.kind !== kind)) {
+  const under = type === "css" && state.kind === "html" && state.linked.has(active) && editing().sessionOf(state.path) === state.session;
+  if (!under && (state.session !== editor.s || state.path !== active || state.kind !== type)) {
     if (state.kind === "latex") {
       hideTex();
     }
     if (state.kind === "requests") {
       hideRequests();
     }
-    Object.assign(state, { session: editor.s, path: active, kind, blocks: [], seen: null, diagram: null, sheets: new Map(), linked: new Set(), last: null });
-    state.pane.dataset.kind = kind;
+    Object.assign(state, { session: editor.s, path: active, kind: type, blocks: [], seen: null, diagram: null, sheets: new Map(), linked: new Set(), last: null });
+    state.pane.dataset.kind = type;
     state.pane.replaceChildren();
     window.cancelIdleCallback?.(state.idle);
     state.idle = 0;
     state.pane.scrollTop = 0;
     state.frame = new PageFrame(state.pane, { follow });
-    if (kind === "latex") {
+    if (type === "latex") {
       state.seen = editor.s.doc.id;
       showTex(state.pane, editor.s, active, goTo);
-    } else if (kind === "requests") {
+    } else if (type === "requests") {
       state.seen = editor.s.doc.id;
       showRequests(state.pane, editor.s, active);
     } else {

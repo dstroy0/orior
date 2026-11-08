@@ -399,7 +399,7 @@ EMBED_INLINE void vim_run(const CliVimCtx *args)
             .text = "", .length = 0ULL);
         view->taking = 1;
     }
-    if (command->chosen || ((command->object_kind != 0u) && (command->name == 0u)))
+    if (command->chosen || ((command->object_type != 0u) && (command->name == 0u)))
     {
         EMBED_CALL(cli_vim_commands_internal.chosen_run, CliVimCtx, .at = args->at, .key = args->key,
                    .command = command, .err_msg = args->err_msg);
@@ -450,7 +450,7 @@ EMBED_INLINE void vim_played(const CliVimCtx *args)
         mmgr_line_put_n(&named, keyed ? text + start : "", keyed ? end - start : 0ULL);
         (void)mmgr_line_finish(&named);
         const CliViewInput input = {
-            .kind = keyed ? CLI_VIEW_KEY : CLI_VIEW_TEXT, .name = name, .text = text + start, .length = end - start};
+            .type = keyed ? CLI_VIEW_KEY : CLI_VIEW_TEXT, .name = name, .text = text + start, .length = end - start};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = args->key, .input = &input,
                          .err_msg = args->err_msg);
         at = keyed ? end + 1ULL : end;
@@ -839,7 +839,7 @@ int cli_vim_text(const CliVimCfg *args)
         }
         if (view->mode == CLI_VIM_INSERT)
         {
-            const CliViewInput rest = {.kind = CLI_VIEW_TEXT, .text = args->text + read, .length = args->length - read};
+            const CliViewInput rest = {.type = CLI_VIEW_TEXT, .text = args->text + read, .length = args->length - read};
             (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = args->key, .input = &rest,
                              .err_msg = args->err_msg);
             break;

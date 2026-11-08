@@ -26,13 +26,13 @@ static void catalog_laid(const char *script)
 {
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 16u, .params = s_params, .params_max = 32u, .steps = s_steps, .steps_max = 16u, .request = s_args, .args_max = 32u, .lists = s_lists, .lists_max = 64u, .text_out = s_text, .text_max = sizeof(s_text));
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "build/alpha", .group = "build", .title = "Alpha build", .file = "src/alpha.sh", .about = "builds the alpha", .opens = "");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "target", .kind = "choice", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "target", .type = "choice", .required = 0);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "x86");
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "arm");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "parts", .kind = "many", .required = 0);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "parts", .type = "many", .required = 0);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "one");
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "two");
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "name", .kind = "word", .required = 1);
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_catalog, .key = "name", .type = "word", .required = 1);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .text = script, .program = CLI_PROGRAM_BASH);
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "build/beta", .group = "build", .title = "Beta", .file = "src/beta.sh", .about = "beta things", .opens = "");
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "sim/gamma", .group = "sim", .title = "Gamma sim", .file = "src/gamma.sh", .about = "a simulation", .opens = "");
@@ -69,13 +69,13 @@ static void typed(const char *text)
     EMBED_CALL(cli_job_runs_field.type, CliJobRunsFieldCfg, .bytes = text, .length = CLI_UNITY_LENGTH(text));
 }
 
-// the first row of `kind` from `from`, the rows' count where none is
-static unsigned int row_of(unsigned int kind, unsigned int from)
+// the first row of `type` from `from`, the rows' count where none is
+static unsigned int row_of(unsigned int type, unsigned int from)
 {
     const unsigned int count = rows();
     for (unsigned int at = from; at < count; at += 1u)
     {
-        if (row(at).kind == kind)
+        if (row(at).type == type)
         {
             return at;
         }
@@ -84,9 +84,9 @@ static unsigned int row_of(unsigned int kind, unsigned int from)
 }
 
 // a report of the run `run` handed to the store's sink as its thread hands it
-static void reported(unsigned int kind, unsigned long long run, const char *job, const char *stream, const char *text, long long code, int stopped)
+static void reported(unsigned int type, unsigned long long run, const char *job, const char *stream, const char *text, long long code, int stopped)
 {
-    const CliRunEvent event = {kind, run, job, stream, text, kind == CLI_JOB_RUNS_ENDED, code, stopped, NULL, 0u, NULL, 0.0};
+    const CliRunEvent event = {type, run, job, stream, text, type == CLI_JOB_RUNS_ENDED, code, stopped, NULL, 0u, NULL, 0.0};
     EMBED_CALL(cli_job_runs_sink.emit, CliEachEventCfg, .context = NULL, .event = &event);
 }
 
@@ -139,7 +139,7 @@ void test_read_lists_the_groups_in_the_catalogs_order_each_opened_and_closed(voi
     TEST_ASSERT_EQUAL_INT(0, pressed(0u));
     TEST_ASSERT_EQUAL_UINT(5u, rows());
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_OPEN, row(0u).flags & CLI_JOB_RUN_OPEN);
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_JOB, row(1u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_JOB, row(1u).type);
     CLI_TEST_ASSERT_TEXT("Alpha build", row(1u).text, row(1u).text_length);
     CLI_TEST_ASSERT_TEXT("Beta", row(2u).text, row(2u).text_length);
     (void)pressed(4u);
@@ -174,7 +174,7 @@ void test_a_job_chosen_lists_its_file_and_params_and_the_choices_of_the_param_fo
 {
     const unsigned int first = alpha_chosen();
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_CHOSEN, row(1u).flags & CLI_JOB_RUN_CHOSEN);
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_ABOUT, row(2u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_ABOUT, row(2u).type);
     CLI_TEST_ASSERT_TEXT("src/alpha.sh", row(2u).text, row(2u).text_length);
     CLI_TEST_ASSERT_TEXT("builds the alpha", row(2u).second, row(2u).second_length);
     TEST_ASSERT_EQUAL_UINT(3u, first);
@@ -188,12 +188,12 @@ void test_a_job_chosen_lists_its_file_and_params_and_the_choices_of_the_param_fo
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_FOCUSED, row(3u).flags & CLI_JOB_RUN_FOCUSED);
     TEST_ASSERT_EQUAL_UINT(4u, row_of(CLI_JOB_RUN_CHOICE, 0u));
     CLI_TEST_ASSERT_TEXT("arm", row(5u).text, row(5u).text_length);
-    // every row agrees with a walk of the kinds in order, the sections' starts sorted
-    const unsigned int kinds[] = {CLI_JOB_RUN_GROUP, CLI_JOB_RUN_JOB, CLI_JOB_RUN_ABOUT, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_CHOICE, CLI_JOB_RUN_CHOICE, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_JOB, CLI_JOB_RUN_GROUP, CLI_JOB_RUN_GROUP};
-    TEST_ASSERT_EQUAL_UINT(sizeof(kinds) / sizeof(kinds[0]), rows());
+    // every row agrees with a walk of the types in order, the sections' starts sorted
+    const unsigned int types[] = {CLI_JOB_RUN_GROUP, CLI_JOB_RUN_JOB, CLI_JOB_RUN_ABOUT, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_CHOICE, CLI_JOB_RUN_CHOICE, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_PARAM, CLI_JOB_RUN_JOB, CLI_JOB_RUN_GROUP, CLI_JOB_RUN_GROUP};
+    TEST_ASSERT_EQUAL_UINT(sizeof(types) / sizeof(types[0]), rows());
     for (unsigned int at = 0u; at < rows(); at += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT(kinds[at], row(at).kind);
+        TEST_ASSERT_EQUAL_UINT(types[at], row(at).type);
     }
     CliJobRunRow past;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = rows(), .row_out = &past));
@@ -275,7 +275,7 @@ void test_what_a_run_reports_comes_in_on_the_step_its_lines_plain_with_their_spa
     TEST_ASSERT_EQUAL_UINT(0u, line.spans);
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_STDERR, row(run + 3u).stream);
     TEST_ASSERT_EQUAL_UINT64(0ULL, row(run + 3u).text_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_END, row(run + 4u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_END, row(run + 4u).type);
     CLI_TEST_ASSERT_TEXT("exit 0", row(run + 4u).text, row(run + 4u).text_length);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_job_runs_row.line, CliJobRunsRowCfg, .row_at = run, .line_out = &line));
     reported(CLI_JOB_RUNS_STARTED, 902ULL, "build/alpha", NULL, NULL, 0LL, 0);
@@ -286,7 +286,7 @@ void test_what_a_run_reports_comes_in_on_the_step_its_lines_plain_with_their_spa
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_FAILED | CLI_JOB_RUN_SHOWN, row(second).flags & (CLI_JOB_RUN_FAILED | CLI_JOB_RUN_SHOWN));
     TEST_ASSERT_EQUAL_UINT(run + 1u, second);
     TEST_ASSERT_EQUAL_INT(0, pressed(run));
-    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LINE, row(run + 1u).kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUN_LINE, row(run + 1u).type);
 }
 
 void test_a_run_past_the_lines_bound_lets_its_oldest_lines_go(void)
@@ -320,7 +320,7 @@ void test_the_ended_runs_of_a_job_past_the_bound_let_the_oldest_go_and_a_live_on
     unsigned int runs = 0u;
     for (unsigned int at = 0u; at < rows(); at += 1u)
     {
-        runs += (row(at).kind == CLI_JOB_RUN_RUN) ? 1u : 0u;
+        runs += (row(at).type == CLI_JOB_RUN_RUN) ? 1u : 0u;
     }
     TEST_ASSERT_EQUAL_UINT(CLI_JOB_RUNS_RETAINED + 1u, runs);
     const unsigned int first = row_of(CLI_JOB_RUN_RUN, 0u);

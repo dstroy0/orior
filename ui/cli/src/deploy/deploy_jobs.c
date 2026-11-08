@@ -37,7 +37,7 @@ EMBED_INLINE void jobs_choice(const DeployJobsCtx *args)
 {
     CliCatalog *catalog = args->catalog;
     const char *key = args->key;
-    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = catalog, .key = key, .type = "choice",
                .required = 1);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->first);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->second);
@@ -97,15 +97,15 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
                    .second = "delete them", .third = NULL);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
                    .program = CLI_PROGRAM_ORIOR, .text = NULL, .tool_program = NULL, .system = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_LIT,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_LIT,
                    .a = "deploy", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_LIT,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_LIT,
                    .a = deployment->name, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "do", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "changed there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+        EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "gone there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
     g_cli_guard->persistent_buf_release(s_tree.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_tree.json.node));

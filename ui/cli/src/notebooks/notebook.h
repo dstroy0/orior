@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook.h: notebooks as files: a Jupyter notebook's JSON, and a script of `# %%` cells, as Jupytext's percent form
 // writes one (notebook.c reads and writes them, notebook_merge.c shows and merges them). Each reads as the same
-// notebook, a list of cells, each with its kind, its source as one text, its outputs, the count of its last run and
+// notebook, a list of cells, each with its type, its source as one text, its outputs, the count of its last run and
 // what else the file stored of it; and each writes back as it was read.
 //
 // A notebook's JSON is written as Jupyter writes it: its keys in order, one space to each level, and each cell's
@@ -33,7 +33,7 @@ void cli_notebook_write(const CliNotebookPathBookCfg *args);
 // a notebook's JSON without its outputs and run counts, as a commit that leaves them out writes it, into `out`: 1, or
 // 0 with why given
 int cli_notebook_without_outputs(const CliNotebookTextCfg *args);
-// a notebook's cells as a diff compares them, into `out`: each cell's kind, its source and its outputs' text, the run
+// a notebook's cells as a diff compares them, into `out`: each cell's type, its source and its outputs' text, the run
 // counts, ids and metadata that change on every run left out. 1, or 0 with why given
 int cli_notebook_for_diff(const CliNotebookTextCfg *args);
 // the cells two sides of a merge make of the cells of their base, as Jupyter's notebooks store them: each cell one side

@@ -29,7 +29,7 @@ typedef struct CliArchiveRootCfg CliArchiveRootCfg;
 typedef struct CliArchiveBytesSizeCfg CliArchiveBytesSizeCfg;
 typedef struct CliArchiveCfg CliArchiveCfg;
 
-// the kinds of archive, and none
+// the types of archive, and none
 enum
 {
     CLI_ARCHIVE_ZIP,
@@ -91,8 +91,8 @@ typedef struct
     unsigned long long used;
 } CliChildren;
 
-// the kind of archive a file is by its name, CLI_ARCHIVE_NONE for none
-unsigned int cli_archive_kind_get(const CliArchiveCfg *args);
+// the type of archive a file is by its name, CLI_ARCHIVE_NONE for none
+unsigned int cli_archive_type_get(const CliArchiveCfg *args);
 // the CRC-32 of `size` bytes; the bytes deflated `data` contains into `out`, sized for `capacity`, their count into
 // `out_size` and the bytes of `data` it took into `used`: 1, or 0 with why given; `size` bytes of `data` deflated, in
 // one block of the fixed codes, each run seen in the 32 KiB before it sent as a length and a distance back, into `out`,
@@ -187,11 +187,11 @@ struct CliArchiveCfg
 
 typedef struct
 {
-    unsigned int (*kind_get)(const CliArchiveCfg *args);
+    unsigned int (*type_get)(const CliArchiveCfg *args);
 } CliArchiveNs;
-EMBED_TABLE_LAYOUT(CliArchiveNs, kind_get);
+EMBED_TABLE_LAYOUT(CliArchiveNs, type_get);
 EMBED_TABLE_STORAGE CliArchiveNs cli_archive EMBED_UNUSED = {
-    .kind_get = cli_archive_kind_get,
+    .type_get = cli_archive_type_get,
 };
 
 typedef struct

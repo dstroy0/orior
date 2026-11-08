@@ -139,17 +139,147 @@ EMBED_INLINE unsigned long long slide_lasts_ms(const GuiAutohideSlideCfg *args)
     return (args->lasts_ms != 0ULL) ? args->lasts_ms : GUI_AUTOHIDE_ANIMATION_MS;
 }
 
+// The bead: a spring that follows a target, in a slide's length. The target leaves the start and comes to the end
+// over CLAIM_BEAD_LEAD of the length on a smoothstep, so the bead holds a moment and then lets go. The spring's
+// frequency is 16 a length and its damping ratio is 0.5. The bead is 2 percent of the way at a tenth of the length
+// and 28 percent at a quarter. It goes past its end by about 4 percent at 0.6 of the length, and settles by the end
+#define CLAIM_BEAD_FREQUENCY 16.0
+#define CLAIM_BEAD_DAMPING 0.5
+#define CLAIM_BEAD_LEAD 0.5
+// the spring's steps in a slide's length, each 1/256 of it: about 1.2 ms of a 300 ms slide
+#define CLAIM_BEAD_STEPS 256u
+
+// One step of the bead's spring at `along` over `step`, its distance and speed from the end changed in place. The
+// target's distance is `start` until the lead and then falls to 0 on a smoothstep
+static void claim_bead_step(double along, double step, double start, double *distance, double *pace)
+{
+    const double lead = (along < CLAIM_BEAD_LEAD) ? (along / CLAIM_BEAD_LEAD) : 1.0;
+    const double target = start * (1.0 - (lead * lead * (3.0 - (2.0 * lead))));
+    const double pull = (CLAIM_BEAD_FREQUENCY * CLAIM_BEAD_FREQUENCY * (target - *distance)) -
+                        (2.0 * CLAIM_BEAD_DAMPING * CLAIM_BEAD_FREQUENCY * *pace);
+    *pace += pull * step;
+    *distance += *pace * step;
+}
+
+// The spring's distance from its end and its speed at `along`, a share of the slide's length from 0 to 1. The slide
+// starts `start` from its end with `speed`, both in GUI_FIXED_ONE and a length. The spring runs in CLAIM_BEAD_STEPS
+// steps, and a share between two steps takes the part of a step it reaches. At 1 the distance is 0 exactly: the
+// spring's own small rest at 1 is taken away in proportion to `along`
+static void claim_bead_offset(double along, double start, double speed, double *distance, double *pace)
+{
+    const double step = 1.0 / (double)CLAIM_BEAD_STEPS;
+    // the whole steps before `along`, at most every step
+    const double steps_before = floor(along * (double)CLAIM_BEAD_STEPS);
+    const unsigned int reached =
+        (steps_before >= (double)CLAIM_BEAD_STEPS) ? CLAIM_BEAD_STEPS : (unsigned int)steps_before;
+    double now_distance = start;
+    double now_pace = speed;
+    double end_distance = start;
+    double end_pace = speed;
+    for (unsigned int at = 0u; at < CLAIM_BEAD_STEPS; at += 1u)
+    {
+        if (at == reached)
+        {
+            now_distance = end_distance;
+            now_pace = end_pace;
+            // the part of a step past the last whole one
+            claim_bead_step((double)at * step, (along * (double)CLAIM_BEAD_STEPS - (double)at) * step, start,
+                            &now_distance, &now_pace);
+        }
+        claim_bead_step((double)at * step, step, start, &end_distance, &end_pace);
+    }
+    if (reached >= CLAIM_BEAD_STEPS)
+    {
+        now_distance = end_distance;
+        now_pace = end_pace;
+    }
+    *distance = now_distance - (end_distance * along);
+    *pace = now_pace - end_distance;
+}
+
+// The spring is linear in where it starts and how fast: its distance and speed at a share of the length are the start
+// times a path from a start of one at rest, plus the speed times a path from a start of none at a speed of one. The
+// four paths are made once, CLAIM_BEAD_STEPS and one entries each by GUI_FIXED_ONE, as the ease curves' tables are;
+// a frame reads them and lays the way between two entries straight
+static int s_bead_start_distance[CLAIM_BEAD_STEPS + 1u];
+static int s_bead_start_pace[CLAIM_BEAD_STEPS + 1u];
+static int s_bead_speed_distance[CLAIM_BEAD_STEPS + 1u];
+static int s_bead_speed_pace[CLAIM_BEAD_STEPS + 1u];
+static int s_bead_made;
+
+// the four paths made, once
+static void claim_bead_paths_make(void)
+{
+    for (unsigned int at = 0u; at <= CLAIM_BEAD_STEPS; at += 1u)
+    {
+        const double along = (double)at / (double)CLAIM_BEAD_STEPS;
+        double distance = 0.0;
+        double pace = 0.0;
+        // a path's number by GUI_FIXED_ONE stays within a few times one, far inside an int
+        claim_bead_offset(along, 1.0, 0.0, &distance, &pace);
+        s_bead_start_distance[at] = (int)lround(distance * (double)GUI_FIXED_ONE);
+        s_bead_start_pace[at] = (int)lround(pace * (double)GUI_FIXED_ONE);
+        claim_bead_offset(along, 0.0, 1.0, &distance, &pace);
+        s_bead_speed_distance[at] = (int)lround(distance * (double)GUI_FIXED_ONE);
+        s_bead_speed_pace[at] = (int)lround(pace * (double)GUI_FIXED_ONE);
+    }
+    s_bead_made = 1;
+}
+
+// a path's number at the share `share` of the length, a share by GUI_FIXED_ONE, laid straight between two entries
+static long long claim_bead_path_read(const int *path, unsigned long long share)
+{
+    const unsigned long long width = (unsigned long long)GUI_FIXED_ONE / CLAIM_BEAD_STEPS;
+    const unsigned long long step = share / width;
+    if (step >= CLAIM_BEAD_STEPS)
+    {
+        return path[CLAIM_BEAD_STEPS];
+    }
+    const long long within = (long long)(share % width);
+    return path[step] + ((((long long)path[step + 1u] - path[step]) * within) / (long long)width);
+}
+
+// The bead's number at `share` of the length, a share by GUI_FIXED_ONE, and its speed there in GUI_FIXED_ONE a length
+// where `pace_out` is not NULL. A bead between two numbers that are not negative does not go below 0, since a share
+// below none has no place
+static int claim_bead_at(const GuiSlide *slide, unsigned long long share, int *pace_out)
+{
+    if (!s_bead_made)
+    {
+        claim_bead_paths_make();
+    }
+    const long long start = (long long)slide->from - slide->to;
+    const long long speed = slide->velocity;
+    // a slide's numbers lie far inside an int, and by a path's number by GUI_FIXED_ONE inside a long long
+    const long long distance = ((start * claim_bead_path_read(s_bead_start_distance, share)) +
+                                (speed * claim_bead_path_read(s_bead_speed_distance, share))) /
+                               GUI_FIXED_ONE;
+    const int number = slide->to + (int)distance;
+    if (pace_out != NULL)
+    {
+        *pace_out = (int)(((start * claim_bead_path_read(s_bead_start_pace, share)) +
+                           (speed * claim_bead_path_read(s_bead_speed_pace, share))) /
+                          GUI_FIXED_ONE);
+    }
+    return ((number < 0) && (slide->from >= 0) && (slide->to >= 0)) ? 0 : number;
+}
+
 int gui_slide_at(const GuiAutohideSlideCfg *args)
 {
     const unsigned long long start = args->slide->start_ms;
     const unsigned long long lasts_ms = slide_lasts_ms(args);
-    if ((args->time_ms <= start) || (args->slide->from == args->slide->to))
+    const unsigned int curve = (args->curve != GUI_CURVE_EASE) ? args->curve : args->slide->curve;
+    if ((args->time_ms <= start) || ((args->slide->from == args->slide->to) && (args->slide->velocity == 0)))
     {
         return args->slide->from;
     }
     if (args->time_ms >= start + lasts_ms)
     {
         return args->slide->to;
+    }
+    if (curve == GUI_CURVE_BEAD)
+    {
+        return claim_bead_at(args->slide, ((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms, NULL);
     }
     // the way along the slide, a share of its length, below GUI_FIXED_ONE; the slide's span by the curve's number is
     // within a long long and comes back to a number of GUI_FIXED_ONE
@@ -167,11 +297,28 @@ void gui_slide_to(const GuiAutohideTargetCfg *args)
     {
         return;
     }
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    args->slide_out->from =
-        EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = args->slide_out, .time_ms = now_ms);
-    args->slide_out->to = args->to;
-    args->slide_out->start_ms = now_ms + args->delay_ms;
+    const unsigned long long now_ms = (args->time_ms != 0ULL) ? args->time_ms : cli_clock_milliseconds();
+    GuiSlide *const slide = args->slide_out;
+    const unsigned long long lasts_ms = (args->lasts_ms != 0ULL) ? args->lasts_ms : GUI_AUTOHIDE_ANIMATION_MS;
+    // A bead sent on from mid-way keeps its number and its speed, so its path has no corner. Every other slide, and a
+    // bead at rest, starts again from rest
+    if ((slide->curve == GUI_CURVE_BEAD) && (now_ms > slide->start_ms) && (now_ms < slide->start_ms + lasts_ms) &&
+        ((slide->from != slide->to) || (slide->velocity != 0)))
+    {
+        int pace = 0;
+        const int number =
+            claim_bead_at(slide, ((now_ms - slide->start_ms) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms, &pace);
+        slide->from = number;
+        slide->velocity = (args->delay_ms == 0ULL) ? pace : 0;
+    }
+    else
+    {
+        slide->from = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = slide, .time_ms = now_ms,
+                                  .lasts_ms = lasts_ms);
+        slide->velocity = 0;
+    }
+    slide->to = args->to;
+    slide->start_ms = now_ms + args->delay_ms;
 }
 
 int gui_slide_running(const GuiAutohideSlideCfg *args)
@@ -182,7 +329,9 @@ int gui_slide_running(const GuiAutohideSlideCfg *args)
 unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args)
 {
     const unsigned long long end_ms = args->slide->start_ms + slide_lasts_ms(args);
-    return ((args->slide->from != args->slide->to) && (args->time_ms < end_ms)) ? end_ms : 0ULL;
+    return (((args->slide->from != args->slide->to) || (args->slide->velocity != 0)) && (args->time_ms < end_ms))
+               ? end_ms
+               : 0ULL;
 }
 
 void gui_autohide_init(const GuiAutohideStillCfg *args)
@@ -190,6 +339,15 @@ void gui_autohide_init(const GuiAutohideStillCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->claim, .val = 0, .bytes = sizeof(*args->claim)});
     args->claim->controls_alpha.from = GUI_FIXED_ONE;
     args->claim->controls_alpha.to = GUI_FIXED_ONE;
+    // the parts' reveals and the work's insets move as a bead does; the claim and the controls' opacity keep the ease
+    args->claim->reveal_top.curve = GUI_CURVE_BEAD;
+    args->claim->reveal_bottom.curve = GUI_CURVE_BEAD;
+    args->claim->reveal_left.curve = GUI_CURVE_BEAD;
+    args->claim->reveal_right.curve = GUI_CURVE_BEAD;
+    args->claim->reveal_down.curve = GUI_CURVE_BEAD;
+    args->claim->inset_top.curve = GUI_CURVE_BEAD;
+    args->claim->inset_left.curve = GUI_CURVE_BEAD;
+    args->claim->inset_bottom.curve = GUI_CURVE_BEAD;
     args->claim->grown_top = GUI_FIXED_ONE;
     args->claim->grown_left = GUI_FIXED_ONE;
     args->claim->grown_bottom = GUI_FIXED_ONE;
@@ -597,8 +755,10 @@ EMBED_INLINE int autohide_grow(const ClaimCtx *args)
     {
         grown = GUI_FIXED_ONE;
     }
-    else if (args->reveal > *last)
+    else if ((args->reveal > *last) || (args->reveal >= GUI_FIXED_ONE))
     {
+        // a bead's reveal goes past whole and settles back to it: the slat follows it there, and stands as it grew
+        // only once the reveal goes below whole
         grown = args->reveal;
     }
     else if (args->reveal == 0)

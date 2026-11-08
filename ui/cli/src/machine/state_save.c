@@ -44,7 +44,7 @@ EMBED_INLINE int cli_atomic_write(const StateSaveCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     char folder[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder) &&
+    if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder) &&
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
     {
         mmgr_line_put(args->err_msg, folder);
@@ -131,8 +131,8 @@ EMBED_INLINE unsigned int cli_write(const StateSaveCtx *args)
                          .text = text, .size = length, .tokens = tokens, .tokens_max = tokens_max, .err_msg = &err_msg)
             : CLI_JSON_NONE;
     int same = 0;
-    if ((value != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = json, .node = value, .kind = CFG_JSON_STRING))
+    if ((value != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                .json_read = json, .node = value, .type = CFG_JSON_STRING))
     {
         VerbaLinea back = {back_text, length + 2ULL, 0ULL};
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = value,
@@ -149,7 +149,7 @@ EMBED_INLINE unsigned int cli_write(const StateSaveCtx *args)
     // the nodes and texts the reading made taken back
     json->nodes = mark;
     json->used = used;
-    return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
+    return EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = json,
                       .text = text, .length = length);
 }
 
@@ -214,8 +214,8 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
                                     .err_msg = &unread, .owner = g_cli_state_owner)
                        : CLI_JSON_NONE;
     // the files written, one a theme, in a cell of their count
-    const unsigned int count = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                          .node = themes, .kind = CFG_JSON_ARRAY)
+    const unsigned int count = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                          .node = themes, .type = CFG_JSON_ARRAY)
                                    ? json.node[themes].count
                                    : 0u;
     char (*const saved_names)[CLI_NAME_MAX_LEN] =
@@ -226,8 +226,8 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
     const unsigned long long capacity = CLI_STATE_BYTES + 1ULL;
     char *const written = (count != 0u) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner) : NULL;
     unsigned int names = 0u;
-    for (unsigned int theme = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
-                                         .node = themes, .kind = CFG_JSON_ARRAY)
+    for (unsigned int theme = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                         .node = themes, .type = CFG_JSON_ARRAY)
                                   ? json.node[themes].first
                                   : CLI_JSON_NONE;
          theme != CLI_JSON_NONE; theme = json.node[theme].next)
@@ -392,14 +392,14 @@ EMBED_INLINE int cli_backup_saved(const StateSaveCtx *args)
         return 0;
     }
     const unsigned int object =
-        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &backup, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &backup, .type = CFG_JSON_OBJECT);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup, .object = object,
                .name = "key",
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = &backup, .text = args->key, .length = key_length));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup, .object = object,
                .name = "text",
-               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                    .json = &backup, .text = args->text, .length = args->length));
     const int done = EMBED_CALL(cli_map_write, StateSaveCtx, .path = path, .json = &backup, .object = object,
                                 .err_msg = args->err_msg);
@@ -418,8 +418,8 @@ int cli_state_save(const CliStateFolderCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                    .json = &supplied, .text = args->changes, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = args->err_msg, .owner = g_cli_state_owner);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &supplied, .node = changed,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &supplied, .node = changed,
+                    .type = CFG_JSON_OBJECT))
     {
         g_cli_guard->persistent_buf_release(supplied.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), supplied.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&supplied),

@@ -155,7 +155,7 @@ EMBED_INLINE int cli_file_by_gh(const ReportFileCtx *args)
                    .capacity = sizeof(args->filed->url)) &&
         (args->filed->url[0] != '\0'))
     {
-        args->filed->kind = CLI_FILED_KNOWN;
+        args->filed->type = CLI_FILED_KNOWN;
         return 1;
     }
     const unsigned long long body_capacity = 5ULL * CLI_REPORT_FIELD_CAPACITY;
@@ -200,7 +200,7 @@ EMBED_INLINE int cli_file_by_gh(const ReportFileCtx *args)
                               .src = url_buf,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = url_buf, .cap = CLI_POOL_BYTES}) + 1u});
         }
-        args->filed->kind = CLI_FILED_FILED;
+        args->filed->type = CLI_FILED_FILED;
         return 1;
     }
     return 0;
@@ -241,7 +241,7 @@ static void cli_file_as(const ReportFileCtx *args)
         VerbaLinea page = {args->filed->url, sizeof(args->filed->url), 0ULL};
         EMBED_CALL(cli_report_root_out.page, CliReportRootOutCfg, .report = &report, .root = root, .out = &page);
         mmgr_line_finish(&page);
-        args->filed->kind = CLI_FILED_PAGE;
+        args->filed->type = CLI_FILED_PAGE;
     }
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {

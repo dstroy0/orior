@@ -47,7 +47,7 @@ typedef struct CliDbStopCtx CliDbStopCtx;
 #define CLI_DB_LITE_LINE (1u << 20u)
 #define CLI_DB_LITE_ROWS 64u
 
-// what kind a link is: none, PostgreSQL, MySQL or SQLite
+// what type a link is: none, PostgreSQL, MySQL or SQLite
 enum
 {
     CLI_DB_LINK_NONE,
@@ -87,19 +87,19 @@ typedef struct
     char path_text[CLI_PATH_TEXT];
 } CliDbLite;
 
-// One link to a database: its kind and the connection of that kind
+// One link to a database: its type and the connection of that type
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     CliPg *pg;
     CliMysql *my;
     CliDbLite *lite;
 } CliDbLink;
 
-// What stops the statement a link runs, from another thread: its kind and what reaches the server
+// What stops the statement a link runs, from another thread: its type and what reaches the server
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     CliPgCancel pg;
     CliMysqlCancel my;
     CliDbLite *lite;

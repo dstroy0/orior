@@ -87,9 +87,9 @@ static void message_recorded(const CliKernelRecvCfg *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
-// the first message received whose parent is `id` and whose type is `kind` or `other`, and, where `member` is not NULL, whose content's `member`, or
+// the first message received whose parent is `id` and whose type is `type` or `other`, and, where `member` is not NULL, whose content's `member`, or
 // its `inner` where that is not NULL, is `required`: its node in the shared tree, CLI_JSON_NONE where none is
-static unsigned int message_found(const char *id, const char *kind, const char *other, const char *member, const char *inner, const char *required)
+static unsigned int message_found(const char *id, const char *type, const char *other, const char *member, const char *inner, const char *required)
 {
     const unsigned long long size = s_messages_at;
     memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_messages, .bytes = size});
@@ -102,9 +102,9 @@ static unsigned int message_found(const char *id, const char *kind, const char *
         const CliJson *const json = cli_unity_parsed(s_seen + at, length, &one);
         s_json = json;
         at += length + 1ull;
-        const char *const type = cli_unity_member_text(one, "msg_type");
+        const char *const msg_type = cli_unity_member_text(one, "msg_type");
         const int parent_matches = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "parent"), .other = id, .cap = CLI_POOL_BYTES});
-        const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = type, .other = kind, .cap = CLI_POOL_BYTES}) || ((other != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = other, .cap = CLI_POOL_BYTES}));
+        const int type_matches = cellul.eq(&(CatenaFinitaCfg){.src = msg_type, .other = type, .cap = CLI_POOL_BYTES}) || ((other != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = msg_type, .other = other, .cap = CLI_POOL_BYTES}));
         if (!parent_matches || !type_matches)
         {
             continue;
@@ -147,7 +147,7 @@ static int python_found(void)
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = specs, .index = at);
         const unsigned int install = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "install");
         const int python = cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "language"), .other = "python", .cap = CLI_POOL_BYTES});
-        if (python && ((install == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = install, .kind = CFG_JSON_NULL)))
+        if (python && ((install == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = install, .type = CFG_JSON_NULL)))
         {
             s_python_found = EMBED_CALL(cli_jupyter_name.spec_by_name, CliJupyterNameCfg, .name = cli_unity_member_text(one, "name"), .spec = &s_spec);
             return s_python_found;

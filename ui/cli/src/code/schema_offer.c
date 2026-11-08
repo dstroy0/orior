@@ -32,7 +32,7 @@ typedef struct
     const char *detail;
     unsigned long long detail_size;
     unsigned int schema;
-    const char *kind;
+    const char *type;
     const char *token_text;
     unsigned long long token_size;
 } SchemaOfferCtx;
@@ -69,8 +69,8 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
     {
         const unsigned int properties = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                                    .map = g_cli_schema_reached[reached], .name = "properties");
-        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = properties, .kind = CFG_JSON_OBJECT)
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                           .node = properties, .type = CFG_JSON_OBJECT)
                                     ? json->node[properties].first
                                     : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)
@@ -100,27 +100,27 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             {
                 const unsigned long long typed = base - args->token;
                 (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
-                                 .label = name + typed, .label_size = size - typed, .kind = "field", .detail = s_detail,
+                                 .label = name + typed, .label_size = size - typed, .type = "field", .detail = s_detail,
                                  .detail_size = detail.at, .insert = name + typed, .insert_size = size - typed,
                                  .snippet = 0);
                 continue;
             }
-            unsigned long long kind_size = 0ULL;
-            const char *const kind = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
-                                                .map = one, .name = "type", .size_pointer = &kind_size);
+            unsigned long long type_size = 0ULL;
+            const char *const type = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
+                                                .map = one, .name = "type", .size_pointer = &type_size);
             const char *shape = "$0";
-            if ((kind != NULL) && (kind_size == 6u) &&
-                (memor.cmp(&(MemoriaCfg){.src = kind, .other = "string", .bytes = 6u}) == 0))
+            if ((type != NULL) && (type_size == 6u) &&
+                (memor.cmp(&(MemoriaCfg){.src = type, .other = "string", .bytes = 6u}) == 0))
             {
                 shape = "\"$0\"";
             }
-            else if ((kind != NULL) && (kind_size == 6u) &&
-                     (memor.cmp(&(MemoriaCfg){.src = kind, .other = "object", .bytes = 6u}) == 0))
+            else if ((type != NULL) && (type_size == 6u) &&
+                     (memor.cmp(&(MemoriaCfg){.src = type, .other = "object", .bytes = 6u}) == 0))
             {
                 shape = "{$0}";
             }
-            else if ((kind != NULL) && (kind_size == 5u) &&
-                     (memor.cmp(&(MemoriaCfg){.src = kind, .other = "array", .bytes = 5u}) == 0))
+            else if ((type != NULL) && (type_size == 5u) &&
+                     (memor.cmp(&(MemoriaCfg){.src = type, .other = "array", .bytes = 5u}) == 0))
             {
                 shape = "[$0]";
             }
@@ -138,7 +138,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             mmgr_line_put(&insert, ": ");
             mmgr_line_put(&insert, shape);
             (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items, .label = name,
-                             .label_size = size, .kind = "field", .detail = s_detail, .detail_size = detail.at,
+                             .label_size = size, .type = "field", .detail = s_detail, .detail_size = detail.at,
                              .insert = s_insert, .insert_size = insert.at, .snippet = 1);
         }
     }
@@ -205,11 +205,11 @@ static void offer_value(const SchemaOfferCtx *args)
     s_values.count += 1u;
 }
 
-// whether a schema's `type` names `kind`
+// whether a schema's `type` names `type`
 EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
 {
     const CliJson *json = args->json;
-    const char *kind = args->kind;
+    const char *type = args->type;
     const unsigned int types =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "type");
     unsigned long long size = 0ULL;
@@ -217,19 +217,19 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
                                           .json_read = json, .node = types, .length_pointer = &size);
     if (single != NULL)
     {
-        return (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
-               (memor.cmp(&(MemoriaCfg){.src = single, .other = kind, .bytes = (size_t)size}) == 0);
+        return (cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
+               (memor.cmp(&(MemoriaCfg){.src = single, .other = type, .bytes = (size_t)size}) == 0);
     }
-    for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                       .node = types, .kind = CFG_JSON_ARRAY)
+    for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                       .node = types, .type = CFG_JSON_ARRAY)
                                 ? json->node[types].first
                                 : CLI_JSON_NONE;
          one != CLI_JSON_NONE; one = json->node[one].next)
     {
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = one, .length_pointer = &size);
-        if ((text != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_POOL_BYTES}) == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = text, .other = kind, .bytes = (size_t)size}) == 0))
+        if ((text != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
+            (memor.cmp(&(MemoriaCfg){.src = text, .other = type, .bytes = (size_t)size}) == 0))
         {
             return 1;
         }
@@ -255,8 +255,8 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
                    .out = &detail);
         const unsigned int choices =
             EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = one, .name = "enum");
-        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = choices, .kind = CFG_JSON_ARRAY)
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = choices, .type = CFG_JSON_ARRAY)
                                    ? json->node[choices].first
                                    : CLI_JSON_NONE;
              at != CLI_JSON_NONE; at = json->node[at].next)
@@ -277,8 +277,8 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
         }
         const unsigned int examples =
             EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = one, .name = "examples");
-        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                          .node = examples, .kind = CFG_JSON_ARRAY)
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                          .node = examples, .type = CFG_JSON_ARRAY)
                                    ? json->node[examples].first
                                    : CLI_JSON_NONE;
              at != CLI_JSON_NONE; at = json->node[at].next)
@@ -286,17 +286,17 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
             EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = at, .detail = s_detail,
                        .detail_size = detail.at);
         }
-        static const CfgJsonKind s_kinds[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
+        static const CfgJsonKind s_types[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
         for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
         {
             if (!EMBED_CALL(offer_type, SchemaOfferCtx, .json = json, .schema = one,
-                            .kind = (word_text < 2u) ? "boolean" : "null") ||
+                            .type = (word_text < 2u) ? "boolean" : "null") ||
                 g_cli_schema_spot.in_string)
             {
                 continue;
             }
             const unsigned int made =
-                EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = s_kinds[word_text]);
+                EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = json, .type = s_types[word_text]);
             if (made != CLI_JSON_NONE)
             {
                 EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = made, .detail = s_detail,
@@ -308,7 +308,7 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
                    .token_size = token_size, .value = s_values.text + s_values.at[at], .value_size = s_values.size[at],
-                   .kind = "value", .detail = s_values.text + s_values.detail_at[at],
+                   .type = "value", .detail = s_values.text + s_values.detail_at[at],
                    .detail_size = s_values.detail_size[at]);
     }
 }

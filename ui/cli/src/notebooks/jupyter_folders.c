@@ -59,8 +59,8 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->python, .out = folder) ||
-        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->python, .out = folder) ||
+        !EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = folder, .out = above))
     {
         return 0;
     }

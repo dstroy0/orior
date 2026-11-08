@@ -86,9 +86,9 @@ static unsigned int cli_resolve(const HighlightLineCtx *args)
         return 0u;
     }
     const CliHighlightToken *const token_at = &grammar->token[args->token];
-    if (token_at->kind != CLI_TOKEN_CASES)
+    if (token_at->type != CLI_TOKEN_CASES)
     {
-        return (token_at->kind == CLI_TOKEN_NAME) ? token_at->name : 0u;
+        return (token_at->type == CLI_TOKEN_NAME) ? token_at->name : 0u;
     }
     // the matched text as UTF-8, and the key the word lists are searched with: the text itself, or lowered where the
     // grammar sets case aside
@@ -262,7 +262,7 @@ EMBED_INLINE unsigned long long cli_on_alloc(const HighlightLineCtx *args)
     const CliHighlightToken *const token = (args->rule_highlight_rule_pointer->token != CLI_HIGHLIGHT_NONE)
                                                ? &args->grammar->token[args->rule_highlight_rule_pointer->token]
                                                : NULL;
-    if ((token != NULL) && (token->kind == CLI_TOKEN_GROUPS))
+    if ((token != NULL) && (token->type == CLI_TOKEN_GROUPS))
     {
         unsigned long long place = args->at;
         for (unsigned int index = 0u; index < token->count; index += 1u)

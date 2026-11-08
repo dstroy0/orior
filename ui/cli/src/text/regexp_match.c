@@ -83,7 +83,7 @@ int cli_regexp_same(const CliRegexpMatchACtx *args)
 EMBED_INLINE int cli_item_matches(const RegexpMatchCtx *args)
 {
     unsigned int letter = args->letter;
-    switch (args->item->kind)
+    switch (args->item->type)
     {
     case CLI_REGEXP_RANGE:
         return (letter >= args->item->low) && (letter <= args->item->high);
@@ -126,7 +126,7 @@ int cli_regexp_one(const CliRegexpMatchCtx *args)
     {
         return (int)((node->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ULL);
     }
-    switch (node->kind)
+    switch (node->type)
     {
     case CLI_REGEXP_CHAR:
         return EMBED_CALL(cli_regexp_match_a_internal.regexp_same, CliRegexpMatchACtx, .regexp = args->regexp,
@@ -209,7 +209,7 @@ int cli_regexp_repeat(const CliRegexpMatchIndexCtx *args)
 
 int cli_regexp_then(const CliRegexpMatchIndexCtx *args)
 {
-    switch (args->then->kind)
+    switch (args->then->type)
     {
     case CLI_THEN_END:
         args->run->end = args->at;

@@ -3,7 +3,7 @@
 
 // Settings by file: a tree's .orior/settings.json standing over the reader's own, read again as it
 // changes, a part for one system alone, a file that takes another's, values that name other values
-// and the system's, a theme for a kind of file, and Preferences showing each setting's value and the
+// and the system's, a theme for a type of file, and Preferences showing each setting's value and the
 // file it comes from.
 
 import { invoke } from "../../gui/src-js/bridge.js";

@@ -25,7 +25,7 @@ EMBED_INLINE void view_sized(const NotebookEditCtx *args)
                .output = CLI_NOTEBOOK_NONE, .out = key);
     // a cell's lines stand far below the 32-bit place no count reaches
     const CliViewInput sized = {
-        .kind = CLI_VIEW_SIZE, .rows = (unsigned int)args->rows, .columns = CLI_NOTEBOOK_EDIT_COLUMNS};
+        .type = CLI_VIEW_SIZE, .rows = (unsigned int)args->rows, .columns = CLI_NOTEBOOK_EDIT_COLUMNS};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &sized, .err_msg = &err_msg);
@@ -66,7 +66,7 @@ int cli_notebook_cell_focus(const CliNotebookEditFocusCfg *args)
     model->focused = args->cell;
     EMBED_CALL(view_sized, NotebookEditCtx, .model = model, .cell = args->cell,
                .rows = model->cell[args->cell].lines + 1ULL);
-    const CliViewInput placed = {.kind = CLI_VIEW_POSITION, .row = args->line, .column = args->column};
+    const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = args->line, .column = args->column};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &placed,
                      .err_msg = args->err_msg);
     (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key);
@@ -192,7 +192,7 @@ int cli_notebook_cell_add(const CliNotebookEditCellCfg *args)
     CliNotebookCell *const cell = &model->cell[place];
     cell->serial = model->next_serial;
     model->next_serial += 1u;
-    cell->kind = (args->kind == CLI_NOTEBOOK_MARKDOWN) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
+    cell->type = (args->type == CLI_NOTEBOOK_MARKDOWN) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
     cell->origin = CLI_JSON_NONE;
     cell->count = CLI_NOTEBOOK_NONE;
     cell->lines = 1u;
@@ -228,7 +228,7 @@ int cli_notebook_cell_retype(const CliNotebookEditCellCfg *args)
         return 0;
     }
     CliNotebookCell *const cell = &model->cell[args->cell];
-    cell->kind = (cell->kind == CLI_NOTEBOOK_CODE) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
+    cell->type = (cell->type == CLI_NOTEBOOK_CODE) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
     EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model, .cell = args->cell);
     (void)EMBED_CALL(cli_notebook_model_internal.source_stored, CliNotebookModelCtx, .model = model, .cell = args->cell,
                      .text = text, .size = size);
@@ -371,7 +371,7 @@ int cli_notebook_cell_menu(const CliNotebookEditMenuCfg *args)
     }
     model->menu_cell = args->cell;
     const CliNotebookCell *const cell = &model->cell[args->cell];
-    const int code = cell->kind == CLI_NOTEBOOK_CODE;
+    const int code = cell->type == CLI_NOTEBOOK_CODE;
     // the rows run with the notebook's key, which stands in its model while the menu is open
     cli_menus_own_begin();
     cli_menus_own_row(&(CliItem){"Run", "notebook-run", "Shift+Enter", model->key, "", "", 0, 0, 0, 0, 0u});

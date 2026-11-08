@@ -33,11 +33,11 @@ static void file_written(const char *root, const char *relative, const char *tex
               relative);
 }
 
-// the crumb `at` is of `kind` and reads `text`
-static int crumb_is(unsigned int at, unsigned int kind, const char *text)
+// the crumb `at` is of `type` and reads `text`
+static int crumb_is(unsigned int at, unsigned int type, const char *text)
 {
     CliCrumbRow row;
-    return EMBED_CALL(cli_crumbs.row, CliCrumbsCfg, .at = at, .row = &row) && (row.kind == kind) &&
+    return EMBED_CALL(cli_crumbs.row, CliCrumbsCfg, .at = at, .row = &row) && (row.type == type) &&
            (row.length == strlen(text)) && (memcmp(row.text, text, row.length) == 0);
 }
 

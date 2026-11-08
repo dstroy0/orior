@@ -7,7 +7,7 @@
 #include "db_internal.h"
 #include "sql.h"
 
-// The writing of one level: where it goes, how many nodes are written, how a row is written, the kind its rows are,
+// The writing of one level: where it goes, how many nodes are written, how a row is written, the type its rows are,
 // NULL where each row names its own, the schema an object stands under, and whether the database is SQLite, whose
 // objects are never leaves
 typedef struct
@@ -15,14 +15,14 @@ typedef struct
     VerbaLinea *out;
     unsigned int written;
     unsigned int how;
-    const char *kind;
+    const char *type;
     const char *schema;
     int lite;
 } CliDbChildren;
-// The reading of one level: the connection's kind, the path to it, and the writing of its nodes
+// The reading of one level: the connection's type, the path to it, and the writing of its nodes
 typedef struct
 {
-    const char *kind;
+    const char *type;
     const char *const *path;
     unsigned int count;
     CliDbChildren children;
@@ -71,7 +71,7 @@ typedef struct
     VerbaLinea *detail;
     const char *word_text;
     unsigned long long size;
-    const char *kind;
+    const char *type;
     CliDbChildren *children;
     const char *label;
     const char *detail_text;
@@ -128,16 +128,16 @@ EMBED_INLINE void children_word(const DbChildrenCtx *args)
     }
 }
 
-// whether objects of `kind` contain columns and the rest under them
+// whether objects of `type` contain columns and the rest under them
 EMBED_INLINE int children_has_parts(const DbChildrenCtx *args)
 {
-    return (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "table", .cap = CLI_POOL_BYTES})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "view", .cap = CLI_POOL_BYTES})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "materialized view", .cap = CLI_POOL_BYTES})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "foreign table", .cap = CLI_POOL_BYTES}));
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "table", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "view", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "materialized view", .cap = CLI_POOL_BYTES})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "foreign table", .cap = CLI_POOL_BYTES}));
 }
 
-// a node written: its label, kind, detail, whether it is a leaf, and its path, `count` names
+// a node written: its label, type, detail, whether it is a leaf, and its path, `count` names
 EMBED_INLINE void children_node(const DbChildrenCtx *args)
 {
     VerbaLinea *const out = args->children->out;
@@ -147,8 +147,8 @@ EMBED_INLINE void children_node(const DbChildrenCtx *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->label, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"kind\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-               .text_bytes = (const unsigned char *)args->kind,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES}));
+               .text_bytes = (const unsigned char *)args->type,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(out, ",\"detail\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)args->detail_text,
@@ -185,16 +185,16 @@ static int children_row(const CliDbRowCfg *args)
     if (how == CHILDREN_TOP)
     {
         const char *const at[1] = {first};
-        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = children->kind,
+        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = children->type,
                    .detail_text = "", .leaf = 0, .at_letters = at, .count = 1u);
         return 1;
     }
     if (how == CHILDREN_OBJECT)
     {
         const char *const at[3] = {children->schema, second, first};
-        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = second,
+        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = second,
                    .detail_text = "",
-                   .leaf = !children->lite && !EMBED_CALL(children_has_parts, DbChildrenCtx, .kind = second),
+                   .leaf = !children->lite && !EMBED_CALL(children_has_parts, DbChildrenCtx, .type = second),
                    .at_letters = at, .count = 3u);
         return 1;
     }
@@ -212,9 +212,9 @@ static int children_row(const CliDbRowCfg *args)
             mmgr_line_put(&detail_line, third);
             mmgr_line_ch(&detail_line, ')');
         }
-        else if (children->kind == NULL)
+        else if (children->type == NULL)
         {
-            // SQLite's indexes and triggers name their kind in the row, and their definition after it
+            // SQLite's indexes and triggers name their type in the row, and their definition after it
             EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 2u, .out = &detail_line);
         }
         else
@@ -222,20 +222,20 @@ static int children_row(const CliDbRowCfg *args)
             mmgr_line_put(&detail_line, second);
         }
         mmgr_line_finish(&detail_line);
-        const char *kind;
+        const char *type;
         if (how == CHILDREN_LITE_KEY)
         {
-            kind = "key";
+            type = "key";
         }
-        else if (children->kind != NULL)
+        else if (children->type != NULL)
         {
-            kind = children->kind;
+            type = children->type;
         }
         else
         {
-            kind = second;
+            type = second;
         }
-        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = kind,
+        EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = type,
                    .detail_text = detail, .leaf = 1, .at_letters = NULL, .count = 0u);
         return 1;
     }
@@ -284,20 +284,20 @@ static int children_row(const CliDbRowCfg *args)
         EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = "primary key", .size = 11ULL);
     }
     mmgr_line_finish(&detail_line);
-    EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = "column",
+    EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .type = "column",
                .detail_text = detail, .leaf = 1, .at_letters = NULL, .count = 0u);
     return 1;
 }
 
-// a question run against the catalogue, its rows written as `how`, of `kind` where each row does not name its own
+// a question run against the catalogue, its rows written as `how`, of `type` where each row does not name its own
 EMBED_INLINE int children_query(const DbChildrenCtx *args)
 {
     CliDbLink *link = args->link;
     unsigned int how = args->how;
-    const char *kind = args->kind;
+    const char *type = args->type;
     CliDbFailure *failure = args->failure;
     args->level->children.how = how;
-    args->level->children.kind = kind;
+    args->level->children.type = type;
     return EMBED_CALL(cli_db_link_failure_statement_internal.link_all, CliDbLinkFailureStatementCtx, .link = link,
                       .statement = args->query_read->out, .size = args->query_read->at, .each_row = children_row,
                       .context = &args->level->children, .failure = failure);
@@ -329,7 +329,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
         mmgr_line_put(args->query, "SELECT nspname FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname <> "
                                    "'information_schema' ORDER BY nspname");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_TOP, .kind = "schema", .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_TOP, .type = "schema", .failure = args->failure);
     }
     const char *const schema = args->level->path[0];
     if (args->level->count == 1u)
@@ -349,7 +349,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
                 "'function' END FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = ",
             .second = schema, .after = ") o ORDER BY kind, name");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_OBJECT, .kind = NULL, .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_OBJECT, .type = NULL, .failure = args->failure);
     }
     if (args->level->count != 3u)
     {
@@ -387,7 +387,7 @@ EMBED_INLINE int children_postgres(const DbChildrenCtx *args)
         mmgr_line_put(args->query, s_parts[part][1]);
         if (!EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
                         .query_read = args->query, .how = (part == 0u) ? CHILDREN_PG_COLUMN : CHILDREN_PART,
-                        .kind = s_parts[part][2], .failure = args->failure))
+                        .type = s_parts[part][2], .failure = args->failure))
         {
             return 0;
         }
@@ -403,7 +403,7 @@ EMBED_INLINE int children_mysql(const DbChildrenCtx *args)
     {
         mmgr_line_put(args->query, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA ORDER BY SCHEMA_NAME");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_TOP, .kind = "database", .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_TOP, .type = "database", .failure = args->failure);
     }
     const char *const schema = args->level->path[0];
     if (args->level->count == 1u)
@@ -417,7 +417,7 @@ EMBED_INLINE int children_mysql(const DbChildrenCtx *args)
                        "ROUTINE_SCHEMA = ",
             .second = schema, .after = ") o ORDER BY kind, name");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_OBJECT, .kind = NULL, .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_OBJECT, .type = NULL, .failure = args->failure);
     }
     if (args->level->count != 3u)
     {
@@ -447,7 +447,7 @@ EMBED_INLINE int children_mysql(const DbChildrenCtx *args)
                    .after = s_parts[part][2]);
         if (!EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
                         .query_read = args->query, .how = (part == 0u) ? CHILDREN_MY_COLUMN : CHILDREN_PART,
-                        .kind = s_parts[part][3], .failure = args->failure))
+                        .type = s_parts[part][3], .failure = args->failure))
         {
             return 0;
         }
@@ -464,7 +464,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
     {
         mmgr_line_put(args->query, "SELECT name FROM pragma_database_list ORDER BY seq");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_TOP, .kind = "database", .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_TOP, .type = "database", .failure = args->failure);
     }
     const char *const schema = args->level->path[0];
     char master[CLI_PATH_MAX_LEN];
@@ -481,7 +481,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
                       " WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY "
                       "type, name");
         return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                          .query_read = args->query, .how = CHILDREN_OBJECT, .kind = NULL, .failure = args->failure);
+                          .query_read = args->query, .how = CHILDREN_OBJECT, .type = NULL, .failure = args->failure);
     }
     if (args->level->count != 3u)
     {
@@ -492,7 +492,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
                .before = "SELECT name, type, \"notnull\", dflt_value, pk FROM pragma_table_xinfo(", .first = table,
                .between = ", ", .second = schema, .after = ") ORDER BY cid");
     if (!EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link, .query_read = args->query,
-                    .how = CHILDREN_LITE_COLUMN, .kind = "column", .failure = args->failure))
+                    .how = CHILDREN_LITE_COLUMN, .type = "column", .failure = args->failure))
     {
         return 0;
     }
@@ -503,7 +503,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
     EMBED_CALL(cli_db_out_internal.literal, CliDbOutCtx, .text = table, .dialect = dialect, .out = args->query);
     mmgr_line_put(args->query, " ORDER BY type, name");
     if (!EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link, .query_read = args->query,
-                    .how = CHILDREN_PART, .kind = NULL, .failure = args->failure))
+                    .how = CHILDREN_PART, .type = NULL, .failure = args->failure))
     {
         return 0;
     }
@@ -511,7 +511,7 @@ EMBED_INLINE int children_sqlite(const DbChildrenCtx *args)
                .before = "SELECT \"from\", \"table\", \"to\" FROM pragma_foreign_key_list(", .first = table,
                .between = ", ", .second = schema, .after = ")");
     return EMBED_CALL(children_query, DbChildrenCtx, .level = args->level, .link = args->link,
-                      .query_read = args->query, .how = CHILDREN_LITE_KEY, .kind = "key", .failure = args->failure);
+                      .query_read = args->query, .how = CHILDREN_LITE_KEY, .type = "key", .failure = args->failure);
 }
 
 static int children_work(const CliEachLinkFailureCfg *args)
@@ -521,17 +521,17 @@ static int children_work(const CliEachLinkFailureCfg *args)
     CliDbLevel *const level = (CliDbLevel *)args->context;
     char question[CLI_PATH_MAX_LEN * 8u];
     VerbaLinea query = {question, sizeof(question), 0ULL};
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "postgres", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->type, .other = "postgres", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_postgres, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "mysql", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->type, .other = "mysql", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_mysql, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = level->kind, .other = "sqlite", .cap = CLI_POOL_BYTES}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = level->type, .other = "sqlite", .cap = CLI_POOL_BYTES}))
     {
         return EMBED_CALL(children_sqlite, DbChildrenCtx, .level = level, .link = link, .query = &query,
                           .failure = failure);
@@ -541,7 +541,7 @@ static int children_work(const CliEachLinkFailureCfg *args)
 
 int cli_db_children(const CliDbOutCountCfg *args)
 {
-    CliDbLevel level = {args->open->config.kind,
+    CliDbLevel level = {args->open->config.type,
                         args->path_pointer,
                         args->count,
                         {args->out, 0u, CHILDREN_TOP, NULL, (args->count > 0u) ? args->path_pointer[0] : "", 0}};

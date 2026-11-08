@@ -194,8 +194,8 @@ static void inotify_walk_each(const CliEachNameIsFolderCfg *args)
     }
     if (walk->reported)
     {
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path,
-                   .kind = CLI_CHANGE_ADDED);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path,
+                   .type = CLI_CHANGE_ADDED);
     }
 }
 
@@ -286,7 +286,7 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
 {
     if ((args->record->mask & IN_Q_OVERFLOW) != 0u)
     {
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = "", .kind = CLI_CHANGE_LOST);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = "", .type = CLI_CHANGE_LOST);
         return;
     }
     // a number from the system is not negative, and the test here bounds the place it names
@@ -314,8 +314,8 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     const int is_folder = (args->record->mask & IN_ISDIR) != 0u;
     if ((args->record->mask & (IN_CREATE | IN_MOVED_TO)) != 0u)
     {
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path,
-                   .kind = CLI_CHANGE_ADDED);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path,
+                   .type = CLI_CHANGE_ADDED);
         if (is_folder && EMBED_CALL(inotify_goes_into, PosixWatchCtx, .path = path))
         {
             const unsigned int come_in =
@@ -332,13 +332,13 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
         {
             EMBED_CALL(inotify_alloc_off, PosixWatchCtx, .parent = at, .name = args->record->name);
         }
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path,
-                   .kind = CLI_CHANGE_REMOVED);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path,
+                   .type = CLI_CHANGE_REMOVED);
     }
     else if (!is_folder)
     {
-        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path,
-                   .kind = CLI_CHANGE_MODIFIED);
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path,
+                   .type = CLI_CHANGE_MODIFIED);
     }
 }
 
@@ -368,8 +368,8 @@ static void inotify_read(void *context)
             (void)close(s_watch.inotify);
             s_watch.inotify = -1;
             going = inotify_open();
-            EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = "",
-                       .kind = CLI_CHANGE_LOST);
+            EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = "",
+                       .type = CLI_CHANGE_LOST);
         }
     }
     if (s_watch.inotify >= 0)

@@ -404,7 +404,7 @@ int cli_format(const CliFormatPathCfg *args)
     const CliSetting settings[1] = {{"PATH", g_cli_format.path}};
     char folder[CLI_PATH_MAX_LEN];
     const int in_folder =
-        EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder) &&
+        EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = folder) &&
         EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder);
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];

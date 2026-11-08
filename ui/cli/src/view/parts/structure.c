@@ -8,15 +8,15 @@
 #include "../../editor/view.h"
 #include "../../text/text.h"
 
-// A kind's mark: the kind, the mark drawn for it and which of the palette's mark colors it takes
+// A type's mark: the type, the mark drawn for it and which of the palette's mark colors it takes
 typedef struct
 {
-    const char *kind;
+    const char *type;
     const char *glyph;
     unsigned int color;
 } StructureMark;
 
-// the marks, as the page draws them; a kind not among them takes the last
+// the marks, as the page draws them; a type not among them takes the last
 static const StructureMark s_structure_marks[] = {
     {"function", "\xc6\x92", 4u}, {"method", "\xc6\x92", 4u},       {"class", "\xe2\x97\x87", 2u},
     {"module", "{}", 3u},         {"constant", "\xe2\x96\xaa", 3u}, {"field", "\xe2\x96\xaa", 5u},
@@ -26,7 +26,7 @@ static const StructureMark s_structure_marks[] = {
 
 typedef struct
 {
-    const char *kind;
+    const char *type;
 } StructureCtx;
 
 static const char *structure_title(const GuiPaneCfg *args)
@@ -58,13 +58,13 @@ static int structure_current(const GuiPaneCfg *args)
     return current;
 }
 
-// the mark of `kind`
+// the mark of `type`
 EMBED_INLINE const StructureMark *structure_mark(const StructureCtx *args)
 {
     const unsigned int count = sizeof(s_structure_marks) / sizeof(s_structure_marks[0]);
     for (unsigned int at = 0u; at + 1u < count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_structure_marks[at].kind, .other = args->kind, .cap = 32ULL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_structure_marks[at].type, .other = args->type, .cap = 32ULL}))
         {
             return &s_structure_marks[at];
         }
@@ -72,7 +72,7 @@ EMBED_INLINE const StructureMark *structure_mark(const StructureCtx *args)
     return &s_structure_marks[count - 1u];
 }
 
-// a guide down each level the row stands under, then the kind's mark centered in its box, then the name
+// a guide down each level the row stands under, then the type's mark centered in its box, then the name
 static void structure_row_draw(const GuiPaneCfg *args)
 {
     GuiRaster *raster = args->raster;
@@ -97,7 +97,7 @@ static void structure_row_draw(const GuiPaneCfg *args)
     const int lit = (args->pane_read->pointed == (int)args->row) || (structure_current(args) == (int)args->row);
     const int x = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .raster = raster, .palette = args->palette, .frame = frame,
                              .rect = rect, .clip = on, .depth = read.depth);
-    const StructureMark *const mark = EMBED_CALL(structure_mark, StructureCtx, .kind = read.kind);
+    const StructureMark *const mark = EMBED_CALL(structure_mark, StructureCtx, .type = read.type);
     const unsigned long long glyph_length = cellul.len(&(CatenaFinitaCfg){.src = mark->glyph, .cap = 8ULL});
     const float glyph_width =
         EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_HEAD,

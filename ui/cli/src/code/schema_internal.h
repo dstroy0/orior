@@ -51,11 +51,11 @@ typedef struct CliSchemaCtx CliSchemaCtx;
 #define CLI_SCHEMA_POOL (1u << 23u)
 #define CLI_SCHEMA_NONE 0xffffffffu
 
-// A value of a JSON file and its span: its kind, a string's letters in the pool, a number's value, a boolean's truth;
+// A value of a JSON file and its span: its type, a string's letters in the pool, a number's value, a boolean's truth;
 // an object's first member or an array's first item, and how many; and the next item of its array
 typedef struct
 {
-    unsigned char kind;
+    unsigned char type;
     int truth;
     double number;
     unsigned long long from;
@@ -120,7 +120,7 @@ typedef struct
 // a value is of as a schema names it, `integer` for a number with no fraction (schema_values.c)
 void cli_schema_read(const CliSchemaReadTextCtx *args);
 const char *cli_schema_text(const CliSchemaReadAtCtx *args);
-const char *cli_schema_kind(const CliSchemaCtx *args);
+const char *cli_schema_type(const CliSchemaCtx *args);
 
 // the meta-schemas orior_cli bundles, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
@@ -176,7 +176,7 @@ int cli_schema_same_values(const CliSchemaReadOneCtx *args);
 void cli_schema_show(const CliSchemaJsonValueCtx *args);
 void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args);
 void cli_schema_number_show(const CliSchemaOutCtx *args);
-void cli_schema_kind_write(const CliSchemaSizeOutCtx *args);
+void cli_schema_type_write(const CliSchemaSizeOutCtx *args);
 int cli_schema_matches(const CliSchemaTextCtx *args);
 
 // the file read and the schemas reached, cells taken with the reader's lock and given back with it, one check or
@@ -343,7 +343,7 @@ struct CliSchemaSizeOutCtx
 {
     unsigned long long size;
     VerbaLinea *out;
-    const char *kind;
+    const char *type;
 };
 
 struct CliSchemaJsonNodeCtx
@@ -446,11 +446,11 @@ EMBED_TABLE_STORAGE CliSchemaReadAtNs cli_schema_read_at_internal EMBED_UNUSED =
 
 typedef struct
 {
-    const char *(*kind)(const CliSchemaCtx *args);
+    const char *(*type)(const CliSchemaCtx *args);
 } CliSchemaNsTable;
-EMBED_TABLE_LAYOUT(CliSchemaNsTable, kind);
+EMBED_TABLE_LAYOUT(CliSchemaNsTable, type);
 EMBED_TABLE_STORAGE CliSchemaNsTable cli_schema_internal EMBED_UNUSED = {
-    .kind = cli_schema_kind,
+    .type = cli_schema_type,
 };
 
 typedef struct
@@ -571,11 +571,11 @@ EMBED_TABLE_STORAGE CliSchemaOutNs cli_schema_out_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*kind_write)(const CliSchemaSizeOutCtx *args);
+    void (*type_write)(const CliSchemaSizeOutCtx *args);
 } CliSchemaSizeOutNs;
-EMBED_TABLE_LAYOUT(CliSchemaSizeOutNs, kind_write);
+EMBED_TABLE_LAYOUT(CliSchemaSizeOutNs, type_write);
 EMBED_TABLE_STORAGE CliSchemaSizeOutNs cli_schema_size_out_internal EMBED_UNUSED = {
-    .kind_write = cli_schema_kind_write,
+    .type_write = cli_schema_type_write,
 };
 
 typedef struct

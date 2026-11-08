@@ -217,11 +217,11 @@ static unsigned int settings_sync_plain_read(const SettingsSyncCtx *args)
     {
         return CLI_JSON_NONE;
     }
-    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->work_state->json,
-                      .node = root, .kind = CFG_JSON_OBJECT)
+    return EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &args->work_state->json,
+                      .node = root, .type = CFG_JSON_OBJECT)
                ? root
-               : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &args->work_state->json,
-                            .kind = CFG_JSON_OBJECT);
+               : EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &args->work_state->json,
+                            .type = CFG_JSON_OBJECT);
 }
 
 unsigned int cli_settings_sync_settings_get(const CliSettingsSyncWorkStateCtx *args)
@@ -533,8 +533,8 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
     int read =
         (root != CLI_JSON_NONE) && (mark != NULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = mark, .other = CLI_SETTINGS_SYNC_MARK, .cap = CLI_POOL_BYTES})) &&
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state.json,
-                   .node = files, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state.json,
+                   .node = files, .type = CFG_JSON_OBJECT);
     for (unsigned int member = read ? s_work_state.json.node[files].first : CLI_JSON_NONE; member != CLI_JSON_NONE;
          member = s_work_state.json.node[member].next)
     {

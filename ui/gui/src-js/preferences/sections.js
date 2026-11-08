@@ -185,17 +185,17 @@ export function inForceSection(at) {
 }
 
 // Settings on every machine (carry.js): the file or folder they go through, and each taking kept.
-// The notices put away for good, each with a press that shows its kind again.
+// The notices put away for good, each with a press that shows its type again.
 export function noticesSection(at) {
   const { draw } = at;
   const away = noticesAway();
-  const rows = away.map((kind) => {
-    const back = element("button", { type: "button", className: "prefs-button", textContent: "Show Again", ariaLabel: `Show again: ${kind}` });
+  const rows = away.map((type) => {
+    const back = element("button", { type: "button", className: "prefs-button", textContent: "Show Again", ariaLabel: `Show again: ${type}` });
     back.addEventListener("click", () => {
-      bringBack(kind);
+      bringBack(type);
       draw();
     });
-    return element("div", { className: "prefs-line prefs-notice-away" }, element("span", { textContent: kind }), back);
+    return element("div", { className: "prefs-line prefs-notice-away" }, element("span", { textContent: type }), back);
   });
   return element(
     "section",

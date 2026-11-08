@@ -35,7 +35,7 @@ EMBED_INLINE int history_file(const DbHistoryCtx *args)
         return 0;
     }
     VerbaLinea account_line = {account, sizeof(account), 0ULL};
-    EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &args->open->config,
+    EMBED_CALL(cli_db_connection_out_type.account, CliDbConnectionOutTypeCfg, .connection = &args->open->config,
                .out = &account_line);
     VerbaLinea hash_line = {hash, sizeof(hash), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = account_line.out, .size = account_line.at,
@@ -171,7 +171,7 @@ void cli_db_statement_at(const CliDbOutSizeCfg *args)
     }
     CliSqlSpan span;
     if (!EMBED_CALL(cli_sql_text.statement_at, CliSqlTextCfg, .text = args->text, .length = args->size,
-                    .at_value = byte, .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->kind),
+                    .at_value = byte, .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->type),
                     .span = &span))
     {
         mmgr_line_put(args->out, "null");
@@ -212,7 +212,7 @@ void cli_db_statements(const CliDbOutSizeCfg *args)
     CliDbSpans spans = {args->text, args->out, 0u};
     mmgr_line_ch(args->out, '[');
     EMBED_CALL(cli_sql_text_length.statements, CliSqlTextLengthCfg, .text = args->text, .length = args->size,
-               .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->kind), .each = history_span,
+               .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->type), .each = history_span,
                .context = &spans);
     mmgr_line_ch(args->out, ']');
 }

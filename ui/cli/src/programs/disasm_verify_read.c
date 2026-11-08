@@ -114,7 +114,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
     {
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
-        // the line's last word is the symbol: an address, a kind letter and the name, each apart by one space
+        // the line's last word is the symbol: an address, a type letter and the name, each apart by one space
         unsigned long long word_text = end;
         word_text = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                      .text = args->text + at, .at = word_text - at, .set = " "));

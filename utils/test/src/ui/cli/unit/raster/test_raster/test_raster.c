@@ -212,7 +212,7 @@ void test_the_text_is_within_the_margins_adjacent_the_top(void)
     TEST_ASSERT_TRUE(top);
 }
 
-void test_the_pwg_rasters_header_names_its_kind_and_the_pages_width(void)
+void test_the_pwg_rasters_header_names_its_type_and_the_pages_width(void)
 {
     listing_drawn();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
@@ -234,7 +234,7 @@ void test_the_pwg_raster_contains_the_page(void)
     TEST_ASSERT_EQUAL_MEMORY(s_page, s_back, RASTER_PAGE);
 }
 
-void test_apples_raster_names_its_kind(void)
+void test_apples_raster_names_its_type(void)
 {
     listing_drawn();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};

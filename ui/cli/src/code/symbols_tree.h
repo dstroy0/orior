@@ -26,7 +26,7 @@ typedef struct
 {
     unsigned int name;
     unsigned int length;
-    unsigned int kind;
+    unsigned int type;
     unsigned int line;
 } CliDeclaration;
 

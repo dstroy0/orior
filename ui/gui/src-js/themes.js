@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Color themes. The palette is every color the stylesheet gives the dark and the light scheme, read
-// from its own rules, and the ink the two share, with a color for every kind of token a grammar
+// from its own rules, and the ink the two share, with a color for every type of token a grammar
 // names. A theme of the reader's is a name, the scheme it is drawn over, the colors it sets in place
 // of that scheme's, an image it lays behind the editor, and the icons it gives files by patterns of
 // their names; each scheme shows the theme chosen for it, or its own colors where none is. The themes
 // and the choice are kept, and early.js sets the colors before the page's first frame from the same
 // keys.
 
-import { tokenKinds } from "./editor/tokens.js";
+import { tokenKinds: tokenTypes } from "./editor/tokens.js";
 import { notifyScheme, scheme } from "./scheme.js";
-import { kindSetting } from "./settings.js";
+import { kindSetting: typeSetting } from "./settings.js";
 
 export const THEMES = "orior.themes";
 export const CHOSEN = "orior.theme.";
@@ -56,16 +56,16 @@ export function builtIn() {
   return palette;
 }
 
-// A kind of token as a color of the palette: --t-keyword for keyword, --t-number-cost for number.cost.
-const tokenColor = (kind) => `--t-${kind.split(".").join("-")}`;
+// A type of token as a color of the palette: --t-keyword for keyword, --t-number-cost for number.cost.
+const tokenColor = (type) => `--t-${type.split(".").join("-")}`;
 
-// The palette of the scheme `base` with every kind of token the grammars name: a kind the stylesheet
-// gives no color of its own takes the color of the kind it is part of, or the editor's text's.
+// The palette of the scheme `base` with every type of token the grammars name: a type the stylesheet
+// gives no color of its own takes the color of the type it is part of, or the editor's text's.
 export function paletteOf(base) {
   const own = builtIn()[base];
   const palette = new Map(own);
-  for (const kind of tokenKinds()) {
-    const parts = kind.split(".");
+  for (const type of tokenTypes()) {
+    const parts = type.split(".");
     for (let length = 1; length <= parts.length; length += 1) {
       const name = tokenColor(parts.slice(0, length).join("."));
       if (/^--t-[\w-]+$/.test(name) && !palette.has(name)) {
@@ -76,17 +76,17 @@ export function paletteOf(base) {
   return palette;
 }
 
-// The rule that colors a kind of token the stylesheet gives no color of its own, `--t-a-b`, through
-// the kinds it is part of to the text's own color where no theme sets one. Its class is named twice
-// to stand over the stylesheet's rule for the kind it is part of, wherever the two stand in the page.
+// The rule that colors a type of token the stylesheet gives no color of its own, `--t-a-b`, through
+// the types it is part of to the text's own color where no theme sets one. Its class is named twice
+// to stand over the stylesheet's rule for the type it is part of, wherever the two stand in the page.
 function tokenRule(name) {
   const parts = name.slice("--t-".length).split("-");
   let value = "currentColor";
   for (let length = 1; length <= parts.length; length += 1) {
     value = `var(--t-${parts.slice(0, length).join("-")}, ${value})`;
   }
-  const kind = `.t-${parts.join("-")}`;
-  return `${kind}${kind} { color: ${value}; }\n`;
+  const type = `.t-${parts.join("-")}`;
+  return `${type}${type} { color: ${value}; }\n`;
 }
 
 // How much of a theme's image shows where the theme names no share.
@@ -143,7 +143,7 @@ export const iconColor = (color) => (typeof color !== "string" ? "" : /^--[\w-]+
 export const CONTRAST_LEAST = 4.5;
 
 // The pairs of a color and the color under it whose contrast Preferences checks: the editor's text,
-// its line numbers and each kind of token over the editor's background, and the window's text and
+// its line numbers and each type of token over the editor's background, and the window's text and
 // links over its own.
 export function contrastPairs(palette) {
   const pairs = [
@@ -217,7 +217,7 @@ export function chosen(base) {
 }
 
 // The rule that sets each scheme's chosen theme over the stylesheet's colors, with its image, and
-// colors each kind of token any theme sets that the stylesheet gives no color of its own.
+// colors each type of token any theme sets that the stylesheet gives no color of its own.
 export function themeRule(list, chosenOf) {
   let text = "";
   for (const base of BASES) {
@@ -228,7 +228,7 @@ export function themeRule(list, chosenOf) {
     }
   }
   const own = builtIn();
-  const kinds = new Set(list.flatMap((theme) => Object.keys(theme.colors ?? {})).filter((name) => /^--t-[\w-]+$/.test(name) && !own.dark.has(name) && !own.light.has(name)));
+  const types = new Set(list.flatMap((theme) => Object.keys(theme.colors ?? {})).filter((name) => /^--t-[\w-]+$/.test(name) && !own.dark.has(name) && !own.light.has(name)));
   return text + [...kinds].map(tokenRule).join("");
 }
 
@@ -251,12 +251,12 @@ export function choose(base, name) {
   applyThemes();
 }
 
-// The colors the editor shows a file of the language `kind` in, where a settings file gives that kind
+// The colors the editor shows a file of the language `type` in, where a settings file gives that type
 // a theme for the scheme shown (settings.js): every color of the theme's own scheme with the theme's
 // over them, Dark and Light being the schemes' own. Null where none is given or the theme named is
 // not one of the reader's.
-export function kindColors(kind) {
-  const name = kind ? kindSetting(kind, CHOSEN.slice("orior.".length) + scheme()) : null;
+export function typeColors(type) {
+  const name = type ? typeSetting(type, CHOSEN.slice("orior.".length) + scheme()) : null;
   const own = Object.entries(BASE_OWN).find(([, named]) => named === name)?.[0];
   const theme = own ? { base: own, colors: {} } : name ? themeNamed(name) : null;
   if (!theme) {

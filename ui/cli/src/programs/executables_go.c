@@ -72,7 +72,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
         line = (stop[0] != '\0') ? (stop + 1) : stop;
     }
     char top[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->module_text, .out = top))
+    if (!EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->module_text, .out = top))
     {
         memor.cpy(&(MemoriaCfg){
             .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});

@@ -269,7 +269,7 @@ EMBED_INLINE void debug_arrow_draw(const DebugCtx *args)
         .clip = pane->clip);
 }
 
-// the row drawn as its kind
+// the row drawn as its type
 static void debug_row_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -284,7 +284,7 @@ static void debug_row_draw(const GuiPaneCfg *args)
     const int twisty = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_PANE_GUIDE);
     const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_DEBUG_GAP);
     const int left = args->rect.x + pad;
-    switch (row.kind)
+    switch (row.type)
     {
     case CLI_DEBUG_ROW_NOTICE:
         (void)EMBED_CALL(debug_text_draw, DebugCtx, .pane = args, .row = &row, .at = 0u, .x = left,
@@ -312,7 +312,7 @@ static void debug_row_draw(const GuiPaneCfg *args)
             EMBED_CALL(debug_arrow_draw, DebugCtx, .pane = args, .row = &row, .x = x);
         }
         const float after = EMBED_CALL(debug_text_draw, DebugCtx, .pane = args, .row = &row, .at = 0u, .x = x + twisty,
-                                       .color = (row.kind == CLI_DEBUG_ROW_SCOPE) ? palette->text_2 : palette->text,
+                                       .color = (row.type == CLI_DEBUG_ROW_SCOPE) ? palette->text_2 : palette->text,
                                        .rect = args->clip);
         // the value after the name, its pixel the next whole one
         (void)EMBED_CALL(debug_text_draw, DebugCtx, .pane = args, .row = &row, .at = 1u, .x = (int)after + gap,
@@ -335,7 +335,7 @@ static void debug_row_draw(const GuiPaneCfg *args)
     }
     default: {
         GuiColor color = palette->text;
-        switch (row.line_kind)
+        switch (row.line_type)
         {
         case CLI_DEBUG_LINE_STDERR:
             color = palette->mark[0];
@@ -390,7 +390,7 @@ static int debug_press(const GuiPaneCfg *args)
     // the depth is at most CLI_DEBUG_DEPTH guides, far inside an int; the arrow and a watch's box stand in the guide
     // after the row's own
     const int reach = rect.x + pad + (((int)row.depth + 1) * guide);
-    if ((args->x < reach) && (row.opens || (row.kind == CLI_DEBUG_ROW_WATCH)))
+    if ((args->x < reach) && (row.opens || (row.type == CLI_DEBUG_ROW_WATCH)))
     {
         (void)EMBED_CALL(cli_debug_pane_view.toggle, CliDebugPaneViewCfg, .view = view, .at = args->row,
                          .root = args->root);

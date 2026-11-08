@@ -12,9 +12,9 @@
 // the field that takes the keys where no param is focused: the filter
 #define CLI_JOB_RUNS_FILTER 0xffffffffu
 
-// the param kinds whose choices are the value itself: one of them, and several
-#define CLI_JOB_RUNS_KIND_CHOICE "choice"
-#define CLI_JOB_RUNS_KIND_MANY "many"
+// the param types whose choices are the value itself: one of them, and several
+#define CLI_JOB_RUNS_TYPE_CHOICE "choice"
+#define CLI_JOB_RUNS_TYPE_MANY "many"
 
 // A group of the jobs: its name, the place of its first job among the jobs in group order and how many it has, how many
 // of them the filter lets stand and that count's digits with their bytes, and whether it is open
@@ -67,13 +67,13 @@ typedef struct
     unsigned int spans_capacity;
 } CliJobRunsRun;
 
-// A section of the rows: its first row, its rows, their kind, the item they read, the group's place, the job's, the
+// A section of the rows: its first row, its rows, their type, the item they read, the group's place, the job's, the
 // param's among the job's or the run's, and the flags its one row carries where it has one
 typedef struct
 {
     unsigned int start;
     unsigned int count;
-    unsigned int kind;
+    unsigned int type;
     unsigned int item;
     unsigned int flags;
 } CliJobRunsSection;

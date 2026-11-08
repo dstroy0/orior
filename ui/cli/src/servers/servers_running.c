@@ -77,7 +77,7 @@ unsigned int cli_servers_list(const CliServersCfg *args)
         (void)mmgr_line_finish(&named);
         // a process id fits the 32 bits the system gives it
         args->servers[count].pid =
-            (unsigned int)EMBED_CALL(cli_lsp_size_kind.pid, CliLspSizeKindCfg, .lsp_read = one->lsp);
+            (unsigned int)EMBED_CALL(cli_lsp_size_type.pid, CliLspSizeTypeCfg, .lsp_read = one->lsp);
         count += 1u;
     }
     return count;

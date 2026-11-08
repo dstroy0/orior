@@ -393,18 +393,18 @@ static void doc_check(const InspectPyDocCtx *args)
 EMBED_INLINE int doc_lone(const InspectPyDocCtx *args)
 {
     const CliInspectTok *const toks = &g_cli_inspect_tok[args->line_py_line_pointer->first];
-    if (toks[0].kind != CLI_PY_STR)
+    if (toks[0].type != CLI_PY_STR)
     {
         return 0;
     }
     unsigned int strings = 0u;
     for (unsigned int at = 0u; at < args->line_py_line_pointer->count; at += 1u)
     {
-        if ((toks[at].kind != CLI_PY_STR) && !toks[at].field)
+        if ((toks[at].type != CLI_PY_STR) && !toks[at].field)
         {
             return 0;
         }
-        strings += (toks[at].kind == CLI_PY_STR) ? 1u : 0u;
+        strings += (toks[at].type == CLI_PY_STR) ? 1u : 0u;
     }
     return strings == 1u;
 }

@@ -73,7 +73,7 @@ void test_no_parts_and_no_channels_list_two_empty_groups(void)
     TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
     const CliCommsRow parts = row_at(0u);
     const CliCommsRow channels = row_at(1u);
-    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_GROUP, parts.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_GROUP, parts.type);
     CLI_TEST_ASSERT_TEXT("Parts", parts.name, parts.name_length);
     CLI_TEST_ASSERT_TEXT("0", parts.status, parts.status_length);
     CLI_TEST_ASSERT_TEXT("Channels", channels.name, channels.name_length);
@@ -101,14 +101,14 @@ void test_two_parts_and_a_channel_list_by_name_with_their_counts(void)
     const CliCommsRow channels = row_at(3u);
     const CliCommsRow channel = row_at(4u);
     CLI_TEST_ASSERT_TEXT("2", parts.status, parts.status_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_PART, alpha.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_PART, alpha.type);
     CLI_TEST_ASSERT_TEXT("alpha", alpha.name, alpha.name_length);
     CLI_TEST_ASSERT_TEXT("1 sent", alpha.status, alpha.status_length);
     CLI_TEST_ASSERT_TEXT("in orior; listens on demo/*; speaks on demo/*", alpha.detail, alpha.detail_length);
     CLI_TEST_ASSERT_TEXT("zeta", zeta.name, zeta.name_length);
     CLI_TEST_ASSERT_TEXT("0 sent", zeta.status, zeta.status_length);
     CLI_TEST_ASSERT_TEXT("1", channels.status, channels.status_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_CHANNEL, channel.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_CHANNEL, channel.type);
     CLI_TEST_ASSERT_TEXT("demo/one", channel.name, channel.name_length);
     CLI_TEST_ASSERT_TEXT("1 message", channel.status, channel.status_length);
     CLI_TEST_ASSERT_TEXT("7 bytes; heard by zeta", channel.detail, channel.detail_length);
@@ -152,7 +152,7 @@ void test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes(void)
     TEST_ASSERT_EQUAL_INT(4, EMBED_CALL(cli_comms_pane.current, CliCommsPaneCfg, .at = 0u));
     const CliCommsRow first = row_at(5u);
     const CliCommsRow second = row_at(6u);
-    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_MESSAGE, first.kind);
+    TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_MESSAGE, first.type);
     CLI_TEST_ASSERT_TEXT("alpha", first.name, first.name_length);
     CLI_TEST_ASSERT_TEXT("{\"n\":1}", first.status, first.status_length);
     CLI_TEST_ASSERT_TEXT("{\"n\":2}", second.status, second.status_length);

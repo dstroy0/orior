@@ -398,7 +398,7 @@ int query_modify(const QueryPathSecondsCtx *args)
     return 1;
 }
 
-int query_modified_set(const QueryPathSecondsKindCtx *args)
+int query_modified_set(const QueryPathSecondsTypeCtx *args)
 {
     const HANDLE file = CreateFileA(args->path, FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);

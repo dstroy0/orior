@@ -6,17 +6,17 @@
 #include "../../cli/src/text/text.h"
 #include "query_loops.h"
 
-// the most names the bridge's folder contains whole of one set of kinds, and the longest one
+// the most names the bridge's folder contains whole of one set of types, and the longest one
 #define QUERY_NAMES_MAX 64u
 
 #define QUERY_NAME_MAX_LEN 64u
 
-// What the walk for the names the folder contains whole records: the folder, the kinds, the names found and their count
+// What the walk for the names the folder contains whole records: the folder, the types, the names found and their count
 typedef struct
 {
     const char *folder;
-    const char *const *kinds;
-    unsigned int kind_count;
+    const char *const *types;
+    unsigned int type_count;
     char (*names)[QUERY_NAME_MAX_LEN];
     unsigned int count;
 } QueryNamesWalk;
@@ -25,20 +25,20 @@ static void query_names_walk(const CliEachNameIsFolderCfg *args)
 {
     QueryNamesWalk *const walk = (QueryNamesWalk *)args->context;
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
-    const size_t kind = cellul.len(&(CatenaFinitaCfg){.src = walk->kinds[0], .cap = CLI_POOL_BYTES});
-    if (args->is_folder || (walk->count >= QUERY_NAMES_MAX) || (length <= (kind + 1u)) ||
-        (args->name[length - kind - 1u] != '.') ||
+    const size_t type = cellul.len(&(CatenaFinitaCfg){.src = walk->types[0], .cap = CLI_POOL_BYTES});
+    if (args->is_folder || (walk->count >= QUERY_NAMES_MAX) || (length <= (type + 1u)) ||
+        (args->name[length - type - 1u] != '.') ||
         (!cellul.eq(
-            &(CatenaFinitaCfg){.src = args->name + length - kind, .other = walk->kinds[0], .cap = CLI_POOL_BYTES})) ||
-        ((length - kind - 1u) >= QUERY_NAME_MAX_LEN))
+            &(CatenaFinitaCfg){.src = args->name + length - type, .other = walk->types[0], .cap = CLI_POOL_BYTES})) ||
+        ((length - type - 1u) >= QUERY_NAME_MAX_LEN))
     {
         return;
     }
     char stem[QUERY_NAME_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = stem, .src = args->name, .bytes = length - kind - 1u});
-    stem[length - kind - 1u] = '\0';
-    // every kind of the stem a file of the folder
-    for (unsigned int at = 0u; at < walk->kind_count; at += 1u)
+    memor.cpy(&(MemoriaCfg){.dst = stem, .src = args->name, .bytes = length - type - 1u});
+    stem[length - type - 1u] = '\0';
+    // every type of the stem a file of the folder
+    for (unsigned int at = 0u; at < walk->type_count; at += 1u)
     {
         char path[QUERY_PATH_MAX_LEN];
         VerbaLinea line = {path, sizeof(path), 0ULL};
@@ -46,7 +46,7 @@ static void query_names_walk(const CliEachNameIsFolderCfg *args)
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, stem);
         mmgr_line_ch(&line, '.');
-        mmgr_line_put(&line, walk->kinds[at]);
+        mmgr_line_put(&line, walk->types[at]);
         if ((mmgr_line_finish(&line) == 0ULL) ||
             !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
         {
@@ -64,15 +64,15 @@ static void query_names_walk(const CliEachNameIsFolderCfg *args)
     walk->count += 1u;
 }
 
-// Every name the table contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count
-unsigned int query_names_of_kinds(const QueryLoopsRootKindsCfg *args)
+// Every name the table contains a file of each of `types` of, sorted, into `names`, its list into `named`: their count
+unsigned int query_names_of_types(const QueryLoopsRootTypesCfg *args)
 {
     char folder[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, QUERY_TABLE);
-    QueryNamesWalk walk = {folder, args->kinds, args->kind_count, args->names, 0u};
+    QueryNamesWalk walk = {folder, args->types, args->type_count, args->names, 0u};
     if (mmgr_line_finish(&line) != 0ULL)
     {
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
@@ -161,13 +161,13 @@ static QueryCommand s_commands[11];
 unsigned int query_commands(const QueryCfg *args)
 {
     const QueryCommand **commands = args->commands;
-    static const char *const s_language_kinds[] = {"klm", "krs"};
-    static const char *const s_part_kinds[] = {"khw", "kqr", "ksc"};
+    static const char *const s_language_types[] = {"klm", "krs"};
+    static const char *const s_part_types[] = {"khw", "kqr", "ksc"};
     const unsigned int languages =
-        EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = args->root, .kinds = s_language_kinds,
-                   .kind_count = 2u, .names = s_languages, .named = s_language);
-    const unsigned int parts = EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = args->root,
-                                          .kinds = s_part_kinds, .kind_count = 3u, .names = s_parts, .named = s_part);
+        EMBED_CALL(query_loops_root_types.whole, QueryLoopsRootTypesCfg, .root = args->root, .types = s_language_types,
+                   .type_count = 2u, .names = s_languages, .named = s_language);
+    const unsigned int parts = EMBED_CALL(query_loops_root_types.whole, QueryLoopsRootTypesCfg, .root = args->root,
+                                          .types = s_part_types, .type_count = 3u, .names = s_parts, .named = s_part);
     s_course_params[0] = (QueryParam){"from", "choice", g_query_course_names, g_query_course_steps, 0};
     s_course_params[1] = (QueryParam){"leave", "choice", s_leave_choices, 2u, 0};
     s_query_params[0] = (QueryParam){"from", "choice", s_language, languages, 1};

@@ -104,18 +104,18 @@ int cli_deploy_order(const CliDeployLeftCtx *args)
     return (order > 0) - (order < 0);
 }
 
-// the name serde gives a value's kind
-EMBED_INLINE const char *read_kind(const DeployReadCtx *args)
+// the name serde gives a value's type
+EMBED_INLINE const char *read_type(const DeployReadCtx *args)
 {
-    static const char *const kinds[7] = {"map", "sequence", "string", "integer", "boolean", "boolean", "null"};
-    return kinds[args->json->node[args->node].kind];
+    static const char *const types[7] = {"map", "sequence", "string", "integer", "boolean", "boolean", "null"};
+    return types[args->json->node[args->node].type];
 }
 
-// that a value is not the kind wanted reported, as serde reports it
+// that a value is not the type wanted reported, as serde reports it
 EMBED_INLINE int read_invalid(const DeployReadCtx *args)
 {
     mmgr_line_put(args->err_msg, "deploy.json: invalid type: ");
-    mmgr_line_put(args->err_msg, read_kind(args));
+    mmgr_line_put(args->err_msg, read_type(args));
     mmgr_line_put(args->err_msg, ", expected ");
     mmgr_line_put(args->err_msg, args->required);
     return 0;
@@ -146,8 +146,8 @@ static int read_texts(const DeployReadCtx *args)
     {
         return 1;
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = list,
+                    .type = CFG_JSON_ARRAY))
     {
         return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .required = "a sequence",
                           .err_msg = args->err_msg);
@@ -159,8 +159,8 @@ static int read_texts(const DeployReadCtx *args)
     {
         const unsigned int item = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = json, .array = list, .index = items);
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = item,
-                        .kind = CFG_JSON_STRING))
+        if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = item,
+                        .type = CFG_JSON_STRING))
         {
             return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = item, .required = "a string",
                               .err_msg = args->err_msg);
@@ -195,8 +195,8 @@ static int read_texts(const DeployReadCtx *args)
 EMBED_INLINE int read_deployment(const DeployReadCtx *args)
 {
     const CliJson *json = args->json;
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->entry,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = args->entry,
+                    .type = CFG_JSON_OBJECT))
     {
         return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = args->entry,
                           .required = "struct Deployment", .err_msg = args->err_msg);
@@ -218,14 +218,14 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
     {
         return EMBED_CALL(read_missing, DeployReadCtx, .field = "to", .err_msg = args->err_msg);
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = name,
-                    .kind = CFG_JSON_STRING) ||
-        ((from != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = json, .node = from, .kind = CFG_JSON_STRING)))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = name,
+                    .type = CFG_JSON_STRING) ||
+        ((from != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                .json_read = json, .node = from, .type = CFG_JSON_STRING)))
     {
         return EMBED_CALL(read_invalid, DeployReadCtx, .json = json,
-                          .node = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                             .node = name, .kind = CFG_JSON_STRING)
+                          .node = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                             .node = name, .type = CFG_JSON_STRING)
                                       ? from
                                       : name,
                           .required = "a string", .err_msg = args->err_msg);
@@ -240,12 +240,12 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
     if (retain_node != CLI_JSON_NONE)
     {
         unsigned long long length = 0ULL;
-        const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = json, .node = retain_node, .kind = CFG_JSON_NUMBER)
+        const char *const digits = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                              .json_read = json, .node = retain_node, .type = CFG_JSON_NUMBER)
                                        ? (json->text + json->node[retain_node].text)
                                        : "";
-        length = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                            .node = retain_node, .kind = CFG_JSON_NUMBER)
+        length = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                            .node = retain_node, .type = CFG_JSON_NUMBER)
                      ? json->node[retain_node].length
                      : 0ULL;
         unsigned long long value = 0ULL;
@@ -268,16 +268,16 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
     args->deployment->in_position = 0;
     if (in_position != CLI_JSON_NONE)
     {
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_position,
-                        .kind = CFG_JSON_TRUE) &&
-            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_position,
-                        .kind = CFG_JSON_FALSE))
+        if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = in_position,
+                        .type = CFG_JSON_TRUE) &&
+            !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = in_position,
+                        .type = CFG_JSON_FALSE))
         {
             return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = in_position, .required = "a boolean",
                               .err_msg = args->err_msg);
         }
-        args->deployment->in_position = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                   .json_read = json, .node = in_position, .kind = CFG_JSON_TRUE);
+        args->deployment->in_position = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
+                                                   .json_read = json, .node = in_position, .type = CFG_JSON_TRUE);
     }
     return EMBED_CALL(read_texts, DeployReadCtx, .json = json, .entry = args->entry, .field = "exclude",
                       .pool = args->pool, .texts = &args->deployment->exclude, .count = &args->deployment->excludes,
@@ -328,8 +328,8 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         mmgr_line_put_n(args->err_msg, why, read_err_msg.at);
         return 0;
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = top,
-                    .kind = CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = top,
+                    .type = CFG_JSON_OBJECT))
     {
         return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = top, .required = "struct Named",
                           .err_msg = args->err_msg);
@@ -340,8 +340,8 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     {
         return EMBED_CALL(read_missing, DeployReadCtx, .field = "deployments", .err_msg = args->err_msg);
     }
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list,
-                    .kind = CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = list,
+                    .type = CFG_JSON_ARRAY))
     {
         return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .required = "a sequence",
                           .err_msg = args->err_msg);

@@ -8,7 +8,7 @@
 
 const MOST_EDITS = 3000;
 
-// The shortest edit from `a` to `b`, arrays of numbers, as [kind, index] in order: kind 0 keeps a[i],
+// The shortest edit from `a` to `b`, arrays of numbers, as [type, index] in order: type 0 keeps a[i],
 // 1 takes a[i] out, 2 puts b[i] in. Null past MOST_EDITS.
 function shortest(a, b) {
   const n = a.length;
@@ -116,12 +116,12 @@ export function lineChanges(then, now) {
     out = 0;
     put = [];
   };
-  for (const [kind] of steps) {
-    if (kind === 0) {
+  for (const [type] of steps) {
+    if (type === 0) {
       close();
       line += 1;
       thenLine += 1;
-    } else if (kind === 1) {
+    } else if (type === 1) {
       out += 1;
       thenLine += 1;
     } else {

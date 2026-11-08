@@ -23,7 +23,7 @@ typedef struct CliPatternsCfg CliPatternsCfg;
 typedef struct CliPatternsPartCfg CliPatternsPartCfg;
 typedef struct CliPatternsTextCfg CliPatternsTextCfg;
 
-// the most patterns of each kind a set contains, and the most letters all of them take
+// the most patterns of each type a set contains, and the most letters all of them take
 #define CLI_PATTERNS_MAX 256u
 
 #define CLI_PATTERN_LETTERS 16384u

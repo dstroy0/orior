@@ -35,12 +35,12 @@ static void message_encoded(void)
     EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_message, .tag = CLI_IPP_NAME, .text = "main.py");
     EMBED_CALL(cli_ipp_message_tag.group, CliIppMessageTagCfg, .message = &s_message, .tag = CLI_IPP_JOB);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_message, .name = "copies");
-    EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_message, .kind = CLI_IPP_INTEGER, .value = 2);
+    EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_message, .type = CLI_IPP_INTEGER, .value = 2);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_message, .name = "page-ranges");
     EMBED_CALL(cli_ipp_message_low.range, CliIppMessageLowCfg, .message = &s_message, .low = 1, .high = 3);
     EMBED_CALL(cli_ipp_message_low.range, CliIppMessageLowCfg, .message = &s_message, .low = 5, .high = 5);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_message, .name = "orientation-requested");
-    EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_message, .kind = CLI_IPP_ENUM, .value = 4);
+    EMBED_CALL(cli_ipp_message_type.number, CliIppMessageTypeCfg, .message = &s_message, .type = CLI_IPP_ENUM, .value = 4);
     VerbaLinea bytes = {s_bytes, sizeof(s_bytes), 0ull};
     EMBED_CALL(cli_ipp_message_out_verba_linea.encode, CliIppMessageOutVerbaLineaCfg, .message_read = &s_message, .out_verba_linea_pointer = &bytes);
     mmgr_line_put(&bytes, "%PDF-1.4");
@@ -207,7 +207,7 @@ void test_a_message_reads_its_values_back(void)
     {
         const CliIppValue *const one = &s_message.value[at];
         const CliIppValue *const other = &s_back.value[at];
-        TEST_ASSERT_EQUAL_INT(one->kind, other->kind);
+        TEST_ASSERT_EQUAL_INT(one->type, other->type);
         TEST_ASSERT_EQUAL_UINT(one->tag, other->tag);
         TEST_ASSERT_EQUAL_INT(one->low, other->low);
         TEST_ASSERT_EQUAL_INT(one->high, other->high);

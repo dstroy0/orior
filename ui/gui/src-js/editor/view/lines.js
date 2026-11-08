@@ -35,10 +35,10 @@ export function lineSpans() {
 }
 
 // Writes each span of lines again as `make` gives it from its lines.
-export function rewriteLines(make, kind) {
+export function rewriteLines(make, type) {
   const doc = this.doc;
   const edits = this.lineSpans().map(([first, last]) => ({ from: pos(first, 0), to: pos(last, doc.line(last).length), text: make(doc.lines.slice(first, last + 1)).join("\n") }));
-  return this.change(edits, kind);
+  return this.change(edits, type);
 }
 
 export function sortLines(descending) {
@@ -74,12 +74,12 @@ export function joinLines() {
 
 // Changes the case of each selection, or of the word at each cursor: upper, lower, or title, each
 // word's first letter upper and the rest lower.
-export function transformCase(kind) {
+export function transformCase(type) {
   const make = {
     upper: (text) => text.toUpperCase(),
     lower: (text) => text.toLowerCase(),
     title: (text) => text.replace(/\p{L}[\p{L}\p{N}'’]*/gu, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase()),
-  }[kind];
+  }[type];
   const edits = [];
   for (const sel of this.s.selections) {
     const span = empty(sel) ? wordAt(this.doc, sel.head) : { from: startOf(sel), to: endOfSel(sel) };

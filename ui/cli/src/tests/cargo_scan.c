@@ -20,7 +20,7 @@ typedef struct
     unsigned long long at_u64;
     unsigned long long *reserved;
     unsigned int letter;
-    unsigned int kind;
+    unsigned int type;
     unsigned long long start;
     unsigned long long end;
     unsigned int line;
@@ -87,7 +87,7 @@ EMBED_INLINE void scan_append(const CargoScanCtx *args)
     if (g_cli_cargo_scan.token_count < g_cli_cargo_scan.token_capacity)
     {
         g_cli_cargo_scan.tokens[g_cli_cargo_scan.token_count] =
-            (CliRustToken){args->kind, args->letter, args->start, (unsigned int)(args->end - args->start), args->line};
+            (CliRustToken){args->type, args->letter, args->start, (unsigned int)(args->end - args->start), args->line};
     }
     g_cli_cargo_scan.token_count += 1u;
 }
@@ -115,7 +115,7 @@ EMBED_INLINE unsigned long long scan_raw(const CargoScanCtx *args)
         {
             at += reserved;
         }
-        EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
+        EMBED_CALL(scan_append, CargoScanCtx, .type = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
                    .line = *line);
         return at;
     }
@@ -249,7 +249,7 @@ EMBED_INLINE unsigned long long scan_word_token(const CargoScanCtx *args)
         return EMBED_CALL(scan_raw, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
                           .line_pointer = args->line_pointer);
     }
-    EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
+    EMBED_CALL(scan_append, CargoScanCtx, .type = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
                .line = *args->line_pointer);
     return at;
 }
@@ -305,13 +305,13 @@ static void scan_tokens_append(const CargoScanCtx *args)
         }
         else if ((c == ':') && (next == ':'))
         {
-            EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_PATH, .letter = 0u, .start = at, .end = at,
+            EMBED_CALL(scan_append, CargoScanCtx, .type = CLI_RUST_PATH, .letter = 0u, .start = at, .end = at,
                        .line = line);
             at += 2ULL;
         }
         else
         {
-            EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_MARK, .letter = c, .start = at, .end = at,
+            EMBED_CALL(scan_append, CargoScanCtx, .type = CLI_RUST_MARK, .letter = c, .start = at, .end = at,
                        .line = line);
             at += reserved;
         }
@@ -335,14 +335,14 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
 // whether the token at `at` is the sign `letter`, or the word `word`
 EMBED_INLINE int scan_is_mark(const CargoScanCtx *args)
 {
-    return (args->at < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[args->at].kind == CLI_RUST_MARK) &&
+    return (args->at < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[args->at].type == CLI_RUST_MARK) &&
            (g_cli_cargo_scan.tokens[args->at].letter == args->letter);
 }
 
 EMBED_INLINE int scan_is_word(const CargoScanCtx *args)
 {
     const CliRustToken *const token = &g_cli_cargo_scan.tokens[args->at];
-    return (args->at < g_cli_cargo_scan.token_count) && (token->kind == CLI_RUST_WORD) &&
+    return (args->at < g_cli_cargo_scan.token_count) && (token->type == CLI_RUST_WORD) &&
            (token->size == cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES})) &&
            (memor.cmp(
                 &(MemoriaCfg){.src = args->text + token->start, .other = args->word_text, .bytes = token->size}) == 0);
@@ -396,12 +396,12 @@ EMBED_INLINE unsigned int scan_attribute(const CargoScanCtx *args)
     unsigned int last = CLI_RUST_NONE;
     for (unsigned int step = open + 1u; step < g_cli_cargo_scan.token_count; step += 1u)
     {
-        const unsigned int kind = g_cli_cargo_scan.tokens[step].kind;
-        if (kind == CLI_RUST_MARK)
+        const unsigned int type = g_cli_cargo_scan.tokens[step].type;
+        if (type == CLI_RUST_MARK)
         {
             break;
         }
-        last = (kind == CLI_RUST_WORD) ? step : last;
+        last = (type == CLI_RUST_WORD) ? step : last;
     }
     if (!inner && (last != CLI_RUST_NONE) &&
         EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = last, .word_text = "test"))
@@ -478,7 +478,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
             continue;
         }
         const int named =
-            (at + 1u < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[at + 1u].kind == CLI_RUST_WORD);
+            (at + 1u < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[at + 1u].type == CLI_RUST_WORD);
         if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word_text = "mod") && named)
         {
             at = EMBED_CALL(scan_module, CargoScanCtx, .text = args->text, .at = at, .opened_names = inline_names,

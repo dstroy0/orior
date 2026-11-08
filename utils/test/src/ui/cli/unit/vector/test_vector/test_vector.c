@@ -13,18 +13,18 @@ static unsigned int s_paths[4];
 static unsigned int s_path_count;
 static unsigned short s_folding[12];
 
-// text of every kind the loops meet, ASCII of both cases, letters outside ASCII, the two that fold into it, and surrogate units,
+// text of every type the loops meet, ASCII of both cases, letters outside ASCII, the two that fold into it, and surrogate units,
 // `length` units from `seed`, into `out`
 static void text_written(unsigned long long seed, unsigned long long length, unsigned short *out)
 {
-    static const unsigned short s_kinds[16] = {'a', 'b', 'A', 'B', 's', 'S', 'k', 'K', CLI_LONG_S, CLI_KELVIN, 0x00E9u, 0x00C9u, 0xD83Du, 0xDE00u, ' ', 0xFFFFu};
+    static const unsigned short s_types[16] = {'a', 'b', 'A', 'B', 's', 'S', 'k', 'K', CLI_LONG_S, CLI_KELVIN, 0x00E9u, 0x00C9u, 0xD83Du, 0xDE00u, ' ', 0xFFFFu};
     unsigned long long state = (seed * 0x9E3779B97F4A7C15ull) | 1ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         state ^= state << 13u;
         state ^= state >> 7u;
         state ^= state << 17u;
-        out[at] = s_kinds[state % 16ull];
+        out[at] = s_types[state % 16ull];
     }
 }
 

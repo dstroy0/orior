@@ -49,19 +49,19 @@ static void cli_write(const PluginsTextCtx *args)
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = node, .out = out,
                .indent = 0u, .sorted = 0);
     const unsigned long long flat = out->at - begun;
-    const CfgJsonKind kind = json->node[node].kind;
-    if ((mmgr_line_ok(out) && ((flat + indent) <= CLI_WIDE)) || ((kind != CFG_JSON_ARRAY) && (kind != CFG_JSON_OBJECT)))
+    const CfgJsonKind type = json->node[node].type;
+    if ((mmgr_line_ok(out) && ((flat + indent) <= CLI_WIDE)) || ((type != CFG_JSON_ARRAY) && (type != CFG_JSON_OBJECT)))
     {
         return;
     }
     out->at = begun;
     const unsigned long long inner = indent + 2ULL;
-    int strings = kind == CFG_JSON_ARRAY;
+    int strings = type == CFG_JSON_ARRAY;
     for (unsigned int item = json->node[node].first; strings && (item != CLI_JSON_NONE); item = json->node[item].next)
     {
-        strings = json->node[item].kind == CFG_JSON_STRING;
+        strings = json->node[item].type == CFG_JSON_STRING;
     }
-    mmgr_line_put(out, (kind == CFG_JSON_OBJECT) ? "{\n" : "[\n");
+    mmgr_line_put(out, (type == CFG_JSON_OBJECT) ? "{\n" : "[\n");
     unsigned long long line = 0ULL;
     int first = 1;
     for (unsigned int item = json->node[node].first; item != CLI_JSON_NONE; item = json->node[item].next)
@@ -101,7 +101,7 @@ static void cli_write(const PluginsTextCtx *args)
         {
             mmgr_line_ch(out, ' ');
         }
-        if (kind == CFG_JSON_OBJECT)
+        if (type == CFG_JSON_OBJECT)
         {
             const char *const key = json->text + json->node[item].key;
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = key,
@@ -115,7 +115,7 @@ static void cli_write(const PluginsTextCtx *args)
     {
         mmgr_line_ch(out, ' ');
     }
-    mmgr_line_ch(out, (kind == CFG_JSON_OBJECT) ? '}' : ']');
+    mmgr_line_ch(out, (type == CFG_JSON_OBJECT) ? '}' : ']');
 }
 
 void cli_plugins_text_get(const CliPluginsJsonOutCfg *args)
@@ -189,7 +189,7 @@ void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args)
                   ? keyword
                   : EMBED_CALL(cli_first, PluginsTextCtx, .json = args->json, .plugin = args->plugin, .name = "words");
     keyword = (keyword != NULL) ? keyword : "word";
-    const char *const kind =
+    const char *const type =
         (EMBED_CALL(cli_first, PluginsTextCtx, .json = args->json, .plugin = args->plugin, .name = "types") != NULL)
             ? EMBED_CALL(cli_first, PluginsTextCtx, .json = args->json, .plugin = args->plugin, .name = "types")
             : "Type";
@@ -207,7 +207,7 @@ void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args)
     const char *const quote = (quoted != NULL) ? quoted : "\"";
     mmgr_line_put(args->out, keyword);
     mmgr_line_ch(args->out, ' ');
-    mmgr_line_put(args->out, kind);
+    mmgr_line_put(args->out, type);
     mmgr_line_put(args->out, " name = ");
     mmgr_line_put(args->out, constant);
     mmgr_line_put(args->out, ";\n");
@@ -307,7 +307,7 @@ int cli_plugins_create_in(const CliPluginsErrMsgCfg *args)
                    .json = args->json, .spec = args->spec, .err_msg = args->err_msg);
     const unsigned int plugin =
         (answers != CLI_JSON_NONE)
-            ? EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &draft,
+            ? EMBED_CALL(cli_plugins_err_msg_json_spec_type.draft, CliPluginsErrMsgJsonSpecTypeCfg, .json_out = &draft,
                          .spec = answers, .err_msg = args->err_msg)
             : CLI_JSON_NONE;
     const int written = (plugin != CLI_JSON_NONE) &&

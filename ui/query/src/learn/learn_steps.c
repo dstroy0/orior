@@ -115,18 +115,18 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     char step_word[64];
     VerbaLinea step_line = {step_word, sizeof(step_word), 0ULL};
     mmgr_line_put(&step_line, "--");
-    mmgr_line_put(&step_line, (args->step->kind == QUERY_LEARN_PASS) ? args->step->word_text : "discover");
+    mmgr_line_put(&step_line, (args->step->type == QUERY_LEARN_PASS) ? args->step->word_text : "discover");
     mmgr_line_finish(&step_line);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word_text = step_word);
     const char *const read[7] = {files->machine,   files->costs,  files->record,   files->layout,
                                  files->mnemonics, files->fields, args->step->base};
-    const unsigned int reads = ((args->step->kind == QUERY_LEARN_PASS) && (args->step->base != NULL)) ? 7u : 6u;
+    const unsigned int reads = ((args->step->type == QUERY_LEARN_PASS) && (args->step->base != NULL)) ? 7u : 6u;
     int whole = EMBED_CALL(query_learn_err_msg_internal.files_add, QueryLearnErrMsgCtx, .context = context,
                            .run_out = &s_run, .lessons = 1, .err_msg = err_msg) &&
                 EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                            .paths_letters = read, .count = reads, .err_msg = err_msg);
-    if (whole && (args->step->kind == QUERY_LEARN_SEED))
+    if (whole && (args->step->type == QUERY_LEARN_SEED))
     {
         static char s_seeds[QUERY_PATH_MAX_LEN];
         const char *const seeds[4] = {s_seeds, args->step->word_text, "--modifiers", NULL};
@@ -147,7 +147,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                    .word_text = "seeds.txt");
     }
-    if (whole && (args->step->kind == QUERY_LEARN_PASS) && (args->step->base != NULL))
+    if (whole && (args->step->type == QUERY_LEARN_PASS) && (args->step->base != NULL))
     {
         whole = EMBED_CALL(query_loops_context_err_msg.base_compile, QueryLoopsContextErrMsgCfg, .context = context,
                            .run = &s_run, .base = args->step->base, .err_msg = err_msg);
@@ -194,7 +194,7 @@ EMBED_INLINE int query_offline_files(const LearnStepsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = args->record,
                             .src = files->record,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->record, .cap = CLI_POOL_BYTES}) + 1u});
-    if (args->step->kind != QUERY_LEARN_ROUNDS)
+    if (args->step->type != QUERY_LEARN_ROUNDS)
     {
         EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.khw",
                    .path = args->machine);
@@ -203,7 +203,7 @@ EMBED_INLINE int query_offline_files(const LearnStepsCtx *args)
         EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.kqr",
                    .path = args->record);
     }
-    if (args->step->kind != QUERY_LEARN_DRY)
+    if (args->step->type != QUERY_LEARN_DRY)
     {
         return 1;
     }
@@ -273,7 +273,7 @@ EMBED_INLINE void query_rounds_words(const LearnStepsCtx *args)
                .word_text = rounds);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
                .word_text = "--");
-    if (args->step->kind == QUERY_LEARN_DRY)
+    if (args->step->type == QUERY_LEARN_DRY)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
                    .word_text = "dry");
@@ -321,7 +321,7 @@ EMBED_INLINE int query_dry_carried(const LearnStepsCtx *args)
 // carried and an enumeration's place told; 1, or 0 with why given
 EMBED_INLINE int query_offline_checked(const LearnStepsCtx *args)
 {
-    const int dry = args->step->kind == QUERY_LEARN_DRY;
+    const int dry = args->step->type == QUERY_LEARN_DRY;
     if (args->code != 0LL)
     {
         mmgr_line_put(args->err_msg, dry ? "the protocol did not run dry" : "the enumerate did not run");
@@ -376,7 +376,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     {
         return -1;
     }
-    const int needs_cross = args->step->kind != QUERY_LEARN_ENUMERATE;
+    const int needs_cross = args->step->type != QUERY_LEARN_ENUMERATE;
     static QueryRun s_run;
     if ((needs_cross &&
          (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
@@ -397,7 +397,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_learn_words_words_internal.teacher_words, QueryLearnWordsWordsCtx, .words_words_pointer = &s_words,
                .machine = machine, .files = files, .writer = writer);
-    if (args->step->kind == QUERY_LEARN_ENUMERATE)
+    if (args->step->type == QUERY_LEARN_ENUMERATE)
     {
         EMBED_CALL(query_enumerate_words, LearnStepsCtx, .context = context, .step = args->step, .run = &s_run,
                    .words = &s_words);
@@ -416,7 +416,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                 .context = context, .run = &s_run, .name = "orior_khw_learn", .words = s_teacher,
                                 .code = &code, .err_msg = err_msg);
-    if (whole && (args->step->kind != QUERY_LEARN_ROUNDS))
+    if (whole && (args->step->type != QUERY_LEARN_ROUNDS))
     {
         whole = EMBED_CALL(query_offline_checked, LearnStepsCtx, .context = context, .files = files, .step = args->step,
                            .run = &s_run, .transport = args->transport, .code = code, .err_msg = err_msg);
@@ -468,12 +468,12 @@ int query_learn_run(const QueryLoopCfg *args)
         mmgr_line_put(err_msg, " could not be made");
         return -1;
     }
-    if (step.kind == QUERY_LEARN_CLOCK)
+    if (step.type == QUERY_LEARN_CLOCK)
     {
         return EMBED_CALL(query_learn_clock, LearnStepsCtx, .context = context, .files = &s_files, .step = &step,
                           .err_msg = err_msg);
     }
-    if ((step.kind == QUERY_LEARN_PASS) || (step.kind == QUERY_LEARN_SEED))
+    if ((step.type == QUERY_LEARN_PASS) || (step.type == QUERY_LEARN_SEED))
     {
         return EMBED_CALL(query_learn_pass, LearnStepsCtx, .context = context, .files = &s_files, .step = &step,
                           .writer = s_writer, .transport = s_transport, .teacher = s_teacher, .err_msg = err_msg);

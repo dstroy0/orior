@@ -75,7 +75,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_bundle_owner);
-    const char *const kind =
+    const char *const type =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -83,7 +83,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
                          .length_pointer = NULL)
             : NULL;
     const int script =
-        (kind != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "script", .cap = CLI_NAME_MAX_LEN});
+        (type != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "script", .cap = CLI_NAME_MAX_LEN});
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);

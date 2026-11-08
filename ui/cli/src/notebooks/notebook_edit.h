@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_edit.h: an open notebook's cells edited: one cell at a time has an editor's view on its document, opened
 // as it takes the keys and closed as it lets them go, every input handed to that view and the cell's rows following
-// its lines; the notebook's own keys taken before the view sees them; cells added, changed in kind, moved, cleared and
+// its lines; the notebook's own keys taken before the view sees them; cells added, changed in type, moved, cleared and
 // deleted; and the menu of a cell built as the menus' own rows, with the commands its rows run (notebook_edit.c)
 #ifndef NOTEBOOK_EDIT_H
 #define NOTEBOOK_EDIT_H
@@ -30,7 +30,7 @@ int cli_notebook_cell_input(const CliNotebookEditFocusCfg *args);
 // the keys to the next, letting them go at the last; Ctrl+Enter and Meta+Enter run it, the keys staying on it; Escape
 // lets them go: 1 where the key was the notebook's, before the view sees it
 int cli_notebook_cell_key(const CliNotebookEditKeyCfg *args);
-// a cell of `kind` added after the cell `cell`, at the end where `cell` is CLI_NOTEBOOK_NONE, the keys handed to it;
+// a cell of `type` added after the cell `cell`, at the end where `cell` is CLI_NOTEBOOK_NONE, the keys handed to it;
 // the cell `cell` changed from code to markdown or back, its outputs cleared; moved by `by`, one up or one down; its
 // outputs cleared; and deleted, a cell that ran standing among the cells gone for the cells that stand on it. Each 1,
 // or 0 where no such cell stands or the cells cannot meet it, the notebook marked changed where it changed
@@ -67,7 +67,7 @@ struct CliNotebookEditCellCfg
 {
     const char *key;
     unsigned int cell;
-    unsigned int kind;
+    unsigned int type;
     int by;
 };
 

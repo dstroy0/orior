@@ -23,14 +23,14 @@ typedef struct
     int reserved;
     int outer;
 } CliEffectCondition;
-// One declaration the leaves of a branch a slice's walk walks name: its line, the name it declares and its kind,
+// One declaration the leaves of a branch a slice's walk walks name: its line, the name it declares and its type,
 // places among the walk's texts, and the name's length
 typedef struct
 {
     unsigned int line;
     unsigned int name;
     unsigned int length;
-    unsigned int kind;
+    unsigned int type;
 } CliEffectDeclared;
 // A branch being walked: its leaves, its conditions open and how many, the lines of the declarations of the name sought
 // in it and how many; and for a slice's walk, every declaration its leaves name, read as they are, in a cell at their
@@ -332,7 +332,7 @@ EMBED_INLINE int cli_effect_tree_path(const SymbolsEffectCtx *args)
 
 // One include folder or file of the branch the walk starts from, put in the walk's cell as the tree holds it where it
 // does
-static void cli_effect_include_intersect(const CliEachPathKindCfg *args)
+static void cli_effect_include_intersect(const CliEachPathTypeCfg *args)
 {
     CliEffect *const effect = (CliEffect *)args->context;
     char tree_path[CLI_PATH_MAX_LEN];
@@ -352,7 +352,7 @@ static void cli_effect_include_intersect(const CliEachPathKindCfg *args)
         effect->refused = 1;
         return;
     }
-    effect->include[effect->includes] = (CliEffectInclude){put, args->kind};
+    effect->include[effect->includes] = (CliEffectInclude){put, args->type};
     effect->includes += 1u;
 }
 
@@ -433,7 +433,7 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
         const CliEffectInclude *const include = &effect->include[at];
         const char *const folder = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
                                               .at_value = include->path);
-        found = (include->kind != CLI_INCLUDE_FORCED) && (!args->angled || (include->kind != CLI_INCLUDE_QUOTE)) &&
+        found = (include->type != CLI_INCLUDE_FORCED) && (!args->angled || (include->type != CLI_INCLUDE_QUOTE)) &&
                 EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = folder,
                            .folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}),
                            .named = args->named, .length = length, .out = args->out);
@@ -564,8 +564,8 @@ static void cli_effect_declaring(const CliDeclaredCfg *args)
     const unsigned int named = EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx,
                                           .effect = effect, .text = args->name, .length = length);
     const unsigned int kinded = EMBED_CALL(
-        cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect, .text = args->kind,
-        .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_POOL_BYTES}));
+        cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect, .text = args->type,
+        .length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES}));
     if ((named != CLI_JSON_NONE) && (kinded != CLI_JSON_NONE))
     {
         // a name a grammar's token covers is below 2^32 bytes
@@ -937,7 +937,7 @@ EMBED_INLINE void cli_effect_line_met(const SymbolsEffectCtx *args)
     {
         const CliEffectDeclared *const one = &branch->declared[declared];
         const CliEffectSeen seen = {CLI_SEEN_DECLARED, branch->read_at, line,     args->from, 0u,
-                                    one->name,         one->length,     one->kind};
+                                    one->name,         one->length,     one->type};
         if (active)
         {
             (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = args->effect, .seen = &seen);
@@ -1167,7 +1167,7 @@ void cli_effect_alloc(const CliSymbolsPathEffectCtx *args)
     // each file the branch includes before its first line walked before it, as its compiler reads them
     for (unsigned int at = 0u; at < args->effect->includes; at += 1u)
     {
-        if (args->effect->include[at].kind == CLI_INCLUDE_FORCED)
+        if (args->effect->include[at].type == CLI_INCLUDE_FORCED)
         {
             EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = args->effect,
                        .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = args->effect,

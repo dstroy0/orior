@@ -121,7 +121,7 @@ static void client_read(void *context)
         {
             continue;
         }
-        if ((size != 0ULL) && (client->frame[0] == CLI_IPC_KIND_MESSAGE))
+        if ((size != 0ULL) && (client->frame[0] == CLI_IPC_TYPE_MESSAGE))
         {
             EMBED_CALL(client_recv, DoorClientCtx, .client = client, .message = client->frame + 1, .size = size - 1ULL);
             continue;
@@ -172,7 +172,7 @@ static int client_request(const DoorClientCtx *args)
         mmgr_line_put(args->err_msg, "the container gave no answer");
         return 0;
     }
-    if ((args->client->answer_size != 0ULL) && (args->client->answer[0] == CLI_IPC_KIND_REFUSED))
+    if ((args->client->answer_size != 0ULL) && (args->client->answer[0] == CLI_IPC_TYPE_REFUSED))
     {
         mmgr_line_put_n(args->err_msg, args->client->answer + 1, args->client->answer_size - 1ULL);
         return 0;
@@ -228,7 +228,7 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     EMBED_ATOMIC_STORE(&client->read_state, 1u);
     char hello[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea request = {hello, sizeof(hello), 0ULL};
-    mmgr_line_ch(&request, CLI_IPC_KIND_JOIN);
+    mmgr_line_ch(&request, CLI_IPC_TYPE_JOIN);
     mmgr_line_put(&request, args->key);
     mmgr_line_ch(&request, '\0');
     unsigned long long size = 0ULL;
@@ -240,7 +240,7 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
                              .frame = client->frame, .capacity = CLI_IPC_FRAME, .size_pointer = &size,
                              .err_msg = args->err_msg) == CLI_IPC_FRAME_READ) &&
                  (size != 0ULL);
-    if (joined && (client->frame[0] == CLI_IPC_KIND_REFUSED))
+    if (joined && (client->frame[0] == CLI_IPC_TYPE_REFUSED))
     {
         mmgr_line_put_n(args->err_msg, client->frame + 1, size - 1ULL);
         joined = 0;
@@ -291,7 +291,7 @@ int cli_ipc_listen(const CliIpcErrMsgCfg *args)
 {
     char request[CLI_NAME_MAX_LEN + 8u];
     VerbaLinea out = {request, sizeof(request), 0ULL};
-    mmgr_line_ch(&out, CLI_IPC_KIND_LISTEN);
+    mmgr_line_ch(&out, CLI_IPC_TYPE_LISTEN);
     mmgr_line_put(&out, args->channel);
     mmgr_line_ch(&out, '\0');
     return EMBED_CALL(client_request, DoorClientCtx, .client = args->client, .request = out.out, .size = out.at,
@@ -310,7 +310,7 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
         return 0;
     }
     VerbaLinea out = {s_request, sizeof(s_request), 0ULL};
-    mmgr_line_ch(&out, CLI_IPC_KIND_SEND);
+    mmgr_line_ch(&out, CLI_IPC_TYPE_SEND);
     mmgr_line_put(&out, args->channel);
     mmgr_line_ch(&out, '\0');
     mmgr_line_ch(&out, long_body ? CLI_IPC_BODY_TRANSFER : CLI_IPC_BODY_INLINE);

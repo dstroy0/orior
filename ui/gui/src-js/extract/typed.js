@@ -57,30 +57,30 @@ export async function extractTyped(editor, tab, id, lang, read) {
 
   // Each name's type, from the server's hover where the selection first reads or sets it: null where
   // the hover names no type of the name's own, and undefined where the server answered nothing.
-  const kinds = new Map();
+  const types = new Map();
   const ask = async (name, line, col) => {
-    if (!kinds.has(name)) {
+    if (!types.has(name)) {
       const said = await hoverAt(tab, pos(line, col), null, true);
-      kinds.set(name, said ? lang.typeIn(said, name) : undefined);
+      types.set(name, said ? lang.typeIn(said, name) : undefined);
     }
-    return kinds.get(name);
+    return types.get(name);
   };
   const taken = [];
   for (const name of takes) {
     const at = inside.find((one) => one.name === name);
-    const kind = await ask(name, at.line, at.col);
-    if (kind?.field) {
+    const type = await ask(name, at.line, at.col);
+    if (type?.field) {
       if (headIndent) {
         continue;
       }
       say(`The selection reads ${name}, a field, which a function outside the class does not reach.`);
       return;
     }
-    if (kind === undefined) {
+    if (type === undefined) {
       say(`The language server gives no type for ${name}, which the selection reads. Extract Function again once it has read the file.`);
       return;
     }
-    if (kind) {
+    if (type) {
       taken.push({ name, ...kind });
     }
   }
@@ -100,8 +100,8 @@ export async function extractTyped(editor, tab, id, lang, read) {
   for (const name of gives) {
     const line = setsInside.get(name);
     const col = doc.line(line).search(new RegExp(`\\b${name}\\b`));
-    const kind = await ask(name, line, col);
-    if (!kind?.type || /\{unknown\}|\{closure/.test(kind.type)) {
+    const type = await ask(name, line, col);
+    if (!type?.type || /\{unknown\}|\{closure/.test(type.type)) {
       say(`The language server gives no type for ${name}, which the selection sets and its function reads after it.`);
       return;
     }

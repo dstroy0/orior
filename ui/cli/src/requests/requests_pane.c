@@ -22,11 +22,11 @@
 #define REQUESTS_BODY_MOST (1ULL << 20u)
 #define REQUESTS_DAY_SECONDS 86400ULL
 
-// A row laid: its kind, tone, group and answer, its text as a pointer where the text stands elsewhere, else as its
+// A row laid: its type, tone, group and answer, its text as a pointer where the text stands elsewhere, else as its
 // offset into the rows' text, and its bytes; its sign, and whether it is open, checked, inert and the answer shown
 typedef struct
 {
-    unsigned int kind;
+    unsigned int type;
     unsigned int tone;
     unsigned int group;
     unsigned int answer;
@@ -192,8 +192,8 @@ EMBED_INLINE unsigned long long requests_tenths(const RequestsPaneCtx *args)
 {
     const unsigned int number =
         EMBED_CALL(requests_member, RequestsPaneCtx, .json = args->json, .node = args->node, .name = args->name);
-    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = number,
-                    .kind = CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = number,
+                    .type = CFG_JSON_NUMBER))
     {
         return 0ULL;
     }
@@ -306,7 +306,7 @@ EMBED_INLINE const char *requests_header(const RequestsPaneCtx *args)
     }
 }
 
-// the pairs of `node`, a header a pair, each laid as a row of `kind` written `name: value`
+// the pairs of `node`, a header a pair, each laid as a row of `type` written `name: value`
 EMBED_INLINE void requests_pairs_laid(const RequestsPaneCtx *args)
 {
     const CliJson *const json = &s_requests.answers;
@@ -318,7 +318,7 @@ EMBED_INLINE void requests_pairs_laid(const RequestsPaneCtx *args)
         {
             return;
         }
-        RequestsLaid laid = {.kind = args->laid.kind, .tone = CLI_REQUESTS_TONE_PLAIN};
+        RequestsLaid laid = {.type = args->laid.type, .tone = CLI_REQUESTS_TONE_PLAIN};
         laid.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
@@ -339,7 +339,7 @@ EMBED_INLINE void requests_pairs_laid(const RequestsPaneCtx *args)
     }
 }
 
-// a row each line of `length` bytes of `text`, of the row `laid`'s kind, each a pointer into the text, its carriage
+// a row each line of `length` bytes of `text`, of the row `laid`'s type, each a pointer into the text, its carriage
 // return before the newline left out
 EMBED_INLINE void requests_lines_laid(const RequestsPaneCtx *args)
 {
@@ -363,7 +363,7 @@ EMBED_INLINE void requests_lines_laid(const RequestsPaneCtx *args)
 EMBED_INLINE void requests_group_laid(const RequestsPaneCtx *args)
 {
     RequestsLaid laid = args->laid;
-    laid.kind = CLI_REQUESTS_ROW_GROUP;
+    laid.type = CLI_REQUESTS_ROW_GROUP;
     laid.open = s_requests.open[laid.group];
     laid.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
     mmgr_line_put(args->line, args->name);
@@ -387,7 +387,7 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
     const char *const failed = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = answer,
                                           .name = "failed", .length_out = &length_of);
     const unsigned long long failed_length = length_of;
-    RequestsLaid status = {.kind = CLI_REQUESTS_ROW_STATUS, .tone = CLI_REQUESTS_TONE_FAILED};
+    RequestsLaid status = {.type = CLI_REQUESTS_ROW_STATUS, .tone = CLI_REQUESTS_TONE_FAILED};
     if (failed != NULL)
     {
         status.text = failed;
@@ -433,7 +433,7 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
         // the times of the parts that took any
         static const char *const s_parts[5] = {"resolve", "connect", "tls", "wait", "read"};
         static const char *const s_words[5] = {"resolve ", "connect ", "TLS ", "wait ", "read "};
-        RequestsLaid timed = {.kind = CLI_REQUESTS_ROW_TIMES, .tone = CLI_REQUESTS_TONE_QUIET};
+        RequestsLaid timed = {.type = CLI_REQUESTS_ROW_TIMES, .tone = CLI_REQUESTS_TONE_QUIET};
         timed.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
         unsigned int written = 0u;
         for (unsigned int part = 0u; part < 5u; part += 1u)
@@ -459,7 +459,7 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
         if (s_requests.open[CLI_REQUESTS_GROUP_HEADERS] && (headers != CLI_JSON_NONE))
         {
             EMBED_CALL(requests_pairs_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
-                       .node = headers, .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_HEADER});
+                       .node = headers, .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_HEADER});
         }
     }
     // what was sent: its request line, its headers, and its body after a blank row
@@ -469,7 +469,7 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
                .laid = (RequestsLaid){.group = CLI_REQUESTS_GROUP_SENT}, .name = "Sent", .value = 0ULL);
     if (s_requests.open[CLI_REQUESTS_GROUP_SENT] && (sent != CLI_JSON_NONE))
     {
-        RequestsLaid request_line = {.kind = CLI_REQUESTS_ROW_SENT};
+        RequestsLaid request_line = {.type = CLI_REQUESTS_ROW_SENT};
         request_line.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
         const char *const method = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = sent,
                                               .name = "method", .length_out = &length_of);
@@ -488,15 +488,15 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
         EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count, .laid = request_line);
         EMBED_CALL(requests_pairs_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
                    .node = EMBED_CALL(requests_member, RequestsPaneCtx, .json = json, .node = sent, .name = "headers"),
-                   .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_SENT});
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT});
         const char *const body = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = sent,
                                             .name = "body", .length_out = &length_of);
         if ((body != NULL) && (length_of != 0u))
         {
             EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                       .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_SENT, .text = ""});
+                       .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT, .text = ""});
             EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .row = args->row, .count = args->count, .text = body,
-                       .length = length_of, .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_SENT});
+                       .length = length_of, .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT});
         }
     }
     if (failed != NULL)
@@ -506,12 +506,12 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
     // the body: a row a line of it as it is laid out, or the row that reads it is not text, and the row that reads it
     // was cut
     const int binary =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                    .node = EMBED_CALL(requests_member, RequestsPaneCtx, .json = json, .node = answer, .name = "binary"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     if (binary)
     {
-        RequestsLaid note = {.kind = CLI_REQUESTS_ROW_NOTE, .tone = CLI_REQUESTS_TONE_QUIET};
+        RequestsLaid note = {.type = CLI_REQUESTS_ROW_NOTE, .tone = CLI_REQUESTS_TONE_QUIET};
         note.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
         EMBED_CALL(requests_bytes_put, RequestsPaneCtx, .line = args->line,
                    .value = EMBED_CALL(requests_tenths, RequestsPaneCtx, .json = json, .node = answer, .name = "size") /
@@ -538,11 +538,11 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
     {
         EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .row = args->row, .count = args->count,
                    .text = s_requests.body_text, .length = s_requests.body_length,
-                   .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_BODY});
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_BODY});
     }
     if (s_requests.body_cut)
     {
-        RequestsLaid note = {.kind = CLI_REQUESTS_ROW_NOTE, .tone = CLI_REQUESTS_TONE_QUIET};
+        RequestsLaid note = {.type = CLI_REQUESTS_ROW_NOTE, .tone = CLI_REQUESTS_TONE_QUIET};
         note.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
         mmgr_line_put(args->line, "Only the first ");
         EMBED_CALL(requests_bytes_put, RequestsPaneCtx, .line = args->line, .value = s_requests.body_length);
@@ -570,7 +570,7 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
     if (s_requests.refusal != NULL)
     {
         EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                   .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_REFUSAL,
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_REFUSAL,
                                           .tone = CLI_REQUESTS_TONE_FAILED,
                                           .text = s_requests.refusal,
                                           .length = s_requests.refusal_length});
@@ -580,7 +580,7 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
     {
         static const char s_none[] = "No answer yet. Ctrl+Enter sends the request the cursor stands in.";
         EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                   .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_NOTE,
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_NOTE,
                                           .tone = CLI_REQUESTS_TONE_QUIET,
                                           .text = s_none,
                                           .length = sizeof(s_none) - 1ULL});
@@ -602,7 +602,7 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
     for (unsigned int at = 0u; (at < s_requests.answer_count) && (at < CLI_REQUESTS_ANSWERS_MAX); at += 1u)
     {
         const unsigned int one = EMBED_CALL(requests_answer, RequestsPaneCtx, .at = at);
-        RequestsLaid laid = {.kind = CLI_REQUESTS_ROW_ANSWER,
+        RequestsLaid laid = {.type = CLI_REQUESTS_ROW_ANSWER,
                              .answer = at,
                              .checked = (s_requests.checked & (1u << at)) != 0u,
                              .shown = at == s_requests.shown};
@@ -644,7 +644,7 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
     }
     static const char s_compare[] = "Compare";
     EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-               .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_COMPARE,
+               .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_COMPARE,
                                       .text = s_compare,
                                       .length = sizeof(s_compare) - 1ULL,
                                       .inert = EMBED_CALL(requests_checked_count, RequestsPaneCtx, .at = 0u) != 2u});
@@ -652,7 +652,7 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
     {
         const RequestsCompared *const compared = &s_requests.compared[at];
         EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                   .laid = (RequestsLaid){.kind = CLI_REQUESTS_ROW_SIGN,
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SIGN,
                                           .tone = (compared->sign == '-')   ? CLI_REQUESTS_TONE_FAILED
                                                   : (compared->sign == '+') ? CLI_REQUESTS_TONE_GOOD
                                                                             : CLI_REQUESTS_TONE_PLAIN,
@@ -734,9 +734,9 @@ EMBED_INLINE void requests_body_laid(const RequestsPaneCtx *args)
     s_requests.body_text = body;
     s_requests.body_length = length;
     s_requests.body_cut =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                    .node = EMBED_CALL(requests_member, RequestsPaneCtx, .json = json, .node = answer, .name = "cut"),
-                   .kind = CFG_JSON_TRUE);
+                   .type = CFG_JSON_TRUE);
     if (is_json)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
@@ -1167,7 +1167,7 @@ int cli_requests_pane_row(const CliRequestsPaneCfg *args)
         return 0;
     }
     const RequestsLaid *const laid = &s_requests.row[args->at];
-    *args->row = (CliRequestsRow){laid->kind,
+    *args->row = (CliRequestsRow){laid->type,
                                   laid->tone,
                                   laid->group,
                                   laid->answer,
@@ -1183,7 +1183,7 @@ int cli_requests_pane_row(const CliRequestsPaneCfg *args)
 
 void cli_requests_pane_toggle(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].kind == CLI_REQUESTS_ROW_GROUP))
+    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_GROUP))
     {
         s_requests.open[s_requests.row[args->at].group] ^= 1u;
         EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
@@ -1192,7 +1192,7 @@ void cli_requests_pane_toggle(const CliRequestsPaneCfg *args)
 
 void cli_requests_pane_show(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].kind == CLI_REQUESTS_ROW_ANSWER))
+    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_ANSWER))
     {
         s_requests.shown = s_requests.row[args->at].answer;
         EMBED_CALL(requests_body_laid, RequestsPaneCtx, .at = 0u);
@@ -1202,7 +1202,7 @@ void cli_requests_pane_show(const CliRequestsPaneCfg *args)
 
 void cli_requests_pane_check(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].kind == CLI_REQUESTS_ROW_ANSWER))
+    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_ANSWER))
     {
         s_requests.checked ^= 1u << s_requests.row[args->at].answer;
         EMBED_CALL(requests_compared_released, RequestsPaneCtx, .at = 0u);
@@ -1269,10 +1269,10 @@ EMBED_INLINE void requests_answer_text(const RequestsPaneCtx *args)
         }
     }
     mmgr_line_put(line, "\n\n");
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                    .node =
                        EMBED_CALL(requests_member, RequestsPaneCtx, .json = json, .node = args->node, .name = "binary"),
-                   .kind = CFG_JSON_TRUE))
+                   .type = CFG_JSON_TRUE))
     {
         mmgr_line_decimal(
             line,
