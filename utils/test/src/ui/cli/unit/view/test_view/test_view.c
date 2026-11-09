@@ -333,6 +333,65 @@ void test_a_wheel_takes_the_top_no_further_down_than_the_line_it_is_bounded_at(v
     TEST_ASSERT_EQUAL_UINT64(1ull, cli_view_top(s_key));
 }
 
+// a text of a short line and a line of 200 letters, the view sized 80 columns
+static void wide_view(void)
+{
+    static char s_wide[3u + 200u + 1u];
+    VerbaLinea wide = {s_wide, sizeof(s_wide), 0ull};
+    mmgr_line_put(&wide, "ab\n");
+    for (unsigned int at = 0u; at < 200u; at += 1u)
+    {
+        mmgr_line_ch(&wide, (char)('a' + (char)(at % 26u)));
+    }
+    (void)mmgr_line_finish(&wide);
+    fresh(s_wide);
+}
+
+void test_the_view_follows_the_cursor_across_and_keeps_its_cell_in_the_columns(void)
+{
+    wide_view();
+    key_times("Down", 1u);
+    EMBED_CALL(key, CliNameCfg, .name = "End");
+    CliViewFrame *const frame = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_TRUE(frame->left > 0ull);
+    TEST_ASSERT_TRUE(frame->left <= 200ull);
+    TEST_ASSERT_TRUE(200ull < frame->left + 80ull);
+    TEST_ASSERT_EQUAL_UINT64(200ull, frame->widest);
+    cli_view_frame_release(frame);
+    EMBED_CALL(key, CliNameCfg, .name = "Home");
+    CliViewFrame *const back = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(back);
+    TEST_ASSERT_EQUAL_UINT64(0ull, back->left);
+    cli_view_frame_release(back);
+}
+
+void test_a_slide_puts_the_first_column_and_stops_at_the_widest_line_less_the_columns(void)
+{
+    wide_view();
+    CliViewFrame *const shown = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(shown);
+    TEST_ASSERT_EQUAL_UINT64(200ull, shown->widest);
+    cli_view_frame_release(shown);
+    CliViewInput slide = view_key("");
+    slide.type = CLI_VIEW_SLIDE;
+    slide.column = 30ull;
+    input_sent(&slide);
+    CliViewFrame *const frame = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_UINT64(30ull, frame->left);
+    TEST_ASSERT_EQUAL_UINT64(30ull + 80ull, frame->row[1].length);
+    TEST_ASSERT_EQUAL_UINT64(2ull, frame->row[0].length);
+    cli_view_frame_release(frame);
+    slide.column = 5000ull;
+    input_sent(&slide);
+    CliViewFrame *const far = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(far);
+    TEST_ASSERT_EQUAL_UINT64(200ull - 80ull, far->left);
+    TEST_ASSERT_EQUAL_UINT64(200ull, far->row[1].length);
+    cli_view_frame_release(far);
+}
+
 // what the views last handed the watcher: the moment and its key and path, and the last frame's view
 static char s_watched[256];
 static CliViewDrawn s_drawn;

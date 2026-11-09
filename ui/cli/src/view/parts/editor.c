@@ -83,6 +83,9 @@ int gui_editor_gutter(const GuiEditorPositionCellCfg *args)
 EMBED_INLINE unsigned long long editor_cell_get(const EditorCtx *args)
 {
     const char *const text = args->editor->frame->bytes + args->line_line_pointer->text;
+    // a tab stops at the columns the view's indentation sets, as the CLI lays them
+    const unsigned long long tab =
+        (args->editor->frame->indent_size != 0u) ? args->editor->frame->indent_size : GUI_TAB_COLUMNS;
     unsigned long long at = 0ULL;
     unsigned long long units = 0ULL;
     unsigned long long cell = 0ULL;
@@ -93,9 +96,19 @@ EMBED_INLINE unsigned long long editor_cell_get(const EditorCtx *args)
                                                .size = args->line_line_pointer->length, .at = at, .length = &consumed);
         at += (consumed != 0ULL) ? consumed : 1ULL;
         units += (letter >= 0x10000u) ? 2ULL : 1ULL;
-        cell += (letter == '\t') ? (GUI_TAB_COLUMNS - (cell % GUI_TAB_COLUMNS)) : 1ULL;
+        cell += (letter == '\t') ? (tab - (cell % tab)) : 1ULL;
     }
     return cell;
+}
+
+// The x where a row's first cell stands: the text's left edge `x_i32`, after the gutter, moved left by the cells of
+// the file's grid the view has slid past and by the part of a cell the scroll stands past them. A cell left of the
+// text's edge is out of view
+EMBED_INLINE float editor_text_x(const EditorCtx *args)
+{
+    const CliViewFrame *const frame = args->editor->frame;
+    const unsigned long long left = (frame != NULL) ? frame->left : 0ULL;
+    return (float)args->x_i32 - ((float)left * args->cell) - args->editor->scroll_x;
 }
 
 int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args)
@@ -113,9 +126,13 @@ int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args)
     {
         return 0;
     }
-    // the row and the column are not negative, the pixel standing in the text
-    *row = (unsigned long long)((args->y - args->place.y) / line_height);
-    *column = (unsigned long long)(((float)(args->x - text_x) / args->cell) + 0.5f);
+    // The row and the column are not negative, as the pixel stands in the text. The column counts the file's own
+    // cells, from where its first cell stands as the view has slid
+    const float first_x =
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor_read, .x_i32 = text_x, .cell = args->cell);
+    // the frame's first row stands `scroll_y` pixels above the editor's top
+    *row = (unsigned long long)((args->y - args->place.y + args->editor_read->scroll_y) / line_height);
+    *column = (unsigned long long)((((float)args->x - first_x) / args->cell) + 0.5f);
     return 1;
 }
 
@@ -132,8 +149,9 @@ int gui_editor_row_at(const GuiEditorPositionCellScaleCfg *args)
     {
         return 0;
     }
-    // the row is not negative, the pixel standing in the gutter
-    *row = (unsigned long long)((args->y - args->place.y) / line_height);
+    // the row is not negative, the pixel standing in the gutter; the frame's first row stands `scroll_y` pixels above
+    // the editor's top
+    *row = (unsigned long long)((args->y - args->place.y + args->editor_read->scroll_y) / line_height);
     return 1;
 }
 
@@ -241,9 +259,11 @@ int gui_editor_position_rect(const GuiEditorPositionCellCfg *args)
     }
     const int line_height =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
+    const int text_left = args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                                     .editor_read = args->editor_read, .cell = args->cell,
+                                                     .scale = scale);
     const float text_x =
-        (float)(args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
-                                           .editor_read = args->editor_read, .cell = args->cell, .scale = scale));
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor_read, .x_i32 = text_left, .cell = args->cell);
     unsigned int start = 0u;
     while ((start < frame->count) && (frame->row[start].number < frame->top))
     {
@@ -253,17 +273,29 @@ int gui_editor_position_rect(const GuiEditorPositionCellCfg *args)
     {
         if (frame->row[at].number == args->line)
         {
-            // the row's count is far inside what an int represents
+            // The row's count is far inside what an int represents. The frame's first row stands `scroll_y` pixels
+            // above the editor's top. A row partly outside the editor gives no place, but a clamped place takes it
             const int row = (int)(at - start);
-            const int y = args->place.y + (row * line_height);
-            if (y + line_height > args->place.y + args->place.height)
+            const int y = args->place.y + (row * line_height) - args->editor_read->scroll_y;
+            const int whole = (y >= args->place.y) && (y + line_height <= args->place.y + args->place.height);
+            const int part = (y + line_height > args->place.y) && (y < args->place.y + args->place.height);
+            if (!(whole || (args->clamped && part)))
             {
                 return 0;
             }
-            const int x =
+            const int found =
                 (int)roundf(text_x + ((float)EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor_read,
                                                         .line_line_pointer = &frame->row[at], .col = args->col) *
                                       args->cell));
+            // A place the view has slid past, left of the text's edge or past the editor's right edge, is out of
+            // view. A clamped place stands at the edge it is past
+            const int right = args->place.x + args->place.width;
+            const int outside = (found < text_left) || (found >= right);
+            if (outside && !args->clamped)
+            {
+                return 0;
+            }
+            const int x = (found < text_left) ? text_left : ((found >= right) ? right : found);
             *rect = (GuiRect){x, y, (int)(args->cell + 0.5f), line_height};
             return 1;
         }
@@ -358,9 +390,38 @@ GuiColor gui_editor_color(const GuiEditorPaletteCfg *args)
     {
         return palette->editor_text;
     }
+    const GuiEditor *const editor = args->editor_read;
+    // a kept color stands only for the names table, its count and the palette it came from
+    if ((editor->colored_names == names) && (editor->name_colors == names->count) &&
+        (editor->colored_palette == palette) && (args->name < GUI_EDITOR_NAME_COLORS))
+    {
+        return editor->name_color[args->name];
+    }
     const char *const text = names->name[args->name];
     return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = text,
                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
+}
+
+void gui_editor_colors_keep(const GuiEditorPaletteCfg *args)
+{
+    GuiEditor *const editor = args->editor;
+    const CliDocumentNames *const names = editor->names;
+    if ((names == NULL) || ((editor->colored_names == names) && (editor->name_colors == names->count) &&
+                            (editor->colored_palette == args->palette)))
+    {
+        return;
+    }
+    // the cache stays invalid while the colors change, so a read in that time goes to the palette
+    editor->colored_names = NULL;
+    const unsigned int kept = (names->count < GUI_EDITOR_NAME_COLORS) ? names->count : GUI_EDITOR_NAME_COLORS;
+    for (unsigned int name = 0u; name < kept; name++)
+    {
+        editor->name_color[name] = EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = editor,
+                                              .palette = args->palette, .name = name);
+    }
+    editor->name_colors = names->count;
+    editor->colored_palette = args->palette;
+    editor->colored_names = names;
 }
 
 // one line's text drawn from `x` on the baseline `y`, each letter in its run's color, a tab laid out to its stop
@@ -377,6 +438,8 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     GuiRect clip = args->clip;
     const CliViewFrame *const frame = editor->frame;
     const char *const text = frame->bytes + args->line_line_pointer->text;
+    // a tab stops at the columns the view's indentation sets, as the CLI lays them
+    const unsigned long long tab = (frame->indent_size != 0u) ? frame->indent_size : GUI_TAB_COLUMNS;
     // a line's runs stand in the frame's runs cell as its columns and then its names, none where that cell could not be
     // met
     const CliDocumentLineRuns none = {0u, 0u};
@@ -404,7 +467,7 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
         units += (letter >= 0x10000u) ? 2ULL : 1ULL;
         if (letter == '\t')
         {
-            column += GUI_TAB_COLUMNS - (column % GUI_TAB_COLUMNS);
+            column += tab - (column % tab);
         }
         else
         {
@@ -795,11 +858,15 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
     const int numbers_right =
         args->place.x + gutter -
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_GUTTER_AFTER, .scale = scale);
-    const float text_x = (float)(args->place.x + gutter);
+    const float text_x =
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor, .x_i32 = args->place.x + gutter, .cell = cell);
     const GuiRect text_clip = EMBED_CALL(
         gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place,
         .other = (GuiRect){args->place.x + gutter, args->place.y, args->place.width - gutter, args->place.height});
-    const int rows = (line_height > 0) ? (args->place.height + line_height - 1) / line_height : 0;
+    // The frame's first row stands `scroll_y` pixels above the editor's top, so the rows run that much further down.
+    // Each part of a row clips to the editor
+    const int scroll_y = args->editor->scroll_y;
+    const int rows = (line_height > 0) ? (args->place.height + scroll_y + line_height - 1) / line_height : 0;
     // the selection's ends in order
     const int anchored = (args->editor->frame->anchor.line < args->editor->frame->cursor.line) ||
                          ((args->editor->frame->anchor.line == args->editor->frame->cursor.line) &&
@@ -824,8 +891,10 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
         EMBED_CALL(
             editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
             .palette = args->palette, .place = args->place, .at = at, .line = args->editor->frame->row[at].number,
-            .stored_line = &args->editor->frame->row[at], .y = args->place.y + (row * line_height) + baseline,
-            .row_rect = (GuiRect){text_clip.x, args->place.y + (row * line_height), text_clip.width, line_height},
+            .stored_line = &args->editor->frame->row[at],
+            .y = args->place.y + (row * line_height) - scroll_y + baseline,
+            .row_rect = (GuiRect){text_clip.x, args->place.y + (row * line_height) - scroll_y, text_clip.width,
+                                  line_height},
             .text_x = text_x, .cell = cell, .size = size, .scale = scale, .clip = text_clip,
             .numbers_right = numbers_right, .line_height = line_height, .selected = selected,
             .selected_from = selected_from, .selected_to = selected_to);

@@ -11,8 +11,6 @@
 #include "../../../../../ui/cli/src/view/parts/run.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 #define RUN_HEIGHT 260
 
 static CliJob s_jobs[8];
@@ -174,7 +172,8 @@ int main(void)
               "the text typed is taken");
     CliJobRunRow param;
     cli_check(EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = 3u, .row_out = &param) &&
-                  (param.second_length == 2ULL) && (memcmp(param.second, "ab", 2u) == 0),
+                  (param.second_length == 2ULL) &&
+                  (memor.cmp(&(MemoriaCfg){.src = param.second, .other = "ab", .bytes = 2u}) == 0),
               "the text typed is the param's value");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Backspace") &&
                   EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = 3u, .row_out = &param) &&
@@ -244,7 +243,8 @@ int main(void)
     CliJobRunRow line;
     cli_check((line_row == run_row + 1u) &&
                   EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = line_row, .row_out = &line) &&
-                  (line.text_length == 9ULL) && (memchr(line.text, 0x1b, line.text_length) == NULL),
+                  (line.text_length == 9ULL) &&
+                  (memor.chr(&(MemoriaCfg){.src = line.text, .bytes = line.text_length, .val = 0x1bu}) == NULL),
               "the line stands under its run without its escape bytes");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
                .color = ground);

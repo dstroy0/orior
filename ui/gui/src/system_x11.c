@@ -452,11 +452,22 @@ static void system_event(const SystemX11Ctx *args)
         else if ((args->event_x_event_pointer->xbutton.button == Button4) ||
                  (args->event_x_event_pointer->xbutton.button == Button5))
         {
+            // a press of a wheel button is one whole notch, down on Button5
+            const int sign = (args->event_x_event_pointer->xbutton.button == Button5) ? 1 : -1;
             EMBED_CALL(
                 args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                 .input = GUI_WHEEL_INPUT(args->event_x_event_pointer->xbutton.x, args->event_x_event_pointer->xbutton.y,
-                                         (args->event_x_event_pointer->xbutton.button == Button5) ? GUI_WHEEL_ROWS
-                                                                                                  : -GUI_WHEEL_ROWS));
+                                         sign * GUI_WHEEL_ROWS, sign * GUI_WHEEL_UNITS, 0));
+        }
+        else if ((args->event_x_event_pointer->xbutton.button == 6u) ||
+                 (args->event_x_event_pointer->xbutton.button == 7u))
+        {
+            // buttons 6 and 7 are the sideways wheel, one whole notch, to the right on 7
+            const int sign = (args->event_x_event_pointer->xbutton.button == 7u) ? 1 : -1;
+            EMBED_CALL(
+                args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                .input = GUI_WHEEL_INPUT(args->event_x_event_pointer->xbutton.x, args->event_x_event_pointer->xbutton.y,
+                                         0, 0, sign * GUI_WHEEL_UNITS));
         }
         break;
     case ButtonRelease:

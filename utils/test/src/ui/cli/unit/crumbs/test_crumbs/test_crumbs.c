@@ -10,7 +10,6 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 static const char s_key[] = "crumbs_check";
 static const char s_path[] = "src/code/a.py";

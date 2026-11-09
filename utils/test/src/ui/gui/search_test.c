@@ -7,25 +7,27 @@
 // the rest; the pane's table draws the field, the choices and the rows, a press on the field takes the keys, which
 // typed text then reaches and Escape lets go, and a line's row pressed opens the file at the match
 #include "../../../../../ui/cli/src/editor/files.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/cli/src/view/parts/search.h"
 #include "../cli/cli_check.h"
-
-#include <string.h>
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
 static void file_written(const char *root, const char *relative, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = relative, .joined = path);
-    char *const slash = strrchr(path, '/');
-    if (slash != NULL)
+    // the place past the path's last slash, 0 where it has none
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}), .set = "/");
+    if (past_slash != 0ULL)
     {
-        slash[0] = '\0';
+        path[past_slash - 1ULL] = '\0';
         (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path);
-        slash[0] = '/';
+        path[past_slash - 1ULL] = '/';
     }
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                         .size = strlen(text)),
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})),
               relative);
 }
 
@@ -38,7 +40,8 @@ static int row_is(unsigned int at, unsigned int type, const char *text, CliSearc
     }
     const char *const one = (type == CLI_SEARCH_ROW_FILE) ? row->name : row->text;
     const unsigned long long length = (type == CLI_SEARCH_ROW_FILE) ? row->name_length : row->text_length;
-    return (length == strlen(text)) && (strncmp(one, text, length) == 0);
+    return (length == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = one, .other = text, .bytes = length}) == 0);
 }
 
 // whether the report reads `text`
@@ -46,7 +49,7 @@ static int report_is(const char *text)
 {
     unsigned long long length = 0ULL;
     const char *const report = EMBED_CALL(cli_search_pane.report, CliSearchPaneCfg, .length_out = &length);
-    return strcmp(report, text) == 0;
+    return cellul.eq(&(CatenaFinitaCfg){.src = report, .cap = CLI_POOL_BYTES, .other = text, .other_cap = CLI_POOL_BYTES});
 }
 
 int main(void)
@@ -81,7 +84,10 @@ int main(void)
               "no search waits before typing");
     EMBED_CALL(cli_search_pane.type, CliSearchPaneCfg, .text = "alpha", .size = 5ULL, .now_ms = 1000ULL);
     unsigned long long length = 0ULL;
-    cli_check((strcmp(EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &length), "alpha") == 0) &&
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &length),
+                                           .cap = CLI_POOL_BYTES,
+                                           .other = "alpha",
+                                           .other_cap = 6u}) &&
                   (length == 5ULL),
               "the text typed is the query");
     cli_check(EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u) == 1000ULL + CLI_SEARCH_REST_MS,
@@ -94,7 +100,8 @@ int main(void)
               "two files with three lines found are five rows");
     CliSearchRow row;
     cli_check(row_is(0u, CLI_SEARCH_ROW_FILE, "a.txt", &row) && (row.count == 2u) && row.open &&
-                  (row.folder_length == 0ULL) && (strcmp(row.path, "a.txt") == 0),
+                  (row.folder_length == 0ULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = row.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
               "the first file's row carries its name, count and path, its lines showing");
     cli_check(row_is(1u, CLI_SEARCH_ROW_HIT, "alpha beta", &row) && (row.line == 1ULL) && (row.col == 1ULL) &&
                   (row.match_at == 0ULL) && (row.match_length == 5ULL),
@@ -102,7 +109,9 @@ int main(void)
     cli_check(row_is(2u, CLI_SEARCH_ROW_HIT, "gamma alpha", &row) && (row.line == 2ULL) && (row.match_at == 6ULL),
               "the second line found stands under the same file");
     cli_check(row_is(3u, CLI_SEARCH_ROW_FILE, "b.txt", &row) && (row.folder_length == 3ULL) &&
-                  (strncmp(row.path, "sub", 3u) == 0) && (row.count == 1u),
+                  cellul.starts(&(CatenaFinitaCfg){
+                      .src = row.path, .cap = CLI_POOL_BYTES, .other = "sub", .other_cap = 4u}) &&
+                  (row.count == 1u),
               "the second file's row carries its folder");
     cli_check(row_is(4u, CLI_SEARCH_ROW_HIT, "Alpha", &row), "a line of another case is found while case is off");
     cli_check(report_is("3 results in 2 files"), "the report counts the results and files");
@@ -170,7 +179,11 @@ int main(void)
     cli_check(pane.keys, "the field pressed takes the keys");
     cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = " beta", .length = 5ULL,
                          .root = s_root) &&
-                  (strcmp(EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &length), "alpha beta") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = EMBED_CALL(cli_search_pane.query, CliSearchPaneCfg, .length_out = &length),
+                      .cap = CLI_POOL_BYTES,
+                      .other = "alpha beta",
+                      .other_cap = 11u}),
               "text typed while the field has the keys reaches the query");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape", .root = s_root) &&
                   !pane.keys,
@@ -186,7 +199,8 @@ int main(void)
                .glyphs = &glyphs, .palette = palette, .title = "Search", .tree = "");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open) &&
-                  (strcmp(open.path, "a.txt") == 0) && open.placed && (open.place.line == 0ULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = open.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}) &&
+                  open.placed && (open.place.line == 0ULL) &&
                   (open.place.col == 0ULL),
               "a line's row pressed opens the file at the match, counted from zero");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open) &&

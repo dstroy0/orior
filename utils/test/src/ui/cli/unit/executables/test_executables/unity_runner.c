@@ -19,7 +19,7 @@ extern void test_mesons_executables_are_those_written_out(void);
 extern void test_zigs_names_are_read_from_both_forms_of_its_calls(void);
 extern void test_a_spec_of_one_file_names_its_program(void);
 extern void test_a_spec_that_collects_a_folder_names_its_program_in_the_folder(void);
-extern void test_another_kind_of_spec_names_no_program(void);
+extern void test_another_type_of_spec_names_no_program(void);
 extern void test_a_package_names_its_one_bin_by_its_name(void);
 extern void test_a_package_names_its_bins(void);
 extern void test_a_package_with_no_bins_names_none(void);
@@ -109,7 +109,7 @@ int main(void)
   run_test(test_zigs_names_are_read_from_both_forms_of_its_calls, "test_zigs_names_are_read_from_both_forms_of_its_calls", 230);
   run_test(test_a_spec_of_one_file_names_its_program, "test_a_spec_of_one_file_names_its_program", 240);
   run_test(test_a_spec_that_collects_a_folder_names_its_program_in_the_folder, "test_a_spec_that_collects_a_folder_names_its_program_in_the_folder", 250);
-  run_test(test_another_kind_of_spec_names_no_program, "test_another_kind_of_spec_names_no_program", 260);
+  run_test(test_another_type_of_spec_names_no_program, "test_another_type_of_spec_names_no_program", 260);
   run_test(test_a_package_names_its_one_bin_by_its_name, "test_a_package_names_its_one_bin_by_its_name", 267);
   run_test(test_a_package_names_its_bins, "test_a_package_names_its_bins", 274);
   run_test(test_a_package_with_no_bins_names_none, "test_a_package_with_no_bins_names_none", 281);

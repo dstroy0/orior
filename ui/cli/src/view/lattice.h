@@ -1,29 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lattice.h: the lattice's computing, built once into the window and once to wasm32 for the page: its numbers, the
-// stage of its loop, each slot's lattice, the pens its dots are shaded from and the dots themselves. The lattice
-// (lattice.c) lays out, moves, shades and judges the points; the window draws the dots into its ground (ground.c),
-// and the page's GL driver (src-wasm/lattice_gl.c) hands them to its WebGL
+// lattice.h: the lattice's computing for the window: its numbers, the stage of its loop, each slot's lattice, the pens
+// its dots are shaded from and the dots themselves. The lattice (lattice.c) lays out, moves, shades and judges the
+// points; the window draws the dots into its ground (ground.c)
 #ifndef LATTICE_H
 #define LATTICE_H
 
 #include <stdint.h>
-
-// 1 where the lattice is built to wasm32 for the page, its arithmetic the page's and its memory the module's own;
-// 0 where it is built into the window, its arithmetic the C library's and its memory the cellblock's
-#ifndef LATTICE_WASM
-#define LATTICE_WASM 0
-#endif
-#if LATTICE_WASM
-#define LATTICE_EXPORT(name_) __attribute__((export_name(#name_)))
-#define LATTICE_IMPORT(name_) __attribute__((import_module("env"), import_name(#name_)))
-#else
-#define LATTICE_EXPORT(name_)
-#endif
-
-// a number's text, for the shader written with it
-#define LATTICE_TEXT(value_) #value_
-#define LATTICE_TEXT_OF(value_) LATTICE_TEXT(value_)
 
 // how far the most disordered point goes from its place, in pixels, and the seed of every lattice's points
 #define LATTICE_REACH (22.0 * 2.4)
@@ -34,11 +17,9 @@
 #define LATTICE_RAMP 0.54
 #define LATTICE_PI 3.141592653589793
 // the lattices kept at once, the window's in the first and the checks' in the others; the levels of pen the dots are
-// shaded from; the most levels a page draws its 2D lattice with; and the share of a pen's radius a dot is drawn at,
-// which puts down the ink the page's own canvas puts down for the same dots
+// shaded from; and the share of a pen's radius a dot is drawn at
 #define LATTICE_SLOTS 8u
 #define LATTICE_LEVELS 24
-#define LATTICE_LEVELS_MOST 128u
 #define LATTICE_FITS 0.955
 
 // the types of stage: one side ordered at an angle, the order spreading from a front, the whole lattice at one
@@ -52,7 +33,7 @@ enum LatticeStageType
 };
 
 // where the loop stands: its stage's type, the angle of a side, the front of a spread and the share of the stage
-// done, as doubles the page reads in this order
+// done
 typedef struct
 {
     double type;
@@ -61,7 +42,7 @@ typedef struct
     double part;
 } LatticeStageAt;
 
-// one dot as it is drawn: its place across and down and its radius, in the page's pixels, and its color, red, green,
+// one dot as it is drawn: its place across and down and its radius, in page pixels, and its color, red, green,
 // blue and its ink a byte each in that order
 typedef struct
 {
@@ -71,7 +52,6 @@ typedef struct
     uint32_t color;
 } LatticeDot;
 
-_Static_assert(sizeof(LatticeDot) == 16u, "LatticeDot: the GL driver hands the GPU 16 bytes a dot");
 _Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "LatticeDot: a color's bytes stand red first in memory");
 
 // the pens the dots are shaded from, one a level of disorder from ordered to the least ordered: each color's red,
@@ -98,23 +78,19 @@ typedef struct
 // left and the rest a `step` apart: a point's origin is its row and column, and it stays where it is whatever the box
 // it is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its
 // row and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MOST, two bytes
-// a point for as many as `capacity` points. Made once a page draws with them, as many as `dots_capacity` and `placed_capacity`
-// hold: each point moved and shaded as a dot, and each placed point's place, two doubles a point grouped by level,
-// with how many points stand at each level
+// a point for as many as `capacity` points. Made once the window draws with them, as many as `dots_capacity` hold:
+// each point moved and shaded as a dot
 typedef struct
 {
     int8_t *offsets;
     LatticeDot *dots;
-    double *placed;
     uint32_t capacity;
     uint32_t dots_capacity;
-    uint32_t placed_capacity;
     uint32_t count;
     uint32_t columns;
     uint32_t rows;
     double half;
     double step;
-    uint32_t counts[LATTICE_LEVELS_MOST];
 } LatticeSlot;
 
 // the lattice of `slot`, which is below LATTICE_SLOTS
@@ -145,9 +121,7 @@ uint32_t lattice_shows(double then, double now);
 // that drew the loop at `then` next draws it; `from` and a loop past it where none shows
 double lattice_shown_after(double then, double from);
 
-#if !LATTICE_WASM
 // the cells of `slot` given back, its lattice laid out over nothing
 void lattice_given(uint32_t slot);
-#endif
 
 #endif

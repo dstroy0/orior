@@ -51,6 +51,14 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_VIEW_FRAME_MS 17u
 #define GUI_MEMORY_MS 2000ULL
 
+// The editor's scroll: the rows one notch of the wheel moves; the milliseconds in which an eased scroll covers all but
+// a share of 1/e of its way; the most milliseconds one step counts, so that a late frame does not jump; and the part
+// of a pixel within which a scroll stops
+#define GUI_SCROLL_NOTCH_ROWS 3
+#define GUI_SCROLL_EASE_MS 70.0
+#define GUI_SCROLL_STEP_MOST_MS 40ULL
+#define GUI_SCROLL_STILL 0.25
+
 // What a pixel of the main window stands on, a CLI_HIT_*, with the level and the place among its rows of what it
 // stands on, the row and the cell it stands on in the editor or a terminal's pane, and the pixel itself
 typedef struct
@@ -122,6 +130,37 @@ typedef struct GuiWindow
     unsigned int display_height;
     int preferences_pending;
     int preferences_system_scale;
+    // The editor's scrollbar down and across, and the tabs row's scrollbar. Then the scrollbar the pointer drags: 0 for
+    // none, 1 down, 2 across and 3 the tabs row's. Then the pixels from the thumb's start to the press, and the tab
+    // shown when the tabs row last moved to show it
+    GuiScrollbar editor_down;
+    GuiScrollbar editor_across;
+    GuiScrollbar tabs_bar;
+    unsigned int editor_bar_dragged;
+    int editor_bar_grab;
+    int tabs_shown_seen;
+    // The editor's scroll in pixels down and across the file's grid: where it stands and where it goes. Each frame
+    // moves it a share of the way to where it goes. Then the top line and the first cell column the view was last
+    // sent, the clock of the last step in milliseconds, and whether the scroll moves
+    // Down, the scroll counts pixels from any start, and the view is sent the whole rows it moves, as a wheel moves
+    // them past the folds. Across, it counts pixels from the grid's first cell column. Last, the line a thumb's drag
+    // puts the view at, applied at the next frame, ~0 for none
+    double scroll_down;
+    double scroll_down_to;
+    double scroll_across;
+    double scroll_across_to;
+    unsigned long long scroll_top_sent;
+    unsigned long long scroll_left_sent;
+    unsigned long long scroll_stepped_ms;
+    int scroll_moving;
+    unsigned long long scroll_drag_top;
+    // the union of the parts of the frame that changed since it was last shown, empty for none; a frame owed whole,
+    // `pending`, draws it all
+    GuiRect damage;
+    // The base the last whole frame laid, the window's size, and whether it holds that base. A frame of changes alone
+    // copies its part of the base from here, since the lattice and the grounds change only with a whole frame
+    GuiRaster base_kept;
+    int base_kept_whole;
     GuiDialog dialog;
     GuiRaster dialog_raster;
     unsigned long long dialog_capacity;
@@ -213,6 +252,9 @@ void gui_window_flip(const GuiWindowCfg *args);
 // way
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args);
 GuiRect gui_window_busy_draw(const GuiWindowCfg *args);
+// The parts of the frame that changed drawn again on the raster shown, each part as the frame draws it, every write
+// cut to the union of the changes: that union, the rows of which are to be shown again, empty where nothing changed
+GuiRect gui_window_damage_draw(const GuiWindowCfg *args);
 // what a pixel of the main window and of Preferences' window stands on, as they are laid, written into `hits`
 void gui_window_hits(const GuiWindowHitsCfg *args);
 void gui_window_preferences_hits(const GuiWindowHitsCfg *args);
@@ -228,6 +270,11 @@ void gui_window_step(const GuiWindowCfg *args);
 // never
 void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
+// the deadlines the window waits on, each one's name for the telemetry, and the place of the one that set the last
+// wait, GUI_WINDOW_WAKES where none did
+#define GUI_WINDOW_WAKES 21u
+extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
+unsigned int gui_window_timeout_source(void);
 // the frame laid for the claim's movement at `time_ms`: while a slide runs the stage standing then, the stages made
 // where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
@@ -322,14 +369,15 @@ typedef struct
     void (*flip)(const GuiWindowCfg *args);
     GuiRect (*caret_draw)(const GuiWindowCfg *args);
     GuiRect (*busy_draw)(const GuiWindowCfg *args);
+    GuiRect (*damage_draw)(const GuiWindowCfg *args);
     void (*preferences_close)(const GuiWindowCfg *args);
     void (*step)(const GuiWindowCfg *args);
     void (*tick)(const GuiWindowCfg *args);
     void (*hits)(const GuiWindowHitsCfg *args);
     void (*preferences_hits)(const GuiWindowHitsCfg *args);
 } GuiWindowNs;
-EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, preferences_close,
-                   step, tick, hits, preferences_hits);
+EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, damage_draw,
+                   preferences_close, step, tick, hits, preferences_hits);
 EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .end = gui_window_end,
     .preferences_draw = gui_window_preferences_draw,
@@ -338,6 +386,7 @@ EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .flip = gui_window_flip,
     .caret_draw = gui_window_caret_draw,
     .busy_draw = gui_window_busy_draw,
+    .damage_draw = gui_window_damage_draw,
     .preferences_close = gui_window_preferences_close,
     .step = gui_window_step,
     .tick = gui_window_tick,

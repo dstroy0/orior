@@ -6,26 +6,28 @@
 // place of the pane's, the whole head offering the check, its rows of two heights; and a pointer leaving the side
 // marks no row
 #include "../../../../../ui/cli/src/command_line/commands.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/cli/src/view/parts/explorer.h"
 #include "../../../../../ui/cli/src/view/parts/problems.h"
 #include "../cli/cli_check.h"
-
-#include <string.h>
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
 static void file_written(const char *root, const char *relative, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = relative, .joined = path);
-    char *const slash = strrchr(path, '/');
-    if (slash != NULL)
+    // the place past the path's last slash, 0 where it has none
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}), .set = "/");
+    if (past_slash != 0ULL)
     {
-        slash[0] = '\0';
+        path[past_slash - 1ULL] = '\0';
         (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path);
-        slash[0] = '/';
+        path[past_slash - 1ULL] = '/';
     }
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                         .size = strlen(text)),
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})),
               relative);
 }
 
@@ -67,7 +69,10 @@ int main(void)
     cli_check(explorer == &gui_explorer_table, "the explorer tool has its table");
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = explorer, .event = GUI_PANE_SHOWN, .root = s_root);
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 2u, "the tree's folder and file are rows");
-    cli_check(strcmp(EMBED_CALL(explorer->title, GuiPaneCfg, .tree = "pane_tree"), "pane_tree") == 0,
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(explorer->title, GuiPaneCfg, .tree = "pane_tree"),
+                                           .cap = CLI_POOL_BYTES,
+                                           .other = "pane_tree",
+                                           .other_cap = 10u}),
               "the explorer's pane is headed by the tree's name");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = explorer, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .icons = &icons, .palette = palette, .title = "Explorer", .tree = "pane_tree");
@@ -76,7 +81,9 @@ int main(void)
                   (EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u),
               "the folder's row pressed opens it, its file a row under it");
     cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = explorer, .row = 1u, .open_out = &open) &&
-                  (strcmp(open.path, "src/main.c") == 0) && !open.placed,
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = open.path, .cap = CLI_POOL_BYTES, .other = "src/main.c", .other_cap = 11u}) &&
+                  !open.placed,
               "the file's row pressed opens the file");
     const GuiRect first =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = explorer, .frame = &frame, .pane_read = &pane, .row = 0u);
@@ -92,17 +99,25 @@ int main(void)
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = 0u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
-                  (strcmp(rows[0].label, "Close") == 0) && (strcmp(rows[0].args, "src") == 0) &&
-                  (strcmp(rows[2].command, "file-copy-path") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Close", .other_cap = 6u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src", .other_cap = 4u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
               "the open folder's menu closes it and copies its path");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Open") == 0) &&
-                  (strcmp(rows[0].args, "src/main.c") == 0),
+                  ((rows = cli_menus_own_rows(&built)) != NULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open", .other_cap = 5u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src/main.c", .other_cap = 11u}),
               "the file's menu opens it");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = GUI_PANE_OFF_ROWS, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 2u) &&
-                  (strcmp(rows[0].command, "explorer-refresh") == 0) &&
-                  (strcmp(rows[1].command, "explorer-collapse") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "explorer-refresh", .other_cap = 17u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[1].command, .cap = CLI_POOL_BYTES, .other = "explorer-collapse", .other_cap = 18u}),
               "the pane's own menu lists again and collapses");
     cli_files_explorer_refresh();
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u,

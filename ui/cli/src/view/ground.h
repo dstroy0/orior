@@ -18,6 +18,8 @@ typedef struct GuiBackgroundClockCfg GuiBackgroundClockCfg;
 #define GUI_BACKGROUND_BRIGHTEST 0.42
 #define GUI_BACKGROUND_RADIUS 0.59
 #define GUI_BACKGROUND_RADIUS_SPREAD 0.16
+// how many times slower than the window's clock the lattice moves
+#define GUI_LATTICE_SLOWING 2.0
 
 // The clock is `now - start_ms`, or `paused_ms - start_ms` while paused. `paused_ms` is 0 while it runs. `next_draw_ms`
 // is on that clock.

@@ -5,6 +5,7 @@
 // margins as style.css sets them from the claim, the reveals and the insets; a part a window too small leaves no inset
 // for is a rectangle of none
 #include "frame.h"
+#include "parts/scrollbar.h"
 
 #include "../command_line/cli_internal.h"
 
@@ -249,6 +250,21 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     else
     {
         args->frame->preview = (GuiRect){editor.x + editor.width, editor.y, 0, 0};
+    }
+    // The editor's scrollbars take their room from its rectangle, as a scrolling page's do: one down its right side
+    // and one along its foot. The text never runs under either
+    const int bar = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SCROLLBAR_WIDTH, .scale = scale);
+    const GuiRect text = args->frame->editor;
+    if ((text.width > bar) && (text.height > bar))
+    {
+        args->frame->editor = (GuiRect){text.x, text.y, text.width - bar, text.height - bar};
+        args->frame->editor_bar = (GuiRect){text.x + text.width - bar, text.y, bar, text.height - bar};
+        args->frame->editor_bar_across = (GuiRect){text.x, text.y + text.height - bar, text.width - bar, bar};
+    }
+    else
+    {
+        args->frame->editor_bar = (GuiRect){text.x + text.width, text.y, 0, 0};
+        args->frame->editor_bar_across = (GuiRect){text.x, text.y + text.height, 0, 0};
     }
 }
 

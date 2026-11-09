@@ -11,11 +11,10 @@
 #include "../../../../../ui/cli/src/command_line/command_line.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/cli/src/view/window.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
-
-#include <string.h>
 
 static GuiWindow s_window;
 static char s_root[CLI_PATH_MAX_LEN];
@@ -93,7 +92,7 @@ static void key_pressed(const char *name)
 static void typed(const char *text)
 {
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
-               .input = GUI_TEXT_INPUT(text, strlen(text)));
+               .input = GUI_TEXT_INPUT(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})));
     stepped();
 }
 
@@ -113,7 +112,7 @@ static void file_written(const char *name, const char *text)
     char path[CLI_PATH_MAX_LEN];
     tree_path(name, path);
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = text,
-                     .size = strlen(text), .fresh = 1);
+                     .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .fresh = 1);
 }
 
 // whether the tree's file `name` reads `required` whole
@@ -124,7 +123,8 @@ static int file_reads(const char *name, const char *required)
     unsigned long long size = 0ULL;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = g_checks_owner);
-    const int same = (bytes != NULL) && (size == strlen(required)) && (memcmp(bytes, required, size) == 0);
+    const int same = (bytes != NULL) && (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
+                     (memor.cmp(&(MemoriaCfg){.src = bytes, .other = required, .bytes = size}) == 0);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     return same;
 }
@@ -136,7 +136,11 @@ static int tab_opened(const char *name)
     tree_path(name, path);
     const int opened = asked("file", path);
     const int shown = cli_view_shown();
-    return opened && (shown >= 0) && (strcmp(cli_view_path_at((unsigned int)shown), name) == 0);
+    return opened && (shown >= 0) &&
+           cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
+                                        .cap = CLI_POOL_BYTES,
+                                        .other = name,
+                                        .other_cap = CLI_POOL_BYTES});
 }
 
 // whether the tab `at` has changes not saved
@@ -165,7 +169,10 @@ static void tabs_closed(const char *first, const char *first_text, const char *s
 static int row_chosen(const char *title, const char *label, CliItem *item)
 {
     unsigned int at = 0u;
-    while ((at < cli_menu_titles()) && (strcmp(cli_menu_title_text(cli_menu_title_menu(at)), title) != 0))
+    while ((at < cli_menu_titles()) && !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(cli_menu_title_menu(at)),
+                                                                     .cap = CLI_POOL_BYTES,
+                                                                     .other = title,
+                                                                     .other_cap = CLI_POOL_BYTES}))
     {
         at += 1u;
     }
@@ -174,7 +181,9 @@ static int row_chosen(const char *title, const char *label, CliItem *item)
     int chosen = -1;
     for (unsigned int row = 0u; (g_cli_menus_open.levels != 0u) && (row < g_cli_menus_open.level[0].rows); row += 1u)
     {
-        if (cli_menus_row(0u, row, item) && (strcmp(item->label, label) == 0))
+        if (cli_menus_row(0u, row, item) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = item->label, .cap = CLI_POOL_BYTES, .other = label, .other_cap = CLI_POOL_BYTES}))
         {
             chosen = cli_menus_selectable(0u, row);
             break;
@@ -279,7 +288,10 @@ static void failed_save_checked(void)
     key_pressed("Mod+S");
     cli_check(changed(0u), "a save that cannot write leaves the tab changed");
     cli_check((cli_notice_shown() != NULL) && cli_notice_failed(), "and its failure is shown");
-    cli_check((cli_notice_shown() != NULL) && (strstr(cli_notice_shown(), "saved.txt") != NULL), "naming the file");
+    cli_check((cli_notice_shown() != NULL) &&
+                  cellul.has(&(CatenaFinitaCfg){
+                      .src = cli_notice_shown(), .cap = CLI_POOL_BYTES, .other = "saved.txt", .other_cap = 10u}),
+              "naming the file");
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
 }
 
@@ -314,7 +326,10 @@ static void place_checked(void)
     tree_path("placed.txt:2:3", path);
     cli_check(asked("file", path), "a path with a line and a column opens through the door");
     const int shown = cli_view_shown();
-    cli_check((shown >= 0) && (strcmp(cli_view_path_at((unsigned int)shown), "placed.txt") == 0),
+    cli_check((shown >= 0) && cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
+                                                           .cap = CLI_POOL_BYTES,
+                                                           .other = "placed.txt",
+                                                           .other_cap = 11u}),
               "the file of the path before the line and the column stands as the tab shown");
     const CliViewFrame *const frame = s_window.editor.frame;
     cli_check((frame != NULL) && (frame->cursor.line == 1ULL) && (frame->cursor.col == 2ULL),
@@ -365,7 +380,9 @@ static void terminal_menu_checked(void)
     cli_check(g_cli_menus_open.open == -1, "under no title of the bar");
     cli_check(g_cli_menus_open.place == CLI_MENU_PLACE_TERMINAL_KEYS, "at the terminal's key field");
     CliItem first;
-    cli_check(cli_menus_row(0u, 0u, &first) && (strcmp(first.label, "Copy") == 0), "the terminal's menu, Copy first");
+    cli_check(cli_menus_row(0u, 0u, &first) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = first.label, .cap = CLI_POOL_BYTES, .other = "Copy", .other_cap = 5u}),
+              "the terminal's menu, Copy first");
     cli_check(g_cli_menus_open.level[0].pointed == 1, "the first row that can be chosen marked");
     key_pressed("Down");
     key_pressed("ContextMenu");
@@ -397,7 +414,10 @@ int main(void)
     (void)EMBED_CALL(gui_window_width.resize, GuiWindowWidthCfg, .window = &s_window, .width = 1440u, .height = 920u,
                      .system_scale = 100);
     // the tree as the window began it, the name of each file the tabs show is its path from it
-    memor.cpy(&(MemoriaCfg){.dst = s_root, .src = cli_command_line_root(), .bytes = strlen(cli_command_line_root()) + 1u});
+    memor.cpy(&(MemoriaCfg){
+        .dst = s_root,
+        .src = cli_command_line_root(),
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = cli_command_line_root(), .cap = CLI_PATH_MAX_LEN}) + 1u});
     // the name's pane, which takes every key and all text while it stands, left once the tree is read
     CliWake pause = CLI_WAKE_INIT;
     const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
@@ -407,10 +427,14 @@ int main(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
     }
     cli_check(!s_window.wordmark.exists, "the name's pane leaves once the tree is read");
-    const char *const slash = strrchr(s_root, '/');
-    const char *const backslash = strrchr(s_root, '\\');
-    const char *const last = (backslash > slash) ? backslash : slash;
-    cli_check((s_window.title != NULL) && (strcmp(s_window.title, (last != NULL) ? last + 1 : s_root) == 0),
+    // the place past the folder's last slash of either kind, 0 where it has none
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = s_root,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = sizeof(s_root)}), .set = "/\\");
+    cli_check((s_window.title != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = s_window.title,
+                                                                       .cap = CLI_PATH_MAX_LEN,
+                                                                       .other = s_root + past_slash,
+                                                                       .other_cap = CLI_PATH_MAX_LEN}),
               "the window's title is the tree's name, the last part of its folder");
     saves_checked();
     closes_checked();

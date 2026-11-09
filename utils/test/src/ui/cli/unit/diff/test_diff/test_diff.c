@@ -7,8 +7,6 @@
 #include "ui/cli/src/editor/document.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-#include <string.h>
-
 // the units and lines each side's text is laid into, and the changes found, at their most
 #define DIFF_UNITS (1u << 16u)
 #define DIFF_LINES (1u << 12u)

@@ -32,14 +32,20 @@ typedef struct CliSymbolsArgumentCtx CliSymbolsArgumentCtx;
 // the most languages a reading holds whose plugins have a grammar
 #define CLI_SYMBOLS_GRAMMARS 64u
 
+// the most bytes of a language's directive mark
+#define CLI_SYMBOLS_MARK_MAX 16u
+
 // One language whose plugin has a grammar: its id, the key its grammar is stored under, whether it is stored, 1,
-// refused, -1, or not yet sought, 0, and whether its grammar names a declaration
+// refused, -1, or not yet sought, 0, whether its grammar names a declaration, the mark its plugin names a directive's
+// line by, and the mark that ends a directive's line it carries on past, each empty for none
 typedef struct
 {
     char id[CLI_NAME_MAX_LEN];
     char key[CLI_NAME_MAX_LEN];
     int stored;
     int declares;
+    char directive_mark[CLI_SYMBOLS_MARK_MAX];
+    char directive_continued[CLI_SYMBOLS_MARK_MAX];
 } CliSymbolsGrammar;
 
 // The languages a reading reads its files in: the language each file opens as, and those whose plugins have a grammar
@@ -58,6 +64,10 @@ struct CliSymbolsLanguages
 // byte of `line`, `size` bytes, the column `col` stands at in UTF-16 units, walked on from `*byte` at column `*at`
 // (symbols_read.c)
 int cli_symbols_reads_in(const CliSymbolsReadLanguagesCtx *args);
+// the grammar of the file at `path`: the mark its plugin names a directive's line by, and the mark that ends a
+// directive's line it carries on past, each empty where it names none (symbols_read.c)
+const char *cli_symbols_directive_mark(const CliSymbolsReadLanguagesCtx *args);
+const char *cli_symbols_directive_continued(const CliSymbolsReadLanguagesCtx *args);
 void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args);
 int cli_symbols_leaves_in(const CliSymbolsPathReadLanguagesTextCtx *args);
 int cli_symbols_language_leaves_in(const CliSymbolsReadLanguagesTextCtx *args);
@@ -301,13 +311,6 @@ typedef struct
     unsigned int seen;
 } CliEffectMacro;
 
-// An include folder or file of the file the walk starts from, as the tree holds it: its path in the tree, from its top
-// or under its mount's name, a place among the walk's texts, and its type, a CLI_INCLUDE_ one
-typedef struct
-{
-    unsigned int path;
-    unsigned int type;
-} CliEffectInclude;
 
 // what a slice's walk meets in an active region: a define or undefine, a declaration a branch's leaves name, and an
 // include of no file of the tree
@@ -357,6 +360,9 @@ typedef struct
 // it, the define in effect, else the first declaration of it the walk met: its branch's path as the tree holds it and
 // its line, CLI_EFFECT_INPUT for a define the database gives, the path NULL for none
 typedef void (*CliEffectNoted)(const CliEffectNotedCfg *args);
+// the most names a sifted walk sifts for, and the most lines a statement the sift found is read across
+#define CLI_EFFECT_SIFT_NAMES 4096u
+#define CLI_EFFECT_STATEMENT_LINES 4096u
 typedef struct
 {
     void *context;
@@ -371,8 +377,7 @@ typedef int (*CliEffectReached)(const CliEffectReachedCfg *args);
 
 // A walk from a branch's first line to a line of it: the languages, the tree's top, the branch it starts from and its
 // text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a line, the
-// macros met with the leaves of their values, the branches walked and the include folders and files of the branch it
-// starts from, each in a cell at their most, the name sought, the last declaration of it the walk reached in an active
+// macros met with the leaves of their values and the branches walked, each in a cell at their most, the name sought, the last declaration of it the walk reached in an active
 // region, its branch and its line's text places among the texts, its line, and whether one was reached, and the first,
 // its branch and its line, and whether one was; whether it is a slice's walk, and if so each branch it read whole and
 // what it met, each in a cell at their most; where each leaf of the name in the branch it starts from goes, NULL for
@@ -395,9 +400,6 @@ typedef struct
     unsigned int *walked;
     unsigned int walks;
     unsigned int walk_capacity;
-    CliEffectInclude *include;
-    unsigned int includes;
-    unsigned int include_capacity;
     const char *name;
     unsigned long long length;
     unsigned int found_path;
@@ -419,6 +421,13 @@ typedef struct
     CliEffectReached reached;
     void *reached_context;
     int refused;
+    int sifting;
+    unsigned int view_from;
+    unsigned int view_to;
+    const char **sift_name;
+    unsigned long long *sift_length;
+    unsigned int sift_names;
+    unsigned int sift_capacity;
 } CliEffect;
 
 // the text at `at` among the walk's texts; the macro of `name`, `length` bytes, the walk met last, its place, or
@@ -432,9 +441,8 @@ unsigned int cli_effect_append(const CliSymbolsTextLengthCtx *args);
 #define CLI_EFFECT_VALUES_MAX (1u << 17u)
 #define CLI_EFFECT_DECLARED_MAX 4096u
 // a walk made for the tree's file at `path` and the name `name`, a slice's walk where `slicing` is 1: the walk, or NULL
-// with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`, the
-// defines and include folders the compilation database gives the file first and the files it includes before its
-// first line walked before it; and the walk's cells given back (symbols_effect.c)
+// with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`; and
+// the walk's cells given back (symbols_effect.c)
 CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args);
 void cli_effect_alloc(const CliSymbolsPathEffectCtx *args);
 void cli_effect_input_back(const CliSymbolsTextLengthCtx *args);

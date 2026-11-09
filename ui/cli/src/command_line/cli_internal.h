@@ -617,6 +617,8 @@ struct CliWordsErrMsgCtx
     unsigned int count;
     int detached;
     unsigned int priority;
+    // a handle the child inherits beside its pipe ends, 0 for none. Only Windows reads it
+    unsigned long long inherited_handle;
 };
 
 struct CliWordsErrMsgSpawnedCtx

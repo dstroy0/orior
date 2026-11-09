@@ -9,8 +9,6 @@
 #include "ui/cli/src/editor/view_edits.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-#include <string.h>
-
 static const char s_key[] = "hunks_check";
 static const char s_head[] = "one\ntwo\nthree\nfour\n";
 
@@ -33,7 +31,8 @@ static void read_against(const char *now)
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now,
-                                .size = strlen(now), .shape = &shape));
+                                .size = cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_POOL_BYTES}),
+                                .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "check/hunks.txt"));
     EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = s_key, .text = s_head, .size = sizeof(s_head) - 1u);
 }

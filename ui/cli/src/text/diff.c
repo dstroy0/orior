@@ -24,6 +24,8 @@ typedef struct
 
 // the most rounds a shortest edit takes before the texts read as too far apart, and the most lines of each text
 #define CLI_DIFF_MAX_EDITS 3000LL
+// the rounds the trace holds room for at first, doubled as a search runs past them
+#define CLI_DIFF_ROUNDS_FIRST 64LL
 #define CLI_DIFF_LINES (1u << 20u)
 
 // The edit's capacity, laid out in a cell sized to the two texts' lines, taken for the one edit and released as it
@@ -183,9 +185,11 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     }
     const long long most = ((n + m) < CLI_DIFF_MAX_EDITS) ? (n + m) : CLI_DIFF_MAX_EDITS;
     const long long middle = most + 1;
-    // every round's frontier, the rounds no more than `most`, in one cell of their squares' bound
-    const unsigned long long trace_bytes = (unsigned long long)((most + 1) * (most + 1)) * sizeof(long long);
-    s_diff->trace = g_cli_guard->temporary_buf_alloc(trace_bytes, g_cli_text_owner);
+    // every round's frontier in one cell of the square of the rounds it holds room for: CLI_DIFF_ROUNDS_FIRST rounds
+    // first, the room doubled as the rounds pass it, the frontiers moved into the larger cell
+    long long rounds = (most < CLI_DIFF_ROUNDS_FIRST) ? (most + 1) : CLI_DIFF_ROUNDS_FIRST;
+    s_diff->trace = g_cli_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long),
+                                                     g_cli_text_owner);
     if (s_diff->trace == NULL)
     {
         return 0;
@@ -195,6 +199,23 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     long long found = -1;
     for (long long d = 0; (found < 0) && (d <= most); d += 1)
     {
+        if (d >= rounds)
+        {
+            const long long wider = ((rounds * 2) < (most + 1)) ? (rounds * 2) : (most + 1);
+            long long *const grown = g_cli_guard->temporary_buf_alloc(
+                (unsigned long long)(wider * wider) * sizeof(long long), g_cli_text_owner);
+            if (grown == NULL)
+            {
+                return 0;
+            }
+            // the rounds before `d` stand in the first d * d entries
+            memor.cpy(&(MemoriaCfg){.dst = grown,
+                                    .src = s_diff->trace,
+                                    .bytes = (unsigned long long)(d * d) * sizeof(long long)});
+            g_cli_guard->persistent_buf_release(s_diff->trace, g_cli_text_owner);
+            s_diff->trace = grown;
+            rounds = wider;
+        }
         memor.cpy(&(MemoriaCfg){.dst = s_diff->trace + (d * d),
                                 .src = s_diff->v + (middle - d),
                                 .bytes = (unsigned long long)((2 * d) + 1) * sizeof(long long)});

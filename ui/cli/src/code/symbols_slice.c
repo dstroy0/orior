@@ -12,6 +12,7 @@
 #include "../text/text.h"
 #include "symbols_internal.h"
 
+
 // One name a slice follows: its text, among a branch's bytes in the walk's cells, and its length
 typedef struct
 {
@@ -45,6 +46,25 @@ typedef struct
 #define CLI_SLICE_HEAD_LINES 64u
 #define CLI_SLICE_OPENERS 64u
 #define CLI_SLICE_OPEN 256u
+// the most walks one slice is cut in, and the bytes of the names a walk carries to the next
+#define CLI_SLICE_ROUNDS 4u
+#define CLI_SLICE_CARRIED_BYTES (256ULL << 10u)
+
+// The names each sifted walk of one slice sifts for: their texts and lengths, how many and the most; the texts of those
+// carried from a walk before, and how many bytes are used of the most; the walks left after this one, and whether
+// this walk carried a name it did not sift for, so another walks again
+typedef struct
+{
+    const char **name;
+    unsigned long long *length;
+    unsigned int names;
+    unsigned int name_capacity;
+    char *text;
+    unsigned long long used;
+    unsigned long long text_capacity;
+    unsigned int rounds_left;
+    int again;
+} CliSliceCarry;
 
 typedef struct
 {
@@ -77,6 +97,7 @@ typedef struct
     unsigned int last_value;
     const unsigned int *opener;
     unsigned int openers;
+    CliSliceCarry *carry;
 } SymbolsSliceCtx;
 // the leaves of the branch the walk read whole at `branch`
 EMBED_INLINE const CliLeafRead *cli_slice_read(const SymbolsSliceCtx *args)
@@ -678,7 +699,33 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
             EMBED_CALL(cli_slice_follow, SymbolsSliceCtx, .slice = &slice, .name = slice.name[at]);
         }
     }
-    if (!effect->refused && (slice.start != CLI_JSON_NONE))
+    // a name the slice follows that the walk did not sift for is carried to the next walk, which sifts for it too,
+    // and the slice is written only by a walk that sifted for every name it follows, or by the last walk
+    CliSliceCarry *const carry = args->carry;
+    for (unsigned int at = 0u; (carry != NULL) && (carry->rounds_left != 0u) && !effect->refused && (at < slice.names);
+         at += 1u)
+    {
+        const CliSliceName *const one = &slice.name[at];
+        int sifted = 0;
+        for (unsigned int each = 0u; !sifted && (each < effect->sift_names); each += 1u)
+        {
+            sifted = (effect->sift_length[each] == one->length) &&
+                     (memor.cmp(&(MemoriaCfg){
+                          .src = effect->sift_name[each], .other = one->text, .bytes = (size_t)one->length}) == 0);
+        }
+        if (sifted || (carry->names >= carry->name_capacity) ||
+            ((carry->used + one->length) > carry->text_capacity))
+        {
+            continue;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = carry->text + carry->used, .src = one->text, .bytes = (size_t)one->length});
+        carry->name[carry->names] = carry->text + carry->used;
+        carry->length[carry->names] = one->length;
+        carry->names += 1u;
+        carry->used += one->length;
+        carry->again = 1;
+    }
+    if (!effect->refused && (slice.start != CLI_JSON_NONE) && ((carry == NULL) || !carry->again))
     {
         EMBED_CALL(cli_slice_dispatch, SymbolsSliceCtx, .slice_read = &slice, .each = args->each,
                    .context = args->context);
@@ -690,21 +737,61 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
 
 int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
 {
-    CliEffect *const effect = EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
-                                         .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg);
-    if (effect == NULL)
+    // the names every walk sifts for and the texts of those carried from a walk before, in one cell
+    const unsigned long long name_bytes = CLI_EFFECT_SIFT_NAMES * (sizeof(const char *) + sizeof(unsigned long long));
+    char *const cell = g_cli_guard->persistent_buf_alloc(name_bytes + CLI_SLICE_CARRIED_BYTES, g_cli_code_owner);
+    if (cell == NULL)
     {
+        mmgr_line_put(args->err_msg, "the cells cannot meet the slice");
         return 0;
     }
-    effect->start_text = args->text;
-    effect->start_size = args->size;
-    EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
-               .path = args->path, .line_u32 = args->first);
-    const int cut = !effect->refused &&
-                    EMBED_CALL(cli_slice_cut, SymbolsSliceCtx, .effect = effect, .path = args->path,
-                               .first = args->first, .last_value = args->last, .opener = args->opener,
-                               .openers = args->openers, .each = args->each_slice_line, .context = args->context);
-    EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
+    CliSliceCarry carry = {(const char **)(void *)cell,
+                           (unsigned long long *)(void *)(cell + (CLI_EFFECT_SIFT_NAMES * sizeof(const char *))),
+                           0u,
+                           CLI_EFFECT_SIFT_NAMES,
+                           cell + name_bytes,
+                           0ULL,
+                           CLI_SLICE_CARRIED_BYTES,
+                           CLI_SLICE_ROUNDS - 1u,
+                           0};
+    // the view's lines the walk lexes: from the outermost region the first stands in, or its widening, to the
+    // widening past the last
+    const unsigned int outer = (args->openers != 0u) ? args->opener[0] : args->first;
+    const unsigned int from = (outer < args->first) ? outer : args->first;
+    int cut = 0;
+    for (;;)
+    {
+        CliEffect *const effect = EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
+                                             .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg);
+        if (effect == NULL)
+        {
+            break;
+        }
+        effect->start_text = args->text;
+        effect->start_size = args->size;
+        effect->sifting = 1;
+        effect->view_from = (from > CLI_SLICE_HEAD_LINES) ? (from - CLI_SLICE_HEAD_LINES) : 0u;
+        effect->view_to = args->last + CLI_SLICE_HEAD_LINES + 1u;
+        effect->sift_name = carry.name;
+        effect->sift_length = carry.length;
+        effect->sift_names = carry.names;
+        effect->sift_capacity = carry.name_capacity;
+        carry.again = 0;
+        EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
+                   .path = args->path, .line_u32 = args->first);
+        carry.names = effect->sift_names;
+        cut = !effect->refused &&
+              EMBED_CALL(cli_slice_cut, SymbolsSliceCtx, .effect = effect, .path = args->path, .first = args->first,
+                         .last_value = args->last, .opener = args->opener, .openers = args->openers,
+                         .each = args->each_slice_line, .context = args->context, .carry = &carry);
+        EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
+        if (!cut || !carry.again)
+        {
+            break;
+        }
+        carry.rounds_left -= 1u;
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_code_owner);
     if (!cut)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the slice");

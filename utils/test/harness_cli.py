@@ -167,13 +167,14 @@ def cmd_cli_build(a):
 
 
 def checks_env(a):
-    """The settings `--sanitize` and `--owners` give the checks' scripts, or None where neither is named."""
-    env = {}
+    """The checks' environment: a suite's, which leaves the fixtures' commits and tags unsigned, with the settings
+    `--sanitize` and `--owners` give."""
+    env = harness_unity.suite_env()
     if a.sanitize:
         env["ORIOR_SANITIZE"] = a.sanitize
     if a.owners:
         env["ORIOR_CELLS_OWNERS"] = "1"
-    return dict(os.environ, **env) if env else None
+    return env
 
 
 def library_archive(folder):

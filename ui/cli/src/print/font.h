@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // font.h: a TrueType font read and drawn by orior_cli itself (font.c reads it, font_outline.c outlines and draws a
 // glyph): its tables read from a .ttf or the first font of a .ttc, a character found by its cmap, a glyph's outline
-// read from glyf, simple or made of other glyphs, its quadratic curves cut into short lines, and the lines drawn as
-// coverage, a pixel's share of the glyph, by the signed area each line leaves in the cells it crosses
+// read from glyf, simple or made of other glyphs, its quadratic curves cut into short lines, and the lines handed to
+// the one rasterizer (coverage/coverage.h) for each pixel's share of the glyph
 #ifndef PRINT_FONT_H
 #define PRINT_FONT_H
 #include "embed_dispatch_layout.h"

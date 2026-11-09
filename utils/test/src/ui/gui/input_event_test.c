@@ -32,8 +32,9 @@ int main(void)
     const GuiInput *const up = GUI_UP_INPUT(5, 6);
     cli_check((up->type == GUI_INPUT_UP) && (up->x == 5) && (up->y == 6), "a release carries its place");
     cli_check(GUI_LEFT_INPUT()->type == GUI_INPUT_LEFT, "the pointer gone carries its kind");
-    const GuiInput *const wheel = GUI_WHEEL_INPUT(1, 2, -3);
+    const GuiInput *const wheel = GUI_WHEEL_INPUT(1, 2, -3, -40, 0);
     cli_check((wheel->type == GUI_INPUT_WHEEL) && (wheel->x == 1) && (wheel->y == 2) && (wheel->rows == -3), "the wheel carries its place and its rows");
+    cli_check((wheel->wheel_down == -40) && (wheel->wheel_across == 0), "the wheel carries its turn in units, a part of a notch kept");
     const GuiInput *const key = GUI_KEY_INPUT("Mod+Left");
     cli_check((key->type == GUI_INPUT_KEY) && (key->name != NULL) && (key->name[0] == 'M'), "a key carries its name");
     const GuiInput *const text = GUI_TEXT_INPUT("ab", 2ull);

@@ -11,6 +11,7 @@
 #include "../code/symbols.h"
 #include "../command_line/pool.h"
 #include "../plugins/plugins.h"
+#include "../servers/servers_internal.h"
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
@@ -65,8 +66,9 @@ typedef struct
 // A view: the key of its text, the path of its file, which names its language, the whole path its language server
 // was handed, empty where none was, whether the text changed since the server was last told, and whether the text is
 // paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its
-// pattern of a line that opens a block and its comment marks, as its plugin names them, in units; its top, rows and
-// columns; the cursor and the anchor; the column the cursor saves as it moves up and down, in cells; the selections
+// pattern of a line that opens a block and its comment marks, as its plugin names them, in units; its top, its first
+// cell column and the most cells of any line it has shown, rows and columns; the cursor and the anchor; the column the
+// cursor saves as it moves up and down, in cells; the selections
 // Expand Selection grew from, each its cursor and its anchor, how many, and the selection it last made; the
 // indentation; the frames written; the steps, in a cell of their own, how many are stored and how many of them are
 // done, those past the done ones being undone; the folds closed, in a cell of their own in the order of their first
@@ -75,7 +77,10 @@ typedef struct
 // case and whole words, whether the matches are to be found anew, the matches, each a line, a from and a to column, in
 // a cell of their own, how many and the work state, and the current one, -1 for none; and the line read last, its units
 // in a cell of the view's own, the work state it has, which line it is and whether it is known: a line's units are read
-// once for the moves along it; and whether its close waits on a second press, its text changed
+// once for the moves along it; and whether its close waits on a second press, its text changed. Last, the bracket pair
+// at the cursor as it was last read: whether it is known, whether a pair stands there, and the cursor, the text's
+// serial and the count of the text's states it was read at, and the pair. A frame reads the pair again only where one
+// of those three has moved
 typedef struct
 {
     int used;
@@ -109,6 +114,8 @@ typedef struct
     unsigned long long match_capacity;
     long long current;
     unsigned long long top;
+    unsigned long long left;
+    unsigned long long widest;
     unsigned int rows;
     unsigned int columns;
     CliPosition cursor;
@@ -135,6 +142,12 @@ typedef struct
     unsigned long long line_length;
     unsigned long long line_cached;
     int line_known;
+    int pair_known;
+    int pair_found;
+    CliPosition pair_cursor;
+    unsigned long long pair_serial;
+    unsigned int pair_states;
+    CliPosition pair[2];
 } CliView;
 // The rows a frame shows: their line numbers and, for a paged text's lines read, their texts, in one cell; and how many
 typedef struct
@@ -1231,9 +1244,30 @@ EMBED_INLINE int view_select(const ViewCtx *args)
            (args->view_read->cursor.col != args->view_read->anchor.col);
 }
 
-// the top moved so the cursor stands in view, among the lines shown
+// The view moved so the cursor stands in it: the top among the lines shown, and the first cell column so the cursor's
+// cell lies between it and the last column the view shows. A view not yet sized keeps its column
+EMBED_INLINE void view_follow_across(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    if (view->columns == 0u)
+    {
+        return;
+    }
+    const unsigned long long cell =
+        EMBED_CALL(view_cell_get, ViewCtx, .view = view, .line = view->cursor.line, .col = view->cursor.col);
+    if (cell < view->left)
+    {
+        view->left = cell;
+    }
+    else if (cell >= view->left + view->columns)
+    {
+        view->left = cell - view->columns + 1ULL;
+    }
+}
+
 EMBED_INLINE void view_follow(const ViewCtx *args)
 {
+    EMBED_CALL(view_follow_across, ViewCtx, .view = args->view);
     const unsigned int rows = (args->view->rows != 0u) ? args->view->rows : 1u;
     args->view->top = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view, .line = args->view->top);
     if (args->view->cursor.line < args->view->top)
@@ -4331,6 +4365,12 @@ int cli_view_input(const CliViewInputCfg *args)
         EMBED_CALL(view_top_put, ViewCtx, .view = view, .line = args->input->top);
         break;
     }
+    case CLI_VIEW_SLIDE: {
+        // the first cell column goes no further than the widest line's last columns fill the view
+        const unsigned long long most = (view->widest > view->columns) ? view->widest - view->columns : 0ULL;
+        view->left = (args->input->column < most) ? args->input->column : most;
+        break;
+    }
     case CLI_VIEW_WHEEL: {
         // a wheel's rows are far inside what a long long represents; up past the first line the top stands at it, and
         // down past the line it is bounded at it stands at that
@@ -4390,18 +4430,40 @@ int cli_view_input(const CliViewInputCfg *args)
     return reserved;
 }
 
-// the bracket pair at the cursor, into `pair`, the bracket that ends at the cursor, else the one that starts at it,
-// first and the one it pairs with second: the text's lines from as far above and below the cursor as
-// CLI_VIEW_PAIR_LINES reach and none outside those read for it, read as the tree reads a text from the state the first
-// is entered in: 1, or 0 where no bracket of a pair stands at the cursor or the lines could not be read
-EMBED_INLINE int view_pair(const ViewCtx *args)
+// A bracket pair read for a view: the text's key, the file's path, the text's serial and state count, and the cursor
+// it is read at. The answer is the pair and whether one stands there. `asked` numbers the request among those lined up
+typedef struct
 {
-    CliPosition *pair = args->pair;
+    unsigned int asked;
+    char key[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    unsigned long long serial;
+    unsigned int states;
+    CliPosition cursor;
+    CliPosition pair[2];
+    int found;
+} ViewPairRead;
+
+// The number of the last pair request lined up. A worker skips a request with a smaller number
+static embed_atomic_u32 s_pair_asked;
+// The address of the last answer a worker wrote, a cell of its own, or 0. A worker and the view thread each exchange
+// the address whole, so a cell has one holder at a time
+static embed_atomic_u64 s_pair_landed;
+// On the view thread only: the last answer taken, and the request it waits on
+static ViewPairRead s_pair_answer;
+static ViewPairRead s_pair_request;
+
+// the bracket pair at the cursor of `read`, into its `pair` and `found`: the bracket that ends at the cursor, else the
+// one that starts at it, first and the one it pairs with second. It reads the text's lines from as far above and below
+// the cursor as CLI_VIEW_PAIR_LINES reach, and no others, as the tree reads a text from the state of the first line.
+// `found` is 0 where no bracket of a pair stands at the cursor or the lines do not read
+static void view_pair_read(ViewPairRead *read)
+{
+    read->found = 0;
     unsigned long long low = 0ULL;
     unsigned long long high = 0ULL;
-    (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = args->view_read->key, .low = &low,
-                     .high = &high);
-    const unsigned long long line = args->view_read->cursor.line;
+    (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = read->key, .low = &low, .high = &high);
+    const unsigned long long line = read->cursor.line;
     const unsigned long long reach = (line > CLI_VIEW_PAIR_LINES) ? (line - CLI_VIEW_PAIR_LINES) : 0ULL;
     const unsigned long long start = (reach > low) ? reach : low;
     const unsigned long long end =
@@ -4410,28 +4472,133 @@ EMBED_INLINE int view_pair(const ViewCtx *args)
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = args->view_read->key,
-                                  .first = first, .last = last, .size_pointer = &size, .state = state,
-                                  .capacity = sizeof(state), .owner = g_cli_views_owner);
+    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = read->key, .first = first,
+                                  .last = last, .size_pointer = &size, .state = state, .capacity = sizeof(state),
+                                  .owner = g_cli_views_owner);
     if (text == NULL)
     {
-        return 0;
+        return;
     }
     CliSymbolPosition found[2] = {{0u, 0u}, {0u, 0u}};
     // a place in a text a view shows stands below 2^32 lines and columns
-    const int paired =
-        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = args->view_read->path,
+    read->found =
+        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = read->path,
                    .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
-                   .at_symbol_position =
-                       (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)args->view_read->cursor.col},
+                   .at_symbol_position = (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)read->cursor.col},
                    .pair = found);
     g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
-    for (unsigned int at = 0u; paired && (at < 2u); at += 1u)
+    for (unsigned int at = 0u; read->found && (at < 2u); at += 1u)
     {
-        pair[at].line = first + found[at].line;
-        pair[at].col = found[at].col;
+        read->pair[at].line = first + found[at].line;
+        read->pair[at].col = found[at].col;
     }
-    return paired;
+}
+
+// the request of `view` at its cursor, with the text's serial and its state count, into `read`
+static void view_pair_request(const CliView *view, unsigned long long serial, unsigned int states, ViewPairRead *read)
+{
+    memor.set(&(MemoriaCfg){.dst = read, .val = 0, .bytes = sizeof(*read)});
+    memor.cpy(&(MemoriaCfg){.dst = read->key, .src = view->key, .bytes = sizeof(read->key)});
+    memor.cpy(&(MemoriaCfg){.dst = read->path, .src = view->path, .bytes = sizeof(read->path)});
+    read->serial = serial;
+    read->states = states;
+    read->cursor = view->cursor;
+}
+
+// whether `one` and `other` ask for the same pair: the same text, serial, state count and cursor
+static int view_pair_same(const ViewPairRead *one, const ViewPairRead *other)
+{
+    return (one->serial == other->serial) && (one->states == other->states) &&
+           (one->cursor.line == other->cursor.line) && (one->cursor.col == other->cursor.col) &&
+           cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = other->key, .cap = CLI_NAME_MAX_LEN});
+}
+
+// the bracket pair at the cursor, into `pair`, as view_pair_read reads it on the calling thread: 1, or 0 where none
+EMBED_INLINE int view_pair(const ViewCtx *args)
+{
+    ViewPairRead read;
+    view_pair_request(args->view_read, 0ULL, 0u, &read);
+    view_pair_read(&read);
+    args->pair[0] = read.pair[0];
+    args->pair[1] = read.pair[1];
+    return read.found;
+}
+
+// A worker reads the pair a request asks for. It skips a request that a later one replaces. The answer goes into a
+// cell of its own, and the cell's address into s_pair_landed. A cell that address replaces goes back. The view thread
+// wakes as when the walk colors lines
+static void view_pair_job(const CliServersJobCfg *args)
+{
+    if (args->size < sizeof(ViewPairRead))
+    {
+        return;
+    }
+    ViewPairRead *const read = g_cli_guard->persistent_buf_alloc(sizeof(ViewPairRead), g_cli_views_owner);
+    if (read == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = read, .src = args->job, .bytes = sizeof(*read)});
+    if (read->asked != EMBED_ATOMIC_LOAD(&s_pair_asked))
+    {
+        g_cli_guard->persistent_buf_release(read, g_cli_views_owner);
+        return;
+    }
+    view_pair_read(read);
+    // a cell's address is a pointer's width, which the 64-bit word holds
+    ViewPairRead *const replaced =
+        (ViewPairRead *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_pair_landed, (embed_u64)(uintptr_t)read);
+    g_cli_guard->persistent_buf_release(replaced, g_cli_views_owner);
+    cli_document_colored_wake();
+}
+
+// The bracket pair at the cursor, into `pair`. The view keeps the last answer, and it asks again only where the
+// cursor, the text's serial or the count of the text's states has moved since then. The view thread lines the read up
+// for a worker and goes on with no pair shown. The worker's answer shows in the frame the view thread takes next
+EMBED_INLINE int view_pair_kept(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
+    const unsigned long long serial = (one != NULL) ? one->serial : 0ULL;
+    const unsigned int states = (one != NULL) ? one->state_count : 0u;
+    const int same = view->pair_known && (view->pair_serial == serial) && (view->pair_states == states) &&
+                     (view->pair_cursor.line == view->cursor.line) && (view->pair_cursor.col == view->cursor.col);
+    if (!same)
+    {
+        ViewPairRead wanted;
+        view_pair_request(view, serial, states, &wanted);
+        // the answer a worker left, taken whole, and its cell given back
+        ViewPairRead *const landed = (ViewPairRead *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_pair_landed, 0ULL);
+        if (landed != NULL)
+        {
+            s_pair_answer = *landed;
+            g_cli_guard->persistent_buf_release(landed, g_cli_views_owner);
+        }
+        view->pair_found = 0;
+        if (view_pair_same(&s_pair_answer, &wanted))
+        {
+            view->pair_found = s_pair_answer.found;
+            view->pair[0] = s_pair_answer.pair[0];
+            view->pair[1] = s_pair_answer.pair[1];
+            view->pair_known = 1;
+            view->pair_serial = serial;
+            view->pair_states = states;
+            view->pair_cursor = view->cursor;
+        }
+        else if (!view_pair_same(&s_pair_request, &wanted))
+        {
+            // the add returns the count before it, and this request takes the count after it
+            wanted.asked = (unsigned int)EMBED_ATOMIC_ADD_32(&s_pair_asked, 1u) + 1u;
+            if (EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = view_pair_job, .job = &wanted,
+                           .size = sizeof(wanted)))
+            {
+                s_pair_request = wanted;
+            }
+        }
+    }
+    args->pair[0] = view->pair[0];
+    args->pair[1] = view->pair[1];
+    return view->pair_found;
 }
 
 // the place among the frame's rows `displayed` of the first row at or past the line `line`, found by halving
@@ -4640,7 +4807,8 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     view->top =
         EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = (view->top < lines) ? view->top : last_line);
     const unsigned long long from = view->top;
-    const unsigned long long rows = (view->rows != 0u) ? view->rows : 1u;
+    // the rows the view shows whole, and the rows a scroll part of a line down shows past them
+    const unsigned long long rows = ((view->rows != 0u) ? view->rows : 1u) + CLI_VIEW_ROWS_PAST;
     if (view->find_open)
     {
         EMBED_CALL(view_search, ViewCtx, .view = view);
@@ -4663,12 +4831,15 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     CliViewFoldsSeen folds = {&displayed, seen, 0ULL};
     (void)EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = view->key,
                      .each_fold_each = view_fold_visit, .context = &folds);
-    // the frame in one cell: the rows, the folds, the matches among the rows, find's query, and the rows' text and the
-    // closers, a row or a closer the view's columns at the most and three bytes a unit
+    // The frame in one cell: the rows, the folds, the matches among the rows, find's query, and the rows' text and the
+    // closers. A row holds its line from its start to the view's last column, which is the first column and the
+    // view's columns after it, and a closer holds the view's columns. Each is three bytes a unit at the most. A unit
+    // is never narrower than a cell, so a row cut at that many units holds every cell the view shows
     const unsigned long long columns = (view->columns != 0u) ? view->columns : CLI_VIEW_UNSIZED_COLUMNS;
+    const unsigned long long reach = view->left + columns;
     const unsigned long long matches_most = view->find_open ? view->matches : 0ULL;
     const unsigned long long query_bytes = view->find_open ? ((3ULL * view->find_length) + 1ULL) : 1ULL;
-    const unsigned long long text_bytes = (displayed.count + folds.count) * columns * 3ULL;
+    const unsigned long long text_bytes = ((displayed.count * reach) + (folds.count * columns)) * 3ULL;
     CliViewFrame *const frame = g_cli_guard->persistent_buf_alloc(
         sizeof(*frame) + (displayed.count * sizeof(CliViewFrameRow)) + (folds.count * sizeof(CliViewFrameFold)) +
             (matches_most * sizeof(*frame->match)) + query_bytes + text_bytes,
@@ -4694,13 +4865,24 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     if (view->paged)
     {
         EMBED_CALL(view_frame_paged, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame, .out = &bytes,
-                   .width = columns);
+                   .width = reach);
     }
     else
     {
         EMBED_CALL(view_frame_stored, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame, .out = &bytes,
-                   .width = columns);
+                   .width = reach);
     }
+    // the grid's width as the view knows it: the most cells of any line it has shown, each row's line measured whole
+    for (unsigned long long at = 0ULL; at < displayed.count; at += 1ULL)
+    {
+        const unsigned long long line = displayed.number[at];
+        const unsigned long long cells = EMBED_CALL(
+            view_cell_get, ViewCtx, .view = view, .line = line,
+            .col = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line));
+        view->widest = (cells > view->widest) ? cells : view->widest;
+    }
+    frame->left = view->left;
+    frame->widest = view->widest;
     // the closers after the rows' text; a count of folds among the rows is far inside what an unsigned int represents
     frame->folds = (unsigned int)folds.count;
     frame->closers = bytes.at;
@@ -4708,7 +4890,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
                .width = columns);
     frame->cursor = view->cursor;
     frame->anchor = view->anchor;
-    frame->has_pair = EMBED_CALL(view_pair, ViewCtx, .view_read = view, .pair = frame->pair);
+    frame->has_pair = EMBED_CALL(view_pair_kept, ViewCtx, .view = view, .pair = frame->pair);
     // a tab's use the settings give is 1 or 0, and -1 where they give none
     frame->indent_tabs = ((view->indent.tabs == 0) || (view->indent.tabs == 1)) ? view->indent.tabs : -1;
     frame->indent_size = EMBED_CALL(view_tab, ViewCtx, .view_read = view);

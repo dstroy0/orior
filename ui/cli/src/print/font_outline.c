@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// font_outline.c: a glyph's outline read from glyf, its curves cut into lines, and the lines drawn as coverage
+// font_outline.c: a glyph's outline read from glyf, its curves cut into lines, and the lines handed to the one
+// rasterizer (coverage.h) as the glyph's mask
 #include "font.h"
+
+#include "../coverage/coverage.h"
 
 #include <float.h>
 #include <math.h>
@@ -21,21 +24,12 @@ typedef struct
     const CliFont *font;
     unsigned long long at;
     unsigned int depth;
-    float *area;
-    unsigned long long width;
-    unsigned long long height;
-    float x0;
-    float y0;
-    float x1;
-    float y1;
     unsigned char *flags;
     unsigned int points;
     float *xs;
     float *ys;
     unsigned int start;
     unsigned int end;
-    long long row;
-    float signed_height;
 } FontOutlineCtx;
 // a point put after the outline's, placed by the matrix
 EMBED_INLINE void cli_point(const FontOutlineCtx *args)
@@ -313,88 +307,6 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
     }
 }
 
-// the signed area a line's piece across one row leaves in the row's cells, the piece running across from x0 to x1 and
-// `signed_height` its height signed by the line's way, `row` the row's first cell
-EMBED_INLINE void cli_line_row(const FontOutlineCtx *args)
-{
-    const long long start = args->row;
-    const float x = args->x0;
-    const float next = args->x1;
-    const float d = args->signed_height;
-    const float x0_cell = (x < next) ? x : next;
-    const float x1_cell = (x < next) ? next : x;
-    const float x0_floor = floorf(x0_cell);
-    const long long x0i = (long long)x0_floor;
-    const float x1_ceil = ceilf(x1_cell);
-    const long long x1i = (long long)x1_ceil;
-#define CLI_AT(column_) ((unsigned long long)(((start + (column_)) > 0LL) ? (start + (column_)) : 0LL))
-    if (x1i <= (x0i + 1LL))
-    {
-        const float middle = (0.5f * (x + next)) - x0_floor;
-        args->area[CLI_AT(x0i)] += d - (d * middle);
-        args->area[CLI_AT(x0i + 1LL)] += d * middle;
-    }
-    else
-    {
-        const float s = 1.0f / (x1_cell - x0_cell);
-        const float x0f = x0_cell - x0_floor;
-        const float a0 = 0.5f * s * (1.0f - x0f) * (1.0f - x0f);
-        const float x1f = (x1_cell - x1_ceil) + 1.0f;
-        const float am = 0.5f * s * x1f * x1f;
-        args->area[CLI_AT(x0i)] += d * a0;
-        if (x1i == (x0i + 2LL))
-        {
-            args->area[CLI_AT(x0i + 1LL)] += d * (1.0f - a0 - am);
-        }
-        else
-        {
-            const float a1 = s * (1.5f - x0f);
-            args->area[CLI_AT(x0i + 1LL)] += d * (a1 - a0);
-            for (long long column = x0i + 2LL; column < (x1i - 1LL); column += 1LL)
-            {
-                args->area[CLI_AT(column)] += d * s;
-            }
-            const float a2 = a1 + ((float)(x1i - x0i - 3LL) * s);
-            args->area[CLI_AT(x1i - 1LL)] += d * (1.0f - a2 - am);
-        }
-        args->area[CLI_AT(x1i)] += d * am;
-    }
-#undef CLI_AT
-}
-
-// Adds the signed area a line from `p0` to `p1` leaves in each cell it crosses, as the sum along a row of the cells'
-// areas gives each pixel's coverage
-EMBED_INLINE void cli_line(const FontOutlineCtx *args)
-{
-    if (fabsf(args->y0 - args->y1) <= FLT_EPSILON)
-    {
-        return;
-    }
-    const float dir = (args->y0 < args->y1) ? 1.0f : -1.0f;
-    const float from[2] = {(args->y0 < args->y1) ? args->x0 : args->x1, (args->y0 < args->y1) ? args->y0 : args->y1};
-    const float to[2] = {(args->y0 < args->y1) ? args->x1 : args->x0, (args->y0 < args->y1) ? args->y1 : args->y0};
-    const float dxdy = (to[0] - from[0]) / (to[1] - from[1]);
-    float x = from[0];
-    if (from[1] < 0.0f)
-    {
-        x -= from[1] * dxdy;
-    }
-    // the rows the line crosses, from the first whole row to the last, inside the mask
-    const unsigned long long first = (unsigned long long)((from[1] > 0.0f) ? from[1] : 0.0f);
-    const unsigned long long ceiling = (unsigned long long)ceilf(to[1]);
-    const unsigned long long last = (ceiling < args->height) ? ceiling : args->height;
-    for (unsigned long long y = first; y < last; y += 1ULL)
-    {
-        const float top = ((float)(y + 1ULL) < to[1]) ? (float)(y + 1ULL) : to[1];
-        const float bottom = ((float)y > from[1]) ? (float)y : from[1];
-        const float dy = top - bottom;
-        const float next = x + (dxdy * dy);
-        EMBED_CALL(cli_line_row, FontOutlineCtx, .area = args->area, .row = (long long)(y * args->width), .x0 = x,
-                   .x1 = next, .signed_height = dy * dir);
-        x = next;
-    }
-}
-
 void cli_font_rasterize(const CliFontContoursCfg *args)
 {
     float *cover = args->cover;
@@ -437,33 +349,10 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = cover, .val = 0, .bytes = ((width * height) + 4ULL) * sizeof(cover[0])});
-    unsigned int first = 0u;
-    for (unsigned int contour = 0u; contour < args->contours->contours; contour += 1u)
-    {
-        const unsigned int end = args->contours->end[contour];
-        const unsigned int count = end - first;
-        for (unsigned int pair = 0u; pair < count; pair += 1u)
-        {
-            const unsigned int a = first + pair;
-            const unsigned int b = first + ((pair + 1u) % count);
-            EMBED_CALL(cli_line, FontOutlineCtx, .area = cover, .width = width, .height = height,
-                       .x0 = args->contours->x[a] - (float)left, .y0 = (float)top - args->contours->y[a],
-                       .x1 = args->contours->x[b] - (float)left, .y1 = (float)top - args->contours->y[b]);
-        }
-        first = end;
-    }
-    // the areas summed along each row in place, each pixel's coverage at most 1
-    for (unsigned long long row = 0ULL; row < height; row += 1ULL)
-    {
-        float sum = 0.0f;
-        for (unsigned long long column = 0ULL; column < width; column += 1ULL)
-        {
-            sum += cover[(row * width) + column];
-            const float magnitude = fabsf(sum);
-            cover[(row * width) + column] = (magnitude < 1.0f) ? magnitude : 1.0f;
-        }
-    }
+    // the one rasterizer gives each pixel its share, the mask's top left corner at the outline's (left, top)
+    EMBED_CALL(cli_coverage.draw, CliCoverageCfg, .x = args->contours->x, .y = args->contours->y,
+               .end = args->contours->end, .contours = args->contours->contours, .origin_x = (float)left,
+               .origin_y = (float)top, .cover = cover, .width = width, .height = height);
     args->mask_bits->width = width;
     args->mask_bits->height = height;
     args->mask_bits->left = left;

@@ -3,7 +3,8 @@
 // windows_spawn.c: a run's process started on Windows: its environment block made from this process's and the run's
 // settings, its output and errors piped back apart, and, detached, started with no console inside a job of its own
 // through the job list attribute, so ending the job ends every process it starts; or started in a pseudo-console of
-// its own, a terminal's shell, its output read and its keys written through the console's pipes
+// its own, a terminal's shell, its output read and its keys written through the console's pipes. Each start works in a
+// cell of its own, and its child inherits only the handles the start lists
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
@@ -16,9 +17,30 @@
 
 #define CLI_ENVIRONMENT_UNITS (1u << 17u)
 
+// the most settings a start names, and the bytes of a start's attribute list
+#define CLI_SPAWN_SETTINGS 64u
+
+#define CLI_SPAWN_ATTRIBUTES 256u
+
+// The work of one process start: its command line, folder, environment block, the settings' names, its attribute list
+// and the handles its child inherits. Each start takes a cell of its own, so two starts on two threads share nothing
+typedef struct
+{
+    char line[CLI_LINE_BYTES];
+    wchar_t wide[CLI_LINE_BYTES];
+    wchar_t folder[CLI_PATH_MAX_LEN];
+    wchar_t block[CLI_ENVIRONMENT_UNITS];
+    wchar_t names[CLI_SPAWN_SETTINGS][CLI_NAME_MAX_LEN];
+    unsigned long long attributes[CLI_SPAWN_ATTRIBUTES / sizeof(unsigned long long)];
+    HANDLE inherited[4];
+} WindowsSpawnCell;
+
 typedef struct
 {
 #if (defined(_WIN32))
+    WindowsSpawnCell *cell;
+    HANDLE *job;
+    unsigned int inherited;
     VerbaLinea *line;
     const char *word;
     const wchar_t *entry;
@@ -34,6 +56,7 @@ typedef struct
     CliSpawned *spawned;
     int detached;
     int stdin_written;
+    unsigned long long inherited_handle;
 #endif
 } WindowsSpawnCtx;
 // `word` added to `line` quoted as the C runtime splits it back: in quotes where it is empty or contains a space, a tab
@@ -100,14 +123,14 @@ EMBED_INLINE int cli_by_name(const WindowsSpawnCtx *args)
 // The environment block: this process's entries less those the settings name, then each setting given a value
 EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
 {
-    static wchar_t s_names[64][CLI_NAME_MAX_LEN];
-    if (args->count > 64u)
+    wchar_t(*const names)[CLI_NAME_MAX_LEN] = args->cell->names;
+    if (args->count > CLI_SPAWN_SETTINGS)
     {
         return 0;
     }
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (MultiByteToWideChar(CP_UTF8, 0, args->settings[at].name, -1, s_names[at], CLI_NAME_MAX_LEN) == 0)
+        if (MultiByteToWideChar(CP_UTF8, 0, args->settings[at].name, -1, names[at], CLI_NAME_MAX_LEN) == 0)
         {
             return 0;
         }
@@ -124,7 +147,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
         int named = 0;
         for (unsigned int at = 0u; !named && (at < args->count); at += 1u)
         {
-            named = EMBED_CALL(cli_by_name, WindowsSpawnCtx, .entry = entry, .name = s_names[at]);
+            named = EMBED_CALL(cli_by_name, WindowsSpawnCtx, .entry = entry, .name = names[at]);
         }
         const unsigned long long length = wcslen(entry) + 1ull;
         fits = (used + length + 1ull) < args->capacity;
@@ -158,56 +181,110 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
     return fits;
 }
 
-// a process started, its standard input a pipe this process feeds where `stdin_written`, else NUL
-// The command line, its folder and its environment block a process is started with, made under the lock
-static char s_line[CLI_LINE_BYTES];
-static wchar_t s_wide[CLI_LINE_BYTES];
-static wchar_t s_folder[CLI_PATH_MAX_LEN];
-static wchar_t s_block[CLI_ENVIRONMENT_UNITS];
-
-// the command line, the folder and the environment block made, the lock taken: 1, or 0 with why given and the lock
-// given back
-EMBED_INLINE int cli_spawn_prepare(const WindowsSpawnCtx *args)
+// A start's cell taken, its command line, folder and environment block made: the cell, or NULL with why given and no
+// cell kept
+EMBED_INLINE WindowsSpawnCell *cli_spawn_prepare(const WindowsSpawnCtx *args)
 {
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    WindowsSpawnCell *const cell = g_cli_guard->persistent_buf_alloc(sizeof(WindowsSpawnCell), g_cli_platform_owner);
+    if (cell == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no memory is left to start the command");
+        return NULL;
+    }
+    VerbaLinea line = {cell->line, sizeof(cell->line), 0ull};
     for (unsigned int at = 0u; args->words[at] != NULL; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? " " : "");
         EMBED_CALL(cli_word_quote, WindowsSpawnCtx, .line = &line, .word = args->words[at]);
     }
     if ((mmgr_line_finish(&line) == 0ull) ||
-        (MultiByteToWideChar(CP_UTF8, 0, s_line, -1, s_wide, CLI_LINE_BYTES) == 0) ||
+        (MultiByteToWideChar(CP_UTF8, 0, cell->line, -1, cell->wide, CLI_LINE_BYTES) == 0) ||
         ((args->folder != NULL) &&
-         (MultiByteToWideChar(CP_UTF8, 0, args->folder, -1, s_folder, CLI_PATH_MAX_LEN) == 0)) ||
-        !EMBED_CALL(cli_environment, WindowsSpawnCtx, .settings = args->settings, .count = args->count,
-                    .block = s_block, .capacity = CLI_ENVIRONMENT_UNITS))
+         (MultiByteToWideChar(CP_UTF8, 0, args->folder, -1, cell->folder, CLI_PATH_MAX_LEN) == 0)) ||
+        !EMBED_CALL(cli_environment, WindowsSpawnCtx, .cell = cell, .settings = args->settings, .count = args->count,
+                    .block = cell->block, .capacity = CLI_ENVIRONMENT_UNITS))
     {
         mmgr_line_put(args->err_msg, "the command is longer than Windows starts");
+        g_cli_guard->persistent_buf_release(cell, g_cli_platform_owner);
+        return NULL;
+    }
+    return cell;
+}
+
+// The cell's attribute list made with the handles a child inherits and, where given, its job: 1 where the list holds
+// both, else 0 with no list kept. The child inherits the listed handles and no other, so a start on another thread
+// gives this child none of its pipe ends
+EMBED_INLINE int cli_spawn_attributes(const WindowsSpawnCtx *args)
+{
+    const DWORD entries = (args->job != NULL) ? 2u : 1u;
+    SIZE_T attributes_size = 0u;
+    (void)InitializeProcThreadAttributeList(NULL, entries, 0u, &attributes_size);
+    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)args->cell->attributes;
+    if ((attributes_size > sizeof(args->cell->attributes)) ||
+        !InitializeProcThreadAttributeList(attributes, entries, 0u, &attributes_size))
+    {
         return 0;
     }
-    return 1;
+    const int listed = UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                 args->cell->inherited, args->inherited * sizeof(HANDLE), NULL, NULL) &&
+                       ((args->job == NULL) || UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_JOB_LIST,
+                                                                         args->job, sizeof(*args->job), NULL, NULL));
+    if (!listed)
+    {
+        DeleteProcThreadAttributeList(attributes);
+    }
+    return listed;
 }
 
 int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
 {
     long long *code = args->code;
-    if (!EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = NULL,
-                    .settings = args->settings, .count = args->count, .err_msg = args->err_msg))
+    WindowsSpawnCell *const cell = EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = NULL,
+                                              .settings = args->settings, .count = args->count,
+                                              .err_msg = args->err_msg);
+    if (cell == NULL)
     {
         return 0;
     }
-    STARTUPINFOW startup;
+    const HANDLE standard[3] = {GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
+                                GetStdHandle(STD_ERROR_HANDLE)};
+    // The child inherits this process's standard handles and no other. Each one is made inheritable and listed once
+    unsigned int inherited = 0u;
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        int known = (standard[at] == NULL) || (standard[at] == INVALID_HANDLE_VALUE);
+        for (unsigned int seen = 0u; !known && (seen < inherited); seen += 1u)
+        {
+            known = cell->inherited[seen] == standard[at];
+        }
+        if (!known && SetHandleInformation(standard[at], HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
+        {
+            cell->inherited[inherited] = standard[at];
+            inherited += 1u;
+        }
+    }
+    const int listed = (inherited != 0u) &&
+                       EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell, .inherited = inherited);
+    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
+    STARTUPINFOEXW startup;
     memor.set(&(MemoriaCfg){.dst = &startup, .val = 0, .bytes = sizeof(startup)});
-    startup.cb = sizeof(startup);
-    startup.dwFlags = STARTF_USESTDHANDLES;
-    startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    startup.StartupInfo.cb = listed ? sizeof(startup) : sizeof(startup.StartupInfo);
+    startup.lpAttributeList = listed ? attributes : NULL;
+    startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    startup.StartupInfo.hStdInput = standard[0];
+    startup.StartupInfo.hStdOutput = standard[1];
+    startup.StartupInfo.hStdError = standard[2];
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
-    const BOOL made =
-        CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, s_block, NULL, &startup, &process);
+    const DWORD flags = CREATE_UNICODE_ENVIRONMENT | (listed ? EXTENDED_STARTUPINFO_PRESENT : 0u);
+    const BOOL made = CreateProcessW(NULL, cell->wide, NULL, NULL, listed, flags, cell->block, NULL,
+                                     &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
+    if (listed)
+    {
+        DeleteProcThreadAttributeList(attributes);
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_platform_owner);
     if (!made)
     {
         mmgr_line_put(args->err_msg, "Windows reported ");
@@ -245,7 +322,8 @@ EMBED_INLINE DWORD cli_spawn_class(const WindowsSpawnCtx *args)
 static int cli_spawn_with(const WindowsSpawnCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
-    if (!cli_spawn_prepare(args))
+    WindowsSpawnCell *const cell = cli_spawn_prepare(args);
+    if (cell == NULL)
     {
         return 0;
     }
@@ -290,18 +368,21 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
             job = NULL;
         }
     }
-    static unsigned long long s_job_attributes[16];
-    SIZE_T attributes_size = 0u;
-    (void)InitializeProcThreadAttributeList(NULL, 1u, 0u, &attributes_size);
-    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)s_job_attributes;
-    const int list_entries = (job != NULL) && (attributes_size <= sizeof(s_job_attributes)) &&
-                             InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributes_size);
-    const int listed = list_entries && UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_JOB_LIST, &job,
-                                                                 sizeof(job), NULL, NULL);
+    // The child inherits its own three pipe ends, and the one handle the caller names, and no other handle. A detached
+    // child starts inside its job
+    cell->inherited[0] = input;
+    cell->inherited[1] = out_write;
+    cell->inherited[2] = err_write;
+    // a handle is a pointer's width, which an unsigned long long stores
+    cell->inherited[3] = (HANDLE)(uintptr_t)args->inherited_handle;
+    const unsigned int handles_listed = (args->inherited_handle != 0ull) ? 4u : 3u;
+    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
+    const int listed = piped && EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell,
+                                           .job = (job != NULL) ? &job : NULL, .inherited = handles_listed);
     STARTUPINFOEXW startup;
     memor.set(&(MemoriaCfg){.dst = &startup, .val = 0, .bytes = sizeof(startup)});
-    startup.StartupInfo.cb = listed ? sizeof(startup) : sizeof(startup.StartupInfo);
-    startup.lpAttributeList = listed ? attributes : NULL;
+    startup.StartupInfo.cb = sizeof(startup);
+    startup.lpAttributeList = attributes;
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
     startup.StartupInfo.hStdInput = input;
     startup.StartupInfo.hStdOutput = out_write;
@@ -309,17 +390,19 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
     const DWORD flags = CREATE_UNICODE_ENVIRONMENT | cli_spawn_class(args) | (args->detached ? CREATE_NO_WINDOW : 0u) |
-                        (listed ? EXTENDED_STARTUPINFO_PRESENT : 0u);
-    const BOOL made = piped && CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, flags, s_block,
-                                              (args->folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
+                        EXTENDED_STARTUPINFO_PRESENT;
+    const BOOL made =
+        listed && CreateProcessW(NULL, cell->wide, NULL, NULL, TRUE, flags, cell->block,
+                                 (args->folder != NULL) ? cell->folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
-    if (list_entries)
+    if (listed)
     {
         DeleteProcThreadAttributeList(attributes);
     }
-    if ((job != NULL) && (!made || !listed))
+    g_cli_guard->persistent_buf_release(cell, g_cli_platform_owner);
+    if ((job != NULL) && !made)
     {
-        // a child the job list did not take: the job stands empty and is closed, and the child is in none
+        // a child that did not start: the job stands empty and is closed
         CloseHandle(job);
         job = NULL;
     }
@@ -376,32 +459,33 @@ int cli_spawn(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = CLI_PRIORITY_WORK, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .inherited_handle = args->inherited_handle,
+                      .err_msg = args->err_msg);
 }
 
 int cli_spawn_as(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .inherited_handle = args->inherited_handle,
+                      .err_msg = args->err_msg);
 }
 
 int cli_spawn_feed(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = CLI_PRIORITY_WORK, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .stdin_written = 1, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 1, .inherited_handle = args->inherited_handle,
+                      .err_msg = args->err_msg);
 }
 
 int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .stdin_written = 1, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 1, .inherited_handle = args->inherited_handle,
+                      .err_msg = args->err_msg);
 }
-
-// the bytes a pseudo-console's attribute list is made in, more than the system asks for one attribute
-#define CLI_TERMINAL_ATTRIBUTES 256u
 
 // a terminal's columns or rows as the console counts them, two at the fewest
 EMBED_INLINE SHORT cli_terminal_extent(const WindowsSpawnCtx *args)
@@ -413,11 +497,11 @@ EMBED_INLINE SHORT cli_terminal_extent(const WindowsSpawnCtx *args)
 
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
 {
-    // the attribute list's capacity, aligned for the pointers the system writes into it
-    static unsigned long long s_attributes[CLI_TERMINAL_ATTRIBUTES / sizeof(unsigned long long)];
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
-    if (!EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = args->folder,
-                    .settings = args->settings, .count = args->count, .err_msg = args->err_msg))
+    WindowsSpawnCell *const cell =
+        EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = args->folder,
+                   .settings = args->settings, .count = args->count, .err_msg = args->err_msg);
+    if (cell == NULL)
     {
         return 0;
     }
@@ -432,8 +516,8 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
                SUCCEEDED(CreatePseudoConsole(size, in_read, out_write, 0u, &console));
     SIZE_T attributes_size = 0u;
     (void)InitializeProcThreadAttributeList(NULL, 1u, 0u, &attributes_size);
-    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)s_attributes;
-    const int list_entries = made && (attributes_size <= sizeof(s_attributes)) &&
+    const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
+    const int list_entries = made && (attributes_size <= sizeof(cell->attributes)) &&
                              InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributes_size);
     made = list_entries && UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console,
                                                      sizeof(console), NULL, NULL);
@@ -450,13 +534,14 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
     made = made &&
-           CreateProcessW(NULL, s_wide, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
-                          s_block, (args->folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
+           CreateProcessW(NULL, cell->wide, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
+                          cell->block, (args->folder != NULL) ? cell->folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
     if (list_entries)
     {
         DeleteProcThreadAttributeList(attributes);
     }
+    g_cli_guard->persistent_buf_release(cell, g_cli_platform_owner);
     // the ends the pseudo-console reads and writes are its own once it is made
     const HANDLE console_ends[2] = {in_read, out_write};
     for (unsigned int at = 0u; at < 2u; at += 1u)
@@ -646,15 +731,21 @@ void cli_spawn_tree_end(const CliIdCtx *args)
 unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 {
     unsigned int capacity = args->capacity_u32;
-    static char s_path[QUERY_ENVIRONMENT_MAX_LEN];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = s_path,
-                    .capacity = sizeof(s_path)))
+    // the PATH read into a cell of this call's own, so two threads that read it share nothing
+    char *const path = g_cli_guard->persistent_buf_alloc(QUERY_ENVIRONMENT_MAX_LEN, g_cli_platform_owner);
+    if (path == NULL)
     {
         return 0u;
     }
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = path,
+                    .capacity = QUERY_ENVIRONMENT_MAX_LEN))
+    {
+        g_cli_guard->persistent_buf_release(path, g_cli_platform_owner);
+        return 0u;
+    }
     unsigned int count = 0u;
-    const char *from = s_path;
-    for (const char *at = s_path;; at += 1)
+    const char *from = path;
+    for (const char *at = path;; at += 1)
     {
         if ((at[0] == ';') || (at[0] == '\0'))
         {
@@ -671,6 +762,7 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
             from = at + 1;
         }
     }
+    g_cli_guard->persistent_buf_release(path, g_cli_platform_owner);
     return count;
 }
 

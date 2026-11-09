@@ -21,7 +21,7 @@ extern void test_a_stack_overflow_is_the_kernels_recursion_barrier(void);
 extern void test_a_theorems_axioms_are_read(void);
 extern void test_a_theorem_with_no_axioms_is_read(void);
 extern void test_an_instance_timeout_is_its_own_barrier(void);
-extern void test_a_messages_kind_names_its_barrier(void);
+extern void test_a_messages_type_names_its_barrier(void);
 extern void test_a_fault_of_the_proof_is_no_barrier(void);
 extern void test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms(void);
 extern void test_the_copy_reports_what_it_changed(void);
@@ -100,7 +100,7 @@ int main(void)
   run_test(test_a_theorems_axioms_are_read, "test_a_theorems_axioms_are_read", 184);
   run_test(test_a_theorem_with_no_axioms_is_read, "test_a_theorem_with_no_axioms_is_read", 198);
   run_test(test_an_instance_timeout_is_its_own_barrier, "test_an_instance_timeout_is_its_own_barrier", 210);
-  run_test(test_a_messages_kind_names_its_barrier, "test_a_messages_kind_names_its_barrier", 219);
+  run_test(test_a_messages_type_names_its_barrier, "test_a_messages_type_names_its_barrier", 219);
   run_test(test_a_fault_of_the_proof_is_no_barrier, "test_a_fault_of_the_proof_is_no_barrier", 226);
   run_test(test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms, "test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms", 233);
   run_test(test_the_copy_reports_what_it_changed, "test_the_copy_reports_what_it_changed", 247);

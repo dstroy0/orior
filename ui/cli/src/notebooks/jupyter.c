@@ -196,6 +196,48 @@ EMBED_INLINE void jupyter_replace(const JupyterCtx *args)
     mmgr_line_finish(&line);
 }
 
+// The program word `text` as the kernel runs it, written into `out`. A spec under <prefix>/share/jupyter/kernels/<name>
+// that names python, as python, python3 or python3.12, runs the Python of that prefix, as the Jupyter client does. The
+// PATH can hold another python first, as a system alias that a parent process cannot start. Any other word, or a
+// prefix with no Python in it, stays as the spec writes it
+EMBED_INLINE void jupyter_program(const JupyterCtx *args)
+{
+    const char *const word = args->text;
+    int python = cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "python", .cap = sizeof("python")});
+    for (unsigned int at = 6u; python && (word[at] != '\0'); at += 1u)
+    {
+        python = ((word[at] >= '0') && (word[at] <= '9')) || (word[at] == '.');
+    }
+    VerbaLinea line = {args->out, args->capacity, 0ULL};
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_PATH_MAX_LEN - 1u});
+    unsigned long long end = length;
+    // the four folders kernels/<name> and share/jupyter above the spec's folder, each cut at its separator
+    for (unsigned int up = 0u; python && (up < 4u); up += 1u)
+    {
+        while ((end > 0u) && (args->folder[end - 1u] != '/') && (args->folder[end - 1u] != '\\'))
+        {
+            end -= 1u;
+        }
+        python = (end > 0u);
+        end = python ? (end - 1u) : 0u;
+    }
+    char program[CLI_PATH_MAX_LEN];
+    if (python)
+    {
+        char prefix[CLI_PATH_MAX_LEN];
+        memor.cpy(&(MemoriaCfg){.dst = prefix, .src = args->folder, .bytes = end});
+        prefix[end] = '\0';
+#if defined(_WIN32)
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = "python.exe", .joined = program);
+#else
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = "bin/python3", .joined = program);
+#endif
+        python = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = program);
+    }
+    mmgr_line_put(&line, python ? program : word);
+    mmgr_line_finish(&line);
+}
+
 // the connection file written and the kernel's process started with its words, its settings and the PATH every step
 // runs with, its output and its errors read as the log channel: 1, or 0 with why given
 EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
@@ -256,8 +298,16 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
                    .value = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
                                        .at = spec->folder),
                    .out = s_word, .capacity = sizeof(s_word));
+        static char s_program[CLI_PATH_TEXT];
+        if (at == 0u)
+        {
+            EMBED_CALL(jupyter_program, JupyterCtx, .text = s_word,
+                       .folder = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
+                                            .at = spec->folder),
+                       .out = s_program, .capacity = sizeof(s_program));
+        }
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &kernel->words,
-                   .word_text = s_word);
+                   .word_text = (at == 0u) ? s_program : s_word);
     }
     if (kernel->words.count == 0u)
     {
@@ -287,7 +337,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
 #endif
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &kernel->spawned,
                     .words = kernel->words.word_text, .folder = folder, .settings = kernel->settings, .count = count,
-                    .detached = 1, .err_msg = err_msg))
+                    .detached = 1, .inherited_handle = kernel->interrupt_event, .err_msg = err_msg))
     {
         return 0;
     }

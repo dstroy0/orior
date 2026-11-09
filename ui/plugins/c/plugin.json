@@ -8,6 +8,8 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "[{[(]\\s*$",
+  "directive_mark": "#",
+  "directive_continued": "\\",
   "grammar": {
     "words": [
       "auto", "break", "case", "const", "continue", "default", "do", "else", "enum", "extern", "for", "goto",

@@ -1,21 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lattice.c: the lattice's computing, built into the window and, with LATTICE_WASM set, to wasm32 for the page
-// (src-js/lattice/wasm.js): each lattice's points laid out in a slot of its own, seeded and the same every time; the
-// loop of order the lattice moves through and its stage at a moment; each point moved by the disorder where it
-// stands, then shaded by it as a dot drawn where it stands, or grouped by the level of its pen for a page that draws
-// on its 2D canvas; whether the loop moved enough between two moments to be seen, and the soonest moment it next
-// will. Built to wasm32 it is freestanding: the page hands in its own cos, sin and remainder, so every number is the
-// one the page's own arithmetic gives, and its memory is the module's own; built into the window its arithmetic is
-// the C library's and its memory the cellblock's
+// lattice.c: the lattice's computing for the window: each lattice's points laid out in a slot of its own, seeded and the
+// same every time; the loop of order the lattice moves through and its stage at a moment; each point moved by the
+// disorder where it stands, then shaded by it as a dot drawn where it stands; whether the loop moved enough between two
+// moments to be seen, and the soonest moment it next will. Its arithmetic is the C library's and its memory the
+// cellblock's
 #include "lattice.h"
 
-#if LATTICE_WASM
-// the page's Math.cos, Math.sin and %
-LATTICE_IMPORT(cos) double lattice_cos(double angle);
-LATTICE_IMPORT(sin) double lattice_sin(double angle);
-LATTICE_IMPORT(remainder) double lattice_remainder(double value, double by);
-#else
 #include "../command_line/cli_internal.h"
 
 #include <math.h>
@@ -34,7 +25,6 @@ static double lattice_remainder(double value, double by)
 {
     return fmod(value, by);
 }
-#endif
 
 // the probes across and down at which the loop's change is read, and the least move of a point that shows
 #define LATTICE_PROBES 24u
@@ -82,35 +72,6 @@ LatticeSlot *lattice_slot(uint32_t slot)
     return &s_lattice_slots[slot];
 }
 
-#if LATTICE_WASM
-// the end of what the module has taken of its memory, from the linker's heap base up
-extern unsigned char __heap_base;
-static uintptr_t s_lattice_taken;
-
-// `bytes` of memory, 16-byte aligned, the memory grown where it must be, in place of `before`, which the module
-// keeps: 0 where it cannot grow
-static void *lattice_taken(void *before, uintptr_t bytes)
-{
-    (void)before;
-    if (s_lattice_taken == 0u)
-    {
-        s_lattice_taken = (uintptr_t)&__heap_base;
-    }
-    const uintptr_t start = (s_lattice_taken + 15u) & ~(uintptr_t)15u;
-    const uintptr_t end = start + bytes;
-    const uintptr_t have = (uintptr_t)__builtin_wasm_memory_size(0) * 65536u;
-    if (end > have)
-    {
-        const uintptr_t pages = (end - have + 65535u) / 65536u;
-        if (__builtin_wasm_memory_grow(0, pages) == (uintptr_t)-1)
-        {
-            return 0;
-        }
-    }
-    s_lattice_taken = end;
-    return (void *)start;
-}
-#else
 // `bytes` of a cell in place of `before`, which is given back once the cell is taken: 0 where none can be, `before`
 // kept
 static void *lattice_taken(void *before, uintptr_t bytes)
@@ -133,12 +94,10 @@ void lattice_given(uint32_t slot)
     LatticeSlot *const lattice = &s_lattice_slots[slot];
     g_cli_guard->persistent_buf_release(lattice->offsets, g_gui_lattice_owner);
     g_cli_guard->persistent_buf_release(lattice->dots, g_gui_lattice_owner);
-    g_cli_guard->persistent_buf_release(lattice->placed, g_gui_lattice_owner);
     *lattice = (LatticeSlot){0};
 }
-#endif
 
-// the seeded draw the page's lattice has always used, one step of it from `state`
+// the seeded draw of the lattice, one step of it from `state`
 static double lattice_draw(uint32_t *state)
 {
     *state += 0x6d2b79f5u;
@@ -184,7 +143,7 @@ static uint32_t lattice_seed_at(uint32_t row, uint32_t column)
     return LATTICE_SEED ^ (row * 0x9e3779b1u) ^ (column * 0x85ebca77u);
 }
 
-LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, double height)
+uint32_t lattice_lay(uint32_t slot, double width, double height)
 {
     if (slot >= LATTICE_SLOTS)
     {
@@ -207,7 +166,6 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
         lattice->offsets = offsets;
         lattice->capacity = capacity;
         lattice->dots_capacity = 0u;
-        lattice->placed_capacity = 0u;
     }
     lattice->columns = columns;
     lattice->rows = rows;
@@ -227,26 +185,6 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
     }
     lattice->count = count;
     return count;
-}
-
-LATTICE_EXPORT(lattice_offsets) int8_t *lattice_offsets(uint32_t slot)
-{
-    return slot < LATTICE_SLOTS ? s_lattice_slots[slot].offsets : 0;
-}
-
-LATTICE_EXPORT(lattice_placed) double *lattice_placed(uint32_t slot)
-{
-    return slot < LATTICE_SLOTS ? s_lattice_slots[slot].placed : 0;
-}
-
-LATTICE_EXPORT(lattice_counts) uint32_t *lattice_counts(uint32_t slot)
-{
-    return slot < LATTICE_SLOTS ? s_lattice_slots[slot].counts : 0;
-}
-
-LATTICE_EXPORT(lattice_dots) LatticeDot *lattice_dots(uint32_t slot)
-{
-    return slot < LATTICE_SLOTS ? s_lattice_slots[slot].dots : 0;
 }
 
 LatticeStageAt *lattice_stage(double seconds)
@@ -387,70 +325,6 @@ static double lattice_loose(const LatticePlane *plane, double u, double v)
     return loose;
 }
 
-// places every point of `slot`'s lattice, `width` by `height`, with the loop at `seconds`: moved by its share of the
-// reach and grouped by the nearest of `levels` pens, in the order the points stand within each level; none where the
-// memory cannot hold the places
-LATTICE_EXPORT(lattice_place)
-void lattice_place(uint32_t slot, double width, double height, double seconds, uint32_t levels)
-{
-    if (slot >= LATTICE_SLOTS || levels < 2u || levels > LATTICE_LEVELS_MOST)
-    {
-        return;
-    }
-    LatticeSlot *const lattice = &s_lattice_slots[slot];
-    for (uint32_t level = 0u; level < levels; level += 1u)
-    {
-        lattice->counts[level] = 0u;
-    }
-    if (lattice->placed_capacity < lattice->capacity)
-    {
-        double *const placed = lattice_taken(lattice->placed, (uintptr_t)lattice->capacity * 2u * sizeof(double));
-        if (placed == 0)
-        {
-            return;
-        }
-        lattice->placed = placed;
-        lattice->placed_capacity = lattice->capacity;
-    }
-    const LatticePlane plane = lattice_plane(lattice_stage(seconds));
-    for (uint32_t row = 0u; row < lattice->rows; row += 1u)
-    {
-        for (uint32_t column = 0u; column < lattice->columns; column += 1u)
-        {
-            const double x = lattice->half + column * lattice->step;
-            const double y = lattice->half + row * lattice->step;
-            const double loose = lattice_loose(&plane, x / width, y / height);
-            // the level is a whole count from 0 to levels less one
-            lattice->counts[(uint32_t)__builtin_floor(loose * (levels - 1u) + 0.5)] += 1u;
-        }
-    }
-    uint32_t starts[LATTICE_LEVELS_MOST];
-    uint32_t start = 0u;
-    for (uint32_t level = 0u; level < levels; level += 1u)
-    {
-        starts[level] = start;
-        start += lattice->counts[level];
-    }
-    const double reach = LATTICE_REACH / LATTICE_OFFSET_MOST;
-    uint32_t point = 0u;
-    for (uint32_t row = 0u; row < lattice->rows; row += 1u)
-    {
-        for (uint32_t column = 0u; column < lattice->columns; column += 1u)
-        {
-            const double x = lattice->half + column * lattice->step;
-            const double y = lattice->half + row * lattice->step;
-            const double loose = lattice_loose(&plane, x / width, y / height);
-            const double shift = loose * loose * reach;
-            const uint32_t level = (uint32_t)__builtin_floor(loose * (levels - 1u) + 0.5);
-            double *const placed = &lattice->placed[starts[level] * 2u];
-            placed[0] = x + lattice->offsets[point * 2u] * shift;
-            placed[1] = y + lattice->offsets[point * 2u + 1u] * shift;
-            starts[level] += 1u;
-            point += 1u;
-        }
-    }
-}
-
 uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, double seconds,
                             const LatticeShades *shades)
 {
@@ -550,14 +424,14 @@ static uint32_t lattice_probes_moved(double now)
     return 0u;
 }
 
-LATTICE_EXPORT(lattice_shows) uint32_t lattice_shows(double then, double now)
+uint32_t lattice_shows(double then, double now)
 {
     lattice_probe(then, s_lattice_loose_then);
     return lattice_probes_moved(now);
 }
 
 // looked for LATTICE_LOOK apart and then halved to within LATTICE_LOOK_CLOSE of the first that shows
-LATTICE_EXPORT(lattice_shown_after) double lattice_shown_after(double then, double from)
+double lattice_shown_after(double then, double from)
 {
     lattice_probe(then, s_lattice_loose_then);
     // the looks are whole steps through one loop, the most a change is ever looked for

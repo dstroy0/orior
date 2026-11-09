@@ -3,10 +3,8 @@
 // symbols.c: how well a query names a name, and the tree: the filesystem is its trunk and its files are its branches.
 // It is listed one time as it opens, each file a branch under its closest parent, and walked one time on a thread of
 // its own, each branch's grammar applied as it is read and its declarations saved in a cell of its own, searched in
-// symbols_find.c. Each change after that joins, leaves or walks the one branch it names. The include folders and files
-// the compilation database names outside the tree are joined to it as it is walked, each mounted beside it, and their
-// files are walked as the tree's own, by their mounts' names
-#include "../builds/compile_db.h"
+// symbols_find.c. Each change after that joins, leaves or walks the one branch it names. The files of each mount beside
+// the tree are walked as the tree's own, by their mounts' names
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../editor/files.h"
@@ -719,33 +717,6 @@ static unsigned long long cli_tree_mounts_word(void)
     return word_text;
 }
 
-// One include folder or file the compilation database names, joined to the tree at the top `context` is: mounted
-// beside it where it lies outside it
-static void cli_symbols_include_join(const CliEachPathTypeCfg *args)
-{
-    const char *path = args->path;
-    const char *const root = (const char *)args->context;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES});
-    int inside = 1;
-    unsigned long long at = 0ULL;
-    while (inside && (at < length))
-    {
-        const char one = (root[at] == '\\') ? '/' : root[at];
-        const char other = (path[at] == '\\') ? '/' : path[at];
-        inside = one == other;
-        at += 1ULL;
-    }
-    inside = inside && ((path[length] == '/') || (path[length] == '\\') || (path[length] == '\0'));
-    char name[CLI_NAME_MAX_LEN];
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    if (!inside)
-    {
-        (void)EMBED_CALL(cli_path_err_msg_name_internal.mount, CliPathErrMsgNameCtx, .path = path, .name_out = name,
-                         .err_msg = &err_msg);
-    }
-}
-
 void cli_tree_on_walk(const CliSymbolsRootCfg *args)
 {
     const char *root = args->root;
@@ -775,9 +746,6 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         return;
     }
     s_walk->languages = languages;
-    // the database's include folders and files joined to the tree, then every mount beside it walked with it
-    EMBED_CALL(cli_compile_db_root_path.includes_all, CliCompileDbRootPathCfg, .root = root,
-               .each = cli_symbols_include_join, .context = (void *)root);
     const char *mount_names[CLI_MOUNTS_MAX];
     const char *mount_paths[CLI_MOUNTS_MAX];
     const unsigned int mounts =

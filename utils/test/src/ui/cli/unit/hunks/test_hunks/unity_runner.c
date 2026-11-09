@@ -81,17 +81,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\hunks\\test_hunks\\test_hunks.c");
-  run_test(test_a_line_put_in_is_one_change_marked_added, "test_a_line_put_in_is_one_change_marked_added", 74);
-  run_test(test_a_line_taken_out_marks_the_line_above_it, "test_a_line_taken_out_marks_the_line_above_it", 83);
-  run_test(test_a_line_changed_is_one_change_marked_changed_with_its_two_lines, "test_a_line_changed_is_one_change_marked_changed_with_its_two_lines", 91);
-  run_test(test_the_change_shown_carries_its_sentence_and_settles, "test_the_change_shown_carries_its_sentence_and_settles", 111);
-  run_test(test_stepping_wraps_in_both_directions, "test_stepping_wraps_in_both_directions", 126);
-  run_test(test_escape_closes_the_change_shown_and_no_other_key_is_taken, "test_escape_closes_the_change_shown_and_no_other_key_is_taken", 141);
-  run_test(test_a_revert_of_a_line_put_in_leaves_the_last_commits_text, "test_a_revert_of_a_line_put_in_leaves_the_last_commits_text", 151);
-  run_test(test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text, "test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text", 159);
-  run_test(test_a_revert_of_a_line_changed_leaves_the_last_commits_text, "test_a_revert_of_a_line_changed_leaves_the_last_commits_text", 167);
-  run_test(test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text, "test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text", 175);
-  run_test(test_no_key_reads_no_change, "test_no_key_reads_no_change", 184);
+  run_test(test_a_line_put_in_is_one_change_marked_added, "test_a_line_put_in_is_one_change_marked_added", 73);
+  run_test(test_a_line_taken_out_marks_the_line_above_it, "test_a_line_taken_out_marks_the_line_above_it", 82);
+  run_test(test_a_line_changed_is_one_change_marked_changed_with_its_two_lines, "test_a_line_changed_is_one_change_marked_changed_with_its_two_lines", 90);
+  run_test(test_the_change_shown_carries_its_sentence_and_settles, "test_the_change_shown_carries_its_sentence_and_settles", 110);
+  run_test(test_stepping_wraps_in_both_directions, "test_stepping_wraps_in_both_directions", 125);
+  run_test(test_escape_closes_the_change_shown_and_no_other_key_is_taken, "test_escape_closes_the_change_shown_and_no_other_key_is_taken", 140);
+  run_test(test_a_revert_of_a_line_put_in_leaves_the_last_commits_text, "test_a_revert_of_a_line_put_in_leaves_the_last_commits_text", 150);
+  run_test(test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text, "test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text", 158);
+  run_test(test_a_revert_of_a_line_changed_leaves_the_last_commits_text, "test_a_revert_of_a_line_changed_leaves_the_last_commits_text", 166);
+  run_test(test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text, "test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text", 174);
+  run_test(test_no_key_reads_no_change, "test_no_key_reads_no_change", 183);
 
   return UNITY_END();
 }

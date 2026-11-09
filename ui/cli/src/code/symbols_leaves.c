@@ -228,20 +228,34 @@ unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args)
                 : 0u);
 }
 
-// the leaves' one cell taken for the text's bytes, a leaf a byte at the most and a mark past those, at most
-// CLI_LEAVES_MAX: 1, or 0 where it stands full or the cells cannot meet it
+// the leaves' cell grown as the leaves come: CLI_LEAVES_MARKS leaves first, then twice the leaves it holds, the leaves
+// moved into the new cell and the old given back, at most CLI_LEAVES_MAX: 1, or 0 where it stands full or the cells
+// cannot meet it
 EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
 {
-    if (args->read->capacity != 0u)
+    CliLeafRead *const read = args->read;
+    if (read->capacity >= CLI_LEAVES_MAX)
     {
         return 0;
     }
-    const unsigned long long required = args->read->size + CLI_LEAVES_MARKS;
-    const unsigned int capacity = (required < CLI_LEAVES_MAX) ? (unsigned int)required : CLI_LEAVES_MAX;
-    args->read->leaf =
+    const unsigned long long wanted =
+        (read->capacity == 0u) ? CLI_LEAVES_MARKS : ((unsigned long long)read->capacity * 2ULL);
+    // the capacity is at most CLI_LEAVES_MAX, which an unsigned int counts
+    const unsigned int capacity = (wanted < CLI_LEAVES_MAX) ? (unsigned int)wanted : CLI_LEAVES_MAX;
+    CliLeaf *const grown =
         g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), g_cli_leaves_owner);
-    args->read->capacity = (args->read->leaf != NULL) ? capacity : 0u;
-    return args->read->leaf != NULL;
+    if (grown == NULL)
+    {
+        return 0;
+    }
+    if (read->count != 0u)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (size_t)read->count * sizeof(CliLeaf)});
+    }
+    g_cli_guard->persistent_buf_release(read->leaf, g_cli_leaves_owner);
+    read->leaf = grown;
+    read->capacity = capacity;
+    return 1;
 }
 
 // One line's leaves saved after those before, each at its bytes in the text, a mark a leaf of no bytes: the copy the

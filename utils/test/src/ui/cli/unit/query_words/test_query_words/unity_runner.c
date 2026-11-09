@@ -16,7 +16,7 @@ extern void test_no_leave_sent_is_none(void);
 extern void test_a_loop_missing_a_program_reports_it_and_starts_no_run(void);
 extern void test_an_unknown_command_is_refused_with_the_list(void);
 extern void test_no_command_is_refused_with_the_list(void);
-extern void test_the_tables_complete_names_are_those_with_every_kind(void);
+extern void test_the_tables_complete_names_are_those_with_every_type(void);
 extern void test_the_steps_run_the_protocol_in_order(void);
 extern void test_the_course_starts_at_the_first_step_where_none_is_named(void);
 extern void test_the_course_starts_at_a_step_by_its_name(void);
@@ -112,7 +112,7 @@ int main(void)
   run_test(test_a_loop_missing_a_program_reports_it_and_starts_no_run, "test_a_loop_missing_a_program_reports_it_and_starts_no_run", 216);
   run_test(test_an_unknown_command_is_refused_with_the_list, "test_an_unknown_command_is_refused_with_the_list", 234);
   run_test(test_no_command_is_refused_with_the_list, "test_no_command_is_refused_with_the_list", 245);
-  run_test(test_the_tables_complete_names_are_those_with_every_kind, "test_the_tables_complete_names_are_those_with_every_kind", 254);
+  run_test(test_the_tables_complete_names_are_those_with_every_type, "test_the_tables_complete_names_are_those_with_every_type", 254);
   run_test(test_the_steps_run_the_protocol_in_order, "test_the_steps_run_the_protocol_in_order", 266);
   run_test(test_the_course_starts_at_the_first_step_where_none_is_named, "test_the_course_starts_at_the_first_step_where_none_is_named", 276);
   run_test(test_the_course_starts_at_a_step_by_its_name, "test_the_course_starts_at_a_step_by_its_name", 284);

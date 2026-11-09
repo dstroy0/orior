@@ -7,8 +7,6 @@
 #include "../../../../../ui/cli/src/view/parts/menubar.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 #define MENUBAR_TEST_ROWS 60u
 
 static CliItem s_rows[MENUBAR_TEST_ROWS];
@@ -90,17 +88,28 @@ int main(void)
     cli_check(cli_menus_own_named("close-all", ""), "the catalog's item is added by its command");
     unsigned int built = 0u;
     const CliItem *const rows = cli_menus_own_rows(&built);
-    cli_check((built == 3u) && (strcmp(rows[0].label, "Open") == 0) && rows[1].line &&
-                  (strcmp(rows[2].command, "close-all") == 0) && (rows[2].label[0] != '\0'),
+    cli_check((built == 3u) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open", .other_cap = 5u}) &&
+                  rows[1].line &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "close-all", .other_cap = 10u}) &&
+                  (rows[2].label[0] != '\0'),
               "the rows stand as built, the catalog's with its label");
-    cli_check((cli_menus_own_word(rows[0].args) != NULL) && (strcmp(cli_menus_own_word(rows[0].args), "a b.txt") == 0),
+    cli_check((cli_menus_own_word(rows[0].args) != NULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = cli_menus_own_word(rows[0].args), .cap = CLI_POOL_BYTES, .other = "a b.txt", .other_cap = 8u}),
               "a row's word is its args as the part passed them, a path with a space one word");
     cli_check(cli_menus_own_word(rows[2].args) == NULL, "a catalog item's pattern reads as no word");
-    cli_check(strcmp(cli_menus_own_word("[on|off]"), "[on|off]") == 0,
+    cli_check(cellul.eq(&(CatenaFinitaCfg){
+                  .src = cli_menus_own_word("[on|off]"), .cap = CLI_POOL_BYTES, .other = "[on|off]", .other_cap = 9u}),
               "a word standing outside the catalog is the row's, whatever it reads as");
     cli_menus_own_open(rows, built, CLI_MENU_PLACE_POINT, 300, 100);
     CliItem read;
-    cli_check(cli_menus_row(0u, 0u, &read) && (strcmp(read.command, "file-open") == 0) && !cli_menus_selectable(0u, 1u),
+    cli_check(cli_menus_row(0u, 0u, &read) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = read.command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
+                  !cli_menus_selectable(0u, 1u),
               "the rows built open as a menu, its line not selectable");
 
     EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);

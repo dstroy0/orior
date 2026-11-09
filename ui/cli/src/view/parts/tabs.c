@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tabs.c: the tabs row. Each tab is as wide as its padding, the mark of changes not saved where it has them, its name
-// and its close mark, and the tabs stand in a row from the row's left; tabs past the row's right edge are cut off at it
+// and its close mark. The tabs stand in one strip, and the row shows the part of the strip from the frame's
+// `tabs_left`. The row's edges cut the tabs that cross them
 #include "tabs.h"
 
 #include <math.h>
@@ -90,7 +91,8 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
     // the tabs stand clear of the work's lines: room above them, and room before the first
     const int clear =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLEAR, .scale = args->frame->scale);
-    int x = args->frame->tabs.x + clear;
+    // the strip of tabs stands slid left by the pixels the row holds left of its view
+    int x = args->frame->tabs.x + clear - args->frame->tabs_left;
     for (unsigned int each = 0u; (each < args->at) && (each < count); each += 1u)
     {
         x += EMBED_CALL(tabs_width, TabsCtx, .glyphs = args->glyphs, .tab = each, .size = size,
@@ -104,6 +106,14 @@ GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
                      args->frame->tabs_row.height - clear -
                          EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
                                     .scale = args->frame->scale)};
+}
+
+int gui_tabs_whole(const GuiTabsGlyphsCfg *args)
+{
+    // the place after the last tab, put back by the slide, less the row's left edge
+    const GuiRect after = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = args->glyphs,
+                                     .frame = args->frame, .at = cli_view_count());
+    return after.x + args->frame->tabs_left - args->frame->tabs.x;
 }
 
 GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args)
@@ -183,11 +193,16 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     {
         const GuiRect rect =
             EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = glyphs, .frame = args->frame, .at = at);
+        // a tab left of the row's view is not drawn, and the tabs after one right of it are not drawn
+        if (rect.x >= args->frame->tabs.x + args->frame->tabs.width)
+        {
+            break;
+        }
         const GuiRect met =
             EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = args->frame->tabs);
         if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
         {
-            break;
+            continue;
         }
         // the tabs are fewer than an int counts
         const int displayed = (int)at == shown;
@@ -198,7 +213,9 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                                                              .pixels = GUI_TAB_RADIUS, .scale = scale);
         const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
         const GuiRect box = {met.x, met.y, met.width - gap, met.height};
-        const unsigned int top = GUI_RASTER_CORNER_TOP_LEFT | GUI_RASTER_CORNER_TOP_RIGHT;
+        // a corner is round only where the row's edge does not cut the tab
+        const unsigned int top = ((met.x == rect.x) ? GUI_RASTER_CORNER_TOP_LEFT : 0u) |
+                                 ((met.x + met.width == rect.x + rect.width) ? GUI_RASTER_CORNER_TOP_RIGHT : 0u);
         if (displayed)
         {
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box,

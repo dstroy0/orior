@@ -175,7 +175,9 @@ int main(void)
               "a changed row is tinted on both halves");
     cli_check((pixel(&raster, left_end, same_y) == ground) && (pixel(&raster, right_end, same_y) == ground),
               "a row both share is tinted on neither");
-    cli_check(pixel(&raster, frame.editor.x + 2, body_y - 6) != ground || pixel(&raster, frame.editor.x + 9, body_y - 15) == ground,
+    // the bar has no fill of its own: its label stands in its middle and a line runs along its foot, over the body
+    cli_check((pixel(&raster, frame.editor.x + 9, body_y - 15) != ground) &&
+                  (pixel(&raster, frame.editor.x + (frame.editor.width / 2), body_y - 1) != ground),
               "the bar is drawn over the body");
 
     // the wheel: no further than the last row fills the body

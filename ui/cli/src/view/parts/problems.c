@@ -282,10 +282,21 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
             const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ULL;
             GuiRect start;
             GuiRect end;
+            // the span's ends held at the text's edges where the view has slid past them
             if (!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = editor,
-                            .place = place, .cell = cell, .scale = scale, .line = line, .col = from, .rect = &start) ||
+                            .place = place, .cell = cell, .scale = scale, .line = line, .col = from, .rect = &start,
+                            .clamped = 1) ||
                 !EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = editor,
-                            .place = place, .cell = cell, .scale = scale, .line = line, .col = to, .rect = &end))
+                            .place = place, .cell = cell, .scale = scale, .line = line, .col = to, .rect = &end,
+                            .clamped = 1))
+            {
+                continue;
+            }
+            // a span the view has slid wholly past has both ends at one edge, and nothing of it is drawn
+            const int text_left = place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                                       .editor_read = editor, .cell = cell, .scale = scale);
+            if ((start.x == end.x) && ((start.x == text_left) || (start.x == place.x + place.width)) &&
+                (from != to))
             {
                 continue;
             }

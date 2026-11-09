@@ -129,9 +129,10 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args)
 {
     GuiBackground *const background_fill = args->background_fill;
     GuiRaster *const raster = &background_fill->raster;
+    // the lattice's own time, the window's clock divided by GUI_LATTICE_SLOWING
     const double seconds =
         (double)EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = background_fill) /
-        1000.0;
+        (1000.0 * GUI_LATTICE_SLOWING);
     // A deep color with some transparency blends over what the raster holds, and a raster reused across sizes holds an
     // old drawing. An opaque deep color writes every pixel, so the clear before it has no effect and does not occur
     if (GUI_ALPHA_OF(args->palette->deep) < 255u)
@@ -142,8 +143,9 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args)
     }
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){0, 0, (int)raster->width, (int)raster->height}, .color = args->palette->deep);
-    // a moment within one loop of the lattice, in whole milliseconds, fits
-    background_fill->next_draw_ms = (unsigned long long)(lattice_shown_after(seconds, seconds) * 1000.0);
+    // a moment within one loop of the lattice, in whole milliseconds of the window's clock, fits
+    background_fill->next_draw_ms =
+        (unsigned long long)(lattice_shown_after(seconds, seconds) * 1000.0 * GUI_LATTICE_SLOWING);
     background_fill->frames += 1u;
     if (!background_fill->laid)
     {

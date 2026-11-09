@@ -7,39 +7,43 @@
 // the bar with its actions and the rows under the Tests group's title, a press on Run All lands on the action and a
 // press on a row lands on it; and no tree leaves no rows
 #include "../../../../../ui/cli/src/tests/testing.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/cli/src/view/parts/tests.h"
 #include "../cli/cli_check.h"
-
-#include <string.h>
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
 static void file_written(const char *root, const char *relative, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = relative, .joined = path);
-    char *const slash = strrchr(path, '/');
-    if (slash != NULL)
+    // the place past the path's last slash, 0 where it has none
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}), .set = "/");
+    if (past_slash != 0ULL)
     {
-        slash[0] = '\0';
+        path[past_slash - 1ULL] = '\0';
         (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path);
-        slash[0] = '/';
+        path[past_slash - 1ULL] = '/';
     }
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                         .size = strlen(text)),
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})),
               relative);
 }
 
 // a run's report `json` handed to the pane as the run's thread hands it
 static void reported(const char *json)
 {
-    cli_tests_pane_event(&(CliEachJsonSizeCfg){.context = NULL, .json = json, .size = strlen(json)});
+    cli_tests_pane_event(&(CliEachJsonSizeCfg){
+        .context = NULL, .json = json, .size = cellul.len(&(CatenaFinitaCfg){.src = json, .cap = CLI_POOL_BYTES})});
 }
 
 // the row `at`, into `row`: whether it is of `type` with the name `name`
 static int row_is(unsigned int at, unsigned int type, const char *name, CliTestsRow *row)
 {
     return EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = at, .row = row) && (row->type == type) &&
-           (row->name_length == strlen(name)) && (strncmp(row->name, name, row->name_length) == 0);
+           (row->name_length == cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = row->name, .other = name, .bytes = row->name_length}) == 0);
 }
 
 int main(void)
@@ -121,7 +125,11 @@ int main(void)
     int failed = 0;
     cli_check(EMBED_CALL(cli_tests_pane.said, CliTestsPaneCfg, .at = 0u) &&
                   (EMBED_CALL(cli_tests_pane.summary, CliTestsPaneCfg, .text = summary, .failed_out = &failed) != 0ULL) &&
-                  (strcmp(summary, "1 passed, 1 failed in 1.7 s") == 0) && failed,
+                  cellul.eq(&(CatenaFinitaCfg){.src = summary,
+                                               .cap = sizeof(summary),
+                                               .other = "1 passed, 1 failed in 1.7 s",
+                                               .other_cap = 28u}) &&
+                  failed,
               "the run's end is summed up with its seconds to a tenth");
     reported("{\"kind\":\"coverage\",\"run\":1,\"files\":[{\"file\":\"pkg/c.py\",\"ran\":[1,2,3],\"missed\":[9,5]}]}");
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 8u, "the coverage takes a head and a row");
@@ -168,12 +176,16 @@ int main(void)
     cli_check(message.y == first.y + (4 * GUI_PANE_ROW), "the message's row stands four rows under the first");
     GuiPaneOpen open = {NULL, {0ULL, 0ULL}, 0};
     cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 3u, .open_out = &open) &&
-                  (strcmp(open.path, "tests/test_a.py") == 0) && open.placed && (open.place.line == 1ULL),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = open.path, .cap = CLI_POOL_BYTES, .other = "tests/test_a.py", .other_cap = 16u}) &&
+                  open.placed && (open.place.line == 1ULL),
               "the failed test's row pressed opens its file where it failed");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 4u, .open_out = &open),
               "a message's row pressed opens nothing");
     cli_check(EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 7u, .open_out = &open) &&
-                  (strcmp(open.path, "pkg/c.py") == 0) && (open.place.line == 5ULL),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = open.path, .cap = CLI_POOL_BYTES, .other = "pkg/c.py", .other_cap = 9u}) &&
+                  (open.place.line == 5ULL),
               "a covered file's row pressed opens it at its first line missed");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open) &&
                   (EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 7u),

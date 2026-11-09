@@ -64,6 +64,8 @@ typedef struct
     int presenting_dialog;
     int dialog_opened;
     int frame_ordered;
+    // a frame of the changes alone ordered shown on the raster shown, which flips nothing as it is shown
+    int damage_ordered;
     unsigned long long presented_ms;
     unsigned int frame_ms;
     unsigned long long tick_at_ms;
@@ -78,9 +80,12 @@ static CliView s_view;
 
 // The frames' telemetry since its last line, on the view's thread alone: the whole frames drawn, the microseconds each
 // draw took and the most of them, the microseconds from a frame's order to its showing and the most of them, and
-// the passes of the view's loop that a moving part paced
+// the passes of the view's loop that a moving part paced. Then the microseconds the events took and the most of one
+// pass's events, and the most microseconds between two frames shown, a gap of VIEW_GAP_IDLE_US or more left out as a
+// rest. Then the timed waits each of the window's deadlines set
 typedef struct
 {
+    unsigned long long woken_by[GUI_WINDOW_WAKES];
     unsigned long long frames;
     unsigned long long moving_passes;
     unsigned long long draw_us;
@@ -89,7 +94,14 @@ typedef struct
     unsigned long long shown_most_us;
     unsigned long long ordered_at_us;
     unsigned long long line_at_us;
+    unsigned long long events_us;
+    unsigned long long events_most_us;
+    unsigned long long gap_most_us;
+    unsigned long long presented_at_us;
 } ViewFrameTelemetry;
+
+// the gap between two frames shown that counts as a rest, not a late frame
+#define VIEW_GAP_IDLE_US 250000ULL
 
 static ViewFrameTelemetry s_frame_telemetry;
 
@@ -103,10 +115,34 @@ static void view_frame_telemetry_log(unsigned long long now_us)
     }
     if (told->frames != 0ULL)
     {
-        (void)fprintf(stderr, "frames %llu draw %llu %llu shown %llu %llu moving %llu\n", told->frames,
-                      told->draw_us / told->frames, told->draw_most_us, told->shown_us / told->frames,
-                      told->shown_most_us, told->moving_passes);
+        (void)fprintf(stderr, "frames %llu draw %llu %llu shown %llu %llu moving %llu events %llu %llu gap %llu\n",
+                      told->frames, told->draw_us / told->frames, told->draw_most_us, told->shown_us / told->frames,
+                      told->shown_most_us, told->moving_passes, told->events_us / told->frames,
+                      told->events_most_us, told->gap_most_us);
+        (void)fflush(stderr);
     }
+    // the deadlines that set waits since the last line, each with its count
+    char wakes[512];
+    VerbaLinea line = {wakes, sizeof(wakes), 0u, NULL, NULL, 0u};
+    for (unsigned int at = 0u; at < GUI_WINDOW_WAKES; at += 1u)
+    {
+        if (told->woken_by[at] != 0ULL)
+        {
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_put(&line, g_gui_window_wake_names[at]);
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_decimal(&line, told->woken_by[at], 1u);
+        }
+        told->woken_by[at] = 0ULL;
+    }
+    if ((line.at != 0u) && mmgr_line_ok(&line))
+    {
+        (void)fprintf(stderr, "wakes%.*s\n", (int)line.at, line.out);
+        (void)fflush(stderr);
+    }
+    told->events_us = 0ULL;
+    told->events_most_us = 0ULL;
+    told->gap_most_us = 0ULL;
     told->frames = 0ULL;
     told->moving_passes = 0ULL;
     told->draw_us = 0ULL;
@@ -330,9 +366,28 @@ static void view_presented(unsigned int surface)
     }
     s_view.presenting_main = 0;
     s_view.presented_ms = cli_clock_milliseconds();
+    // a frame of changes alone was drawn on the raster shown, so it counts as a frame shown and flips nothing
+    if (s_view.damage_ordered)
+    {
+        const unsigned long long presented_us = cli_clock_microseconds();
+        const unsigned long long gap_us = presented_us - s_frame_telemetry.presented_at_us;
+        if ((gap_us < VIEW_GAP_IDLE_US) && (gap_us > s_frame_telemetry.gap_most_us))
+        {
+            s_frame_telemetry.gap_most_us = gap_us;
+        }
+        s_frame_telemetry.presented_at_us = presented_us;
+        s_view.damage_ordered = 0;
+    }
     if (s_view.frame_ordered)
     {
-        const unsigned long long shown_us = cli_clock_microseconds() - s_frame_telemetry.ordered_at_us;
+        const unsigned long long presented_us = cli_clock_microseconds();
+        const unsigned long long gap_us = presented_us - s_frame_telemetry.presented_at_us;
+        if ((gap_us < VIEW_GAP_IDLE_US) && (gap_us > s_frame_telemetry.gap_most_us))
+        {
+            s_frame_telemetry.gap_most_us = gap_us;
+        }
+        s_frame_telemetry.presented_at_us = presented_us;
+        const unsigned long long shown_us = presented_us - s_frame_telemetry.ordered_at_us;
         s_frame_telemetry.shown_us += shown_us;
         s_frame_telemetry.shown_most_us =
             (shown_us > s_frame_telemetry.shown_most_us) ? shown_us : s_frame_telemetry.shown_most_us;
@@ -596,6 +651,23 @@ static void view_frame(void)
         }
         return;
     }
+    // the parts of the frame that changed drawn again alone, the caret and the circle with them where they stand there
+    if ((window->damage.width > 0) && (window->damage.height > 0))
+    {
+        const unsigned long long draw_from_us = cli_clock_microseconds();
+        const GuiRect part = EMBED_CALL(gui_window_table.damage_draw, GuiWindowCfg, .window = window);
+        const unsigned long long drawn_us = cli_clock_microseconds();
+        s_frame_telemetry.frames += 1ULL;
+        s_frame_telemetry.draw_us += drawn_us - draw_from_us;
+        s_frame_telemetry.draw_most_us = ((drawn_us - draw_from_us) > s_frame_telemetry.draw_most_us)
+                                             ? (drawn_us - draw_from_us)
+                                             : s_frame_telemetry.draw_most_us;
+        s_frame_telemetry.ordered_at_us = drawn_us;
+        view_frame_telemetry_log(drawn_us);
+        view_part_order(part);
+        s_view.damage_ordered = s_view.presenting_main;
+        return;
+    }
     if (window->caret_alone)
     {
         view_part_order(EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = window));
@@ -616,8 +688,14 @@ static void view_run(void *context)
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_view.wake);
+        const unsigned long long events_from_us = cli_clock_microseconds();
         view_events_take();
         EMBED_CALL(gui_window_table.step, GuiWindowCfg, .window = window);
+        const unsigned long long events_took_us = cli_clock_microseconds() - events_from_us;
+        s_frame_telemetry.events_us += events_took_us;
+        s_frame_telemetry.events_most_us = (events_took_us > s_frame_telemetry.events_most_us)
+                                               ? events_took_us
+                                               : s_frame_telemetry.events_most_us;
         const unsigned long long now_ms = cli_clock_milliseconds();
         if ((s_view.tick_at_ms != 0ULL) && (now_ms >= s_view.tick_at_ms))
         {
@@ -645,10 +723,10 @@ static void view_run(void *context)
             EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
             continue;
         }
-        // While a part of the window moves, the frames follow the showing: the next frame is drawn as the last one is
-        // shown, and the device's flip queue holds each frame to the monitor's refresh. A timed wait sleeps to the
-        // system timer's step and misses refreshes, so a moving part does not wait on a timer
-        if (window->autohide_moving)
+        // While a part of the window moves, or the editor's scroll moves, the frames follow the showing: the next frame
+        // is drawn as the last one is shown, and the device's flip queue holds each frame to the monitor's refresh. A
+        // timed wait sleeps to the system timer's step and misses refreshes, so a moving part does not wait on a timer
+        if (window->autohide_moving || window->scroll_moving)
         {
             s_view.tick_at_ms = cli_clock_milliseconds();
             s_frame_telemetry.moving_passes += 1ULL;
@@ -661,6 +739,11 @@ static void view_run(void *context)
         const unsigned long long since_ms = cli_clock_milliseconds() - s_view.presented_ms;
         const unsigned long long refresh_ms = (since_ms < s_view.frame_ms) ? s_view.frame_ms - since_ms : 0ULL;
         const unsigned long long wait_ms = (after > refresh_ms) ? after : refresh_ms;
+        const unsigned int source = gui_window_timeout_source();
+        if (source < GUI_WINDOW_WAKES)
+        {
+            s_frame_telemetry.woken_by[source] += 1ULL;
+        }
         s_view.tick_at_ms = cli_clock_milliseconds() + wait_ms;
         (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &s_view.wake, .seen = seen,
                          .milliseconds_u64 = wait_ms);

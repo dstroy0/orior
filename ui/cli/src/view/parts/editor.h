@@ -24,9 +24,12 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 // the pixels saved under the caret at the most: a caret two of the page's pixels wide over a row at any scale the
 // window takes fits
 #define GUI_CARET_UNDER_MAX 1024u
+// the token names whose colors the editor keeps
+#define GUI_EDITOR_NAME_COLORS 256u
 
 // the code's size and its line's height in the page's pixels, --code-size and --code-line; a tab's stop every so many
-// columns; and the gutter's padding, after the numbers as --ed-num pads them and before them
+// columns where a frame sets no indentation size; and the gutter's padding, after the numbers as --ed-num pads them
+// and before them
 #define GUI_CODE_SIZE 13u
 #define GUI_CODE_LINE 20
 #define GUI_TAB_COLUMNS 4u
@@ -43,7 +46,12 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 
 // The editor: the shown view's frame and token names as the window last took them of the view (editor/view.h), NULL
 // for none, read alone; the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath
-// stands, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row
+// stands, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row.
+// Last, the part of a line the view has scrolled past its first line and first cell column. `scroll_y` is the pixels
+// of the frame's first row above the editor's top, 0 to a line's height less 1. `scroll_x` is the pixels of the first
+// cell column left of the text's edge, 0 to a cell less a part of a pixel. Then the color of each token name, kept for
+// the names table, its count `name_colors` and the palette they were read for, `colored_names` and `colored_palette`;
+// a name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
 typedef struct
 {
     const CliViewFrame *frame;
@@ -52,6 +60,12 @@ typedef struct
     GuiRect caret_rect;
     int caret_saved;
     GuiColor caret_under[GUI_CARET_UNDER_MAX];
+    int scroll_y;
+    float scroll_x;
+    GuiColor name_color[GUI_EDITOR_NAME_COLORS];
+    unsigned int name_colors;
+    const CliDocumentNames *colored_names;
+    const GuiPalette *colored_palette;
 } GuiEditor;
 
 // an editor showing nothing
@@ -62,7 +76,9 @@ void gui_editor_init(const GuiEditorCfg *args);
 int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args);
 int gui_editor_row_at(const GuiEditorPositionCellScaleCfg *args);
 // the pixels the unit at `col` of `line` takes in the editor drawn in `place` at `scale` with the code cell `cell`,
-// one cell wide and a row tall, into `rect`: 1, or 0 where the line is not among the rows drawn
+// one cell wide and a row tall, into `rect`: 1, or 0 where the line is not among the rows drawn. A unit the view has
+// slid past, left of the text or past the editor's right edge, also gives 0. Where `clamped` is 1, such a unit gives
+// 1, and its rect stands at the edge it is past
 int gui_editor_position_rect(const GuiEditorPositionCellCfg *args);
 // the gutter's width for the file's line count, at the code cell `cell` and `scale`
 int gui_editor_gutter(const GuiEditorPositionCellCfg *args);
@@ -78,6 +94,9 @@ GuiRect gui_editor_caret_redrawn(const GuiEditorRasterCfg *args);
 // the color of the token named by the index `name` among the grammar's names, the editor's text color where no name
 // has the index
 GuiColor gui_editor_color(const GuiEditorPaletteCfg *args);
+// The color of each token name kept in the editor for its names and `palette`. The colors are read from the palette
+// again only where the names table, its count or the palette has changed since they were last read
+void gui_editor_colors_keep(const GuiEditorPaletteCfg *args);
 // the editor drawn in `place` on `raster` at `scale`: the ground, then each row from the view's top a line stored, the
 // current line's ground or the selection's, the matches' grounds, its number in the gutter with a mark where it opens
 // a fold closed, its runs in their colors, the folded mark and the closer's text after a line that opens a fold
@@ -105,6 +124,7 @@ struct GuiEditorPositionCellCfg
     unsigned long long line;
     unsigned long long col;
     GuiRect *rect;
+    int clamped;
 };
 
 struct GuiEditorPositionScaleCfg
@@ -135,6 +155,7 @@ struct GuiEditorPositionCfg
 
 struct GuiEditorPaletteCfg
 {
+    GuiEditor *editor;
     const GuiEditor *editor_read;
     const GuiPalette *palette;
     unsigned int name;
@@ -199,10 +220,12 @@ EMBED_TABLE_STORAGE GuiEditorRasterNs gui_editor_raster EMBED_UNUSED = {
 typedef struct
 {
     GuiColor (*color)(const GuiEditorPaletteCfg *args);
+    void (*colors_keep)(const GuiEditorPaletteCfg *args);
 } GuiEditorPaletteNs;
-EMBED_TABLE_LAYOUT(GuiEditorPaletteNs, color);
+EMBED_TABLE_LAYOUT(GuiEditorPaletteNs, color, colors_keep);
 EMBED_TABLE_STORAGE GuiEditorPaletteNs gui_editor_palette EMBED_UNUSED = {
     .color = gui_editor_color,
+    .colors_keep = gui_editor_colors_keep,
 };
 
 typedef struct

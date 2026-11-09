@@ -35,16 +35,15 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 // the delay before a part shows, the delay before it hides after the pointer leaves it, and a slide's duration; the
 // window of the pointer's path its speed is measured over, and the speed, in pixels a millisecond, past which it is
 // passing through;
-// how many gaps in from an edge its band reaches; the controls' ghost's way down and the controls' opacity as the
-// ghost, each a number of GUI_FIXED_ONE; and the points of the pointer's path saved
+// how many gaps in from an edge its band reaches; and the points of the pointer's path saved
 #define GUI_AUTOHIDE_SHOW_DELAY_MS 300ull
 #define GUI_AUTOHIDE_HIDE_DELAY_MS 450ull
 #define GUI_AUTOHIDE_ANIMATION_MS 300ull
 #define GUI_AUTOHIDE_TRAIL_WINDOW_MS 50ull
 #define GUI_AUTOHIDE_SPEED_THRESHOLD 0.06f
+// the pixels a resting hand moves the pointer, which the pace does not count as travel
+#define GUI_AUTOHIDE_TREMOR_PX 4
 #define GUI_AUTOHIDE_ADJACENT 3
-#define GUI_AUTOHIDE_GHOST_DOWN 29491
-#define GUI_AUTOHIDE_GHOST_ALPHA 22938
 #define GUI_AUTOHIDE_TRAIL 16u
 
 // A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
@@ -97,7 +96,6 @@ typedef struct
     unsigned long long show_deadline_ms;
     unsigned long long hide_deadline_ms;
     unsigned long long preview_deadline_ms;
-    int adjacent;
     int over_parts;
     int pointer_x;
     int pointer_y;
@@ -157,6 +155,8 @@ unsigned int gui_autohide_zone(const GuiAutohideWidthCfg *args);
 // the pointer moved to x, y, standing in `zone`, `over_parts` 1 where it stands over the part shown: the show deadline
 // armed or armed again, the preview shown or hidden, the hide deadline armed or disarmed
 void gui_autohide_move(const GuiAutohidePointerCfg *args);
+// `zone`'s part shown at once for a press at x, y: no rest and no slide, every slide standing at its target
+void gui_autohide_show_now(const GuiAutohidePointerCfg *args);
 // the pointer gone out of the window: the show and preview deadlines disarmed
 void gui_autohide_leave(const GuiAutohideStillCfg *args);
 // every expired deadline run: the show deadline reveals its edge, the hide deadline hides the part shown unless the
@@ -326,10 +326,12 @@ EMBED_TABLE_STORAGE GuiAutohideWidthNs gui_autohide_width EMBED_UNUSED = {
 typedef struct
 {
     void (*move)(const GuiAutohidePointerCfg *args);
+    void (*show_now)(const GuiAutohidePointerCfg *args);
 } GuiAutohidePointerNs;
-EMBED_TABLE_LAYOUT(GuiAutohidePointerNs, move);
+EMBED_TABLE_LAYOUT(GuiAutohidePointerNs, move, show_now);
 EMBED_TABLE_STORAGE GuiAutohidePointerNs gui_autohide_pointer EMBED_UNUSED = {
     .move = gui_autohide_move,
+    .show_now = gui_autohide_show_now,
 };
 
 typedef struct

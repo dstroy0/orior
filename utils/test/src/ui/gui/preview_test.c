@@ -96,6 +96,9 @@ int main(void)
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     const GuiRect whole = frame.editor;
+    // the editor's scrollbar takes its room from the rectangle the editor and the preview share
+    const int bar = frame.editor_bar.width;
+    const int shared = whole.width + bar;
     GuiRaster raster;
     cli_check(
         EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
@@ -142,9 +145,9 @@ int main(void)
     cli_check(run_reading("Notes") < EMBED_CALL(cli_preview_item.count, CliPreviewItemCfg, .at = 0u),
               "the heading is among the items");
     drawn(&raster, &glyphs, palette, &frame);
-    cli_check((frame.editor.width == whole.width - (whole.width / 2)) && (frame.preview.width == whole.width / 2) &&
-                  (frame.preview.x == frame.editor.x + frame.editor.width),
-              "beside, the preview stands in the editor's right half");
+    cli_check((frame.editor.width + bar == shared - (shared / 2)) && (frame.preview.width == shared / 2) &&
+                  (frame.preview.x == frame.editor.x + frame.editor.width + bar),
+              "beside, the preview stands in the editor's right half, the editor's scrollbar between them");
     cli_check((drawn_in(&raster, frame.preview) != 0u) && (drawn_in(&raster, frame.editor) == 0u),
               "the items are drawn in the right half and the left half is left to the text");
     const GuiRect over = {frame.preview.x, frame.preview.y - 1, frame.preview.width, 1};
@@ -159,7 +162,7 @@ int main(void)
     now_ms += CLI_PREVIEW_LOOK_MS;
     (void)stepped(key, &frame, now_ms);
     drawn(&raster, &glyphs, palette, &frame);
-    cli_check((frame.preview.x == whole.x) && (frame.preview.width == whole.width) && (frame.editor.width == 0) &&
+    cli_check((frame.preview.x == whole.x) && (frame.preview.width == shared) && (frame.editor.width == 0) &&
                   (drawn_in(&raster, (GuiRect){whole.x, whole.y, 40, 40}) != 0u),
               "alone, the preview fills the editor's rectangle");
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");

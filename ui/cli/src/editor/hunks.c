@@ -9,6 +9,8 @@
 #include "../code/git.h"
 #include "../command_line/cli_internal.h"
 #include "../command_line/pool.h"
+#include "../servers/servers_internal.h"
+#include "document_internal.h"
 
 // the most bytes of the file as the last commit has it a read takes, and the four numbers a change stands as
 #define HUNKS_HEAD_MAX (1ULL << 20u)
@@ -148,7 +150,7 @@ EMBED_INLINE void hunks_shown(const HunksCtx *args)
 EMBED_INLINE int hunks_head_stored(const HunksCtx *args)
 {
     char *const scratch = ((args->root != NULL) && (args->path != NULL))
-                              ? g_cli_guard->temporary_buf_alloc(HUNKS_HEAD_MAX, g_cli_widgets_owner)
+                              ? g_cli_guard->persistent_buf_alloc(HUNKS_HEAD_MAX, g_cli_widgets_owner)
                               : NULL;
     VerbaLinea out = {scratch, HUNKS_HEAD_MAX, 0ULL};
     const int tracked = (scratch != NULL) &&
@@ -240,14 +242,176 @@ void cli_hunks_read(const CliHunksCfg *args)
     EMBED_CALL(hunks_titled, HunksCtx, .at = 0u);
 }
 
+// A read a worker does for the window: the request's number, whether the key is new to the changes, the key, the path
+// and the root. The answer is a cell of the changes' four numbers and how many stand in it
+typedef struct
+{
+    unsigned int asked;
+    int fresh;
+    char key[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char root[CLI_PATH_MAX_LEN];
+    unsigned int *hunk;
+    unsigned int count;
+} HunksLater;
+
+// The number of the last read lined up. A worker skips a read with a smaller number
+static embed_atomic_u32 s_hunks_asked;
+// The address of the last answer a worker wrote, a cell of its own with its changes in theirs, or 0. A worker and the
+// view thread each exchange the address whole, so a cell has one holder at a time
+static embed_atomic_u64 s_hunks_landed;
+
+// an answer's cells given back: its changes and the answer itself
+static void hunks_later_release(HunksLater *read)
+{
+    if (read != NULL)
+    {
+        g_cli_guard->persistent_buf_release(read->hunk, g_cli_widgets_owner);
+        g_cli_guard->persistent_buf_release(read, g_cli_widgets_owner);
+    }
+}
+
+// the changes `read` asks for, into a cell of their own: against the file from git where the key is new to them,
+// else against the file the store has beside the text. A cell for HUNKS_FIRST changes takes the first pass, and a
+// second pass fills a cell sized to the count where more stand
+#define HUNKS_FIRST 256u
+static void hunks_later_read(HunksLater *read)
+{
+    unsigned int capacity = HUNKS_FIRST;
+    for (unsigned int pass = 0u; pass < 2u; pass += 1u)
+    {
+        unsigned int *const taken = g_cli_guard->persistent_buf_alloc(
+            (unsigned long long)capacity * HUNKS_NUMBERS * sizeof(unsigned int), g_cli_widgets_owner);
+        if (taken == NULL)
+        {
+            return;
+        }
+        HunksFill fill = {taken, capacity, 0u};
+        const int from_git = (pass == 0u) && read->fresh;
+        int found = from_git ? EMBED_CALL(hunks_head_stored, HunksCtx, .key = read->key, .root = read->root,
+                                          .path = read->path, .fill = &fill)
+                             : EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg,
+                                          .key = read->key, .each = hunks_filled, .context = &fill);
+        // a read of a key whose file from git the store does not have yet reads it from git, as a later read can
+        // replace the first read of a key before that read stores the file
+        if (!found && !from_git && (pass == 0u))
+        {
+            fill.count = 0u;
+            found = EMBED_CALL(hunks_head_stored, HunksCtx, .key = read->key, .root = read->root, .path = read->path,
+                               .fill = &fill);
+        }
+        if (!found || (fill.count <= capacity))
+        {
+            read->hunk = taken;
+            read->count = found ? fill.count : 0u;
+            return;
+        }
+        g_cli_guard->persistent_buf_release(taken, g_cli_widgets_owner);
+        capacity = fill.count;
+    }
+}
+
+// A worker reads the changes a request asks for, where no later request replaces it. The answer goes into a cell of
+// its own, and the cell's address into s_hunks_landed. An answer that address replaces goes back. The view thread
+// wakes as when the walk colors lines
+static void hunks_later_job(const CliServersJobCfg *args)
+{
+    if (args->size < sizeof(HunksLater))
+    {
+        return;
+    }
+    HunksLater *const read = g_cli_guard->persistent_buf_alloc(sizeof(HunksLater), g_cli_widgets_owner);
+    if (read == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = read, .src = args->job, .bytes = sizeof(*read)});
+    if (read->asked != EMBED_ATOMIC_LOAD(&s_hunks_asked))
+    {
+        hunks_later_release(read);
+        return;
+    }
+    hunks_later_read(read);
+    // a cell's address is a pointer's width, which the 64-bit word holds
+    hunks_later_release(
+        (HunksLater *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_hunks_landed, (embed_u64)(uintptr_t)read));
+    cli_document_colored_wake();
+}
+
+// on the view thread: a worker's answer for the key the changes stand for and the last request taken in place of the
+// changes, and any other answer given back
+static void hunks_land(void)
+{
+    HunksLater *const landed = (HunksLater *)(uintptr_t)EMBED_ATOMIC_EXCHANGE_64(&s_hunks_landed, 0ULL);
+    if (landed == NULL)
+    {
+        return;
+    }
+    const int current = (landed->asked == EMBED_ATOMIC_LOAD(&s_hunks_asked)) &&
+                        cellul.eq(&(CatenaFinitaCfg){.src = s_hunks.key, .other = landed->key, .cap = CLI_NAME_MAX_LEN});
+    if (!current)
+    {
+        hunks_later_release(landed);
+        return;
+    }
+    g_cli_guard->persistent_buf_release(s_hunks.hunk, g_cli_widgets_owner);
+    s_hunks.hunk = landed->hunk;
+    s_hunks.capacity = (landed->hunk != NULL) ? landed->count : 0u;
+    landed->hunk = NULL;
+    hunks_later_release(landed);
+    s_hunks.count = s_hunks.capacity;
+    if ((s_hunks.shown != CLI_HUNKS_NONE) && (s_hunks.shown >= s_hunks.count))
+    {
+        s_hunks.shown = CLI_HUNKS_NONE;
+    }
+    EMBED_CALL(hunks_titled, HunksCtx, .at = 0u);
+}
+
+void cli_hunks_read_later(const CliHunksCfg *args)
+{
+    if ((args->key == NULL) || (args->root == NULL) || (args->path == NULL))
+    {
+        cli_hunks_read(args);
+        return;
+    }
+    const int same =
+        cellul.eq(&(CatenaFinitaCfg){.src = s_hunks.key, .other = args->key, .cap = CLI_NAME_MAX_LEN});
+    HunksLater read;
+    memor.set(&(MemoriaCfg){.dst = &read, .val = 0, .bytes = sizeof(read)});
+    read.fresh = !same;
+    const unsigned long long key_length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_NAME_MAX_LEN - 1u});
+    const unsigned long long path_length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN - 1u});
+    const unsigned long long root_length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_PATH_MAX_LEN - 1u});
+    memor.cpy(&(MemoriaCfg){.dst = read.key, .src = args->key, .bytes = key_length});
+    memor.cpy(&(MemoriaCfg){.dst = read.path, .src = args->path, .bytes = path_length});
+    memor.cpy(&(MemoriaCfg){.dst = read.root, .src = args->root, .bytes = root_length});
+    // a key new to the changes shows none of the last key's changes while its own are read
+    if (!same)
+    {
+        s_hunks.shown = CLI_HUNKS_NONE;
+        s_hunks.count = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = s_hunks.key, .src = read.key, .bytes = sizeof(s_hunks.key)});
+        EMBED_CALL(hunks_titled, HunksCtx, .at = 0u);
+    }
+    // the add returns the count before it, and this read takes the count after it
+    read.asked = (unsigned int)EMBED_ATOMIC_ADD_32(&s_hunks_asked, 1u) + 1u;
+    (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = hunks_later_job, .job = &read,
+                     .size = sizeof(read));
+}
+
 unsigned int cli_hunks_count(const CliHunksCfg *args)
 {
     (void)args;
+    hunks_land();
     return s_hunks.count;
 }
 
 unsigned int cli_hunks_at_line(const CliHunksCfg *args)
 {
+    hunks_land();
     if (args->mark_out != NULL)
     {
         *args->mark_out = CLI_HUNKS_MARK_NONE;

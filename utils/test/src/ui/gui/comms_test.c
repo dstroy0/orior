@@ -7,6 +7,7 @@
 // the head's choices change the view the table hands its rows to and Channels returns; the deadline is a second on
 // while in sight and none while not, the step answering 1 only as the layer's stamp moves; and the eight Comms commands
 // run by name, Copy as curl filling the clipboard's text from a view of the check's own file of requests
+#include "../../../../../ui/cli/src/command_line/command_line.h"
 #include "../../../../../ui/cli/src/comms/comms.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/requests/requests.h"
@@ -16,6 +17,11 @@
 #define COMMS_FOOT 260
 
 // a part `name` registered listening on and sending on `grant`, its key into `key`
+// the tree's wake: the check draws no window, and a wake has nothing to do
+static void tree_woken(void)
+{
+}
+
 static void part_registered(const char *name, const char *grant, char *key)
 {
     const char *const grants[1] = {grant};
@@ -193,6 +199,14 @@ int main(void)
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = calls,
                          .bytes = s_calls, .size = sizeof(s_calls) - 1ULL),
               "the file of requests is written");
+    // the commands read the tree the window has open: the check's folder is opened as that tree
+    cli_check(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_ROOT", .value = s_root),
+              "the check's folder is named the tree");
+    cli_command_line_tree_begin(tree_woken);
+    cli_check((cli_command_line_root() != NULL) &&
+                  same(cli_command_line_root(),
+                       cellul.len(&(CatenaFinitaCfg){.src = cli_command_line_root(), .cap = CLI_PATH_MAX_LEN}), s_root),
+              "the check's folder is the tree open");
     why.at = 0ULL;
     cli_check(cli_view_file_open(s_root, "calls.http", 40u, 120u, NULL, &why) >= 0, "a view opens on the file");
     static const char *const s_names[8] = {"send-request", "copy-as-curl", "private-environment", "network",
@@ -231,6 +245,7 @@ int main(void)
         cli_thread_yield();
     }
     EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = CLI_COMMS_VIEW_CHANNELS);
+    cli_command_line_tree_end();
 
     g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;

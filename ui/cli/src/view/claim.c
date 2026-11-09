@@ -394,21 +394,17 @@ EMBED_INLINE void autohide_targets(const ClaimCtx *args)
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_right,
                .to = (displayed == GUI_AUTOHIDE_RIGHT) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_down,
-               .to = head ? GUI_FIXED_ONE : ((on && args->claim->adjacent) ? GUI_AUTOHIDE_GHOST_DOWN : 0),
-               .delay_ms = 0ULL);
-    // a inset comes a slide after its reveal and goes with it
+               .to = head ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL);
+    // An inset moves with its reveal, on the same curve and from the same moment. The work gives way as the part comes
+    // in, so the text never stands under the part, and the two go together
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_top,
-               .to = (displayed == GUI_AUTOHIDE_TOP) ? GUI_FIXED_ONE : 0,
-               .delay_ms = (displayed == GUI_AUTOHIDE_TOP) ? GUI_AUTOHIDE_ANIMATION_MS : 0ULL);
+               .to = (displayed == GUI_AUTOHIDE_TOP) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_left,
-               .to = (displayed == GUI_AUTOHIDE_LEFT) ? GUI_FIXED_ONE : 0,
-               .delay_ms = (displayed == GUI_AUTOHIDE_LEFT) ? GUI_AUTOHIDE_ANIMATION_MS : 0ULL);
+               .to = (displayed == GUI_AUTOHIDE_LEFT) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_bottom,
-               .to = (displayed == GUI_AUTOHIDE_BOTTOM) ? GUI_FIXED_ONE : 0,
-               .delay_ms = (displayed == GUI_AUTOHIDE_BOTTOM) ? GUI_AUTOHIDE_ANIMATION_MS : 0ULL);
+               .to = (displayed == GUI_AUTOHIDE_BOTTOM) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->controls_alpha,
-               .to = (on && args->claim->adjacent && !head) ? GUI_AUTOHIDE_GHOST_ALPHA : GUI_FIXED_ONE,
-               .delay_ms = 0ULL);
+               .to = GUI_FIXED_ONE, .delay_ms = 0ULL);
 }
 
 // `zone`'s part shown, its slat pulled from where the pointer stands, or none
@@ -427,8 +423,6 @@ EMBED_INLINE void autohide_show(const ClaimCtx *args)
         args->claim->pulled_bottom = args->claim->pointer_x;
     }
     args->claim->displayed = args->zone;
-    // the ghost goes as a part comes
-    args->claim->adjacent = args->claim->adjacent && (args->zone == GUI_AUTOHIDE_NONE);
     autohide_targets(args);
 }
 
@@ -465,7 +459,6 @@ void gui_autohide_set(const GuiAutohideOnCfg *args)
         args->claim->hide_deadline_ms = 0ULL;
         args->claim->preview_deadline_ms = 0ULL;
         args->claim->zone_now = GUI_AUTOHIDE_NONE;
-        args->claim->adjacent = 0;
         EMBED_CALL(autohide_reveal, ClaimCtx, .claim = args->claim, .zone = GUI_AUTOHIDE_NONE);
         return;
     }
@@ -536,8 +529,11 @@ EMBED_INLINE float autohide_pace(const ClaimCtx *args)
     {
         return 0.0f;
     }
-    // the distance between two points of the window's pixels is far inside a float's reach
-    return hypotf((float)(args->x - oldest->x), (float)(args->y - oldest->y)) / (float)lapse;
+    // A resting hand moves the pointer a few pixels to and fro. The net distance less that tremor is the distance the
+    // pointer travels. The distance between two points of the window's pixels is far inside a float's reach
+    const float travelled =
+        hypotf((float)(args->x - oldest->x), (float)(args->y - oldest->y)) - (float)GUI_AUTOHIDE_TREMOR_PX;
+    return (travelled > 0.0f) ? (travelled / (float)lapse) : 0.0f;
 }
 
 void gui_autohide_move(const GuiAutohidePointerCfg *args)
@@ -552,21 +548,13 @@ void gui_autohide_move(const GuiAutohidePointerCfg *args)
     args->claim->pointer_y = args->y;
     const int passing = EMBED_CALL(autohide_pace, ClaimCtx, .claim = args->claim, .x = args->x, .y = args->y) >
                         GUI_AUTOHIDE_SPEED_THRESHOLD;
-    // the controls' ghost: shown as the pointer slows in their corner, saved while it stays there, and gone as it
-    // leaves the corner or as a part comes
+    // The controls come the whole way down in one slide as the pointer slows in their corner. A pointer that comes
+    // into the corner fast brings them once it settles there
     const int adjacent = (args->claim->displayed == GUI_AUTOHIDE_NONE) && (args->zone == GUI_AUTOHIDE_CONTROLS);
     args->claim->preview_deadline_ms = 0ULL;
-    if (!adjacent)
+    const int settled = adjacent && !passing;
+    if (adjacent && passing)
     {
-        args->claim->adjacent = 0;
-    }
-    else if (!passing)
-    {
-        args->claim->adjacent = 1;
-    }
-    else if (!args->claim->adjacent)
-    {
-        // a pointer come into the corner fast shows the ghost once it has settled
         args->claim->preview_deadline_ms = now_ms + (2ULL * GUI_AUTOHIDE_TRAIL_WINDOW_MS);
     }
     // a pointer passing through restarts its rest timer with each move: the rest begins once it slows
@@ -589,16 +577,60 @@ void gui_autohide_move(const GuiAutohidePointerCfg *args)
     {
         args->claim->hide_deadline_ms = 0ULL;
     }
+    if (settled)
+    {
+        args->claim->show_deadline_ms = 0ULL;
+        EMBED_CALL(autohide_reveal, ClaimCtx, .claim = args->claim, .zone = GUI_AUTOHIDE_CONTROLS);
+        return;
+    }
     EMBED_CALL(autohide_targets, ClaimCtx, .claim = args->claim);
+}
+
+void gui_autohide_show_now(const GuiAutohidePointerCfg *args)
+{
+    GuiAutohide *const claim = args->claim;
+    if (!claim->autohidden)
+    {
+        return;
+    }
+    claim->pointer_x = args->x;
+    claim->pointer_y = args->y;
+    claim->zone_now = args->zone;
+    claim->show_deadline_ms = 0ULL;
+    claim->hide_deadline_ms = 0ULL;
+    claim->pending_show_deadline_ms = 0ULL;
+    claim->waiting = GUI_AUTOHIDE_NONE;
+    EMBED_CALL(autohide_show, ClaimCtx, .claim = claim, .zone = args->zone);
+    // every slide stands at its target now, as with less motion asked for
+    GuiSlide *const slides[10] = {&claim->claim,        &claim->reveal_top,  &claim->reveal_bottom, &claim->reveal_left,
+                                  &claim->reveal_right, &claim->reveal_down, &claim->inset_top,     &claim->inset_left,
+                                  &claim->inset_bottom, &claim->controls_alpha};
+    for (unsigned int at = 0u; at < 10u; at += 1u)
+    {
+        slides[at]->from = slides[at]->to;
+        slides[at]->velocity = 0;
+    }
+    claim->sent += 1u;
 }
 
 void gui_autohide_leave(const GuiAutohideStillCfg *args)
 {
-    args->claim->show_deadline_ms = 0ULL;
+    // A pointer that leaves the window through an edge's band went past that edge. The edge's rest starts, or goes on,
+    // and its part comes as for a pointer that rests in the band. A pointer that leaves elsewhere stops each rest
+    const unsigned int zone = args->claim->zone_now;
+    const int edge = args->claim->autohidden && (zone != GUI_AUTOHIDE_NONE) && (zone != args->claim->displayed);
+    if (edge && (args->claim->show_deadline_ms == 0ULL))
+    {
+        args->claim->show_deadline_ms = cli_clock_milliseconds() + GUI_AUTOHIDE_SHOW_DELAY_MS;
+        args->claim->show_zone = zone;
+    }
+    else if (!edge)
+    {
+        args->claim->show_deadline_ms = 0ULL;
+    }
     args->claim->preview_deadline_ms = 0ULL;
     args->claim->zone_now = GUI_AUTOHIDE_NONE;
     args->claim->trail_count = 0u;
-    args->claim->adjacent = 0;
 }
 
 int gui_autohide_step(const GuiAutohideStateCfg *args)
@@ -635,9 +667,11 @@ int gui_autohide_step(const GuiAutohideStateCfg *args)
     if ((args->claim->preview_deadline_ms != 0ULL) && (now_ms >= args->claim->preview_deadline_ms))
     {
         args->claim->preview_deadline_ms = 0ULL;
-        args->claim->adjacent =
-            (args->claim->displayed == GUI_AUTOHIDE_NONE) && (args->claim->zone_now == GUI_AUTOHIDE_CONTROLS);
-        EMBED_CALL(autohide_targets, ClaimCtx, .claim = args->claim);
+        if ((args->claim->displayed == GUI_AUTOHIDE_NONE) && (args->claim->zone_now == GUI_AUTOHIDE_CONTROLS))
+        {
+            args->claim->show_deadline_ms = 0ULL;
+            EMBED_CALL(autohide_reveal, ClaimCtx, .claim = args->claim, .zone = GUI_AUTOHIDE_CONTROLS);
+        }
         changed = 1;
     }
     return changed;

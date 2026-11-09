@@ -1,9 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_effect.c: the definition of a name in effect at a line of a branch of the tree: a walk from the branch's
-// first line to that line, the defines the compilation database gives the branch first and the files it includes
-// before its first line walked before it, each include of a file of the tree, its own or a mount's, walked where it
-// stands, found through the branch's include folders, and each branch once, each condition read off its leaves, and
+// first line to that line, each include of a file of the tree, its own or a mount's, walked where it stands, and each
+// branch once, each condition read off its leaves, and
 // every define, undefine and declaration of the name met in an active region put in the walk's cells. The directives,
 // a define's parameters and the file an include names are known by the roles their grammar's tokens name; nothing here
 // reads a language's text
@@ -11,6 +10,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
+#include "../text/sift.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
@@ -247,115 +247,6 @@ static void cli_effect_intersect(const SymbolsEffectCtx *args)
     effect->macros += 1u;
 }
 
-// One define the compilation database gives the branch the walk starts from, met before its first line: its value's
-// leaves read by the grammar of the branch's language from its first state
-static void cli_effect_free(const CliDefineEachCfg *args)
-{
-    CliEffect *const effect = (CliEffect *)args->context;
-    const unsigned int path =
-        EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
-                   .text = args->define->node,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->define->node, .cap = CLI_POOL_BYTES}));
-    if (path == CLI_JSON_NONE)
-    {
-        return;
-    }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->define->value, .cap = CLI_POOL_BYTES});
-    CliLeafRead read;
-    // a value no grammar reads has no leaves, and a condition reads it as none
-    const int leaved =
-        EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = effect->languages,
-                   .path = effect->start, .state = "root", .text = args->define->value, .size = size, .read = &read);
-    CliEffectMet met = {.seen = CLI_JSON_NONE,
-                        .name = args->define->name,
-                        .name_length = cellul.len(&(CatenaFinitaCfg){.src = args->define->name, .cap = CLI_POOL_BYTES}),
-                        .value = args->define->value,
-                        .value_length = size,
-                        .read = &read,
-                        .first = 0u,
-                        .end = leaved ? read.count : 0u,
-                        .called = args->define->called,
-                        .params = (args->define->params < CLI_DEFINE_PARAMS) ? args->define->params : CLI_DEFINE_PARAMS,
-                        .rest = args->define->rest,
-                        .path = path,
-                        .line = CLI_EFFECT_INPUT,
-                        .undefined = 0};
-    for (unsigned int at = 0u; at < met.params; at += 1u)
-    {
-        met.param[at] = args->define->param[at];
-        met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = args->define->param[at], .cap = CLI_POOL_BYTES});
-    }
-    EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = effect, .met = &met);
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
-    read.leaf = NULL;
-    read.count = 0u;
-    read.capacity = 0u;
-}
-
-// the whole path `whole`, its slashes `/`, as the tree holds it into `out`, sized for CLI_PATH_MAX_LEN: from the
-// tree's top where it lies inside it, else under the name of the mount that holds it; 1, or 0 where neither does
-EMBED_INLINE int cli_effect_tree_path(const SymbolsEffectCtx *args)
-{
-    const char *names[CLI_MOUNTS_MAX];
-    const char *paths[CLI_MOUNTS_MAX];
-    const unsigned int mounts = EMBED_CALL(cli_capacity_names_internal.mounts, CliCapacityNamesCtx, .names = names,
-                                           .paths_read = paths, .capacity_u32 = CLI_MOUNTS_MAX);
-    for (unsigned int at = 0u; at <= mounts; at += 1u)
-    {
-        // the tree's top first, then each mount
-        const char *const top = (at == 0u) ? args->effect_read->root : paths[at - 1u];
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_POOL_BYTES});
-        int under = length != 0ULL;
-        unsigned long long each = 0ULL;
-        while (under && (each < length))
-        {
-            under = ((top[each] == '\\') ? '/' : top[each]) == ((args->whole[each] == '\\') ? '/' : args->whole[each]);
-            each += 1ULL;
-        }
-        under = under && ((args->whole[length] == '/') || (args->whole[length] == '\0'));
-        if (!under)
-        {
-            continue;
-        }
-        VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL, NULL, NULL, 0ULL};
-        if (at != 0u)
-        {
-            mmgr_line_ch(&line, '@');
-            mmgr_line_put(&line, names[at - 1u]);
-            mmgr_line_put(&line, (args->whole[length] == '/') ? "/" : "");
-        }
-        mmgr_line_put(&line, args->whole + length + ((args->whole[length] == '/') ? 1u : 0u));
-        return mmgr_line_finish(&line) != 0ULL || (args->whole[length] == '\0');
-    }
-    return 0;
-}
-
-// One include folder or file of the branch the walk starts from, put in the walk's cell as the tree holds it where it
-// does
-static void cli_effect_include_intersect(const CliEachPathTypeCfg *args)
-{
-    CliEffect *const effect = (CliEffect *)args->context;
-    char tree_path[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_effect_tree_path, SymbolsEffectCtx, .effect_read = effect, .whole = args->path,
-                    .out = tree_path))
-    {
-        return;
-    }
-    const unsigned int put =
-        (effect->includes < effect->include_capacity)
-            ? EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
-                         .text = tree_path,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_POOL_BYTES}))
-            : CLI_JSON_NONE;
-    if (put == CLI_JSON_NONE)
-    {
-        effect->refused = 1;
-        return;
-    }
-    effect->include[effect->includes] = (CliEffectInclude){put, args->type};
-    effect->includes += 1u;
-}
-
 // `path` made whole into `out`, sized for CLI_PATH_MAX_LEN: each `.` left off and each `..` taking the folder before
 // it away; 0 where a `..` leaves the tree's top
 EMBED_INLINE int cli_effect_path_init(const SymbolsEffectCtx *args)
@@ -412,12 +303,9 @@ EMBED_INLINE int cli_effect_tree_file(const SymbolsEffectCtx *args)
 
 // the file of the tree an include of `named`, `length` bytes, in the branch at `path` reaches into `out`, sized for
 // CLI_PATH_MAX_LEN, each a file the tree holds, its own or a mount's: beside the branch where it is named in quotes,
-// then in each include folder of the branch the walk starts from in the order a compiler searches them, a folder for
-// quotes alone passed over for one in angle brackets, then from the tree's top, else the first of the tree's files
-// whose path ends with it; 1, or 0 where none does
+// then from the tree's top, else the first of the tree's files whose path ends with it; 1, or 0 where none does
 EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
 {
-    const CliEffect *effect = args->effect_read;
     const char *path = args->path;
     unsigned long long length = args->length;
     const char *const slash =
@@ -428,16 +316,6 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
         !args->angled && EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = path,
                                     .folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL,
                                     .named = args->named, .length = length, .out = args->out);
-    for (unsigned int at = 0u; !found && (at < effect->includes); at += 1u)
-    {
-        const CliEffectInclude *const include = &effect->include[at];
-        const char *const folder = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
-                                              .at_value = include->path);
-        found = (include->type != CLI_INCLUDE_FORCED) && (!args->angled || (include->type != CLI_INCLUDE_QUOTE)) &&
-                EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = folder,
-                           .folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}),
-                           .named = args->named, .length = length, .out = args->out);
-    }
     found = found || EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = "", .folder_length = 0ULL,
                                 .named = args->named, .length = length, .out = args->out);
     unsigned int file = 0u;
@@ -462,6 +340,484 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
         file += 1u;
     }
     return found;
+}
+
+// A branch a sifted walk reads: its bytes and how many, the byte each line starts at with a last entry one past the
+// end, how many lines, and for each line whether the read lexes it and whether it declares a name the walk sifts for
+typedef struct
+{
+    const char *text;
+    unsigned long long size;
+    unsigned long long *start;
+    unsigned int lines;
+    unsigned char *taken;
+    unsigned char *declares;
+    unsigned char *named;
+} CliEffectSifted;
+
+// A sift's hits taken: the branch, the needle's length, whether the needle is the grammar's directive mark, the line
+// from which a name's hits are not taken, the view's lines, whose hits are always taken, and the mark that ends a
+// directive's line it carries on past and its length, 0 for none
+typedef struct
+{
+    CliEffectSifted *sifted;
+    unsigned long long length;
+    int directive;
+    unsigned int before;
+    unsigned int view_from;
+    unsigned int view_to;
+    const char *continued;
+    unsigned long long continued_length;
+} CliEffectSiftHit;
+
+// The declarations of a sifted read handed on: where they go and its context, the line of the branch each lexed line
+// is, how many, the walk, and the branch whose lines that declare a name the walk sifts for are marked
+typedef struct
+{
+    CliDeclared each;
+    void *context;
+    const unsigned int *origin;
+    unsigned int origins;
+    const CliEffect *effect;
+    CliEffectSifted *sifted;
+} CliEffectSiftDeclaring;
+
+typedef struct
+{
+    CliEffect *effect;
+    const char *path;
+    CliEffectSifted *sifted;
+    const unsigned char *mask;
+    CliLeafRead *read;
+    CliDeclared each;
+    void *context;
+    unsigned long long at;
+    unsigned int line;
+    unsigned int upto;
+    int starting;
+    const char *name;
+    unsigned long long length;
+    const char *bytes;
+    unsigned long long size;
+} EffectSiftCtx;
+
+// the line of the branch the byte `at` stands on
+EMBED_INLINE unsigned int effect_sift_line(const EffectSiftCtx *args)
+{
+    const CliEffectSifted *const sifted = args->sifted;
+    unsigned int low = 0u;
+    unsigned int high = sifted->lines;
+    while ((high - low) > 1u)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (sifted->start[middle] <= args->at)
+        {
+            low = middle;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+// whether the name `name`, `length` bytes, is one the walk sifts for
+EMBED_INLINE int effect_sift_named(const EffectSiftCtx *args)
+{
+    for (unsigned int at = 0u; at < args->effect->sift_names; at += 1u)
+    {
+        if ((args->effect->sift_length[at] == args->length) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->effect->sift_name[at], .other = args->name, .bytes = (size_t)args->length}) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// one place the sift found its needle at: the grammar's directive mark marks its line, and each line it carries on
+// to where a line ends with the grammar's mark for that, the lex of the lines deciding by their roles which are
+// directives; and a name marks its line
+static void effect_sift_hit(const CliEachAtCfg *args)
+{
+    CliEffectSiftHit *const hit = (CliEffectSiftHit *)args->context;
+    CliEffectSifted *const sifted = hit->sifted;
+    const unsigned long long at = args->at;
+    const unsigned int line = EMBED_CALL(effect_sift_line, EffectSiftCtx, .sifted = sifted, .at = at);
+    if (hit->directive)
+    {
+        for (unsigned int each = line; each < sifted->lines; each += 1u)
+        {
+            sifted->taken[each] = 1u;
+            // the line's end before its newline, a carriage return passed over
+            unsigned long long last = sifted->start[each + 1u] - 1ULL;
+            last -= ((last > sifted->start[each]) && (sifted->text[last - 1ULL] == '\r')) ? 1ULL : 0ULL;
+            const int carries =
+                (hit->continued_length != 0ULL) && ((last - sifted->start[each]) >= hit->continued_length) &&
+                (memor.cmp(&(MemoriaCfg){.src = sifted->text + last - hit->continued_length,
+                                         .other = hit->continued,
+                                         .bytes = (size_t)hit->continued_length}) == 0);
+            if (!carries)
+            {
+                break;
+            }
+        }
+        return;
+    }
+    // the lex of the line decides by its grammar's roles whether the hit is the name
+    const int viewed = (line >= hit->view_from) && (line < hit->view_to);
+    if ((line < hit->before) || viewed)
+    {
+        sifted->taken[line] = 1u;
+        sifted->named[line] = 1u;
+    }
+}
+
+// one declaration a sifted read's lexed lines name, handed on at the branch's line it stands on, and that line marked
+// where it declares a name the walk sifts for
+static void effect_sift_declaring(const CliDeclaredCfg *args)
+{
+    const CliEffectSiftDeclaring *const declaring = (const CliEffectSiftDeclaring *)args->context;
+    const unsigned int line = (args->line < declaring->origins) ? declaring->origin[args->line] : args->line;
+    if ((declaring->sifted != NULL) && (declaring->sifted->declares != NULL) && (line < declaring->sifted->lines) &&
+        EMBED_CALL(effect_sift_named, EffectSiftCtx, .effect = (CliEffect *)declaring->effect, .name = args->name,
+                   .length = args->length))
+    {
+        declaring->sifted->declares[line] = 1u;
+    }
+    if (declaring->each != NULL)
+    {
+        EMBED_CALL(declaring->each, CliDeclaredCfg, .context = declaring->context, .name = args->name,
+                   .length = args->length, .type = args->type, .line = line);
+    }
+}
+
+// the lines of the branch `mask` marks lexed alone, joined in one copy, into `read`: each leaf's bytes and line those
+// of the branch it stands in, each declaration handed to `each` at its line, and with `sifted->declares` set, each
+// line that declares a name the walk sifts for marked: 1, or 0 where the cells or the grammar refused them
+EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
+{
+    const CliEffectSifted *const sifted = args->sifted;
+    unsigned int count = 0u;
+    unsigned long long bytes = 1ULL;
+    for (unsigned int line = 0u; line < sifted->lines; line += 1u)
+    {
+        if (args->mask[line] != 0u)
+        {
+            count += 1u;
+            bytes += sifted->start[line + 1u] - sifted->start[line];
+        }
+    }
+    *args->read = (CliLeafRead){sifted->text, NULL, 0u, 0u, sifted->lines, NULL, 0, NULL, NULL, 0};
+    args->read->size = sifted->size;
+    if (count == 0u)
+    {
+        return 1;
+    }
+    char *const joined = g_cli_guard->temporary_buf_alloc(bytes, g_cli_code_owner);
+    unsigned int *const origin =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned int), g_cli_code_owner);
+    unsigned long long *const joined_at =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned long long), g_cli_code_owner);
+    int leaved = (joined != NULL) && (origin != NULL) && (joined_at != NULL);
+    unsigned long long used = 0ULL;
+    unsigned int placed = 0u;
+    for (unsigned int line = 0u; leaved && (line < sifted->lines); line += 1u)
+    {
+        if (args->mask[line] == 0u)
+        {
+            continue;
+        }
+        // the line's bytes to before its newline, and a newline after them
+        const unsigned long long from = sifted->start[line];
+        const unsigned long long to = sifted->start[line + 1u] - 1ULL;
+        origin[placed] = line;
+        joined_at[placed] = used;
+        memor.cpy(&(MemoriaCfg){.dst = joined + used, .src = sifted->text + from, .bytes = (size_t)(to - from)});
+        used += to - from;
+        joined[used] = '\n';
+        used += 1ULL;
+        placed += 1u;
+    }
+    CliEffectSiftDeclaring declaring = {args->each, args->context, origin, placed, args->effect,
+                                        (CliEffectSifted *)sifted};
+    leaved = leaved && EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx,
+                                  .languages = args->effect->languages, .path = args->path, .state = "root",
+                                  .text = joined, .size = used, .read = args->read, .each = effect_sift_declaring,
+                                  .context = &declaring);
+    // each leaf moved to the bytes and the line of the branch its lexed line came from
+    for (unsigned int at = 0u; leaved && (at < args->read->count); at += 1u)
+    {
+        CliLeaf *const leaf = &args->read->leaf[at];
+        const unsigned int lexed = (leaf->line < placed) ? leaf->line : (placed - 1u);
+        const unsigned long long base = sifted->start[origin[lexed]];
+        leaf->from = base + (leaf->from - joined_at[lexed]);
+        leaf->to = base + (leaf->to - joined_at[lexed]);
+        leaf->line = origin[lexed];
+    }
+    args->read->text = sifted->text;
+    args->read->size = sifted->size;
+    args->read->lines = sifted->lines;
+    args->read->first = NULL;
+    g_cli_guard->persistent_buf_release(joined_at, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(origin, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(joined, g_cli_code_owner);
+    return leaved;
+}
+
+// the last line of the statement whose name the line `line` declares: the line it ends on at the depth it starts at,
+// a body after its head read to the bracket that closes it, lexed a window of lines at a time that doubles while the
+// statement runs past it, CLI_EFFECT_STATEMENT_LINES lines at the most
+EMBED_INLINE unsigned int effect_sift_statement_end(const EffectSiftCtx *args)
+{
+    CliEffectSifted *const sifted = args->sifted;
+    unsigned char *const window = g_cli_guard->temporary_buf_alloc(sifted->lines, g_cli_code_owner);
+    if (window == NULL)
+    {
+        return args->line;
+    }
+    unsigned int end = args->line;
+    for (unsigned int span = 64u; span <= CLI_EFFECT_STATEMENT_LINES; span *= 2u)
+    {
+        const unsigned int last = ((sifted->lines - args->line) < span) ? sifted->lines : (args->line + span);
+        mmgr_zero_buf(window, sifted->lines);
+        memor.set(&(MemoriaCfg){.dst = window + args->line, .val = 1, .bytes = (size_t)(last - args->line)});
+        CliLeafRead read;
+        unsigned char *const declares = sifted->declares;
+        sifted->declares = NULL;
+        const int lexed = EMBED_CALL(effect_sift_lex, EffectSiftCtx, .effect = args->effect, .path = args->path,
+                                     .sifted = sifted, .mask = window, .read = &read, .each = NULL, .context = NULL);
+        sifted->declares = declares;
+        unsigned int depth = 0u;
+        int body = 0;
+        int ended = 0;
+        for (unsigned int leaf = 0u; lexed && !ended && (leaf < read.count); leaf += 1u)
+        {
+            const CliLeaf *const one = &read.leaf[leaf];
+            if ((one->is & (CLI_LEAF_STRING | CLI_LEAF_COMMENT)) != 0u)
+            {
+                continue;
+            }
+            if ((depth == 0u) && ((one->is & CLI_LEAF_DIRECTIVE) != 0u) && (one->line != args->line))
+            {
+                end = (one->line > args->line) ? (one->line - 1u) : args->line;
+                ended = 1;
+                continue;
+            }
+            body |= (depth == 0u) && ((one->is & (CLI_LEAF_REGION | CLI_LEAF_OPEN)) == (CLI_LEAF_REGION | CLI_LEAF_OPEN));
+            const int opens = (one->is & CLI_LEAF_OPEN) != 0u;
+            const int closes = (one->is & CLI_LEAF_CLOSE) != 0u;
+            depth += opens ? 1u : 0u;
+            depth -= (closes && (depth > 0u)) ? 1u : 0u;
+            if ((depth == 0u) && ((body && closes) || (!body && ((one->is & CLI_LEAF_STATEMENT) != 0u))))
+            {
+                end = one->line;
+                ended = 1;
+            }
+        }
+        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        if (ended || (last == sifted->lines))
+        {
+            end = ended ? end : (last - 1u);
+            break;
+        }
+    }
+    g_cli_guard->persistent_buf_release(window, g_cli_code_owner);
+    return end;
+}
+
+// the branch at `path`, `size` bytes of `text`, read as a sifted walk reads it into `read`: the sift finds each `#`
+// that opens a directive and each place a name the walk sifts for stands whole, and only those lines are lexed, with
+// the view's lines where the branch is the one the walk starts from, a name's hits there taken only above `upto`.
+// Each line that declares a name the walk sifts for is read on to the statement's end. Every declaration the lines
+// name goes to `each` at its line: 1, or 0 where the cells or the grammar refused it
+// the branch `size` bytes of `text` indexed into `sifted`: the byte each line starts at, one past the end after the
+// last, and every line unmarked, each in a cell of its own given back with effect_sift_index_free: 1, or 0 where the
+// cells cannot meet them
+EMBED_INLINE int effect_sift_index(const EffectSiftCtx *args)
+{
+    CliEffectSifted *const sifted = args->sifted;
+    const char *const text = args->bytes;
+    const unsigned long long size = args->size;
+    unsigned int lines = 1u;
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
+    {
+        const char *const newline =
+            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
+        if (newline == NULL)
+        {
+            break;
+        }
+        lines += 1u;
+        // the newline stands at or past `at`, inside the text
+        at = (unsigned long long)(newline - text);
+    }
+    *sifted = (CliEffectSifted){text, size, NULL, lines, NULL, NULL, NULL};
+    sifted->start = g_cli_guard->temporary_buf_alloc(((unsigned long long)lines + 1ULL) * sizeof(unsigned long long),
+                                                     g_cli_code_owner);
+    sifted->taken = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    sifted->declares = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    sifted->named = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    if ((sifted->start == NULL) || (sifted->taken == NULL) || (sifted->declares == NULL) || (sifted->named == NULL))
+    {
+        return 0;
+    }
+    mmgr_zero_buf(sifted->taken, lines);
+    mmgr_zero_buf(sifted->declares, lines);
+    mmgr_zero_buf(sifted->named, lines);
+    unsigned int line = 0u;
+    sifted->start[0] = 0ULL;
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
+    {
+        if (text[at] == '\n')
+        {
+            line += 1u;
+            sifted->start[line] = at + 1ULL;
+        }
+    }
+    // the line after the last starts one past the end, as though a newline ended the text
+    sifted->start[lines] = size + 1ULL;
+    return 1;
+}
+
+// the cells of the index `sifted` given back
+EMBED_INLINE void effect_sift_index_free(const EffectSiftCtx *args)
+{
+    g_cli_guard->persistent_buf_release(args->sifted->named, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(args->sifted->declares, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(args->sifted->taken, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(args->sifted->start, g_cli_code_owner);
+}
+
+EMBED_INLINE int effect_sift_read(const EffectSiftCtx *args)
+{
+    CliEffect *const effect = args->effect;
+    const char *const text = args->bytes;
+    const unsigned long long size = args->size;
+    // the read holds no leaves until a lex fills it, so a read the cells refuse gives back nothing
+    *args->read = (CliLeafRead){text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
+    args->read->size = size;
+    CliEffectSifted sifted;
+    int leaved = EMBED_CALL(effect_sift_index, EffectSiftCtx, .sifted = &sifted, .bytes = text, .size = size);
+    const unsigned int lines = sifted.lines;
+    unsigned char *const taken = sifted.taken;
+    unsigned char *const declares = sifted.declares;
+    // the directives by the marks the branch's grammar names, then the view's lines where the walk starts here, then
+    // each name the walk sifts for; a grammar that names no mark has no directive sifted
+    const char *const mark =
+        cli_symbols_directive_mark(&(CliSymbolsReadLanguagesCtx){.read_symbols_languages_pointer = effect->languages,
+                                                                 .path = args->path});
+    const char *const continued = cli_symbols_directive_continued(
+        &(CliSymbolsReadLanguagesCtx){.read_symbols_languages_pointer = effect->languages, .path = args->path});
+    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_SYMBOLS_MARK_MAX});
+    CliEffectSiftHit hit = {
+        &sifted, mark_length, 1, 0u, 0u, 0u, continued,
+        cellul.len(&(CatenaFinitaCfg){.src = continued, .cap = CLI_SYMBOLS_MARK_MAX})};
+    if (leaved && (mark_length != 0ULL))
+    {
+        (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = (const unsigned char *)text,
+                         .length = size, .needle = (const unsigned char *)mark, .needle_length = mark_length,
+                         .fold = 0, .found = effect_sift_hit, .context = &hit);
+    }
+    const unsigned int view_from = args->starting ? effect->view_from : 0u;
+    const unsigned int view_to = args->starting ? ((effect->view_to < lines) ? effect->view_to : lines) : 0u;
+    for (unsigned int line = view_from; leaved && (line < view_to); line += 1u)
+    {
+        taken[line] = 1u;
+    }
+    hit = (CliEffectSiftHit){&sifted, 0ULL, 0, args->starting ? args->upto : lines, view_from, view_to, NULL, 0ULL};
+    for (unsigned int name = 0u; leaved && (name < effect->sift_names); name += 1u)
+    {
+        hit.length = effect->sift_length[name];
+        (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = (const unsigned char *)text,
+                         .length = size, .needle = (const unsigned char *)effect->sift_name[name],
+                         .needle_length = effect->sift_length[name], .fold = 0, .found = effect_sift_hit,
+                         .context = &hit);
+    }
+    // the lines a name was found on lexed once to learn which declare it, each of those read to its statement's end
+    CliLeafRead found;
+    leaved = leaved && EMBED_CALL(effect_sift_lex, EffectSiftCtx, .effect = effect, .path = args->path,
+                                  .sifted = &sifted, .mask = sifted.named, .read = &found, .each = NULL,
+                                  .context = NULL);
+    if (leaved)
+    {
+        g_cli_guard->persistent_buf_release(found.leaf, g_cli_leaves_owner);
+    }
+    unsigned int reached = 0u;
+    for (unsigned int line = 0u; leaved && (line < lines); line += 1u)
+    {
+        if ((declares[line] == 0u) || (line < reached))
+        {
+            continue;
+        }
+        const unsigned int end = EMBED_CALL(effect_sift_statement_end, EffectSiftCtx, .effect = effect,
+                                            .path = args->path, .sifted = &sifted, .line = line);
+        for (unsigned int each = line; each <= end; each += 1u)
+        {
+            taken[each] = 1u;
+        }
+        reached = end + 1u;
+    }
+    sifted.declares = NULL;
+    leaved = leaved && EMBED_CALL(effect_sift_lex, EffectSiftCtx, .effect = effect, .path = args->path,
+                                  .sifted = &sifted, .mask = taken, .read = args->read, .each = args->each,
+                                  .context = args->context);
+    sifted.declares = declares;
+    EMBED_CALL(effect_sift_index_free, EffectSiftCtx, .sifted = &sifted);
+    return leaved;
+}
+
+// the names the view's lines of the branch the walk starts from hold put among those it sifts for, each leaf its
+// grammar names a name or a type but one that declares, a string's or a comment's: the lines lexed alone and let go
+EMBED_INLINE void effect_sift_view_names(const EffectSiftCtx *args)
+{
+    CliEffect *const effect = args->effect;
+    CliEffectSifted sifted;
+    if (!EMBED_CALL(effect_sift_index, EffectSiftCtx, .sifted = &sifted, .bytes = effect->start_text,
+                    .size = effect->start_size))
+    {
+        EMBED_CALL(effect_sift_index_free, EffectSiftCtx, .sifted = &sifted);
+        effect->refused = 1;
+        return;
+    }
+    const unsigned int to = (effect->view_to < sifted.lines) ? effect->view_to : sifted.lines;
+    for (unsigned int line = effect->view_from; line < to; line += 1u)
+    {
+        sifted.taken[line] = 1u;
+    }
+    unsigned char *const declares = sifted.declares;
+    sifted.declares = NULL;
+    CliLeafRead read;
+    const int lexed = EMBED_CALL(effect_sift_lex, EffectSiftCtx, .effect = effect, .path = args->path,
+                                 .sifted = &sifted, .mask = sifted.taken, .read = &read, .each = NULL, .context = NULL);
+    sifted.declares = declares;
+    const unsigned long long named = CLI_LEAF_NAME | CLI_LEAF_TYPE;
+    const unsigned long long passed = CLI_LEAF_DECLARES | CLI_LEAF_STRING | CLI_LEAF_COMMENT;
+    for (unsigned int leaf = 0u; lexed && (leaf < read.count); leaf += 1u)
+    {
+        const CliLeaf *const one = &read.leaf[leaf];
+        if (((one->is & named) == 0u) || ((one->is & passed) != 0u))
+        {
+            continue;
+        }
+        const char *const text = effect->start_text + one->from;
+        const unsigned long long length = one->to - one->from;
+        if (EMBED_CALL(effect_sift_named, EffectSiftCtx, .effect = effect, .name = text, .length = length))
+        {
+            continue;
+        }
+        if (effect->sift_names >= effect->sift_capacity)
+        {
+            break;
+        }
+        effect->sift_name[effect->sift_names] = text;
+        effect->sift_length[effect->sift_names] = length;
+        effect->sift_names += 1u;
+    }
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    EMBED_CALL(effect_sift_index_free, EffectSiftCtx, .sifted = &sifted);
 }
 
 static void cli_effect_walk(const SymbolsEffectCtx *args);
@@ -783,7 +1139,8 @@ EMBED_INLINE void cli_effect_directive_include(const SymbolsEffectCtx *args)
                                         .read_read = read, .leaf = included, .length_pointer = &size);
     const int angled = (read->leaf[included].is & CLI_LEAF_ADJACENT) == 0u;
     char reached[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_effect_include, SymbolsEffectCtx, .effect_read = effect,
+    // a sifted walk reads no header: each include goes to the server as its line, and the server reads the file
+    if (!effect->sifting && EMBED_CALL(cli_effect_include, SymbolsEffectCtx, .effect_read = effect,
                    .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
                                       .at_value = args->path_u32),
                    .named = file, .length = size, .angled = angled, .out = reached))
@@ -1057,10 +1414,15 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     const char *const text = (const char *)bytes;
     CliEffectDeclaring declaring = {effect, branch};
     const int declares = effect->slicing || (effect->noted != NULL);
+    // a sifted walk lexes only the lines the sift finds; every other walk lexes the branch whole
     const int leaved =
-        EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = effect->languages,
-                   .path = path, .state = "root", .text = text, .size = size, .read = &branch->read,
-                   .each = declares ? cli_effect_declaring : NULL, .context = declares ? &declaring : NULL);
+        effect->sifting
+            ? EMBED_CALL(effect_sift_read, EffectSiftCtx, .effect = effect, .path = path, .bytes = text, .size = size,
+                         .read = &branch->read, .each = declares ? cli_effect_declaring : NULL,
+                         .context = declares ? &declaring : NULL, .starting = !from_disk, .upto = args->upto)
+            : EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = effect->languages,
+                         .path = path, .state = "root", .text = text, .size = size, .read = &branch->read,
+                         .each = declares ? cli_effect_declaring : NULL, .context = declares ? &declaring : NULL);
     branch->read_at =
         (leaved && effect->slicing)
             ? EMBED_CALL(cli_effect_branch_read_append, SymbolsEffectCtx, .effect = effect, .path_u32 = path_at,
@@ -1098,10 +1460,9 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     const unsigned long long macro_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectMacro);
     const unsigned long long seen_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectSeen);
     const unsigned long long leaf_bytes = CLI_EFFECT_VALUES_MAX * sizeof(CliEffectValueLeaf);
-    const unsigned long long include_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectInclude);
     const unsigned long long walked_bytes = CLI_EFFECT_LIST_MAX * sizeof(unsigned int);
     const unsigned long long list_bytes =
-        branch_bytes + macro_bytes + seen_bytes + leaf_bytes + include_bytes + walked_bytes;
+        branch_bytes + macro_bytes + seen_bytes + leaf_bytes + walked_bytes;
     char *const cell = (languages != NULL)
                            ? g_cli_guard->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_CAPACITY, g_cli_code_owner)
                            : NULL;
@@ -1135,11 +1496,8 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     effect->value_leaf = (CliEffectValueLeaf *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes);
     effect->value_leaves = 0u;
     effect->value_leaf_capacity = CLI_EFFECT_VALUES_MAX;
-    effect->include = (CliEffectInclude *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes);
-    effect->includes = 0u;
-    effect->include_capacity = CLI_EFFECT_LIST_MAX;
     effect->walked =
-        (unsigned int *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes + include_bytes);
+        (unsigned int *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes);
     effect->walks = 0u;
     effect->walk_capacity = CLI_EFFECT_LIST_MAX;
     effect->name = name;
@@ -1154,26 +1512,23 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     effect->reached = NULL;
     effect->reached_context = NULL;
     effect->refused = 0;
+    effect->sifting = 0;
+    effect->view_from = 0u;
+    effect->view_to = 0u;
+    effect->sift_name = NULL;
+    effect->sift_length = NULL;
+    effect->sift_names = 0u;
+    effect->sift_capacity = 0u;
     return effect;
 }
 
 void cli_effect_alloc(const CliSymbolsPathEffectCtx *args)
 {
     const char *path = args->path;
-    EMBED_CALL(cli_compile_db_root.defines_get, CliCompileDbRootCfg, .root = args->effect->root, .path = path,
-               .each_define_each = cli_effect_free, .context = args->effect);
-    EMBED_CALL(cli_compile_db_root_path.includes_get, CliCompileDbRootPathCfg, .root = args->effect->root, .path = path,
-               .each = cli_effect_include_intersect, .context = args->effect);
-    // each file the branch includes before its first line walked before it, as its compiler reads them
-    for (unsigned int at = 0u; at < args->effect->includes; at += 1u)
+    // a sifted walk sifts for the names the view's lines hold, and for those the slice asked it to besides
+    if (args->effect->sifting && (args->effect->start_text != NULL))
     {
-        if (args->effect->include[at].type == CLI_INCLUDE_FORCED)
-        {
-            EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = args->effect,
-                       .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = args->effect,
-                                          .at_value = args->effect->include[at].path),
-                       .upto = CLI_EFFECT_INPUT, .depth = 1u);
-        }
+        EMBED_CALL(effect_sift_view_names, EffectSiftCtx, .effect = args->effect, .path = path);
     }
     EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = args->effect, .path = path, .upto = args->line_u32,
                .depth = 0u);

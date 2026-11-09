@@ -402,7 +402,11 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
         EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->tabs,
                    .layer = (tabs_part >= GUI_BASE_PARTS) ? GUI_BASE_TABS : (GUI_BASE_TABS_PART + tabs_part - 1u));
     }
-    EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->editor, .layer = GUI_BASE_EDITOR);
+    // the editor's ground under its text and under its two scrollbars and the corner where they meet
+    EMBED_CALL(base_layout, BaseCtx, .base = args->base,
+               .rect = (GuiRect){frame->editor.x, frame->editor.y, frame->editor.width + frame->editor_bar.width,
+                                 frame->editor.height + frame->editor_bar_across.height},
+               .layer = GUI_BASE_EDITOR);
     // the terminal's panel on the ink at half as the side is, its views on the editor's ground, each where it stands as
     // it arrives, inside the work's inside, at the part of its opacity reached
     const unsigned int terminal_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->terminal_share);
@@ -592,22 +596,38 @@ void gui_base_map_draw(const GuiBaseRasterCfg *args)
     const int from_background = (args->background_fill != NULL) && (args->background_fill->pixels != NULL) &&
                                 (args->background_fill->width == args->base_read->width) &&
                                 (args->background_fill->height == args->base_read->height);
+    // The rows and the columns the raster's clip lets the frame write, the whole raster where the clip is empty. The
+    // clip's sides lie on the raster, so they are not negative
+    const GuiRect clip = args->raster->clip;
+    const int clipped = (clip.width > 0) && (clip.height > 0);
+    const unsigned int top = clipped ? (unsigned int)clip.y : 0u;
+    const unsigned int foot = clipped ? (unsigned int)(clip.y + clip.height) : args->base_read->height;
+    const unsigned int left = clipped ? (unsigned int)clip.x : 0u;
+    const unsigned int right = clipped ? (unsigned int)(clip.x + clip.width) : args->base_read->width;
     for (unsigned int band = 0u; band < args->map->bands; band += 1u)
     {
         const GuiBaseRun *const runs = &args->map->run[args->map->run_first[band]];
         const unsigned int count = args->map->run_first[band + 1u] - args->map->run_first[band];
-        for (unsigned int y = args->map->band_from[band]; y < args->map->band_from[band + 1u]; y += 1u)
+        const unsigned int band_top = (args->map->band_from[band] > top) ? args->map->band_from[band] : top;
+        const unsigned int band_foot = (args->map->band_from[band + 1u] < foot) ? args->map->band_from[band + 1u] : foot;
+        for (unsigned int y = band_top; y < band_foot; y += 1u)
         {
             GuiColor *const out = args->raster->pixels + (y * args->base_read->width);
             const GuiColor *const under =
                 from_background ? args->background_fill->pixels + (y * args->base_read->width) : NULL;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
+                // each run cut to the clip's columns
                 const GuiBaseRun *const one = &runs[at];
-                EMBED_CALL(base_run_draw, BaseCtx, .base_read = args->base_read, .out = out + one->from,
-                           .under = (under != NULL) ? under + one->from : NULL, .color = args->color,
-                           .count = one->count, .layer = one->layer, .row = y % GUI_GRAIN_TILE,
-                           .column = one->from % GUI_GRAIN_TILE);
+                const unsigned int from = (one->from > left) ? one->from : left;
+                const unsigned int end = ((one->from + one->count) < right) ? (one->from + one->count) : right;
+                if (from >= end)
+                {
+                    continue;
+                }
+                EMBED_CALL(base_run_draw, BaseCtx, .base_read = args->base_read, .out = out + from,
+                           .under = (under != NULL) ? under + from : NULL, .color = args->color, .count = end - from,
+                           .layer = one->layer, .row = y % GUI_GRAIN_TILE, .column = from % GUI_GRAIN_TILE);
             }
         }
     }

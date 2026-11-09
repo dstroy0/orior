@@ -12,8 +12,6 @@
 #include "../../../../../ui/cli/src/view/parts/change_peek.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 static const char s_key[] = "change_peek_check";
 static const char s_head[] = "one\ntwo\nthree\nfour\nfive\n";
 
@@ -50,7 +48,8 @@ static void opened(const char *now, GuiEditor *editor)
     cli_view_frame_release((CliViewFrame *)editor->frame);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
-    cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now, .size = strlen(now),
+    cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now,
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_POOL_BYTES}),
                          .shape = &shape) &&
                   EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "check/peek.txt"),
               "the text is stored with a view open on it");
@@ -69,7 +68,8 @@ static int text_is(const char *required)
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key,
                                   .owner = g_checks_owner, .size_pointer = &size);
-    const int same = (text != NULL) && (size == strlen(required)) && (memcmp(text, required, size) == 0);
+    const int same = (text != NULL) && (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
+                     (memor.cmp(&(MemoriaCfg){.src = text, .other = required, .bytes = size}) == 0);
     g_cli_guard->persistent_buf_release(text, g_checks_owner);
     return same;
 }
@@ -79,7 +79,8 @@ static int title_is(const char *required)
 {
     unsigned long long length = 0ULL;
     const char *const title = EMBED_CALL(cli_hunks.title, CliHunksCfg, .length_out = &length);
-    return (length == strlen(required)) && (memcmp(title, required, length) == 0);
+    return (length == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = title, .other = required, .bytes = length}) == 0);
 }
 
 int main(void)

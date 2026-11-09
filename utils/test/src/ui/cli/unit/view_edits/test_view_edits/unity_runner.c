@@ -73,10 +73,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\view_edits\\test_view_edits\\test_view_edits.c");
-  run_test(test_two_edits_are_written_with_the_cursor_at_the_first, "test_two_edits_are_written_with_the_cursor_at_the_first", 63);
-  run_test(test_one_undo_takes_both_back_and_one_redo_brings_both_again, "test_one_undo_takes_both_back_and_one_redo_brings_both_again", 75);
-  run_test(test_an_edit_after_them_is_a_step_of_its_own, "test_an_edit_after_them_is_a_step_of_its_own", 84);
-  run_test(test_a_key_with_no_view_is_refused, "test_a_key_with_no_view_is_refused", 98);
+  run_test(test_two_edits_are_written_with_the_cursor_at_the_first, "test_two_edits_are_written_with_the_cursor_at_the_first", 61);
+  run_test(test_one_undo_takes_both_back_and_one_redo_brings_both_again, "test_one_undo_takes_both_back_and_one_redo_brings_both_again", 73);
+  run_test(test_an_edit_after_them_is_a_step_of_its_own, "test_an_edit_after_them_is_a_step_of_its_own", 82);
+  run_test(test_a_key_with_no_view_is_refused, "test_a_key_with_no_view_is_refused", 96);
 
   return UNITY_END();
 }

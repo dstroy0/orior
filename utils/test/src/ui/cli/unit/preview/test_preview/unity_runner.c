@@ -10,7 +10,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_kind_answers_each_ending_and_none_for_others(void);
+extern void test_type_answers_each_ending_and_none_for_others(void);
 extern void test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved(void);
 extern void test_markdown_lays_every_block_as_items_sorted_by_top(void);
 extern void test_markdown_cells_are_the_size_of_what_they_carry(void);
@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\preview\\test_preview\\test_preview.c");
-  run_test(test_kind_answers_each_ending_and_none_for_others, "test_kind_answers_each_ending_and_none_for_others", 168);
+  run_test(test_type_answers_each_ending_and_none_for_others, "test_type_answers_each_ending_and_none_for_others", 168);
   run_test(test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved, "test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved", 188);
   run_test(test_markdown_lays_every_block_as_items_sorted_by_top, "test_markdown_lays_every_block_as_items_sorted_by_top", 213);
   run_test(test_markdown_cells_are_the_size_of_what_they_carry, "test_markdown_cells_are_the_size_of_what_they_carry", 301);

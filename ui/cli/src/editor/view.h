@@ -41,6 +41,11 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_COMPLETE 5u
 #define CLI_VIEW_POSITION 6u
 #define CLI_VIEW_WHEEL 7u
+// the view slid across the file's grid, its first cell column `column`, no further than the widest line lets it
+#define CLI_VIEW_SLIDE 8u
+// the rows a frame holds past the rows the view shows whole: a window that scrolls by pixels shows a part of a row at
+// its top and its foot, so the rows it draws run up to two past the whole ones
+#define CLI_VIEW_ROWS_PAST 2u
 #define CLI_VIEW_POINTER_DOWN 0u
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u
@@ -114,11 +119,16 @@ typedef struct
 // A view's frame: every count and pointer the window draws from, in cells of the views' owner, immutable once read. The
 // rows are the lines shown from `from`, the lines a closed fold hides left out, each row's runs at `runs->line[row]`;
 // the closers stand among `bytes` from `closers`; each match is a line, a from and a to column; `indent_tabs` is 1 for
-// tabs, 0 for spaces and -1 where nothing set it
+// tabs, 0 for spaces and -1 where nothing set it. The file is a grid of lines by cells and the view a window on it:
+// `top` is its first line and `left` its first cell column. Each row holds its line from its start through the view's
+// last column, so every column stays the file's own and the window draws the row moved left by `left` cells. `widest`
+// is the most cells of any line the view has shown, the grid's width as the view knows it
 typedef struct
 {
     unsigned long long seq;
     unsigned long long top;
+    unsigned long long left;
+    unsigned long long widest;
     unsigned long long lines;
     unsigned long long from;
     unsigned long long closers;

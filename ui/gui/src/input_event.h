@@ -33,7 +33,9 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 
 // An input: the type; the pointer at x, y of the client; the button, 0 for the left; the modifier keys down; the
 // wheel's rows, down where positive; the key's name as the editor names a key, `Mod+Shift+Left`, Mod the control key,
-// Alt and Shift before the key's own name; and `size` bytes of text typed as UTF-8
+// Alt and Shift before the key's own name; and `size` bytes of text typed as UTF-8. Last, the wheel's turn as the
+// system gave it, in GUI_WHEEL_UNITS a notch, down and to the right where positive. A touchpad and a free wheel turn by
+// parts of a notch, and `rows` counts only the whole notches the parts add up to
 typedef struct
 {
     unsigned int type;
@@ -45,14 +47,25 @@ typedef struct
     const char *name;
     const char *text;
     unsigned long long size;
+    int wheel_down;
+    int wheel_across;
 } GuiInput;
+
+// the wheel's units in one notch, as Win32 counts them; X11 turns a whole notch at a press of a wheel button
+#define GUI_WHEEL_UNITS 120
 
 // an input of each type as a compound literal at the call: any member not named is zero
 #define GUI_MOVED_INPUT(x_, y_) (&(GuiInput){.type = GUI_INPUT_MOVED, .x = (x_), .y = (y_)})
 #define GUI_DOWN_INPUT(x_, y_, mods_) (&(GuiInput){.type = GUI_INPUT_DOWN, .x = (x_), .y = (y_), .mods = (mods_)})
 #define GUI_UP_INPUT(x_, y_) (&(GuiInput){.type = GUI_INPUT_UP, .x = (x_), .y = (y_)})
 #define GUI_LEFT_INPUT() (&(GuiInput){.type = GUI_INPUT_LEFT})
-#define GUI_WHEEL_INPUT(x_, y_, rows_) (&(GuiInput){.type = GUI_INPUT_WHEEL, .x = (x_), .y = (y_), .rows = (rows_)})
+#define GUI_WHEEL_INPUT(x_, y_, rows_, down_, across_)                                                                  \
+    (&(GuiInput){.type = GUI_INPUT_WHEEL,                                                                              \
+                 .x = (x_),                                                                                            \
+                 .y = (y_),                                                                                            \
+                 .rows = (rows_),                                                                                      \
+                 .wheel_down = (down_),                                                                                \
+                 .wheel_across = (across_)})
 #define GUI_KEY_INPUT(name_) (&(GuiInput){.type = GUI_INPUT_KEY, .name = (name_)})
 #define GUI_TEXT_INPUT(text_, size_) (&(GuiInput){.type = GUI_INPUT_TEXT, .text = (text_), .size = (size_)})
 

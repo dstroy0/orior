@@ -10,8 +10,6 @@
 #include "../../../../../ui/cli/src/view/parts/structure.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 static const char s_key[] = "structure_check";
 
 // the row whose name is `name`, into `row`: 1, or 0 where none is
@@ -19,7 +17,8 @@ static int row_with_name(const char *name, CliOutlineRow *row)
 {
     for (unsigned int at = 0u; EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = at, .row = row); at += 1u)
     {
-        if ((row->length == strlen(name)) && (strncmp(name, row->name, row->length) == 0))
+        if ((row->length == cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES})) &&
+            (memor.cmp(&(MemoriaCfg){.src = name, .other = row->name, .bytes = row->length}) == 0))
         {
             return 1;
         }
@@ -63,7 +62,8 @@ int main(void)
     CliOutlineRow helper;
     CliOutlineRow entry;
     cli_check(row_with_name("helper", &helper) && (helper.line == 1ULL) && (helper.depth == 0u) &&
-                  (strcmp(helper.type, "function") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = helper.type, .cap = CLI_POOL_BYTES, .other = "function", .other_cap = 9u}),
               "helper is a function on the second line at the top level");
     cli_check(row_with_name("main", &entry) && (entry.line == 5ULL), "main is on the sixth line");
     CliOutlineRow first;

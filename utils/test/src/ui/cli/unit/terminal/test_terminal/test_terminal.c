@@ -21,7 +21,6 @@
 #include "ui/cli/src/terminal/terminal_tabs.h"
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
-#include <string.h>
 
 static CliTerminalXterm s_xterm;
 static char s_text[1024];
@@ -441,7 +440,8 @@ static int xterm_holds(const char *text)
 {
     for (unsigned int y = 0u; y < s_xterm.rows; y += 1u)
     {
-        if (strstr(xterm_row_text(y), text) != NULL)
+        if (cellul.has(&(CatenaFinitaCfg){
+                .src = xterm_row_text(y), .cap = CLI_POOL_BYTES, .other = text, .other_cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -483,7 +483,10 @@ static int pane_holds(unsigned int view, const char *text)
     }
     for (unsigned int y = 0u; y < shown.rows; y += 1u)
     {
-        if (strstr(line_letters(shown.key, shown.xterm_line + y), text) != NULL)
+        if (cellul.has(&(CatenaFinitaCfg){.src = line_letters(shown.key, shown.xterm_line + y),
+                                          .cap = CLI_POOL_BYTES,
+                                          .other = text,
+                                          .other_cap = CLI_POOL_BYTES}))
         {
             return 1;
         }
@@ -521,7 +524,7 @@ static int tab_label(unsigned int at)
 // `text`, a C string, typed where the panel takes the keys: 1 where it does
 static int typed(const char *text)
 {
-    return cli_terminal_tabs_text(text, strlen(text));
+    return cli_terminal_tabs_text(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
 }
 
 void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes(void)
@@ -687,7 +690,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     int found = 0;
     for (unsigned long long at = 0ull; (at + 12ull) <= size; at += 1ull)
     {
-        found = found || (memcmp(history + at, "place_folder", 12u) == 0);
+        found = found || (memor.cmp(&(MemoriaCfg){.src = history + at, .other = "place_folder", .bytes = 12u}) == 0);
     }
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_terminal_owner));
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
@@ -720,7 +723,9 @@ static void menu_row(const char *label, CliItem *item)
 {
     for (unsigned int at = 0u; (g_cli_menus_open.levels != 0u) && (at < g_cli_menus_open.level[0].rows); at += 1u)
     {
-        if (cli_menus_row(0u, at, item) && (strcmp(item->label, label) == 0))
+        if (cli_menus_row(0u, at, item) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = item->label, .cap = CLI_POOL_BYTES, .other = label, .other_cap = CLI_POOL_BYTES}))
         {
             return;
         }
@@ -732,7 +737,11 @@ static void menu_row(const char *label, CliItem *item)
 static void terminal_menu_opened(void)
 {
     unsigned int title = 0u;
-    while ((title < cli_menu_titles()) && (strcmp(cli_menu_title_text(cli_menu_title_menu(title)), "Terminal") != 0))
+    while ((title < cli_menu_titles()) &&
+           !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(cli_menu_title_menu(title)),
+                                         .cap = CLI_POOL_BYTES,
+                                         .other = "Terminal",
+                                         .other_cap = CLI_POOL_BYTES}))
     {
         title += 1u;
     }

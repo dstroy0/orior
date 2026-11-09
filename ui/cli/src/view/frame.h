@@ -129,7 +129,11 @@ typedef struct
 // GUI_FIXED_ONE as it begins and 0 arrived, the panel's rectangle and its views' moved down by that share of
 // GUI_TERMINAL_ARRIVES, which is where the panel is drawn, and the share of it shown, its opacity at those parts; and
 // the preview's mode, one of GUI_FRAME_PREVIEW_*, with its rectangle: none while it is off, the editor's right half
-// beside the text, and the editor's whole rectangle alone, the editor left no width under it
+// beside the text, and the editor's whole rectangle alone, the editor left no width under it. Last, the editor's two
+// scrollbars: the one down its right side and the one along its foot, each a scrollbar's width taken from the
+// editor's own rectangle, none where the editor has no room for them. The tabs stand in one strip, and the tabs row is
+// a window on that strip. `tabs_left` is the number of pixels of the strip that are left of the row. The window sets
+// it, and the layout does not change it
 typedef struct
 {
     unsigned int width;
@@ -152,6 +156,8 @@ typedef struct
     GuiRect terminal_views;
     GuiRect tabs;
     GuiRect editor;
+    GuiRect editor_bar;
+    GuiRect editor_bar_across;
     GuiRect map;
     GuiRect bar_band;
     GuiRect strip_band;
@@ -167,6 +173,7 @@ typedef struct
     unsigned int radius;
     GuiRect tabs_row;
     int tabs_share;
+    int tabs_left;
     GuiRect map_whole;
     int side_away;
     GuiRect side_pane;

@@ -8,7 +8,6 @@
 #include "ui/cli/src/command_line/cli_internal.h"
 #include "ui/cli/src/servers/servers.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
-#include <string.h>
 
 static _Atomic unsigned int s_woken;
 
@@ -34,18 +33,18 @@ void tearDown(void)
 // cell could not be taken, which the counts then fail on, since a writer's thread cannot fail a test itself
 static CliServerReport *report_laid(const char *path, unsigned int count, const char *message)
 {
-    const size_t path_bytes = strlen(path) + 1u;
-    const size_t message_bytes = strlen(message) + 1u;
+    const size_t path_bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u;
+    const size_t message_bytes = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}) + 1u;
     CliServerReport *const report = g_cli_guard->persistent_buf_alloc(
         sizeof(*report) + (count * sizeof(CliServerDiagnostic)) + path_bytes + message_bytes, g_cli_servers_owner);
     if (report == NULL)
     {
         return NULL;
     }
-    memset(&report->json, 0, sizeof(report->json));
+    memor.set(&(MemoriaCfg){.dst = &report->json, .val = 0, .bytes = sizeof(report->json)});
     char *const text = (char *)(void *)(report->item + count);
-    memcpy(text, path, path_bytes);
-    memcpy(text + path_bytes, message, message_bytes);
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = path_bytes});
+    memor.cpy(&(MemoriaCfg){.dst = text + path_bytes, .src = message, .bytes = message_bytes});
     report->path = text;
     report->count = count;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -96,7 +95,7 @@ void test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_i
     TEST_ASSERT_EQUAL_UINT(1u, row.severity);
     TEST_ASSERT_EQUAL_UINT64(1ULL, row.line);
     TEST_ASSERT_EQUAL_UINT64(10ULL, row.message_length);
-    TEST_ASSERT_EQUAL_INT(0, memcmp(row.message, "first line", 10u));
+    TEST_ASSERT_EQUAL_INT(0, memor.cmp(&(MemoriaCfg){.src = row.message, .other = "first line", .bytes = 10u}));
     TEST_ASSERT_EQUAL_INT(0, cli_servers_problems_row(4u, &row));
     TEST_ASSERT_EQUAL_INT(0, cli_servers_problems_step());
 }
@@ -178,8 +177,10 @@ void test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each
         CliProblemRow row;
         for (unsigned int at = 0u; cli_servers_problems_row(at, &row); at += 1u)
         {
-            TEST_ASSERT_EQUAL_INT(0, memcmp(row.path, "src/", 4u));
-            TEST_ASSERT_TRUE(row.is_file || ((row.message_length == 5ULL) && (memcmp(row.message, "found", 5u) == 0)));
+            TEST_ASSERT_EQUAL_INT(0, memor.cmp(&(MemoriaCfg){.src = row.path, .other = "src/", .bytes = 4u}));
+            TEST_ASSERT_TRUE(row.is_file ||
+                             ((row.message_length == 5ULL) &&
+                              (memor.cmp(&(MemoriaCfg){.src = row.message, .other = "found", .bytes = 5u}) == 0)));
             rows_read += 1ULL;
         }
     }

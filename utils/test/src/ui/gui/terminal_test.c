@@ -8,8 +8,6 @@
 #include "../../../../../ui/cli/src/view/parts/terminal.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 static const char s_key[] = "check:terminal";
 
 // whether any pixel of `rect` is `color`
@@ -66,7 +64,7 @@ int main(void)
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &why);
 
     GuiTerminal terminal;
-    memset(&terminal, 0, sizeof(terminal));
+    memor.set(&(MemoriaCfg){.dst = &terminal, .val = 0, .bytes = sizeof(terminal)});
     terminal.panel = (CliTerminalPanel){1, 0, 240u, 1u, 0, -1, 1u};
     terminal.view[0] = (CliTerminalView){s_key, 0ull, 40u, 3u, 0u, 0u, 0, 0};
     terminal.frame[0] = cli_view_frame_alloc(s_key);

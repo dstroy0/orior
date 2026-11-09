@@ -120,6 +120,9 @@ void cli_document_holder_end(const CliDocumentCtx *args);
 // runs on threads, another text than those walked has lines to color, and fewer walk than the machine has processors
 // to spare; under the lock (document_branch.c)
 void cli_document_wake(const CliDocumentCtx *args);
+// The function colors_to names, called from any thread. The frame and the map follow a text's lines again, as when
+// the walk colors lines. A worker that brings a view an answer calls it (document_branch.c)
+void cli_document_colored_wake(void);
 
 struct CliDocumentCtx
 {

@@ -556,6 +556,139 @@ int cli_servers_slices_pending(void)
     return owing.pending;
 }
 
+// the slice of the viewer's lines alone, cut from `size` bytes of `text` of the file at `path` in the tree at `root`:
+// the lines `opener` names, `head->openers` of them, then the lines `head->first` to `head->last`, each with its line,
+// and stored by `key` as slice_save stores it, to be given as `version` where `*fresh` is 1: its text, in a cell the
+// caller gives back with g_cli_guard->persistent_buf_release, its size into `slice_size`, or NULL with why given
+static char *slice_view_cut(const ServersSliceCtx *args)
+{
+    char own[CLI_PATH_MAX_LEN];
+    VerbaLinea own_line = {own, sizeof(own), 0ULL};
+    EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->root,
+               .path = args->path, .out = &own_line);
+    CliServersSlicing slicing;
+    const int made =
+        EMBED_CALL(slice_lines_init, ServersSliceCtx, .slicing = &slicing) && (mmgr_line_finish(&own_line) != 0ULL);
+    if (made)
+    {
+        (void)EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = &slicing, .path = own);
+    }
+    // each line of the text read once, the openers' lines and the view's lines handed on as they are reached
+    unsigned int opener_at = 0u;
+    unsigned int line = 0u;
+    unsigned long long at = 0ULL;
+    while (made && (at <= args->size) && (line <= args->head->last))
+    {
+        const char *const newline =
+            (at < args->size)
+                ? memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '\n', .bytes = (size_t)(args->size - at)})
+                : NULL;
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
+        // a carriage return before the newline is left off the line
+        const unsigned long long stop = ((end > at) && (args->text[end - 1ULL] == '\r')) ? (end - 1ULL) : end;
+        while ((opener_at < args->head->openers) && (args->opener[opener_at] < line))
+        {
+            opener_at += 1u;
+        }
+        const int opens = (opener_at < args->head->openers) && (args->opener[opener_at] == line) &&
+                          (line < args->head->first);
+        if (opens || (line >= args->head->first))
+        {
+            EMBED_CALL(slice_line_append, CliSliceLineCfg, .context = &slicing, .path = own, .line = line,
+                       .text = args->text + at, .length = stop - at);
+        }
+        if (newline == NULL)
+        {
+            break;
+        }
+        at = end + 1ULL;
+        line += 1u;
+    }
+    const int integer =
+        made && mmgr_line_ok(&slicing.text) && mmgr_line_ok(&slicing.map) && mmgr_line_ok(&slicing.paths);
+    const int saved =
+        integer && EMBED_CALL(slice_save, ServersSliceCtx, .root = args->root, .path = args->path, .key = args->key,
+                              .head = args->head, .opener = args->opener, .slicing_read = &slicing,
+                              .version = args->version, .always = 0, .fresh = args->fresh);
+    g_cli_guard->persistent_buf_release(slicing.map.out, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(slicing.paths.out, g_cli_servers_owner);
+    if (!saved)
+    {
+        mmgr_line_put(args->err_msg, "the slice could not be cut: the cells cannot meet it");
+        g_cli_guard->persistent_buf_release(slicing.text.out, g_cli_servers_owner);
+        return NULL;
+    }
+    *args->slice_size = slicing.text.at;
+    return slicing.text.out;
+}
+
+// A gather lined up after a view's lines went to the server: the file's whole path and the tree's root, and the view's
+// head and openers the gather is for
+typedef struct
+{
+    char path[CLI_PATH_MAX_LEN];
+    char root[CLI_PATH_MAX_LEN];
+    CliServersSliceHead head;
+    unsigned int opener[CLI_SERVERS_SLICE_OPENERS];
+} CliServersGather;
+
+// the gather on a thread of the servers: what the view's lines need cut into the slice and given the server as the
+// file's next version, where the view stored is still the view the gather is for
+static void slice_gather_job(const CliServersJobCfg *args)
+{
+    if (args->size < sizeof(CliServersGather))
+    {
+        return;
+    }
+    const CliServersGather *const gather = (const CliServersGather *)args->job;
+    char key[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = gather->path, .key_out = key);
+    CliServersSliceHead head;
+    const char *const stored = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
+    int same = (stored != NULL) && (head.first == gather->head.first) && (head.last == gather->head.last) &&
+               (head.openers == gather->head.openers);
+    for (unsigned int at = 0u; same && (at < head.openers); at += 1u)
+    {
+        unsigned int was = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &was,
+                                .src = stored + sizeof(head) + ((unsigned long long)at * sizeof(unsigned int)),
+                                .bytes = sizeof(was)});
+        same = was == gather->opener[at];
+    }
+    CliLsp *const server = same ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx,
+                                             .path = gather->path)
+                                : NULL;
+    unsigned long long size = 0ULL;
+    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
+                                                     .path = gather->path, .size_pointer = &size)
+                                        : NULL;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    int fresh = 0;
+    unsigned long long slice_size = 0ULL;
+    char *const slice =
+        (text != NULL)
+            ? EMBED_CALL(slice_cut, ServersSliceCtx, .root = gather->root, .path = gather->path, .key = key,
+                         .head = &head, .opener = gather->opener, .text = text, .size = size,
+                         .version = EMBED_CALL(cli_lsp_path_out.version, CliLspPathOutCfg, .lsp = server,
+                                               .path = gather->path) +
+                                    1ULL,
+                         .always = 0, .fresh = &fresh, .slice_size = &slice_size, .err_msg = &err_msg)
+            : NULL;
+    if ((slice != NULL) && fresh &&
+        EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = gather->path,
+                   .text = slice, .length = slice_size, .err_msg = &err_msg))
+    {
+        EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = server);
+    }
+    g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    if (server != NULL)
+    {
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
+    }
+}
+
 int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
 {
     const char *path = args->path;
@@ -613,17 +746,37 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
                                      0ULL,        0ULL,
                                      head.cut,    head.hash,
                                      head.version};
+        // the viewer's lines go to the server first, as they are; the gather for what they need is lined up after
         unsigned long long slice_size = 0ULL;
         char *const slice = EMBED_CALL(
-            slice_cut, ServersSliceCtx, .root = root, .path = path, .key = key, .head = &head, .opener = args->opener,
-            .text = text, .size = size,
+            slice_view_cut, ServersSliceCtx, .root = root, .path = path, .key = key, .head = &head,
+            .opener = args->opener, .text = text, .size = size,
             .version = EMBED_CALL(cli_lsp_path_out.version, CliLspPathOutCfg, .lsp = server, .path = path) + 1ULL,
-            .always = 0, .fresh = &cut, .slice_size = &slice_size, .err_msg = err_msg);
+            .fresh = &cut, .slice_size = &slice_size, .err_msg = err_msg);
         cut = (slice != NULL) && cut;
         sent = (slice != NULL) &&
                (!cut || EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path,
                                    .text = slice, .length = slice_size, .err_msg = err_msg));
         g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
+        if (sent)
+        {
+            CliServersGather gather;
+            memor.set(&(MemoriaCfg){.dst = &gather, .val = 0, .bytes = sizeof(gather)});
+            memor.cpy(&(MemoriaCfg){
+                .dst = gather.path,
+                .src = path,
+                .bytes = (size_t)cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(gather.path) - 1u})});
+            memor.cpy(&(MemoriaCfg){
+                .dst = gather.root,
+                .src = root,
+                .bytes = (size_t)cellul.len(&(CatenaFinitaCfg){.src = root, .cap = sizeof(gather.root) - 1u})});
+            gather.head = head;
+            // the openers named are at most CLI_SERVERS_SLICE_OPENERS
+            memor.cpy(&(MemoriaCfg){.dst = gather.opener, .src = args->opener,
+                                    .bytes = (size_t)named * sizeof(unsigned int)});
+            (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = slice_gather_job, .job = &gather,
+                             .size = sizeof(gather));
+        }
     }
     if (sent && cut)
     {

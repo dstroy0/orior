@@ -5,7 +5,6 @@
 // Silence putting a type away until it is shown again
 #include "ui/cli/src/command_line/command_line.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
-#include <string.h>
 
 void setUp(void)
 {
@@ -45,7 +44,9 @@ static void notices_rested(void)
 // whether the status bar shows `text`
 static int showing(const char *text)
 {
-    return (cli_notice_shown() != NULL) && (strcmp(cli_notice_shown(), text) == 0);
+    return (cli_notice_shown() != NULL) &&
+           cellul.eq(&(CatenaFinitaCfg){
+               .src = cli_notice_shown(), .cap = CLI_POOL_BYTES, .other = text, .other_cap = CLI_POOL_BYTES});
 }
 
 void test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds(void)

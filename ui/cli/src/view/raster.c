@@ -102,12 +102,18 @@ typedef struct
     float threshold;
     GuiRect *on_out;
 } GuiRasterCtx;
-// the raster's own rectangle
+// The part of the raster a frame writes: its own rectangle, cut to its clip where the clip is not empty. Every
+// primitive cuts what it draws to this rectangle
 EMBED_INLINE GuiRect raster_rect(const GuiRasterCtx *args)
 {
     // a raster's sides are far inside what an int represents
     const GuiRect rect = {0, 0, (int)args->raster_read->width, (int)args->raster_read->height};
-    return rect;
+    const GuiRect clip = args->raster_read->clip;
+    if ((clip.width <= 0) || (clip.height <= 0))
+    {
+        return rect;
+    }
+    return EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = clip);
 }
 
 // `rect` cut to the raster, into `on_out`: whether anything is drawn there in `color`, nothing where the cut is empty
@@ -135,6 +141,8 @@ int gui_raster_init(const GuiRasterWidthXCfg *args)
     args->raster->pages = NULL;
     args->raster->pages_bytes = 0ULL;
     args->raster->positioned = 0ULL;
+    // an empty clip lets every write reach the whole raster
+    args->raster->clip = (GuiRect){0, 0, 0, 0};
     args->raster->pixels = g_cli_guard->persistent_buf_alloc(bytes, g_gui_raster_owner);
     if (args->raster->pixels == NULL)
     {

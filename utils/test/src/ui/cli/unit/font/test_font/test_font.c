@@ -89,6 +89,41 @@ void test_a_pixel_halved_by_the_edge_is_half_covered(void)
     TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.5f, mask.cover[0]);
 }
 
+// the triangle (0, 0), (4, 0), (0, 2) rasterized into `mask`: its slope x = 4 - 2y crosses two cells of each row
+static void triangle_rasterized(CliMask *mask)
+{
+    s_contours.points = 3u;
+    s_contours.contours = 1u;
+    s_contours.end[0] = 3u;
+    s_contours.x[0] = 0.0f;
+    s_contours.y[0] = 0.0f;
+    s_contours.x[1] = 4.0f;
+    s_contours.y[1] = 0.0f;
+    s_contours.x[2] = 0.0f;
+    s_contours.y[2] = 2.0f;
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask_bits = mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
+}
+
+void test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area(void)
+{
+    CliMask mask;
+    triangle_rasterized(&mask);
+    TEST_ASSERT_EQUAL_UINT64(2ull, mask.height);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 1.0f, mask.cover[(1u * mask.width) + 1u]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.75f, mask.cover[(1u * mask.width) + 2u]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.25f, mask.cover[(1u * mask.width) + 3u]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.0f, mask.cover[(1u * mask.width) + 4u]);
+}
+
+void test_a_slope_in_the_top_row_covers_each_cell_by_its_area(void)
+{
+    CliMask mask;
+    triangle_rasterized(&mask);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.75f, mask.cover[0]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.25f, mask.cover[1]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 0.0f, mask.cover[2]);
+}
+
 void test_the_system_font_has_a_glyph_for_h(void)
 {
     system_font_read();

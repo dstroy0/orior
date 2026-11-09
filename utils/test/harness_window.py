@@ -267,6 +267,55 @@ def cmd_wheel(a):
     return 0
 
 
+FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) shown (\d+) (\d+) moving (\d+) events (\d+) (\d+) gap (\d+)\s*$")
+
+
+def cmd_scroll(a):
+    """A scroll driven at the window's pace and its frames read back: a press on x, y dragged --moves times by --step
+    pixels down, or across with --across, a --spacing of milliseconds between moves; or with --wheel the wheel turned
+    --moves times by --units of 120 a notch. Then the frames' telemetry lines the window wrote over the run, each with
+    the frames, the draw's mean and most, the events' mean and most and the longest gap between frames shown, in
+    microseconds."""
+    if not windows_only():
+        return 1
+    import time
+
+    import harness_win32 as win
+
+    found = window_of(a.id, None)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    try:
+        offset = os.path.getsize(WINDOW_ERRORS)
+    except OSError:
+        offset = 0
+    pause = a.spacing / 1000.0
+    if a.wheel:
+        for _ in range(a.moves):
+            win.wheel_units_sent(handle, a.x, a.y, a.units, a.across)
+            time.sleep(pause)
+    else:
+        moved = [(a.x + (a.step * at if a.across else 0), a.y + (0 if a.across else a.step * at))
+                 for at in range(1, a.moves + 1)]
+        win.pointer_sent(handle, a.x, a.y, True, False)
+        for x, y in moved:
+            win.pointer_sent(handle, x, y, False, False, [(x, y)])
+            time.sleep(pause)
+        win.pointer_sent(handle, moved[-1][0], moved[-1][1], False, True)
+    time.sleep(2.5)
+    with open(WINDOW_ERRORS, "rb") as kept:
+        kept.seek(offset)
+        text = kept.read().decode("utf-8", errors="replace")
+    lines = [found.groups() for found in map(FRAMES_LINE.match, text.splitlines()) if found]
+    print("window %d %s %d moves, %d ms apart" % (process_id, "wheel" if a.wheel else "drag", a.moves, a.spacing))
+    print("frames  draw_us mean most  events_us mean most  gap_most_us")
+    for fields in lines:
+        frames, draw, draw_most, _, _, _, events, events_most, gap = (int(field) for field in fields)
+        print("%6d  %9d %6d  %11d %6d  %11d" % (frames, draw, draw_most, events, events_most, gap))
+    return 0
+
+
 def cmd_keymap(a):
     """Every key the harness presses by name, with its virtual key, and the modifiers a chord names before it."""
     if not windows_only():
@@ -360,21 +409,22 @@ def orior_home():
 
 def cmd_session(a):
     """The tree's kept session in orior's state written as given: the tabs in order and the one shown, under the key
-    the window and the page keep it by, the rest of the state left as it stands; or read and printed where no tabs
-    are given."""
+    the window keeps it by, the rest of the state left as it stands; or read and printed where no tabs are given. The
+    window keeps a session as text: the path of the tab shown on the first line, then each tab's path on a line of
+    its own, each from the tree's top."""
     import json
 
     path = os.path.join(orior_home(), "state.json")
-    key = "session." + os.path.normpath(ROOT)
+    key = "window.session." + os.path.normpath(ROOT)
     state = {}
     if os.path.exists(path):
         with open(path, encoding="utf-8") as kept:
             state = json.load(kept)
     if not a.tabs:
-        print(json.dumps(state.get(key), indent=2))
+        print(state.get(key))
         return 0
     active = a.active or a.tabs[-1]
-    state[key] = {"tabs": list(a.tabs), "main": list(a.tabs), "active": active, "split": None, "groups": []}
+    state[key] = "".join(line + "\n" for line in [active] + list(a.tabs))
     with open(path, "w", encoding="utf-8") as kept:
         json.dump(state, kept, indent=2)
     print("kept %d tabs for %s, %s shown, in %s" % (len(a.tabs), ROOT, active, path))
@@ -1494,6 +1544,17 @@ def register(sub):
     p.add_argument("rows", type=int, help="the notches, toward the reader where positive")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_wheel)
+    p = window.add_parser("scroll", help="a drag or a wheel driven at a pace and the window's frame times over it")
+    p.add_argument("x", type=int)
+    p.add_argument("y", type=int)
+    p.add_argument("--wheel", action="store_true", help="the wheel turned in place of a drag")
+    p.add_argument("--across", action="store_true", help="the drag or the wheel runs across, not down")
+    p.add_argument("--moves", type=int, default=120, help="the moves or the wheel's turns")
+    p.add_argument("--step", type=int, default=4, help="the pixels a drag's move goes")
+    p.add_argument("--units", type=int, default=40, help="the wheel's units a turn, 120 a notch")
+    p.add_argument("--spacing", type=float, default=4.0, help="the milliseconds between moves or turns")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_scroll)
     p = window.add_parser("keymap", help="every key the keys command presses by name, with its virtual key")
     p.set_defaults(fn=cmd_keymap)
     p = window.add_parser("click", help="a press of the pointer posted to the window at a pixel of its client, dragged and released")

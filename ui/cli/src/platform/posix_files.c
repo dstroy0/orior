@@ -12,7 +12,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -23,12 +22,39 @@ unsigned int cli_system_error(void)
     return (unsigned int)errno;
 }
 
+// An errno value and its standard name, as <errno.h> defines it
+typedef struct
+{
+    int number;
+    const char *name;
+} PosixErrorName;
+
+// The errno values a file, a folder, a pipe or a process call reports, each by its standard name
+static const PosixErrorName s_error_names[] = {
+    {EPERM, "EPERM"},     {ENOENT, "ENOENT"},   {ESRCH, "ESRCH"},       {EINTR, "EINTR"},
+    {EIO, "EIO"},         {ENXIO, "ENXIO"},     {E2BIG, "E2BIG"},       {ENOEXEC, "ENOEXEC"},
+    {EBADF, "EBADF"},     {ECHILD, "ECHILD"},   {EAGAIN, "EAGAIN"},     {ENOMEM, "ENOMEM"},
+    {EACCES, "EACCES"},   {EFAULT, "EFAULT"},   {EBUSY, "EBUSY"},       {EEXIST, "EEXIST"},
+    {EXDEV, "EXDEV"},     {ENODEV, "ENODEV"},   {ENOTDIR, "ENOTDIR"},   {EISDIR, "EISDIR"},
+    {EINVAL, "EINVAL"},   {ENFILE, "ENFILE"},   {EMFILE, "EMFILE"},     {ETXTBSY, "ETXTBSY"},
+    {EFBIG, "EFBIG"},     {ENOSPC, "ENOSPC"},   {ESPIPE, "ESPIPE"},     {EROFS, "EROFS"},
+    {EMLINK, "EMLINK"},   {EPIPE, "EPIPE"},     {ERANGE, "ERANGE"},     {ENAMETOOLONG, "ENAMETOOLONG"},
+    {ENOTEMPTY, "ENOTEMPTY"}, {ELOOP, "ELOOP"}, {ETIMEDOUT, "ETIMEDOUT"}, {ECONNREFUSED, "ECONNREFUSED"},
+};
+
 void cli_system_reason(const CliErrorCtx *args)
 {
     mmgr_line_put(args->err_msg, ": ");
-    // an error number from errno is a small int
-    mmgr_line_put(args->err_msg, strerror((int)args->error));
-    mmgr_line_put(args->err_msg, " (os error ");
+    for (unsigned int at = 0u; at < (sizeof(s_error_names) / sizeof(s_error_names[0])); at += 1u)
+    {
+        // an error number from errno is a small int
+        if (s_error_names[at].number == (int)args->error)
+        {
+            mmgr_line_put(args->err_msg, s_error_names[at].name);
+            mmgr_line_ch(args->err_msg, ' ');
+        }
+    }
+    mmgr_line_put(args->err_msg, "(os error ");
     mmgr_line_decimal(args->err_msg, args->error, 1u);
     mmgr_line_ch(args->err_msg, ')');
 }

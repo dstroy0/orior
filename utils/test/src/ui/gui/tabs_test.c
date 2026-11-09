@@ -72,6 +72,18 @@ int main(void)
     const GuiRect changed_mark = {changed.x + left, changed.y, (int)roundf(mark), changed.height};
     cli_check(colored(&raster, changed_mark, palette->hover), "the mark stands before a changed tab's name in the hover's color");
     cli_check(!colored(&raster, plain_mark, palette->hover), "a tab as it opened has no mark");
+    // the tabs stand in one strip, and the row is a window on it that the slide moves left over the strip
+    const int whole = EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame);
+    cli_check(whole == (waiting.x + waiting.width) - frame.tabs.x, "the strip is as wide as the tabs from the row's left edge");
+    frame.tabs_left = 30;
+    const GuiRect slid = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    cli_check((slid.x == changed.x - 30) && (slid.width == changed.width), "a slide moves each tab left by its pixels and keeps its width");
+    cli_check(EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame) == whole, "a slide keeps the strip's width");
+    unsigned int hit_at = 9u;
+    int hit_closing = 0;
+    cli_check(EMBED_CALL(gui_tabs_glyphs_frame_count.hit, GuiTabsGlyphsFrameCountCfg, .glyphs = &glyphs, .frame = &frame, .x = slid.x + 2, .y = slid.y + 2, .at_pointer = &hit_at, .closing = &hit_closing) && (hit_at == 1u),
+              "a press finds the tab where the slide put it");
+    frame.tabs_left = 0;
     // halfway through the claim the row stands whole, risen by half out of the work's head, each tab with it
     GuiAutohideNumbers numbers = frame.claim;
     numbers.claim = GUI_FIXED_ONE / 2;

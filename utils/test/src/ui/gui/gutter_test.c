@@ -10,8 +10,6 @@
 #include "../../../../../ui/cli/src/view/parts/gutter.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 static const char s_key[] = "gutter_check";
 static const char s_head[] = "one\ntwo\nthree\nfour\nfive\nsix\n";
 
@@ -83,6 +81,9 @@ int main(void)
 
     // the text read again against itself: no change and no mark
     EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = s_key, .text = s_now, .size = sizeof(s_now) - 1u);
+    // the editor's ground is see-through: a frame starts clear, as the window's frame starts from the ground
+    memor.set(&(MemoriaCfg){.dst = raster.pixels, .val = 0,
+                            .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
     EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &editor, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .place = place, .scale = 100);
     cli_check(pixel_at(&raster, column, (1 * GUI_CODE_LINE) + (GUI_CODE_LINE / 2)) == plain,

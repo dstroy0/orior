@@ -68,11 +68,11 @@ int main(void)
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2300ull, .numbers = &numbers);
     cli_check(adjacent(numbers.reveal_top, 0) && adjacent(numbers.grown_top, 0), "the reveal begins at 0 and the slat ungrown");
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2450ull, .numbers = &numbers);
-    cli_check((numbers.reveal_top > (3 * GUI_FIXED_ONE / 10)) && adjacent(numbers.grown_top, numbers.reveal_top) && adjacent(numbers.inset_top, 0),
-              "the slat grows with the reveal while the capacity waits a slide");
+    cli_check((numbers.reveal_top > (3 * GUI_FIXED_ONE / 10)) && adjacent(numbers.grown_top, numbers.reveal_top) && (numbers.inset_top == numbers.reveal_top),
+              "the slat grows with the reveal and the work gives way with it, both at one place");
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2900ull, .numbers = &numbers);
     cli_check(adjacent(numbers.reveal_top, GUI_FIXED_ONE) && adjacent(numbers.inset_top, GUI_FIXED_ONE) && adjacent(numbers.reveal_down, GUI_FIXED_ONE),
-              "a slide after the reveal the capacity is taken and the controls stand whole");
+              "as the reveal ends the capacity is taken and the controls stand whole");
 
     // the pointer leaves the part: a linger, then the part goes
     g_test_clock_ms = 3000ull;
@@ -116,7 +116,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &claim) && (claim.displayed == GUI_AUTOHIDE_BOTTOM), "a slide later the foot's part comes");
     cli_check(claim.pulled_bottom == 500, "the foot's slat is pulled from the rest");
 
-    // the controls' ghost shows as the pointer slows in their corner
+    // the controls come the whole way down as the pointer slows in their corner
     g_test_clock_ms = 7000ull;
     EMBED_CALL(gui_autohide_on.set, GuiAutohideOnCfg, .claim = &claim, .on = 0);
     cli_check(!claim.autohidden && (claim.displayed == GUI_AUTOHIDE_NONE), "the claim let go takes every part back");
@@ -124,16 +124,13 @@ int main(void)
     EMBED_CALL(gui_autohide_on.set, GuiAutohideOnCfg, .claim = &claim, .on = 1);
     g_test_clock_ms = 8000ull;
     EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &claim, .x = 950, .y = 10, .zone = GUI_AUTOHIDE_CONTROLS, .over_parts = 0);
-    cli_check(!claim.adjacent && (claim.preview_deadline_ms == 8000ull + (2ull * GUI_AUTOHIDE_TRAIL_WINDOW_MS)), "a pointer come fast into the controls' corner waits to settle");
+    cli_check((claim.preview_deadline_ms == 8000ull + (2ull * GUI_AUTOHIDE_TRAIL_WINDOW_MS)), "a pointer come fast into the controls' corner waits to settle");
     g_test_clock_ms = 8020ull;
     EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &claim, .x = 950, .y = 10, .zone = GUI_AUTOHIDE_CONTROLS, .over_parts = 0);
-    cli_check(claim.adjacent, "a pointer slow in the controls' corner shows their ghost at once");
-    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 8300ull, .numbers = &numbers);
-    cli_check(adjacent(numbers.reveal_down, GUI_AUTOHIDE_GHOST_DOWN) && adjacent(numbers.controls_alpha, GUI_AUTOHIDE_GHOST_ALPHA),
-              "the ghost stands part of the way down, faint");
-    g_test_clock_ms = 8300ull;
-    cli_check(EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &claim) && (claim.displayed == GUI_AUTOHIDE_CONTROLS), "the rest in the corner reveals the controls");
-    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 8700ull, .numbers = &numbers);
+    cli_check((claim.displayed == GUI_AUTOHIDE_CONTROLS), "a pointer slow in the controls' corner brings the controls at once, with no ghost");
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 8120ull, .numbers = &numbers);
+    cli_check((numbers.reveal_down > 0) && (numbers.reveal_down < GUI_FIXED_ONE), "the controls slide down in one motion");
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 8020ull + GUI_AUTOHIDE_ANIMATION_MS, .numbers = &numbers);
     cli_check(adjacent(numbers.reveal_down, GUI_FIXED_ONE) && adjacent(numbers.controls_alpha, GUI_FIXED_ONE) && adjacent(numbers.reveal_top, 0),
               "the controls come the whole way down alone, the bar staying away");
     g_test_clock_ms = 9000ull;
@@ -141,7 +138,20 @@ int main(void)
     g_test_clock_ms = 9300ull;
     cli_check(EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &claim) && (claim.displayed == GUI_AUTOHIDE_TOP), "the bar comes under the controls without waiting for them to go");
     EMBED_CALL(cli_autohide_still.leave, GuiAutohideStillCfg, .claim = &claim);
-    cli_check((claim.show_deadline_ms == 0ull) && (claim.zone_now == GUI_AUTOHIDE_NONE) && !claim.adjacent, "the pointer gone out of the window leaves nothing waiting on its rest");
+    cli_check((claim.show_deadline_ms == 0ull) && (claim.zone_now == GUI_AUTOHIDE_NONE), "the pointer gone out of the window leaves nothing waiting on its rest");
+    g_test_clock_ms = 10000ull;
+    EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &claim, .x = 2, .y = 300, .zone = GUI_AUTOHIDE_LEFT, .over_parts = 0);
+    g_test_clock_ms = 10016ull;
+    EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &claim, .x = 4, .y = 301, .zone = GUI_AUTOHIDE_LEFT, .over_parts = 0);
+    cli_check(claim.show_deadline_ms == 10000ull + GUI_AUTOHIDE_SHOW_DELAY_MS, "a resting hand's tremor in the band keeps the rest going");
+    EMBED_CALL(cli_autohide_still.leave, GuiAutohideStillCfg, .claim = &claim);
+    cli_check((claim.show_deadline_ms == 10000ull + GUI_AUTOHIDE_SHOW_DELAY_MS) && (claim.show_zone == GUI_AUTOHIDE_LEFT),
+              "a pointer gone out of the window through an edge's band keeps that edge's rest");
+    g_test_clock_ms = 10300ull;
+    cli_check(EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &claim) && (claim.waiting == GUI_AUTOHIDE_LEFT),
+              "the rest kept past the edge sends the bar away first");
+    g_test_clock_ms = 10300ull + GUI_AUTOHIDE_ANIMATION_MS;
+    cli_check(EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &claim) && (claim.displayed == GUI_AUTOHIDE_LEFT), "a slide later the edge's part comes");
 
     // less motion asked for: a slide stands at once where it is bound, a part's rest still counted before it comes
     EMBED_CALL(cli_autohide_still.init, GuiAutohideStillCfg, .claim = &claim);

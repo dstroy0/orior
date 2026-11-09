@@ -65,6 +65,8 @@ struct GuiSystem
     int least_height;
     // the window a modal window disables while it stands, NULL for a window that is not modal
     HWND modal_owner;
+    // the wheel's units turned down that add up to no whole notch yet, kept for the next turn's count of rows
+    int wheel_rest;
 };
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
@@ -862,10 +864,22 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case WM_MOUSEWHEEL: {
         POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
         ScreenToClient(window, &at);
-        // a notch is WHEEL_DELTA, positive away from the user, which scrolls up
-        const int notches = -GET_WHEEL_DELTA_WPARAM(pixel_width) / WHEEL_DELTA;
+        // A notch is WHEEL_DELTA, positive away from the user, which scrolls up. A touchpad and a free wheel send
+        // parts of a notch. The parts add up in the rest, and a whole notch counts its rows
+        const int down = -GET_WHEEL_DELTA_WPARAM(pixel_width);
+        system->wheel_rest += down;
+        const int notches = system->wheel_rest / WHEEL_DELTA;
+        system->wheel_rest -= notches * WHEEL_DELTA;
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
-                   .input = GUI_WHEEL_INPUT(at.x, at.y, notches * GUI_WHEEL_ROWS));
+                   .input = GUI_WHEEL_INPUT(at.x, at.y, notches * GUI_WHEEL_ROWS, down, 0));
+        return 0;
+    }
+    case WM_MOUSEHWHEEL: {
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        // the sideways wheel, positive to the right; it turns no rows
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = GUI_WHEEL_INPUT(at.x, at.y, 0, 0, GET_WHEEL_DELTA_WPARAM(pixel_width)));
         return 0;
     }
     case GUI_WAKE_MESSAGE:

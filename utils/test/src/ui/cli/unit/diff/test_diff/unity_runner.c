@@ -74,12 +74,12 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\diff\\test_diff\\test_diff.c");
-  run_test(test_the_same_text_has_no_change, "test_the_same_text_has_no_change", 80);
-  run_test(test_a_line_changed_is_one_change_of_one_line_for_one, "test_a_line_changed_is_one_change_of_one_line_for_one", 87);
-  run_test(test_a_line_put_in_and_one_taken_out_are_two_changes, "test_a_line_put_in_and_one_taken_out_are_two_changes", 96);
-  run_test(test_an_older_text_of_one_empty_line_is_one_change_putting_every_new_line_in, "test_an_older_text_of_one_empty_line_is_one_change_putting_every_new_line_in", 106);
-  run_test(test_lines_that_hash_alike_and_differ_are_told_apart, "test_lines_that_hash_alike_and_differ_are_told_apart", 114);
-  run_test(test_texts_too_far_apart_are_refused, "test_texts_too_far_apart_are_refused", 130);
+  run_test(test_the_same_text_has_no_change, "test_the_same_text_has_no_change", 78);
+  run_test(test_a_line_changed_is_one_change_of_one_line_for_one, "test_a_line_changed_is_one_change_of_one_line_for_one", 85);
+  run_test(test_a_line_put_in_and_one_taken_out_are_two_changes, "test_a_line_put_in_and_one_taken_out_are_two_changes", 94);
+  run_test(test_an_older_text_of_one_empty_line_is_one_change_putting_every_new_line_in, "test_an_older_text_of_one_empty_line_is_one_change_putting_every_new_line_in", 104);
+  run_test(test_lines_that_hash_alike_and_differ_are_told_apart, "test_lines_that_hash_alike_and_differ_are_told_apart", 112);
+  run_test(test_texts_too_far_apart_are_refused, "test_texts_too_far_apart_are_refused", 128);
 
   return UNITY_END();
 }

@@ -53,7 +53,8 @@ typedef struct
 
 // A raster: its size and its pixels, row after row with no gap, in a cell of the cellblock; and where its pixels are
 // a framebuffer's, the pages they lie in, the bytes of those pages and how far into them the pixels start, the pages
-// NULL for any other raster
+// NULL for any other raster. Last, the part a frame writes: an empty clip lets the frame write the whole raster, and a
+// clip that is not empty stops every write outside it
 typedef struct
 {
     unsigned int width;
@@ -62,6 +63,7 @@ typedef struct
     void *pages;
     unsigned long long pages_bytes;
     unsigned long long positioned;
+    GuiRect clip;
 } GuiRaster;
 
 // the pixels a frame's row is laid in: its width rounded up to GUI_RASTER_PITCH, which lays every row on a 256-byte

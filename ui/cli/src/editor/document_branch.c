@@ -1855,6 +1855,15 @@ void cli_document_wake(const CliDocumentCtx *args)
     }
 }
 
+void cli_document_colored_wake(void)
+{
+    const CliDocColored colored = s_colored;
+    if (colored != NULL)
+    {
+        colored();
+    }
+}
+
 void cli_document_colors_to(const CliDocumentColoredCfg *args)
 {
     const unsigned int reserve = cli_processors() - 1u;

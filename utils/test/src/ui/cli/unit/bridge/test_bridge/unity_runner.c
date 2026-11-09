@@ -14,7 +14,7 @@ extern void test_a_key_with_no_pair_has_none(void);
 extern void test_a_line_under_no_pair_belongs_to_the_key(void);
 extern void test_a_map_names_its_language(void);
 extern void test_a_name_and_its_key_are_read_separately(void);
-extern void test_a_name_stores_its_kind(void);
+extern void test_a_name_stores_its_type(void);
 extern void test_a_name_stores_what_it_breaks(void);
 extern void test_the_trees_lstar_file_contains_lane_open(void);
 extern void test_the_trees_cu_map_names_lane_open(void);
@@ -87,7 +87,7 @@ int main(void)
   run_test(test_a_line_under_no_pair_belongs_to_the_key, "test_a_line_under_no_pair_belongs_to_the_key", 108);
   run_test(test_a_map_names_its_language, "test_a_map_names_its_language", 114);
   run_test(test_a_name_and_its_key_are_read_separately, "test_a_name_and_its_key_are_read_separately", 119);
-  run_test(test_a_name_stores_its_kind, "test_a_name_stores_its_kind", 124);
+  run_test(test_a_name_stores_its_type, "test_a_name_stores_its_type", 124);
   run_test(test_a_name_stores_what_it_breaks, "test_a_name_stores_what_it_breaks", 130);
   run_test(test_the_trees_lstar_file_contains_lane_open, "test_the_trees_lstar_file_contains_lane_open", 136);
   run_test(test_the_trees_cu_map_names_lane_open, "test_the_trees_cu_map_names_lane_open", 142);

@@ -11,6 +11,8 @@ extern void test_a_square_of_four_draws_five_by_four(void);
 extern void test_a_pixel_inside_is_fully_covered(void);
 extern void test_a_pixel_end_the_edge_is_not_covered(void);
 extern void test_a_pixel_halved_by_the_edge_is_half_covered(void);
+extern void test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area(void);
+extern void test_a_slope_in_the_top_row_covers_each_cell_by_its_area(void);
 extern void test_the_system_font_has_a_glyph_for_h(void);
 extern void test_the_system_font_is_monospace(void);
 extern void test_h_draws_ink_and_not_everywhere(void);
@@ -81,11 +83,13 @@ int main(void)
   run_test(test_a_pixel_inside_is_fully_covered, "test_a_pixel_inside_is_fully_covered", 71);
   run_test(test_a_pixel_end_the_edge_is_not_covered, "test_a_pixel_end_the_edge_is_not_covered", 78);
   run_test(test_a_pixel_halved_by_the_edge_is_half_covered, "test_a_pixel_halved_by_the_edge_is_half_covered", 85);
-  run_test(test_the_system_font_has_a_glyph_for_h, "test_the_system_font_has_a_glyph_for_h", 92);
-  run_test(test_the_system_font_is_monospace, "test_the_system_font_is_monospace", 98);
-  run_test(test_h_draws_ink_and_not_everywhere, "test_h_draws_ink_and_not_everywhere", 104);
-  run_test(test_a_character_the_font_lacks_has_no_glyph, "test_a_character_the_font_lacks_has_no_glyph", 120);
-  run_test(test_an_accented_character_has_an_outline, "test_an_accented_character_has_an_outline", 126);
+  run_test(test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area, "test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area", 107);
+  run_test(test_a_slope_in_the_top_row_covers_each_cell_by_its_area, "test_a_slope_in_the_top_row_covers_each_cell_by_its_area", 118);
+  run_test(test_the_system_font_has_a_glyph_for_h, "test_the_system_font_has_a_glyph_for_h", 127);
+  run_test(test_the_system_font_is_monospace, "test_the_system_font_is_monospace", 133);
+  run_test(test_h_draws_ink_and_not_everywhere, "test_h_draws_ink_and_not_everywhere", 139);
+  run_test(test_a_character_the_font_lacks_has_no_glyph, "test_a_character_the_font_lacks_has_no_glyph", 155);
+  run_test(test_an_accented_character_has_an_outline, "test_an_accented_character_has_an_outline", 161);
 
   return UNITY_END();
 }

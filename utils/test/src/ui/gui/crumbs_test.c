@@ -10,8 +10,6 @@
 #include "../../../../../ui/cli/src/view/parts/crumbs.h"
 #include "../cli/cli_check.h"
 
-#include <string.h>
-
 static const char s_key[] = "crumbs_check";
 static const char s_path[] = "src/code/a.py";
 static const char s_text[] = "import os\n"
@@ -29,7 +27,7 @@ static void file_written(const char *root, const char *relative, const char *tex
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = relative, .joined = path);
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                         .size = strlen(text)),
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})),
               relative);
 }
 
@@ -38,7 +36,8 @@ static int crumb_is(unsigned int at, unsigned int type, const char *text)
 {
     CliCrumbRow row;
     return EMBED_CALL(cli_crumbs.row, CliCrumbsCfg, .at = at, .row = &row) && (row.type == type) &&
-           (row.length == strlen(text)) && (memcmp(row.text, text, row.length) == 0);
+           (row.length == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = row.text, .other = text, .bytes = row.length}) == 0);
 }
 
 int main(void)
@@ -119,13 +118,22 @@ int main(void)
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&count)) != NULL) && (count == 2u) &&
-                  (strcmp(rows[0].command, "file-open") == 0) && (strcmp(rows[0].args, "src/code/a.py") == 0) &&
-                  (strcmp(rows[1].args, "src/code/b.py") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src/code/a.py", .other_cap = 14u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[1].args, .cap = CLI_POOL_BYTES, .other = "src/code/b.py", .other_cap = 14u}),
               "a folder's crumb lists its entries, each opening its path");
     cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&count)) != NULL) && (count == 2u) &&
-                  (strcmp(rows[0].command, "symbol-go") == 0) && (strcmp(rows[0].label, "put") == 0) &&
-                  (strcmp(rows[1].label, "take") == 0) && (strcmp(rows[1].args, "6") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "symbol-go", .other_cap = 10u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "put", .other_cap = 4u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[1].label, .cap = CLI_POOL_BYTES, .other = "take", .other_cap = 5u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = rows[1].args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
               "a declaration's crumb lists those beside it, each going to its line");
 
     // the setting off: nothing laid and the row's x unmoved

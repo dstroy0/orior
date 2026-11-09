@@ -507,6 +507,7 @@ WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_SYSKEYDOWN, WM_SYSKEYUP = 0x0100, 0x0101, 0x01
 # a release
 KEY_EXTENDED, KEY_ALT_DOWN, KEY_WAS_DOWN, KEY_RELEASING = 1 << 24, 1 << 29, 1 << 30, 1 << 31
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEWHEEL = 0x0200, 0x0201, 0x0202, 0x020A
+WM_MOUSEHWHEEL = 0x020E
 MK_LBUTTON = 0x0001
 WHEEL_DELTA = 120
 # each button's press and release, and its bit among the buttons down a move names
@@ -698,6 +699,18 @@ def wheel_sent(handle, x, y, rows):
     user32.ClientToScreen(handle, ctypes.byref(point))
     delta = (-rows * WHEEL_DELTA) & 0xFFFF
     user32.PostMessageW(handle, WM_MOUSEWHEEL, delta << 16, ((point.y & 0xFFFF) << 16) | (point.x & 0xFFFF))
+    return True
+
+
+def wheel_units_sent(handle, x, y, units, across=False):
+    """The wheel turned at x, y of the window's client by `units` of WHEEL_DELTA's 120 a notch, toward the reader
+    where positive, as a touchpad or a free wheel sends parts of a notch; `across` turns the sideways wheel, to the
+    right where positive."""
+    point = wintypes.POINT(x, y)
+    user32.ClientToScreen(handle, ctypes.byref(point))
+    message = WM_MOUSEHWHEEL if across else WM_MOUSEWHEEL
+    delta = ((units if across else -units)) & 0xFFFF
+    user32.PostMessageW(handle, message, delta << 16, ((point.y & 0xFFFF) << 16) | (point.x & 0xFFFF))
     return True
 
 

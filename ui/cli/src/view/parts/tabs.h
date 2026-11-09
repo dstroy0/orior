@@ -30,12 +30,16 @@ typedef struct GuiTabsCfg GuiTabsCfg;
 #define GUI_TAB_CLEAR 3
 // the space between one tab's box and the next
 #define GUI_TAB_SPACE 2
+// the pixels the tabs row moves for an arrow of its scrollbar and for one step of the wheel
+#define GUI_TABS_STEP 40
 
 // the name the tab `at` shows, the last part of its file's path, its length into `length`
 const char *gui_tab_name(const GuiTabsCfg *args);
 // the rectangle of the tab `at` in the frame's tabs row, and its close mark's
 GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args);
 GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args);
+// the width of the strip of all tabs, from the row's left edge with the strip at its start, in pixels; `at` is not read
+int gui_tabs_whole(const GuiTabsGlyphsCfg *args);
 // the tab at x, y: 1 with its place into `at` and whether the pixel stands on its close mark into `closing`, else 0
 int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
 // the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one shown on its
@@ -85,11 +89,13 @@ typedef struct
 {
     GuiRect (*tab_rect)(const GuiTabsGlyphsCfg *args);
     GuiRect (*tab_close_rect)(const GuiTabsGlyphsCfg *args);
+    int (*whole)(const GuiTabsGlyphsCfg *args);
 } GuiTabsGlyphsNs;
-EMBED_TABLE_LAYOUT(GuiTabsGlyphsNs, tab_rect, tab_close_rect);
+EMBED_TABLE_LAYOUT(GuiTabsGlyphsNs, tab_rect, tab_close_rect, whole);
 EMBED_TABLE_STORAGE GuiTabsGlyphsNs gui_tabs_glyphs EMBED_UNUSED = {
     .tab_rect = gui_tab_rect,
     .tab_close_rect = gui_tab_close_rect,
+    .whole = gui_tabs_whole,
 };
 
 typedef struct

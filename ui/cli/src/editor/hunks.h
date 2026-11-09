@@ -38,6 +38,9 @@ typedef struct
 // gone. How many changes stand; and the change the line `line` stands in, or for lines taken out the line above them,
 // its mark into `mark_out` where it is not NULL: its place, or CLI_HUNKS_NONE with CLI_HUNKS_MARK_NONE
 void cli_hunks_read(const CliHunksCfg *args);
+// The read cli_hunks_read does, lined up for a worker. The call returns at once, and a key new to the changes shows
+// none until the worker's answer comes. The view thread takes the answer as it next asks how many changes stand
+void cli_hunks_read_later(const CliHunksCfg *args);
 unsigned int cli_hunks_count(const CliHunksCfg *args);
 unsigned int cli_hunks_at_line(const CliHunksCfg *args);
 // the change the line `line` stands in shown: 1, or 0 where it stands in none; the change `by` changes on from the one
@@ -84,6 +87,7 @@ struct CliHunksCfg
 typedef struct
 {
     void (*read)(const CliHunksCfg *args);
+    void (*read_later)(const CliHunksCfg *args);
     unsigned int (*count)(const CliHunksCfg *args);
     unsigned int (*at_line)(const CliHunksCfg *args);
     int (*show)(const CliHunksCfg *args);
@@ -96,9 +100,11 @@ typedef struct
     unsigned int (*row_count)(const CliHunksCfg *args);
     int (*row)(const CliHunksCfg *args);
 } CliHunksNs;
-EMBED_TABLE_LAYOUT(CliHunksNs, read, count, at_line, show, step, revert, close, key, title, settled, row_count, row);
+EMBED_TABLE_LAYOUT(CliHunksNs, read, read_later, count, at_line, show, step, revert, close, key, title, settled,
+                   row_count, row);
 EMBED_TABLE_STORAGE CliHunksNs cli_hunks EMBED_UNUSED = {
     .read = cli_hunks_read,
+    .read_later = cli_hunks_read_later,
     .count = cli_hunks_count,
     .at_line = cli_hunks_at_line,
     .show = cli_hunks_show,

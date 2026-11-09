@@ -9,10 +9,9 @@
 // file
 #include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/cli/src/view/parts/git.h"
 #include "../cli/cli_check.h"
-
-#include <string.h>
 
 static char s_root[CLI_PATH_MAX_LEN];
 
@@ -21,15 +20,19 @@ static void file_written(const char *relative, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = relative, .joined = path);
-    char *const slash = strrchr(path, '/');
-    if (slash != NULL)
+    // the place past the path's last slash, 0 where it has none
+    const unsigned long long past_slash = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                     .text = path,
+                                                     .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}),
+                                                     .set = "/");
+    if (past_slash != 0ULL)
     {
-        slash[0] = '\0';
+        path[past_slash - 1ULL] = '\0';
         (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path);
-        slash[0] = '/';
+        path[past_slash - 1ULL] = '/';
     }
     cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
-                         .size = strlen(text)),
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})),
               relative);
 }
 
@@ -62,13 +65,15 @@ static int row_is(unsigned int at, unsigned int type, const char *text, CliGitLo
     {
         return 0;
     }
-    return (row->text_length == strlen(text)) && (strncmp(row->text, text, row->text_length) == 0);
+    return (row->text_length == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = row->text, .other = text, .bytes = row->text_length}) == 0);
 }
 
 // whether the row's second text reads `text`
 static int second_is(const CliGitLogRow *row, const char *text)
 {
-    return (row->second_length == strlen(text)) && (strncmp(row->second, text, row->second_length) == 0);
+    return (row->second_length == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})) &&
+           (memor.cmp(&(MemoriaCfg){.src = row->second, .other = text, .bytes = row->second_length}) == 0);
 }
 
 int main(void)
@@ -115,14 +120,15 @@ int main(void)
     cli_check(row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && !row.open && !row.merge &&
                   (row.lane_at == 0u) && (row.across == 1u) && (row.second_length == 0ULL) && (row.refs >= 1u),
               "the newest commit stands first in the first column, closed, with no author shown and a name at it");
-    cli_check((strlen(row.day) == CLI_GIT_LOG_DAY - 1u) && (row.day[4] == '-') && (row.day[7] == '-') &&
+    cli_check((cellul.len(&(CatenaFinitaCfg){.src = row.day, .cap = CLI_GIT_LOG_DAY}) == CLI_GIT_LOG_DAY - 1u) && (row.day[4] == '-') && (row.day[7] == '-') &&
                   (row.day[0] == '2'),
               "the commit's day reads as a year, a month and a day");
     cli_check((row.strokes == 1u) && (row.stroke[0][0] == 0u) && (row.stroke[0][1] == 0u) && (row.stroke[0][2] == 1u),
               "the newest commit's one stroke runs down its column from the middle to its parent");
     CliGitLogRef ref;
     cli_check(EMBED_CALL(cli_git_log.ref, CliGitLogCfg, .at = 1u, .which = 0u, .ref = &ref) && ref.head && !ref.tag &&
-                  (ref.length == strlen(branch)) && (strncmp(ref.name, branch, ref.length) == 0),
+                  (ref.length == cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = sizeof(branch)})) &&
+                  (memor.cmp(&(MemoriaCfg){.src = ref.name, .other = branch, .bytes = ref.length}) == 0),
               "the branch's name stands at the newest commit with HEAD");
     cli_check(!EMBED_CALL(cli_git_log.ref, CliGitLogCfg, .at = 1u, .which = row.refs, .ref = &ref),
               "no name stands past the commit's last");
@@ -136,7 +142,7 @@ int main(void)
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open,
               "the newest commit opened lists the one file it changed under it");
     cli_check(row_is(2u, CLI_GIT_LOG_ROW_FILE, "a.txt", &row) && (row.state == 'M') && (row.second_length == 0ULL) &&
-                  (strcmp(row.path, "a.txt") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){.src = row.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
               "the file changed carries its name, state and path, in no folder");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 3u, .root = s_root);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 6u,
@@ -144,7 +150,8 @@ int main(void)
     cli_check(row_is(4u, CLI_GIT_LOG_ROW_FILE, "a.txt", &row) && (row.state == 'A'),
               "the first file added carries its state");
     cli_check(row_is(5u, CLI_GIT_LOG_ROW_FILE, "b.txt", &row) && (row.state == 'A') && (row.second_length == 3ULL) &&
-                  (strcmp(row.path, "sub/b.txt") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = row.path, .cap = CLI_POOL_BYTES, .other = "sub/b.txt", .other_cap = 10u}),
               "the deeper file added carries its folder");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     cli_check((EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 5u) &&
@@ -154,7 +161,10 @@ int main(void)
     cli_check(EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u) == 0ULL, "no change waits before typing");
     EMBED_CALL(cli_git_log.type, CliGitLogCfg, .text = "second", .size = 6ULL, .now_ms = 1000ULL);
     unsigned long long length = 0ULL;
-    cli_check((strcmp(EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length), "second") == 0) &&
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length),
+                                           .cap = CLI_POOL_BYTES,
+                                           .other = "second",
+                                           .other_cap = 7u}) &&
                   (length == 6ULL),
               "the text typed is the query");
     cli_check(EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u) == 1000ULL + CLI_GIT_LOG_REST_MS,
@@ -228,7 +238,10 @@ int main(void)
     cli_check(pane.keys, "the field pressed takes the keys");
     cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "first", .length = 5ULL,
                          .root = s_root) &&
-                  (strcmp(EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length), "first") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length),
+                                               .cap = CLI_POOL_BYTES,
+                                               .other = "first",
+                                               .other_cap = 6u}),
               "text typed while the field has the keys reaches the query");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape", .root = s_root) &&
                   !pane.keys,
@@ -246,28 +259,44 @@ int main(void)
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 4u) &&
-                  (strcmp(rows[0].label, "Open Files") == 0) && (strcmp(rows[0].command, "commit-files") == 0) &&
-                  (strcmp(rows[0].args, id) == 0) && rows[1].line &&
-                  (strcmp(rows[2].command, "commit-copy-id") == 0) &&
-                  (strcmp(rows[3].command, "commit-copy-message") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open Files", .other_cap = 11u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "commit-files", .other_cap = 13u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = id, .other_cap = sizeof(id)}) &&
+                  rows[1].line &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "commit-copy-id", .other_cap = 15u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[3].command, .cap = CLI_POOL_BYTES, .other = "commit-copy-message", .other_cap = 20u}),
               "a closed commit's menu opens its files and copies its id and message");
     cli_check(EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = id, .root = s_root) &&
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open &&
                   EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (strcmp(rows[0].label, "Close Files") == 0),
+                  ((rows = cli_menus_own_rows(&built)) != NULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Close Files", .other_cap = 12u}),
               "the commit opened by its id has its menu close its files");
     cli_check(!EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = "0000000", .root = s_root),
               "an id the graph has not opens nothing");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 1u) &&
-                  (strcmp(rows[0].command, "file-copy-path") == 0) && (strcmp(rows[0].args, "a.txt") == 0),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
               "a file's menu copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 0u, .root = s_root),
               "the branch's row has no menu");
     char message_text[1024];
     VerbaLinea message = {message_text, sizeof(message_text), 0ULL};
     cli_check(EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = id, .out = &message, .root = s_root) &&
-                  mmgr_line_finish(&message) && (strncmp(message_text, "second commit", 13u) == 0),
+                  mmgr_line_finish(&message) &&
+                  cellul.starts(&(CatenaFinitaCfg){.src = message_text,
+                                                   .cap = sizeof(message_text),
+                                                   .other = "second commit",
+                                                   .other_cap = 14u}),
               "the commit's message is read by its id");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     const GuiRect first =
@@ -293,7 +322,8 @@ int main(void)
               "the first commit's row pressed closes its files and opens no file");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open, .root = s_root) &&
                   EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
-                  (strcmp(open.path, "a.txt") == 0) && !open.placed,
+                  cellul.eq(&(CatenaFinitaCfg){.src = open.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}) &&
+                  !open.placed,
               "the newest commit's row pressed opens its file's row, which pressed opens the file");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open, .root = s_root),
               "the branch's row pressed opens nothing");

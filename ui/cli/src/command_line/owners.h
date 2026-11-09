@@ -20,6 +20,7 @@
     owner_(g_cli_command_line_owner, "cli_command_line")                 \
     owner_(g_cli_comms_owner, "cli_comms")                               \
     owner_(g_cli_compile_owner, "cli_compile_db")                        \
+    owner_(g_cli_coverage_owner, "cli_coverage")                         \
     owner_(g_cli_db_owner, "cli_databases")                              \
     owner_(g_cli_db_pane_owner, "cli_db_pane")                           \
     owner_(g_cli_debug_owner, "cli_debug")                               \

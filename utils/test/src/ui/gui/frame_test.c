@@ -25,8 +25,12 @@ int main(void)
     cli_check(same(frame.work, 44, 41, 1440 - 44 - 12, 920 - 41 - 27), "the work fills what the four leave");
     cli_check(same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the tabs row stands at the work's head inside its padding");
-    cli_check(same(frame.editor, 44 + 1, 41 + 2 + 31, 1440 - 44 - 12 - 3 - 84, 920 - 41 - 27 - 3 - 31),
-              "the editor fills the work under the tabs row, less the map's column");
+    cli_check(same(frame.editor, 44 + 1, 41 + 2 + 31, 1440 - 44 - 12 - 3 - 84 - 10, 920 - 41 - 27 - 3 - 31 - 10),
+              "the editor fills the work under the tabs row, less the map's column and its two scrollbars");
+    cli_check(same(frame.editor_bar, frame.editor.x + frame.editor.width, frame.editor.y, 10, frame.editor.height),
+              "the editor's scrollbar down stands at its right, ten wide, the text's height");
+    cli_check(same(frame.editor_bar_across, frame.editor.x, frame.editor.y + frame.editor.height, frame.editor.width, 10),
+              "the editor's scrollbar across stands at its foot, ten tall, the text's width");
     cli_check(same(frame.map, 1440 - 12 - 2 - 84, 41 + 2 + 31, 84, 920 - 41 - 27 - 3 - 31),
               "the map's column stands at the editor's right, eighty-four wide, the editor's height");
     cli_check(frame.controls.width == (3 * 34) + (2 * 2), "the three controls stand at the bar's right end");
@@ -42,7 +46,7 @@ int main(void)
     cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3),
               "the side shown stands at the inside's left, three hundred and four wide");
     cli_check(same(frame.tabs, 44 + 1 + 304, 41 + 2, 1440 - 44 - 12 - 3 - 304, 31), "the tabs row moves past the side");
-    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304 - 84) &&
+    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304 - 84 - 10) &&
                   (frame.editor.y == 41 + 2 + 31),
               "the editor moves past the side");
     cli_check((frame.map.x == 1440 - 12 - 2 - 84) && (frame.map.width == 84), "the map's column stays at the right");
@@ -57,26 +61,29 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the side taken away gives the tabs row its capacity back");
 
-    // the preview: none while off, the editor's right half beside the text, the editor's whole rectangle alone
-    const GuiRect whole = frame.editor;
+    // The preview: none while off, the right half of the editor's area beside the text, the whole area alone. The area
+    // is the editor's text and its two scrollbars together
+    const GuiRect whole = {frame.editor.x, frame.editor.y, frame.editor.width + frame.editor_bar.width,
+                           frame.editor.height + frame.editor_bar_across.height};
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.preview),
               "no preview stands while it is off");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_BESIDE);
-    cli_check(same(frame.editor, whole.x, whole.y, whole.width - (whole.width / 2), whole.height) &&
+    cli_check(same(frame.editor, whole.x, whole.y, whole.width - (whole.width / 2) - 10, whole.height - 10) &&
                   same(frame.preview, whole.x + whole.width - (whole.width / 2), whole.y, whole.width / 2, whole.height),
-              "beside the text the preview takes the editor's right half and the editor keeps the left");
+              "beside the text the preview takes the area's right half and the editor keeps the left with its scrollbars");
     cli_check(same(frame.map, 1440 - 12 - 2 - 84, 41 + 2 + 31, 84, whole.height), "the map's column stays at the right");
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     cli_check((frame.preview.x + frame.preview.width == whole.x + whole.width) && (frame.editor.x == 44 + 1 + 304) &&
-                  (frame.preview.x == frame.editor.x + frame.editor.width),
-              "a side shown lays the preview again beside the narrower editor");
+                  (frame.preview.x == frame.editor.x + frame.editor.width + frame.editor_bar.width),
+              "a side shown lays the preview again beside the narrower editor and its scrollbar");
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_ALONE);
     cli_check(same(frame.preview, whole.x, whole.y, whole.width, whole.height) && (frame.editor.width == 0) &&
-                  (frame.editor.height == whole.height),
-              "alone the preview fills the editor's rectangle and the editor is left no width");
+                  (frame.editor.height == whole.height) &&
+                  EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.editor_bar),
+              "alone the preview fills the editor's area and the editor is left no width and no scrollbars");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame, .displayed = GUI_FRAME_PREVIEW_OFF);
-    cli_check(same(frame.editor, whole.x, whole.y, whole.width, whole.height) &&
+    cli_check(same(frame.editor, whole.x, whole.y, whole.width - 10, whole.height - 10) &&
                   EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.preview),
               "off again, the editor has its rectangle back");
 
@@ -88,7 +95,7 @@ int main(void)
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240, .away = GUI_FIXED_ONE / 2);
     cli_check(same(frame.terminal_drawn, frame.terminal.x, frame.terminal.y + 7, frame.terminal.width, frame.terminal.height) &&
                   (frame.terminal_views_drawn.y == frame.terminal_views.y + 7) && (frame.terminal_share == GUI_FIXED_ONE / 2) &&
-                  (frame.editor.height == frame.inside.height - 31 - 240),
+                  (frame.editor.height == frame.inside.height - 31 - 240 - 10),
               "halfway through its arrival the panel is drawn seven pixels below its place at half its opacity, the editor laid for its place");
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 0);
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.terminal_drawn),

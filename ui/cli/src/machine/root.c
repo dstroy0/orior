@@ -265,9 +265,15 @@ int cli_inside(const CliRootCtx *args)
         }
         rest = (slash != NULL) ? (slash + 1) : "";
     }
-    else
+    else if (args->root != NULL)
     {
         mmgr_line_put(&line, args->root);
+    }
+    else
+    {
+        // no folder is open, so a path in the tree has no place
+        mmgr_line_put(args->err_msg, "no folder is open in this window");
+        return 0;
     }
     // each part a name or `.`: one that climbs out, or a root of its own, is refused before anything touches the disk
     const int rooted = (rest[0] == '/') || (rest[0] == '\\') || ((rest[0] != '\0') && (rest[1] == ':'));

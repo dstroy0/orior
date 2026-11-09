@@ -10,7 +10,7 @@ extern void test_a_gsm_written_in_pieces_holds_its_bytes(void);
 extern void test_the_seal_adjacent_it_holds_the_root_of_those_bytes(void);
 extern void test_a_markdown_file_is_written_with_no_seal(void);
 extern void test_writing_again_replaces_the_bytes_and_the_root(void);
-extern void test_sealed_kinds_are_g_gsm_and_the_k_files(void);
+extern void test_sealed_types_are_g_gsm_and_the_k_files(void);
 extern void test_a_seal_and_key_files_are_not_sealed(void);
 extern void test_other_names_are_not_sealed(void);
 
@@ -78,7 +78,7 @@ int main(void)
   run_test(test_the_seal_adjacent_it_holds_the_root_of_those_bytes, "test_the_seal_adjacent_it_holds_the_root_of_those_bytes", 75);
   run_test(test_a_markdown_file_is_written_with_no_seal, "test_a_markdown_file_is_written_with_no_seal", 80);
   run_test(test_writing_again_replaces_the_bytes_and_the_root, "test_writing_again_replaces_the_bytes_and_the_root", 92);
-  run_test(test_sealed_kinds_are_g_gsm_and_the_k_files, "test_sealed_kinds_are_g_gsm_and_the_k_files", 101);
+  run_test(test_sealed_types_are_g_gsm_and_the_k_files, "test_sealed_types_are_g_gsm_and_the_k_files", 101);
   run_test(test_a_seal_and_key_files_are_not_sealed, "test_a_seal_and_key_files_are_not_sealed", 108);
   run_test(test_other_names_are_not_sealed, "test_other_names_are_not_sealed", 116);
 

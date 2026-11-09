@@ -7,8 +7,6 @@
 #include "ui/cli/src/command_line/pool.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-#include <string.h>
-
 static const char s_key[] = "view_edits_check";
 static const char s_text[] = "alpha\nbeta\ngamma\n";
 static char s_why[CLI_ERR_MSG_MAX_LEN];

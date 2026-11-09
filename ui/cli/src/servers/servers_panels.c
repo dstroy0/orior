@@ -21,13 +21,12 @@
 #define CLI_PANELS_HOVER_LINGER_MS 300ULL
 #define CLI_PANELS_SIGNATURE_WAIT_MS 120ULL
 #define CLI_PANELS_VIEW_REST_MS 250ULL
-// the most declarations the tree is asked for and the most of them a hover shows; the bytes a word takes; the bytes a
-// server's hover is written in; the lines above the cursor a signature is read from; the bytes of the state they are
-// entered in; and the regions a view's first line is told as standing inside
+// the most declarations the tree is asked for and the most of them a hover shows; the bytes a word takes; the lines
+// above the cursor a signature is read from; the bytes of the state they are entered in; and the regions a view's first
+// line is told as standing inside
 #define CLI_PANELS_DECLARATIONS 200u
 #define CLI_PANELS_HOVER_DECLARATIONS 6u
 #define CLI_PANELS_WORD 256u
-#define CLI_PANELS_ANSWER_CAPACITY (4ULL << 20u)
 #define CLI_PANELS_SIGNATURE_LINES 4000ULL
 #define CLI_PANELS_STATE 1024u
 #define CLI_PANELS_OPENERS 64u
@@ -73,8 +72,8 @@ typedef struct
 // the ask whose answer stands; the hover's Markdown in a cell and the word's place; the list; whether a list is wanted
 // as the next frame places the cursor and whether it was forced open; the signature, when it is asked for, the place it
 // was asked at and whether it is being asked for; the cursor; whether the text changed since the server last took it;
-// when the server is sent where the view rests, whether it was sent, and the view's top, rows and lines then; and the
-// tree and the editor's rows
+// when the server is sent where the view rests, whether it was sent, and the view's top, rows and lines then; when the
+// changed text is read again; the key of the view last opened in its server; and the tree and the editor's rows
 typedef struct
 {
     int pointer_in_text;
@@ -102,51 +101,36 @@ typedef struct
     unsigned long long view_top;
     unsigned int view_rows;
     unsigned long long view_lines;
+    char open_key[CLI_NAME_MAX_LEN];
     const char *root;
     unsigned int rows;
 } Panels;
 
 static Panels s_panels;
 
-// A hover being asked for: the ask it answers; the word, the tree and the path the server has the file at, after it in
-// its cell; the word's place; and the Markdown answered, in a cell of its own
+// A hover being asked for: the ask it answers; the word and the tree; the word's place; the Markdown answered, in a
+// cell of its own; and whether the tree's walk was still reading as the ask found no declaration
 typedef struct
 {
     unsigned long long ask;
     const char *word_text;
     const char *root;
-    const char *full;
     unsigned long long line;
-    unsigned long long col;
     unsigned long long from;
     unsigned long long to;
     char *text;
     unsigned long long length;
+    int reading;
 } PanelsHoverAsk;
 
-// A signature being asked for: the view's key, the file's tree path and the path the server has it at, after it in its
-// cell; the cursor's place; and what came
+// A signature being asked for: the view's key and the file's tree path; the cursor's place; and what came
 typedef struct
 {
     const char *key;
     const char *path;
-    const char *full;
     CliPosition cursor;
     CliSignaturePanel *panel;
 } PanelsSignatureAsk;
-
-// A view being handed to its server or let go of, or the server told of it: the key, the file's tree path, the tree and
-// the whole path, after it in its cell; and whether the server took it
-typedef struct
-{
-    const char *key;
-    const char *path;
-    const char *root;
-    const char *full;
-    unsigned long long first;
-    unsigned long long last;
-    int served;
-} PanelsServeAsk;
 
 typedef struct
 {
@@ -176,15 +160,6 @@ EMBED_INLINE const char *panels_viewed_key(const PanelsCtx *args)
     const int shown = cli_view_shown();
     // a view's place is not negative past the test
     return (shown >= 0) ? cli_view_key((unsigned int)shown) : NULL;
-}
-
-// whether the view shown is served by its language server
-EMBED_INLINE int panels_served(const PanelsCtx *args)
-{
-    (void)args;
-    char full[CLI_PATH_MAX_LEN];
-    const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    return (key != NULL) && EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full);
 }
 
 // a byte a word holds
@@ -351,6 +326,7 @@ static void panels_hover_tree_run(void *context)
             parts += 1u;
         }
     }
+    ask->reading = found->reading;
     g_cli_guard->persistent_buf_release(found, g_cli_servers_owner);
     if ((parts == 0u) || !mmgr_line_ok(&joined))
     {
@@ -361,33 +337,7 @@ static void panels_hover_tree_run(void *context)
     ask->length = joined.at;
 }
 
-// the server's hover, its Markdown in a cell sized to it
-static void panels_hover_server_run(void *context)
-{
-    PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
-    char *const cell = g_cli_guard->temporary_buf_alloc(CLI_PANELS_ANSWER_CAPACITY, g_cli_servers_owner);
-    VerbaLinea output = mmgr_line_over(cell, CLI_PANELS_ANSWER_CAPACITY);
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    // a place in a text a view shows stands below 2^32 lines and columns
-    if ((cell != NULL) &&
-        EMBED_CALL(cli_servers_path_out.hover, CliServersPathOutCfg, .path = ask->full, .line = (unsigned int)ask->line,
-                   .col = (unsigned int)ask->col, .out = &output, .err_msg = &ignored) &&
-        mmgr_line_ok(&output) && (output.at > 0ULL))
-    {
-        ask->text = g_cli_guard->persistent_buf_alloc(output.at, g_cli_servers_owner);
-        if (ask->text != NULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = ask->text, .src = output.out, .bytes = output.at});
-            ask->length = output.at;
-        }
-    }
-    g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
-}
-
-static void panels_hover_server_done(void *context);
-
-// the tree's answer: it stands as the hover, and the server is asked after it
+// the tree's answer: it stands as the hover
 static void panels_hover_tree_done(void *context)
 {
     PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
@@ -397,47 +347,6 @@ static void panels_hover_tree_done(void *context)
     s_panels.hover_line = ask->line;
     s_panels.hover_from = ask->from;
     s_panels.hover_to = ask->to;
-    ask->text = NULL;
-    ask->length = 0ULL;
-    if (ask->full[0] != '\0')
-    {
-        panels_hover_server_run(ask);
-        panels_hover_server_done(ask);
-        return;
-    }
-    g_cli_guard->persistent_buf_release(ask, g_cli_servers_owner);
-}
-
-// the server's answer: it stands after the tree's
-static void panels_hover_server_done(void *context)
-{
-    PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
-    if (ask->text != NULL)
-    {
-        const unsigned long long between =
-            (s_panels.hover_text != NULL) ? (sizeof(CLI_PANELS_HOVER_BETWEEN) - 1ULL) : 0ULL;
-        char *const joined =
-            g_cli_guard->persistent_buf_alloc(s_panels.hover_length + between + ask->length, g_cli_servers_owner);
-        if (joined != NULL)
-        {
-            if (s_panels.hover_text != NULL)
-            {
-                memor.cpy(&(MemoriaCfg){.dst = joined, .src = s_panels.hover_text, .bytes = s_panels.hover_length});
-                memor.cpy(&(MemoriaCfg){
-                    .dst = joined + s_panels.hover_length, .src = CLI_PANELS_HOVER_BETWEEN, .bytes = between});
-            }
-            memor.cpy(
-                &(MemoriaCfg){.dst = joined + s_panels.hover_length + between, .src = ask->text, .bytes = ask->length});
-            const unsigned long long length = s_panels.hover_length + between + ask->length;
-            EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
-            s_panels.hover_text = joined;
-            s_panels.hover_length = length;
-            s_panels.hover_line = ask->line;
-            s_panels.hover_from = ask->from;
-            s_panels.hover_to = ask->to;
-        }
-    }
-    g_cli_guard->persistent_buf_release(ask->text, g_cli_servers_owner);
     g_cli_guard->persistent_buf_release(ask, g_cli_servers_owner);
 }
 
@@ -464,14 +373,7 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
         EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
         return;
     }
-    char full[CLI_PATH_MAX_LEN];
-    full[0] = '\0';
-    if (!EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full))
-    {
-        full[0] = '\0';
-    }
-    PanelsHoverAsk ask = {s_panels.hover_ask, word_text, s_panels.root, full, line, col, from, to, NULL, 0ULL};
+    PanelsHoverAsk ask = {s_panels.hover_ask, word_text, s_panels.root, line, from, to, NULL, 0ULL, 0};
     PanelsHoverAsk *const asked = g_cli_guard->persistent_buf_alloc(sizeof(ask), g_cli_servers_owner);
     if (asked == NULL)
     {
@@ -479,7 +381,13 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     }
     *asked = ask;
     panels_hover_tree_run(asked);
+    // a word the tree's walk has not reached yet is asked for again after the rest, while the pointer stays on it
+    const int again = (asked->text == NULL) && asked->reading;
     panels_hover_tree_done(asked);
+    if (again)
+    {
+        s_panels.hover_due_ms = cli_clock_milliseconds() + CLI_PANELS_HOVER_REST_MS;
+    }
 }
 
 // how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
@@ -878,40 +786,7 @@ EMBED_INLINE void panels_completion_stand(PanelsCompletion *list)
     s_panels.completion = list;
 }
 
-// the server asked for the items at the cursor; where the list still stands on the prefix asked about, it is laid
-// again with the server's items and the words it had
-EMBED_INLINE void panels_items_post(const PanelsCtx *args)
-{
-    char full[CLI_PATH_MAX_LEN];
-    PanelsCompletion *const list = s_panels.completion;
-    if ((list == NULL) || !EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = args->key, .full_out = full))
-    {
-        return;
-    }
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    // a place in a text a view shows stands below 2^32 lines and columns
-    CliServerItems *const items =
-        EMBED_CALL(cli_servers_ask.items_alloc, CliServersAskCfg, .path = full, .line = (unsigned int)list->line,
-                   .col = (unsigned int)s_panels.cursor.col, .owner = g_cli_servers_owner, .err_msg = &ignored);
-    if (items == NULL)
-    {
-        return;
-    }
-    CliDocumentWords *const words = list->words;
-    list->words = NULL;
-    PanelsCompletion *const laid =
-        EMBED_CALL(panels_completion_alloc, PanelsCtx, .server = items, .words = words, .line = list->line,
-                   .from = list->from, .prefix = list->prefix, .length = list->prefix_length);
-    if (laid != NULL)
-    {
-        panels_completion_stand(laid);
-    }
-}
-
-// the completions asked for the word before the cursor: the file's words at once and the server's items after, those it
-// gave for the same prefix's start standing until it answers again
+// the completions asked for the word before the cursor: the file's words
 EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
 {
     (void)args;
@@ -928,21 +803,13 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
         return;
     }
     s_panels.cursor = cursor;
-    PanelsCompletion *const was = s_panels.completion;
-    CliServerItems *server = NULL;
-    if ((was != NULL) && (was->line == cursor.line) && (was->from == from))
-    {
-        server = was->server;
-        was->server = NULL;
-    }
     PanelsCompletion *const list = EMBED_CALL(
-        panels_completion_alloc, PanelsCtx, .server = server, .words = cli_view_words_alloc(key), .line = cursor.line,
+        panels_completion_alloc, PanelsCtx, .server = NULL, .words = cli_view_words_alloc(key), .line = cursor.line,
         .from = from, .prefix = prefix, .length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = sizeof(prefix)}));
     if (list != NULL)
     {
         panels_completion_stand(list);
     }
-    EMBED_CALL(panels_items_post, PanelsCtx, .key = key);
 }
 
 // the list, where it is open, followed to the frame's cursor: filtered again by the word before the cursor, and closed
@@ -1132,44 +999,8 @@ void cli_servers_panels_text(const char *text, unsigned long long length)
     }
 }
 
-// the panel of `panel`, with the parameters the tree's `own` found the arguments to differ from, in a cell of its own
-EMBED_INLINE CliSignaturePanel *panels_signature_joined(const PanelsCtx *args)
-{
-    const CliSignaturePanel *const panel = args->panel;
-    const unsigned int differing = (args->own != NULL) ? args->own->differing : 0u;
-    CliSignaturePanel *const joined = g_cli_guard->persistent_buf_alloc(
-        sizeof(*joined) + (panel->parameters * sizeof(*joined->parameter)) + (differing * sizeof(*joined->differs)) +
-            panel->length + panel->doc_length + 2ULL,
-        g_cli_servers_owner);
-    if (joined == NULL)
-    {
-        return NULL;
-    }
-    *joined = *panel;
-    joined->parameter = (CliSignatureParameter *)(void *)(joined + 1);
-    joined->differs = (unsigned int *)(void *)(joined->parameter + panel->parameters);
-    char *const text = (char *)(void *)(joined->differs + differing);
-    memor.cpy(&(MemoriaCfg){
-        .dst = joined->parameter, .src = panel->parameter, .bytes = panel->parameters * sizeof(*joined->parameter)});
-    joined->differing = differing;
-    if (differing != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){
-            .dst = joined->differs, .src = args->own->differs, .bytes = differing * sizeof(*joined->differs)});
-    }
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = panel->label, .bytes = panel->length});
-    text[panel->length] = '\0';
-    memor.cpy(&(MemoriaCfg){.dst = text + panel->length + 1ULL, .src = panel->doc, .bytes = panel->doc_length});
-    text[panel->length + 1ULL + panel->doc_length] = '\0';
-    joined->label = text;
-    joined->doc = text + panel->length + 1ULL;
-    return joined;
-}
-
 static void panels_signature_tree_run(void *context);
 static void panels_signature_tree_done(void *context);
-static void panels_signature_server_run(void *context);
-static void panels_signature_server_done(void *context);
 
 // the signature asked for the call the cursor is in, the tree's first, the cursor's place recorded as the one asked
 // about
@@ -1178,7 +1009,6 @@ EMBED_INLINE void panels_signature_ask(const PanelsCtx *args)
     (void)args;
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
     char path[CLI_PATH_MAX_LEN];
-    char full[CLI_PATH_MAX_LEN];
     CliPosition cursor;
     if ((key == NULL) || s_panels.signature_asking ||
         !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) ||
@@ -1186,13 +1016,7 @@ EMBED_INLINE void panels_signature_ask(const PanelsCtx *args)
     {
         return;
     }
-    full[0] = '\0';
-    if (!EMBED_CALL(panels_served, PanelsCtx, .at = 0u) ||
-        !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full))
-    {
-        full[0] = '\0';
-    }
-    PanelsSignatureAsk ask = {key, path, full, cursor, NULL};
+    PanelsSignatureAsk ask = {key, path, cursor, NULL};
     s_panels.signature_position = cursor;
     s_panels.signature_asking = 1;
     panels_signature_tree_run(&ask);
@@ -1230,108 +1054,125 @@ static void panels_signature_tree_run(void *context)
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
-// the tree's answer stands, and the server is asked over it where the file is served
+// the tree's answer stands
 static void panels_signature_tree_done(void *context)
 {
     PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
     EMBED_CALL(panels_signature_hide, PanelsCtx, .at = 0u);
     s_panels.signature = ask->panel;
     ask->panel = NULL;
-    if (ask->full[0] != '\0')
-    {
-        panels_signature_server_run(ask);
-        panels_signature_server_done(ask);
-        return;
-    }
     s_panels.signature_asking = 0;
 }
 
-// the server's signature at the place
-static void panels_signature_server_run(void *context)
+// What a serve job does: open the file in its server with its text, send its changed text, or send where its view rests
+#define PANELS_SERVE_OPEN 0u
+#define PANELS_SERVE_CHANGE 1u
+#define PANELS_SERVE_VIEW 2u
+
+// A serve job: what it does; the file's whole path and its language; the view's first and last lines and the lines
+// that open the regions around its first line, outermost first; the problems' sink; and the size of the text that
+// follows the job in its cell
+typedef struct
 {
-    PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
+    unsigned int does;
+    char full[CLI_PATH_MAX_LEN];
+    char language[CLI_NAME_MAX_LEN];
+    unsigned int first;
+    unsigned int last;
+    unsigned int openers;
+    unsigned int opener[CLI_PANELS_OPENERS];
+    CliServersSink sink;
+    unsigned long long size;
+} PanelsServeJob;
+
+// one serve job on a thread of the servers, lined up by the view thread, which goes on at once. The server's open and
+// change cut a slice, and the slice cut walks the file and its includes
+static void panels_serve_job(const CliServersJobCfg *args)
+{
+    const PanelsServeJob *const job = (const PanelsServeJob *)(const void *)args->job;
+    const char *const text = args->job + sizeof(*job);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    // a place in a text a view shows stands below 2^32 lines and columns
-    ask->panel = EMBED_CALL(cli_servers_ask.signature_alloc, CliServersAskCfg, .path = ask->full,
-                            .line = (unsigned int)ask->cursor.line, .col = (unsigned int)ask->cursor.col,
-                            .owner = g_cli_servers_owner, .err_msg = &ignored);
-}
-
-// the server's answer stands over the tree's, whose differing parameters it saves
-static void panels_signature_server_done(void *context)
-{
-    PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
-    s_panels.signature_asking = 0;
-    if (ask->panel != NULL)
+    if (job->does == PANELS_SERVE_OPEN)
     {
-        CliSignaturePanel *const joined =
-            EMBED_CALL(panels_signature_joined, PanelsCtx, .panel = ask->panel, .own = s_panels.signature);
-        if (joined != NULL)
-        {
-            EMBED_CALL(panels_signature_hide, PanelsCtx, .at = 0u);
-            s_panels.signature = joined;
-        }
+        int served = 0;
+        (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = s_panels.root, .path = job->full,
+                         .language = job->language, .text = text, .size = job->size, .sink = &job->sink,
+                         .served = &served, .err_msg = &ignored);
     }
-    g_cli_guard->persistent_buf_release(ask->panel, g_cli_servers_owner);
+    else if (job->does == PANELS_SERVE_CHANGE)
+    {
+        (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = job->full, .text = text,
+                         .size = job->size, .err_msg = &ignored);
+    }
+    else
+    {
+        char output_text[16];
+        VerbaLinea output = {output_text, sizeof(output_text), 0ULL};
+        (void)EMBED_CALL(cli_servers_path_out_err_msg.view, CliServersPathOutErrMsgCfg, .path = job->full,
+                         .first = job->first, .last = job->last, .opener = job->opener, .openers = job->openers,
+                         .out = &output, .err_msg = &ignored);
+    }
 }
 
-// the view's text handed to its language's server, where it is read whole and its language has a server that takes
-// it, and the view marked served
-static void panels_serve_run(PanelsServeAsk *ask)
+// the serve job `job` with `size` bytes of `text` after it handed to a thread of the servers: 1, or 0 where the cells
+// cannot meet it
+static int panels_serve_later(const PanelsServeJob *job, const char *text, unsigned long long size)
 {
-    char full[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = ask->root, .relative = ask->path, .joined = full);
-    char id[CLI_NAME_MAX_LEN];
+    char *const cell = g_cli_guard->persistent_buf_alloc(sizeof(*job) + size, g_cli_servers_owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = cell, .src = job, .bytes = sizeof(*job)});
+    ((PanelsServeJob *)(void *)cell)->size = size;
+    if (size != 0ULL)
+    {
+        // a text the editor holds fits a size_t
+        memor.cpy(&(MemoriaCfg){.dst = cell + sizeof(*job), .src = text, .bytes = (size_t)size});
+    }
+    (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = panels_serve_job,
+                     .bytes = cell, .size = sizeof(*job) + size);
+    return 1;
+}
+
+// the view under `key` opened in its language's server: the open lined up for a thread of the servers with the view's
+// text, the view marked served, and its view sent at the next step, where the view is on a file of the tree in a
+// language the plugins know
+static void panels_open_send(const char *key)
+{
+    char path[CLI_PATH_MAX_LEN];
+    if ((s_panels.root == NULL) ||
+        !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) || (path[0] == '\0'))
+    {
+        return;
+    }
+    PanelsServeJob job = {.does = PANELS_SERVE_OPEN};
     CliLanguages languages;
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                 .languages_read = &languages, .path = ask->path, .id_out = id);
+                                 .languages_read = &languages, .path = path, .id_out = job.language);
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
+    if (!known)
+    {
+        return;
+    }
+    // the document has no lock of its own, so its text is read on the view thread
     unsigned long long size = 0ULL;
-    char *const text = known ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = ask->key,
-                                          .size_pointer = &size, .owner = g_cli_servers_owner)
-                             : NULL;
+    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
+                                  .owner = g_cli_servers_owner);
     if (text == NULL)
     {
         return;
     }
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea refused = {why, sizeof(why), 0ULL};
-    const CliServersSink sink = cli_servers_problems_sink(ask->root);
-    int served = 0;
-    (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = ask->root, .path = full, .language = id,
-                     .text = text, .size = size, .sink = &sink, .served = &served, .err_msg = &refused);
-    // a view closed while the server took its file leaves the file with no view to let it go
-    if (served && !EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = ask->key, .full = full))
-    {
-        served = 0;
-        if (!EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = full))
-        {
-            refused.at = 0ULL;
-            (void)EMBED_CALL(cli_servers_path_out_err_msg_from_to.close, CliServersPathOutErrMsgFromToCfg, .path = full,
-                             .err_msg = &refused);
-        }
-    }
-    ask->served = served;
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_panels.root, .relative = path, .joined = job.full);
+    job.sink = cli_servers_problems_sink(s_panels.root);
+    const int lined = panels_serve_later(&job, text, size);
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
-}
-
-// a view opened, under `key` on the file at `path` from the tree's top, handed to its language's server; a view on no
-// file, as a terminal's, served by none
-static void panels_opened(const char *key, const char *path)
-{
-    if ((s_panels.root == NULL) || (path == NULL) || (path[0] == '\0'))
-    {
-        return;
-    }
-    PanelsServeAsk ask = {key, path, s_panels.root, "", 0ULL, 0ULL, 0};
-    panels_serve_run(&ask);
-    if (ask.served)
+    if (lined && EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = key, .full = job.full))
     {
         s_panels.view_sent = 0;
-        s_panels.view_due_ms = cli_clock_milliseconds() + CLI_PANELS_VIEW_REST_MS;
+        s_panels.view_due_ms = cli_clock_milliseconds();
     }
 }
 
@@ -1354,14 +1195,18 @@ static void panels_closing(const char *key)
     }
 }
 
-// the view's text sent to the server, where the view is served and its text changed since the server last took it
+// the view's text sent to the server on a thread of the servers, where the view is served and its text changed since
+// the server last took it
 static void panels_sync_post(const PanelsCtx *args)
 {
     (void)args;
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    char full[CLI_PATH_MAX_LEN];
-    if ((key == NULL) || !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = full) ||
-        !EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
+    PanelsServeJob job = {.does = PANELS_SERVE_CHANGE};
+    if ((key == NULL) || !EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = job.full))
+    {
+        return;
+    }
+    if (!EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
     {
         return;
     }
@@ -1371,55 +1216,50 @@ static void panels_sync_post(const PanelsCtx *args)
                                   .owner = g_cli_servers_owner);
     if (text != NULL)
     {
-        char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea ignored = {why, sizeof(why), 0ULL};
-        (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = full, .text = text, .size = size,
-                         .err_msg = &ignored);
+        (void)panels_serve_later(&job, text, size);
         g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     }
 }
 
-// the view's first and last lines sent to the server, with the lines opening the regions its first line stands inside,
-// outermost first, read off the branch as its lines were colored
-static void panels_view_run(const PanelsServeAsk *ask)
-{
-    char full[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = ask->key, .full_out = full))
-    {
-        return;
-    }
-    unsigned int opener[CLI_PANELS_OPENERS];
-    // a line of a text a view shows is below 2^32
-    const unsigned int openers =
-        EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = ask->key,
-                   .line = (unsigned int)ask->first, .opener = opener, .max_u32 = CLI_PANELS_OPENERS);
-    char output_text[16];
-    VerbaLinea output = {output_text, sizeof(output_text), 0ULL};
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    (void)EMBED_CALL(cli_servers_path_out_err_msg.view, CliServersPathOutErrMsgCfg, .path = full,
-                     .first = (unsigned int)ask->first, .last = (unsigned int)ask->last, .opener = opener,
-                     .openers = openers, .out = &output, .err_msg = &ignored);
-}
-
-// where the view of the tab shown rests sent to the server
+// where the view of the tab shown rests sent to the server on a thread of the servers, the view opened in its server
+// first where it is not served yet
 EMBED_INLINE void panels_view_send(const PanelsCtx *args)
 {
     (void)args;
     s_panels.view_due_ms = 0ULL;
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
-    if ((key == NULL) || !EMBED_CALL(panels_served, PanelsCtx, .at = 0u))
+    if (key == NULL)
     {
+        return;
+    }
+    PanelsServeJob job = {.does = PANELS_SERVE_VIEW};
+    if (!EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = job.full))
+    {
+        // a view is opened in its server once, the first time it rests
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_panels.open_key, .cap = CLI_NAME_MAX_LEN}))
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = s_panels.open_key,
+                .src = key,
+                .bytes = (size_t)cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
+            panels_open_send(key);
+        }
         return;
     }
     const unsigned long long first = s_panels.view_top;
     const unsigned int rows = s_panels.rows;
     unsigned long long last = first + ((rows > 0u) ? (rows - 1u) : 0u);
     last = ((s_panels.view_lines > 0ULL) && (last >= s_panels.view_lines)) ? (s_panels.view_lines - 1ULL) : last;
-    const PanelsServeAsk ask = {key, "", "", "", first, last, 0};
-    panels_view_run(&ask);
-    s_panels.view_sent = 1;
-    s_panels.view_rows = rows;
+    // a line of a text a view shows is below 2^32
+    job.first = (unsigned int)first;
+    job.last = (unsigned int)last;
+    job.openers = EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = key, .line = job.first,
+                             .opener = job.opener, .max_u32 = CLI_PANELS_OPENERS);
+    if (panels_serve_later(&job, NULL, 0ULL))
+    {
+        s_panels.view_sent = 1;
+        s_panels.view_rows = rows;
+    }
 }
 
 // a frame laid of a view: where it is the view shown's, its cursor, its top line of its lines and its rows taken as the
@@ -1436,7 +1276,7 @@ static void panels_drawn(const CliViewDrawn *args)
     const int rested = s_panels.view_sent && (s_panels.view_top == args->top) && (s_panels.view_rows == args->rows);
     s_panels.view_top = args->top;
     s_panels.view_lines = args->lines;
-    if (!rested && EMBED_CALL(panels_served, PanelsCtx, .at = 0u))
+    if (!rested)
     {
         s_panels.view_sent = 0;
         s_panels.view_due_ms = cli_clock_milliseconds() + CLI_PANELS_VIEW_REST_MS;
@@ -1497,8 +1337,9 @@ int cli_servers_panels_step(void)
     return did;
 }
 
-// the views' moments the panels take: each frame laid, each view opened and each view about to close
-static const CliViewWatcher s_panels_watcher = {panels_drawn, panels_opened, panels_closing};
+// the views' moments the panels take: each frame laid and each view about to close. A view is opened in its server as
+// it first rests, not as it opens
+static const CliViewWatcher s_panels_watcher = {panels_drawn, NULL, panels_closing};
 
 void cli_servers_panels_begin(const char *root)
 {
