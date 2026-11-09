@@ -111,25 +111,40 @@ int main(void)
                   (strip.displayed == (int)search) && !strip.collapsed,
               "its rest on the icon shows the tool's pane as a preview");
     strip.pointed = GUI_STRIP_NONE;
-    cli_check(EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame, .x = editor_x,
-                         .y = editor_y, .time_ms = 6500ULL) &&
+    cli_check(!EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame, .x = editor_x,
+                          .y = editor_y, .time_ms = 6500ULL) &&
+                  (strip.displayed == (int)search) && !strip.collapsed,
+              "the pointer leaving the strip and the pane leaves the preview standing through the rest");
+    cli_check(!EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &sides, .strip = &strip, .time_ms = 7199ULL) &&
+                  (strip.displayed == (int)search),
+              "a tick inside the rest takes nothing back");
+    strip.pointed = (int)search;
+    (void)EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame,
+                     .x = button.x + 2, .y = button.y + 2, .time_ms = 6900ULL);
+    cli_check(!EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &sides, .strip = &strip, .time_ms = 7300ULL) &&
+                  (strip.displayed == (int)search) && !strip.collapsed,
+              "the pointer back on the strip inside the rest keeps the preview");
+    strip.pointed = GUI_STRIP_NONE;
+    (void)EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame, .x = editor_x,
+                     .y = editor_y, .time_ms = 7400ULL);
+    cli_check(EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &sides, .strip = &strip, .time_ms = 8100ULL) &&
                   (strip.displayed == (int)explorer),
-              "the pointer leaving the strip and the pane takes the preview back");
+              "the rest off the strip and the pane reached takes the preview back");
 
     strip.pointed = (int)search;
     (void)EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame,
-                     .x = button.x + 2, .y = button.y + 2, .time_ms = 7000ULL);
-    (void)EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &sides, .strip = &strip, .time_ms = 7350ULL);
+                     .x = button.x + 2, .y = button.y + 2, .time_ms = 9000ULL);
+    (void)EMBED_CALL(gui_sides.tick, GuiSidesCfg, .sides = &sides, .strip = &strip, .time_ms = 9350ULL);
     cli_check(EMBED_CALL(gui_sides.press, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame,
                          .x = button.x + 2, .y = button.y + 2),
               "a press on the icon the preview shows is the preview's");
     strip.pointed = GUI_STRIP_NONE;
     cli_check(!EMBED_CALL(gui_sides.move, GuiSidesCfg, .sides = &sides, .strip = &strip, .frame = &frame,
-                          .x = editor_x, .y = editor_y, .time_ms = 7500ULL) &&
+                          .x = editor_x, .y = editor_y, .time_ms = 9500ULL) &&
                   (strip.displayed == (int)search),
               "and the pane stands as the pointer leaves");
 
-    EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &sides, .strip = &strip, .at = search, .time_ms = 8000ULL);
+    EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &sides, .strip = &strip, .at = search, .time_ms = 9800ULL);
     cli_check(strip.collapsed && (strip.displayed == (int)search), "a press on the icon of the pane shown collapses it");
     cli_check(EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &sides) == 0ULL,
               "with the pane collapsed by a press and the pointer at rest, no wait stands");

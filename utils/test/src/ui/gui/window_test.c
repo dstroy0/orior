@@ -368,6 +368,100 @@ static void caret_checked(void)
     cli_check(GUI_CARET_BLINK_PERIOD_MS == 1060ULL, "a blink takes 1.06 seconds");
 }
 
+// the pointer moved to x, y as the system hands it on
+static void moved(int x, int y)
+{
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_MOVED_INPUT(x, y));
+    stepped();
+}
+
+// the window stepped until `milliseconds` pass
+static void stepped_for(unsigned long long milliseconds)
+{
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while (cli_clock_milliseconds() < until)
+    {
+        stepped();
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
+    }
+}
+
+// The explorer stays while the pointer works in it: the claim on, a rest in the left band brings the strip and the
+// side, and a pointer that moves from the strip onto the side's rows arms no hide
+static void explorer_stays_checked(void)
+{
+    tabs_closed("first.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("first.txt"), "a file opens for the explorer");
+    typed("x");
+    cli_check(s_window.claim.autohidden, "typing claims the edges");
+    moved(2, 400);
+    stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
+    cli_check(s_window.claim.displayed == GUI_AUTOHIDE_LEFT, "a rest in the left band shows the left edge");
+    const GuiRect strip = s_window.frame.strip;
+    moved(strip.x + (strip.width / 2), strip.y + 40);
+    stepped_for(GUI_SIDES_ICON_REST_MS + GUI_SIDES_SLIDE_MS + 100ULL);
+    cli_check(s_window.frame.side_displayed, "a rest on the strip's tool shows its side");
+    const GuiRect side = s_window.frame.side;
+    moved(side.x + (side.width / 2), side.y + (side.height / 2));
+    cli_check(s_window.claim.hide_deadline_ms == 0ULL, "the pointer on the side's rows arms no hide of the left edge");
+    stepped_for(GUI_AUTOHIDE_HIDE_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
+    cli_check((s_window.claim.displayed == GUI_AUTOHIDE_LEFT) && s_window.frame.side_displayed,
+              "the left edge and the side stand while the pointer rests on the side");
+}
+
+// The minimap's lines stand beside the view wherever it stands: a tall file opened has its map's lines taken at once,
+// and the view placed deep in the file has the lines of the map's rows there, the map away or shown
+static void minimap_lines_checked(void)
+{
+    static char s_tall[CLI_POOL_BYTES / 4096u];
+    VerbaLinea tall = {s_tall, sizeof(s_tall), 0ULL};
+    for (unsigned int line = 0u; line < 3000u; line += 1u)
+    {
+        mmgr_line_put(&tall, "int line_");
+        mmgr_line_decimal(&tall, line, 1u);
+        mmgr_line_put(&tall, ";\n");
+    }
+    (void)mmgr_line_finish(&tall);
+    tabs_closed("tall.c", s_tall, NULL, NULL);
+    cli_check(tab_opened("tall.c"), "a tall file opens for the map");
+    const GuiMinimap *const map = &s_window.minimap;
+    cli_check((map->lines != NULL) && (map->lines->from == 0u) && (map->lines->count > 1u),
+              "the map's lines are taken as the file opens, from its first line");
+    char path[CLI_PATH_MAX_LEN];
+    tree_path("tall.c:2500", path);
+    cli_check(asked("file", path), "the view is placed deep in the file");
+    unsigned long long first = 0ULL;
+    unsigned long long last = 0ULL;
+    cli_check(EMBED_CALL(gui_minimap_first.span, GuiMinimapFirstCfg, .map_read = map, .first = &first, .last = &last) &&
+                  (first > 0ULL),
+              "the map's first row follows the view down the file");
+    cli_check((map->lines != NULL) && (map->lines->from == first) &&
+                  (map->lines->from + (unsigned long long)map->lines->count == last + 1ULL),
+              "the map's lines are the lines its rows stand for");
+}
+
+// The right edge comes on a rest and goes once the pointer leaves it for the text: the claim on, a rest in the right
+// band shows the map, and the pointer moved into the text takes it away after the hide's rest
+static void map_collapses_checked(void)
+{
+    tabs_closed("first.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("first.txt"), "a file opens for the right edge");
+    typed("x");
+    cli_check(s_window.claim.autohidden, "typing claims the edges");
+    moved((int)s_window.frame.width - 2, 400);
+    stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
+    cli_check(s_window.claim.displayed == GUI_AUTOHIDE_RIGHT, "a rest in the right band shows the map");
+    const GuiRect map = s_window.frame.map;
+    moved(map.x + (map.width / 2), map.y + (map.height / 2));
+    stepped_for(GUI_AUTOHIDE_HIDE_DELAY_MS + 100ULL);
+    cli_check(s_window.claim.displayed == GUI_AUTOHIDE_RIGHT, "the pointer on the map keeps it");
+    const GuiRect editor = s_window.frame.editor;
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
+    stepped_for(GUI_AUTOHIDE_HIDE_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
+    cli_check(s_window.claim.displayed == GUI_AUTOHIDE_NONE, "the pointer moved into the text takes the map away");
+}
+
 static void terminal_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -443,7 +537,10 @@ int main(void)
     reduce_motion_checked();
     place_checked();
     caret_checked();
+    explorer_stays_checked();
     terminal_menu_checked();
+    minimap_lines_checked();
+    map_collapses_checked();
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();
     return cli_on_check();

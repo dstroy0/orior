@@ -162,18 +162,17 @@ int gui_sides_move(const GuiSidesCfg *args)
         sides->icon = icon;
         sides->icon_ms = (icon != GUI_STRIP_NONE) ? args->time_ms + GUI_SIDES_ICON_REST_MS : 0ULL;
     }
+    // a preview the pointer leaves for neither the strip nor the pane stands through a rest, as a pane shown by a
+    // press does: the rest begins as it leaves, and the wait to collapse takes the preview back where the pointer is
+    // still off both when the rest ends
+    const int left_preview =
+        sides->previewing && (sides->over_strip || sides->over_pane) && !over_strip && !over_pane;
     sides->over_pane = over_pane;
     sides->over_strip = over_strip;
     sides->over_edge = over_edge;
-    // a preview the pointer has left for neither the strip nor the pane: what showed before it shown again
-    if (sides->previewing && !over_strip && !over_pane)
+    if (left_preview)
     {
-        sides->previewing = 0;
-        strip->displayed = sides->before_displayed;
-        EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip, .collapsed = sides->before_collapsed,
-                   .still = args->still, .time_ms = args->time_ms);
         sides->collapse_ms = args->time_ms + GUI_SIDES_REST_MS;
-        return 1;
     }
     return 0;
 }
@@ -181,7 +180,8 @@ int gui_sides_move(const GuiSidesCfg *args)
 void gui_sides_leave(const GuiSidesCfg *args)
 {
     GuiSides *const sides = args->sides;
-    if (sides->over_pane)
+    // the pane left, or a preview left from the strip: its rest begins
+    if (sides->over_pane || (sides->previewing && sides->over_strip))
     {
         sides->collapse_ms = args->time_ms + GUI_SIDES_REST_MS;
     }
@@ -275,6 +275,16 @@ int gui_sides_tick(const GuiSidesCfg *args)
             if (sides->over_pane || sides->over_strip || args->menu_open)
             {
                 sides->collapse_ms = now_ms + GUI_SIDES_REST_MS;
+            }
+            else if (sides->previewing)
+            {
+                // a preview the pointer left: what showed before it shown again
+                sides->previewing = 0;
+                strip->displayed = sides->before_displayed;
+                EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .strip = strip,
+                           .collapsed = sides->before_collapsed, .still = args->still, .time_ms = now_ms);
+                sides->collapse_ms = now_ms + GUI_SIDES_REST_MS;
+                changed = 1;
             }
             else
             {

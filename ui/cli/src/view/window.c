@@ -544,6 +544,8 @@ EMBED_INLINE void window_scroll_adopt(const GuiWindowCtx *args)
 // The shown view's frame, names and map taken anew of it, those it had released, and the shown pane's data where the
 // view's change reaches it; `edited` where the text changed, which the map's lines no longer show. A take where the
 // view only scrolled, `on` 1, marks the scroll's part of the frame changed, and any other take owes a frame whole
+EMBED_INLINE void window_map_span(const GuiWindowCtx *args);
+
 EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -586,6 +588,8 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
         window->minimap.lines =
             ((key != NULL) && window->map_known) ? cli_view_map_alloc(key, window->map_first, window->map_last) : NULL;
     }
+    // the map's lines follow the view: a frame that moved the map's first row takes the lines it now stands for
+    EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
     EMBED_CALL(window_scroll_adopt, GuiWindowCtx, .window = window);
     // every frame the view answers shows the caret through the input rest, its blink beginning after it, so the caret
     // stands shown while the keys go
@@ -788,12 +792,12 @@ EMBED_INLINE void window_view_resize(const GuiWindowCtx *args)
     }
 }
 
-// the lines the map placed beside the view stands for taken of the view, where they moved
+// The lines the map placed beside the view stands for taken of the view, where they moved. The map's column stands
+// whole, away or shown, and the lines are taken either way, so a map that comes back draws at once
 EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
-    if ((window->editor.frame == NULL) ||
-        EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = window->frame.map))
+    if ((window->editor.frame == NULL) || (window->frame.map_whole.height <= 0))
     {
         return;
     }
@@ -925,10 +929,13 @@ EMBED_INLINE int window_over_parts(const GuiWindowCtx *args)
     }
     if (displayed == GUI_AUTOHIDE_LEFT)
     {
+        // the strip, and the side pane while it stands: the pointer works in the pane as it works on the strip
         return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                           .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = frame->strip_band,
                                              .other = frame->strip),
-                          .x = x, .y = y);
+                          .x = x, .y = y) ||
+               (frame->side_displayed &&
+                EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = frame->side, .x = x, .y = y));
     }
     if (displayed == GUI_AUTOHIDE_RIGHT)
     {
