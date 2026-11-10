@@ -11,7 +11,9 @@
 #include "../../../../../ui/cli/src/command_line/command_line.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
+#include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/text/text.h"
+#include "../../../../../ui/cli/src/view/parts/explorer.h"
 #include "../../../../../ui/cli/src/view/window.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
@@ -26,7 +28,8 @@ static char s_root[CLI_PATH_MAX_LEN];
 typedef struct
 {
     const char *command;
-    const char *word;
+    const char *const *words;
+    unsigned int count;
     CliReachAnswer answer;
     int requested;
     embed_atomic_u32 done;
@@ -42,11 +45,10 @@ static void window_woken(void)
 static void window_ask_run(void *context)
 {
     WindowAsk *const ask = (WindowAsk *)context;
-    const char *const words[1] = {ask->word};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     ask->requested = EMBED_CALL(cli_reach_menu.request, CliReachMenuCfg, .root = cli_command_line_root(), .menu = "window",
-                                .command = ask->command, .request = words, .count = (ask->word != NULL) ? 1u : 0u,
+                                .command = ask->command, .request = ask->words, .count = ask->count,
                                 .answer = &ask->answer, .err_msg = &err_msg);
     EMBED_ATOMIC_STORE(&ask->done, 1u);
 }
@@ -58,11 +60,11 @@ static void stepped(void)
     EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = &s_window);
 }
 
-// the command `command` with its word `word`, NULL for none, asked of the window through the door, the window stepped
+// the command `command` with its `words`, `count` of them, asked of the window through the door, the window stepped
 // until it answers or ten seconds pass: 1 where it ran
-static int asked(const char *command, const char *word)
+static int asked_words(const char *command, const char *const *words, unsigned int count)
 {
-    s_ask = (WindowAsk){.command = command, .word = word};
+    s_ask = (WindowAsk){.command = command, .words = words, .count = count};
     static CliThread s_thread;
     s_thread = (CliThread){window_ask_run, &s_ask, CLI_PRIORITY_WORK};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread))
@@ -92,6 +94,13 @@ static int asked(const char *command, const char *word)
                       (unsigned long long)mmgr_series_cellularum_fragmentation(record));
     }
     return ran;
+}
+
+// the command `command` with its word `word`, NULL for none, asked of the window through the door
+static int asked(const char *command, const char *word)
+{
+    const char *const words[1] = {word};
+    return asked_words(command, words, (word != NULL) ? 1u : 0u);
 }
 
 // the key `name` pressed as the system hands it on
@@ -552,6 +561,82 @@ static void terminal_menu_checked(void)
     (void)asked("toggle", NULL);
 }
 
+// whether the text `text` is `required`
+static int same(const char *text, const char *required)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = required, .cap = CLI_POOL_BYTES});
+}
+
+// The theme commands through the door: a theme made from the scheme's colors and chosen, renamed, given an icon the
+// explorer's marks take, given a color the palette takes, shared to the clipboard, left for the scheme's own colors
+// and chosen again, read back from the clipboard as a theme of its own, its icon taken off, and deleted; the themes and
+// the choice stand in the home's state; and the image commands stay refused
+static void themes_checked(void)
+{
+    GuiThemes *const themes = s_window.themes;
+    cli_check((themes != NULL) && (themes->count == 0u) && (s_window.theme_chosen == 0u),
+              "the window starts on the scheme's own colors with no themes");
+    const GuiColor accent = s_window.palette->signal;
+    cli_check(asked("theme-new", NULL), "theme-new runs through the door");
+    cli_check((themes->count == 1u) && (s_window.theme_chosen == 0u) && same(themes->theme[0].name, "Dark 2"),
+              "a theme from the scheme's colors is named after it and chosen");
+    cli_check(asked("theme-rename", "Night") && same(themes->theme[0].name, "Night"), "theme-rename renames it");
+    const char *const icon_words[3] = {"*.txt", "Tx", "accent"};
+    cli_check(asked_words("theme-icon", icon_words, 3u) && (themes->theme[0].icons == 1u),
+              "theme-icon gives the theme an icon");
+    char mark[GUI_EXPLORER_MARK_MOST];
+    GuiColor own = 0u;
+    const unsigned int marked =
+        EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = "first.txt", .length = 9ULL, .text = mark,
+                   .palette = s_window.palette, .color_out = &own);
+    cli_check((marked == GUI_EXPLORER_MARK_OWN) && (own == accent) && same(mark, "Tx"),
+              "the explorer marks a file the pattern covers with the icon in the palette's color");
+    const char *const color_words[2] = {"accent", "#102030"};
+    GuiColor set = 0u;
+    cli_check(asked_words("theme-color", color_words, 2u) && (s_window.palette->signal == GUI_RGB(0x10u, 0x20u, 0x30u)) &&
+                  EMBED_CALL(gui_themes_at_color.color_get, GuiThemesAtColorCfg, .themes = themes, .at = 0u,
+                             .name = "accent", .color_pointer = &set) &&
+                  (set == GUI_RGB(0x10u, 0x20u, 0x30u)),
+              "theme-color sets the palette's color in the theme and the window");
+    cli_check(asked("theme-export", NULL), "theme-export runs");
+    char clipboard_text[8192];
+    VerbaLinea clipboard = {clipboard_text, sizeof(clipboard_text), 0ULL};
+    (void)cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &clipboard});
+    (void)mmgr_line_finish(&clipboard);
+    cli_check(cellul.has(&(CatenaFinitaCfg){.src = clipboard_text, .other = "\"name\": \"Night\"", .cap = sizeof(clipboard_text), .other_cap = 16u}) &&
+                  cellul.has(&(CatenaFinitaCfg){.src = clipboard_text, .other = "\"accent\": \"#102030\"", .cap = sizeof(clipboard_text), .other_cap = 20u}),
+              "the clipboard holds the theme as text");
+    cli_check(asked("theme-choose", "Dark") && (s_window.theme_chosen == 1u) && (s_window.palette->signal == accent),
+              "theme-choose Dark puts the scheme's colors back");
+    cli_check(asked("theme-choose", "Night") && (s_window.theme_chosen == 0u) &&
+                  (s_window.palette->signal == GUI_RGB(0x10u, 0x20u, 0x30u)),
+              "theme-choose by name lays the theme's colors again");
+    cli_check(!asked("theme-choose", "Nowhere"), "a name no theme has is refused");
+    cli_check(asked("theme-import", NULL) && (themes->count == 2u) && (s_window.theme_chosen == 1u) &&
+                  same(themes->theme[1].name, "Night 2") && (themes->theme[1].icons == 1u) &&
+                  EMBED_CALL(gui_themes_at_color.color_get, GuiThemesAtColorCfg, .themes = themes, .at = 1u,
+                             .name = "accent", .color_pointer = &set) &&
+                  (set == GUI_RGB(0x10u, 0x20u, 0x30u)),
+              "theme-import reads the clipboard's theme in under a free name and chooses it");
+    cli_check(asked("theme-icon-remove", "*.txt") && (themes->theme[1].icons == 0u),
+              "theme-icon-remove takes the icon off the chosen theme");
+    cli_check(asked("theme-delete", NULL) && (themes->count == 1u) && (s_window.theme_chosen == 1u) &&
+                  (s_window.palette->signal == accent),
+              "theme-delete takes the chosen theme out and goes back to the scheme's colors");
+    char folder[CLI_PATH_MAX_LEN];
+    cli_check(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder), "the home is known");
+    CliStateEntries *const entries =
+        cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+    const char *const kept = (entries != NULL) ? cli_state_entry_value(entries, "themes") : NULL;
+    const char *const chosen = (entries != NULL) ? cli_state_entry_value(entries, "theme.dark") : NULL;
+    cli_check((kept != NULL) && cellul.has(&(CatenaFinitaCfg){.src = kept, .other = "\"Night\"", .cap = CLI_POOL_BYTES, .other_cap = 8u}) &&
+                  !cellul.has(&(CatenaFinitaCfg){.src = kept, .other = "Night 2", .cap = CLI_POOL_BYTES, .other_cap = 8u}),
+              "the home's state keeps the themes as they stand");
+    cli_check((chosen != NULL) && same(chosen, "Dark"), "and the choice");
+    g_cli_guard->persistent_buf_release(entries, g_cli_view_owner);
+    cli_check(!asked("theme-image", NULL), "theme-image stays refused: the window reads no image files");
+}
+
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
@@ -606,6 +691,7 @@ int main(void)
     minimap_lines_checked();
     autoscroll_checked();
     map_collapses_checked();
+    themes_checked();
     // the pool as the checks leave it: the end, the fragmentation, and the largest of a few takes the tier still meets
     {
         const SeriesCellularum *const record = cli_pool_series_cellularum();

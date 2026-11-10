@@ -28,6 +28,7 @@
 #include "parts/tabs.h"
 #include "parts/terminal.h"
 #include "parts/wordmark.h"
+#include "themes.h"
 #include "sides.h"
 #include "stages.h"
 #include "view.h"
@@ -186,6 +187,10 @@ typedef struct GuiWindow
     // tokens; and the id of the plugin whose tokens the window's palette holds, empty where it holds none
     GuiPaletteOwn palette_choice_own;
     char tokens_id[CLI_NAME_MAX_LEN];
+    // the reader's themes in a cell of the window's, and the one chosen, drawn over the scheme and the color settings:
+    // its place among them, or their count for the scheme's own colors
+    GuiThemes *themes;
+    unsigned int theme_chosen;
     int system_scale;
     GuiAutohide claim;
     int autohide_moving;

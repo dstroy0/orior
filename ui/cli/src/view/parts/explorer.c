@@ -175,11 +175,58 @@ typedef struct
     unsigned int at;
 } ExplorerCtx;
 
+// the theme whose icons the marks consult first, NULL for none
+static const GuiTheme *s_theme;
+
+void gui_explorer_theme_set(const GuiExplorerThemeCfg *args)
+{
+    s_theme = args->theme_read;
+}
+
+// the color an icon's text names: one of `palette` by name, else a hex value, else none: 1 with the color into
+// `color_out`, or 0
+EMBED_INLINE int explorer_icon_color(const GuiExplorerMarkCfg *args)
+{
+    if ((args->name[0] == '\0') || (args->palette == NULL))
+    {
+        return 0;
+    }
+    const unsigned int count =
+        EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = args->palette);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        char named[GUI_EXPLORER_MARK_MOST];
+        EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = args->palette, .at = at, .name = named,
+                   .size = sizeof(named));
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->name, .cap = sizeof(named)}))
+        {
+            *args->color_out = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = args->palette, .at = at);
+            return 1;
+        }
+    }
+    return EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = args->name,
+                      .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = GUI_THEME_COLOR_TEXT}),
+                      .current = 0xff000000u, .color_pointer = args->color_out);
+}
+
 // the mark of the file `name`, `length` bytes, its text into `text`, sized GUI_EXPLORER_MARK_MOST, and the mark's
-// color, 0 for the quieter one
+// color, 0 for the quieter one; the theme's icon stands first where one covers the name
 unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args)
 {
     char *text = args->text;
+    const GuiThemeIcon *const icon = EMBED_CALL(gui_theme_name.icon_match, GuiThemeNameCfg, .theme_read = s_theme,
+                                                .name = args->name, .length = args->length);
+    if (icon != NULL)
+    {
+        VerbaLinea line = {text, GUI_EXPLORER_MARK_MOST, 0ULL};
+        mmgr_line_put(&line, icon->mark);
+        (void)mmgr_line_finish(&line);
+        return ((args->color_out != NULL) &&
+                EMBED_CALL(explorer_icon_color, GuiExplorerMarkCfg, .name = icon->color, .palette = args->palette,
+                           .color_out = args->color_out))
+                   ? GUI_EXPLORER_MARK_OWN
+                   : 0u;
+    }
     char lower[GUI_EXPLORER_MARK_MOST];
     const unsigned long long saved =
         (args->length < GUI_EXPLORER_MARK_MOST - 1ULL) ? args->length : GUI_EXPLORER_MARK_MOST - 1ULL;
@@ -324,8 +371,10 @@ float gui_explorer_file_draw(const GuiExplorerFileCfg *args)
     const int scale = frame->scale;
     const int icon = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON, .scale = scale);
     char text[GUI_EXPLORER_MARK_MOST];
+    GuiColor own = 0u;
     const unsigned int color = EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = args->name,
-                                          .length = args->length, .text = text);
+                                          .length = args->length, .text = text, .palette = pane->palette,
+                                          .color_out = &own);
     const unsigned int mark_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                             .pixels = (int)GUI_EXPLORER_MARK_SIZE, .scale = scale);
     const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_EXPLORER_MARK_MOST});
@@ -338,8 +387,10 @@ float gui_explorer_file_draw(const GuiExplorerFileCfg *args)
         .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE_BOLD,
                         .size = mark_size, .top = rect.y, .pixel_height = rect.height),
         .text = text, .length = mark_length,
-        .color =
-            GUI_FRAME_FADED((color != 0u) ? pane->palette->mark[color - 1u] : pane->palette->text_3, frame->side_share),
+        .color = GUI_FRAME_FADED((color == GUI_EXPLORER_MARK_OWN)
+                                     ? own
+                                     : ((color != 0u) ? pane->palette->mark[color - 1u] : pane->palette->text_3),
+                                 frame->side_share),
         .clip = args->clip);
     const int x =
         args->x + icon +

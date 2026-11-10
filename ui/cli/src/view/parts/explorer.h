@@ -10,6 +10,7 @@
 #include "../../editor/files.h"
 #include "embed_dispatch_layout.h"
 #include "pane.h"
+#include "../themes.h"
 
 typedef struct GuiExplorerMarkCfg GuiExplorerMarkCfg;
 
@@ -55,13 +56,34 @@ EMBED_TABLE_STORAGE GuiExplorerFileNs gui_explorer_file EMBED_UNUSED = {
 extern const GuiPaneTable gui_explorer_table;
 
 // the mark of the file `name`, `length` bytes, as the page's icons draw a file's type: its text into `text`, sized
-// GUI_EXPLORER_MARK_MOST, and which of the palette's mark colors it takes, counted from 1, 0 for the quieter one
+// GUI_EXPLORER_MARK_MOST, and which of the palette's mark colors it takes, counted from 1, 0 for the quieter one, or
+// GUI_EXPLORER_MARK_OWN with the mark's own color into `color_out` where the theme's icon names one, a color of
+// `palette` by name or a hex value
+#define GUI_EXPLORER_MARK_OWN (GUI_MARKS + 1u)
 unsigned int gui_explorer_mark(const GuiExplorerMarkCfg *args);
 struct GuiExplorerMarkCfg
 {
     const char *name;
     unsigned long long length;
     char *text;
+    const GuiPalette *palette;
+    GuiColor *color_out;
+};
+
+// the theme whose icons the marks consult first, NULL for none; it stands until the next call
+typedef struct
+{
+    const GuiTheme *theme_read;
+} GuiExplorerThemeCfg;
+void gui_explorer_theme_set(const GuiExplorerThemeCfg *args);
+
+typedef struct
+{
+    void (*set)(const GuiExplorerThemeCfg *args);
+} GuiExplorerThemeNs;
+EMBED_TABLE_LAYOUT(GuiExplorerThemeNs, set);
+EMBED_TABLE_STORAGE GuiExplorerThemeNs gui_explorer_theme EMBED_UNUSED = {
+    .set = gui_explorer_theme_set,
 };
 
 typedef struct

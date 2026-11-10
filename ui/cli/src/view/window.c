@@ -36,6 +36,7 @@
 #include "parts/crumbs.h"
 #include "parts/diffview.h"
 #include "parts/git.h"
+#include "parts/explorer.h"
 #include "parts/gutter.h"
 #include "parts/preview.h"
 #include "parts/run.h"
@@ -114,6 +115,12 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
 {
     VerbaLinea *err_msg = args->err_msg;
     memor.set(&(MemoriaCfg){.dst = args->window, .val = 0, .bytes = sizeof(*args->window)});
+    // the themes' cell stands until the window ends; with none the theme commands are refused
+    args->window->themes = g_cli_guard->persistent_buf_alloc(sizeof(GuiThemes), g_cli_view_owner);
+    if (args->window->themes != NULL)
+    {
+        args->window->themes->count = 0u;
+    }
     EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &args->window->palette_own, .scheme = GUI_SCHEME_DARK);
     args->window->palette = &args->window->palette_own.colors;
     EMBED_CALL(gui_preferences_size.init, GuiPreferencesSizeCfg, .preferences = &args->window->preferences);
@@ -212,6 +219,9 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_notices_end();
     g_cli_guard->persistent_buf_release(window->entries, g_cli_view_owner);
     window->entries = NULL;
+    EMBED_CALL(gui_explorer_theme.set, GuiExplorerThemeCfg, .theme_read = NULL);
+    g_cli_guard->persistent_buf_release(window->themes, g_cli_view_owner);
+    window->themes = NULL;
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release((CliViewFrame *)window->editor.frame);
@@ -2170,6 +2180,9 @@ EMBED_INLINE void window_preference_typed(const GuiWindowCtx *args)
 }
 
 EMBED_INLINE int window_command_run(const GuiWindowCtx *args);
+EMBED_INLINE void window_theme_colored(const GuiWindowCtx *args);
+EMBED_INLINE void window_clipboard_put(const GuiWindowCtx *args);
+EMBED_INLINE int window_name_among(const GuiWindowCtx *args);
 EMBED_INLINE void window_editor_bar_numbers(const GuiWindowCtx *args);
 EMBED_INLINE void window_editor_bar_layout(const GuiWindowCtx *args);
 EMBED_INLINE void window_tabs_bar_numbers(const GuiWindowCtx *args);
@@ -2357,6 +2370,11 @@ EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
     {
         window_plugin_color_set(args);
     }
+    else if ((args->change->type == GUI_PREFERENCE_COLORED) && (args->window->themes != NULL) &&
+             (args->window->theme_chosen < args->window->themes->count))
+    {
+        window_theme_colored(args);
+    }
     else if (args->change->type == GUI_PREFERENCE_COLORED)
     {
         char name[GUI_PREFERENCES_TEXT];
@@ -2445,6 +2463,502 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
     }
 }
 
+// The themes: the entry's list in the window's cell, the theme chosen drawn over the scheme's colors and the color
+// settings, the theme commands, a Colors edit written into the chosen theme, and the chosen theme's icons handed to
+// the explorer. The entry's key, the setting that names the chosen theme, the most bytes the list writes to, and the
+// most bytes one theme shared or read from the clipboard takes
+#define GUI_WINDOW_THEMES_KEY "themes"
+#define GUI_WINDOW_THEME_KEY "theme.dark"
+#define GUI_WINDOW_THEMES_TEXT (1ULL << 19u)
+#define GUI_WINDOW_THEME_TEXT (1ULL << 16u)
+
+// the chosen theme, NULL for the scheme's own colors
+EMBED_INLINE const GuiTheme *window_theme_shown(const GuiWindowCtx *args)
+{
+    const GuiWindow *const window = args->window_read;
+    return ((window->themes != NULL) && (window->theme_chosen < window->themes->count))
+               ? &window->themes->theme[window->theme_chosen]
+               : NULL;
+}
+
+// the place of the palette's color named `name`, the count where none is
+EMBED_INLINE unsigned int window_palette_place(const GuiWindowCtx *args)
+{
+    const unsigned int colors =
+        EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = args->window->palette);
+    for (unsigned int at = 0u; at < colors; at += 1u)
+    {
+        char named[GUI_PREFERENCES_TEXT];
+        EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = args->window->palette, .at = at, .name = named,
+                   .size = sizeof(named));
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->name, .cap = sizeof(named)}))
+        {
+            return at;
+        }
+    }
+    return colors;
+}
+
+// the row of Preferences whose key is `key` given the value `value`, where one stands
+EMBED_INLINE void window_preference_row_value(const GuiWindowCtx *args)
+{
+    GuiPreferenceValues *const values = &args->window->preference_values;
+    for (unsigned int at = 0u; at < values->rows; at += 1u)
+    {
+        GuiPreferenceRow *const row = &values->row[at];
+        if (cellul.eq(&(CatenaFinitaCfg){.src = row->key, .other = args->key, .cap = sizeof(row->key)}))
+        {
+            VerbaLinea value = {row->value, sizeof(row->value), 0ULL};
+            mmgr_line_put(&value, args->value);
+            (void)mmgr_line_finish(&value);
+        }
+    }
+    args->window->preferences_pending = 1;
+}
+
+// The palette made anew: the scheme's colors, the shown file's tokens, the color settings over them and the chosen
+// theme's colors over those; the frame laid again, Preferences' chosen palette made again from it, and the chosen
+// theme's icons handed to the explorer
+EMBED_INLINE void window_palette_rebuild(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char tokens_key[CLI_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = tokens_key, .src = window->tokens_key, .bytes = sizeof(tokens_key)});
+    EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &window->palette_own, .scheme = GUI_SCHEME_DARK);
+    window->tokens_key[0] = '\0';
+    EMBED_CALL(window_tokens_load, GuiWindowCtx, .window = window, .key = tokens_key);
+    for (unsigned int each = 0u; (window->entries != NULL) && (each < window->entries->count); each += 1u)
+    {
+        const CliStateEntry *const entry = &window->entries->entry[each];
+        if (cellul.starts(&(CatenaFinitaCfg){.src = entry->key, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}))
+        {
+            EMBED_CALL(window_color_apply, GuiWindowCtx, .window = window, .key = entry->key, .value = entry->value);
+        }
+    }
+    const GuiTheme *const theme = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+    for (unsigned int at = 0u; (theme != NULL) && (at < theme->colors); at += 1u)
+    {
+        const unsigned int place =
+            EMBED_CALL(window_palette_place, GuiWindowCtx, .window = window, .name = theme->color[at].name);
+        if (place < EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette))
+        {
+            EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = place,
+                       .color = theme->color[at].color);
+        }
+    }
+    if (window->preferences.palette_chosen != 0u)
+    {
+        const GuiPreferenceChange chosen = {.at = window->preferences.palette_chosen};
+        EMBED_CALL(window_palette_choose, GuiWindowCtx, .window = window, .change = &chosen);
+    }
+    EMBED_CALL(gui_explorer_theme.set, GuiExplorerThemeCfg, .theme_read = theme);
+    EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
+}
+
+// the themes written to the entry in orior's folder
+EMBED_INLINE void window_themes_save(const GuiWindowCtx *args)
+{
+    char *const cell = g_cli_guard->temporary_buf_alloc(GUI_WINDOW_THEMES_TEXT, g_cli_view_owner);
+    if (cell == NULL)
+    {
+        return;
+    }
+    VerbaLinea out = mmgr_line_over(cell, GUI_WINDOW_THEMES_TEXT);
+    EMBED_CALL(gui_themes_out.text, GuiThemesOutCfg, .themes_read = args->window->themes, .out = &out);
+    if (mmgr_line_finish(&out) != 0ULL)
+    {
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_THEMES_KEY, .value = cell);
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+}
+
+// the theme `at` chosen, the count for the scheme's own colors: its name saved as the setting, the setting's row
+// given it, and the palette made anew
+EMBED_INLINE void window_theme_choose(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    window->theme_chosen = (args->at < window->themes->count) ? args->at : window->themes->count;
+    const GuiTheme *const theme = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+    const char *const name = (theme != NULL) ? theme->name : GUI_THEME_BASE_NAME;
+    EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_THEME_KEY, .value = name);
+    EMBED_CALL(window_preference_row_value, GuiWindowCtx, .window = window, .key = GUI_WINDOW_THEME_KEY, .value = name);
+    EMBED_CALL(window_palette_rebuild, GuiWindowCtx, .window = window);
+}
+
+// the themes read from the entries, and the one the setting names chosen, as the window starts
+EMBED_INLINE void window_themes_read(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const text =
+        (args->entries != NULL) ? cli_state_entry_value(args->entries, GUI_WINDOW_THEMES_KEY) : NULL;
+    EMBED_CALL(gui_themes_text_table.read, GuiThemesTextCfg, .themes = window->themes, .text = text,
+               .size = (text != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_WINDOW_THEMES_TEXT}) : 0ULL,
+               .owner = g_cli_view_owner);
+    const char *const chosen =
+        (args->entries != NULL) ? cli_state_entry_value(args->entries, GUI_WINDOW_THEME_KEY) : NULL;
+    window->theme_chosen =
+        (chosen != NULL) ? EMBED_CALL(gui_themes_name.find, GuiThemesNameCfg, .themes_read = window->themes, .name = chosen)
+                         : window->themes->count;
+    const GuiTheme *const theme = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+    EMBED_CALL(window_preference_row_value, GuiWindowCtx, .window = window, .key = GUI_WINDOW_THEME_KEY,
+               .value = (theme != NULL) ? theme->name : GUI_THEME_BASE_NAME);
+    if (theme != NULL)
+    {
+        EMBED_CALL(window_palette_rebuild, GuiWindowCtx, .window = window);
+    }
+}
+
+// a theme of the reader's to change: the chosen one, else a new one from the scheme's colors, chosen: its place
+EMBED_INLINE unsigned int window_theme_own(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (window->theme_chosen < window->themes->count)
+    {
+        return window->theme_chosen;
+    }
+    char name[GUI_THEME_NAME];
+    EMBED_CALL(gui_themes_name.free_name, GuiThemesNameCfg, .themes_read = window->themes,
+               .name = GUI_THEME_BASE_NAME " 2", .name_out = name);
+    const unsigned int at = EMBED_CALL(gui_themes_at_name.add, GuiThemesAtNameCfg, .themes = window->themes,
+                                       .from = window->themes->count, .name = name);
+    if (at < window->themes->count)
+    {
+        EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = at);
+    }
+    return at;
+}
+
+// a color of Colors edited while a theme is chosen: the color written into the theme, the themes saved and the palette
+// given it
+EMBED_INLINE void window_theme_colored(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char name[GUI_PREFERENCES_TEXT];
+    EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = window->palette, .at = args->change->at,
+               .name = name, .size = sizeof(name));
+    EMBED_CALL(gui_themes_at_color.color_set, GuiThemesAtColorCfg, .themes = window->themes, .at = window->theme_chosen,
+               .name = name, .color = args->change->color, .on = 1);
+    EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = args->change->at,
+               .color = args->change->color);
+    EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
+}
+
+// the command's `words`, `count` of them, joined by spaces into `value_out`, sized GUI_THEME_NAME
+EMBED_INLINE void window_words_join(const GuiWindowCtx *args)
+{
+    VerbaLinea line = {args->value_out, GUI_THEME_NAME, 0ULL};
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        mmgr_line_put(&line, (at != 0u) ? " " : "");
+        mmgr_line_put(&line, args->words[at]);
+    }
+    (void)mmgr_line_finish(&line);
+}
+
+// a notice that no theme, or no color, is named `name`
+EMBED_INLINE void window_theme_unnamed(const GuiWindowCtx *args)
+{
+    char said[GUI_PREFERENCES_TEXT * 2u];
+    VerbaLinea line = {said, sizeof(said), 0ULL};
+    mmgr_line_put(&line, args->key);
+    mmgr_line_put(&line, args->name);
+    mmgr_line_ch(&line, '.');
+    (void)mmgr_line_finish(&line);
+    cli_notice_post(said, 1);
+}
+
+// theme-choose: the scheme's own colors by its name, or a theme by its name: 1, or 0 where none is named so
+EMBED_INLINE int window_theme_chosen_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char name[GUI_THEME_NAME];
+    EMBED_CALL(window_words_join, GuiWindowCtx, .words = args->words, .count = args->count, .value_out = name);
+    const int base = EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_THEME_BASE_NAME) ||
+                     EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "dark");
+    const unsigned int at =
+        base ? window->themes->count
+             : EMBED_CALL(gui_themes_name.find, GuiThemesNameCfg, .themes_read = window->themes, .name = name);
+    if (name[0] == '\0')
+    {
+        cli_notice_post("Name the theme to choose: " GUI_THEME_BASE_NAME " or one of yours.", 1);
+        return 0;
+    }
+    if (!base && (at == window->themes->count))
+    {
+        EMBED_CALL(window_theme_unnamed, GuiWindowCtx, .key = "No theme is named ", .name = name);
+        return 0;
+    }
+    EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = at);
+    return 1;
+}
+
+// theme-new: a theme from the one shown, or from the scheme's colors, under a free name, chosen: 1, or 0 where the
+// themes are full
+EMBED_INLINE int window_theme_new_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiTheme *const shown = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+    char wanted[GUI_THEME_NAME];
+    VerbaLinea line = {wanted, sizeof(wanted), 0ULL};
+    mmgr_line_put(&line, (shown != NULL) ? shown->name : GUI_THEME_BASE_NAME);
+    mmgr_line_put(&line, " 2");
+    (void)mmgr_line_finish(&line);
+    char name[GUI_THEME_NAME];
+    EMBED_CALL(gui_themes_name.free_name, GuiThemesNameCfg, .themes_read = window->themes, .name = wanted,
+               .name_out = name);
+    const unsigned int at = EMBED_CALL(gui_themes_at_name.add, GuiThemesAtNameCfg, .themes = window->themes,
+                                       .from = window->theme_chosen, .name = name);
+    if (at == window->themes->count)
+    {
+        cli_notice_post("The themes are full.", 1);
+        return 0;
+    }
+    EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = at);
+    return 1;
+}
+
+// theme-import: a theme read from the clipboard's text, its colors those the palette names, chosen: 1, or 0 where the
+// clipboard holds no theme
+EMBED_INLINE int window_theme_import_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char *const cell = g_cli_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    GuiTheme *const read = (GuiTheme *)(void *)(cell + GUI_WINDOW_THEME_TEXT);
+    VerbaLinea text = mmgr_line_over(cell, GUI_WINDOW_THEME_TEXT);
+    (void)cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &text});
+    const unsigned long long length = mmgr_line_finish(&text);
+    int taken = EMBED_CALL(gui_theme_text_table.read, GuiThemeTextCfg, .text = cell, .size = length, .theme_out = read,
+                           .owner = g_cli_view_owner);
+    if (taken)
+    {
+        char name[GUI_THEME_NAME];
+        EMBED_CALL(gui_themes_name.free_name, GuiThemesNameCfg, .themes_read = window->themes, .name = read->name,
+                   .name_out = name);
+        const unsigned int at = EMBED_CALL(gui_themes_at_name.add, GuiThemesAtNameCfg, .themes = window->themes,
+                                           .from = window->themes->count, .name = name);
+        taken = at < window->themes->count;
+        for (unsigned int color = 0u; taken && (color < read->colors); color += 1u)
+        {
+            // a color the palette does not name is left out
+            const unsigned int place =
+                EMBED_CALL(window_palette_place, GuiWindowCtx, .window = window, .name = read->color[color].name);
+            if (place < EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette))
+            {
+                EMBED_CALL(gui_themes_at_color.color_set, GuiThemesAtColorCfg, .themes = window->themes, .at = at,
+                           .name = read->color[color].name, .color = read->color[color].color, .on = 1);
+            }
+        }
+        for (unsigned int icon = 0u; taken && (icon < read->icons); icon += 1u)
+        {
+            EMBED_CALL(gui_themes_at_icon.icon_set, GuiThemesAtIconCfg, .themes = window->themes, .at = at,
+                       .pattern = read->icon[icon].pattern, .mark = read->icon[icon].mark, .color = read->icon[icon].color);
+        }
+        if (taken)
+        {
+            EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+            EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = at);
+        }
+    }
+    else
+    {
+        cli_notice_post("The clipboard holds no theme.", 1);
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+    return taken;
+}
+
+// theme-export: the theme shown, or the scheme's own, as text on the clipboard
+EMBED_INLINE void window_theme_export_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char *const cell = g_cli_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
+    if (cell == NULL)
+    {
+        return;
+    }
+    GuiTheme *const base = (GuiTheme *)(void *)(cell + GUI_WINDOW_THEME_TEXT);
+    const GuiTheme *theme = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+    if (theme == NULL)
+    {
+        memor.set(&(MemoriaCfg){.dst = base, .val = 0, .bytes = sizeof(*base)});
+        VerbaLinea name = {base->name, sizeof(base->name), 0ULL};
+        mmgr_line_put(&name, GUI_THEME_BASE_NAME);
+        (void)mmgr_line_finish(&name);
+        theme = base;
+    }
+    VerbaLinea text = mmgr_line_over(cell, GUI_WINDOW_THEME_TEXT);
+    EMBED_CALL(gui_theme_out.text, GuiThemeOutCfg, .theme_read = theme, .out = &text);
+    if (mmgr_line_finish(&text) != 0ULL)
+    {
+        EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = cell);
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+}
+
+// theme-color <name> [color]: the palette's color `name` set to the color, or put back to the scheme's where no color
+// is given; into the chosen theme where one is, else as the color's setting: 1, or 0 where no color is named so or the
+// value is no color
+EMBED_INLINE int window_theme_color_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = (args->count != 0u) ? args->words[0] : "";
+    const unsigned int place = EMBED_CALL(window_palette_place, GuiWindowCtx, .window = window, .name = name);
+    if (place == EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = window->palette))
+    {
+        EMBED_CALL(window_theme_unnamed, GuiWindowCtx, .key = "No color is named ", .name = name);
+        return 0;
+    }
+    const char *const value = (args->count > 1u) ? args->words[1] : "";
+    GuiColor color = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = window->palette, .at = place);
+    if ((value[0] != '\0') &&
+        !EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = value,
+                    .length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = GUI_PREFERENCES_TEXT}), .current = color,
+                    .color_pointer = &color))
+    {
+        EMBED_CALL(window_theme_unnamed, GuiWindowCtx, .key = "No color reads as ", .name = value);
+        return 0;
+    }
+    if (window->theme_chosen < window->themes->count)
+    {
+        EMBED_CALL(gui_themes_at_color.color_set, GuiThemesAtColorCfg, .themes = window->themes,
+                   .at = window->theme_chosen, .name = name, .color = color, .on = value[0] != '\0');
+        EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+    }
+    else
+    {
+        char key[GUI_PREFERENCES_TEXT + 16u];
+        VerbaLinea line = {key, sizeof(key), 0ULL};
+        mmgr_line_put(&line, GUI_WINDOW_COLOR_KEY);
+        mmgr_line_put(&line, name);
+        (void)mmgr_line_finish(&line);
+        char text[GUI_PREFERENCES_TEXT];
+        EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = color, .text = text,
+                   .size = sizeof(text));
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = key, .value = (value[0] != '\0') ? text : "");
+        // the entries stand as the window started: the setting applied from here on where it is a color
+        EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = key,
+                   .value = (value[0] != '\0') ? text : "");
+    }
+    EMBED_CALL(window_palette_rebuild, GuiWindowCtx, .window = window);
+    if (value[0] == '\0')
+    {
+        // a color put back to the scheme's: the setting's entry stands until the next start, so the scheme's own is
+        // laid over it here
+        const GuiPalette *const scheme = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+        if (place < EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = scheme))
+        {
+            EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &window->palette_own, .at = place,
+                       .color = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = scheme, .at = place));
+            EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
+        }
+    }
+    return 1;
+}
+
+// whether `name` is one of the theme commands the window runs
+EMBED_INLINE int window_theme_is(const GuiWindowCtx *args)
+{
+    static const char *const s_theme_commands[] = {"theme-choose", "theme-new",   "theme-delete",
+                                                   "theme-rename", "theme-export", "theme-import",
+                                                   "theme-color",  "theme-icon",  "theme-icon-remove"};
+    return EMBED_CALL(window_name_among, GuiWindowCtx, .name = args->name, .words = s_theme_commands,
+                      .count = sizeof(s_theme_commands) / sizeof(s_theme_commands[0]));
+}
+
+// the theme commands with their `words`, `count` of them: 1 where the command ran, 0 where it was refused with a
+// notice saying why
+EMBED_INLINE int window_theme_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    if (window->themes == NULL)
+    {
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-choose"))
+    {
+        return EMBED_CALL(window_theme_chosen_run, GuiWindowCtx, .window = window, .words = args->words,
+                          .count = args->count);
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-new"))
+    {
+        return EMBED_CALL(window_theme_new_run, GuiWindowCtx, .window = window);
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-import"))
+    {
+        return EMBED_CALL(window_theme_import_run, GuiWindowCtx, .window = window);
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-export"))
+    {
+        EMBED_CALL(window_theme_export_run, GuiWindowCtx, .window = window);
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-color"))
+    {
+        return EMBED_CALL(window_theme_color_run, GuiWindowCtx, .window = window, .words = args->words,
+                          .count = args->count);
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-icon"))
+    {
+        if ((args->count == 0u) || (args->words[0][0] == '\0'))
+        {
+            cli_notice_post("An icon needs a pattern of file names.", 1);
+            return 0;
+        }
+        const unsigned int at = EMBED_CALL(window_theme_own, GuiWindowCtx, .window = window);
+        EMBED_CALL(gui_themes_at_icon.icon_set, GuiThemesAtIconCfg, .themes = window->themes, .at = at,
+                   .pattern = args->words[0], .mark = (args->count > 1u) ? args->words[1] : "",
+                   .color = (args->count > 2u) ? args->words[2] : "");
+        EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+        EMBED_CALL(window_palette_rebuild, GuiWindowCtx, .window = window);
+        return 1;
+    }
+    // the rest change the theme shown, and the scheme's own colors are no theme of the reader's
+    if (window->theme_chosen >= window->themes->count)
+    {
+        cli_notice_post(GUI_THEME_BASE_NAME " is the scheme's own colors; choose or make a theme first.", 1);
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-delete"))
+    {
+        EMBED_CALL(gui_themes_at.remove, GuiThemesAtCfg, .themes = window->themes, .at = window->theme_chosen);
+        EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+        EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = window->themes->count);
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-rename"))
+    {
+        char wanted[GUI_THEME_NAME];
+        EMBED_CALL(window_words_join, GuiWindowCtx, .words = args->words, .count = args->count, .value_out = wanted);
+        const GuiTheme *const shown = EMBED_CALL(window_theme_shown, GuiWindowCtx, .window_read = window);
+        if ((wanted[0] == '\0') ||
+            cellul.eq(&(CatenaFinitaCfg){.src = wanted, .other = shown->name, .cap = GUI_THEME_NAME}))
+        {
+            return 1;
+        }
+        char free_name[GUI_THEME_NAME];
+        EMBED_CALL(gui_themes_name.free_name, GuiThemesNameCfg, .themes_read = window->themes, .name = wanted,
+                   .name_out = free_name);
+        EMBED_CALL(gui_themes_at_name.rename, GuiThemesAtNameCfg, .themes = window->themes, .at = window->theme_chosen,
+                   .name = free_name);
+        EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+        EMBED_CALL(window_theme_choose, GuiWindowCtx, .window = window, .at = window->theme_chosen);
+        return 1;
+    }
+    // theme-icon-remove
+    EMBED_CALL(gui_themes_at_icon.icon_remove, GuiThemesAtIconCfg, .themes = window->themes, .at = window->theme_chosen,
+               .pattern = (args->count != 0u) ? args->words[0] : "");
+    EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
+    window->pending = 1;
+    return 1;
+}
+
 // the settings orior's folder saved, the CLI's `entries`, taken over the window's defaults one at a time
 EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
 {
@@ -2460,6 +2974,10 @@ EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
                    .value = args->entries->entry[each].value);
     }
     EMBED_CALL(window_preference_rows_read, GuiWindowCtx, .window = window, .entries = args->entries);
+    if (window->themes != NULL)
+    {
+        EMBED_CALL(window_themes_read, GuiWindowCtx, .window = window, .entries = args->entries);
+    }
     EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
 }
 
@@ -3306,6 +3824,12 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
         EMBED_CALL(cli_git_log.authors_set, CliGitLogCfg,
                    .on = on || (!off && !EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u)),
                    .now_ms = cli_clock_milliseconds());
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_theme_is, GuiWindowCtx, .name = name))
+    {
+        ran = EMBED_CALL(window_theme_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
+                         .count = args->count);
         window->pending = 1;
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "show-changes"))
