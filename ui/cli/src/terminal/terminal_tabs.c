@@ -234,7 +234,7 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     const unsigned long long restored = read - from;
     const unsigned int rows = tab->xterm.rows;
     const unsigned long long bytes = restored + 1ULL + rows + 1ULL;
-    char *const text = g_cli_guard->persistent_buf_alloc(bytes, g_cli_terminal_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_terminal_owner);
     if (text == NULL)
     {
         g_cli_guard->persistent_buf_release((void *)(uintptr_t)file_bytes, (g_cli_terminal_owner));
@@ -687,7 +687,7 @@ EMBED_INLINE void terminal_send(const TerminalCtx *args)
 EMBED_INLINE void terminal_paste(const TerminalCtx *args)
 {
     const int at = terminal_target();
-    char *const text = (at >= 0) ? g_cli_guard->persistent_buf_alloc(TERMINAL_PASTE_MAX, g_cli_terminal_owner) : NULL;
+    char *const text = (at >= 0) ? g_cli_guard->temporary_buf_alloc(TERMINAL_PASTE_MAX, g_cli_terminal_owner) : NULL;
     if (text == NULL)
     {
         return;
@@ -1033,7 +1033,7 @@ EMBED_INLINE void terminal_place_save(void)
         return;
     }
     const unsigned long long bytes = 64ULL + ((unsigned long long)s_terminal.tabs * (CLI_PATH_MAX_LEN + 16ULL));
-    char *const text = g_cli_guard->persistent_buf_alloc(bytes, g_cli_terminal_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_terminal_owner);
     if (text == NULL)
     {
         return;

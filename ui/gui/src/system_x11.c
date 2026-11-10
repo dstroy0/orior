@@ -18,6 +18,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 #include <X11/keysym.h>
 #include <poll.h>
 #include <unistd.h>
@@ -760,6 +761,22 @@ void gui_system_icon(const GuiSystemTitleIconCfg *args)
     // the words are far fewer than an int counts
     XChangeProperty(args->system->display, args->system->window, icon, XA_CARDINAL, 32, PropModeReplace,
                     (const unsigned char *)s_icon_words, (int)words);
+    XFlush(args->system->display);
+}
+
+void gui_system_cursor_show(const GuiSystemCursorCfg *args)
+{
+    if (args->cursor == GUI_CURSOR_SCROLL)
+    {
+        // the window keeps its reference to the cursor once it is defined on it, so the handle is freed at once
+        const Cursor fleur = XCreateFontCursor(args->system->display, XC_fleur);
+        XDefineCursor(args->system->display, args->system->window, fleur);
+        XFreeCursor(args->system->display, fleur);
+    }
+    else
+    {
+        XUndefineCursor(args->system->display, args->system->window);
+    }
     XFlush(args->system->display);
 }
 

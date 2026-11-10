@@ -24,6 +24,9 @@ the compiler and the linker's tools.
                                               names they share: each import the module it names exports and the
                                               importer uses, and each top-level name of one of them that another uses
                                               imported there
+    harness.py source cells [folder]          every persistent take under the folder, with the function it stands in,
+                                              what it is assigned to, where the function releases it and its escape
+                                              class, as build/harness/out/cells.tsv, the classes counted
 
 Logs and listings go under build/ and build/harness/out."""
 
@@ -523,6 +526,127 @@ def family_of(path, files):
     return folder if folder + ".js" in files else stem
 
 
+CELL_TAKE = re.compile(r"persistent_buf_alloc\(")
+CELL_RELEASE = re.compile(r"persistent_buf_release\(\s*(?:\(void \*\)\s*(?:\(uintptr_t\)\s*)?)?([A-Za-z_][\w>.\[\]-]*)")
+CELL_OWNER = re.compile(r"(g_\w+_owner|args->owner|owner)\s*\)")
+CELL_FUNCTION = re.compile(r"^(?:static |EMBED_INLINE |[A-Za-z_][\w *]*\b)[\w *]*?\b([A-Za-z_]\w*)\s*\([^;]*$")
+CELL_ASSIGN = re.compile(r"(?<![=!<>])=(?!=)")
+# a store of a name into a member, an element, a dereference or a file-scope variable, not a designated argument
+CELL_STORE = r"(?:\w+(?:->|\.)\w+(?:\[[^\]]*\])?|\w+\[[^\]]*\]|\*\s*\w+|\b[sg]_\w+)\s*=\s*\(?(?:\([^()]*\)\s*)?%s\s*[;,)]"
+
+
+def cell_functions(lines):
+    """Each function of a C source as (name, first line, last line), the body found by its braces from the line after
+    its signature; the signature's name is the last identifier before its parenthesis."""
+    found = []
+    name = None
+    depth = 0
+    start = 0
+    for at, text in enumerate(lines):
+        stripped = text.rstrip()
+        if depth == 0:
+            match = CELL_FUNCTION.match(stripped)
+            if match and not stripped.endswith(";") and not stripped.startswith(("typedef", "#", "//", "struct ", "EMBED_TABLE")):
+                name = match.group(1)
+            if stripped == "{" and name is not None:
+                depth = 1
+                start = at
+                continue
+            if stripped.startswith("}") or stripped.endswith(";"):
+                name = name if (stripped and not stripped.endswith(";")) else None
+            continue
+        depth += text.count("{") - text.count("}")
+        if depth <= 0:
+            found.append((name, start, at))
+            name = None
+            depth = 0
+    return found
+
+
+def cell_target(lines, at):
+    """What the take at line `at` is assigned to: the text before the `=` on that line or the lines just above, with
+    its declaration stripped; `literal` for a take inside a brace initializer, and `` for a take passed or returned
+    straight."""
+    joined = ""
+    for back in range(0, 4):
+        text = lines[at - back].strip() if at - back >= 0 else ""
+        # a line above that ends a statement or opens a brace is another statement's: the take's own begins after it
+        if (back > 0) and text.endswith(("{", ";", "}")):
+            break
+        joined = text + " " + joined
+        if (back > 0) and (CELL_ASSIGN.search(text) or text.endswith(",")):
+            break
+    head = joined.split("persistent_buf_alloc(")[0]
+    if "return " in head:
+        return "return"
+    assigned = CELL_ASSIGN.search(head)
+    if assigned is None:
+        return "literal" if head.rstrip().endswith(("{", ",")) else ""
+    left = head[:assigned.start()].strip()
+    # the declaration's type words stripped: the last word, with its member path, is the target
+    words = re.split(r"\s+", left)
+    return words[-1].strip("*") if words else ""
+
+
+def cell_kind(body, target):
+    """The escape class of a take's cell in its function, in escape analysis's terms: `local` where the function
+    releases the same name and passes it to no callee, `local argument` where it releases it after passing it to a
+    callee, `stored` where the target is a member or a file-scope variable, `returned` where the name is returned or
+    stored past the function, `argument` where it is passed to a callee and not released here, `unreleased` where
+    the name is neither released, stored, returned nor passed, `literal` for a take inside a brace initializer and
+    `unknown` where no name is read."""
+    if target == "return":
+        return "returned"
+    if target in ("literal", ""):
+        return target or "unknown"
+    if "->" in target or "." in target or target.startswith("s_") or target.startswith("g_") or target.startswith("*"):
+        return "stored"
+    released = any(match.group(1) == target for text in body for match in CELL_RELEASE.finditer(text))
+    name = re.escape(target)
+    store = re.compile(CELL_STORE % name)
+    others = [text for text in body if "persistent_buf_alloc" not in text and "persistent_buf_release" not in text]
+    returned = any(re.search(r"return\s+\(?\s*" + name + r"\b", text) or store.search(text) or re.search(r"EXCHANGE\w*\(.*\b" + name + r"\s*\)", text) for text in others)
+    if returned:
+        return "returned"
+    # the name passed to a callee, as a designated argument or a plain one: the callee may keep it
+    argument = any(re.search(r"(?:\.\w+\s*=\s*|[(,]\s*)\(?(?:\([^()]*\)\s*)?" + name + r"\s*[,)]", text) for text in others)
+    if released:
+        return "local" if not argument else "local argument"
+    return "argument" if argument else "unreleased"
+
+
+def cmd_source_cells(a):
+    """Every persistent take under a.folder listed with its function, its owner, its target, where the function
+    releases that target and the cell's escape class, to build/harness/out/cells.tsv, the classes counted."""
+    root = os.path.join(ROOT, *a.folder.split("/"))
+    files = sorted(os.path.join(folder, name) for folder, _, names in os.walk(root) for name in names if name.endswith(".c"))
+    rows = []
+    for path in files:
+        with open(path, encoding="utf-8", errors="replace") as source:
+            lines = source.read().split("\n")
+        functions = cell_functions(lines)
+        for at, text in enumerate(lines):
+            if not CELL_TAKE.search(text):
+                continue
+            function = next(((name, start, end) for name, start, end in functions if start <= at <= end), ("", at, at))
+            body = lines[function[1]:function[2] + 1]
+            target = cell_target(lines, at)
+            owner = CELL_OWNER.search(" ".join(lines[at:at + 3]))
+            releases = [str(function[1] + offset + 1) for offset, line in enumerate(body) if any(match.group(1) == target for match in CELL_RELEASE.finditer(line))]
+            rows.append((os.path.relpath(path, ROOT).replace("\\", "/"), at + 1, function[0], owner.group(1) if owner else "", target, cell_kind(body, target), " ".join(releases)))
+    os.makedirs(OUT, exist_ok=True)
+    listed = os.path.join(OUT, "cells.tsv")
+    with open(listed, "w", encoding="utf-8", newline="\n") as out:
+        out.write("file\tline\tfunction\towner\ttarget\tescape class\treleased at\n")
+        out.write("".join("\t".join(str(field) for field in row) + "\n" for row in rows))
+    classes = {}
+    for row in rows:
+        classes[row[5]] = classes.get(row[5], 0) + 1
+    print("\n".join("%6d %s" % (count, name) for name, count in sorted(classes.items(), key=lambda pair: -pair[1])))
+    print("%d takes, %s" % (len(rows), listed))
+    return 0
+
+
 def cmd_source_page_names(a):
     """The page's modules named, each parsed as a module, and read for the names they share. Each name a module
     imports from another module of the page is exported there and used here; each top-level name of one of the
@@ -639,6 +763,9 @@ def register(sub):
     p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")
     p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")
     p.set_defaults(fn=cmd_source_page_names)
+    p = source.add_parser("cells", help="every persistent take under the folder with its function, target, releases and escape class, to build/harness/out/cells.tsv")
+    p.add_argument("folder", nargs="?", default="ui/cli/src", help="the folder under the tree to read, ui/cli/src by default")
+    p.set_defaults(fn=cmd_source_cells)
     p = source.add_parser("analyze", help="the clang static analyzer over the sources or folders named, its findings under build/harness/out")
     p.add_argument("sources", nargs="+", help="C sources or folders, from the top of the tree")
     p.add_argument("--notes", action="store_true", help="each finding's path through the code written after it")

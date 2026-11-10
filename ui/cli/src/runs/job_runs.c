@@ -599,7 +599,7 @@ int cli_job_runs_start(const CliJobRunsRunCfg *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     unsigned long long run = 0ULL;
     CliValues *const values = (store->chosen != CLI_CATALOG_NONE)
-                                  ? g_cli_guard->persistent_buf_alloc(sizeof(CliValues), g_cli_job_runs_owner)
+                                  ? g_cli_guard->temporary_buf_alloc(sizeof(CliValues), g_cli_job_runs_owner)
                                   : NULL;
     if (values != NULL)
     {

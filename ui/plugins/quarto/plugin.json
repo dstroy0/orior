@@ -12,6 +12,18 @@
   "skips": [["^\\s*(?:```|~~~)", "^\\s*(?:```|~~~)\\s*$"]],
   "blocks": [["^\\s*```\\{", "^\\s*```\\s*$"], ["^:::+\\s*\\{", "^:::+\\s*$"]],
   "outline": [["^()#\\|\\s*label:\\s*(\\S+)", "field"]],
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "emphasis": "#c9b8ffff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "strong": "#e4e3f5ff",
+    "tag": "#8ab8ffff"
+  },
   "grammar": {
     "tokenizer": {
       "root": [

@@ -278,7 +278,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
                 cellul.len(&(CatenaFinitaCfg){.src = vs->value[at], .cap = CLI_POOL_BYTES}) +
                 cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_POOL_BYTES}) + 2ULL;
             g_cli_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
-            vs_path = g_cli_guard->persistent_buf_alloc(joined_size, g_cli_servers_launch_owner);
+            vs_path = g_cli_guard->temporary_buf_alloc(joined_size, g_cli_servers_launch_owner);
             VerbaLinea joined = mmgr_line_over(vs_path, joined_size);
             mmgr_line_put(&joined, vs->value[at]);
             mmgr_line_ch(&joined, CLI_SERVERS_PATH_PARTS);

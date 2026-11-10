@@ -35,13 +35,13 @@
 #define WORDMARK_EYE_LINE 2.2f
 #define WORDMARK_BAR_EYE_LINE 6.75f
 
-// the eye's square in the bar in the page's pixels: its side, 1.164em by 1.475 at 17 pixels fitted to its box, and
-// where it stands unclaimed: the bar's padding of 16 less the rule's 7 across; half of what the eye leaves of the bar's
-// 39 inside, and the rule's 5.2 down, less the fit's share at its top
-#define WORDMARK_BAR_EYE_SIDE 29.18f
-#define WORDMARK_BAR_EYE_SIDE_WORDS 1912340LL
-#define WORDMARK_BAR_EYE_LEFT_WORDS 589824LL
-#define WORDMARK_BAR_EYE_TOP_WORDS 662569LL
+// the eye's square in the bar in the page's pixels: its side, 1.164em by 1.475 at 17 pixels fitted to its box and
+// scaled to the bar's height, and where it stands unclaimed: the bar's padding less the rule's width across, and half
+// of what the eye leaves of the bar's inside down, less the fit's share at its top, scaled the same
+#define WORDMARK_BAR_EYE_SIDE 24.2f
+#define WORDMARK_BAR_EYE_SIDE_WORDS 1585837LL
+#define WORDMARK_BAR_EYE_LEFT_WORDS 489104LL
+#define WORDMARK_BAR_EYE_TOP_WORDS 549446LL
 
 // incised.js on a cap height of 10: a cut's half width where the stylus goes in and at its tail; the box round the word
 // and how far it stands out from the capitals; and the most steps a cut is laid in, and points a stroke passes

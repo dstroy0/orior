@@ -8,6 +8,15 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "<(?!\\/|br|hr|img|input|meta|link)[\\w-]+[^>]*>\\s*$",
+  "palette": {
+    "attribute": "#c9b8ffff",
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "keyword": "#a48cffff",
+    "string": "#9fe3c8ff",
+    "tag": "#8ab8ffff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "tokenizer": {
       "root": [

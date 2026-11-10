@@ -46,9 +46,9 @@ EMBED_INLINE unsigned long long dialog_length(const DialogCtx *args)
 // `text` copied into `destination` of `capacity` bytes, cut to fit, with its end byte
 EMBED_INLINE void dialog_copy(const DialogCtx *args)
 {
-    const unsigned long long length = (args->text != NULL) ? EMBED_CALL(dialog_length, DialogCtx, .text = args->text,
-                                                                         .capacity = args->capacity)
-                                                           : 0ULL;
+    const unsigned long long length =
+        (args->text != NULL) ? EMBED_CALL(dialog_length, DialogCtx, .text = args->text, .capacity = args->capacity)
+                             : 0ULL;
     if (length != 0ULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->destination, .src = args->text, .bytes = length});
@@ -68,9 +68,8 @@ EMBED_INLINE int dialog_text_width(const DialogCtx *args)
 {
     // a text's width in pixels is far inside what an int holds
     return (int)EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
-                           .face = GUI_FACE_HEAD,
-                           .size = EMBED_CALL(dialog_size, DialogCtx, .scale = args->scale), .text = args->text,
-                           .length = args->length);
+                           .face = GUI_FACE_HEAD, .size = EMBED_CALL(dialog_size, DialogCtx, .scale = args->scale),
+                           .text = args->text, .length = args->length);
 }
 
 // the count of lines in the body: 0 for an empty body, else one more than its line ends
@@ -122,11 +121,10 @@ EMBED_INLINE int dialog_button_measure(const DialogCtx *args)
     const char *const label = args->dialog_read->label[args->at];
     const int padding = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_PAD, .scale = args->scale);
     const int least = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_LEAST, .scale = args->scale);
-    const int wide = EMBED_CALL(dialog_text_width, DialogCtx, .glyphs = args->glyphs, .scale = args->scale,
-                                .text = label,
-                                .length = EMBED_CALL(dialog_length, DialogCtx, .text = label,
-                                                     .capacity = GUI_DIALOG_LABEL)) +
-                     (2 * padding);
+    const int wide =
+        EMBED_CALL(dialog_text_width, DialogCtx, .glyphs = args->glyphs, .scale = args->scale, .text = label,
+                   .length = EMBED_CALL(dialog_length, DialogCtx, .text = label, .capacity = GUI_DIALOG_LABEL)) +
+        (2 * padding);
     return (wide > least) ? wide : least;
 }
 
@@ -144,8 +142,7 @@ int gui_dialog_ask(const GuiDialogAskCfg *args)
         return 0;
     }
     GuiDialog *const dialog = args->dialog;
-    EMBED_CALL(dialog_copy, DialogCtx, .destination = dialog->title, .text = args->title,
-               .capacity = GUI_DIALOG_TITLE);
+    EMBED_CALL(dialog_copy, DialogCtx, .destination = dialog->title, .text = args->title, .capacity = GUI_DIALOG_TITLE);
     EMBED_CALL(dialog_copy, DialogCtx, .destination = dialog->body, .text = args->body, .capacity = GUI_DIALOG_BODY);
     for (unsigned int at = 0u; at < GUI_DIALOG_BUTTONS_MOST; at += 1u)
     {
@@ -168,19 +165,18 @@ void gui_dialog_want(const GuiDialogWantCfg *args)
 {
     const GuiDialog *const dialog = args->dialog_read;
     const int scale = args->scale;
-    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale);
-    const int margin = edge / 2;
+    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
+    const int mat = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT, .scale = scale);
     const int head = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale);
     const int line = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_LINE, .scale = scale);
     const int button = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_HEIGHT, .scale = scale);
     const int space = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_SPACE, .scale = scale);
     const int close = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_CLOSE_WIDTH, .scale = scale);
     int widest = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_LEAST_WIDTH, .scale = scale);
-    const int title = (2 * edge) + close +
-                      EMBED_CALL(dialog_text_width, DialogCtx, .glyphs = args->glyphs, .scale = scale,
-                                 .text = dialog->title,
-                                 .length = EMBED_CALL(dialog_length, DialogCtx, .text = dialog->title,
-                                                      .capacity = GUI_DIALOG_TITLE));
+    const int title =
+        (2 * edge) + close +
+        EMBED_CALL(dialog_text_width, DialogCtx, .glyphs = args->glyphs, .scale = scale, .text = dialog->title,
+                   .length = EMBED_CALL(dialog_length, DialogCtx, .text = dialog->title, .capacity = GUI_DIALOG_TITLE));
     widest = (title > widest) ? title : widest;
     const unsigned int lines = EMBED_CALL(dialog_lines, DialogCtx, .dialog_read = dialog);
     for (unsigned int at = 0u; at < lines; at += 1u)
@@ -205,8 +201,7 @@ void gui_dialog_want(const GuiDialogWantCfg *args)
     widest = (buttons > widest) ? buttons : widest;
     // a client's sides are not negative and far inside what an unsigned int holds
     *args->width_pointer = (unsigned int)widest;
-    *args->height_pointer =
-        (unsigned int)(margin + head + margin + ((int)lines * line) + edge + button + edge);
+    *args->height_pointer = (unsigned int)(mat + head + (edge - mat) + ((int)lines * line) + edge + button + edge);
 }
 
 void gui_dialog_resize(const GuiDialogWidthCfg *args)
@@ -227,26 +222,27 @@ void gui_dialog_resize(const GuiDialogWidthCfg *args)
 GuiRect gui_dialog_head_rect(const GuiDialogReadCfg *args)
 {
     const int scale = args->dialog_read->scale;
-    const int margin = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale) / 2;
+    const int mat = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT, .scale = scale);
     // a client's side is far inside what an int holds
     return (GuiRect){0, 0, (int)args->dialog_read->width,
-                     margin + EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale)};
+                     mat + EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale)};
 }
 
 GuiRect gui_dialog_close_rect(const GuiDialogReadCfg *args)
 {
     const int scale = args->dialog_read->scale;
-    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale);
+    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
     const int close = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_CLOSE_WIDTH, .scale = scale);
     // a client's side is far inside what an int holds
-    return (GuiRect){(int)args->dialog_read->width - edge - close, edge / 2, close,
+    return (GuiRect){(int)args->dialog_read->width - edge - close,
+                     EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT, .scale = scale), close,
                      EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale)};
 }
 
 GuiRect gui_dialog_body_rect(const GuiDialogReadCfg *args)
 {
     const int scale = args->dialog_read->scale;
-    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale);
+    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
     const int top = edge + EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale);
     const int line = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_LINE, .scale = scale);
     // a client's side and a count of lines are far inside what an int holds
@@ -262,7 +258,7 @@ GuiRect gui_dialog_button_rect(const GuiDialogReadCfg *args)
     {
         return (GuiRect){0, 0, 0, 0};
     }
-    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale);
+    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
     const int height = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_HEIGHT, .scale = scale);
     const int space = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_BUTTON_SPACE, .scale = scale);
     // The buttons stand in their order and end at the foot's right edge. Each button after `at` and its space come
@@ -298,8 +294,8 @@ EMBED_INLINE unsigned int dialog_button_at(const DialogCtx *args)
 EMBED_INLINE int dialog_close_at(const DialogCtx *args)
 {
     return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
-                      .rect = EMBED_CALL(gui_dialog_read.close_rect, GuiDialogReadCfg,
-                                         .dialog_read = args->dialog_read),
+                      .rect =
+                          EMBED_CALL(gui_dialog_read.close_rect, GuiDialogReadCfg, .dialog_read = args->dialog_read),
                       .x = args->x, .y = args->y);
 }
 
@@ -398,8 +394,8 @@ void gui_dialog_release(const GuiDialogPointCfg *args)
         EMBED_CALL(dialog_end, DialogCtx, .dialog = dialog);
         return;
     }
-    if (dialog->close_pressed && EMBED_CALL(dialog_close_at, DialogCtx, .dialog_read = dialog, .x = args->x,
-                                            .y = args->y))
+    if (dialog->close_pressed &&
+        EMBED_CALL(dialog_close_at, DialogCtx, .dialog_read = dialog, .x = args->x, .y = args->y))
     {
         change->type = GUI_DIALOG_CLOSED;
         EMBED_CALL(dialog_end, DialogCtx, .dialog = dialog);
@@ -417,14 +413,13 @@ void gui_dialog_release(const GuiDialogPointCfg *args)
 EMBED_INLINE void dialog_text_draw(const DialogCtx *args)
 {
     const unsigned int size = EMBED_CALL(dialog_size, DialogCtx, .scale = args->scale);
-    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
-                     .glyphs = args->glyphs, .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)args->rect.x,
-                     .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                     .face = GUI_FACE_HEAD, .size = size, .top = args->rect.y,
-                                     .pixel_height = args->rect.height),
-                     .text = args->text, .length = args->length, .color = args->color,
-                     .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
-                                        .other = args->clip));
+    (void)EMBED_CALL(
+        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster, .glyphs = args->glyphs,
+        .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)args->rect.x,
+        .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = GUI_FACE_HEAD,
+                        .size = size, .top = args->rect.y, .pixel_height = args->rect.height),
+        .text = args->text, .length = args->length, .color = args->color,
+        .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect, .other = args->clip));
 }
 
 // the close mark: two diagonals in a box in the middle of its rectangle, brighter under the pointer
@@ -449,10 +444,10 @@ EMBED_INLINE void dialog_button_draw(const DialogCtx *args)
 {
     const GuiDialog *const dialog = args->dialog_read;
     const GuiPalette *const palette = args->palette;
-    const GuiRect box = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = dialog,
-                                   .at = args->at);
-    const unsigned int radius = (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx,
-                                                         .pixels = (int)GUI_DIALOG_BUTTON_RADIUS, .scale = dialog->scale);
+    const GuiRect box =
+        EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = dialog, .at = args->at);
+    const unsigned int radius = (unsigned int)EMBED_CALL(
+        dialog_pixels, DialogCtx, .pixels = (int)GUI_DIALOG_BUTTON_RADIUS, .scale = dialog->scale);
     const int one = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = 1, .scale = dialog->scale);
     if (args->at == dialog->preferred)
     {
@@ -464,8 +459,7 @@ EMBED_INLINE void dialog_button_draw(const DialogCtx *args)
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = box,
                .radius = radius, .color = keyed ? palette->signal : pointed_line, .stroke = one);
     const char *const label = dialog->label[args->at];
-    const unsigned long long length =
-        EMBED_CALL(dialog_length, DialogCtx, .text = label, .capacity = GUI_DIALOG_LABEL);
+    const unsigned long long length = EMBED_CALL(dialog_length, DialogCtx, .text = label, .capacity = GUI_DIALOG_LABEL);
     const int wide = EMBED_CALL(dialog_text_width, DialogCtx, .glyphs = args->glyphs, .scale = dialog->scale,
                                 .text = label, .length = length);
     EMBED_CALL(dialog_text_draw, DialogCtx, .raster = args->raster, .glyphs = args->glyphs, .scale = dialog->scale,
@@ -481,13 +475,13 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const int scale = dialog->scale;
     // a client's sides are far inside what an int holds
     const GuiRect clip = {0, 0, (int)dialog->width, (int)dialog->height};
-    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_EDGE, .scale = scale);
-    const int margin = edge / 2;
+    const int edge = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT + GUI_DIALOG_PAD, .scale = scale);
+    const int mat = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_MAT, .scale = scale);
     const int head = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_DIALOG_HEAD, .scale = scale);
     // The glass covers the whole window, as it does about the main window's work. The clear ground is the same
     // lattice with no tint and no grain
     const GuiUnder table = EMBED_CALL(gui_glass.table, GuiGlassCfg, .background_fill = args->ground,
-                                      .color = palette->deep, .glass = palette->glass);
+                                      .color = palette->deep, .glass = palette->glass, .grain = palette->grain);
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = table, .rect = clip, .radius = 0u, .inner = palette->glass);
@@ -497,7 +491,7 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const unsigned int pane_radius =
         (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_RADIUS, .scale = scale);
     const int rounding = (int)pane_radius;
-    const GuiRect sheet = {margin, margin, clip.width - (2 * margin), clip.height - (2 * margin)};
+    const GuiRect sheet = {mat, mat, clip.width - (2 * mat), clip.height - (2 * mat)};
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = clear, .rect = sheet, .radius = pane_radius, .inner = palette->editor_background);
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
@@ -509,19 +503,16 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const int one = EMBED_CALL(dialog_pixels, DialogCtx, .pixels = 1, .scale = scale);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){sheet.x, sheet.y + head - one, sheet.width, one}, .color = palette->line);
-    // the work's lines about the sheet, the link darkened, as the main window's work stands in them
-    const GuiColor work_line =
-        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
-                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
-    const GuiOutline outline = {
-        work_line,
-        work_line,
-        work_line,
-        work_line,
-        EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_TOP, .scale = scale),
-        EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_RIGHT, .scale = scale),
-        EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_BOTTOM, .scale = scale),
-        EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_LEFT, .scale = scale)};
+    // the work's lines about the sheet, as the main window's work stands in them
+    const GuiColor work_line = palette->work_line;
+    const GuiOutline outline = {work_line,
+                                work_line,
+                                work_line,
+                                work_line,
+                                EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_TOP, .scale = scale),
+                                EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_RIGHT, .scale = scale),
+                                EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_BOTTOM, .scale = scale),
+                                EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_PAD_LEFT, .scale = scale)};
     const GuiRect inside = {sheet.x + outline.left_width, sheet.y + outline.top_width,
                             sheet.width - outline.left_width - outline.right_width,
                             sheet.height - outline.top_width - outline.bottom_width};
@@ -531,7 +522,7 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     // the title in the head band, and the close mark at its right
     const GuiRect close = EMBED_CALL(gui_dialog_read.close_rect, GuiDialogReadCfg, .dialog_read = dialog);
     EMBED_CALL(dialog_text_draw, DialogCtx, .raster = raster, .glyphs = args->glyphs, .scale = scale,
-               .rect = (GuiRect){edge, margin, close.x - edge, head}, .clip = clip, .text = dialog->title,
+               .rect = (GuiRect){edge, mat, close.x - edge, head}, .clip = clip, .text = dialog->title,
                .length = EMBED_CALL(dialog_length, DialogCtx, .text = dialog->title, .capacity = GUI_DIALOG_TITLE),
                .color = palette->text);
     EMBED_CALL(dialog_close_draw, DialogCtx, .dialog_read = dialog, .raster = raster, .palette = palette);
@@ -561,10 +552,9 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     // rounded. While the dialog holds the focus, it stands in the error color for an error, else in the signal.
     // Without the focus it stands in the widget's line
     // a rounding in pixels is not negative
-    const unsigned int window_radius = (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx,
-                                                                .pixels = (int)GUI_DIALOG_WINDOW_RADIUS, .scale = scale);
+    const unsigned int window_radius =
+        (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = (int)GUI_DIALOG_WINDOW_RADIUS, .scale = scale);
     const GuiColor focus_line = dialog->error ? palette->fail : palette->signal;
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = clip,
-               .radius = window_radius, .color = dialog->focused ? focus_line : palette->widget_line,
-               .stroke = one);
+               .radius = window_radius, .color = dialog->focused ? focus_line : palette->widget_line, .stroke = one);
 }

@@ -67,6 +67,8 @@ struct GuiSystem
     HWND modal_owner;
     // the wheel's units turned down that add up to no whole notch yet, kept for the next turn's count of rows
     int wheel_rest;
+    // the pointer's shape over the client, NULL for the class's arrow
+    HCURSOR cursor;
 };
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
@@ -655,6 +657,14 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     }
     switch (message)
     {
+    case WM_SETCURSOR:
+        // the shape the window asked for stands over the client; the system's own stands over the frame
+        if ((LOWORD(low) == HTCLIENT) && (system->cursor != NULL))
+        {
+            SetCursor(system->cursor);
+            return TRUE;
+        }
+        return DefWindowProcW(window, message, pixel_width, low);
     case WM_NCCALCSIZE:
         if (pixel_width == 0u)
         {
@@ -1214,6 +1224,12 @@ EMBED_INLINE HICON system_icon_init(const SystemWindowsCtx *args)
         DeleteObject(mask);
     }
     return icon;
+}
+
+void gui_system_cursor_show(const GuiSystemCursorCfg *args)
+{
+    args->system->cursor = (args->cursor == GUI_CURSOR_SCROLL) ? LoadCursorW(NULL, IDC_SIZEALL) : NULL;
+    SetCursor((args->system->cursor != NULL) ? args->system->cursor : LoadCursorW(NULL, IDC_ARROW));
 }
 
 void gui_system_icon(const GuiSystemTitleIconCfg *args)

@@ -16,6 +16,8 @@
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 
+#include <stdio.h>
+
 static GuiWindow s_window;
 static char s_root[CLI_PATH_MAX_LEN];
 
@@ -78,7 +80,18 @@ static int asked(const char *command, const char *word)
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 1ULL);
     }
-    return (s_ask.requested > 0) && s_ask.answer.done;
+    const int ran = (s_ask.requested > 0) && s_ask.answer.done;
+    if (!ran)
+    {
+        // the reason the window gave, beside the check that reads it, and the pool as it stands
+        const SeriesCellularum *const record = cli_pool_series_cellularum();
+        (void)fprintf(stderr, "  ask %s refused (%d): %s; pool end %llu top %llu fragmentation %llu\n", command,
+                      s_ask.requested, s_ask.answer.text,
+                      (unsigned long long)mmgr_series_cellularum_persistent_end(record),
+                      (unsigned long long)mmgr_series_cellularum_temporary_top(record),
+                      (unsigned long long)mmgr_series_cellularum_fragmentation(record));
+    }
+    return ran;
 }
 
 // the key `name` pressed as the system hands it on
@@ -136,11 +149,18 @@ static int tab_opened(const char *name)
     tree_path(name, path);
     const int opened = asked("file", path);
     const int shown = cli_view_shown();
-    return opened && (shown >= 0) &&
-           cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
-                                        .cap = CLI_POOL_BYTES,
-                                        .other = name,
-                                        .other_cap = CLI_POOL_BYTES});
+    const int stands = opened && (shown >= 0) &&
+                       cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
+                                                    .cap = CLI_POOL_BYTES,
+                                                    .other = name,
+                                                    .other_cap = CLI_POOL_BYTES});
+    if (!stands)
+    {
+        // a file the window refused is told through its notice
+        const char *const notice = cli_notice_shown();
+        (void)fprintf(stderr, "  open %s: shown %d, notice %s\n", name, shown, (notice != NULL) ? notice : "none");
+    }
+    return stands;
 }
 
 // whether the tab `at` has changes not saved
@@ -398,8 +418,9 @@ static void explorer_stays_checked(void)
     moved(2, 400);
     stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
     cli_check(s_window.claim.displayed == GUI_AUTOHIDE_LEFT, "a rest in the left band shows the left edge");
-    const GuiRect strip = s_window.frame.strip;
-    moved(strip.x + (strip.width / 2), strip.y + 40);
+    // the strip's first tool, at its button's middle
+    const GuiRect tool = EMBED_CALL(gui_strip.button, GuiStripCfg, .frame = &s_window.frame, .at = 0u);
+    moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
     stepped_for(GUI_SIDES_ICON_REST_MS + GUI_SIDES_SLIDE_MS + 100ULL);
     cli_check(s_window.frame.side_displayed, "a rest on the strip's tool shows its side");
     const GuiRect side = s_window.frame.side;
@@ -460,6 +481,49 @@ static void map_collapses_checked(void)
     moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
     stepped_for(GUI_AUTOHIDE_HIDE_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
     cli_check(s_window.claim.displayed == GUI_AUTOHIDE_NONE, "the pointer moved into the text takes the map away");
+}
+
+// the button `button` pressed at x, y as the system hands it on
+static void pressed_with(int x, int y, unsigned int button)
+{
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = button});
+    stepped();
+}
+
+// A middle press in the text starts a scroll that follows the pointer's distance from the press point: the pointer
+// below the press point scrolls the view down each frame, one above it scrolls it back up, and the next press
+// ends it. The tall file the map's check opened, placed deep in it, is the text
+static void autoscroll_checked(void)
+{
+    const int shown = cli_view_shown();
+    cli_check(shown >= 0, "the tall file stands shown for the autoscroll");
+    const char *const key = cli_view_key((unsigned int)shown);
+    // the view placed deep in the file comes to rest there first
+    stepped_for(GUI_SCROLL_STEP_MOST_MS * 10ULL);
+    const unsigned long long start = cli_view_top(key);
+    const GuiRect editor = s_window.frame.editor;
+    const int x = editor.x + (editor.width / 2);
+    const int y = editor.y + (editor.height / 2);
+    pressed_with(x, y, GUI_BUTTON_MIDDLE);
+    cli_check(s_window.autoscroll, "a middle press in the text starts the autoscroll");
+    stepped_for(200ULL);
+    cli_check(cli_view_top(key) == start, "the pointer still at the press point scrolls nothing");
+    moved(x, y + 100);
+    stepped_for(300ULL);
+    const unsigned long long down = cli_view_top(key);
+    cli_check(down > start, "the pointer held below the press point scrolls the view down");
+    moved(x, y - 100);
+    stepped_for(300ULL);
+    cli_check(cli_view_top(key) < down, "the pointer held above the press point scrolls it back up");
+    moved(x, y + 100);
+    pressed_with(x, y + 100, GUI_BUTTON_LEFT);
+    cli_check(!s_window.autoscroll, "the next press ends the autoscroll");
+    // the scroll eases to where the autoscroll last put it, then stands
+    stepped_for(GUI_SCROLL_STEP_MOST_MS * 10ULL);
+    const unsigned long long ended = cli_view_top(key);
+    stepped_for(200ULL);
+    cli_check(cli_view_top(key) == ended, "the view stands once it ends");
 }
 
 static void terminal_menu_checked(void)
@@ -540,7 +604,23 @@ int main(void)
     explorer_stays_checked();
     terminal_menu_checked();
     minimap_lines_checked();
+    autoscroll_checked();
     map_collapses_checked();
+    // the pool as the checks leave it: the end, the fragmentation, and the largest of a few takes the tier still meets
+    {
+        const SeriesCellularum *const record = cli_pool_series_cellularum();
+        static const unsigned long long s_probe_bytes[] = {512ULL << 10u, 2ULL << 20u, 8ULL << 20u, 32ULL << 20u};
+        unsigned long long met = 0ULL;
+        for (unsigned int at = 0u; at < sizeof(s_probe_bytes) / sizeof(s_probe_bytes[0]); at += 1u)
+        {
+            void *const probe = g_cli_guard->persistent_buf_alloc(s_probe_bytes[at], g_checks_owner);
+            met = (probe != NULL) ? s_probe_bytes[at] : met;
+            g_cli_guard->persistent_buf_release(probe, g_checks_owner);
+        }
+        (void)fprintf(stderr, "  pool end %llu fragmentation %llu, a take of %llu bytes met\n",
+                      (unsigned long long)mmgr_series_cellularum_persistent_end(record),
+                      (unsigned long long)mmgr_series_cellularum_fragmentation(record), met);
+    }
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();
     return cli_on_check();

@@ -172,7 +172,7 @@ int main(void)
     EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = palette, .scale = 100, .width_pointer = &requested_width, .height_pointer = &requested_height);
     // the edge all round, the tabs' row and half an edge under it, and the colors' rows in two columns under the row of contrasts
     const unsigned int color_rows = ((EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette) + 1u) / 2u) + 1u;
-    const unsigned int wanted_width = (2u * GUI_PREFERENCES_EDGE) + (2u * GUI_PREFERENCES_CELL_WIDTH);
+    const unsigned int wanted_width = (2u * GUI_PREFERENCES_EDGE) + GUI_PREFERENCES_LIST_WIDTH + GUI_PREFERENCES_FIELD_INSET + (2u * GUI_PREFERENCES_CELL_WIDTH);
     const unsigned int wanted_height = (2u * GUI_PREFERENCES_EDGE) + GUI_PREFERENCES_ROW + (GUI_PREFERENCES_EDGE / 2u) + (color_rows * GUI_PREFERENCES_CELL);
     cli_check((requested_width == wanted_width) && (requested_height == wanted_height), "the size it asks for shows every color in two columns");
     EMBED_CALL(gui_preferences_width.resize, GuiPreferencesWidthCfg, .preferences = &preferences, .glyphs = &glyphs, .width = requested_width, .height = requested_height, .scale = 100);
@@ -374,6 +374,39 @@ int main(void)
     cli_check((preferences.section == GUI_PREFERENCES_THEME) && (preferences.marked == 0u) && (preferences.top == 0u), "PageUp shows the section before");
     const GuiRect colors_name = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_COLORS);
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = colors_name.x + 3, .y = colors_name.y + 3, .change = &change) && (preferences.section == GUI_PREFERENCES_COLORS), "a press on a section's name shows it");
+
+    // the palettes' list at the grid's left: Window and each language plugin named, a row a palette; the one chosen
+    // gives the grid its colors, a plugin's tokens alone from the first the window hands in
+    static GuiPaletteOwn plugin;
+    EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &plugin, .scheme = GUI_SCHEME_DARK);
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &plugin, .name = "keyword", .color = GUI_RGB(1u, 2u, 3u));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &plugin, .name = "type", .color = GUI_RGB(4u, 5u, 6u));
+    cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u)), "with no palette listed the list has no rows");
+    EMBED_CALL(gui_preferences_size.palettes_clear, GuiPreferencesSizeCfg, .preferences = &preferences);
+    EMBED_CALL(gui_preferences_size.palette_add, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "Window");
+    EMBED_CALL(gui_preferences_size.palette_add, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "c");
+    cli_check((preferences.palettes == 2u) && (preferences.palette_chosen == 0u) && same_text(preferences.palette_name[1], "c"), "two palettes listed, Window chosen first");
+    const GuiRect window_row = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u);
+    const GuiRect c_row = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 1u);
+    const GuiRect listed_cell = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u);
+    cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = window_row) && (c_row.y == window_row.y + window_row.height) && (c_row.x == window_row.x), "the list stands a row a palette");
+    cli_check((listed_cell.x >= window_row.x + window_row.width) && (listed_cell.y == window_row.y), "the grid stands at the list's right, from the list's top");
+    cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = c_row.x + 3, .y = c_row.y + 3, .change = &change) && (change.type == GUI_PREFERENCE_PALETTE) && (change.at == 1u) && (preferences.palette_chosen == 1u) && (preferences.marked == 0u), "a press on a palette's row chooses it for the window to load");
+    preferences.color_first = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = &plugin.colors) - 2u;
+    EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Right", .change = &change);
+    EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Right", .change = &change);
+    cli_check(preferences.marked == 1u, "the mark stays among the plugin's two tokens");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
+    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = &plugin.colors, .values = &displayed_values);
+    cli_check(raster.pixels[((unsigned int)(listed_cell.y + (listed_cell.height / 2)) * raster.width) + (unsigned int)(listed_cell.x + 7)] == GUI_RGB(1u, 2u, 3u), "the first cell shows the plugin's first token");
+    cli_check(painted(&raster, c_row, palette->background_fill) && (brightest(&raster, c_row) > brightest(&raster, window_row)), "the chosen palette's row stands out in the list");
+    EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Enter", .change = &change);
+    (void)EMBED_CALL(gui_preferences_size.type, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "#0a0b0c", .size = 7ull);
+    EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Enter", .change = &change);
+    cli_check((change.type == GUI_PREFERENCE_COLORED) && (change.at == preferences.color_first + 1u), "a token's color typed names the token among the palette's colors");
+    EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = &plugin.colors, .name = "Tab", .change = &change);
+    cli_check((change.type == GUI_PREFERENCE_PALETTE) && (change.at == 0u) && (preferences.palette_chosen == 0u), "Tab chooses the palette after, round to the first");
+    preferences.color_first = 0u;
 
     g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;

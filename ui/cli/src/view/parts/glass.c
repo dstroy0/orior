@@ -102,7 +102,7 @@ void gui_glass_draw(const GuiGlassRasterCfg *args)
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->rect,
                .radius = args->radius, .color = args->tint);
     EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = args->raster, .rect = args->rect,
-               .radius = args->radius, .alpha = gui_grain(), .tile = GUI_GRAIN_TILE);
+               .radius = args->radius, .alpha = gui_grain(), .tile = GUI_GRAIN_TILE, .color = args->grain);
 }
 
 GuiColor gui_glass_pane_tint(const GuiGlassCfg *args)
@@ -114,6 +114,6 @@ GuiColor gui_glass_pane_tint(const GuiGlassCfg *args)
 
 GuiUnder gui_glass_table(const GuiGlassCfg *args)
 {
-    const GuiUnder table = {args->background_fill, args->glass, gui_grain(), GUI_GRAIN_TILE, args->color};
+    const GuiUnder table = {args->background_fill, args->glass, gui_grain(), GUI_GRAIN_TILE, args->color, args->grain};
     return table;
 }

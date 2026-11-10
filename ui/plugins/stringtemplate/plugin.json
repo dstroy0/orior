@@ -14,6 +14,17 @@
     ["^()([A-Za-z_]\\w*)\\s*::=\\s*\\[", "constant"],
     ["^()import\\s+\"([^\"]+)\"", "module"]
   ],
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "tag": "#8ab8ffff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "words": ["import", "group", "delimiters", "default", "true", "false", "key", "implements"],

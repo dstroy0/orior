@@ -46,6 +46,8 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 // the rows a frame holds past the rows the view shows whole: a window that scrolls by pixels shows a part of a row at
 // its top and its foot, so the rows it draws run up to two past the whole ones
 #define CLI_VIEW_ROWS_PAST 2u
+// the sticky rows a frame carries at the most
+#define CLI_VIEW_STICKY_MOST 5u
 #define CLI_VIEW_POINTER_DOWN 0u
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u
@@ -122,7 +124,10 @@ typedef struct
 // tabs, 0 for spaces and -1 where nothing set it. The file is a grid of lines by cells and the view a window on it:
 // `top` is its first line and `left` its first cell column. Each row holds its line from its start through the view's
 // last column, so every column stays the file's own and the window draws the row moved left by `left` cells. `widest`
-// is the most cells of any line the view has shown, the grid's width as the view knows it
+// is the most cells of any line the view has shown, the grid's width as the view knows it. After the `count` rows
+// shown stand `stickies` sticky rows, the head lines of the regions the first line under them stands inside,
+// outermost first, each with its text and runs as the rows shown have theirs, for the window to pin over the rows
+// at the view's top; a region opened on a line of its brace alone has the line before as its head
 typedef struct
 {
     unsigned long long seq;
@@ -134,6 +139,7 @@ typedef struct
     unsigned long long closers;
     unsigned long long matches;
     unsigned int count;
+    unsigned int stickies;
     unsigned int folds;
     CliPosition cursor;
     CliPosition anchor;

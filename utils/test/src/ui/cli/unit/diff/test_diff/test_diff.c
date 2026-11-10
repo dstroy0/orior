@@ -24,8 +24,12 @@ typedef struct
 
 static DiffSide s_then;
 static DiffSide s_now;
+static DiffSide s_inner_then;
+static DiffSide s_inner_now;
 static CliEachHunkCfg s_hunk[DIFF_HUNKS];
 static unsigned int s_hunks;
+static unsigned int s_inner_hunks;
+static int s_inner_runs;
 static char s_far_then[FAR_LINES * 8u];
 static char s_far_now[FAR_LINES * 8u];
 
@@ -46,7 +50,15 @@ static void side_laid(DiffSide *side, const char *text, unsigned long long size)
                .lines_out = &side->lines);
 }
 
-// each change found, in order
+// each change of an inner edit counted
+static void inner_hunk_each(const CliEachHunkCfg *args)
+{
+    (void)args;
+    s_inner_hunks += 1u;
+}
+
+// each change found, in order; and where an inner edit is asked for, a second edit run from inside the first's
+// callback, as a worker's edit runs beside the view thread's
 static void hunk_each(const CliEachHunkCfg *args)
 {
     if (s_hunks < DIFF_HUNKS)
@@ -54,6 +66,16 @@ static void hunk_each(const CliEachHunkCfg *args)
         s_hunk[s_hunks] = *args;
     }
     s_hunks += 1u;
+    if (s_inner_runs)
+    {
+        s_inner_runs = 0;
+        static const char s_inner_then_text[] = "alpha\nbeta\ngamma\ndelta\n";
+        static const char s_inner_now_text[] = "alpha\nB\ngamma\nD\n";
+        side_laid(&s_inner_then, s_inner_then_text, sizeof(s_inner_then_text) - 1u);
+        side_laid(&s_inner_now, s_inner_now_text, sizeof(s_inner_now_text) - 1u);
+        (void)EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &s_inner_then.lines,
+                         .now = &s_inner_now.lines, .each = inner_hunk_each);
+    }
 }
 
 // the changes between `then` and `now`, into the hunks found: what the diff answers
@@ -139,4 +161,17 @@ void test_texts_too_far_apart_are_refused(void)
         mmgr_line_put(&now, "\n");
     }
     TEST_ASSERT_EQUAL_INT(0, changes(s_far_then, then.at, s_far_now, now.at));
+}
+
+void test_an_edit_run_inside_another_leaves_the_first_its_own_changes(void)
+{
+    static const char s_then_text[] = "one\ntwo\nthree\nfour\nfive\n";
+    static const char s_now_text[] = "one\n2\nthree\n4\nfive\n";
+    s_inner_hunks = 0u;
+    s_inner_runs = 1;
+    TEST_ASSERT_EQUAL_INT(1, changes(s_then_text, sizeof(s_then_text) - 1u, s_now_text, sizeof(s_now_text) - 1u));
+    TEST_ASSERT_EQUAL_UINT(2u, s_inner_hunks);
+    TEST_ASSERT_EQUAL_UINT(2u, s_hunks);
+    hunk_is(0u, 1u, 2u, 1u, 2u);
+    hunk_is(1u, 3u, 4u, 3u, 4u);
 }

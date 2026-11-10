@@ -131,7 +131,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
         cli_text_size_byte.count, CliTextSizeByteCfg, .text = read_state->path,
         .size = cellul.len(&(CatenaFinitaCfg){.src = read_state->path, .cap = CLI_POOL_BYTES}), .byte = between);
     char (*const folder)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
     unsigned int folders = 0u;
     for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {

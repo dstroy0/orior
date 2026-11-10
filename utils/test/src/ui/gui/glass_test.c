@@ -32,7 +32,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &plain, .width = 200u, .height = 100u), "a raster for the tint alone is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &plain, .rect = whole, .color = palette->background_fill);
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 7u, .color = palette->glass);
-    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 7u, .tint = palette->glass);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 7u, .tint = palette->glass, .grain = palette->grain);
     cli_check(raster.pixels[(30u * 200u) + 60u] != palette->background_fill, "the pane is tinted over the ground");
     unsigned int grained = 0u;
     for (unsigned int x = 20u; x < 100u; x += 1u)
@@ -47,9 +47,9 @@ int main(void)
     // pane drawn once over twice the tint shows as the pane drawn twice
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = palette->background_fill);
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .color = palette->glass);
-    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass, .grain = palette->grain);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &plain, .rect = whole, .color = palette->background_fill);
-    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass, .grain = palette->grain);
     EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .color = palette->glass);
     unsigned int alike = 0u;
     for (unsigned int x = 20u; x < 100u; x += 1u)

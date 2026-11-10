@@ -739,7 +739,7 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
 {
     // the names every walk sifts for and the texts of those carried from a walk before, in one cell
     const unsigned long long name_bytes = CLI_EFFECT_SIFT_NAMES * (sizeof(const char *) + sizeof(unsigned long long));
-    char *const cell = g_cli_guard->persistent_buf_alloc(name_bytes + CLI_SLICE_CARRIED_BYTES, g_cli_code_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(name_bytes + CLI_SLICE_CARRIED_BYTES, g_cli_code_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the slice");

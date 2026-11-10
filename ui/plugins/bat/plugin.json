@@ -8,6 +8,15 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\""],
   "indentAfter": "[{[(]\\s*$",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "string": "#9fe3c8ff",
+    "tag": "#8ab8ffff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "ignoreCase": true,

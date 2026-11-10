@@ -11,6 +11,17 @@
   "headings": "^(#{1,6})\\s+(.+?)\\s*#*\\s*$",
   "skips": [["^\\s*(?:```|~~~)", "^\\s*(?:```|~~~)\\s*$"]],
   "outline": [["^(\\s*)[+-]\\s+((?:Request|Response)\\b.*?)\\s*$", "field"]],
+  "palette": {
+    "comment": "#6e6b99ff",
+    "emphasis": "#c9b8ffff",
+    "keyword": "#a48cffff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "strong": "#e4e3f5ff",
+    "tag": "#8ab8ffff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "tokenizer": {
       "root": [

@@ -259,9 +259,9 @@ int gui_editor_position_rect(const GuiEditorPositionCellCfg *args)
     }
     const int line_height =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
-    const int text_left = args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
-                                                     .editor_read = args->editor_read, .cell = args->cell,
-                                                     .scale = scale);
+    const int text_left =
+        args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                   .editor_read = args->editor_read, .cell = args->cell, .scale = scale);
     const float text_x =
         EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor_read, .x_i32 = text_left, .cell = args->cell);
     unsigned int start = 0u;
@@ -888,16 +888,39 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
         {
             break;
         }
+        EMBED_CALL(editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
+                   .palette = args->palette, .place = args->place, .at = at,
+                   .line = args->editor->frame->row[at].number, .stored_line = &args->editor->frame->row[at],
+                   .y = args->place.y + (row * line_height) - scroll_y + baseline,
+                   .row_rect = (GuiRect){text_clip.x, args->place.y + (row * line_height) - scroll_y, text_clip.width,
+                                         line_height},
+                   .text_x = text_x, .cell = cell, .size = size, .scale = scale, .clip = text_clip,
+                   .numbers_right = numbers_right, .line_height = line_height, .selected = selected,
+                   .selected_from = selected_from, .selected_to = selected_to);
+    }
+    // The sticky rows pinned over the rows at the editor's top, each on the widget's ground with its number and its
+    // runs as a row shown, a line along their foot; they stand whole whatever part of a row the view has scrolled
+    for (unsigned int pinned = 0u; pinned < args->editor->frame->stickies; pinned += 1u)
+    {
+        const unsigned int at = args->editor->frame->count + pinned;
+        // the count of sticky rows is far inside what an int represents
+        const GuiRect row_rect = {args->place.x, args->place.y + ((int)pinned * line_height), args->place.width,
+                                  line_height};
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = row_rect,
+                   .color = args->palette->surface);
         EMBED_CALL(
             editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
             .palette = args->palette, .place = args->place, .at = at, .line = args->editor->frame->row[at].number,
-            .stored_line = &args->editor->frame->row[at],
-            .y = args->place.y + (row * line_height) - scroll_y + baseline,
-            .row_rect = (GuiRect){text_clip.x, args->place.y + (row * line_height) - scroll_y, text_clip.width,
-                                  line_height},
-            .text_x = text_x, .cell = cell, .size = size, .scale = scale, .clip = text_clip,
-            .numbers_right = numbers_right, .line_height = line_height, .selected = selected,
-            .selected_from = selected_from, .selected_to = selected_to);
+            .stored_line = &args->editor->frame->row[at], .y = row_rect.y + baseline,
+            .row_rect = (GuiRect){text_clip.x, row_rect.y, text_clip.width, line_height}, .text_x = text_x,
+            .cell = cell, .size = size, .scale = scale, .clip = text_clip, .numbers_right = numbers_right,
+            .line_height = line_height, .selected = 0, .selected_from = selected_from, .selected_to = selected_to);
+        if (pinned + 1u == args->editor->frame->stickies)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect = (GuiRect){args->place.x, row_rect.y + line_height - 1, args->place.width, 1},
+                       .color = args->palette->line);
+        }
     }
     if (args->editor->frame->find.open)
     {
@@ -905,4 +928,24 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
                    .palette = args->palette, .place = args->place, .scale = scale, .size = size,
                    .line_height = line_height);
     }
+}
+
+int gui_editor_sticky_at(const GuiEditorPositionCellScaleCfg *args)
+{
+    const CliViewFrame *const frame = args->editor_read->frame;
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = args->scale);
+    if ((frame == NULL) || (frame->stickies == 0u) || (line_height <= 0) || (args->y < args->place.y) ||
+        (args->x < args->place.x) || (args->x >= args->place.x + args->place.width))
+    {
+        return 0;
+    }
+    // the pixel stands under the editor's top, so the row it stands on is not negative
+    const unsigned long long pinned = (unsigned long long)((args->y - args->place.y) / line_height);
+    if (pinned >= frame->stickies)
+    {
+        return 0;
+    }
+    *args->row = frame->row[frame->count + pinned].number;
+    return 1;
 }

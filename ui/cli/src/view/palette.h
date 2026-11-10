@@ -14,6 +14,7 @@ typedef struct GuiPaletteTextCfg GuiPaletteTextCfg;
 typedef struct GuiPaletteForegroundCfg GuiPaletteForegroundCfg;
 typedef struct GuiPaletteSizeCfg GuiPaletteSizeCfg;
 typedef struct GuiPaletteOwnCfg GuiPaletteOwnCfg;
+typedef struct GuiPaletteOwnNameCfg GuiPaletteOwnNameCfg;
 typedef struct GuiPaletteOwnBarPercentCfg GuiPaletteOwnBarPercentCfg;
 typedef struct GuiPaletteLengthCfg GuiPaletteLengthCfg;
 typedef struct GuiPaletteSizeColorCfg GuiPaletteSizeColorCfg;
@@ -44,8 +45,11 @@ typedef struct
 // line along it; the ground of the strip's tool whose window shows, the signal at a share; the side pane's ground,
 // the ink at half; a diagnostic's error, warning and note colors; the large name's color and the eye's in the bar; the
 // shade under a raised thing and the color of TABVLA's cuts; a fuse's ash, burn, fire and the white of its hottest
-// core; the lattice's three colors, a point in place the first and a moved one passing through the second to the third;
-// the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and its tokens, `token_count` of them
+// core; the work's line down its right and along its foot, the thin line down its left, the status bar's quiet text
+// and the grain laid over the glass, its alpha the grain's strength; the lattice's three colors, a point in place the
+// first and a moved one passing through the second to the third;
+// the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and the tokens of the shown file's
+// language, `token_count` of them, the colors its grammar plugin's palette gives its token names, none in the scheme
 typedef struct
 {
     GuiColor background_fill;
@@ -99,6 +103,10 @@ typedef struct
     GuiColor fuse_burn;
     GuiColor fuse_fire;
     GuiColor fuse_core;
+    GuiColor work_line;
+    GuiColor work_left;
+    GuiColor status_quiet;
+    GuiColor grain;
     GuiColor lattice[3];
     GuiColor mark[GUI_MARKS];
     GuiColor terminal[GUI_TERMINAL_COLORS];
@@ -106,19 +114,26 @@ typedef struct
     unsigned int token_count;
 } GuiPalette;
 
-// A palette the window can change: the colors, its tokens its own copies, the most a scheme holds
-#define GUI_PALETTE_TOKENS 64u
+// A palette the window can change: the colors, and the tokens of the language shown, the most a plugin's palette
+// holds and the most bytes a token's name takes, each name kept beside its color
+#define GUI_PALETTE_TOKENS 96u
+#define GUI_PALETTE_TOKEN_NAME 48u
 typedef struct
 {
     GuiPalette colors;
     GuiTokenColor token[GUI_PALETTE_TOKENS];
+    char token_text[GUI_PALETTE_TOKENS][GUI_PALETTE_TOKEN_NAME];
 } GuiPaletteOwn;
 
 // the palette of `scheme`, the dark one for any scheme not known
 const GuiPalette *gui_palette(const GuiPaletteCfg *args);
-// `own` made the palette of `scheme`; and the ink's tint and the editor's ground laid at the bar's and the editor's
-// opacity
+// `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground laid at the bar's and
+// the editor's opacity
 void gui_palette_own_init(const GuiPaletteCfg *args);
+// the tokens of `own` cleared, for the next language's; and the token `name` added with `color`, a name at the most
+// or longer than a token's name holds left out
+void gui_palette_tokens_clear(const GuiPaletteOwnCfg *args);
+void gui_palette_token_add(const GuiPaletteOwnNameCfg *args);
 void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args);
 // the palette's colors by name, its tokens after them: how many; the name of the one `at`, into `size` bytes;
 // its color; and it set in `own`, with what depends on it
@@ -141,9 +156,9 @@ unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args);
 int gui_palette_color_low(const GuiPaletteAtSizeCfg *args);
 // a contrast in tenths as its ratio, `2.8:1`, into `size` bytes
 void gui_palette_contrast_text(const GuiPaletteSizeCfg *args);
-// the color of the token of `length` bytes at `name`: a dotted token the color of its longest head the palette
-// colors, keyword.foreground.1 a keyword's where neither it nor keyword.foreground stands in it; the editor's text
-// color where no head does
+// the color of the token of `length` bytes at `name` among the palette's tokens: a dotted token the color of its
+// longest head the tokens hold, keyword.foreground.1 a keyword's where neither it nor keyword.foreground stands among
+// them; the editor's text color where no head does
 GuiColor gui_palette_token(const GuiPaletteLengthCfg *args);
 struct GuiPaletteAtSizeCfg
 {
@@ -191,6 +206,13 @@ struct GuiPaletteOwnCfg
     GuiColor color;
 };
 
+struct GuiPaletteOwnNameCfg
+{
+    GuiPaletteOwn *own;
+    const char *name;
+    GuiColor color;
+};
+
 struct GuiPaletteOwnBarPercentCfg
 {
     GuiPaletteOwn *own;
@@ -210,6 +232,7 @@ struct GuiPaletteSizeColorCfg
     unsigned long long size;
     GuiColor color;
     char *text;
+    int alpha_always;
 };
 
 struct GuiPaletteCfg
@@ -263,10 +286,21 @@ EMBED_TABLE_STORAGE GuiPaletteAtNs gui_palette_at EMBED_UNUSED = {
 typedef struct
 {
     void (*name_set)(const GuiPaletteOwnCfg *args);
+    void (*tokens_clear)(const GuiPaletteOwnCfg *args);
 } GuiPaletteOwnNs;
-EMBED_TABLE_LAYOUT(GuiPaletteOwnNs, name_set);
+EMBED_TABLE_LAYOUT(GuiPaletteOwnNs, name_set, tokens_clear);
 EMBED_TABLE_STORAGE GuiPaletteOwnNs gui_palette_own EMBED_UNUSED = {
     .name_set = gui_palette_color_set,
+    .tokens_clear = gui_palette_tokens_clear,
+};
+
+typedef struct
+{
+    void (*token_add)(const GuiPaletteOwnNameCfg *args);
+} GuiPaletteOwnNameNs;
+EMBED_TABLE_LAYOUT(GuiPaletteOwnNameNs, token_add);
+EMBED_TABLE_STORAGE GuiPaletteOwnNameNs gui_palette_own_name EMBED_UNUSED = {
+    .token_add = gui_palette_token_add,
 };
 
 typedef struct

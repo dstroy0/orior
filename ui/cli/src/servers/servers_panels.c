@@ -109,7 +109,8 @@ typedef struct
 static Panels s_panels;
 
 // A hover being asked for: the ask it answers; the word and the tree; the word's place; the Markdown answered, in a
-// cell of its own; and whether the tree's walk was still reading as the ask found no declaration
+// cell of its own; whether the tree's walk was still reading as the ask found no declaration; and the view's key and
+// its file's tree path, whose language the answer is held to
 typedef struct
 {
     unsigned long long ask;
@@ -121,7 +122,13 @@ typedef struct
     char *text;
     unsigned long long length;
     int reading;
+    const char *key;
+    char path[CLI_PATH_MAX_LEN];
 } PanelsHoverAsk;
+
+// the most lines above the pointer's a parameter or a local is sought in, and the lines read at once
+#define CLI_PANELS_LOCAL_LINES 512ULL
+#define CLI_PANELS_LOCAL_CHUNK 64ULL
 
 // A signature being asked for: the view's key and the file's tree path; the cursor's place; and what came
 typedef struct
@@ -151,6 +158,8 @@ typedef struct
     unsigned int at;
     const CliSignaturePanel *own;
     const CliSignaturePanel *panel;
+    const CliDocumentNames *names;
+    PanelsHoverAsk *hover_ask;
 } PanelsCtx;
 
 // the key of the view shown, else NULL
@@ -292,10 +301,144 @@ EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
     mmgr_line_ch(args->out, '`');
 }
 
-// the tree's declarations of the word laid as Markdown in a cell sized to them
+// the place among `names` of the token named `text`, the names' count where none is
+EMBED_INLINE unsigned int panels_name_place(const PanelsCtx *args)
+{
+    const CliDocumentNames *const names = args->names;
+    for (unsigned int at = 0u; at < names->count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = names->name[at], .other = args->text, .cap = CLI_POOL_BYTES}))
+        {
+            return at;
+        }
+    }
+    return names->count;
+}
+
+// The hover's word as a parameter or a local of the function the pointer stands in, off the runs the walk saved: the
+// lines above the pointer's read upward to the line the grammar marks identifier.declaration.function, that line's
+// own parameters read too, and the topmost run the grammar names identifier.parameter or identifier.local whose text
+// is the word is its declaration, as the walk names every later use of a declared name the same. The declaration's
+// line written as the tree's are, with its kind and place: 1, or 0 where none stands
+EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
+{
+    PanelsHoverAsk *const ask = args->hover_ask;
+    CliDocumentNames *const names = EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = ask->key,
+                                               .owner = g_cli_servers_owner);
+    if (names == NULL)
+    {
+        return 0;
+    }
+    const unsigned int parameter = EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.parameter");
+    const unsigned int local = EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.local");
+    const unsigned int head = EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.declaration.function");
+    g_cli_guard->persistent_buf_release(names, g_cli_servers_owner);
+    const unsigned long long low = (ask->line > CLI_PANELS_LOCAL_LINES) ? (ask->line - CLI_PANELS_LOCAL_LINES) : 0ULL;
+    unsigned long long end = ask->line + 1ULL;
+    unsigned long long found_line = 0ULL;
+    const char *kind = NULL;
+    int ended = 0;
+    while (!ended && (end > low))
+    {
+        const unsigned long long first = ((end - low) > CLI_PANELS_LOCAL_CHUNK) ? (end - CLI_PANELS_LOCAL_CHUNK) : low;
+        unsigned long long number[CLI_PANELS_LOCAL_CHUNK];
+        const unsigned long long count = end - first;
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
+        {
+            number[at] = first + at;
+        }
+        CliDocumentRuns *const runs = EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = ask->key,
+                                                 .number = number, .count = count, .mirrored = 0,
+                                                 .owner = g_cli_servers_owner);
+        if (runs == NULL)
+        {
+            break;
+        }
+        for (unsigned long long at = count; (at > 0ULL) && !ended; at -= 1ULL)
+        {
+            const unsigned long long line = first + at - 1ULL;
+            const CliDocumentLineRuns one = runs->line[at - 1ULL];
+            const unsigned int *const col = runs->word_text + one.at;
+            const unsigned int *const name = col + one.runs;
+            unsigned long long units_count = 0ULL;
+            const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
+                                                           .key = ask->key, .line = line, .count = &units_count);
+            for (unsigned int run = 0u; run < one.runs; run += 1u)
+            {
+                ended = ended || ((name[run] == head) && (line < ask->line));
+                const int is_parameter = name[run] == parameter;
+                if ((!is_parameter && (name[run] != local)) || (units == NULL))
+                {
+                    continue;
+                }
+                const unsigned long long from = col[run];
+                const unsigned long long to = ((run + 1u) < one.runs) ? col[run + 1u] : units_count;
+                if ((to > units_count) || (from >= to))
+                {
+                    continue;
+                }
+                char text[CLI_PANELS_WORD];
+                VerbaLinea out = {text, sizeof(text), 0ULL};
+                EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &out,
+                           .units = units + from, .count = to - from);
+                if ((mmgr_line_finish(&out) != 0ULL) &&
+                    cellul.eq(&(CatenaFinitaCfg){.src = text, .other = ask->word_text, .cap = sizeof(text)}))
+                {
+                    kind = is_parameter ? "parameter" : "local";
+                    found_line = line;
+                }
+            }
+        }
+        g_cli_guard->persistent_buf_release(runs, g_cli_servers_owner);
+        end = first;
+    }
+    if (kind == NULL)
+    {
+        return 0;
+    }
+    unsigned long long size = 0ULL;
+    char state[CLI_NAME_MAX_LEN];
+    char *const line_text =
+        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = ask->key, .first = found_line,
+                   .last = found_line, .size_pointer = &size, .state = state, .capacity = sizeof(state),
+                   .owner = g_cli_servers_owner);
+    if (line_text == NULL)
+    {
+        return 0;
+    }
+    const unsigned long long start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
+                                                .text = line_text, .at = 0ULL, .size = size, .set = " \t");
+    const unsigned long long bytes = size + cellul.len(&(CatenaFinitaCfg){.src = ask->path, .cap = CLI_POOL_BYTES}) + 64ULL;
+    char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_owner);
+    VerbaLinea joined = mmgr_line_over(cell, bytes);
+    if (cell != NULL)
+    {
+        const CliFoundDeclaration one = {ask->word_text, kind, ask->path, (unsigned int)found_line, ""};
+        mmgr_line_put(&joined, "```\n");
+        mmgr_line_put_n(&joined, line_text + start, size - start);
+        mmgr_line_put(&joined, "\n```\n\n");
+        EMBED_CALL(panels_declaration_write, PanelsCtx, .found = &one, .out = &joined);
+    }
+    g_cli_guard->persistent_buf_release(line_text, g_cli_servers_owner);
+    if ((cell == NULL) || !mmgr_line_ok(&joined))
+    {
+        g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
+        return 0;
+    }
+    ask->text = cell;
+    ask->length = joined.at;
+    return 1;
+}
+
+// the tree's declarations of the word laid as Markdown in a cell sized to them, those of files that open in the
+// hovered file's language plugin alone
 static void panels_hover_tree_run(void *context)
 {
     PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
+    if (EMBED_CALL(panels_hover_local_run, PanelsCtx, .hover_ask = ask))
+    {
+        return;
+    }
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
     CliFoundDeclarations *const found =
         EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
@@ -304,6 +447,12 @@ static void panels_hover_tree_run(void *context)
     {
         return;
     }
+    CliLanguages languages;
+    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
+    char wanted[CLI_NAME_MAX_LEN];
+    const int known = (languages.pair != NULL) &&
+                      EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                 .languages_read = &languages, .path = ask->path, .id_out = wanted);
     unsigned long long bytes = 1ULL;
     for (unsigned int at = 0u; at < found->count; at += 1u)
     {
@@ -319,7 +468,11 @@ static void panels_hover_tree_run(void *context)
          at += 1u)
     {
         const CliFoundDeclaration *const one = &found->found[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
+        char id[CLI_NAME_MAX_LEN];
+        const int same = !known || (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                               .languages_read = &languages, .path = one->path, .id_out = id) &&
+                                    cellul.eq(&(CatenaFinitaCfg){.src = id, .other = wanted, .cap = sizeof(id)}));
+        if (same && cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
         {
             mmgr_line_put(&joined, (parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
             EMBED_CALL(panels_declaration_write, PanelsCtx, .found = one, .out = &joined);
@@ -328,6 +481,7 @@ static void panels_hover_tree_run(void *context)
     }
     ask->reading = found->reading;
     g_cli_guard->persistent_buf_release(found, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     if ((parts == 0u) || !mmgr_line_ok(&joined))
     {
         g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
@@ -365,21 +519,26 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     unsigned long long from = 0ULL;
     unsigned long long to = 0ULL;
     char word_text[CLI_PANELS_WORD];
-    if (!EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = key, .row = s_panels.pointer_row,
-                    .column = s_panels.pointer_column, .line = &line, .col = &col) ||
-        !EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = line, .col_value = col,
-                    .from = &from, .to = &to, .word_text = word_text, .capacity = sizeof(word_text)))
+    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = key, .row = s_panels.pointer_row,
+                                      .column = s_panels.pointer_column, .line = &line, .col = &col);
+    const int worded = positioned && EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = line,
+                                                .col_value = col, .from = &from, .to = &to, .word_text = word_text,
+                                                .capacity = sizeof(word_text));
+    if (!worded)
     {
         EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
         return;
     }
-    PanelsHoverAsk ask = {s_panels.hover_ask, word_text, s_panels.root, line, from, to, NULL, 0ULL, 0};
-    PanelsHoverAsk *const asked = g_cli_guard->persistent_buf_alloc(sizeof(ask), g_cli_servers_owner);
+    PanelsHoverAsk *const asked = g_cli_guard->persistent_buf_alloc(sizeof(*asked), g_cli_servers_owner);
     if (asked == NULL)
     {
         return;
     }
-    *asked = ask;
+    *asked = (PanelsHoverAsk){s_panels.hover_ask, word_text, s_panels.root, line, from, to, NULL, 0ULL, 0, key, ""};
+    if (!EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = asked->path))
+    {
+        asked->path[0] = '\0';
+    }
     panels_hover_tree_run(asked);
     // a word the tree's walk has not reached yet is asked for again after the rest, while the pointer stays on it
     const int again = (asked->text == NULL) && asked->reading;

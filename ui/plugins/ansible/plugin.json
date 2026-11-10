@@ -19,6 +19,17 @@
     ["^(\\s*)-\\s+name:\\s*(.+?)\\s*$", "function"],
     ["^(\\s*)-\\s+(?:import_playbook|import_tasks|include_tasks|include_role|import_role):\\s*(.+?)\\s*$", "module"]
   ],
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "string": "#9fe3c8ff",
+    "tag": "#8ab8ffff",
+    "type": "#6fdcb4ff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "perLine": true,

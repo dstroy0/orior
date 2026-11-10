@@ -8,6 +8,16 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "^\\s*(?:function|if|elseif|else|for|parfor|while|switch|case|otherwise|try|catch|classdef|properties|methods|events|enumeration|arguments|spmd)\\b.*$",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "words": [

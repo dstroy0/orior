@@ -9,6 +9,8 @@
 #include "../text/text.h"
 #include "plugins.h"
 
+#include "embed_turnstile.h"
+
 // the plugins whose grammars' stamps the list's capacity is taken with, and the bytes a whole grammar is written in
 #define CLI_PLUGIN_GRAMMARS_MAX 1024u
 #define CLI_PLUGIN_GRAMMAR_CAPACITY (4ULL << 20u)
@@ -154,7 +156,48 @@ EMBED_INLINE int cli_grammar_resolved_store(const PluginsGrammarCtx *args)
     return stored;
 }
 
+// One store at a time: the stores' tables, the highlighter's read scratch and the grammars stored are one writer's. A
+// thread that finds the closed bit held sets the sleepers bit and sleeps on the word until the holder clears both
+#define GRAMMAR_STORE_CLOSED ((embed_atomic_word_value)1u)
+#define GRAMMAR_STORE_SLEEPERS ((embed_atomic_word_value)2u)
+static embed_atomic_word s_store_closed = EMBED_ATOMIC_INIT(0u);
+
+static void grammar_store_shut(void)
+{
+    EmbedTurnstileBackoff backoff;
+    embed_atomic_word_value was = embed_atomic_word_fetch_or(&s_store_closed, GRAMMAR_STORE_CLOSED);
+    embed_turnstile_backoff_begin(&backoff);
+    while ((was & GRAMMAR_STORE_CLOSED) != 0u)
+    {
+        embed_turnstile_backed_off(&s_store_closed, was, GRAMMAR_STORE_SLEEPERS, &backoff, 1u);
+        was = embed_atomic_word_fetch_or(&s_store_closed, GRAMMAR_STORE_CLOSED);
+    }
+    EMBED_ATOMIC_ORDERED();
+}
+
+static void grammar_store_opened(void)
+{
+    EMBED_ATOMIC_ORDERED();
+    const embed_atomic_word_value was =
+        embed_atomic_word_fetch_and(&s_store_closed, ~(GRAMMAR_STORE_CLOSED | GRAMMAR_STORE_SLEEPERS));
+    if ((was & GRAMMAR_STORE_SLEEPERS) != 0u)
+    {
+        embed_word_wake(&s_store_closed);
+    }
+}
+
+static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args);
+
 int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
+{
+    grammar_store_shut();
+    const int stored = plugins_grammar_stored(args);
+    grammar_store_opened();
+    return stored;
+}
+
+// the store itself, with the stores closed to every other thread
+static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
 {
     VerbaLinea named = {args->key, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&named, "plugin:");

@@ -8,6 +8,8 @@
   "pairs": [],
   "quotes": [],
   "indentAfter": "[{[(]\\s*$",
+  "palette": {
+  },
   "grammar": {
     "tokenizer": {
       "root": [["^\\s*\\S.*", "text.region.open", "@block"]],

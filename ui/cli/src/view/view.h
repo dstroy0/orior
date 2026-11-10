@@ -56,6 +56,8 @@
 // a crumb of the status bar, its place among the crumbs; and the change peek over the editor, its control
 #define CLI_HIT_STATUS_CRUMB 33u
 #define CLI_HIT_CHANGE_PEEK 34u
+// a sticky row pinned over the editor's top, `row` its line
+#define CLI_HIT_STICKY 35u
 
 // A place on the screen in the system's own pixels, and whether the window filled its monitor there
 typedef struct
@@ -107,6 +109,10 @@ typedef struct
 #define GUI_ACT_MAXIMIZE 1u
 #define GUI_ACT_CLOSE 2u
 
+// the pointer's shape the window asks of the system: the arrow, and the four-way arrow of the autoscroll
+#define GUI_CURSOR_ARROW 0u
+#define GUI_CURSOR_SCROLL 1u
+
 // the icon's sides in pixels, the small one the title's and the large one the taskbar's and the switcher's
 #define GUI_ICON_SMALL 32u
 #define GUI_ICON_LARGE 128u
@@ -137,8 +143,9 @@ typedef struct
 
 // what the view orders of the system's thread: a raster shown on a surface, whole or the rows of `part`; the window
 // minimized, maximized or closed; Preferences' window opened at `width` by `height` over the main one, or closed; the
-// two icons given to the system, which copies them; and the dialog's window opened at `width` by `height`, modal over
-// the surface `owner`, or closed
+// two icons given to the system, which copies them; the dialog's window opened at `width` by `height`, modal over
+// the surface `owner`, or closed; and the pointer's shape over the main window set to `act`, one of GUI_CURSOR_ARROW
+// and GUI_CURSOR_SCROLL
 #define CLI_VIEW_ORDER_PRESENT 0u
 #define CLI_VIEW_ORDER_PRESENT_PART 1u
 #define CLI_VIEW_ORDER_ACT 2u
@@ -147,6 +154,7 @@ typedef struct
 #define CLI_VIEW_ORDER_ICON 5u
 #define CLI_VIEW_ORDER_DIALOG_OPEN 6u
 #define CLI_VIEW_ORDER_DIALOG_CLOSE 7u
+#define CLI_VIEW_ORDER_CURSOR 8u
 
 typedef struct
 {

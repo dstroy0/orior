@@ -95,8 +95,9 @@ int gui_raster_init(const GuiRasterWidthXCfg *args);
 void gui_raster_fill(const GuiRasterRectColorCfg *args);
 void gui_raster_round(const GuiRasterRectColorCfg *args);
 // The ground a cut lays bare: the raster it is read from, pixel for pixel, or `color` where the raster is NULL, with
-// `over` blended over it by its alpha, and white blended over that by the alpha the tile of `grain` bytes, `tile` a
-// side, gives the pixel, where a grain is given; the tile is laid from the raster's own top left and repeated
+// `over` blended over it by its alpha, and `grain_color` blended over that by the alpha the tile of `grain` bytes,
+// `tile` a side, gives the pixel at the grain color's own alpha, where a grain is given; the tile is laid from the
+// raster's own top left and repeated
 typedef struct
 {
     const GuiRaster *raster;
@@ -104,6 +105,7 @@ typedef struct
     const unsigned char *grain;
     unsigned int tile;
     GuiColor color;
+    GuiColor grain_color;
 } GuiUnder;
 
 // `color` blended over `background_fill` by the color's alpha, the pixel left opaque
@@ -281,6 +283,7 @@ struct GuiRasterRectRadiusCfg
     unsigned int radius;
     const unsigned char *alpha;
     unsigned int tile;
+    GuiColor color;
 };
 
 struct GuiRasterRadiusBackgroundCfg

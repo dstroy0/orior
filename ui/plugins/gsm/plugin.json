@@ -7,6 +7,14 @@
   "comments": {},
   "pairs": ["[]"],
   "quotes": [],
+  "palette": {
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "perLine": true,
     "mnemonics": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["mnemonic"], "match": "^[A-Za-z_]\\w*$"},

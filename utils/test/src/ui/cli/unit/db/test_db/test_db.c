@@ -155,7 +155,7 @@ static int pool_contains(const char *marked)
     unsigned long long temporary = 0ull;
     cli_pool_report(&pool, &persistent, &temporary);
     char *const probe = g_cli_guard->temporary_buf_alloc(64ull, g_checks_owner);
-    const unsigned long long top = (unsigned long long)g_cli_guard->temporary_buf_mark();
+    const unsigned long long top = (unsigned long long)mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum());
     // the probe is at the top of the temporary tier, its distance from the pool's start: a page short of each end
     const unsigned char *const start = (const unsigned char *)probe - top + 4096ull;
     const unsigned long long bytes = pool - 8192ull;

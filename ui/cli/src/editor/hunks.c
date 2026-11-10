@@ -149,8 +149,9 @@ EMBED_INLINE void hunks_shown(const HunksCtx *args)
 // none could be read
 EMBED_INLINE int hunks_head_stored(const HunksCtx *args)
 {
+    // the head's text lives through this call alone: a cell of the temporary tier
     char *const scratch = ((args->root != NULL) && (args->path != NULL))
-                              ? g_cli_guard->persistent_buf_alloc(HUNKS_HEAD_MAX, g_cli_widgets_owner)
+                              ? g_cli_guard->temporary_buf_alloc(HUNKS_HEAD_MAX, g_cli_widgets_owner)
                               : NULL;
     VerbaLinea out = {scratch, HUNKS_HEAD_MAX, 0ULL};
     const int tracked = (scratch != NULL) &&

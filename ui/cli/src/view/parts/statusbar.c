@@ -336,9 +336,8 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
     }
     places->notice = (GuiRect){(int)start, bar.y, (int)(x - start + 0.5f), bar.height};
     x += notice_gap;
-    // Silence at six tenths of the bar's text
-    const GuiColor quiet = (args->palette->status_text & 0x00ffffffu) |
-                           ((((args->palette->status_text >> 24u) * GUI_STATUS_SILENCE_ALPHA) / 255u) << 24u);
+    // Silence in the bar's quiet text
+    const GuiColor quiet = args->palette->status_quiet;
     const float silence_start = x;
     x = EMBED_CALL(statusbar_text, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size, .x = x,
                    .baseline = baseline, .text = s_silence, .length = sizeof(s_silence) - 1u, .color = quiet,

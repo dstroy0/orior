@@ -225,7 +225,7 @@ EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
         EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = right_text, .length = right_length, .lines = NULL);
     const char *(*const lines)[2] =
         ((left != 0u) && (right != 0u))
-            ? g_cli_guard->persistent_buf_alloc(((left + right) * sizeof(*lines)) + right, g_cli_notebook_owner)
+            ? g_cli_guard->temporary_buf_alloc(((left + right) * sizeof(*lines)) + right, g_cli_notebook_owner)
             : NULL;
     if (lines == NULL)
     {

@@ -213,12 +213,12 @@ int main(void)
     // the grain: a tile of alphas laid from the raster's top left, repeated, inside the corners
     const unsigned char grain[4] = {0u, 255u, 0u, 0u};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = &raster, .rect = whole, .radius = 0u, .alpha = grain, .tile = 2u);
+    EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = &raster, .rect = whole, .radius = 0u, .alpha = grain, .tile = 2u, .color = GUI_RGB(0xffu, 0xffu, 0xffu));
     cli_check((raster.pixels[1u] == 0xffffffffu) && (raster.pixels[0] == 0xff000000u) && (raster.pixels[3u] == 0xffffffffu) &&
                   (raster.pixels[(1u * 8u) + 1u] == 0xff000000u),
               "the grain lays its tile's alphas over the raster, repeated");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = &raster, .rect = whole, .radius = 3u, .alpha = grain, .tile = 2u);
+    EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = &raster, .rect = whole, .radius = 3u, .alpha = grain, .tile = 2u, .color = GUI_RGB(0xffu, 0xffu, 0xffu));
     cli_check(red_of(raster.pixels[1u]) < 0xffu, "the grain is short at a rounded corner");
 
     g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
@@ -285,7 +285,7 @@ int main(void)
     // a ground with a grain: the tint over the ground's color, and white over that by the grain's tile
     cli_check(EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = black, .color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
     const unsigned char grained[4] = {0u, 255u, 0u, 0u};
-    const GuiUnder table = {NULL, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u), grained, 2u, black};
+    const GuiUnder table = {NULL, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u), grained, 2u, black, GUI_RGB(0xffu, 0xffu, 0xffu)};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
     EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = table);
     cli_check((red_of(raster.pixels[0]) > 0x70u) && (red_of(raster.pixels[0]) < 0x90u) && (((raster.pixels[0] >> 8u) & 0xffu) < 0x10u),

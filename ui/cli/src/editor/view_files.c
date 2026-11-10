@@ -225,7 +225,7 @@ void cli_view_session_save(const char *root)
     // the view shown is among the views
     const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : "";
     bytes += cellul.len(&(CatenaFinitaCfg){.src = shown_path, .cap = CLI_PATH_MAX_LEN});
-    char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_views_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_views_owner);
     if (cell == NULL)
     {
         return;

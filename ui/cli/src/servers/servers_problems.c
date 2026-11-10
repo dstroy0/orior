@@ -456,7 +456,7 @@ void cli_servers_problems_check(const char *root)
     {
         return;
     }
-    const char **const paths = g_cli_guard->persistent_buf_alloc(
+    const char **const paths = g_cli_guard->temporary_buf_alloc(
         ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
     if (paths != NULL)
     {

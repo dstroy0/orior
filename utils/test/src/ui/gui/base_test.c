@@ -114,19 +114,21 @@ int main(void)
     cli_check(adjacent(pixel(&raster, hole_x, band_y), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, band_y)))),
               "a pixel of the slat in the hole is the pane");
     cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "laid again for the claim's frame it stands");
-    // the bar half revealed stands fourteen and a half pixels above the window: its foot falls in the middle of a
-    // row, which takes the ink at an alpha halfway between the pane's and the sheet's
-    numbers.reveal_top = GUI_FIXED_ONE / 2;
+    // the bar a quarter revealed stands a quarter of the gap down less three quarters of its height, half a pixel
+    // past a row's edge: its foot falls in the middle of a row, which takes the ink at an alpha halfway between the
+    // pane's and the sheet's
+    numbers.reveal_top = GUI_FIXED_ONE / 4;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
-    cli_check((frame.bar_edges.bottom == (26 * GUI_FIXED_ONE) + (GUI_FIXED_ONE / 2)), "the bar's foot falls in the middle of the row of twenty-six");
+    const int foot_row = (GUI_FRAME_GAP / 4) + GUI_BAR_HEIGHT - (((3 * GUI_BAR_HEIGHT) + 2) / 4);
+    cli_check((frame.bar_edges.bottom == (foot_row * GUI_FIXED_ONE) + (GUI_FIXED_ONE / 2)), "the bar's foot falls in the middle of a row");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const GuiColor between = (pane & 0x00ffffffu) | (((GUI_ALPHA_OF(palette->glass) + GUI_ALPHA_OF(pane) + 1u) / 2u) << 24u);
-    cli_check(adjacent(pixel(&raster, hole_x, 26), over(over(palette->background_fill, between), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 26)))),
+    cli_check(adjacent(pixel(&raster, hole_x, foot_row), over(over(palette->background_fill, between), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, foot_row)))),
               "the row the foot falls in is the ink at the alpha between");
-    cli_check(adjacent(pixel(&raster, hole_x, 25), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 25)))),
+    cli_check(adjacent(pixel(&raster, hole_x, foot_row - 1), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, foot_row - 1)))),
               "the row above it is the pane whole");
-    cli_check(adjacent(pixel(&raster, hole_x, 27), sheet_at(palette, palette->background_fill, hole_x, 27)), "and the row below it the sheet");
+    cli_check(adjacent(pixel(&raster, hole_x, foot_row + 1), sheet_at(palette, palette->background_fill, hole_x, foot_row + 1)), "and the row below it the sheet");
     numbers.reveal_top = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);

@@ -8,6 +8,16 @@
   "pairs": [],
   "quotes": [],
   "indentAfter": "[{[(]\\s*$",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "string": "#9fe3c8ff",
+    "type": "#6fdcb4ff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "tokenizer": {
       "root": [["^\\s*#.*$","comment"],["^[ \\t]+",""],["[^\\t]+","identifier.region.open","@block"],["\\t","delimiter","@c1"]],

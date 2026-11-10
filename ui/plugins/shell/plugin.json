@@ -8,6 +8,17 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "(?:\\b(?:then|do|else)|[{[(]|\\bin)\\s*$",
+  "palette": {
+    "attribute": "#c9b8ffff",
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "variable": "#a8c8ffff"
+  },
   "grammar": {
     "words": [
       "if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done", "case", "esac", "in",

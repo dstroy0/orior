@@ -55,7 +55,8 @@ extern "C"
     void cli_pool_peaks_report(void);
     // MMgr's telemetry to the error stream, from the window's main thread on its memory tick. The line is
     // `cells telemetry <pool> <in use> <persistent peak> <temporary peak> <queue> <lane passes>`. Each owner whose
-    // in-use count moved since the last line gets `cells owner <name> <in use> <peak>`
+    // in-use count moved since the last line gets `cells owner <name> <in use> <peak>`, and each owner whose passes
+    // through the turnstiles moved gets `cells touches <name> <passes>`
     void cli_pool_telemetry_log(void);
 
 #ifdef __cplusplus

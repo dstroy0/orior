@@ -75,6 +75,9 @@ void gui_editor_init(const GuiEditorCfg *args);
 // where it stands in the gutter: 1, or 0 where it does not
 int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args);
 int gui_editor_row_at(const GuiEditorPositionCellScaleCfg *args);
+// the line of the sticky row the pixel at x, y stands on, the rows pinned over the editor's top, into `row`: 1, or 0
+// where it stands on none
+int gui_editor_sticky_at(const GuiEditorPositionCellScaleCfg *args);
 // the pixels the unit at `col` of `line` takes in the editor drawn in `place` at `scale` with the code cell `cell`,
 // one cell wide and a row tall, into `rect`: 1, or 0 where the line is not among the rows drawn. A unit the view has
 // slid past, left of the text or past the editor's right edge, also gives 0. Where `clamped` is 1, such a unit gives
@@ -179,11 +182,13 @@ typedef struct
 {
     int (*cell_at)(const GuiEditorPositionCellScaleCfg *args);
     int (*row_at)(const GuiEditorPositionCellScaleCfg *args);
+    int (*sticky_at)(const GuiEditorPositionCellScaleCfg *args);
 } GuiEditorPositionCellScaleNs;
-EMBED_TABLE_LAYOUT(GuiEditorPositionCellScaleNs, cell_at, row_at);
+EMBED_TABLE_LAYOUT(GuiEditorPositionCellScaleNs, cell_at, row_at, sticky_at);
 EMBED_TABLE_STORAGE GuiEditorPositionCellScaleNs gui_editor_position_cell_scale EMBED_UNUSED = {
     .cell_at = gui_editor_cell_at,
     .row_at = gui_editor_row_at,
+    .sticky_at = gui_editor_sticky_at,
 };
 
 typedef struct

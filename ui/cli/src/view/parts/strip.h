@@ -22,10 +22,10 @@ typedef struct GuiStripInitCfg GuiStripInitCfg;
 // the icon's units
 #define GUI_STRIP_NONE (-1)
 #define GUI_STRIP_PAD 6
-#define GUI_STRIP_BUTTON 38
+#define GUI_STRIP_BUTTON 31
 #define GUI_STRIP_BUTTON_GAP 4
-#define GUI_STRIP_BUTTON_RADIUS 7
-#define GUI_STRIP_ICON 29
+#define GUI_STRIP_BUTTON_RADIUS 6
+#define GUI_STRIP_ICON 24
 #define GUI_STRIP_STROKE 1.1f
 
 // the mark's side in the page's pixels and how far in from the button's corner it stands

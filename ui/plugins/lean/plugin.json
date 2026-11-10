@@ -8,6 +8,18 @@
   "pairs": ["()","[]","{}","⟨⟩"],
   "quotes": ["\""],
   "indentAfter": "(?::=|\\bwhere|\\bby|\\bdo|\\bthen|\\belse|=>|[{[(⟨])\\s*(?:--.*)?$",
+  "palette": {
+    "attribute": "#c9b8ffff",
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "words": [

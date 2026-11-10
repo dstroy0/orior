@@ -343,10 +343,11 @@ static void raster_ring(const GuiRasterRectColorCfg *args)
     const int left_to_y = rect.y + rect.height - (((corners & GUI_RASTER_CORNER_BOTTOM_LEFT) != 0u) ? side : 0);
     const int right_from_y = rect.y + (((corners & GUI_RASTER_CORNER_TOP_RIGHT) != 0u) ? side : 0);
     const int right_to_y = rect.y + rect.height - (((corners & GUI_RASTER_CORNER_BOTTOM_RIGHT) != 0u) ? side : 0);
-    const GuiRect edges[4] = {{from_x, rect.y, top ? to_x - from_x : 0, stroke},
-                              {foot_from_x, rect.y + rect.height - stroke, bottom ? foot_to_x - foot_from_x : 0, stroke},
-                              {rect.x, left_from_y, left ? stroke : 0, left_to_y - left_from_y},
-                              {rect.x + rect.width - stroke, right_from_y, right ? stroke : 0, right_to_y - right_from_y}};
+    const GuiRect edges[4] = {
+        {from_x, rect.y, top ? to_x - from_x : 0, stroke},
+        {foot_from_x, rect.y + rect.height - stroke, bottom ? foot_to_x - foot_from_x : 0, stroke},
+        {rect.x, left_from_y, left ? stroke : 0, left_to_y - left_from_y},
+        {rect.x + rect.width - stroke, right_from_y, right ? stroke : 0, right_to_y - right_from_y}};
     for (unsigned int edge = 0u; edge < 4u; edge += 1u)
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = edges[edge],
@@ -358,8 +359,8 @@ static void raster_ring(const GuiRasterRectColorCfg *args)
                            rect.height - (top ? stroke : 0) - (bottom ? stroke : 0)};
     const unsigned int inner_radius = (side > stroke) ? (unsigned int)(side - stroke) : 0u;
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    const unsigned int bits[4] = {GUI_RASTER_CORNER_TOP_LEFT, GUI_RASTER_CORNER_TOP_RIGHT, GUI_RASTER_CORNER_BOTTOM_LEFT,
-                                  GUI_RASTER_CORNER_BOTTOM_RIGHT};
+    const unsigned int bits[4] = {GUI_RASTER_CORNER_TOP_LEFT, GUI_RASTER_CORNER_TOP_RIGHT,
+                                  GUI_RASTER_CORNER_BOTTOM_LEFT, GUI_RASTER_CORNER_BOTTOM_RIGHT};
     const int square_x[4] = {rect.x, rect.x + rect.width - side, rect.x, rect.x + rect.width - side};
     const int square_y[4] = {rect.y, rect.y, rect.y + rect.height - side, rect.y + rect.height - side};
     for (unsigned int corner = 0u; corner < 4u; corner += 1u)
@@ -368,21 +369,20 @@ static void raster_ring(const GuiRasterRectColorCfg *args)
         {
             continue;
         }
-        const GuiRect square = EMBED_CALL(
-            gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = (GuiRect){square_x[corner], square_y[corner], side, side},
-            .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
+        const GuiRect square = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                          .one = (GuiRect){square_x[corner], square_y[corner], side, side},
+                                          .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
         for (int y = square.y; y < square.y + square.height; y += 1)
         {
             for (int x = square.x; x < square.x + square.width; x += 1)
             {
                 const unsigned int outer_cover =
                     EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = rect, .radius = args->radius, .x = x, .y = y);
-                const int within = (x >= inner.x) && (x < inner.x + inner.width) && (y >= inner.y) &&
-                                   (y < inner.y + inner.height);
-                const unsigned int inner_cover =
-                    within ? EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = inner, .radius = inner_radius, .x = x,
-                                        .y = y)
-                           : 0u;
+                const int within =
+                    (x >= inner.x) && (x < inner.x + inner.width) && (y >= inner.y) && (y < inner.y + inner.height);
+                const unsigned int inner_cover = within ? EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = inner,
+                                                                     .radius = inner_radius, .x = x, .y = y)
+                                                        : 0u;
                 const unsigned int cover = (outer_cover > inner_cover) ? outer_cover - inner_cover : 0u;
                 if (cover != 0u)
                 {
@@ -473,19 +473,22 @@ EMBED_INLINE GuiColor raster_under_at(const GuiRasterCtx *args)
 }
 
 // the alpha the ground's grain gives the pixel at x, y, 0 where it has none; the coordinates are not negative
+// the grain's share at x, y: the tile's byte there at the grain color's alpha, a byte's share of a byte rounded
 EMBED_INLINE unsigned int raster_grain_at(const GuiRasterCtx *args)
 {
     if ((args->background_fill.grain == NULL) || (args->background_fill.tile == 0u))
     {
         return 0u;
     }
-    return args->background_fill
-        .grain[(((unsigned int)args->y % args->background_fill.tile) * args->background_fill.tile) +
-               ((unsigned int)args->x % args->background_fill.tile)];
+    const unsigned int laid =
+        args->background_fill
+            .grain[(((unsigned int)args->y % args->background_fill.tile) * args->background_fill.tile) +
+                   ((unsigned int)args->x % args->background_fill.tile)];
+    return ((laid * GUI_ALPHA_OF(args->background_fill.grain_color)) + 127u) / 255u;
 }
 
 // the ground's color at x, y, a pixel on the raster: the ground's own pixel with the color over it, and the grain's
-// white over that where the ground has a grain
+// color over that where the ground has a grain
 EMBED_INLINE GuiColor raster_background_at(const GuiRasterCtx *args)
 {
     const GuiColor tinted =
@@ -494,11 +497,11 @@ EMBED_INLINE GuiColor raster_background_at(const GuiRasterCtx *args)
     const unsigned int grain = raster_grain_at(args);
     return (grain == 0u) ? tinted
                          : EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = tinted,
-                                      .color = GUI_RGB(0xffu, 0xffu, 0xffu), .share = grain);
+                                      .color = args->background_fill.grain_color, .share = grain);
 }
 
 // a pixel of a pane on the table `background_fill` at x, y: the ground's own pixel with the ink at `alpha`, and the
-// grain's white over that
+// grain's color over that
 EMBED_INLINE GuiColor raster_pane_at(const GuiRasterCtx *args)
 {
     const GuiColor tinted = EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = raster_under_at(args),
@@ -506,7 +509,7 @@ EMBED_INLINE GuiColor raster_pane_at(const GuiRasterCtx *args)
     const unsigned int grain = raster_grain_at(args);
     return (grain == 0u) ? tinted
                          : EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = tinted,
-                                      .color = GUI_RGB(0xffu, 0xffu, 0xffu), .share = grain);
+                                      .color = args->background_fill.grain_color, .share = grain);
 }
 
 void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args)
@@ -1453,7 +1456,7 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
     {
         return;
     }
-    const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
+    const GuiColor grain_color = args->color;
     // the corners' squares are radius by radius, which an int holds; a row through them reads each pixel's share
     // inside the arcs, every other row lays the grain whole
     const int side = (int)args->radius;
@@ -1480,8 +1483,9 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
             }
             if (grain != 0u)
             {
-                *pixel =
-                    EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = *pixel, .color = white, .share = grain);
+                // the grain's share at the grain color's alpha, a byte's share of a byte rounded
+                *pixel = EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = *pixel, .color = grain_color,
+                                    .share = ((grain * GUI_ALPHA_OF(grain_color)) + 127u) / 255u);
             }
             pixel += 1;
         }
@@ -1535,16 +1539,15 @@ void gui_raster_dot(const GuiRasterColorCfg *args)
                 if (inside > 0)
                 {
                     const GuiColor ground = *at;
-                    *at = GUI_RGB(
-                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_RED_OF(args->color),
-                                   .background = GUI_RED_OF(ground), .ink = ink, .inside = inside, .x = column,
-                                   .y = row),
-                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_GREEN_OF(args->color),
-                                   .background = GUI_GREEN_OF(ground), .ink = ink, .inside = inside, .x = column,
-                                   .y = row),
-                        EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_BLUE_OF(args->color),
-                                   .background = GUI_BLUE_OF(ground), .ink = ink, .inside = inside, .x = column,
-                                   .y = row));
+                    *at = GUI_RGB(EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_RED_OF(args->color),
+                                             .background = GUI_RED_OF(ground), .ink = ink, .inside = inside,
+                                             .x = column, .y = row),
+                                  EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_GREEN_OF(args->color),
+                                             .background = GUI_GREEN_OF(ground), .ink = ink, .inside = inside,
+                                             .x = column, .y = row),
+                                  EMBED_CALL(raster_dot_level, GuiRasterDotCtx, .color = GUI_BLUE_OF(args->color),
+                                             .background = GUI_BLUE_OF(ground), .ink = ink, .inside = inside,
+                                             .x = column, .y = row));
                 }
             }
             distance_squared += step;

@@ -306,6 +306,7 @@ typedef struct
     int selected;
     CliPosition *cursor_pointer;
     CliPosition *anchor_pointer;
+    unsigned long long *sticky;
 } ViewCtx;
 // the view open under `key`, or NULL; under the lock
 EMBED_INLINE CliView *view_get(const ViewCtx *args)
@@ -2622,10 +2623,10 @@ EMBED_INLINE int view_cell_replace(const ViewCtx *args)
     const CliPosition anchor = args->view->anchor;
     const int after = EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
                       EMBED_CALL(view_before, ViewCtx, .one = cursor, .other = anchor);
-    const CliPosition cursor_transferred = EMBED_CALL(view_position_map, ViewCtx, .place = cursor,
-                                                      .from = from, .to = to, .end = end, .after = 1);
-    const CliPosition anchor_transferred = EMBED_CALL(view_position_map, ViewCtx, .place = anchor,
-                                                      .from = from, .to = to, .end = end, .after = after);
+    const CliPosition cursor_transferred =
+        EMBED_CALL(view_position_map, ViewCtx, .place = cursor, .from = from, .to = to, .end = end, .after = 1);
+    const CliPosition anchor_transferred =
+        EMBED_CALL(view_position_map, ViewCtx, .place = anchor, .from = from, .to = to, .end = end, .after = after);
     if (!view_edit_trim(args))
     {
         args->view->anchor = anchor_transferred;
@@ -2861,15 +2862,13 @@ EMBED_INLINE unsigned long long view_indent_line(const ViewCtx *args)
     const CliPosition ends = {line, added};
     if (view->cursor.line == line)
     {
-        *args->cursor_pointer =
-            EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from, .to = to,
-                       .end = ends, .after = (view->cursor.col > 0ULL) || !args->selected);
+        *args->cursor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from, .to = to,
+                                           .end = ends, .after = (view->cursor.col > 0ULL) || !args->selected);
     }
     if (view->anchor.line == line)
     {
-        *args->anchor_pointer =
-            EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from, .to = to,
-                       .end = ends, .after = (view->anchor.col > 0ULL) || !args->selected);
+        *args->anchor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from, .to = to,
+                                           .end = ends, .after = (view->anchor.col > 0ULL) || !args->selected);
     }
     return at;
 }
@@ -2984,13 +2983,13 @@ EMBED_INLINE unsigned long long view_comment_line(const ViewCtx *args)
     const CliPosition ends = {line, args->marked ? place : place + args->units_u64 + 1ULL};
     if (view->cursor.line == line)
     {
-        *args->cursor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from,
-                                           .to = to, .end = ends, .after = 1);
+        *args->cursor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->cursor, .from = from, .to = to,
+                                           .end = ends, .after = 1);
     }
     if (view->anchor.line == line)
     {
-        *args->anchor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from,
-                                           .to = to, .end = ends, .after = args->after);
+        *args->anchor_pointer = EMBED_CALL(view_position_map, ViewCtx, .place = view->anchor, .from = from, .to = to,
+                                           .end = ends, .after = args->after);
     }
     memor.cpy(&(MemoriaCfg){.dst = put + at, .src = text + read, .bytes = place});
     at += place;
@@ -3663,10 +3662,10 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
         return 0;
     }
     EMBED_CALL(view_settle, ViewCtx, .view = args->view,
-               .cursor = EMBED_CALL(view_position_map, ViewCtx, .place = cursor, .from = from, .to = to,
-                                    .end = end, .after = 1),
-               .anchor = EMBED_CALL(view_position_map, ViewCtx, .place = anchor, .from = from, .to = to,
-                                    .end = end, .after = 0));
+               .cursor = EMBED_CALL(view_position_map, ViewCtx, .place = cursor, .from = from, .to = to, .end = end,
+                                    .after = 1),
+               .anchor = EMBED_CALL(view_position_map, ViewCtx, .place = anchor, .from = from, .to = to, .end = end,
+                                    .after = 0));
     return 1;
 }
 
@@ -4382,14 +4381,11 @@ int cli_view_input(const CliViewInputCfg *args)
         break;
     }
     case CLI_VIEW_SIZE: {
-        // a size the same as the view's changes nothing; one changed moves the top so the cursor stays in view
-        const int changed = (view->rows != args->input->rows) || (view->columns != args->input->columns);
+        // a size changed keeps the top line where it stands: the view does not go to the cursor, so a part shown or
+        // put away beside the editor leaves the text under the pointer
         view->rows = args->input->rows;
         view->columns = args->input->columns;
-        if (changed)
-        {
-            EMBED_CALL(view_follow, ViewCtx, .view = view);
-        }
+        view->top = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = view->top);
         break;
     }
     case CLI_VIEW_COMPLETE: {
@@ -4472,20 +4468,20 @@ static void view_pair_read(ViewPairRead *read)
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = read->key, .first = first,
-                                  .last = last, .size_pointer = &size, .state = state, .capacity = sizeof(state),
-                                  .owner = g_cli_views_owner);
+    char *const text =
+        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = read->key, .first = first, .last = last,
+                   .size_pointer = &size, .state = state, .capacity = sizeof(state), .owner = g_cli_views_owner);
     if (text == NULL)
     {
         return;
     }
     CliSymbolPosition found[2] = {{0u, 0u}, {0u, 0u}};
     // a place in a text a view shows stands below 2^32 lines and columns
-    read->found =
-        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = read->path,
-                   .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
-                   .at_symbol_position = (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)read->cursor.col},
-                   .pair = found);
+    read->found = EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = read->path,
+                             .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
+                             .at_symbol_position =
+                                 (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)read->cursor.col},
+                             .pair = found);
     g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     for (unsigned int at = 0u; read->found && (at < 2u); at += 1u)
     {
@@ -4710,13 +4706,15 @@ EMBED_INLINE void view_frame_stored(const ViewCtx *args)
         const unsigned long long line = displayed->number[at];
         const unsigned long long whole = ((one != NULL) && (line < one->lines.lines)) ? one->lines.length[line] : 0ULL;
         const unsigned long long units = (whole < args->width) ? whole : args->width;
-        frame->row[at] = (CliViewFrameRow){line, bytes->at, 0ULL};
+        // the rows go in from the frame's row `at`, the rows shown or the sticky rows after them
+        CliViewFrameRow *const row = &frame->row[args->at + at];
+        *row = (CliViewFrameRow){line, bytes->at, 0ULL};
         if (units != 0ULL)
         {
             const unsigned long long began = bytes->at;
             EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = bytes,
                        .units = one->lines.unit + one->lines.start[line], .count = units);
-            frame->row[at].length = bytes->at - began;
+            row->length = bytes->at - began;
         }
     }
 }
@@ -4793,6 +4791,75 @@ EMBED_INLINE void view_frame_find(const ViewCtx *args)
     }
 }
 
+// whether the line's text is its brace alone, blanks either side left off
+EMBED_INLINE int view_brace_line(const ViewCtx *args)
+{
+    const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = args->line);
+    unsigned int braces = 0u;
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
+    {
+        const unsigned int unit = args->view->line_units[at];
+        if (unit == '{')
+        {
+            braces += 1u;
+        }
+        else if (!EMBED_CALL(view_blank_unit, ViewCtx, .unit = unit))
+        {
+            return 0;
+        }
+    }
+    return braces == 1u;
+}
+
+// The sticky rows' lines into `sticky`, CLI_VIEW_STICKY_MOST at the most: the head lines of the regions the first row
+// under the sticky rows stands inside, outermost first, a region opened on a line of its brace alone headed by the line
+// before it. The rows pinned hide as many rows, so the first row under them moves down as they are found, until the
+// count rests. A paged text carries none: how many
+EMBED_INLINE unsigned int view_stickies(const ViewCtx *args)
+{
+    const CliViewRows *const displayed = args->displayed;
+    unsigned int count = 0u;
+    if (args->view->paged)
+    {
+        return 0u;
+    }
+    for (unsigned int pass = 0u; pass < CLI_VIEW_STICKY_MOST; pass += 1u)
+    {
+        if (count >= displayed->count)
+        {
+            break;
+        }
+        const unsigned long long under = displayed->number[count];
+        unsigned int opener[CLI_VIEW_STICKY_MOST];
+        // a line number the window shows is far inside what an unsigned int holds
+        const unsigned int opened =
+            EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = args->view->key,
+                       .line = (unsigned int)under, .opener = opener, .max_u32 = CLI_VIEW_STICKY_MOST);
+        unsigned int found = 0u;
+        for (unsigned int at = 0u; at < opened; at += 1u)
+        {
+            unsigned long long head = opener[at];
+            if ((head != 0ULL) && EMBED_CALL(view_brace_line, ViewCtx, .view = args->view, .line = head))
+            {
+                head -= 1ULL;
+            }
+            // a head the rows shown already hold, or one listed already, is not pinned
+            if ((head >= under) || ((found != 0u) && (args->sticky[found - 1u] == head)))
+            {
+                continue;
+            }
+            args->sticky[found] = head;
+            found += 1u;
+        }
+        if (found == count)
+        {
+            break;
+        }
+        count = found;
+    }
+    return count;
+}
+
 CliViewFrame *cli_view_frame_alloc(const char *key)
 {
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
@@ -4814,19 +4881,24 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
         EMBED_CALL(view_search, ViewCtx, .view = view);
     }
     // the row numbers and texts the folds and a paged text's lines are read through, and the folds seen, while the
-    // frame is laid
-    unsigned long long *const number = g_cli_guard->persistent_buf_alloc(
-        rows * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), g_cli_views_owner);
+    // frame is laid: a cell of the temporary tier, given back before the frame is answered
+    // the rows, and the sticky rows after them
+    const unsigned long long capacity = rows + CLI_VIEW_STICKY_MOST;
+    unsigned long long *const number = g_cli_guard->temporary_buf_alloc(
+        capacity * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), g_cli_views_owner);
     if (number == NULL)
     {
         return NULL;
     }
-    const char **const text = (const char **)(void *)(number + rows);
-    CliViewFoldSeen *const seen = (CliViewFoldSeen *)(void *)(text + rows);
+    const char **const text = (const char **)(void *)(number + capacity);
+    CliViewFoldSeen *const seen = (CliViewFoldSeen *)(void *)(text + capacity);
     CliViewRows displayed = {number, text, 0ULL};
     EMBED_CALL(view_rows_fill, ViewCtx, .view_read = view, .rows_out = &displayed, .line = from, .count = rows,
                .most = lines);
     const unsigned long long to = (displayed.count != 0ULL) ? displayed.number[displayed.count - 1ULL] + 1ULL : from;
+    unsigned long long sticky[CLI_VIEW_STICKY_MOST];
+    const unsigned int stickies =
+        EMBED_CALL(view_stickies, ViewCtx, .view = view, .displayed = &displayed, .sticky = sticky);
     // the folds that open on the rows
     CliViewFoldsSeen folds = {&displayed, seen, 0ULL};
     (void)EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = view->key,
@@ -4839,11 +4911,13 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     const unsigned long long reach = view->left + columns;
     const unsigned long long matches_most = view->find_open ? view->matches : 0ULL;
     const unsigned long long query_bytes = view->find_open ? ((3ULL * view->find_length) + 1ULL) : 1ULL;
-    const unsigned long long text_bytes = ((displayed.count * reach) + (folds.count * columns)) * 3ULL;
-    CliViewFrame *const frame = g_cli_guard->persistent_buf_alloc(
-        sizeof(*frame) + (displayed.count * sizeof(CliViewFrameRow)) + (folds.count * sizeof(CliViewFrameFold)) +
-            (matches_most * sizeof(*frame->match)) + query_bytes + text_bytes,
-        g_cli_views_owner);
+    const unsigned long long text_bytes = (((displayed.count + stickies) * reach) + (folds.count * columns)) * 3ULL;
+    // the frame lives from one frame of the window to the next: a cell of the temporary tier
+    CliViewFrame *const frame =
+        g_cli_guard->temporary_buf_alloc(sizeof(*frame) + ((displayed.count + stickies) * sizeof(CliViewFrameRow)) +
+                                             (folds.count * sizeof(CliViewFrameFold)) +
+                                             (matches_most * sizeof(*frame->match)) + query_bytes + text_bytes,
+                                         g_cli_views_owner);
     if (frame == NULL)
     {
         g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
@@ -4851,7 +4925,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     }
     memor.set(&(MemoriaCfg){.dst = frame, .val = 0, .bytes = sizeof(*frame)});
     frame->row = (CliViewFrameRow *)(void *)(frame + 1);
-    frame->fold = (CliViewFrameFold *)(void *)(frame->row + displayed.count);
+    frame->fold = (CliViewFrameFold *)(void *)(frame->row + displayed.count + stickies);
     frame->match = (unsigned long long (*)[3])(void *)(frame->fold + folds.count);
     frame->find.query = (char *)(void *)(frame->match + matches_most);
     frame->bytes = frame->find.query + query_bytes;
@@ -4861,6 +4935,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     frame->from = (displayed.count != 0ULL) ? displayed.number[0] : from;
     // a count of rows a window shows is far inside what an unsigned int represents
     frame->count = (unsigned int)displayed.count;
+    frame->stickies = stickies;
     VerbaLinea bytes = {frame->bytes, text_bytes, 0ULL};
     if (view->paged)
     {
@@ -4876,9 +4951,9 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     for (unsigned long long at = 0ULL; at < displayed.count; at += 1ULL)
     {
         const unsigned long long line = displayed.number[at];
-        const unsigned long long cells = EMBED_CALL(
-            view_cell_get, ViewCtx, .view = view, .line = line,
-            .col = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line));
+        const unsigned long long cells =
+            EMBED_CALL(view_cell_get, ViewCtx, .view = view, .line = line,
+                       .col = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line));
         view->widest = (cells > view->widest) ? cells : view->widest;
     }
     frame->left = view->left;
@@ -4900,6 +4975,19 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     {
         EMBED_CALL(view_frame_find, ViewCtx, .view_read = view, .displayed = &displayed, .frame = frame,
                    .count = query_bytes);
+    }
+    // the sticky rows after the rows shown, their lines listed after the rows' so the runs are read for them too
+    if (stickies != 0u)
+    {
+        CliViewRows pinned = {displayed.number + displayed.count, displayed.text + displayed.count, stickies};
+        for (unsigned int at = 0u; at < stickies; at += 1u)
+        {
+            pinned.number[at] = sticky[at];
+            pinned.text[at] = "";
+        }
+        EMBED_CALL(view_frame_stored, ViewCtx, .key = view->key, .displayed = &pinned, .frame = frame, .out = &bytes,
+                   .width = reach, .at = displayed.count);
+        displayed.count += stickies;
     }
     // the lines from the top to the last row's are the lines the walk hands runs on for, and the rows' runs are read a
     // run of rows at a time

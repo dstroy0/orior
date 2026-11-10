@@ -285,6 +285,21 @@ void cli_pool_telemetry_log(void)
             (void)fprintf(stderr, "cells owner %s %llu %llu\n", owners[at].name, owners[at].in_use, owners[at].hw);
         }
     }
+    // A lane's passes are an owner's takes and releases, its id the owner's place from 1. A row gets a line only where
+    // its passes moved since the last telemetry line; the last row counts every lane past the rest
+    static unsigned long long s_pool_telemetry_passes[POOL_TOUCH_ROWS + 1u];
+    for (size_t row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
+    {
+        size_t id = 0u;
+        size_t passes = 0u;
+        if (mmgr_movable_touches(record, row, &id, &passes) && ((unsigned long long)passes != s_pool_telemetry_passes[row]))
+        {
+            s_pool_telemetry_passes[row] = (unsigned long long)passes;
+            const int named = (id >= 1u) && (id <= (size_t)count);
+            (void)fprintf(stderr, "cells touches %s %llu\n", named ? owners[id - 1u].name : "other",
+                          (unsigned long long)passes);
+        }
+    }
 }
 
 void cli_pool_peaks_report(void)

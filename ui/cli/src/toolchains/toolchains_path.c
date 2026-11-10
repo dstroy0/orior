@@ -292,7 +292,7 @@ EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner)) [CLI_PATH_MAX_LEN] {
     // the most folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
     // their texts as cli_toolchains_path_folders reads them
-    char *const text = g_cli_guard->persistent_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
     char *const expanded = (text != NULL) ? text + CLI_PATH_TEXT : NULL;
     if (text == NULL)
     {
@@ -428,7 +428,7 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
     // of their count
     const unsigned int most = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
     if (folders == NULL)
     {
         g_cli_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);

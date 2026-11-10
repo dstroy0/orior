@@ -511,7 +511,7 @@ void cli_files_explorer_refresh(void)
         return;
     }
     // the open folders' paths copied, the top's aside, each ended by a NUL, those past the bytes closing
-    char *const open = g_cli_guard->persistent_buf_alloc(FILES_EXPLORER_OPEN_TEXT, g_cli_editor_owner);
+    char *const open = g_cli_guard->temporary_buf_alloc(FILES_EXPLORER_OPEN_TEXT, g_cli_editor_owner);
     unsigned int used = 0u;
     unsigned int count = 0u;
     for (unsigned int at = 1u; (open != NULL) && (at < s_explorer_folders); at += 1u)

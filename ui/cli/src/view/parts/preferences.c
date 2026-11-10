@@ -12,7 +12,7 @@
 static const unsigned int s_zoom_percent[GUI_PREFERENCE_ZOOM_STEPS] = {50u,  67u,  75u,  80u,  90u,  100u, 110u,
                                                                        125u, 150u, 175u, 200u, 250u, 300u};
 static const char *const s_sections[GUI_PREFERENCES_SECTIONS] = {"Settings", "Keys",  "Fonts", "Files", "In force",
-                                                                  "Notices",  "Carry", "Theme", "Colors"};
+                                                                 "Notices",  "Carry", "Theme", "Colors"};
 
 // the most bytes a color's value takes as it is typed, its mark and eight digits
 #define PREFERENCES_ENTERED_MOST 9u
@@ -48,6 +48,11 @@ typedef struct
     unsigned int corners;
     GuiMask *mask;
     unsigned char *cover;
+    char *name_out;
+    unsigned int *top_pointer;
+    unsigned int total;
+    unsigned int in_view;
+    int rows;
 } PreferencesCtx;
 
 // the bits of the corners a rectangle rounds: every corner, and the top two alone
@@ -70,6 +75,55 @@ void gui_preferences_init(const GuiPreferencesSizeCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->preferences, .val = 0, .bytes = sizeof(*args->preferences)});
     args->preferences->pointer_x = -1;
     args->preferences->pointer_y = -1;
+}
+
+void gui_preferences_palettes_clear(const GuiPreferencesSizeCfg *args)
+{
+    args->preferences->palettes = 0u;
+    args->preferences->palette_chosen = 0u;
+    args->preferences->palette_top = 0u;
+    args->preferences->color_first = 0u;
+}
+
+void gui_preferences_palette_add(const GuiPreferencesSizeCfg *args)
+{
+    GuiPreferences *const preferences = args->preferences;
+    if (preferences->palettes >= GUI_PREFERENCES_PALETTES)
+    {
+        return;
+    }
+    VerbaLinea line = {preferences->palette_name[preferences->palettes], GUI_PREFERENCES_TEXT, 0ULL};
+    mmgr_line_put(&line, args->text);
+    (void)mmgr_line_finish(&line);
+    preferences->palettes += 1u;
+}
+
+// the colors the grid shows: the palette's from the first shown
+EMBED_INLINE unsigned int preferences_color_count(const PreferencesCtx *args)
+{
+    const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = args->palette);
+    return (count > args->preferences->color_first) ? count - args->preferences->color_first : 0u;
+}
+
+// the name of the color `at` of the grid, into `text` of `size` bytes: a plugin's token's own name, its head to the
+// first dot cut, where the grid shows a plugin's palette
+EMBED_INLINE void preferences_color_name(const PreferencesCtx *args)
+{
+    char name[GUI_PREFERENCES_TEXT];
+    EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = args->palette,
+               .at = args->preferences->color_first + args->at, .name = name, .size = sizeof(name));
+    unsigned long long from = 0ULL;
+    if (args->preferences->color_first != 0u)
+    {
+        while ((name[from] != '\0') && (name[from] != '.'))
+        {
+            from += 1ULL;
+        }
+        from += (name[from] == '.') ? 1ULL : 0ULL;
+    }
+    VerbaLinea line = {args->name_out, args->size, 0ULL};
+    mmgr_line_put(&line, name + from);
+    (void)mmgr_line_finish(&line);
 }
 
 unsigned int gui_preference_zoom_percent(const GuiPreferencesStepCfg *args)
@@ -148,9 +202,13 @@ void gui_preferences_want(const GuiPreferencesScaleCfg *args)
     const int tabs =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW, .scale = scale) +
         (edge / 2);
-    // sizes at a scale are not negative
-    *width = (unsigned int)((2 * edge) + (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                         .pixels = GUI_PREFERENCES_CELL_WIDTH, .scale = scale)));
+    // sizes at a scale are not negative; the palettes' list's column and its inset stand before the two columns
+    *width =
+        (unsigned int)((2 * edge) +
+                       EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                  .pixels = GUI_PREFERENCES_LIST_WIDTH + GUI_PREFERENCES_FIELD_INSET, .scale = scale) +
+                       (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL_WIDTH,
+                                       .scale = scale)));
     *height = (unsigned int)((2 * edge) + tabs +
                              (rows * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                 .pixels = GUI_PREFERENCES_CELL, .scale = scale)));
@@ -168,11 +226,12 @@ GuiRect gui_preferences_close_rect(const GuiPreferencesRowCfg *args)
     const int scale = args->preferences_read->scale;
     const int pixel_width =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CLOSE_WIDTH, .scale = scale);
-    const int edge = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE, .scale = scale);
+    const int edge =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE, .scale = scale);
     // a client's side is far inside what an int represents
-    return (GuiRect){(int)args->preferences_read->width - edge - pixel_width, edge, pixel_width,
-                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
-                                .scale = scale)};
+    return (GuiRect){
+        (int)args->preferences_read->width - edge - pixel_width, edge, pixel_width,
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW, .scale = scale)};
 }
 
 GuiRect gui_preferences_section_rect(const GuiPreferencesPaletteValuesCfg *args)
@@ -203,12 +262,10 @@ EMBED_INLINE GuiRect preferences_content(const PreferencesCtx *args)
                                     .preferences_read = preferences);
     const int edge = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
                                 .scale = preferences->scale);
-    const int tabs =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
-                   .scale = preferences->scale) +
-        (edge / 2);
-    return (GuiRect){rect.x + edge, rect.y + edge + tabs, rect.width - (2 * edge),
-                     rect.height - (2 * edge) - tabs};
+    const int tabs = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
+                                .scale = preferences->scale) +
+                     (edge / 2);
+    return (GuiRect){rect.x + edge, rect.y + edge + tabs, rect.width - (2 * edge), rect.height - (2 * edge) - tabs};
 }
 
 // the rows of a section in view, one at the least
@@ -239,7 +296,8 @@ GuiRect gui_preferences_row_rect(const GuiPreferencesRowCfg *args)
         return (GuiRect){0, 0, 0, 0};
     }
     // the scrollbar stands beside the rows only where they are more than the section shows
-    const int gutter = (preferences->rows > lines) ? (preferences->scrollbar.rect.width + preferences->pixels.inset) : 0;
+    const int gutter =
+        (preferences->rows > lines) ? (preferences->scrollbar.rect.width + preferences->pixels.inset) : 0;
     // a row's place is far inside what an int represents
     return (GuiRect){content.x, content.y + ((int)(args->row - preferences->top) * preferences->pixels.row),
                      content.width - gutter, preferences->pixels.row};
@@ -258,14 +316,28 @@ GuiRect gui_preferences_control_rect(const GuiPreferencesRowCfg *args)
                      row.height - (2 * pixels->inset)};
 }
 
+// the palettes' list's column at the left of what Colors shows: its width and the inset after it, none where no
+// palette is listed
+EMBED_INLINE int preferences_list_width(const PreferencesCtx *args)
+{
+    if (args->preferences->palettes == 0u)
+    {
+        return 0;
+    }
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_LIST_WIDTH,
+                      .scale = args->preferences->scale) +
+           args->preferences->pixels.inset;
+}
+
 // what the colors' grid stands in: what a section shows, less the row over it that says which colors are under the
-// least contrast
+// least contrast and the palettes' list's column at its left
 EMBED_INLINE GuiRect preferences_grid(const PreferencesCtx *args)
 {
     const GuiRect content = preferences_content(args);
     const int row = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL,
                                .scale = args->preferences->scale);
-    return (GuiRect){content.x, content.y + row, content.width, content.height - row};
+    const int list = preferences_list_width(args);
+    return (GuiRect){content.x + list, content.y + row, content.width - list, content.height - row};
 }
 
 unsigned int gui_preferences_cells_across(const GuiPreferencesPaletteValuesCfg *args)
@@ -305,6 +377,32 @@ GuiRect gui_preferences_cell_rect(const GuiPreferencesPaletteValuesCfg *args)
     // a cell's place is far inside what an int represents
     return (GuiRect){grid.x + ((int)(args->at % across) * pixel_width),
                      grid.y + ((int)(row - args->preferences_read->top) * pixel_height), pixel_width, pixel_height};
+}
+
+// the list's rows in view, one at the least: the grid's height in rows a cell tall
+EMBED_INLINE unsigned int preferences_list_in_view(const PreferencesCtx *args)
+{
+    return preferences_rows_in_view(args);
+}
+
+GuiRect gui_preferences_list_rect(const GuiPreferencesPaletteValuesCfg *args)
+{
+    const GuiPreferences *const preferences = args->preferences_read;
+    if ((preferences->palettes == 0u) || (args->at >= preferences->palettes) || (args->at < preferences->palette_top) ||
+        (args->at >=
+         preferences->palette_top + EMBED_CALL(preferences_list_in_view, PreferencesCtx, .preferences = preferences)))
+    {
+        return (GuiRect){0, 0, 0, 0};
+    }
+    const GuiRect grid = EMBED_CALL(preferences_grid, PreferencesCtx, .preferences = preferences);
+    const int pixel_height = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL,
+                                        .scale = preferences->scale);
+    // a row's place is far inside what an int represents
+    return (GuiRect){grid.x - EMBED_CALL(preferences_list_width, PreferencesCtx, .preferences = preferences),
+                     grid.y + ((int)(args->at - preferences->palette_top) * pixel_height),
+                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_LIST_WIDTH,
+                                .scale = preferences->scale),
+                     pixel_height};
 }
 
 // the grid's first row in view moved to save the color marked in view
@@ -360,9 +458,9 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
     GuiPreferences *const preferences = args->preferences_out;
     GuiPreferencesPixels *const pixels = &preferences->pixels;
     const int scale = preferences->scale;
-    const int sizes[10] = {GUI_PREFERENCES_EDGE,         GUI_PREFERENCES_ROW,          GUI_PREFERENCES_LABEL_WIDTH,
-                           GUI_PREFERENCES_CONTROL_WIDTH, GUI_PREFERENCES_FIELD_INSET,  GUI_PREFERENCES_BUTTON_INSET,
-                           GUI_PREFERENCES_TRACK,         GUI_PREFERENCES_THUMB,        GUI_PREFERENCES_BOX,
+    const int sizes[10] = {GUI_PREFERENCES_EDGE,          GUI_PREFERENCES_ROW,         GUI_PREFERENCES_LABEL_WIDTH,
+                           GUI_PREFERENCES_CONTROL_WIDTH, GUI_PREFERENCES_FIELD_INSET, GUI_PREFERENCES_BUTTON_INSET,
+                           GUI_PREFERENCES_TRACK,         GUI_PREFERENCES_THUMB,       GUI_PREFERENCES_BOX,
                            (int)PREFERENCES_RADIUS};
     int scaled[10];
     for (unsigned int at = 0u; at < 10u; at += 1u)
@@ -381,7 +479,7 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
     // a rounding and a text's size in pixels are not negative
     pixels->radius = (unsigned int)scaled[9];
     pixels->text = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                           .pixels = (int)GUI_PREFERENCES_SIZE, .scale = scale);
+                                            .pixels = (int)GUI_PREFERENCES_SIZE, .scale = scale);
     // the thumb a disc of its side, and the ring of ground about it a disc wider by the ring each side
     const int ring =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_THUMB_RING, .scale = scale);
@@ -393,7 +491,8 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
                .cover = preferences->thumb_ring_cover, .at = (unsigned int)ring_side);
     // The corners made as masks, in pairs: the outer edge's at a rounding and the inner edge's one pixel less. The
     // roundings: a box's, half a box's, half the track's thickness, and the window's as the compositor rounds it. Each
-    // pixel of a corner's square is covered by its share inside the quarter circle, counted from 4 by 4 points inside it
+    // pixel of a corner's square is covered by its share inside the quarter circle, counted from 4 by 4 points inside
+    // it
     const int window_radius =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_WINDOW_RADIUS, .scale = scale);
     // a rounding in pixels is far inside what an int represents
@@ -446,13 +545,14 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
         GuiMask *const ring = &preferences->corner[GUI_PREFERENCES_CORNER_WINDOW_RING][corner];
         unsigned char inner[GUI_PREFERENCES_CORNER_MOST * GUI_PREFERENCES_CORNER_MOST];
         const unsigned int inner_side = ring->width;
-        memor.cpy(&(MemoriaCfg){.dst = inner, .src = ring->cover, .bytes = (unsigned long long)inner_side * inner_side});
+        memor.cpy(
+            &(MemoriaCfg){.dst = inner, .src = ring->cover, .bytes = (unsigned long long)inner_side * inner_side});
         // the inner square stands one pixel in from a corner's left side at the left corners, and from its top at the
         // top corners
-        const unsigned int in_x = ((corner == GUI_PREFERENCES_TOP_LEFT) || (corner == GUI_PREFERENCES_BOTTOM_LEFT)) ? 1u
-                                                                                                                  : 0u;
-        const unsigned int in_y = ((corner == GUI_PREFERENCES_TOP_LEFT) || (corner == GUI_PREFERENCES_TOP_RIGHT)) ? 1u
-                                                                                                                 : 0u;
+        const unsigned int in_x =
+            ((corner == GUI_PREFERENCES_TOP_LEFT) || (corner == GUI_PREFERENCES_BOTTOM_LEFT)) ? 1u : 0u;
+        const unsigned int in_y =
+            ((corner == GUI_PREFERENCES_TOP_LEFT) || (corner == GUI_PREFERENCES_TOP_RIGHT)) ? 1u : 0u;
         ring->width = outer_side;
         ring->height = outer_side;
         for (unsigned int y = 0u; y < outer_side; y += 1u)
@@ -486,21 +586,21 @@ void gui_preferences_resize(const GuiPreferencesWidthCfg *args)
     }
     // Each tab is as wide as its name and the editor's tab's padding at its left and its right, and the space before
     // the next tab follows it
-    const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT + GUI_TAB_PAD_RIGHT,
-                               .scale = scale) +
+    const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                               .pixels = GUI_TAB_PAD_LEFT + GUI_TAB_PAD_RIGHT, .scale = scale) +
                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
     for (unsigned int section = 0u; section < GUI_PREFERENCES_SECTIONS; section += 1u)
     {
         // a text's width in pixels is far inside what an int represents
         preferences->tab_width[section] =
-            pad + (int)EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
-                                  .face = GUI_FACE_HEAD,
-                                  // a size in pixels is not negative
-                                  .size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                                   .pixels = (int)GUI_PREFERENCES_SIZE, .scale = scale),
-                                  .text = s_sections[section],
-                                  .length = EMBED_CALL(preferences_length, PreferencesCtx,
-                                                       .text = s_sections[section]));
+            pad +
+            (int)EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
+                            .face = GUI_FACE_CODE,
+                            // a size in pixels is not negative
+                            .size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                             .pixels = (int)GUI_TAB_SIZE, .scale = scale),
+                            .text = s_sections[section],
+                            .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = s_sections[section]));
     }
     EMBED_CALL(gui_scrollbar.layout, GuiScrollbarCfg, .bar = &preferences->scrollbar,
                .rect = EMBED_CALL(preferences_scrollbar, PreferencesCtx, .preferences = preferences), .across = 0,
@@ -555,23 +655,42 @@ EMBED_INLINE void preferences_entering_key(const PreferencesCtx *args)
              EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = args->preferences_out->entered,
                         .length = args->preferences_out->entered_length,
                         .current = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = palette,
-                                              .at = args->preferences_out->marked),
+                                              .at = preferences->color_first + preferences->marked),
                         .color_pointer = &args->change->color))
     {
         args->change->type = GUI_PREFERENCE_COLORED;
-        args->change->at = args->preferences_out->marked;
+        args->change->at = preferences->color_first + preferences->marked;
         args->preferences_out->entering = 0;
     }
 }
 
-// the keys over the colors' grid: the mark moved among the colors, no further than their ends
+// the palette `at` of the list chosen: the grid starts over at its first color, and the window loads the colors
+EMBED_INLINE void preferences_palette_choose(const PreferencesCtx *args)
+{
+    GuiPreferences *const preferences = args->preferences_out;
+    preferences->palette_chosen = args->at;
+    preferences->marked = 0u;
+    preferences->top = 0u;
+    preferences->entering = 0;
+    args->change->type = GUI_PREFERENCE_PALETTE;
+    args->change->at = args->at;
+}
+
+// the keys over the colors' grid: the mark moved among the colors, no further than their ends; and Tab choosing the
+// palette after the one chosen, round to the first
 EMBED_INLINE void preferences_colors_key(const PreferencesCtx *args)
 {
     GuiPreferences *preferences = args->preferences_out;
-    const GuiPalette *palette = args->palette;
     const unsigned int across = EMBED_CALL(gui_preferences_palette_values.cells_across, GuiPreferencesPaletteValuesCfg,
                                            .preferences_read = preferences);
-    const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
+    const unsigned int count =
+        EMBED_CALL(preferences_color_count, PreferencesCtx, .preferences = preferences, .palette = args->palette);
+    if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "Tab") && (preferences->palettes != 0u))
+    {
+        EMBED_CALL(preferences_palette_choose, PreferencesCtx, .preferences_out = preferences,
+                   .at = (preferences->palette_chosen + 1u) % preferences->palettes, .change = args->change);
+        return;
+    }
     if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "Enter"))
     {
         preferences->entering = 1;
@@ -628,7 +747,8 @@ EMBED_INLINE void preferences_settings_key(const PreferencesCtx *args)
     {
         preferences->marked += 1u;
     }
-    else if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "Up") && (preferences->marked != 0u))
+    else if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "Up") &&
+             (preferences->marked != 0u))
     {
         preferences->marked -= 1u;
     }
@@ -690,8 +810,8 @@ void gui_preferences_key(const GuiPreferencesPaletteNameCfg *args)
     *args->change = (GuiPreferenceChange){GUI_PREFERENCE_NOTHING, 0u, 0, 0, 0u, 0u};
     if (args->preferences->capturing)
     {
-        EMBED_CALL(preferences_capturing_key, PreferencesCtx, .preferences_out = args->preferences,
-                   .name = args->name, .change = args->change);
+        EMBED_CALL(preferences_capturing_key, PreferencesCtx, .preferences_out = args->preferences, .name = args->name,
+                   .change = args->change);
     }
     else if (args->preferences->entering)
     {
@@ -722,7 +842,7 @@ void gui_preferences_key(const GuiPreferencesPaletteNameCfg *args)
     else if (args->preferences->section == GUI_PREFERENCES_COLORS)
     {
         EMBED_CALL(preferences_colors_key, PreferencesCtx, .preferences_out = args->preferences,
-                   .palette = args->palette, .name = args->name);
+                   .palette = args->palette, .name = args->name, .change = args->change);
     }
     else
     {
@@ -789,7 +909,20 @@ int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args)
     }
     if (args->preferences->section == GUI_PREFERENCES_COLORS)
     {
-        const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
+        for (unsigned int at = 0u; at < args->preferences->palettes; at += 1u)
+        {
+            if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                           .rect = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg,
+                                              .preferences_read = args->preferences, .at = at),
+                           .x = args->x, .y = args->y))
+            {
+                EMBED_CALL(preferences_palette_choose, PreferencesCtx, .preferences_out = args->preferences, .at = at,
+                           .change = args->change);
+                return 1;
+            }
+        }
+        const unsigned int count =
+            EMBED_CALL(preferences_color_count, PreferencesCtx, .preferences = args->preferences, .palette = palette);
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
@@ -809,7 +942,8 @@ int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args)
     // the scrollbar: an arrow moves the rows a row, the track a view, and the thumb is taken to be dragged
     const GuiScrollbarCfg bar = {.bar_read = &preferences->scrollbar,
                                  .total = preferences->rows,
-                                 .shown = EMBED_CALL(preferences_lines_in_view, PreferencesCtx, .preferences = preferences),
+                                 .shown =
+                                     EMBED_CALL(preferences_lines_in_view, PreferencesCtx, .preferences = preferences),
                                  .first = preferences->top,
                                  .x = args->x,
                                  .y = args->y};
@@ -828,8 +962,8 @@ int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args)
     }
     for (unsigned int row = preferences->top; row < preferences->rows; row += 1u)
     {
-        const GuiRect rect = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg,
-                                        .preferences_read = preferences, .row = row);
+        const GuiRect rect =
+            EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = preferences, .row = row);
         if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = rect, .x = args->x, .y = args->y))
         {
             continue;
@@ -896,8 +1030,8 @@ int gui_preferences_slide(const GuiPreferencesPaletteChangeCfg *args)
     {
         return 0;
     }
-    const GuiRect track = EMBED_CALL(preferences_track, PreferencesCtx, .preferences = preferences,
-                                     .row = preferences->marked);
+    const GuiRect track =
+        EMBED_CALL(preferences_track, PreferencesCtx, .preferences = preferences, .row = preferences->marked);
     const int along = args->x - track.x;
     const int clamped = (along < 0) ? 0 : ((along > track.width) ? track.width : along);
     args->change->type = GUI_PREFERENCE_SLID;
@@ -937,9 +1071,9 @@ int gui_preferences_move(const GuiPreferencesPaletteChangeCfg *args)
         return close_moved;
     }
     const int colors = args->preferences->section == GUI_PREFERENCES_COLORS;
-    const unsigned int count = colors
-                                   ? EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette)
-                                   : args->preferences->rows;
+    const unsigned int count = colors ? EMBED_CALL(preferences_color_count, PreferencesCtx,
+                                                   .preferences = args->preferences, .palette = palette)
+                                      : args->preferences->rows;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const GuiRect rect = colors
@@ -957,41 +1091,70 @@ int gui_preferences_move(const GuiPreferencesPaletteChangeCfg *args)
     return close_moved;
 }
 
+// a first row in view `top` moved `rows` among `total` rows of which `in_view` show, no further than its ends, into
+// `top`: 1 where it moved
+EMBED_INLINE int preferences_top_move(const PreferencesCtx *args)
+{
+    unsigned int *const top = args->top_pointer;
+    const unsigned int most = (args->total > args->in_view) ? args->total - args->in_view : 0u;
+    // the first row and the rows moved are far inside what an int represents
+    const int required = (int)*top + args->rows;
+    unsigned int moved_to;
+    if (required < 0)
+    {
+        moved_to = 0u;
+    }
+    else if ((unsigned int)required > most)
+    {
+        moved_to = most;
+    }
+    else
+    {
+        moved_to = (unsigned int)required;
+    }
+    const int moved = moved_to != *top;
+    *top = moved_to;
+    return moved;
+}
+
+// whether the pointer stands on the palettes' list's column
+EMBED_INLINE int preferences_on_list(const PreferencesCtx *args)
+{
+    const GuiRect grid = preferences_grid(args);
+    const int width = preferences_list_width(args);
+    return (width != 0) && (args->preferences->section == GUI_PREFERENCES_COLORS) &&
+           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                      .rect = (GuiRect){grid.x - width, grid.y, width, grid.height}, .x = args->preferences->pointer_x,
+                      .y = args->preferences->pointer_y);
+}
+
 int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
 {
     const GuiPalette *palette = args->palette;
     const int colors = args->preferences->section == GUI_PREFERENCES_COLORS;
-    const unsigned int across =
-        colors ? EMBED_CALL(gui_preferences_palette_values.cells_across, GuiPreferencesPaletteValuesCfg,
-                            .preferences_read = args->preferences)
-               : 1u;
-    // the grid's rows of colors, or a section's own rows
-    const unsigned int total =
-        colors ? ((EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette) + across - 1u) /
-                  across)
-               : args->preferences->rows;
+    // the palettes' list under the pointer, else the grid's rows of colors, or a section's own rows
+    if (EMBED_CALL(preferences_on_list, PreferencesCtx, .preferences = args->preferences))
+    {
+        return EMBED_CALL(preferences_top_move, PreferencesCtx, .top_pointer = &args->preferences->palette_top,
+                          .total = args->preferences->palettes,
+                          .in_view =
+                              EMBED_CALL(preferences_list_in_view, PreferencesCtx, .preferences = args->preferences),
+                          .rows = args->rows);
+    }
+    const unsigned int across = colors
+                                    ? EMBED_CALL(gui_preferences_palette_values.cells_across,
+                                                 GuiPreferencesPaletteValuesCfg, .preferences_read = args->preferences)
+                                    : 1u;
+    const unsigned int total = colors ? ((EMBED_CALL(preferences_color_count, PreferencesCtx,
+                                                     .preferences = args->preferences, .palette = palette) +
+                                          across - 1u) /
+                                         across)
+                                      : args->preferences->rows;
     const unsigned int in_view =
         colors ? EMBED_CALL(preferences_rows_in_view, PreferencesCtx, .preferences = args->preferences)
                : EMBED_CALL(preferences_lines_in_view, PreferencesCtx, .preferences = args->preferences);
-    const unsigned int most = (total > in_view) ? total - in_view : 0u;
-    // the first row and the rows moved are far inside what an int represents
-    const int required = (int)args->preferences->top + args->rows;
-    unsigned int top;
-    if (required < 0)
-    {
-        top = 0u;
-    }
-    else if ((unsigned int)required > most)
-    {
-        top = most;
-    }
-    else
-    {
-        top = (unsigned int)required;
-    }
-    const int moved = top != args->preferences->top;
-    args->preferences->top = top;
-    return moved;
+    return EMBED_CALL(preferences_top_move, PreferencesCtx, .top_pointer = &args->preferences->top, .total = total,
+                      .in_view = in_view, .rows = args->rows);
 }
 
 // A rectangle `rect` filled in `color` inside `clip`, the corners in `corners` rounded. The rounding is the outer
@@ -1015,10 +1178,10 @@ EMBED_INLINE void preferences_round_fill(const PreferencesCtx *args)
                               {rect.x + side, rect.y + rect.height - side, rect.width - (2 * side), side}};
     for (unsigned int band = 0u; band < 3u; band += 1u)
     {
-        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = bands[band],
-                                      .other = args->clip),
-                   .color = args->color);
+        EMBED_CALL(
+            gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+            .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = bands[band], .other = args->clip),
+            .color = args->color);
     }
     const int corner_x[4] = {rect.x, rect.x + rect.width - side, rect.x, rect.x + rect.width - side};
     const int corner_y[4] = {rect.y, rect.y, rect.y + rect.height - side, rect.y + rect.height - side};
@@ -1028,8 +1191,7 @@ EMBED_INLINE void preferences_round_fill(const PreferencesCtx *args)
         {
             EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster,
                        .x = corner_x[corner], .y = corner_y[corner],
-                       .mask_bits = &preferences->corner[args->edge][corner], .color = args->color,
-                       .clip = args->clip);
+                       .mask_bits = &preferences->corner[args->edge][corner], .color = args->color, .clip = args->clip);
         }
         else
         {
@@ -1061,34 +1223,32 @@ EMBED_INLINE void preferences_box_draw(const PreferencesCtx *args)
 EMBED_INLINE float preferences_text_draw(const PreferencesCtx *args)
 {
     const GuiPreferences *const preferences = args->preferences;
-    const unsigned int size = (args->face == GUI_FACE_CODE)
-                                  // a size in pixels is not negative
-                                  ? (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                             .pixels = (int)GUI_PREFERENCES_CODE,
-                                                             .scale = preferences->scale)
-                                  : preferences->pixels.text;
-    return EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
-                      .glyphs = args->glyphs, .face = args->face, .size = size, .x_f32 = (float)args->rect.x,
-                      .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs,
-                                      .face = args->face, .size = size, .top = args->rect.y,
-                                      .pixel_height = args->rect.height),
-                      .text = args->text, .length = (args->size != 0u) ? args->size
-                                                                        : EMBED_CALL(preferences_length,
-                                                                                     PreferencesCtx,
-                                                                                     .text = args->text),
-                      .color = args->color, .clip = args->clip);
+    const unsigned int size =
+        (args->face == GUI_FACE_CODE)
+            // a size in pixels is not negative
+            ? (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PREFERENCES_CODE,
+                                       .scale = preferences->scale)
+            : preferences->pixels.text;
+    return EMBED_CALL(
+        gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster, .glyphs = args->glyphs,
+        .face = args->face, .size = size, .x_f32 = (float)args->rect.x,
+        .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = args->face,
+                        .size = size, .top = args->rect.y, .pixel_height = args->rect.height),
+        .text = args->text,
+        .length = (args->size != 0u) ? args->size : EMBED_CALL(preferences_length, PreferencesCtx, .text = args->text),
+        .color = args->color, .clip = args->clip);
 }
 
 // the width of the text `text` in the face `face`, at the scale
 EMBED_INLINE int preferences_text_width(const PreferencesCtx *args)
 {
     const GuiPreferences *const preferences = args->preferences;
-    const unsigned int size = (args->face == GUI_FACE_CODE)
-                                  // a size in pixels is not negative
-                                  ? (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                             .pixels = (int)GUI_PREFERENCES_CODE,
-                                                             .scale = preferences->scale)
-                                  : preferences->pixels.text;
+    const unsigned int size =
+        (args->face == GUI_FACE_CODE)
+            // a size in pixels is not negative
+            ? (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PREFERENCES_CODE,
+                                       .scale = preferences->scale)
+            : preferences->pixels.text;
     // a text's width in pixels is far inside what an int represents
     return (int)EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs,
                            .face = args->face, .size = size, .text = args->text,
@@ -1253,16 +1413,17 @@ EMBED_INLINE void preferences_button_draw(const PreferencesCtx *args)
                                 .glyphs = args->glyphs, .face = face, .text = text) +
                      (2 * inset);
     const GuiRect button = {control.x, control.y, (wide < control.width) ? wide : control.width, control.height};
-    EMBED_CALL(preferences_box_draw, PreferencesCtx, .preferences = preferences, .raster = args->raster,
-               .rect = button, .clip = args->clip,
-               .color = (marked && preferences->capturing) ? args->palette->signal
-                                                           : (marked ? args->palette->hover : args->palette->widget_line),
+    EMBED_CALL(preferences_box_draw, PreferencesCtx, .preferences = preferences, .raster = args->raster, .rect = button,
+               .clip = args->clip,
+               .color = (marked && preferences->capturing)
+                            ? args->palette->signal
+                            : (marked ? args->palette->hover : args->palette->widget_line),
                .ground = args->palette->surface);
     const GuiRect inside = {button.x + inset, button.y, button.width - (2 * inset), button.height};
-    (void)EMBED_CALL(preferences_text_draw, PreferencesCtx, .preferences = preferences, .raster = args->raster,
-                     .glyphs = args->glyphs, .face = face, .text = text, .rect = inside, .color = args->color,
-                     .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = inside,
-                                        .other = args->clip));
+    (void)EMBED_CALL(
+        preferences_text_draw, PreferencesCtx, .preferences = preferences, .raster = args->raster,
+        .glyphs = args->glyphs, .face = face, .text = text, .rect = inside, .color = args->color,
+        .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = inside, .other = args->clip));
 }
 
 // A line in the row `row`, which changes nothing: its value in the code's face and, after it, where the value comes
@@ -1310,13 +1471,14 @@ EMBED_INLINE void preferences_row_draw(const PreferencesCtx *args)
         return;
     }
     const int marked = preferences->marked == args->row;
-    const GuiRect row_clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = args->clip);
+    const GuiRect row_clip =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = args->clip);
     const GuiRect label = {rect.x, rect.y, preferences->pixels.label - preferences->pixels.button, rect.height};
     (void)EMBED_CALL(preferences_text_draw, PreferencesCtx, .preferences = preferences, .raster = args->raster,
                      .glyphs = args->glyphs, .face = GUI_FACE_HEAD, .text = row->label, .rect = label,
                      .color = marked ? args->palette->text : args->palette->text_3,
-                     .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = label,
-                                        .other = row_clip));
+                     .clip =
+                         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = label, .other = row_clip));
     const GuiColor said = marked ? args->palette->text : args->palette->text_2;
     if ((row->type == GUI_PREFERENCE_TYPE_ZOOM) || (row->type == GUI_PREFERENCE_TYPE_PERCENT))
     {
@@ -1368,18 +1530,19 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
     const int scale = preferences->scale;
     const int side =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_SWATCH, .scale = scale);
+    const GuiColor color =
+        EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = palette, .at = preferences->color_first + at);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect =
                    EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                               .one = (GuiRect){cell.x, cell.y + ((cell.height - side) / 2), side, side}, .other = clip),
-               .color = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = palette, .at = at));
+               .color = color);
     char name[GUI_PREFERENCES_TEXT];
     char value[GUI_PREFERENCES_TEXT];
-    EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = palette, .at = at, .name = name,
-               .size = sizeof(name));
-    EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg,
-               .color = EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = palette, .at = at),
-               .text = value, .size = sizeof(value));
+    EMBED_CALL(preferences_color_name, PreferencesCtx, .preferences = preferences, .palette = palette, .at = at,
+               .name_out = name, .size = sizeof(name));
+    EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = color, .text = value,
+               .size = sizeof(value));
     // a size in pixels is not negative
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_PREFERENCES_CODE, .scale = scale);
@@ -1430,8 +1593,8 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
     }
     unsigned int tenths = 0u;
     char under[GUI_PREFERENCES_TEXT];
-    if (EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = palette, .at = at, .tenths = &tenths,
-                   .under = under, .size = sizeof(under)))
+    if (EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = palette,
+                   .at = preferences->color_first + at, .tenths = &tenths, .under = under, .size = sizeof(under)))
     {
         char ratio[GUI_PREFERENCES_TEXT];
         EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = tenths, .text = ratio,
@@ -1446,6 +1609,45 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
                          .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = ratio),
                          .color = palette->fail, .clip = mark_clip);
     }
+}
+
+// the palette `at` of the list in its row: the chosen one's name in the text color on the shown tab's ground, its
+// corners rounded; any other's in the third text color on the ground alone
+EMBED_INLINE void preferences_list_row_draw(const PreferencesCtx *args)
+{
+    const GuiPreferences *preferences = args->preferences;
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const GuiPalette *palette = args->palette;
+    const GuiRect row = EMBED_CALL(gui_preferences_palette_values.list_rect, GuiPreferencesPaletteValuesCfg,
+                                   .preferences_read = preferences, .at = args->at);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = row))
+    {
+        return;
+    }
+    const int scale = preferences->scale;
+    const int chosen = preferences->palette_chosen == args->at;
+    if (chosen)
+    {
+        EMBED_CALL(preferences_round_fill, PreferencesCtx, .preferences = preferences, .raster = raster, .rect = row,
+                   .color = palette->tab_background, .clip = args->clip, .corners = PREFERENCES_CORNERS_ALL,
+                   .edge = GUI_PREFERENCES_CORNER_SMALL_OUTER);
+    }
+    // a size in pixels is not negative
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_PREFERENCES_SIZE, .scale = scale);
+    const int left = row.x + preferences->pixels.button;
+    const GuiRect name_clip = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg,
+        .one = (GuiRect){left, row.y, row.width - preferences->pixels.button, row.height}, .other = args->clip);
+    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                     .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)left,
+                     .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                     .face = GUI_FACE_HEAD, .size = size, .top = row.y, .pixel_height = row.height),
+                     .text = preferences->palette_name[args->at],
+                     .length =
+                         EMBED_CALL(preferences_length, PreferencesCtx, .text = preferences->palette_name[args->at]),
+                     .color = chosen ? palette->text : palette->text_3, .clip = name_clip);
 }
 
 // the row over the grid: the least contrast and the colors under it, each with the color it is drawn on and its
@@ -1473,18 +1675,20 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
     mmgr_line_put(&line, min);
     mmgr_line_put(&line, ", the contrast WCAG 2 asks of text: ");
     const unsigned long long head = line.at;
-    const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
+    const unsigned int count =
+        EMBED_CALL(preferences_color_count, PreferencesCtx, .preferences = args->preferences, .palette = palette);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         unsigned int tenths = 0u;
         char under[GUI_PREFERENCES_TEXT];
-        if (EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = palette, .at = at,
-                       .tenths = &tenths, .under = under, .size = sizeof(under)))
+        if (EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = palette,
+                       .at = args->preferences->color_first + at, .tenths = &tenths, .under = under,
+                       .size = sizeof(under)))
         {
             char name[GUI_PREFERENCES_TEXT];
             char ratio[GUI_PREFERENCES_TEXT];
-            EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = palette, .at = at, .name = name,
-                       .size = sizeof(name));
+            EMBED_CALL(preferences_color_name, PreferencesCtx, .preferences = args->preferences, .palette = palette,
+                       .at = at, .name_out = name, .size = sizeof(name));
             EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = tenths, .text = ratio,
                        .size = sizeof(ratio));
             const unsigned long long before = line.at;
@@ -1544,7 +1748,7 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     // whole window with the sheet's tint and grain, as the main window's glass lies about its work. The clear ground
     // is the same lattice with no tint and no grain
     const GuiUnder table = EMBED_CALL(gui_glass.table, GuiGlassCfg, .background_fill = args->ground,
-                                      .color = palette->deep, .glass = palette->glass);
+                                      .color = palette->deep, .glass = palette->glass, .grain = palette->grain);
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
     // a rounding in pixels is not negative
     const unsigned int pane_radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
@@ -1574,9 +1778,7 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
                .background_fill = clear,
                .rect = (GuiRect){sheet.x, sheet.y + rounding, sheet.width, band_height - rounding}, .radius = 0u,
                .inner = palette->surface);
-    const GuiColor work_line =
-        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
-                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiColor work_line = palette->work_line;
     const GuiOutline outline = {
         work_line,
         work_line,
@@ -1592,15 +1794,15 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     EMBED_CALL(gui_raster_radius_work.outline, GuiRasterRadiusWorkCfg, .raster = raster, .work = sheet,
                .inside = inside, .radius = pane_radius, .lines = &outline, .holes = NULL, .count = 0u, .table = table,
                .clear = clear);
-    // a size in pixels is not negative
-    const unsigned int size =
-        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PREFERENCES_SIZE,
-                                 .scale = tabs->scale);
+    // a size in pixels is not negative; the names in the editor's tabs' face and size
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_TAB_SIZE, .scale = tabs->scale);
     // The tabs, as the editor's tabs stand in the main window's work: a line along the row's foot and one at each
     // tab's right, and the tab shown on the tab's ground, its corners rounded, the tab's line along its top and down
     // its left
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = tabs->scale);
-    const int space = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = tabs->scale);
+    const int space =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = tabs->scale);
     // a rounding in pixels is not negative
     const unsigned int tab_radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_TAB_RADIUS, .scale = tabs->scale);
@@ -1628,15 +1830,14 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
                    .stroke = one);
         // the name after the editor's tab's padding at its left
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                         .face = GUI_FACE_HEAD, .size = size,
+                         .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(box.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_TAB_PAD_LEFT, .scale = tabs->scale)),
                          .y = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
-                                         .face = GUI_FACE_HEAD, .size = size, .top = box.y,
-                                         .pixel_height = box.height),
+                                         .face = GUI_FACE_CODE, .size = size, .top = box.y, .pixel_height = box.height),
                          .text = s_sections[section],
                          .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = s_sections[section]),
-                         .color = shown ? palette->text : palette->text_3, .clip = clip);
+                         .color = shown ? palette->text : palette->text_2, .clip = clip);
     }
     EMBED_CALL(preferences_close_draw, PreferencesCtx, .preferences = tabs, .raster = raster, .palette = palette);
     // The window's own border, the compositor drawing none for it: a line one pixel wide about the whole, its corners
@@ -1663,7 +1864,13 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     {
         EMBED_CALL(preferences_contrasts_draw, PreferencesCtx, .preferences = args->preferences_read, .raster = raster,
                    .glyphs = glyphs, .palette = palette, .clip = clip);
-        const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
+        for (unsigned int at = 0u; at < args->preferences_read->palettes; at += 1u)
+        {
+            EMBED_CALL(preferences_list_row_draw, PreferencesCtx, .preferences = args->preferences_read,
+                       .raster = raster, .glyphs = glyphs, .palette = palette, .at = at, .clip = clip);
+        }
+        const unsigned int count = EMBED_CALL(preferences_color_count, PreferencesCtx,
+                                              .preferences = args->preferences_read, .palette = palette);
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             EMBED_CALL(preferences_cell_draw, PreferencesCtx, .preferences = args->preferences_read, .raster = raster,
@@ -1675,8 +1882,8 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     const unsigned int lines = EMBED_CALL(preferences_lines_in_view, PreferencesCtx, .preferences = preferences);
     for (unsigned int row = preferences->top; (row < preferences->rows) && (row < preferences->top + lines); row += 1u)
     {
-        EMBED_CALL(preferences_row_draw, PreferencesCtx, .preferences = preferences, .raster = raster,
-                   .glyphs = glyphs, .palette = palette, .values = args->values, .row = row, .clip = clip);
+        EMBED_CALL(preferences_row_draw, PreferencesCtx, .preferences = preferences, .raster = raster, .glyphs = glyphs,
+                   .palette = palette, .values = args->values, .row = row, .clip = clip);
     }
     // the scrollbar beside the rows only where they are more than the section shows
     if (preferences->rows > lines)

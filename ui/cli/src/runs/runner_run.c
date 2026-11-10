@@ -534,7 +534,7 @@ void cli_run_steps(void *context)
     g_cli_guard->persistent_buf_release(run_command, g_cli_runs_owner);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
         views
-            ? g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
+            ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
             : NULL;
     const unsigned int pages = (pages_found != NULL)
                                    ? EMBED_CALL(cli_runner_root_internal.run_pages, CliRunnerRootCtx, .root = run->root,

@@ -51,6 +51,11 @@ typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
 typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
 typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
 typedef struct CliPluginsEachCfg CliPluginsEachCfg;
+typedef struct CliPluginsIdEachCfg CliPluginsIdEachCfg;
+typedef struct CliPluginColorCfg CliPluginColorCfg;
+typedef struct CliPluginsEachIdCfg CliPluginsEachIdCfg;
+typedef struct CliPluginIdCfg CliPluginIdCfg;
+typedef struct CliPluginsIdNameValueCfg CliPluginsIdNameValueCfg;
 typedef struct CliPluginsIdNameCfg CliPluginsIdNameCfg;
 typedef struct CliPluginsCfg CliPluginsCfg;
 typedef struct CliPluginsRootCfg CliPluginsRootCfg;
@@ -123,6 +128,31 @@ void cli_plugins_languages_for_call(const CliPluginsCfg *args);
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that stands, and read again only where
 // that text changed since it was stored. 1, or 0 with why given (plugins_grammar.c)
 int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args);
+// One color of a language plugin's palette: the name of the token it colors, as the grammar names tokens, and its
+// value as the plugin writes it, `#rrggbbaa`, the alpha the token's luminosity over the editor's ground
+struct CliPluginColorCfg
+{
+    void *context;
+    const char *name;
+    const char *value;
+};
+typedef void (*CliPluginColorEach)(const CliPluginColorCfg *args);
+// each color of the palette of the language plugin `id` handed to `each` with `context`, in the order the plugin
+// writes them: 1 where a plugin of the id stands and carries a palette, else 0 (plugins_palette.c)
+int cli_plugins_palette_each(const CliPluginsIdEachCfg *args);
+struct CliPluginIdCfg
+{
+    void *context;
+    const char *id;
+};
+typedef void (*CliPluginIdEach)(const CliPluginIdCfg *args);
+// the id of each plugin that carries a palette handed to `each` with `context`, in the order the plugins stand, a
+// reader's plugin that stands in for one that comes with orior handed on after it (plugins_palette.c)
+void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args);
+// the color `name` of the palette of the plugin `id` made `value`, and the plugin's plugin.json written whole with it
+// under the reader's plugins folder in a folder of the id, where it stands in for the one that comes with orior: 1,
+// or 0 where no plugin of the id carries a palette or the file could not be written (plugins_palette.c)
+int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args);
 // the language the file at `path` opens as, of those `languages` gives, into `id`, sized for CLI_NAME_MAX_LEN: by
 // its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
 // neither does. 1, or 0 where none does
@@ -251,6 +281,44 @@ struct CliPluginsEachCfg
     void *context;
 };
 
+struct CliPluginsIdEachCfg
+{
+    const char *id;
+    CliPluginColorEach each;
+    void *context;
+};
+
+struct CliPluginsEachIdCfg
+{
+    CliPluginIdEach each;
+    void *context;
+};
+
+struct CliPluginsIdNameValueCfg
+{
+    const char *id;
+    const char *name;
+    const char *value;
+};
+
+typedef struct
+{
+    void (*palettes_each)(const CliPluginsEachIdCfg *args);
+} CliPluginsEachIdNs;
+EMBED_TABLE_LAYOUT(CliPluginsEachIdNs, palettes_each);
+EMBED_TABLE_STORAGE CliPluginsEachIdNs cli_plugins_each_id EMBED_UNUSED = {
+    .palettes_each = cli_plugins_palettes_each,
+};
+
+typedef struct
+{
+    int (*palette_set)(const CliPluginsIdNameValueCfg *args);
+} CliPluginsIdNameValueNs;
+EMBED_TABLE_LAYOUT(CliPluginsIdNameValueNs, palette_set);
+EMBED_TABLE_STORAGE CliPluginsIdNameValueNs cli_plugins_id_name_value EMBED_UNUSED = {
+    .palette_set = cli_plugins_palette_set,
+};
+
 struct CliPluginsIdNameCfg
 {
     char *id_out;
@@ -279,6 +347,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliPluginsEachNs, each);
 EMBED_TABLE_STORAGE CliPluginsEachNs cli_plugins_each_table EMBED_UNUSED = {
     .each = cli_plugins_each,
+};
+
+typedef struct
+{
+    int (*palette_each)(const CliPluginsIdEachCfg *args);
+} CliPluginsIdEachNs;
+EMBED_TABLE_LAYOUT(CliPluginsIdEachNs, palette_each);
+EMBED_TABLE_STORAGE CliPluginsIdEachNs cli_plugins_id_each EMBED_UNUSED = {
+    .palette_each = cli_plugins_palette_each,
 };
 
 typedef struct

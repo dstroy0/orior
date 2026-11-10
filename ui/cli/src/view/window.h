@@ -58,6 +58,10 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_SCROLL_EASE_MS 70.0
 #define GUI_SCROLL_STEP_MOST_MS 40ULL
 #define GUI_SCROLL_STILL 0.25
+// The autoscroll a middle press in the text starts. The pixels either side of the press point scroll nothing. Past
+// them, each pixel of the pointer's distance moves the scroll this many pixels a second
+#define GUI_AUTOSCROLL_REST_PIXELS 8
+#define GUI_AUTOSCROLL_PIXELS_A_SECOND 8.0
 
 // What a pixel of the main window stands on, a CLI_HIT_*, with the level and the place among its rows of what it
 // stands on, the row and the cell it stands on in the editor or a terminal's pane, and the pixel itself
@@ -154,6 +158,12 @@ typedef struct GuiWindow
     unsigned long long scroll_stepped_ms;
     int scroll_moving;
     unsigned long long scroll_drag_top;
+    // The autoscroll: whether it runs, the press point's y, the pointer's y as it last moved, and the clock of its
+    // last step in milliseconds. It runs from a middle press in the text to the next press
+    int autoscroll;
+    int autoscroll_y;
+    int autoscroll_pointer_y;
+    unsigned long long autoscroll_stepped_ms;
     // the union of the parts of the frame that changed since it was last shown, empty for none; a frame owed whole,
     // `pending`, draws it all
     GuiRect damage;
@@ -172,6 +182,10 @@ typedef struct GuiWindow
     int dialog_held;
     GuiDialogChange dialog_answer;
     GuiPaletteOwn palette_own;
+    // the palette Preferences shows while a language plugin's is chosen: the window's colors with that plugin's
+    // tokens; and the id of the plugin whose tokens the window's palette holds, empty where it holds none
+    GuiPaletteOwn palette_choice_own;
+    char tokens_id[CLI_NAME_MAX_LEN];
     int system_scale;
     GuiAutohide claim;
     int autohide_moving;
@@ -198,6 +212,8 @@ typedef struct GuiWindow
     int map_known;
     unsigned long long map_first;
     unsigned long long map_last;
+    // the key of the view whose language's palette stands as the window's tokens, empty for none
+    char tokens_key[CLI_PATH_MAX_LEN];
     unsigned int terminal_columns[2];
     unsigned int terminal_rows[2];
     int terminal_gripped;

@@ -104,7 +104,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
         EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = root, .path = path, .length = length);
     }
     const char **const path =
-        (files != 0u) ? g_cli_guard->persistent_buf_alloc(files * sizeof(*path), g_cli_command_line_owner) : NULL;
+        (files != 0u) ? g_cli_guard->temporary_buf_alloc(files * sizeof(*path), g_cli_command_line_owner) : NULL;
     if (path == NULL)
     {
         return;

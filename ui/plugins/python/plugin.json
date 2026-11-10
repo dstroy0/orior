@@ -9,6 +9,18 @@
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],
   "indentAfter": "(?::\\s*(?:#.*)?|[{[(]\\s*)$",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "tag": "#8ab8ffff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "words": [
       "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def",

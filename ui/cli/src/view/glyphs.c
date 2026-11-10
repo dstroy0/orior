@@ -137,7 +137,7 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->glyphs, .val = 0, .bytes = sizeof(*args->glyphs)});
     unsigned int (*const ranges)[3] =
-        g_cli_guard->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), g_gui_glyphs_owner);
+        g_cli_guard->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), g_gui_glyphs_owner);
     args->glyphs->contours = g_cli_guard->persistent_buf_alloc(sizeof(*args->glyphs->contours), g_gui_glyphs_owner);
     args->glyphs->entry =
         g_cli_guard->persistent_buf_alloc(GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry), g_gui_glyphs_owner);

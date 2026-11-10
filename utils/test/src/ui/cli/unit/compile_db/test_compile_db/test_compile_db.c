@@ -132,9 +132,9 @@ static void own_gathered(void)
     cli_unity_file(out, "compile_commands.json",
                    "[{\"directory\": \"/t\", \"file\": \"/t/a.c\", \"command\": "
                    "\"\\\"/opt/cross/bin/arm-none-eabi-gcc\\\" -c a.c\"}]");
-    const size_t top_before = g_cli_guard->temporary_buf_mark();
+    const size_t top_before = mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum());
     EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs, CliCompileDbInputsCtx, .root = s_own_dir, .inputs = &s_inputs);
-    s_files_in_temporary_tier = g_cli_guard->temporary_buf_mark() < top_before;
+    s_files_in_temporary_tier = mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum()) < top_before;
     EMBED_CALL(cli_compile_db_root_internal.compile_gather, CliCompileDbRootCtx, .root = s_own_dir, .inputs_read = &s_inputs, .database = &s_own);
 }
 

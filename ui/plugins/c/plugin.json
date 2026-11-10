@@ -10,6 +10,26 @@
   "indentAfter": "[{[(]\\s*$",
   "directive_mark": "#",
   "directive_continued": "\\",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "identifier.call": "#7fd8e8ff",
+    "identifier.constant": "#f0a07aff",
+    "identifier.declaration.class": "#6fdcb4ff",
+    "identifier.declaration.constant": "#f0a07aff",
+    "identifier.declaration.function": "#7fd8e8ff",
+    "identifier.local": "#a8c8ffff",
+    "identifier.member": "#c9b8ffff",
+    "identifier.parameter": "#f2d48aff",
+    "keyword": "#a48cffff",
+    "keyword.directive": "#f0a07aff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "operator.memory": "#f29bb0ff",
+    "string": "#9fe3c8ff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "words": [
       "auto", "break", "case", "const", "continue", "default", "do", "else", "enum", "extern", "for", "goto",
@@ -40,6 +60,18 @@
           ["keyword","keyword","","identifier.declaration.class"]
         ],
         [
+          "^(\\})(\\s*)([A-Za-z_]\\w*)(\\s*)(;)",
+          ["delimiter.bracket.region.depth.close","","identifier.declaration.class","","delimiter.statement"]
+        ],
+        [
+          "^(typedef)(\\s+)(struct|enum|union)(\\s+)([A-Za-z_]\\w*)(\\s+)([A-Za-z_]\\w*)(\\s*)(;)",
+          ["keyword","","keyword","","type","","identifier.declaration.class","","delimiter.statement"]
+        ],
+        [
+          "^(typedef)(\\s+)([^;(){}\\[\\]]*[\\s*])([A-Za-z_]\\w*)(\\s*)(;)(\\s*)$",
+          ["keyword","","type","identifier.declaration.class","","delimiter.statement",""]
+        ],
+        [
           "^(?!(?:if|for|while|switch|return|else|do|typedef|struct|enum|union|sizeof)\\b)(?=[A-Za-z_][^=;\"(]*[^\\w=;\"(][A-Za-z_]\\w*\\s*\\((?:.*\\{\\s*$|[^;]*$|[^;]*\\)\\s*;\\s*$|[^;{]*\\)\\s*\\{.*\\}\\s*$))[A-Za-z_]\\w*",
           {"cases":{"@types":"type","@words":"keyword","@default":"identifier"}},
           "@head"
@@ -63,7 +95,10 @@
       ],
       "code": [
         {"include":"@whitespace"},
+        ["(->|\\.)([A-Za-z_]\\w*)",["operator.memory","identifier.member"]],
         ["[A-Za-z_]\\w*(?=\\s*\\()",{"cases":{"@types":"type","@words":"keyword","@default":"identifier.call"}}],
+        ["[A-Z_][A-Z0-9_]*(?![a-z\\w])",{"cases":{"@types":"type","@words":"keyword","@default":"identifier.constant"}}],
+        ["[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+(?!\\w)",{"cases":{"@words":"keyword","@default":"type"}}],
         ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
         {"include":"@numeral"},
         ["[uUL]?\"","string","@string"],

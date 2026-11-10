@@ -181,7 +181,7 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = g_cli_view_owner);
     const unsigned long long most = ((bytes != NULL) ? size : 0ULL) + sizeof(CliPlaceRecord) + key_length;
-    unsigned char *const written = g_cli_guard->persistent_buf_alloc(most, g_cli_view_owner);
+    unsigned char *const written = g_cli_guard->temporary_buf_alloc(most, g_cli_view_owner);
     if (written != NULL)
     {
         // a key's bytes are below what a record's length counts

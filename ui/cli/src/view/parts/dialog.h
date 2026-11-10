@@ -25,10 +25,12 @@ typedef struct GuiDialogDrawCfg GuiDialogDrawCfg;
 #define GUI_DIALOG_TITLE 128u
 #define GUI_DIALOG_BODY 1024u
 #define GUI_DIALOG_LABEL 32u
-// The sizes in unscaled pixels: the edge, the head band's height, a body line's height, a button's height, the
+// The sizes in unscaled pixels: the mat, the band of glass between the window's border and the sheet; the pad, the
+// sheet's inset to its text and buttons; the head band's height, a body line's height, a button's height, the
 // padding each side of a label, a button's least width and the space between two buttons. Then the close mark's
 // width and its cross's side, a button's rounding, the window's rounding, the text's size and the least width
-#define GUI_DIALOG_EDGE 24
+#define GUI_DIALOG_MAT 6
+#define GUI_DIALOG_PAD 12
 #define GUI_DIALOG_HEAD 36
 #define GUI_DIALOG_LINE 22
 #define GUI_DIALOG_BUTTON_HEIGHT 28

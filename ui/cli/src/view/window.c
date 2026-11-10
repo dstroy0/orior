@@ -23,6 +23,7 @@
 #include "../machine/report.h"
 #include "../machine/settings.h"
 #include "../machine/state.h"
+#include "../plugins/plugins.h"
 #include "../preview/preview.h"
 #include "../runs/job_runs.h"
 #include "../runs/qry.h"
@@ -505,14 +506,15 @@ static void window_file_reread(void *context, const char *path);
 
 EMBED_INLINE void window_scroll_damage(const GuiWindowCtx *args);
 
-// a line's height and a cell's width of the editor's code, in pixels at the frame's scale, into `line_out` and `cell_out`
+// a line's height and a cell's width of the editor's code, in pixels at the frame's scale, into `line_out` and
+// `cell_out`
 EMBED_INLINE void window_scroll_units(const GuiWindowCtx *args)
 {
     const GuiWindow *const window = args->window_read;
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = window->frame.scale);
-    *args->line_out = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE,
-                                 .scale = window->frame.scale);
+    *args->line_out =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = window->frame.scale);
     *args->cell_out = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg,
                                  .glyphs = (GuiGlyphs *)&window->glyphs, .size = size);
 }
@@ -546,10 +548,65 @@ EMBED_INLINE void window_scroll_adopt(const GuiWindowCtx *args)
 // view only scrolled, `on` 1, marks the scroll's part of the frame changed, and any other take owes a frame whole
 EMBED_INLINE void window_map_span(const GuiWindowCtx *args);
 
+// one color of the shown language's palette taken as a token of the window's palette, its value read as the color
+// settings are, the editor's text standing in for an alpha the value leaves out
+static void window_token_each(const CliPluginColorCfg *args)
+{
+    GuiPaletteOwn *const own = (GuiPaletteOwn *)args->context;
+    GuiColor color = 0u;
+    if (EMBED_CALL(gui_palette_text.value_read, GuiPaletteTextCfg, .text_read = args->value,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = GUI_PREFERENCES_TEXT}),
+                   .current = own->colors.editor_text, .color_pointer = &color))
+    {
+        EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = own, .name = args->name,
+                   .color = color);
+    }
+}
+
+// the palette of the language plugin the view under `key` opens in loaded as the window's tokens, read again only
+// as the view shown changes; a view of no language, or none, leaves the window with no tokens
+EMBED_INLINE void window_tokens_load(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const key = (args->key != NULL) ? args->key : "";
+    if (cellul.eq(&(CatenaFinitaCfg){.src = window->tokens_key, .other = key, .cap = sizeof(window->tokens_key)}))
+    {
+        return;
+    }
+    memor.cpy(
+        &(MemoriaCfg){.dst = window->tokens_key,
+                      .src = key,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = sizeof(window->tokens_key)}) + 1ULL});
+    EMBED_CALL(gui_palette_own.tokens_clear, GuiPaletteOwnCfg, .own = &window->palette_own);
+    window->tokens_id[0] = '\0';
+    char path[CLI_PATH_MAX_LEN];
+    if ((key[0] == '\0') || !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) ||
+        (path[0] == '\0'))
+    {
+        return;
+    }
+    CliLanguages languages;
+    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
+    const int known =
+        (languages.pair != NULL) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                               .languages_read = &languages, .path = path, .id_out = window->tokens_id);
+    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
+    if (known)
+    {
+        (void)EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg, .id = window->tokens_id,
+                         .each = window_token_each, .context = &window->palette_own);
+    }
+    else
+    {
+        window->tokens_id[0] = '\0';
+    }
+}
+
 EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
+    EMBED_CALL(window_tokens_load, GuiWindowCtx, .window = window, .key = key);
     const int shown = cli_view_shown();
     // A view that only scrolled keeps its text, its cursor and its file, so the panes, the changes against the last
     // commit and the crumbs stay as they were read. `on` 1 says the view only scrolled. A view that kept its text and
@@ -649,8 +706,7 @@ EMBED_INLINE void window_scroll_to(const GuiWindowCtx *args)
     float cell = 0.0f;
     EMBED_CALL(window_scroll_units, GuiWindowCtx, .window_read = window, .line_out = &line, .cell_out = &cell);
     const unsigned long long widest = (frame != NULL) ? frame->widest : 0ULL;
-    const double most_across =
-        (widest > window->columns) ? ((double)(widest - window->columns) * (double)cell) : 0.0;
+    const double most_across = (widest > window->columns) ? ((double)(widest - window->columns) * (double)cell) : 0.0;
     window->scroll_down_to = args->down;
     window->scroll_across_to = (args->across < 0.0) ? 0.0 : ((args->across > most_across) ? most_across : args->across);
     if (!args->on)
@@ -677,6 +733,39 @@ EMBED_INLINE int window_scroll_toward(double *at, double to, double share)
         return 0;
     }
     return 1;
+}
+
+// One step of the autoscroll at a frame. The pointer's distance from the press point, past GUI_AUTOSCROLL_REST_PIXELS,
+// sets the speed: GUI_AUTOSCROLL_PIXELS_A_SECOND for each pixel. Below the press point the scroll goes down, above it
+// up, by the time since the last step. The scroll's own step eases it there and sends the rows crossed. An autoscroll
+// with no editor ends
+EMBED_INLINE void window_autoscroll_step(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (!window->autoscroll)
+    {
+        return;
+    }
+    if (window->editor.frame == NULL)
+    {
+        window->autoscroll = 0;
+        return;
+    }
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long since_ms = now_ms - window->autoscroll_stepped_ms;
+    window->autoscroll_stepped_ms = now_ms;
+    const int distance = window->autoscroll_pointer_y - window->autoscroll_y;
+    const int past = (distance > GUI_AUTOSCROLL_REST_PIXELS)    ? (distance - GUI_AUTOSCROLL_REST_PIXELS)
+                     : (distance < -GUI_AUTOSCROLL_REST_PIXELS) ? (distance + GUI_AUTOSCROLL_REST_PIXELS)
+                                                                : 0;
+    if (past == 0)
+    {
+        return;
+    }
+    const double moved = (double)past * GUI_AUTOSCROLL_PIXELS_A_SECOND * ((double)since_ms / 1000.0);
+    const double down = window->scroll_down_to + moved;
+    EMBED_CALL(window_scroll_to, GuiWindowCtx, .window = window, .on = 1, .down = (down < 0.0) ? 0.0 : down,
+               .across = window->scroll_across_to);
 }
 
 // One step of the scroll at a frame. A thumb's drag puts the view at its line and cell column first. Then each way
@@ -757,8 +846,7 @@ EMBED_INLINE void window_scroll_step(const GuiWindowCtx *args)
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 0, .on = 1);
     }
     // the part of a line and of a cell past the view's top line and first cell column, each less than one of them
-    window->editor.scroll_y =
-        (int)(window->scroll_down - (floor(window->scroll_down / (double)line) * (double)line));
+    window->editor.scroll_y = (int)(window->scroll_down - (floor(window->scroll_down / (double)line) * (double)line));
     window->editor.scroll_x = (float)(window->scroll_across - ((double)left * (double)cell));
     EMBED_CALL(window_scroll_damage, GuiWindowCtx, .window = window);
 }
@@ -1184,7 +1272,9 @@ EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *arg
 
 void gui_window_tick(const GuiWindowCfg *args)
 {
-    // the editor's scroll steps once a frame, whatever turned or dragged it since the last
+    // the autoscroll moves the scroll first, then the editor's scroll steps once a frame, whatever turned or dragged it
+    // since the last
+    EMBED_CALL(window_autoscroll_step, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_scroll_step, GuiWindowCtx, .window = args->window);
     const unsigned long long now_ms = cli_clock_milliseconds();
     (void)EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &args->window->claim);
@@ -1325,8 +1415,9 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
-    "autohide", "scroll", "slide",    "ground", "preferences", "dialog", "wordmark", "caret",  "sides", "busy",  "panels",
-    "terminal", "notices", "menus",   "memory", "runs",        "search", "git",      "preview", "comms", "debug",
+    "autohide", "scroll", "slide",  "ground", "preferences", "dialog",  "wordmark",
+    "caret",    "sides",  "busy",   "panels", "terminal",    "notices", "menus",
+    "memory",   "runs",   "search", "git",    "preview",     "comms",   "debug",
 };
 
 unsigned int gui_window_timeout_source(void)
@@ -1340,8 +1431,8 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long deadlines[] = {
         EMBED_CALL(gui_autohide.next_deadline_ms, GuiAutohideCfg, .autohide_read = &window->claim),
-        // the editor's scroll steps at the next frame while it moves
-        window->scroll_moving ? now_ms + 1ULL : 0ULL,
+        // the editor's scroll steps at the next frame while it moves or the autoscroll runs
+        (window->scroll_moving || window->autoscroll) ? now_ms + 1ULL : 0ULL,
         // the side pane's slide and the terminal panel's arrival read their next stage a stage on
         ((EMBED_CALL(gui_sides.slide_end_ms, GuiSidesCfg, .sides_read = &window->sides, .time_ms = now_ms) != 0ULL) ||
          (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &window->docks, .time_ms = now_ms) != 0ULL))
@@ -1458,11 +1549,43 @@ EMBED_INLINE void window_settings_layout(const GuiWindowCtx *args)
 }
 
 // Preferences' window opened where it is closed and closed where it is open
+// each plugin with a palette listed in Preferences by its id, one the list holds already left out
+static void window_palette_id_each(const CliPluginIdCfg *args)
+{
+    GuiPreferences *const preferences = (GuiPreferences *)args->context;
+    for (unsigned int at = 0u; at < preferences->palettes; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = preferences->palette_name[at], .other = args->id, .cap = GUI_PREFERENCES_TEXT}))
+        {
+            return;
+        }
+    }
+    EMBED_CALL(gui_preferences_size.palette_add, GuiPreferencesSizeCfg, .preferences = preferences, .text = args->id);
+}
+
+// the palette Preferences shows: the window's, or the window's colors with the chosen plugin's tokens
+EMBED_INLINE const GuiPalette *window_preferences_palette(const GuiWindowCtx *args)
+{
+    return (args->window->preferences.palette_chosen == 0u) ? args->window->palette
+                                                            : &args->window->palette_choice_own.colors;
+}
+
 EMBED_INLINE void window_preferences_toggle(const GuiWindowCtx *args)
 {
     args->window->preferences.displayed = !args->window->preferences.displayed;
     args->window->preferences.entering = 0;
     args->window->preferences_pending = 1;
+    // Preferences opened lists the palettes anew: the window's, then each language plugin's that carries one
+    if (args->window->preferences.displayed)
+    {
+        EMBED_CALL(gui_preferences_size.palettes_clear, GuiPreferencesSizeCfg,
+                   .preferences = &args->window->preferences);
+        EMBED_CALL(gui_preferences_size.palette_add, GuiPreferencesSizeCfg, .preferences = &args->window->preferences,
+                   .text = "Window");
+        EMBED_CALL(cli_plugins_each_id.palettes_each, CliPluginsEachIdCfg, .each = window_palette_id_each,
+                   .context = &args->window->preferences);
+    }
     // Preferences' own lattice runs while its window shows, and its clock stands still while it is closed
     EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &args->window->preferences_ground,
                .paused = !args->window->preferences.displayed);
@@ -1611,8 +1734,8 @@ EMBED_INLINE void window_preference_keys_add(const GuiWindowCtx *args)
 EMBED_INLINE void window_preference_notices_add(const GuiWindowCtx *args)
 {
     const char *const away = cli_notices_away();
-    const unsigned long long size = (away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = away, .cap = CLI_POOL_BYTES})
-                                                   : 0ULL;
+    const unsigned long long size =
+        (away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = away, .cap = CLI_POOL_BYTES}) : 0ULL;
     int added = 0;
     unsigned long long at = 0ULL;
     while (at < size)
@@ -1658,8 +1781,8 @@ EMBED_INLINE void window_preference_force_add(const GuiWindowCtx *args)
     const char *const root = (cli_command_line_root() != NULL) ? cli_command_line_root() : "";
     EMBED_CALL(cli_settings_path_table.reader, CliSettingsPathCfg, .chain = &read->reader);
     EMBED_CALL(cli_settings_path_table.tree, CliSettingsPathCfg, .root = root, .chain = &read->tree);
-    EMBED_CALL(cli_settings_root.layers, CliSettingsRootCfg, .reader = &read->reader, .tree = &read->tree,
-               .root = root, .layers = &read->layers);
+    EMBED_CALL(cli_settings_root.layers, CliSettingsRootCfg, .reader = &read->reader, .tree = &read->tree, .root = root,
+               .layers = &read->layers);
     const CliLayers *const layers = &read->layers;
     int added = 0;
     for (unsigned int at = 0u; (layers->text != NULL) && (at < layers->froms); at += 1u)
@@ -1667,7 +1790,8 @@ EMBED_INLINE void window_preference_force_add(const GuiWindowCtx *args)
         const CliLayerSource *const source = &layers->from[at];
         // the first part of a key's parts is the one in force; the parts under it repeat its key
         if ((at != 0u) && cellul.eq(&(CatenaFinitaCfg){.src = layers->text + layers->from[at - 1u].key,
-                                                       .other = layers->text + source->key, .cap = CLI_POOL_BYTES}))
+                                                       .other = layers->text + source->key,
+                                                       .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
@@ -1773,7 +1897,7 @@ EMBED_INLINE void window_preference_row_add(const GuiWindowCtx *args)
     else
     {
         row->type = EMBED_CALL(window_is, GuiWindowCtx, .name = takes, .key = "<count>") ? GUI_PREFERENCE_TYPE_COUNT
-                                                                                          : GUI_PREFERENCE_TYPE_TEXT;
+                                                                                         : GUI_PREFERENCE_TYPE_TEXT;
         VerbaLinea value = {row->value, sizeof(row->value), 0ULL};
         mmgr_line_put(&value, (saved != NULL) ? saved : "");
         (void)mmgr_line_finish(&value);
@@ -1797,9 +1921,8 @@ EMBED_INLINE void window_preference_rows_under(const GuiWindowCtx *args)
             continue;
         }
         const unsigned int button_section =
-            (args->name[0] == '\0')
-                ? EMBED_CALL(window_preference_button_section, GuiWindowCtx, .name = item->command)
-                : EMBED_CALL(window_preference_section, GuiWindowCtx, .name = args->name);
+            (args->name[0] == '\0') ? EMBED_CALL(window_preference_button_section, GuiWindowCtx, .name = item->command)
+                                    : EMBED_CALL(window_preference_section, GuiWindowCtx, .name = args->name);
         const char *const label = (item->label != NULL) ? item->label : item->command;
         if (item->setting)
         {
@@ -1808,9 +1931,8 @@ EMBED_INLINE void window_preference_rows_under(const GuiWindowCtx *args)
         }
         else if ((item->list == 0u) && !item->line && (button_section == args->section))
         {
-            (void)EMBED_CALL(window_preference_line_add, GuiWindowCtx, .window = args->window,
-                             .section = args->section, .at = GUI_PREFERENCE_TYPE_ACTION, .name = label,
-                             .key = item->command, .value = label);
+            (void)EMBED_CALL(window_preference_line_add, GuiWindowCtx, .window = args->window, .section = args->section,
+                             .at = GUI_PREFERENCE_TYPE_ACTION, .name = label, .key = item->command, .value = label);
         }
         else if ((item->list != 0u) && (args->name[0] == '\0'))
         {
@@ -1975,8 +2097,7 @@ EMBED_INLINE void window_preference_step(const GuiWindowCtx *args)
     {
         EMBED_CALL(window_preference_zoom_set, GuiWindowCtx, .window = window, .at = args->change->at,
                    .step = EMBED_CALL(gui_preferences_step.preference_zoom_move, GuiPreferencesStepCfg,
-                                      .step = values->zoom_step, .by = args->change->by,
-                                      .round = args->change->round));
+                                      .step = values->zoom_step, .by = args->change->by, .round = args->change->round));
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = row->key, .key = GUI_WINDOW_REDUCE_KEY))
     {
@@ -2011,8 +2132,8 @@ EMBED_INLINE void window_preference_step(const GuiWindowCtx *args)
         // a count moved one at a time, never below 0
         unsigned long long end = 0ULL;
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = row->value, .cap = sizeof(row->value)});
-        unsigned long long count = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = row->value,
-                                              .at = 0ULL, .size = size, .end = &end);
+        unsigned long long count = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = row->value, .at = 0ULL,
+                                              .size = size, .end = &end);
         count = (args->change->by < 0) ? ((count == 0ULL) ? 0ULL : count - 1ULL) : count + 1ULL;
         VerbaLinea value = {row->value, sizeof(row->value), 0ULL};
         mmgr_line_decimal(&value, count, 1u);
@@ -2080,8 +2201,9 @@ EMBED_INLINE void window_preference_row_remove(const GuiWindowCtx *args)
     }
     preferences->first = preferences->section_first[preferences->section];
     preferences->rows = preferences->section_rows[preferences->section];
-    preferences->marked = (preferences->marked < preferences->rows) ? preferences->marked
-                                                                     : ((preferences->rows != 0u) ? preferences->rows - 1u : 0u);
+    preferences->marked = (preferences->marked < preferences->rows)
+                              ? preferences->marked
+                              : ((preferences->rows != 0u) ? preferences->rows - 1u : 0u);
 }
 
 // A button pressed: its row's command run, with the row's note as its word where the note holds one. A type of notice
@@ -2134,6 +2256,68 @@ EMBED_INLINE void window_preference_keyed(const GuiWindowCtx *args)
     cli_commands_keys_own(row->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, row->value);
 }
 
+// The palette `at` of Preferences' list chosen: the window's shows its own colors from the first; a plugin's shows
+// the window's colors with that plugin's tokens, from the first token
+EMBED_INLINE void window_palette_choose(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    GuiPreferences *const preferences = &window->preferences;
+    if (args->change->at == 0u)
+    {
+        preferences->color_first = 0u;
+        return;
+    }
+    GuiPaletteOwn *const choice = &window->palette_choice_own;
+    choice->colors = window->palette_own.colors;
+    choice->colors.token = choice->token;
+    EMBED_CALL(gui_palette_own.tokens_clear, GuiPaletteOwnCfg, .own = choice);
+    (void)EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg,
+                     .id = preferences->palette_name[args->change->at], .each = window_token_each, .context = choice);
+    preferences->color_first =
+        EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = &choice->colors) -
+        choice->colors.token_count;
+}
+
+// a token of the chosen plugin's palette made the color typed: in the palette Preferences shows, in the plugin's
+// plugin.json under the reader's plugins folder, and in the window's own tokens where the shown file is of that plugin
+EMBED_INLINE void window_plugin_color_set(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    GuiPaletteOwn *const choice = &window->palette_choice_own;
+    const GuiPreferences *const preferences = &window->preferences;
+    if (args->change->at < preferences->color_first)
+    {
+        return;
+    }
+    const unsigned int token = args->change->at - preferences->color_first;
+    if (token >= choice->colors.token_count)
+    {
+        return;
+    }
+    const char *const id = preferences->palette_name[preferences->palette_chosen];
+    const char *const name = choice->token[token].name;
+    char value[GUI_PREFERENCES_TEXT];
+    EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = choice, .at = args->change->at,
+               .color = args->change->color);
+    EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = args->change->color, .text = value,
+               .size = sizeof(value), .alpha_always = 1);
+    (void)EMBED_CALL(cli_plugins_id_name_value.palette_set, CliPluginsIdNameValueCfg, .id = id, .name = name,
+                     .value = value);
+    if (cellul.eq(&(CatenaFinitaCfg){.src = window->tokens_id, .other = id, .cap = sizeof(window->tokens_id)}))
+    {
+        for (unsigned int at = 0u; at < window->palette_own.colors.token_count; at += 1u)
+        {
+            if (cellul.eq(&(CatenaFinitaCfg){
+                    .src = window->palette_own.token[at].name, .other = name, .cap = GUI_PALETTE_TOKEN_NAME}))
+            {
+                window->palette_own.token[at].color = args->change->color;
+            }
+        }
+        EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
+    }
+    window->preferences_pending = 1;
+}
+
 // what a key or a press changed in Preferences taken and saved in orior's folder
 EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
 {
@@ -2164,6 +2348,14 @@ EMBED_INLINE void window_preference_change(const GuiWindowCtx *args)
     else if (args->change->type == GUI_PREFERENCE_TYPED)
     {
         window_preference_typed(args);
+    }
+    else if (args->change->type == GUI_PREFERENCE_PALETTE)
+    {
+        window_palette_choose(args);
+    }
+    else if ((args->change->type == GUI_PREFERENCE_COLORED) && (args->window->preferences.palette_chosen != 0u))
+    {
+        window_plugin_color_set(args);
     }
     else if (args->change->type == GUI_PREFERENCE_COLORED)
     {
@@ -2293,9 +2485,8 @@ void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
         // the raster Preferences draws into, and the one its lattice is drawn into, both at the same capacity
         if (!EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &args->window->preferences_raster,
                         .width = most_width, .height = most_height) ||
-            !EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg,
-                        .raster = &args->window->preferences_ground_raster, .width = most_width,
-                        .height = most_height))
+            !EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &args->window->preferences_ground_raster,
+                        .width = most_width, .height = most_height))
         {
             return;
         }
@@ -2325,8 +2516,9 @@ static void window_preferences_press(const GuiInputHandlerCfg *args)
     }
     GuiPreferenceChange change;
     (void)EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg,
-                     .preferences = &window->preferences, .palette = window->palette, .x = args->input->x,
-                     .y = args->input->y, .change = &change);
+                     .preferences = &window->preferences,
+                     .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = window),
+                     .x = args->input->x, .y = args->input->y, .change = &change);
     EMBED_CALL(window_preference_change, GuiWindowCtx, .window = window, .change = &change);
 }
 
@@ -2338,8 +2530,9 @@ static void window_preferences_move(const GuiInputHandlerCfg *args)
         // a slider or the scrollbar's thumb held: the pointer drags it
         GuiPreferenceChange change = {GUI_PREFERENCE_NOTHING, 0u, 0, 0, 0u, 0u};
         if (EMBED_CALL(gui_preferences_palette_change.slide, GuiPreferencesPaletteChangeCfg,
-                       .preferences = &window->preferences, .palette = window->palette, .x = args->input->x,
-                       .y = args->input->y, .change = &change))
+                       .preferences = &window->preferences,
+                       .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = window),
+                       .x = args->input->x, .y = args->input->y, .change = &change))
         {
             EMBED_CALL(window_preference_change, GuiWindowCtx, .window = window, .change = &change);
         }
@@ -2347,8 +2540,9 @@ static void window_preferences_move(const GuiInputHandlerCfg *args)
     }
     args->window->preferences_pending =
         EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg,
-                   .preferences = &args->window->preferences, .palette = args->window->palette, .x = args->input->x,
-                   .y = args->input->y) ||
+                   .preferences = &args->window->preferences,
+                   .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
+                   .x = args->input->x, .y = args->input->y) ||
         args->window->preferences_pending;
 }
 
@@ -2362,8 +2556,9 @@ static void window_preferences_release(const GuiInputHandlerCfg *args)
     GuiPreferenceChange change = {GUI_PREFERENCE_NOTHING, 0u, 0, 0, 0u, 0u};
     args->window->preferences_pending =
         EMBED_CALL(gui_preferences_palette_change.release, GuiPreferencesPaletteChangeCfg,
-                   .preferences = &args->window->preferences, .palette = args->window->palette, .x = args->input->x,
-                   .y = args->input->y, .change = &change) ||
+                   .preferences = &args->window->preferences,
+                   .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
+                   .x = args->input->x, .y = args->input->y, .change = &change) ||
         args->window->preferences_pending;
 }
 
@@ -2377,7 +2572,8 @@ static void window_preferences_wheel(const GuiInputHandlerCfg *args)
 {
     args->window->preferences_pending =
         EMBED_CALL(gui_preferences_palette.wheel, GuiPreferencesPaletteCfg, .preferences = &args->window->preferences,
-                   .palette = args->window->palette, .rows = args->input->rows) ||
+                   .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
+                   .rows = args->input->rows) ||
         args->window->preferences_pending;
 }
 
@@ -2394,7 +2590,8 @@ static void window_preferences_key(const GuiInputHandlerCfg *args)
     }
     GuiPreferenceChange change;
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &window->preferences,
-               .palette = window->palette, .name = args->input->name, .change = &change);
+               .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = window),
+               .name = args->input->name, .change = &change);
     EMBED_CALL(window_preference_change, GuiWindowCtx, .window = window, .change = &change);
 }
 
@@ -2457,7 +2654,8 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
                      (ground->height == args->window->preferences_raster.height);
     EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg,
                .preferences_read = &args->window->preferences, .raster = &args->window->preferences_raster,
-               .glyphs = &args->window->glyphs, .palette = args->window->palette,
+               .glyphs = &args->window->glyphs,
+               .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
                .values = &args->window->preference_values, .ground = laid ? ground : NULL);
 }
 
@@ -2701,9 +2899,8 @@ EMBED_INLINE void window_settings_file_open(const GuiWindowCtx *args)
         line.at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)});
         mmgr_line_put(&line, "/settings.json");
     }
-    if ((mmgr_line_finish(&line) == 0ULL) ||
-        !EMBED_CALL(cli_path_err_msg_type_internal.settings_ensure, CliPathErrMsgTypeCtx, .path_out = path,
-                    .err_msg = &err_msg))
+    if ((mmgr_line_finish(&line) == 0ULL) || !EMBED_CALL(cli_path_err_msg_type_internal.settings_ensure,
+                                                         CliPathErrMsgTypeCtx, .path_out = path, .err_msg = &err_msg))
     {
         cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.", 1);
         return;
@@ -3202,11 +3399,11 @@ static int window_command_named(const char *command, const char *const *words, u
         const unsigned int first = error ? 1u : 0u;
         const unsigned int owner =
             (window->preferences.displayed && window->preferences.focused) ? CLI_VIEW_PREFERENCES : CLI_VIEW_MAIN;
-        const int asked = (count >= first + 3u) &&
-                          EMBED_CALL(gui_window_dialog_asking.ask, GuiWindowDialogAskCfg, .window = window,
-                                     .owner = owner, .title = words[first], .body = words[first + 1u],
-                                     .labels = words + first + 2u, .count = count - first - 2u, .preferred = 0u,
-                                     .held = 1, .error = error);
+        const int asked =
+            (count >= first + 3u) &&
+            EMBED_CALL(gui_window_dialog_asking.ask, GuiWindowDialogAskCfg, .window = window, .owner = owner,
+                       .title = words[first], .body = words[first + 1u], .labels = words + first + 2u,
+                       .count = count - first - 2u, .preferred = 0u, .held = 1, .error = error);
         return asked ? CLI_REACH_HOLD : 0;
     }
     CliItem item;
@@ -3699,8 +3896,8 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
             EMBED_CALL(window_editor_bar_numbers, GuiWindowCtx, .window_read = args->window, .on = across,
                        .total_out = &total, .shown_out = &shown, .first_out = &first);
             EMBED_CALL(gui_scrollbar.draw, GuiScrollbarCfg,
-                       .bar_read = across ? &args->window->editor_across : &args->window->editor_down,
-                       .raster = raster, .palette = palette, .total = total, .shown = shown, .first = first,
+                       .bar_read = across ? &args->window->editor_across : &args->window->editor_down, .raster = raster,
+                       .palette = palette, .total = total, .shown = shown, .first = first,
                        .pointed = args->window->editor_bar_dragged == (across ? 2u : 1u));
         }
     }
@@ -3893,7 +4090,7 @@ void gui_window_draw(const GuiWindowCfg *args)
     }
     // the table the panes lie on: the lattice with the sheet's tint and grain; each pane's corners rounded on it
     const GuiUnder table = EMBED_CALL(gui_glass.table, GuiGlassCfg, .background_fill = background_fill,
-                                      .color = palette->deep, .glass = palette->glass);
+                                      .color = palette->deep, .glass = palette->glass, .grain = palette->grain);
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = palette->glass);
     EMBED_CALL(
         gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
@@ -3914,15 +4111,13 @@ void gui_window_draw(const GuiWindowCfg *args)
     // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
     // holes the parts shown over the work make in it while the claim holds; while Preferences' window holds the
     // focus, the signal is on its edge and the work's head and left take the right's line
-    const GuiColor right_line =
-        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
-                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiColor right_line = palette->work_line;
     const int work_focused = !(args->window->preferences.displayed && args->window->preferences.focused);
     const GuiOutline lines = {
         work_focused ? palette->signal : right_line,
         right_line,
         right_line,
-        work_focused ? ((palette->signal & 0x00ffffffu) | (0x59u << 24u)) : right_line,
+        work_focused ? palette->work_left : right_line,
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_TOP, .scale = frame->scale),
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_RIGHT, .scale = frame->scale),
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_BOTTOM, .scale = frame->scale),
@@ -4221,9 +4416,16 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
                                                        .pixels = GUI_CODE_SIZE, .scale = window->frame.scale);
     const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg,
                                   .glyphs = (GuiGlyphs *)&window->glyphs, .size = size);
-    if (EMBED_CALL(gui_editor_position_cell_scale.cell_at, GuiEditorPositionCellScaleCfg,
+    // the sticky rows stand over the editor's top, so a press on them is theirs before the rows under them
+    if (EMBED_CALL(gui_editor_position_cell_scale.sticky_at, GuiEditorPositionCellScaleCfg,
                    .editor_read = &window->editor, .place = window->frame.editor, .cell = cell,
-                   .scale = window->frame.scale, .x = x, .y = y, .row = &input->row, .column = &input->column))
+                   .scale = window->frame.scale, .x = x, .y = y, .row = &input->row))
+    {
+        input->hit = CLI_HIT_STICKY;
+    }
+    else if (EMBED_CALL(gui_editor_position_cell_scale.cell_at, GuiEditorPositionCellScaleCfg,
+                        .editor_read = &window->editor, .place = window->frame.editor, .cell = cell,
+                        .scale = window->frame.scale, .x = x, .y = y, .row = &input->row, .column = &input->column))
     {
         input->hit = CLI_HIT_EDITOR;
     }
@@ -4489,6 +4691,8 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         break;
     }
     case CLI_HIT_MAP:
+    case CLI_HIT_STICKY:
+        // a sticky row pressed puts its line at the view's top
         EMBED_CALL(window_view_scroll, GuiWindowCtx, .window = window, .hit = (GuiWindowHit *)hit);
         break;
     case CLI_HIT_EDITOR:
@@ -4632,12 +4836,20 @@ static void window_wheel(const GuiInputHandlerCfg *args)
 }
 
 // a press of the middle button: on an editor's tab it closes the tab, and on a terminal's tab it ends the tab's shell
-// and closes the tab, each as its × does; elsewhere it does nothing
+// and closes the tab, each as its × does; in the editor's text or gutter it starts the autoscroll; elsewhere it does
+// nothing
 EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
 {
     GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->x, .y = args->y, .hit = &pressed);
-    if ((pressed.hit == CLI_HIT_TAB) || (pressed.hit == CLI_HIT_TAB_CLOSE))
+    if ((pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER))
+    {
+        args->window->autoscroll = 1;
+        args->window->autoscroll_y = args->y;
+        args->window->autoscroll_pointer_y = args->y;
+        args->window->autoscroll_stepped_ms = cli_clock_milliseconds();
+    }
+    else if ((pressed.hit == CLI_HIT_TAB) || (pressed.hit == CLI_HIT_TAB_CLOSE))
     {
         pressed.hit = CLI_HIT_TAB_CLOSE;
         EMBED_CALL(window_pressed, GuiWindowCtx, .window = args->window, .hit = &pressed, .on = 0);
@@ -4740,8 +4952,8 @@ EMBED_INLINE void window_editor_bar_layout(const GuiWindowCtx *args)
     }
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = window->frame.scale);
-    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &window->glyphs,
-                                  .size = size);
+    const float cell =
+        EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = &window->glyphs, .size = size);
     const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
                                   .editor_read = &window->editor, .cell = cell, .scale = window->frame.scale);
     const GuiRect bar = window->frame.editor_bar_across;
@@ -4875,8 +5087,8 @@ EMBED_INLINE void window_tabs_bar_layout(const GuiWindowCtx *args)
                                .scale = window->frame.scale);
     const GuiRect row = window->frame.tabs_row;
     EMBED_CALL(gui_scrollbar.layout, GuiScrollbarCfg, .bar = &window->tabs_bar,
-               .rect = (GuiRect){window->frame.tabs.x, row.y + row.height, window->frame.tabs.width, bar},
-               .across = 1, .scale = window->frame.scale);
+               .rect = (GuiRect){window->frame.tabs.x, row.y + row.height, window->frame.tabs.width, bar}, .across = 1,
+               .scale = window->frame.scale);
 }
 
 // the tabs row moved to show the strip from `pixels`, kept between the strip's start and its end less the row's width
@@ -4989,6 +5201,12 @@ static void window_press(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
     const GuiInput *input = args->input;
+    // the press after the one that started the autoscroll ends it, whichever button, and does nothing else
+    if (window->autoscroll)
+    {
+        window->autoscroll = 0;
+        return;
+    }
     if (input->button == GUI_BUTTON_MIDDLE)
     {
         EMBED_CALL(window_middle_press, GuiWindowCtx, .window = window, .x = input->x, .y = input->y);
@@ -5012,8 +5230,7 @@ static void window_press(const GuiInputHandlerCfg *args)
     if (window->claim.autohidden && (window->claim.displayed != GUI_AUTOHIDE_TOP) &&
         (EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = window->frame.width,
                     .height = window->frame.height, .scale = window->frame.scale,
-                    .controls_width = window->frame.controls.width, .x = input->x,
-                    .y = input->y) == GUI_AUTOHIDE_TOP))
+                    .controls_width = window->frame.controls.width, .x = input->x, .y = input->y) == GUI_AUTOHIDE_TOP))
     {
         EMBED_CALL(gui_autohide_pointer.show_now, GuiAutohidePointerCfg, .claim = &window->claim, .x = input->x,
                    .y = input->y, .zone = GUI_AUTOHIDE_TOP);
@@ -5088,6 +5305,12 @@ static void window_press(const GuiInputHandlerCfg *args)
 static void window_move(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
+    // the autoscroll reads the pointer's y at each move, and the next frame scrolls by its distance
+    if (window->autoscroll)
+    {
+        window->autoscroll_pointer_y = args->input->y;
+        return;
+    }
     if (window->editor_bar_dragged == 3u)
     {
         EMBED_CALL(window_tabs_bar_drag, GuiWindowCtx, .window = window, .x = args->input->x, .y = args->input->y);

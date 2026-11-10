@@ -50,7 +50,7 @@ int main(void)
     cli_check((body.y >= head.height) && (body.height == 2 * GUI_DIALOG_LINE), "the body's two lines stand under the head band");
     cli_check((first.y >= body.y + body.height) && (last.y + last.height <= (int)height), "the buttons stand under the body");
     cli_check((first.x + first.width < second.x) && (second.x + second.width < last.x), "the buttons stand in their order");
-    cli_check(last.x + last.width == (int)width - GUI_DIALOG_EDGE, "and end at the foot's right edge");
+    cli_check(last.x + last.width == (int)width - (GUI_DIALOG_MAT + GUI_DIALOG_PAD), "and end at the foot's right edge");
     cli_check(first.width >= GUI_DIALOG_BUTTON_LEAST, "a button is no narrower than its least");
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 3u)), "a button past the count has no place");
 

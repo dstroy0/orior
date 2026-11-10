@@ -7,6 +7,9 @@
   "comments": {},
   "pairs": [],
   "quotes": [],
+  "palette": {
+    "keyword": "#a48cffff"
+  },
   "grammar": {
     "perLine": true,
     "tokenizer": {

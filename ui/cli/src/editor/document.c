@@ -417,7 +417,7 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     // a unit of the query takes a byte of it at the least, and the unit after the last is written as a pair's second
     CliFindWorkState work_state = {
         {NULL, 0ULL, NULL, 0u},
-        g_cli_guard->persistent_buf_alloc((query_size + 1ULL) * sizeof(unsigned short), g_cli_editor_owner),
+        g_cli_guard->temporary_buf_alloc((query_size + 1ULL) * sizeof(unsigned short), g_cli_editor_owner),
         NULL,
         0ULL};
     if (work_state.required == NULL)
@@ -463,8 +463,8 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     {
         const unsigned long long fit = (work_state.joined.used / size) + 1ULL;
         work_state.match_capacity = (fit < CLI_FIND_MATCHES) ? fit : CLI_FIND_MATCHES;
-        work_state.match = g_cli_guard->persistent_buf_alloc(work_state.match_capacity * sizeof(*work_state.match),
-                                                             g_cli_editor_owner);
+        work_state.match = g_cli_guard->temporary_buf_alloc(work_state.match_capacity * sizeof(*work_state.match),
+                                                            g_cli_editor_owner);
     }
     const int with_capacity = !needle_any || (joined && (work_state.match != NULL));
     if (!with_capacity)

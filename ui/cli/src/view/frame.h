@@ -20,10 +20,10 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // --strip-width; the frame's gap at the right, --frame-right; the side pane's width, --side; the tabs row's height,
 // --tabs-tall; the minimap's width, .ed-mini; the work's padding, top, right, bottom and left; the work's corner
 // radius; a window control's width, the gap between the controls and how far their row ends from the bar's right end
-#define GUI_BAR_HEIGHT 41
-#define GUI_STATUS_HEIGHT 27
-#define GUI_STRIP_WIDTH 44
-#define GUI_FRAME_GAP 12
+#define GUI_BAR_HEIGHT 34
+#define GUI_STATUS_HEIGHT 22
+#define GUI_STRIP_WIDTH 36
+#define GUI_FRAME_GAP 8
 #define GUI_SIDE_WIDTH 304
 #define GUI_TABS_HEIGHT 31
 #define GUI_MAP_WIDTH 84

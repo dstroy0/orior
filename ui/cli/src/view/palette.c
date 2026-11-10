@@ -10,31 +10,6 @@
 
 #include <stddef.h>
 
-// the dark scheme's tokens, --t-<name>
-static const GuiTokenColor s_dark_tokens[] = {
-    {"attribute", GUI_RGB(0xc9u, 0xb8u, 0xffu)},
-    {"comment", GUI_RGB(0x6eu, 0x6bu, 0x99u)},
-    {"delimiter", GUI_RGB(0x9eu, 0x9bu, 0xc4u)},
-    {"directive", GUI_RGB(0xf0u, 0xa0u, 0x7au)},
-    {"emphasis", GUI_RGB(0xc9u, 0xb8u, 0xffu)},
-    {"function", GUI_RGB(0x7fu, 0xd8u, 0xe8u)},
-    {"identifier", GUI_RGB(0x9eu, 0xa3u, 0xb5u)},
-    {"keyword", GUI_RGB(0xa4u, 0x8cu, 0xffu)},
-    {"module", GUI_RGB(0xa8u, 0xc8u, 0xffu)},
-    {"number", GUI_RGB(0xf2u, 0xd4u, 0x8au)},
-    {"number-cost", GUI_RGB(0x6fu, 0xdcu, 0xb4u)},
-    {"operator", GUI_RGB(0xffu, 0xffu, 0xffu)},
-    {"operator-memory", GUI_RGB(0xf2u, 0x9bu, 0xb0u)},
-    {"parameter", GUI_RGB(0xf2u, 0xd4u, 0x8au)},
-    {"predefined", GUI_RGB(0x8au, 0xb8u, 0xffu)},
-    {"property", GUI_RGB(0xc9u, 0xb8u, 0xffu)},
-    {"string", GUI_RGB(0x9fu, 0xe3u, 0xc8u)},
-    {"strong", GUI_RGB(0xe4u, 0xe3u, 0xf5u)},
-    {"tag", GUI_RGB(0x8au, 0xb8u, 0xffu)},
-    {"type", GUI_RGB(0x6fu, 0xdcu, 0xb4u)},
-    {"variable", GUI_RGB(0xa8u, 0xc8u, 0xffu)},
-};
-
 // the dark scheme: --bg, --surface, --well, --deep; --fg, --fg-2, --fg-3; --line; --signal, --link, --hover, --fail;
 // --ink and --glass-tint, the ink at --bar-opacity; --bar-fg, --bar-title, --bar-title-hover, --bar-bright, --bar-path,
 // --status-fg; --ed-bg at --editor-opacity, --ed-fg, --ed-num, --ed-current, --ed-sel, --ed-sel-idle, --ed-caret,
@@ -42,8 +17,9 @@ static const GuiTokenColor s_dark_tokens[] = {
 // --ed-widget-line, --ed-match, --ed-match-on, --ed-mini-sel, --ed-mini-match, --ed-mini-slider, --ed-mini-slider-on,
 // --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --ed-error, --ed-warning, --ed-note, --open-fg,
 // --bar-mark, --lifted, the color .wordmark-under's rule makes, --deep at 80% with black and its OKLCH lightness by
-// 1.15, --fuse-ash, --fuse-burn, --fuse-fire, the white the page's plasma lights its core with, --lattice-1 to
-// --lattice-3, --t1 to --t8, --t0 to --t15
+// 1.15, --fuse-ash, --fuse-burn, --fuse-fire, the white the page's plasma lights its core with, --link at 65% of each
+// channel for the work's right and foot lines, --signal at 35% for its left line, --status-fg at 60% for Silence,
+// white for the grain, --lattice-1 to --lattice-3, --t1 to --t8, --t0 to --t15
 static const GuiPalette s_dark = {
     GUI_RGB(0x13u, 0x13u, 0x31u),
     GUI_RGB(0x1cu, 0x19u, 0x40u),
@@ -96,6 +72,10 @@ static const GuiPalette s_dark = {
     GUI_RGB(94u, 40u, 166u),
     GUI_RGB(148u, 94u, 232u),
     GUI_RGB(199u, 163u, 255u),
+    GUI_RGB(0x5au, 0x78u, 0xa6u),
+    GUI_RGBA(0x6fu, 0xdcu, 0xb4u, 0x59u),
+    GUI_RGBA(0xf3u, 0xf2u, 0xfbu, 0x7du),
+    GUI_RGB(0xffu, 0xffu, 0xffu),
     {GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu)},
     {GUI_RGB(0xffu, 0x8fu, 0xa3u), GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0xf2u, 0xd4u, 0x8au),
      GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu), GUI_RGB(0x7fu, 0xd8u, 0xe8u),
@@ -106,8 +86,8 @@ static const GuiPalette s_dark = {
      GUI_RGB(0xffu, 0xb3u, 0xc1u), GUI_RGB(0x9fu, 0xe3u, 0xc8u), GUI_RGB(0xffu, 0xe3u, 0xa8u),
      GUI_RGB(0xb5u, 0xd1u, 0xffu), GUI_RGB(0xd2u, 0xc4u, 0xffu), GUI_RGB(0xa8u, 0xecu, 0xf5u),
      GUI_RGB(0xffu, 0xffu, 0xffu)},
-    s_dark_tokens,
-    sizeof(s_dark_tokens) / sizeof(s_dark_tokens[0]),
+    NULL,
+    0u,
 };
 
 const GuiPalette *gui_palette(const GuiPaletteCfg *args)
@@ -116,17 +96,31 @@ const GuiPalette *gui_palette(const GuiPaletteCfg *args)
     return &s_dark;
 }
 
-_Static_assert((sizeof(s_dark_tokens) / sizeof(s_dark_tokens[0])) <= GUI_PALETTE_TOKENS,
-               "GUI_PALETTE_TOKENS holds the scheme's tokens");
-
 void gui_palette_own_init(const GuiPaletteCfg *args)
 {
     const GuiPalette *const from = cli_palette.palette(args);
     args->own->colors = *from;
-    memor.cpy(&(MemoriaCfg){.dst = args->own->token,
-                            .src = from->token,
-                            .bytes = (unsigned long long)from->token_count * sizeof(GuiTokenColor)});
     args->own->colors.token = args->own->token;
+    args->own->colors.token_count = 0u;
+}
+
+void gui_palette_tokens_clear(const GuiPaletteOwnCfg *args)
+{
+    args->own->colors.token_count = 0u;
+}
+
+void gui_palette_token_add(const GuiPaletteOwnNameCfg *args)
+{
+    GuiPaletteOwn *const own = args->own;
+    const unsigned int at = own->colors.token_count;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    if ((at >= GUI_PALETTE_TOKENS) || (length == 0ULL) || (length >= GUI_PALETTE_TOKEN_NAME))
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = own->token_text[at], .src = args->name, .bytes = length + 1ULL});
+    own->token[at] = (GuiTokenColor){own->token_text[at], args->color};
+    own->colors.token_count = at + 1u;
 }
 
 void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args)
@@ -208,6 +202,30 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED_AT("fileIcon.cyan", mark, 5ULL),
     PALETTE_NAMED_AT("fileIcon.white", mark, 6ULL),
     PALETTE_NAMED_AT("fileIcon.gray", mark, 7ULL),
+    PALETTE_NAMED("work.border", work_line),
+    PALETTE_NAMED("work.borderLeft", work_left),
+    PALETTE_NAMED("statusBar.quietForeground", status_quiet),
+    PALETTE_NAMED("glass.grain", grain),
+    PALETTE_NAMED("strip.activeBackground", strip_on),
+    PALETTE_NAMED("sideBar.background", side_background),
+    PALETTE_NAMED("wordmark.incised", incised),
+    PALETTE_NAMED("fuse.core", fuse_core),
+    PALETTE_NAMED_AT("terminal.ansiBlack", terminal, 0ULL),
+    PALETTE_NAMED_AT("terminal.ansiRed", terminal, 1ULL),
+    PALETTE_NAMED_AT("terminal.ansiGreen", terminal, 2ULL),
+    PALETTE_NAMED_AT("terminal.ansiYellow", terminal, 3ULL),
+    PALETTE_NAMED_AT("terminal.ansiBlue", terminal, 4ULL),
+    PALETTE_NAMED_AT("terminal.ansiMagenta", terminal, 5ULL),
+    PALETTE_NAMED_AT("terminal.ansiCyan", terminal, 6ULL),
+    PALETTE_NAMED_AT("terminal.ansiWhite", terminal, 7ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightBlack", terminal, 8ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightRed", terminal, 9ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightGreen", terminal, 10ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightYellow", terminal, 11ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightBlue", terminal, 12ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightMagenta", terminal, 13ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightCyan", terminal, 14ULL),
+    PALETTE_NAMED_AT("terminal.ansiBrightWhite", terminal, 15ULL),
 };
 #define PALETTE_NAMED_COUNT ((unsigned int)(sizeof(s_named) / sizeof(s_named[0])))
 
@@ -288,8 +306,8 @@ void gui_palette_value_text(const GuiPaletteSizeColorCfg *args)
 {
     VerbaLinea line = {args->text, args->size, 0ULL};
     mmgr_line_ch(&line, '#');
-    const unsigned int opaque = GUI_ALPHA_OF(args->color) == 0xffu;
-    // red, green and blue, and the alpha where it is not opaque, the high digit of each first
+    const unsigned int opaque = (GUI_ALPHA_OF(args->color) == 0xffu) && !args->alpha_always;
+    // red, green and blue, and the alpha where it is not opaque or is asked for always, the high digit of each first
     const unsigned int shifts[4] = {16u, 8u, 0u, 24u};
     for (unsigned int part = 0u; part < (opaque ? 3u : 4u); part += 1u)
     {

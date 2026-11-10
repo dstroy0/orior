@@ -205,11 +205,11 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
         mmgr_line_put(args->err_msg, "this process has as many ends of the door as it can");
         return NULL;
     }
-    // an end's answer, frame and queued bodies stand in one cell, for as long as the end does
+    // an end's answer, frame and queued bodies stand in one cell of the temporary tier, for as long as the end does
     client->answer =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
-                                              ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
-                                          g_cli_ipc_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
+                                             ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
+                                         g_cli_ipc_owner);
     if (client->answer == NULL)
     {
         client->reserved = 0;

@@ -30,7 +30,8 @@ typedef struct
 
 // The edit's capacity, laid out in a cell sized to the two texts' lines, taken for the one edit and released as it
 // ends: the hashes of each side's lines, the furthest reach on each diagonal, and the steps found; and each round's
-// reaches, the trace, in a cell of its own at their most
+// reaches, the trace, in a cell of its own at their most. Each edit has a capacity of its own, so edits on two
+// threads run beside each other
 typedef struct
 {
     unsigned char *cell;
@@ -43,9 +44,6 @@ typedef struct
     unsigned int steps;
 } CliDiff;
 
-static CliDiff s_capacity;
-static CliDiff *s_diff = &s_capacity;
-
 // a step of the edit: a line of the older text retained, taken out, or a line of the newer put in
 enum
 {
@@ -56,6 +54,7 @@ enum
 
 typedef struct
 {
+    CliDiff *diff;
     unsigned long long *at;
     unsigned long long bytes;
     unsigned long long then_lines;
@@ -77,7 +76,7 @@ typedef struct
 EMBED_INLINE void *diff_part(const DiffCtx *args)
 {
     unsigned long long *at = args->at;
-    void *const part = s_diff->cell + *at;
+    void *const part = args->diff->cell + *at;
     *at += (args->bytes + 7ULL) & ~7ULL;
     return part;
 }
@@ -90,18 +89,21 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
         (both < (unsigned long long)CLI_DIFF_MAX_EDITS) ? both : (unsigned long long)CLI_DIFF_MAX_EDITS;
     const unsigned long long bytes =
         (8ULL * both) + (8ULL * ((2ULL * most) + 3ULL)) + both + (4ULL * both) + (8ULL * 8ULL);
-    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-    s_diff->cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
-    if (s_diff->cell == NULL)
+    memor.set(&(MemoriaCfg){.dst = args->diff, .val = 0, .bytes = sizeof(*args->diff)});
+    args->diff->cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
+    if (args->diff->cell == NULL)
     {
         return 0;
     }
     unsigned long long at = 0ULL;
-    s_diff->hash_then = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->then_lines);
-    s_diff->hash_now = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * args->now_lines);
-    s_diff->v = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 8ULL * ((2ULL * most) + 3ULL));
-    s_diff->step_type = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = both);
-    s_diff->step_index = EMBED_CALL(diff_part, DiffCtx, .at = &at, .bytes = 4ULL * both);
+    args->diff->hash_then =
+        EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * args->then_lines);
+    args->diff->hash_now =
+        EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * args->now_lines);
+    args->diff->v =
+        EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 8ULL * ((2ULL * most) + 3ULL));
+    args->diff->step_type = EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = both);
+    args->diff->step_index = EMBED_CALL(diff_part, DiffCtx, .diff = args->diff, .at = &at, .bytes = 4ULL * both);
     return 1;
 }
 
@@ -140,11 +142,11 @@ EMBED_INLINE int cli_same_line(const DiffCtx *args)
 EMBED_INLINE long long cli_run(const DiffCtx *args)
 {
     const unsigned long long alike =
-        EMBED_CALL(cli_vector_a_length.common, CliVectorALengthCfg, .a_u64s = s_diff->hash_then + args->x,
-                   .a_length = (unsigned long long)(args->runs->n - args->x), .b_u64s = s_diff->hash_now + args->y,
+        EMBED_CALL(cli_vector_a_length.common, CliVectorALengthCfg, .a_u64s = args->diff->hash_then + args->x,
+                   .a_length = (unsigned long long)(args->runs->n - args->x), .b_u64s = args->diff->hash_now + args->y,
                    .b_length = (unsigned long long)(args->runs->m - args->y));
     unsigned long long at = 0ULL;
-    while ((at < alike) && EMBED_CALL(cli_same_line, DiffCtx, .a = args->runs->a,
+    while ((at < alike) && EMBED_CALL(cli_same_line, DiffCtx, .diff = args->diff, .a = args->runs->a,
                                       .one = args->runs->a_from + (unsigned long long)args->x + at, .b = args->runs->b,
                                       .other = args->runs->b_from + (unsigned long long)args->y + at))
     {
@@ -158,9 +160,9 @@ EMBED_INLINE long long cli_run(const DiffCtx *args)
 EMBED_INLINE void cli_step(const DiffCtx *args)
 {
     // the steps are at most the lines of both, which the capacity contains, and an index is below 2^32
-    s_diff->step_type[s_diff->steps] = args->type;
-    s_diff->step_index[s_diff->steps] = (unsigned int)args->index;
-    s_diff->steps += 1u;
+    args->diff->step_type[args->diff->steps] = args->type;
+    args->diff->step_index[args->diff->steps] = (unsigned int)args->index;
+    args->diff->steps += 1u;
 }
 
 // the shortest edit from `a` to `b`, its steps in order into the capacity: 1, or 0 past CLI_DIFF_MAX_EDITS or where the
@@ -172,30 +174,30 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     for (long long at = 0; at < n; at += 1)
     {
         const unsigned long long line = args->runs->a_from + (unsigned long long)at;
-        s_diff->hash_then[at] =
-            EMBED_CALL(cli_hash_get, DiffCtx, .line = args->runs->a->unit + args->runs->a->start[line],
-                       .length = args->runs->a->length[line]);
+        args->diff->hash_then[at] =
+            EMBED_CALL(cli_hash_get, DiffCtx, .diff = args->diff,
+                       .line = args->runs->a->unit + args->runs->a->start[line], .length = args->runs->a->length[line]);
     }
     for (long long at = 0; at < m; at += 1)
     {
         const unsigned long long line = args->runs->b_from + (unsigned long long)at;
-        s_diff->hash_now[at] =
-            EMBED_CALL(cli_hash_get, DiffCtx, .line = args->runs->b->unit + args->runs->b->start[line],
-                       .length = args->runs->b->length[line]);
+        args->diff->hash_now[at] =
+            EMBED_CALL(cli_hash_get, DiffCtx, .diff = args->diff,
+                       .line = args->runs->b->unit + args->runs->b->start[line], .length = args->runs->b->length[line]);
     }
     const long long most = ((n + m) < CLI_DIFF_MAX_EDITS) ? (n + m) : CLI_DIFF_MAX_EDITS;
     const long long middle = most + 1;
     // every round's frontier in one cell of the square of the rounds it holds room for: CLI_DIFF_ROUNDS_FIRST rounds
     // first, the room doubled as the rounds pass it, the frontiers moved into the larger cell
     long long rounds = (most < CLI_DIFF_ROUNDS_FIRST) ? (most + 1) : CLI_DIFF_ROUNDS_FIRST;
-    s_diff->trace = g_cli_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long),
-                                                     g_cli_text_owner);
-    if (s_diff->trace == NULL)
+    args->diff->trace =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long), g_cli_text_owner);
+    if (args->diff->trace == NULL)
     {
         return 0;
     }
-    memor.set(
-        &(MemoriaCfg){.dst = s_diff->v, .val = 0, .bytes = (unsigned long long)((2 * most) + 3) * sizeof(long long)});
+    memor.set(&(MemoriaCfg){
+        .dst = args->diff->v, .val = 0, .bytes = (unsigned long long)((2 * most) + 3) * sizeof(long long)});
     long long found = -1;
     for (long long d = 0; (found < 0) && (d <= most); d += 1)
     {
@@ -209,28 +211,28 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
                 return 0;
             }
             // the rounds before `d` stand in the first d * d entries
-            memor.cpy(&(MemoriaCfg){.dst = grown,
-                                    .src = s_diff->trace,
-                                    .bytes = (unsigned long long)(d * d) * sizeof(long long)});
-            g_cli_guard->persistent_buf_release(s_diff->trace, g_cli_text_owner);
-            s_diff->trace = grown;
+            memor.cpy(&(MemoriaCfg){
+                .dst = grown, .src = args->diff->trace, .bytes = (unsigned long long)(d * d) * sizeof(long long)});
+            g_cli_guard->persistent_buf_release(args->diff->trace, g_cli_text_owner);
+            args->diff->trace = grown;
             rounds = wider;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_diff->trace + (d * d),
-                                .src = s_diff->v + (middle - d),
+        memor.cpy(&(MemoriaCfg){.dst = args->diff->trace + (d * d),
+                                .src = args->diff->v + (middle - d),
                                 .bytes = (unsigned long long)((2 * d) + 1) * sizeof(long long)});
         for (long long k = -d; k <= d; k += 2)
         {
-            const int down = (k == -d) || ((k != d) && (s_diff->v[middle + k - 1] < s_diff->v[middle + k + 1]));
-            long long x = down ? s_diff->v[middle + k + 1] : (s_diff->v[middle + k - 1] + 1);
+            const int down = (k == -d) || ((k != d) && (args->diff->v[middle + k - 1] < args->diff->v[middle + k + 1]));
+            long long x = down ? args->diff->v[middle + k + 1] : (args->diff->v[middle + k - 1] + 1);
             long long y = x - k;
             if ((x < n) && (y < m))
             {
-                const long long same = EMBED_CALL(cli_run, DiffCtx, .runs = args->runs, .x = x, .y = y);
+                const long long same =
+                    EMBED_CALL(cli_run, DiffCtx, .diff = args->diff, .runs = args->runs, .x = x, .y = y);
                 x += same;
                 y += same;
             }
-            s_diff->v[middle + k] = x;
+            args->diff->v[middle + k] = x;
             if ((x >= n) && (y >= m))
             {
                 found = d;
@@ -242,12 +244,12 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     {
         return 0;
     }
-    s_diff->steps = 0u;
+    args->diff->steps = 0u;
     long long x = n;
     long long y = m;
     for (long long d = found; d >= 1; d -= 1)
     {
-        const long long *const band = s_diff->trace + (d * d);
+        const long long *const band = args->diff->trace + (d * d);
         const long long k = x - y;
         const int down = (k == -d) || ((k != d) && (band[k - 1 + d] < band[k + 1 + d]));
         const long long back = down ? (k + 1) : (k - 1);
@@ -257,56 +259,59 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
         {
             x -= 1;
             y -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_EQUAL, .index = x);
+            EMBED_CALL(cli_step, DiffCtx, .diff = args->diff, .type = DIFF_STEP_EQUAL, .index = x);
         }
         if (x == back_x)
         {
             y -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_IN, .index = y);
+            EMBED_CALL(cli_step, DiffCtx, .diff = args->diff, .type = DIFF_STEP_IN, .index = y);
         }
         else
         {
             x -= 1;
-            EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_OUT, .index = x);
+            EMBED_CALL(cli_step, DiffCtx, .diff = args->diff, .type = DIFF_STEP_OUT, .index = x);
         }
     }
     while ((x > 0) && (y > 0))
     {
         x -= 1;
         y -= 1;
-        EMBED_CALL(cli_step, DiffCtx, .type = DIFF_STEP_EQUAL, .index = x);
+        EMBED_CALL(cli_step, DiffCtx, .diff = args->diff, .type = DIFF_STEP_EQUAL, .index = x);
     }
     // the steps were found from the end
-    for (unsigned int at = 0u; at < (s_diff->steps / 2u); at += 1u)
+    for (unsigned int at = 0u; at < (args->diff->steps / 2u); at += 1u)
     {
-        const unsigned int other = s_diff->steps - 1u - at;
-        const unsigned char type = s_diff->step_type[at];
-        const unsigned int index = s_diff->step_index[at];
-        s_diff->step_type[at] = s_diff->step_type[other];
-        s_diff->step_index[at] = s_diff->step_index[other];
-        s_diff->step_type[other] = type;
-        s_diff->step_index[other] = index;
+        const unsigned int other = args->diff->steps - 1u - at;
+        const unsigned char type = args->diff->step_type[at];
+        const unsigned int index = args->diff->step_index[at];
+        args->diff->step_type[at] = args->diff->step_type[other];
+        args->diff->step_index[at] = args->diff->step_index[other];
+        args->diff->step_type[other] = type;
+        args->diff->step_index[other] = index;
     }
     return 1;
 }
 
 int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
 {
+    CliDiff diff;
     if ((args->then->lines > CLI_DIFF_LINES) || (args->now->lines > CLI_DIFF_LINES) ||
-        !EMBED_CALL(diff_reserve, DiffCtx, .then_lines = args->then->lines, .now_lines = args->now->lines))
+        !EMBED_CALL(diff_reserve, DiffCtx, .diff = &diff, .then_lines = args->then->lines,
+                    .now_lines = args->now->lines))
     {
         return 0;
     }
     unsigned int start = 0u;
     while ((start < args->then->lines) && (start < args->now->lines) &&
-           EMBED_CALL(cli_same_line, DiffCtx, .a = args->then, .one = start, .b = args->now, .other = start))
+           EMBED_CALL(cli_same_line, DiffCtx, .diff = &diff, .a = args->then, .one = start, .b = args->now,
+                      .other = start))
     {
         start += 1u;
     }
     unsigned int end = 0u;
     while ((end < (args->then->lines - start)) && (end < (args->now->lines - start)) &&
-           EMBED_CALL(cli_same_line, DiffCtx, .a = args->then, .one = args->then->lines - 1u - end, .b = args->now,
-                      .other = args->now->lines - 1u - end))
+           EMBED_CALL(cli_same_line, DiffCtx, .diff = &diff, .a = args->then, .one = args->then->lines - 1u - end,
+                      .b = args->now, .other = args->now->lines - 1u - end))
     {
         end += 1u;
     }
@@ -316,15 +321,15 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
                           start,
                           (long long)(args->then->lines - start - end),
                           (long long)(args->now->lines - start - end)};
-    const int found = EMBED_CALL(cli_shortest, DiffCtx, .runs = &runs);
+    const int found = EMBED_CALL(cli_shortest, DiffCtx, .diff = &diff, .runs = &runs);
     // the lines put in and taken out since the last line retained, handed on as one change as the next is retained
     unsigned int line = start;
     unsigned int then_line = start;
     unsigned int puts = 0u;
     unsigned int taken = 0u;
-    for (unsigned int at = 0u; found && (at <= s_diff->steps); at += 1u)
+    for (unsigned int at = 0u; found && (at <= diff.steps); at += 1u)
     {
-        const unsigned char type = (at < s_diff->steps) ? s_diff->step_type[at] : (unsigned char)DIFF_STEP_EQUAL;
+        const unsigned char type = (at < diff.steps) ? diff.step_type[at] : (unsigned char)DIFF_STEP_EQUAL;
         if (type == DIFF_STEP_OUT)
         {
             taken += 1u;
@@ -343,11 +348,10 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
         }
         puts = 0u;
         taken = 0u;
-        line += (at < s_diff->steps) ? 1u : 0u;
-        then_line += (at < s_diff->steps) ? 1u : 0u;
+        line += (at < diff.steps) ? 1u : 0u;
+        then_line += (at < diff.steps) ? 1u : 0u;
     }
-    g_cli_guard->persistent_buf_release(s_diff->trace, g_cli_text_owner);
-    g_cli_guard->persistent_buf_release(s_diff->cell, g_cli_text_owner);
-    memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
+    g_cli_guard->persistent_buf_release(diff.trace, g_cli_text_owner);
+    g_cli_guard->persistent_buf_release(diff.cell, g_cli_text_owner);
     return found;
 }

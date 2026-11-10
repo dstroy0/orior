@@ -21,8 +21,7 @@ typedef struct GuiStatusbarXCfg GuiStatusbarXCfg;
 // the sizes in the page's pixels: the bar's text size, its padding at each end past the strip, the gap between its
 // items, the gap about a crumb's mark, the lock's side and how far it ends before the frame's gap, the memory
 // reading's least width in zeros of the text, and the gap between the notice and its Silence, .6rem; the share of the
-// window's width the notice takes at the most, in hundredths, and Silence's opacity, 0.6, in 255ths; and the most
-// bytes an item's text takes
+// window's width the notice takes at the most, in hundredths; and the most bytes an item's text takes
 #define GUI_STATUS_SIZE 12u
 #define GUI_STATUS_PAD 16
 #define GUI_STATUS_GAP 18
@@ -32,7 +31,6 @@ typedef struct GuiStatusbarXCfg GuiStatusbarXCfg;
 #define GUI_STATUS_MEMORY_ZEROS 7
 #define GUI_STATUS_NOTICE_GAP 10
 #define GUI_STATUS_NOTICE_SHARE 50
-#define GUI_STATUS_SILENCE_ALPHA 153u
 #define GUI_STATUS_TEXT 64u
 
 // What the bar shows: the shown file's path from the tree's top, empty for none; whether the editor has a cursor,

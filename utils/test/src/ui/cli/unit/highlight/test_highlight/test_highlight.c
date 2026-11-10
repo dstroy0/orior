@@ -498,6 +498,39 @@ void test_a_color_of_the_256_and_of_red_green_and_blue_are_keywords_by_their_par
                        "9 keyword.background.green|10 keyword|11 keyword.background.blue|12 keyword|13 ");
 }
 
+void test_the_c_grammar_names_a_local_at_its_declaration_and_an_identifier_at_its_use(void)
+{
+    char key[CLI_NAME_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
+    // the lines of a function body colored in turn, each from the state the one before it ends in
+    static const char *const s_body[] = {
+        "EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)",
+        "{",
+        "    const GuiPaneTable *const tables[2] = {EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window),",
+        "                                           EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = args->window)};",
+        "    const int shown = cli_view_shown();",
+        "    for (unsigned int at = 0u; at < 2u; at += 1u)",
+        "    {",
+        "        if (tables[at] == NULL)",
+    };
+    static char s_state_kept[256] = "root";
+    static char s_line_runs[8][1u << 12u];
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        const char *const runs = line_colored(key, s_body[at], s_state_kept);
+        memor.cpy(&(MemoriaCfg){.dst = s_line_runs[at], .src = runs, .bytes = CLI_UNITY_LENGTH(runs) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = s_state_kept, .src = s_state, .bytes = CLI_UNITY_LENGTH(s_state) + 1u});
+    }
+    CLI_TEST_ASSERT_CONTAINS("identifier.declaration.function", s_line_runs[0]);
+    CLI_TEST_ASSERT_CONTAINS("identifier.parameter", s_line_runs[0]);
+    CLI_TEST_ASSERT_CONTAINS("30 identifier.local", s_line_runs[2]);
+    CLI_TEST_ASSERT_CONTAINS("14 identifier.local", s_line_runs[4]);
+    CLI_TEST_ASSERT_NOT_CONTAINS("identifier.local", s_line_runs[7]);
+    CLI_TEST_ASSERT_CONTAINS("12 identifier|", s_line_runs[7]);
+}
+
 void test_a_pattern_not_read_here_is_refused(void)
 {
     static const char s_bad[] = "{\"tokenizer\": {\"root\": [[{\"pattern\": \"(?<=a)b\"}, \"x\"]]}}";

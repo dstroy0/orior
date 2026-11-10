@@ -40,6 +40,7 @@ struct GuiGlassRasterCfg
     GuiRect rect;
     unsigned int radius;
     GuiColor tint;
+    GuiColor grain;
 };
 
 struct GuiGlassCfg
@@ -47,6 +48,7 @@ struct GuiGlassCfg
     GuiColor glass;
     const GuiRaster *background_fill;
     GuiColor color;
+    GuiColor grain;
 };
 
 typedef struct

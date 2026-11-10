@@ -14,6 +14,17 @@
     ["^(\\s*)stage\\s*\\(\\s*['\"]([^'\"]+)['\"]", "module"],
     ["^(\\s*)(?:def|void|String|boolean|int)\\s+([A-Za-z_]\\w*)\\s*\\(", "function"]
   ],
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "predefined": "#8ab8ffff",
+    "string": "#9fe3c8ff",
+    "type": "#6fdcb4ff"
+  },
   "grammar": {
     "bracketToken": "delimiter.bracket.depth",
     "words": [

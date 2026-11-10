@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_view.c: a view opened on a stored text holds the cursor and the selection; the keys move the cursor by letters, words, lines, the line's ends and
-// pages, Shift extending the selection; text typed replaces the selection; Backspace, Delete, Enter and Tab edit; undo and redo step the text back and
-// forth, typing joined into one step; the pointer places the cursor and drags a selection, a double click selects the word; the view follows the cursor and
-// the frame carries the rows in view, the cursor, the anchor and the lines' runs. Each case opens its own view
-#include "ui/cli/src/editor/document.h"
+// test_view.c: a view opened on a stored text holds the cursor and the selection; the keys move the cursor by letters,
+// words, lines, the line's ends and pages, Shift extending the selection; text typed replaces the selection; Backspace,
+// Delete, Enter and Tab edit; undo and redo step the text back and forth, typing joined into one step; the pointer
+// places the cursor and drags a selection, a double click selects the word; the view follows the cursor and the frame
+// carries the rows in view, the cursor, the anchor and the lines' runs. Each case opens its own view
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/pages.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/plugins/plugins.h"
@@ -44,7 +45,8 @@ static CliViewInput view_text(const char *text)
     return input;
 }
 
-static CliViewInput view_pointer(unsigned int pointer, unsigned long long row, unsigned long long column, unsigned int clicks, int shift)
+static CliViewInput view_pointer(unsigned int pointer, unsigned long long row, unsigned long long column,
+                                 unsigned int clicks, int shift)
 {
     CliViewInput input;
     memor.set(&(MemoriaCfg){.dst = &input, .val = 0, .bytes = sizeof(input)});
@@ -70,7 +72,8 @@ static CliViewInput view_size(unsigned int rows)
 static void input_sent_to(const char *key, const CliViewInput *input)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    const int accepted = EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = input, .err_msg = &err_msg);
+    const int accepted =
+        EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = input, .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     TEST_ASSERT_TRUE_MESSAGE(accepted, s_error);
 }
@@ -105,11 +108,13 @@ static void typed(const char *text)
 }
 
 // the cursor asserted at line, col and the anchor at anchor_line, anchor_col
-static void assert_at(unsigned long long line, unsigned long long col, unsigned long long anchor_line, unsigned long long anchor_col)
+static void assert_at(unsigned long long line, unsigned long long col, unsigned long long anchor_line,
+                      unsigned long long anchor_col)
 {
     CliPosition cursor;
     CliPosition anchor;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = &cursor, .anchor = &anchor));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = &cursor, .anchor = &anchor));
     TEST_ASSERT_EQUAL_UINT64(line, cursor.line);
     TEST_ASSERT_EQUAL_UINT64(col, cursor.col);
     TEST_ASSERT_EQUAL_UINT64(anchor_line, anchor.line);
@@ -120,7 +125,9 @@ static void assert_at(unsigned long long line, unsigned long long col, unsigned 
 static void assert_reads(unsigned long long first, unsigned long long last, const char *required)
 {
     unsigned long long size = 0ull;
-    char *const lines = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull, .size_pointer = &size, .state = NULL, .capacity = 0ull, .owner = g_checks_owner);
+    char *const lines =
+        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull,
+                   .size_pointer = &size, .state = NULL, .capacity = 0ull, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(lines);
     CLI_TEST_ASSERT_TEXT(required, lines, size);
     g_cli_guard->persistent_buf_release(lines, g_checks_owner);
@@ -146,7 +153,8 @@ static void fresh_named(const char *text, const char *path)
     const CliViewInput size = view_size(20u);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = text, .size = CLI_UNITY_LENGTH(text), .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = text,
+                                .size = CLI_UNITY_LENGTH(text), .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = path));
     input_sent(&size);
 }
@@ -157,23 +165,33 @@ static void fresh(const char *text)
     fresh_named(text, "check/view.c");
 }
 
-// a view opened anew on the C text, colored by the C plugin's grammar as the branch of a file is, its regions making it folds, sized three rows
-static void main_view(void)
+// a view opened anew on `text`, colored by the C plugin's grammar as the branch of a file is, its regions making it
+// folds, sized `rows` rows
+static void colored_view(const char *text, unsigned int rows)
 {
     char id[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
     CliLanguages languages;
-    const CliViewInput size = view_size(3u);
+    const CliViewInput size = view_size(rows);
     VerbaLinea why = {s_error, sizeof(s_error), 0ull};
-    fresh_named(s_text, "check/view.c");
+    fresh_named(text, "check/view.c");
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &languages, .path = "check/view.c", .id_out = id));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                .languages_read = &languages, .path = "check/view.c", .id_out = id));
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar, .err_msg = &why));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = s_key, .grammar = grammar, .named = 1));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar, .err_msg = &why));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = s_key,
+                                .grammar = grammar, .named = 1));
     cli_document_walk();
     input_sent(&size);
+}
+
+// the C text's view, sized three rows
+static void main_view(void)
+{
+    colored_view(s_text, 3u);
 }
 
 // the C view with `(void)` typed after main, the cursor after it
@@ -205,17 +223,21 @@ static void main_folded(void)
 static void words_view(void)
 {
     const CliViewInput sized = {CLI_VIEW_SIZE, NULL, NULL, 0ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 10u, 40u, 0};
-    const CliViewInput pressed = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
-    const CliViewInput released = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_UP, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    const CliViewInput pressed = {
+        CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    const CliViewInput released = {
+        CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_UP, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key2, .text = s_words_text, .size = sizeof(s_words_text) - 1u, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key2, .text = s_words_text,
+                                .size = sizeof(s_words_text) - 1u, .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key2, .path = "check/words.txt"));
     input_sent_to(s_key2, &sized);
     input_sent_to(s_key2, &pressed);
     input_sent_to(s_key2, &released);
 }
 
-// a file of three hundred numbered lines written once for the process, opened in the pages with a branch over it, indexed, and viewed sized ten rows
+// a file of three hundred numbered lines written once for the process, opened in the pages with a branch over it,
+// indexed, and viewed sized ten rows
 static void paged_view(void)
 {
     const CliViewInput size = view_size(10u);
@@ -229,19 +251,24 @@ static void paged_view(void)
         VerbaLinea numbered = {s_numbered, sizeof(s_numbered), 0ull};
         s_folder_created = 1;
         cli_unity_folder("view", s_folder);
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "numbered.txt", .joined = s_numbered_path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "numbered.txt",
+                   .joined = s_numbered_path);
         for (unsigned long long line = 0ull; line < 300ull; line += 1ull)
         {
             mmgr_line_put(&numbered, "line ");
             mmgr_line_decimal(&numbered, line, 1u);
             mmgr_line_put(&numbered, " here\n");
         }
-        TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = s_numbered_path, .bytes = s_numbered, .size = numbered.at));
+        TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                    .path = s_numbered_path, .bytes = s_numbered, .size = numbered.at));
     }
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = s_paged, .path = s_numbered_path, .out = &opened, .err_msg = &err_msg));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_paged, .from = 0ull, .to = 40ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = s_paged, .path = s_numbered_path,
+                                .out = &opened, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_paged, .from = 0ull, .to = 40ull));
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_paged, .lines = &lines, .whole = &whole) || !whole) && (cli_clock_milliseconds() < until))
+    while ((!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_paged, .lines = &lines, .whole = &whole) || !whole) &&
+           (cli_clock_milliseconds() < until))
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 1u);
     }
@@ -271,7 +298,8 @@ static void assert_paged_at(unsigned long long line, unsigned long long col)
 {
     CliPosition cursor;
     CliPosition anchor;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_paged, .cursor = &cursor, .anchor = &anchor));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_paged, .cursor = &cursor,
+                                .anchor = &anchor));
     TEST_ASSERT_EQUAL_UINT64(line, cursor.line);
     TEST_ASSERT_EQUAL_UINT64(col, cursor.col);
     TEST_ASSERT_EQUAL_UINT64(line, anchor.line);
@@ -855,7 +883,9 @@ void test_the_word_at_a_position_is_the_word_the_position_touches(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
+    const int found =
+        EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull,
+                   .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -870,8 +900,12 @@ void test_a_position_at_a_words_end_touches_it(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
-    const int found_first = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
+    const int found =
+        EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull,
+                   .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
+    const int found_first =
+        EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull,
+                   .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -886,7 +920,9 @@ void test_an_empty_line_has_no_word(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
+    const int found =
+        EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull,
+                   .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_FALSE(found);
@@ -897,7 +933,8 @@ void test_a_row_and_a_cell_from_the_views_top_position_a_line_and_a_column(void)
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
     words_view();
-    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 1ull, .column = 7ull, .line = &line, .col = &col);
+    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 1ull,
+                                      .column = 7ull, .line = &line, .col = &col);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(positioned);
@@ -910,7 +947,8 @@ void test_a_cell_end_the_lines_end_positions_its_end(void)
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
     words_view();
-    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 0ull, .column = 40ull, .line = &line, .col = &col);
+    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 0ull,
+                                      .column = 40ull, .line = &line, .col = &col);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(positioned);
@@ -923,7 +961,8 @@ void test_the_prefix_is_the_word_before_the_cursor(void)
     unsigned long long from = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_from.prefix, CliViewFromCfg, .key = s_key2, .from = &from, .prefix = word, .capacity = sizeof(word));
+    const int found = EMBED_CALL(cli_view_from.prefix, CliViewFromCfg, .key = s_key2, .from = &from, .prefix = word,
+                                 .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -938,7 +977,8 @@ void test_a_position_input_moves_the_cursor_to_the_line_and_unit(void)
     CliPosition anchor;
     words_view();
     input_sent_to(s_key2, &positioned);
-    const int read = EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
+    const int read =
+        EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(read);
@@ -954,7 +994,8 @@ void test_a_position_end_the_text_is_cut_to_its_last_line_and_that_lines_end(voi
     CliPosition anchor;
     words_view();
     input_sent_to(s_key2, &positioned_far);
-    const int read = EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
+    const int read =
+        EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(read);
@@ -967,7 +1008,8 @@ void test_a_view_served_records_the_servers_path_found_until_it_closes(void)
     char full[CLI_PATH_MAX_LEN];
     words_view();
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = s_key2, .full_out = full));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = s_key2, .full = "/tree/check/words.txt"));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = s_key2, .full = "/tree/check/words.txt"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = s_key2, .full_out = full));
     TEST_ASSERT_EQUAL_STRING("/tree/check/words.txt", full);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = "/tree/check/words.txt"));
@@ -998,6 +1040,48 @@ void test_up_steps_back_over_the_lines_hidden(void)
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Up");
     assert_at(1ull, 1ull, 1ull, 1ull);
+}
+
+void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_stands_in_as_sticky_rows(void)
+{
+    main_view();
+    CliViewFrame *const at_top = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(at_top);
+    TEST_ASSERT_EQUAL_UINT(0u, at_top->stickies);
+    cli_view_frame_release(at_top);
+    // the view scrolled to `return 0;`, inside the region the brace line opens: the brace line's head, `int main`, is
+    // the sticky row, after the rows shown, with its text and runs
+    CliViewInput scroll = view_key("");
+    scroll.type = CLI_VIEW_SCROLL;
+    scroll.top = 2ull;
+    input_sent(&scroll);
+    CliViewFrame *const frame = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_UINT64(2ull, frame->top);
+    TEST_ASSERT_EQUAL_UINT(1u, frame->stickies);
+    const CliViewFrameRow *const sticky = &frame->row[frame->count];
+    TEST_ASSERT_EQUAL_UINT64(0ull, sticky->number);
+    TEST_ASSERT_EQUAL_UINT64(8ull, sticky->length);
+    TEST_ASSERT_EQUAL_MEMORY("int main", frame->bytes + sticky->text, 8u);
+    TEST_ASSERT_NOT_NULL(frame->runs);
+    TEST_ASSERT_TRUE(frame->runs->line[frame->count].runs > 0u);
+    cli_view_frame_release(frame);
+}
+
+void test_nested_regions_pin_each_head_line_outermost_first(void)
+{
+    static const char s_nested[] = "int main\n{\n    if (x)\n    {\n        return 0;\n    }\n}\n";
+    colored_view(s_nested, 3u);
+    CliViewInput scroll = view_key("");
+    scroll.type = CLI_VIEW_SCROLL;
+    scroll.top = 4ull;
+    input_sent(&scroll);
+    CliViewFrame *const frame = cli_view_frame_alloc(s_key);
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_UINT(2u, frame->stickies);
+    TEST_ASSERT_EQUAL_UINT64(0ull, frame->row[frame->count].number);
+    TEST_ASSERT_EQUAL_UINT64(2ull, frame->row[frame->count + 1u].number);
+    cli_view_frame_release(frame);
 }
 
 void test_right_at_the_folded_lines_end_goes_to_the_line_after_the_fold(void)
@@ -1166,7 +1250,8 @@ void test_a_view_closed_is_removed(void)
 {
     main_view();
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = NULL, .anchor = NULL));
+    TEST_ASSERT_FALSE(
+        EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = NULL, .anchor = NULL));
 }
 
 void test_mod_end_moves_to_the_paged_texts_last_line(void)

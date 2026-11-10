@@ -488,7 +488,7 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     const unsigned long long capacity = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
         g_cli_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*letters), g_cli_schema_owner);
-    char *const source = g_cli_guard->persistent_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
+    char *const source = g_cli_guard->temporary_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {

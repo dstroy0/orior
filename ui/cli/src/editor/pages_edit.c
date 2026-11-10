@@ -102,7 +102,7 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     CliPaged *one = args->one;
     const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
     CliPagePieces pieces = {
-        g_cli_guard->persistent_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), g_cli_editor_owner), most,
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), g_cli_editor_owner), most,
         0u};
     if (pieces.piece == NULL)
     {

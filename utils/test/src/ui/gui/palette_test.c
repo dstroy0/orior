@@ -53,7 +53,7 @@ int main(void)
     // stylesheet's name, the ink's tint and the editor's ground laid at their opacities
     static GuiPaletteOwn own;
     EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
-    cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.token[0].color == dark->token[0].color), "a palette of its own starts as the scheme's");
+    cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.colors.token_count == 0u), "a palette of its own starts as the scheme's, with no tokens: those come from the shown language's plugin");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 30u, .editor_percent = 80u);
     cli_check((own.colors.glass == dark->glass) && (own.colors.editor_background == dark->editor_background), "the opacities the scheme stands at lay the colors the scheme gives");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 50u, .editor_percent = 100u);
@@ -88,6 +88,12 @@ int main(void)
     cli_check(named_is(dark, "fileIcon.red", dark->mark[0]) && named_is(dark, "fileIcon.green", dark->mark[1]) && named_is(dark, "fileIcon.yellow", dark->mark[2]) && named_is(dark, "fileIcon.blue", dark->mark[3]) &&
                   named_is(dark, "fileIcon.violet", dark->mark[4]) && named_is(dark, "fileIcon.cyan", dark->mark[5]) && named_is(dark, "fileIcon.white", dark->mark[6]) && named_is(dark, "fileIcon.gray", dark->mark[7]),
               "a file's icon, each by its hue");
+    // a language plugin's tokens added, each by the name its grammar gives it, and counted among the named colors
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "keyword", .color = GUI_RGB(0xa4u, 0x8cu, 0xffu));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "comment", .color = GUI_RGB(0x6eu, 0x6bu, 0x99u));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "operator.memory", .color = GUI_RGB(0xf2u, 0x9bu, 0xb0u));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "", .color = GUI_RGB(1u, 1u, 1u));
+    cli_check(own.colors.token_count == 3u, "three tokens stand, an empty name left out");
     const unsigned int named = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = &own.colors);
     cli_check(named > own.colors.token_count, "the named colors count the tokens among them");
     EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = &own.colors, .at = named - own.colors.token_count, .name = name, .size = sizeof(name));
@@ -132,9 +138,9 @@ int main(void)
         foreground_at = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "editor.foreground", .cap = sizeof(name)}) ? at : foreground_at;
         low_count += (unsigned int)EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = at, .tenths = &tenths, .under = under, .size = sizeof(under));
     }
-    cli_check(low_count == 2u, "two of the dark scheme's colors are under the least");
+    cli_check(low_count == 1u, "one of the dark scheme's colors is under the least");
+    cli_check(comment_at == colors_named, "the scheme names no token: a comment's color is a plugin's");
     cli_check(EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = number_at, .tenths = &tenths, .under = under, .size = sizeof(under)) && (tenths == 28u) && cellul.eq(&(CatenaFinitaCfg){.src = under, .other = "editor.background", .cap = sizeof(under)}), "the line numbers are 2.8:1 on the editor's background");
-    cli_check(EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = comment_at, .tenths = &tenths, .under = under, .size = sizeof(under)) && (tenths == 36u) && cellul.eq(&(CatenaFinitaCfg){.src = under, .other = "editor.background", .cap = sizeof(under)}), "a comment is 3.6:1 on the editor's background");
     cli_check(!EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = foreground_at, .tenths = &tenths, .under = under, .size = sizeof(under)), "the editor's text is over the least");
     cli_check(!EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = 0u, .tenths = &tenths, .under = under, .size = sizeof(under)), "a color that is no text is not checked");
     static GuiPaletteOwn dim;
@@ -154,15 +160,22 @@ int main(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = ratio, .other = "21.0:1", .cap = sizeof(ratio)}), "and the most");
     cli_check((dark->fuse_ash == GUI_RGB(50u, 18u, 98u)) && (dark->fuse_burn == GUI_RGB(94u, 40u, 166u)) && (dark->fuse_fire == GUI_RGB(148u, 94u, 232u)),
               "a fuse's colors are the stylesheet's --fuse-ash, --fuse-burn and --fuse-fire");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keyword", .length = 7ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "keyword finds --t-keyword");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "comment", .length = 7ull) == GUI_RGB(0x6eu, 0x6bu, 0x99u), "comment finds --t-comment");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "operator-memory", .length = 15ull) == GUI_RGB(0xf2u, 0x9bu, 0xb0u),
-              "a name with a dash finds its color");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keyword.bold", .length = 12ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "a dotted name takes its head's color");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keyword.foreground.1", .length = 20ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "and through every dot to the head the palette colors");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "nothing.known", .length = 13ull) == dark->editor_text, "a dotted name with no head the palette colors is the editor's text");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keywords", .length = 8ull) == dark->editor_text, "a name no token has is the editor's text");
-    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "", .length = 0ull) == dark->editor_text, "an empty name is the editor's text");
+    // the tokens are the plugin's: the scheme itself colors none
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = dark, .name_read = "keyword", .length = 7ull) == dark->editor_text, "the scheme has no tokens of its own");
+    EMBED_CALL(gui_palette_own.tokens_clear, GuiPaletteOwnCfg, .own = &own);
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "keyword", .color = GUI_RGB(0xa4u, 0x8cu, 0xffu));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "comment", .color = GUI_RGB(0x6eu, 0x6bu, 0x99u));
+    EMBED_CALL(gui_palette_own_name.token_add, GuiPaletteOwnNameCfg, .own = &own, .name = "operator.memory", .color = GUI_RGB(0xf2u, 0x9bu, 0xb0u));
+    const GuiPalette *const tokens = &own.colors;
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "keyword", .length = 7ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "keyword finds the plugin's keyword");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "comment", .length = 7ull) == GUI_RGB(0x6eu, 0x6bu, 0x99u), "comment finds the plugin's comment");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "operator.memory", .length = 15ull) == GUI_RGB(0xf2u, 0x9bu, 0xb0u),
+              "a dotted name the plugin colors finds its own color");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "keyword.bold", .length = 12ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "a dotted name takes its head's color");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "keyword.foreground.1", .length = 20ull) == GUI_RGB(0xa4u, 0x8cu, 0xffu), "and through every dot to the head the plugin colors");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "nothing.known", .length = 13ull) == dark->editor_text, "a dotted name with no head the plugin colors is the editor's text");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "keywords", .length = 8ull) == dark->editor_text, "a name no token has is the editor's text");
+    cli_check(EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = tokens, .name_read = "", .length = 0ull) == dark->editor_text, "an empty name is the editor's text");
     cli_check(GUI_ALPHA_OF(dark->line) < 0xffu, "the line color is translucent");
     cli_check((dark->lattice[0] == GUI_RGB(0x6fu, 0xdcu, 0xb4u)) && (dark->lattice[2] == GUI_RGB(0xb4u, 0x9cu, 0xffu)),
               "the lattice's colors are the stylesheet's --lattice-1 to --lattice-3");

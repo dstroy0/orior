@@ -681,7 +681,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_file_each,
                .context_bytess = &files);
     files = (CliBridgeFiles){
-        g_cli_guard->persistent_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), g_cli_editor_owner), 0u,
+        g_cli_guard->temporary_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), g_cli_editor_owner), 0u,
         files.count};
     if (files.file == NULL)
     {

@@ -718,7 +718,8 @@ CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args)
     }
     CliBranchNamesLaid counted = {0, 0u, 0ULL, NULL, NULL};
     branch_names_lay(&counted, one->grammar);
-    CliDocumentNames *const names = g_cli_guard->persistent_buf_alloc(
+    // a table laid for a frame: a cell of the temporary tier, sized to the names
+    CliDocumentNames *const names = g_cli_guard->temporary_buf_alloc(
         sizeof(*names) + (counted.count * sizeof(*names->name)) + counted.bytes, args->owner);
     if (names != NULL)
     {
@@ -2093,8 +2094,9 @@ CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
         EMBED_CALL(branch_runs_walked, DocumentBranchCtx, .one = one, .number = args->number, .capacity = args->count,
                    .columns = columns, .mirrored = args->mirrored);
     const unsigned long long line_bytes = args->count * sizeof(CliDocumentLineRuns);
+    // the runs of a frame: a cell of the temporary tier, sized to them
     CliDocumentRuns *const read =
-        g_cli_guard->persistent_buf_alloc(sizeof(*read) + line_bytes + (words * sizeof(unsigned int)), args->owner);
+        g_cli_guard->temporary_buf_alloc(sizeof(*read) + line_bytes + (words * sizeof(unsigned int)), args->owner);
     if (read != NULL)
     {
         read->line = (CliDocumentLineRuns *)(void *)(read + 1);
@@ -2156,8 +2158,9 @@ CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args)
     }
     const unsigned int count = to - from;
     const unsigned long long line_bytes = (count + 1ULL) * sizeof(unsigned int);
+    // the map's lines for a view's frames: a cell of the temporary tier, sized to them
     CliDocumentMap *const map =
-        g_cli_guard->persistent_buf_alloc(sizeof(*map) + line_bytes + (most * sizeof(CliDocumentMapBar)), args->owner);
+        g_cli_guard->temporary_buf_alloc(sizeof(*map) + line_bytes + (most * sizeof(CliDocumentMapBar)), args->owner);
     if (map != NULL)
     {
         map->from = from;
