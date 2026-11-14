@@ -8,6 +8,7 @@
 // failure with the tab left changed; Reduce Motion displayed on while the saved setting or the system asks for less
 // motion; and the menu key opening the terminal's menu at its key field while the panel takes the keys, a right press
 // away closing it
+#include "../../../../../ui/cli/src/code/references.h"
 #include "../../../../../ui/cli/src/command_line/command_line.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
@@ -1166,10 +1167,84 @@ static void edit_checked(void)
     cli_check(asked("docstring-form", "google") && state_saved("docstring-form", "google"), "docstring-form is saved");
 }
 
+// the cursor of the view displayed put at the line `line` and the unit `col`
+static void cursor_put(unsigned long long line, unsigned long long col)
+{
+    const int displayed = cli_view_displayed();
+    char key[CLI_NAME_MAX_LEN];
+    // the view displayed is among the views
+    if ((displayed >= 0) && cli_view_key((unsigned int)displayed, key))
+    {
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        const CliViewInput at = {.type = CLI_VIEW_POSITION, .row = line, .column = col};
+        (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &at, .err_msg = &err_msg);
+    }
+    stepped();
+}
+
+// whether the view displayed is the tree's file `name` with its cursor on the line `line`
+static int displayed_at(const char *name, unsigned long long line)
+{
+    const int displayed = cli_view_displayed();
+    char path[CLI_PATH_MAX_LEN];
+    char key[CLI_NAME_MAX_LEN];
+    CliPosition cursor = {0ULL, 0ULL};
+    // the view displayed is among the views
+    return (displayed >= 0) && cli_view_path_at((unsigned int)displayed, path) &&
+           cli_view_key((unsigned int)displayed, key) &&
+           cellul.eq(&(CatenaFinitaCfg){
+               .src = path, .cap = CLI_PATH_MAX_LEN, .other = name, .other_cap = CLI_PATH_MAX_LEN}) &&
+           cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = NULL}) && (cursor.line == line);
+}
+
+// the place among the strip's tools of the tool `name`, the count where none is
+static unsigned int tool_at(const char *name)
+{
+    for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = g_gui_tools[at].name, .other = name, .cap = 32ULL}))
+        {
+            return at;
+        }
+    }
+    return g_gui_tools_count;
+}
+
+// Go to Definition opens the declaration's file at its line; Find Usages lists the references by file in the
+// References pane; Rename Symbol opens its box over the name, and Enter renames the name in every file
+static void symbols_checked(void)
+{
+    cli_check(tab_opened("sym/use.c"), "use.c opens for the symbol commands");
+    cursor_put(3ULL, 12ULL);
+    cli_check(asked("definition", NULL) && displayed_at("sym/area.c", 1ULL),
+              "Go to Definition opens the declaration's file at its line");
+    cli_check(tab_opened("sym/use.c"), "use.c is displayed again");
+    cursor_put(3ULL, 12ULL);
+    // the tools are fewer than an int counts
+    cli_check(asked("usages", NULL) && (cli_references_rows() == 7u) &&
+                  (s_window.side_menu.displayed == (int)tool_at("references")),
+              "Find Usages lists the references by file in the References pane");
+    cursor_put(3ULL, 12ULL);
+    cli_check(asked("rename", NULL) && s_window.rename.open && s_window.rename.selected,
+              "Rename Symbol opens its box over the name with the name selected");
+    typed("extent");
+    key_pressed("Enter");
+    cli_check(!s_window.rename.open && asked("save-all", NULL) && file_reads("sym/use.c", "#include \"shape.h\"\nint total(int n)\n{\n    int w = extent(n) + SIDES;\n    return w + extent(1);\n}\n") &&
+                  file_reads("sym/area.c", "#include \"shape.h\"\nint extent(int n)\n{\n    return n * n * SIDES;\n}\n") && file_reads("sym/shape.h", "#ifndef SHAPE_H\n#define SHAPE_H\nint extent(int side);\n#define SIDES 4\n#endif\n"),
+              "Enter renames the name in every file and Save All writes them");
+}
+
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
     cli_check_folder("window_tree", s_root);
+    // the symbol commands' files, written before the tree is read so its walk reads them
+    char sym[CLI_PATH_MAX_LEN];
+    cli_check_folder("window_tree/sym", sym);
+    file_written("sym/shape.h", "#ifndef SHAPE_H\n#define SHAPE_H\nint area(int side);\n#define SIDES 4\n#endif\n");
+    file_written("sym/area.c", "#include \"shape.h\"\nint area(int n)\n{\n    return n * n * SIDES;\n}\n");
+    file_written("sym/use.c", "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n");
     cli_check(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_ROOT", .value = s_root),
               "the tree is set");
     char error_text[CLI_ERR_MSG_MAX_LEN];
@@ -1228,6 +1303,7 @@ int main(void)
     themes_checked();
     view_checked();
     edit_checked();
+    symbols_checked();
     file_checked();
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();

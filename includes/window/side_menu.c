@@ -22,6 +22,7 @@ typedef struct
 const GuiTool g_gui_tools[] = {
     {"explorer", "folder", "Explorer", "Ctrl+Shift+E", GUI_TOOL_TOP, 0, 1},
     {"search", "search", "Search", "Ctrl+Shift+F", GUI_TOOL_TOP, 0, 1},
+    {"references", "references", "References", "", GUI_TOOL_TOP, 0, 1},
     {"structure", "structure", "Structure", "", GUI_TOOL_TOP, 0, 1},
     {"commit", "commit", "Commit", "", GUI_TOOL_TOP, 0, 1},
     {"more", "more", "More Tool Windows", "", GUI_TOOL_TOP, 1, 0},

@@ -54,6 +54,8 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 // a table column's width set: the column at index `column` is `columns` cells wide, whatever its fields measure, and
 // 0 cells gives the width back to its fields
 #define CLI_VIEW_COLUMN 9u
+// `length` bytes of `text` written over the span from `from` to `to`, in lines and UTF-16 units, as one step
+#define CLI_VIEW_REPLACE 10u
 // the rows a frame holds past the rows the view shows whole: a window that scrolls by pixels shows a part of a row at
 // its top and its foot, so the rows it draws run up to two past the whole ones
 #define CLI_VIEW_ROWS_PAST 2u
@@ -89,6 +91,8 @@ typedef struct
     unsigned int columns;
     int gutter;
     long long wheel_rows;
+    CliPosition from;
+    CliPosition to;
 } CliViewInput;
 
 // A row of a frame: its line's number in the file, and where its UTF-8 starts among the frame's bytes and its length,

@@ -11,6 +11,7 @@
 #include "../../cli/src/code/crumbs.h"
 #include "../../cli/src/code/diff_view.h"
 #include "../../cli/src/code/git.h"
+#include "../../cli/src/code/references.h"
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/comms/comms.h"
 #include "faces.h"
@@ -102,6 +103,9 @@
 static const char *const s_view_commands[] = {"sort-ascending", "sort-descending", "unique-lines",  "upper-case",
                                               "lower-case",     "title-case",      "fill-paragraph"};
 static const char *const s_own_commands[] = {"exit",
+                                             "definition",
+                                             "usages",
+                                             "rename",
                                              "close-editor",
                                              "close-all",
                                              "last-editor",
@@ -182,6 +186,7 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
     EMBED_CALL(gui_tip.init, GuiTipCfg, .tip = &args->window->tip);
     EMBED_CALL(gui_suggest.init, GuiSuggestCfg, .suggest = &args->window->suggest);
+    EMBED_CALL(gui_rename.init, GuiRenameCfg, .rename = &args->window->rename);
     if (!EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &args->window->background_fill,
                     .now_ms = cli_clock_milliseconds()) ||
         !EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &args->window->preferences_ground,
@@ -4838,6 +4843,147 @@ EMBED_INLINE int window_widgets_run(const GuiWindowCtx *args)
     return 1;
 }
 
+// the name at `line`, `col` of the view displayed, the file at `path`, renamed to `name` in every file of the tree:
+// 1 with the places and files counted in a notice, or 0 with why in a notice
+EMBED_INLINE int window_rename_applied(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    unsigned int files = 0u;
+    // a place in a file is far inside what an unsigned int counts
+    const int written = cli_references_rename(&(CliReferencesPlaceCfg){.path = args->key,
+                                                                       .line = (unsigned int)args->place->line,
+                                                                       .col = (unsigned int)args->place->col,
+                                                                       .name = args->name,
+                                                                       .root = cli_command_line_root(),
+                                                                       .rows = window->rows,
+                                                                       .columns = window->columns,
+                                                                       .files_out = &files,
+                                                                       .err_msg = &err_msg});
+    if (written <= 0)
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.", 1);
+        return 0;
+    }
+    char said[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {said, sizeof(said), 0ULL};
+    // the places written are counted in an int that is positive
+    mmgr_line_decimal(&line, (unsigned long long)written, 1u);
+    mmgr_line_put(&line, (written == 1) ? " place in " : " places in ");
+    mmgr_line_decimal(&line, files, 1u);
+    mmgr_line_put(&line, (files == 1u) ? " file renamed to " : " files renamed to ");
+    mmgr_line_put(&line, args->name);
+    mmgr_line_ch(&line, '.');
+    (void)mmgr_line_finish(&line);
+    cli_notice_post(said, 0);
+    EMBED_CALL(window_displayed, GuiWindowCtx, .window = window);
+    return 1;
+}
+
+// the rename box's name accepted: the name the box opened on renamed to the box's text, and the box closed
+EMBED_INLINE void window_rename_accepted(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
+    char path[CLI_PATH_MAX_LEN];
+    const CliPosition place = window->rename.from;
+    char name[CLI_NAME_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = name, .src = window->rename.text, .bytes = sizeof(name)});
+    EMBED_CALL(gui_rename.close, GuiRenameCfg, .rename = &window->rename);
+    if ((key != NULL) && EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path))
+    {
+        (void)EMBED_CALL(window_rename_applied, GuiWindowCtx, .window = window, .key = path, .place = &place,
+                         .name = name);
+    }
+}
+
+// Go to Definition, Find Usages and Rename Symbol, each on the name at the cursor of the view displayed: the file
+// opened at the declaration the hover shows first; the references found and the References pane displayed; and the
+// name renamed to the word given, or the rename box opened over the name where none is: 1, or 0 with why in a notice
+EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const name = args->name;
+    const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
+    char path[CLI_PATH_MAX_LEN];
+    CliPosition cursor = {0ULL, 0ULL};
+    if ((key == NULL) || !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) ||
+        !cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = NULL}))
+    {
+        cli_notice_post("No file is open in the editor.", 1);
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "definition"))
+    {
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
+        char word[CLI_NAME_MAX_LEN];
+        if (!EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = cursor.line,
+                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word)))
+        {
+            cli_notice_post("The cursor is on no name.", 1);
+            return 0;
+        }
+        char found[CLI_PATH_MAX_LEN];
+        unsigned long long line = 0ULL;
+        unsigned long long col = 0ULL;
+        // a line of a file is far inside what an unsigned int counts
+        if (!cli_references_definition(&(CliReferencesPlaceCfg){.root = cli_command_line_root(),
+                                                                .path = path,
+                                                                .key = key,
+                                                                .line = (unsigned int)cursor.line,
+                                                                .name = word,
+                                                                .path_out = found,
+                                                                .line_out = &line,
+                                                                .col_out = &col}))
+        {
+            cli_notice_post("The tree knows no declaration of the name at the cursor.", 1);
+            return 0;
+        }
+        const CliPosition place = {line, col};
+        EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = found, .place = &place);
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "usages"))
+    {
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        // a place in a file is far inside what an unsigned int counts
+        const int found = cli_references_find(&(CliReferencesPlaceCfg){
+            .path = path, .line = (unsigned int)cursor.line, .col = (unsigned int)cursor.col, .err_msg = &err_msg});
+        if (found != 1)
+        {
+            cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.",
+                            1);
+            return 0;
+        }
+        // the References pane displayed where it is not, its rows read anew
+        const unsigned int tool = EMBED_CALL(window_tool_named, GuiWindowCtx, .name = "references");
+        // the tools are fewer than an int counts
+        if ((tool < g_gui_tools_count) && (window->side_menu.displayed != (int)tool))
+        {
+            EMBED_CALL(window_tool_toggle, GuiWindowCtx, .window = window, .at = tool);
+        }
+        else
+        {
+            EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_DISPLAYED);
+        }
+        return 1;
+    }
+    if (args->count != 0u)
+    {
+        return EMBED_CALL(window_rename_applied, GuiWindowCtx, .window = window, .key = path, .place = &cursor,
+                          .name = args->words[0]);
+    }
+    if (!EMBED_CALL(gui_rename.open, GuiRenameCfg, .rename = &window->rename, .key = key))
+    {
+        cli_notice_post("The cursor is on no name.", 1);
+        return 0;
+    }
+    return 1;
+}
+
 // the command `name` run with its `count` `words`, its keys `value`, whoever asked for it
 EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
 {
@@ -4943,6 +5089,14 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
         EMBED_CALL(cli_git_log.authors_set, CliGitLogCfg,
                    .on = on || (!off && !EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u)),
                    .now_ms = cli_clock_milliseconds());
+        window->pending = 1;
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "definition") ||
+             EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "usages") ||
+             EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "rename"))
+    {
+        ran = EMBED_CALL(window_symbol_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
+                         .count = args->count);
         window->pending = 1;
     }
     else if (EMBED_CALL(window_file_is, GuiWindowCtx, .name = name))
@@ -5164,6 +5318,21 @@ static void window_key_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const name = args->name;
+    // the rename box takes every key while it is open
+    if (window->rename.open)
+    {
+        const unsigned int answer = EMBED_CALL(gui_rename.key, GuiRenameCfg, .rename = &window->rename, .name = name);
+        if (answer == GUI_RENAME_ACCEPTS)
+        {
+            EMBED_CALL(window_rename_accepted, GuiWindowCtx, .window = window);
+        }
+        else if (answer == GUI_RENAME_CLOSES)
+        {
+            EMBED_CALL(gui_rename.close, GuiRenameCfg, .rename = &window->rename);
+        }
+        window->pending = 1;
+        return;
+    }
     const int menu_key = (g_cli_menus_open.levels == 0u) && !args->on &&
                          (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") ||
                           EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "Shift+F10"));
@@ -5555,6 +5724,16 @@ EMBED_INLINE void window_panels_draw(const GuiWindowCtx *args)
         EMBED_CALL(gui_signature_raster.draw, GuiSignatureRasterCfg, .signature = &args->window->signature,
                    .raster = args->window->raster, .glyphs = &args->window->glyphs, .palette = args->window->palette,
                    .anchor = anchor, .bounds = frame->inside, .scale = frame->scale);
+    }
+    // the rename box over the name's cell, where the name's line is among the rows
+    if (args->window->rename.open &&
+        EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg,
+                   .editor_read = &args->window->editor, .place = frame->editor, .cell = cell, .scale = frame->scale,
+                   .line = args->window->rename.from.line, .col = args->window->rename.from.col, .rect = &anchor))
+    {
+        EMBED_CALL(gui_rename.draw, GuiRenameCfg, .rename = &args->window->rename, .raster = args->window->raster,
+                   .glyphs = &args->window->glyphs, .palette = args->window->palette, .anchor = anchor,
+                   .bounds = frame->inside, .scale = frame->scale);
     }
 }
 
@@ -7012,6 +7191,13 @@ static void window_press(const GuiInputHandlerCfg *args)
         window->autoscroll = 0;
         return;
     }
+    // a press off the rename box closes it; the press goes on to what is under it
+    if (window->rename.open &&
+        !EMBED_CALL(gui_rename.hit, GuiRenameCfg, .rename_read = &window->rename, .x = input->x, .y = input->y))
+    {
+        EMBED_CALL(gui_rename.close, GuiRenameCfg, .rename = &window->rename);
+        window->pending = 1;
+    }
     if (input->button == GUI_BUTTON_MIDDLE)
     {
         EMBED_CALL(window_middle_press, GuiWindowCtx, .window = window, .x = input->x, .y = input->y);
@@ -7613,6 +7799,13 @@ static void window_text(const GuiInputHandlerCfg *args)
     // while the name's pane is no view takes the text
     if (window->wordmark.exists)
     {
+        return;
+    }
+    // the rename box takes all text while it is open
+    if (EMBED_CALL(gui_rename.text, GuiRenameCfg, .rename = &window->rename, .text = args->input->text,
+                   .length = args->input->size))
+    {
+        window->pending = 1;
         return;
     }
     if (cli_terminal_tabs_text(args->input->text, args->input->size))

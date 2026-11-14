@@ -1855,3 +1855,18 @@ void test_a_name_the_view_has_no_use_for_does_nothing(void)
     EMBED_CALL(key, CliNameCfg, .name = "no-such-command");
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
+
+void test_a_replace_writes_its_text_over_the_span_as_one_step(void)
+{
+    fresh(s_text);
+    CliViewInput input = view_key("");
+    input.type = CLI_VIEW_REPLACE;
+    input.from = (CliPosition){0ull, 4ull};
+    input.to = (CliPosition){0ull, 8ull};
+    input.text = "start";
+    input.length = 5ull;
+    input_sent(&input);
+    assert_reads(0ull, 1ull, "int start");
+    EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
+    assert_reads(0ull, 1ull, "int main");
+}

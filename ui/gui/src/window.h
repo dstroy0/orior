@@ -24,6 +24,7 @@
 #include "pane.h"
 #include "preferences.h"
 #include "problems.h"
+#include "rename.h"
 #include "signature.h"
 #include "statusbar.h"
 #include "suggest.h"
@@ -124,6 +125,7 @@ typedef struct GuiWindow
     GuiHover hover;
     GuiSuggest suggest;
     GuiSignature signature;
+    GuiRename rename;
     GuiTip tip;
     GuiTerminal terminal;
     CliHoverPanel hover_panel;

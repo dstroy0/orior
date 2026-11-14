@@ -12,6 +12,7 @@
 #include "explorer.h"
 #include "git.h"
 #include "problems.h"
+#include "references.h"
 #include "run.h"
 #include "runs.h"
 #include "search.h"
@@ -20,9 +21,9 @@
 
 // the tables, one a tool that has a pane
 static const GuiPaneTable *const s_tables[] = {
-    &gui_explorer_table, &gui_search_table, &gui_problems_table, &gui_structure_table,
-    &gui_changes_table,  &gui_tests_table,  &gui_git_table,      &gui_runs_table,
-    &gui_run_table,      &gui_debug_table,  &gui_comms_table,
+    &gui_explorer_table, &gui_search_table, &gui_references_table, &gui_problems_table,
+    &gui_structure_table, &gui_changes_table, &gui_tests_table,    &gui_git_table,
+    &gui_runs_table,     &gui_run_table,    &gui_debug_table,      &gui_comms_table,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)

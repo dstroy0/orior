@@ -86,7 +86,7 @@ In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code 
 
 | to | press |
 | --- | --- |
-| list every place a name is used | Shift+F12 or Alt+F7, Go, Find Usages: the explorer's Usages pane lists them by file. A language with no server is searched for the name as a whole word. |
+| list every place a name is used | Shift+F12 or Alt+F7, Go, Find Usages: the References pane in the side lists them by file, each with its line, and a row opens the file at the name. The tree answers, in every language its grammars read. |
 | rename it everywhere | F2 or Shift+F6, Edit, Rename Symbol: type the new name over the old and press Enter. Open tabs change where undo takes it back, and files no tab holds are written. |
 | fix what is marked | Ctrl+. or Alt+Enter, Edit, Quick Fix, or the bulb beside a marked line: the fixes and refactorings the server offers there. |
 | see a call's parameters | Ctrl+Shift+Space, Edit, Parameter Info. It opens on its own as ( or , is typed in a call, the parameter the cursor is at in bold. |

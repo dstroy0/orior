@@ -7,6 +7,7 @@
 #include "../text/sort.h"
 #include "servers.h"
 
+#include "../code/references.h"
 #include "../code/symbols.h"
 #include "../command_line/pool.h"
 #include "../editor/view.h"
@@ -130,8 +131,9 @@ typedef struct
 static Panels s_panels;
 
 // A hover being asked for: the ask it answers; the word and the tree; the word's place; the Markdown answered, in a
-// cell of the ask's own; whether the tree's walk was still reading as the ask found no declaration; and the view's key
-// and its file's tree path, whose language the answer is held to
+// cell of the ask's own; whether the tree's walk was still reading as the ask found no declaration; the view's key
+// and its file's tree path, whose language the answer is held to; and the first declaration found, the one Go to
+// Definition goes to: its file, its line and the word's column on that line, and whether one was found
 typedef struct
 {
     unsigned long long ask;
@@ -145,11 +147,45 @@ typedef struct
     int reading;
     const char *key;
     char path[CLI_PATH_MAX_LEN];
+    char defined[CLI_PATH_MAX_LEN];
+    unsigned long long defined_line;
+    unsigned long long defined_col;
+    int defined_found;
 } PanelsHoverAsk;
 
 // the max lines above the pointer's a parameter or a local is sought in, and the lines read at once
 #define CLI_PANELS_LOCAL_LINES 512ULL
 #define CLI_PANELS_LOCAL_CHUNK 64ULL
+
+// the column, in UTF-16 units, where `word` first stands in `size` bytes of `text`, 0 where it does not
+EMBED_INLINE unsigned long long panels_word_col(const char *text, unsigned long long size, const char *word)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_PANELS_WORD});
+    for (unsigned long long at = 0ULL; (length != 0ULL) && (at + length <= size); at += 1ULL)
+    {
+        if (memor.cmp(&(MemoriaCfg){.src = text + at, .other = word, .bytes = (embed_word)length}) == 0)
+        {
+            return EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text, .size = at);
+        }
+    }
+    return 0ULL;
+}
+
+// the first declaration found kept as the one Go to Definition goes to: its file, its line and the word's column on
+// the line `text`, `size` bytes
+EMBED_INLINE void panels_defined(PanelsHoverAsk *ask, const char *path, unsigned long long line, const char *text,
+                                 unsigned long long size)
+{
+    if (ask->defined_found)
+    {
+        return;
+    }
+    VerbaLinea defined = {ask->defined, sizeof(ask->defined), 0ULL};
+    mmgr_line_put(&defined, path);
+    ask->defined_found = mmgr_line_finish(&defined) != 0ULL;
+    ask->defined_line = line;
+    ask->defined_col = panels_word_col(text, size, ask->word_text);
+}
 
 // A signature being asked for: the view's key and the file's tree path; the cursor's place; and whether one was written
 // into the panels' store
@@ -449,6 +485,7 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     }
     const unsigned long long start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                 .text = line_text, .at = 0ULL, .size = size, .set = " \t");
+    panels_defined(ask, ask->path, found_line, line_text, size);
     const unsigned long long bytes =
         size + cellul.len(&(CatenaFinitaCfg){.src = ask->path, .cap = CLI_POOL_BYTES}) + 64ULL;
     char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_servers_owner);
@@ -516,6 +553,8 @@ static void panels_hover_tree_run(void *context)
                                     cellul.eq(&(CatenaFinitaCfg){.src = id, .other = wanted, .cap = sizeof(id)}));
         if (same && cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
         {
+            panels_defined(ask, one->path, one->line, one->text,
+                           cellul.len(&(CatenaFinitaCfg){.src = one->text, .cap = CLI_POOL_BYTES}));
             mmgr_line_put(&joined, (parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
             EMBED_CALL(panels_declaration_write, PanelsCtx, .found = one, .out = &joined);
             parts += 1u;
@@ -556,6 +595,30 @@ static void panels_hover_tree_done(void *context)
     s_panels.hover_line = ask->line;
     s_panels.hover_from = ask->from;
     s_panels.hover_to = ask->to;
+}
+
+int cli_references_definition(const CliReferencesPlaceCfg *args)
+{
+    if ((args->root == NULL) || (args->name == NULL) || (args->name[0] == '\0'))
+    {
+        return 0;
+    }
+    PanelsHoverAsk asked = {0ULL, args->name, args->root, args->line, 0ULL, 0ULL, NULL, 0ULL, 0, args->key, ""};
+    VerbaLinea path = {asked.path, sizeof(asked.path), 0ULL};
+    mmgr_line_put(&path, args->path);
+    (void)mmgr_line_finish(&path);
+    panels_hover_tree_run(&asked);
+    g_cli_guard->persistent_buf_release(asked.text, g_cli_servers_owner);
+    if (!asked.defined_found)
+    {
+        return 0;
+    }
+    VerbaLinea out = {args->path_out, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&out, asked.defined);
+    (void)mmgr_line_finish(&out);
+    *args->line_out = asked.defined_line;
+    *args->col_out = asked.defined_col;
+    return 1;
 }
 
 // the hover asked for at the pointer's cell: a pointer resting on the word displayed does not ask again, and a place no

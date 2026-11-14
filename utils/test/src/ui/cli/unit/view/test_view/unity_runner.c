@@ -150,6 +150,7 @@ extern void test_a_character_end_ascii_changes_case(void);
 extern void test_a_cursor_on_no_word_changes_nothing(void);
 extern void test_a_key_that_adds_a_cursor_moves_none(void);
 extern void test_a_name_the_view_has_no_use_for_does_nothing(void);
+extern void test_a_replace_writes_its_text_over_the_span_as_one_step(void);
 
 
 /*=======Mock Management=====*/
@@ -349,6 +350,7 @@ int main(void)
   run_test(test_a_cursor_on_no_word_changes_nothing, "test_a_cursor_on_no_word_changes_nothing", 1838);
   run_test(test_a_key_that_adds_a_cursor_moves_none, "test_a_key_that_adds_a_cursor_moves_none", 1845);
   run_test(test_a_name_the_view_has_no_use_for_does_nothing, "test_a_name_the_view_has_no_use_for_does_nothing", 1852);
+  run_test(test_a_replace_writes_its_text_over_the_span_as_one_step, "test_a_replace_writes_its_text_over_the_span_as_one_step", 1859);
 
   return UNITY_END();
 }

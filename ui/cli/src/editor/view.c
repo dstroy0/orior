@@ -5381,6 +5381,13 @@ EMBED_INLINE int view_input_taken(const ViewCtx *args)
                        .length = args->input->length, .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg);
         break;
     }
+    case CLI_VIEW_REPLACE: {
+        // the text written over the span as one step of its own, as a rename writes a name
+        reserved = EMBED_CALL(view_edit, ViewCtx, .view = view, .from = args->input->from, .to = args->input->to,
+                              .text = args->input->text, .length = args->input->length, .type = CLI_VIEW_TYPE_NONE,
+                              .err_msg = args->err_msg);
+        break;
+    }
     case CLI_VIEW_COLUMN: {
         // the column's width set, 0 to give it back to its fields; the set widths cell is taken once, every width 0
         unsigned long long width = (unsigned long long)args->input->columns;
