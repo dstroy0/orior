@@ -145,3 +145,19 @@ void test_sha256_of_a_million_a(void)
     memor.set(&(MemoriaCfg){.dst = s_million, .val = 'a', .bytes = sizeof(s_million)});
     assert_sha256("cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", s_million, sizeof(s_million));
 }
+
+void test_sha256_fed_in_pieces_across_the_blocks_is_the_whole_messages(void)
+{
+    // pieces of a size no block is a multiple of, each straddling a block's end in turn
+    memor.set(&(MemoriaCfg){.dst = s_million, .val = 'a', .bytes = sizeof(s_million)});
+    CliSha256 sha;
+    unsigned char digest[32];
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    for (unsigned long long at = 0ull; at < sizeof(s_million); at += 4099ull)
+    {
+        const unsigned long long piece = ((sizeof(s_million) - at) < 4099ull) ? (sizeof(s_million) - at) : 4099ull;
+        EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = s_million + at, .size = piece);
+    }
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = digest);
+    TEST_ASSERT_EQUAL_STRING("cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", hex_of(digest, sizeof(digest)));
+}

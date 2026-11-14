@@ -132,6 +132,19 @@ void test_a_set_of_none_is_empty(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_patterns.empty, CliPatternsCfg, .patterns = &s_patterns));
 }
 
+void test_a_set_text_is_read_line_by_line(void)
+{
+    // the lines split at each newline, an empty line and a note among them, the last line with no newline after it
+    // names a folder the set includes
+    static const char s_text[] = "src/**\n!src/gen/**\n\n# a note\nvendor/";
+    EMBED_CALL(cli_patterns_text.read_set_text, CliPatternsTextCfg, .text = s_text, .size = sizeof(s_text) - 1u, .patterns_out = &s_patterns);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_patterns, .path = "src/a.rs", .dir = 0));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_patterns, .path = "src/gen/b.rs", .dir = 0));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_patterns, .path = "vendor", .dir = 1));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_patterns, .path = "vendor/x.c", .dir = 0));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_patterns, .path = "docs/x.md", .dir = 0));
+}
+
 void test_no_patterns_name_the_complete_tree(void)
 {
     s_words.count = 0u;

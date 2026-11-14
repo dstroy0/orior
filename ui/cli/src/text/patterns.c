@@ -285,15 +285,15 @@ void cli_patterns_read_set_text(const CliPatternsTextCfg *args)
     args->patterns_out->hides = 0u;
     args->patterns_out->includes = 0u;
     args->patterns_out->used = 0u;
+    // each line to its newline, found a word at a time, and the last to the text's end
     unsigned long long from = 0ULL;
-    for (unsigned long long at = 0ULL; at <= args->size; at += 1ULL)
+    while (from <= args->size)
     {
-        if ((at == args->size) || (args->text[at] == '\n'))
-        {
-            EMBED_CALL(cli_set_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->text + from,
-                       .size = at - from);
-            from = at + 1ULL;
-        }
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                 .text = args->text, .at = from, .size = args->size, .set = "\n");
+        EMBED_CALL(cli_set_line_read, PatternsCtx, .patterns_out = args->patterns_out, .line = args->text + from,
+                   .size = at - from);
+        from = at + 1ULL;
     }
 }
 

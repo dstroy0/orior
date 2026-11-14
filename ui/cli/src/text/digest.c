@@ -110,10 +110,16 @@ void cli_sha256_alloc(const CliDigestShaCfg *args)
 {
     const unsigned char *const from = (const unsigned char *)args->bytes;
     args->sha->total += args->size;
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
+    // the bytes copied into the block as far as its end at each step, and a block filled is taken into the state
+    unsigned long long at = 0ULL;
+    while (at < args->size)
     {
-        args->sha->block[args->sha->buffered] = from[at];
-        args->sha->buffered += 1u;
+        const unsigned long long room = 64ULL - args->sha->buffered;
+        const unsigned long long piece = ((args->size - at) < room) ? (args->size - at) : room;
+        memor.cpy(&(MemoriaCfg){.dst = args->sha->block + args->sha->buffered, .src = from + at, .bytes = (embed_word)piece});
+        // the piece is at max the room in a block of 64 bytes, which the count's width holds
+        args->sha->buffered += (unsigned int)piece;
+        at += piece;
         if (args->sha->buffered == 64u)
         {
             EMBED_CALL(cli_sha256_block, DigestCtx, .state = args->sha->state, .block = args->sha->block);

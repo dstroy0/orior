@@ -22,6 +22,7 @@ extern void test_an_included_folder_is_known(void);
 extern void test_an_included_folder_includes_what_is_in_it(void);
 extern void test_a_set_names_its_files_and_removes_some(void);
 extern void test_a_set_of_none_is_empty(void);
+extern void test_a_set_text_is_read_line_by_line(void);
 extern void test_no_patterns_name_the_complete_tree(void);
 extern void test_the_pathspecs_name_what_the_patterns_name(void);
 
@@ -99,8 +100,9 @@ int main(void)
   run_test(test_an_included_folder_includes_what_is_in_it, "test_an_included_folder_includes_what_is_in_it", 114);
   run_test(test_a_set_names_its_files_and_removes_some, "test_a_set_names_its_files_and_removes_some", 120);
   run_test(test_a_set_of_none_is_empty, "test_a_set_of_none_is_empty", 129);
-  run_test(test_no_patterns_name_the_complete_tree, "test_no_patterns_name_the_complete_tree", 135);
-  run_test(test_the_pathspecs_name_what_the_patterns_name, "test_the_pathspecs_name_what_the_patterns_name", 144);
+  run_test(test_a_set_text_is_read_line_by_line, "test_a_set_text_is_read_line_by_line", 135);
+  run_test(test_no_patterns_name_the_complete_tree, "test_no_patterns_name_the_complete_tree", 148);
+  run_test(test_the_pathspecs_name_what_the_patterns_name, "test_the_pathspecs_name_what_the_patterns_name", 157);
 
   return UNITY_END();
 }
