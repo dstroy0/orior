@@ -82,18 +82,18 @@ void cli_json_quote(const CliJsonTreeTextLengthCfg *args)
 {
     mmgr_line_ch(args->out, '"');
     // each run of bytes that are unchanged is written in one piece; the quote, the backslash and the controls
-    // are the bytes escaped
+    // are the bytes escaped, each found by the class scan a word at a time
     unsigned long long run = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
+    unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = args->text,
+                                       .at = 0ULL, .size = args->length, .classes = CLI_TEXT_CONTROLS, .set = "\"\\");
+    while (at < args->length)
     {
-        const unsigned char character = (unsigned char)args->text[at];
-        if ((character >= 0x20u) && (character != '"') && (character != '\\'))
-        {
-            continue;
-        }
         mmgr_line_put_n(args->out, args->text + run, at - run);
-        (void)EMBED_CALL(json_character_escape, JsonTreeWriteCtx, .out = args->out, .character = character);
+        (void)EMBED_CALL(json_character_escape, JsonTreeWriteCtx, .out = args->out,
+                         .character = (unsigned char)args->text[at]);
         run = at + 1ULL;
+        at = EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = args->text, .at = run,
+                        .size = args->length, .classes = CLI_TEXT_CONTROLS, .set = "\"\\");
     }
     mmgr_line_put_n(args->out, args->text + run, args->length - run);
     mmgr_line_ch(args->out, '"');

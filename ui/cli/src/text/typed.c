@@ -4,7 +4,7 @@
 // written in place as they change
 #include "typed.h"
 
-#include "../command_line/cli_internal.h"
+#include "text.h"
 
 // the max bytes a character takes, which an erase reads back over
 #define TYPED_CHARACTER_MAX 4ULL
@@ -12,12 +12,10 @@
 void cli_typed_put(const CliTypedCfg *args)
 {
     CliTyped *const typed = args->typed;
-    unsigned long long size = args->size;
-    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
-    {
-        // a control character typed, a tab or a return, is no part of the text
-        size = ((unsigned char)args->text[at] < 0x20u) ? at : size;
-    }
+    // a control character typed, a tab or a return, is no part of the text: the bytes before the first are put
+    const unsigned long long size =
+        EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = args->text, .at = 0ULL,
+                   .size = args->size, .classes = CLI_TEXT_CONTROLS, .set = "");
     const unsigned long long length = typed->length;
     if ((size == 0ULL) || (length + size + 1ULL > args->max))
     {

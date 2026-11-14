@@ -14,6 +14,7 @@ extern void test_nested_arrays_whose_nodes_have_no_text(void);
 extern void test_control_bytes_each_written_as_six(void);
 extern void test_number_escapes_and_empty_key(void);
 extern void test_a_value_after_a_close_with_no_comma_between_is_refused(void);
+extern void test_a_string_is_quoted_with_its_escapes_past_a_words_width(void);
 
 
 /*=======Mock Management=====*/
@@ -82,6 +83,7 @@ int main(void)
   run_test(test_control_bytes_each_written_as_six, "test_control_bytes_each_written_as_six", 76);
   run_test(test_number_escapes_and_empty_key, "test_number_escapes_and_empty_key", 81);
   run_test(test_a_value_after_a_close_with_no_comma_between_is_refused, "test_a_value_after_a_close_with_no_comma_between_is_refused", 86);
+  run_test(test_a_string_is_quoted_with_its_escapes_past_a_words_width, "test_a_string_is_quoted_with_its_escapes_past_a_words_width", 92);
 
   return UNITY_END();
 }

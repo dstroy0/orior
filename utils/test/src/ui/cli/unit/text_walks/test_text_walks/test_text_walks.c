@@ -218,3 +218,23 @@ void test_a_scan_end_classes_stops_at_the_first_byte_of_neither(void)
 {
     TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = "ab1 ", .at = 0ull, .size = 4ull, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = ""));
 }
+
+void test_a_control_byte_is_found_by_its_class(void)
+{
+    // ten ASCII characters past a word's width, then a control byte; a tab first; a byte past ASCII is no control
+    TEST_ASSERT_EQUAL_UINT64(10ull, EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = "abcdefghij\x01k", .at = 0ull, .size = 12ull, .classes = CLI_TEXT_CONTROLS, .set = ""));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = "\tab", .at = 0ull, .size = 3ull, .classes = CLI_TEXT_CONTROLS, .set = ""));
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg, .text = "abc\xc3\xa9", .at = 0ull, .size = 5ull, .classes = CLI_TEXT_CONTROLS, .set = ""));
+}
+
+void test_the_folded_compare_agrees_across_words(void)
+{
+    // the capitals alone fold to their small characters: a byte past ASCII that differs in the same bit stays
+    // different, as do a bracket and a brace
+    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "HelloWorldABC", .size = 13ull, .other_pointer = "helloworldabc"));
+    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "HelloWorldABD", .size = 13ull, .other_pointer = "helloworldabc"));
+    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "HelloWorld", .size = 10ull, .other_pointer = "helloworldabc"));
+    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij\xc3\xa9", .size = 12ull, .other_pointer = "ABCDEFGHIJ\xc3\xa9"));
+    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij\xc3", .size = 11ull, .other_pointer = "abcdefghij\xe3"));
+    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij[", .size = 11ull, .other_pointer = "abcdefghij{"));
+}

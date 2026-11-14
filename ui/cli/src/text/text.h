@@ -86,13 +86,14 @@ void cli_text_append_unescaped(const CliTextSizeSetCfg *args);
 
 // the ASCII whitespace, a set of bytes for the walks below
 #define CLI_TEXT_WHITE " \t\n\v\f\r"
-// the types of byte a class walk passes over: ASCII characters, decimal digits, the bytes past ASCII, the capitals and the
-// small characters
+// the types of byte a class walk passes over: ASCII characters, decimal digits, the bytes past ASCII, the capitals, the
+// small characters and the control bytes below the space
 #define CLI_TEXT_CHARACTERS 1u
 #define CLI_TEXT_DIGITS 2u
 #define CLI_TEXT_END_ASCII 4u
 #define CLI_TEXT_UPPER 8u
 #define CLI_TEXT_LOWER 16u
+#define CLI_TEXT_CONTROLS 32u
 
 // the first place from `at` below `size` whose byte the set `set` holds, and whose byte it does not: `size` where none
 // is, `at` where it is at or past `size`; and the place past the last byte before `at` the set holds, and it does

@@ -28,6 +28,8 @@ extern void test_a_number_reads_its_digits_and_reports_where_they_stop(void);
 extern void test_a_pair_is_found_where_it_is(void);
 extern void test_a_pair_that_is_absent_reports_the_end(void);
 extern void test_a_scan_end_classes_stops_at_the_first_byte_of_neither(void);
+extern void test_a_control_byte_is_found_by_its_class(void);
+extern void test_the_folded_compare_agrees_across_words(void);
 
 
 /*=======Mock Management=====*/
@@ -110,6 +112,8 @@ int main(void)
   run_test(test_a_pair_is_found_where_it_is, "test_a_pair_is_found_where_it_is", 207);
   run_test(test_a_pair_that_is_absent_reports_the_end, "test_a_pair_that_is_absent_reports_the_end", 212);
   run_test(test_a_scan_end_classes_stops_at_the_first_byte_of_neither, "test_a_scan_end_classes_stops_at_the_first_byte_of_neither", 217);
+  run_test(test_a_control_byte_is_found_by_its_class, "test_a_control_byte_is_found_by_its_class", 222);
+  run_test(test_the_folded_compare_agrees_across_words, "test_the_folded_compare_agrees_across_words", 230);
 
   return UNITY_END();
 }

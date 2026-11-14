@@ -88,3 +88,13 @@ void test_a_value_after_a_close_with_no_comma_between_is_refused(void)
     assert_refused("[[1] 2]", "no comma or close after it");
     assert_refused("{\"a\":{} \"b\":1}", "no comma or close after it");
 }
+
+void test_a_string_is_quoted_with_its_escapes_past_a_words_width(void)
+{
+    // ten plain bytes, then a quote, a backslash and a control byte, each escaped, and a byte past ASCII as it is
+    char written[64];
+    VerbaLinea line = mmgr_line_over(written, sizeof(written));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .text = "abcdefghij\"k\\l\x01m\xc3\xa9", .length = 18ull, .out = &line);
+    TEST_ASSERT_TRUE(mmgr_line_ok(&line));
+    CLI_TEST_ASSERT_TEXT("\"abcdefghij\\\"k\\\\l\\u0001m\xc3\xa9\"", written, line.at);
+}

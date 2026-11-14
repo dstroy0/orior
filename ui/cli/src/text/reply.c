@@ -81,8 +81,11 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
     }
     if ((first == '{') || (first == '['))
     {
+        // the brackets and quotes found a word at a time, the bytes between them no part of the depth
         unsigned long long depth = 1ULL;
-        for (at += 1ULL; at < args->reply->size; at += 1ULL)
+        at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->reply->text,
+                        .at = at + 1ULL, .size = args->reply->size, .set = "{}[]\"");
+        while (at < args->reply->size)
         {
             const char character = args->reply->text[at];
             const int closes = (character == '}') || (character == ']');
@@ -96,6 +99,8 @@ unsigned long long cli_reply_value_end(const CliReplyAtCfg *args)
             {
                 at = EMBED_CALL(reply_string_end, ReplyCtx, .reply = args->reply, .at = at);
             }
+            at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->reply->text,
+                            .at = at + 1ULL, .size = args->reply->size, .set = "{}[]\"");
         }
         return args->reply->size;
     }

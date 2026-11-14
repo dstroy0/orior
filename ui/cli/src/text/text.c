@@ -117,6 +117,11 @@ EMBED_INLINE embed_word text_word_of_class(const TextCtx *args)
         hit |= lane.ge(&(ScrutLaneCfg){.word = args->loaded, .byte = 'a'}) &
                lane.le(&(ScrutLaneCfg){.word = args->loaded, .byte = 'z'});
     }
+    if ((args->classes & CLI_TEXT_CONTROLS) != 0u)
+    {
+        // the bytes below the space: a byte past ASCII is above every ASCII byte and so no control
+        hit |= lane.le(&(ScrutLaneCfg){.word = args->loaded, .byte = 0x1fu});
+    }
     return hit;
 }
 
@@ -928,9 +933,15 @@ int cli_text_same_folded(const CliTextSizeOneCfg *args)
     {
         return 0;
     }
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
+    // a word at a time: the lanes that differ past a character's case, among the lanes loaded, say the texts differ
+    for (unsigned long long at = 0ULL; at < args->size; at += MMGR_SWAR_BYTES)
     {
-        if (text_folded(args->one[at]) != text_folded(other[at]))
+        const embed_word bytes = ((args->size - at) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - at) : MMGR_SWAR_BYTES;
+        const embed_word one = EMBED_CALL(text_word_loaded, TextCtx, .text = args->one, .at = at, .size = args->size);
+        const embed_word two = EMBED_CALL(text_word_loaded, TextCtx, .text = other, .at = at, .size = args->size);
+        const embed_word same = lane.has_zero(
+            &(ScrutLaneCfg){.word = lane.xor_(&(ScrutLaneCfg){.word = one, .val = two, .ci = EMBED_TRUE})});
+        if ((~same & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes})) != 0u)
         {
             return 0;
         }
