@@ -58,6 +58,7 @@ typedef struct
 {
     const char *set;
     embed_word loaded;
+    embed_word lanes;
     const Utf8Set *filled;
     const char *text;
     unsigned long long at;
@@ -669,18 +670,82 @@ unsigned long long cli_text_characters(const CliTextSizeByteCfg *args)
     return count;
 }
 
+// the UTF-16 units the `loaded` word's first `lanes` bytes start: every byte that is no continuation byte starts a
+// character of one unit, and a byte that leads four bytes starts a character of two. Each lane's bits 7 to 3 are
+// moved up into its high bit in turn: a continuation byte is 10xxxxxx and a four byte lead 11110xxx; a lane mask
+// holds each lane's high bit alone
+EMBED_INLINE unsigned long long text_word_units(const TextCtx *args)
+{
+    const embed_word below = mask.lanes_below(&(ScrutMaskCfg){.bytes = args->lanes});
+    const embed_word bit7 = args->loaded & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word bit6 = (args->loaded << 1) & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word bit5 = (args->loaded << 2) & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word bit4 = (args->loaded << 3) & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word bit3 = (args->loaded << 4) & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word continuation = bit7 & ~bit6;
+    const embed_word leads = below & ~continuation;
+    const embed_word four = below & bit7 & bit6 & bit5 & bit4 & ~bit3;
+    return lane.count(&(ScrutLaneCfg){.mask = leads}) + lane.count(&(ScrutLaneCfg){.mask = four});
+}
+
+// the word of `text` at `at`, `size` bytes long, loaded into a word, the bytes past the text zero
+EMBED_INLINE embed_word text_word_loaded(const TextCtx *args)
+{
+    const embed_word bytes =
+        ((args->size - args->at) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - args->at) : MMGR_SWAR_BYTES;
+    embed_word loaded = 0u;
+    memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = args->text + args->at, .bytes = bytes});
+    return loaded;
+}
+
 unsigned long long cli_text_units(const CliTextSizeByteCfg *args)
 {
     unsigned long long count = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size; at += MMGR_SWAR_BYTES)
     {
-        unsigned long long length = 0ULL;
-        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size,
-                                               .at = at, .length = &length);
-        at += length;
-        count += (character >= 0x10000u) ? 2u : 1u;
+        const embed_word bytes = ((args->size - at) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - at) : MMGR_SWAR_BYTES;
+        count += EMBED_CALL(text_word_units, TextCtx,
+                            .loaded = EMBED_CALL(text_word_loaded, TextCtx, .text = args->text, .at = at, .size = args->size),
+                            .lanes = bytes);
     }
     return count;
+}
+
+unsigned long long cli_text_unit_byte(const CliTextAtSizeCfg *args)
+{
+    // the words before the unit's passed over whole, then the bytes of its word to the unit's start, and then the
+    // continuation bytes of a character the unit is the second half of
+    unsigned long long units = 0ULL;
+    unsigned long long byte = 0ULL;
+    while (byte < args->size)
+    {
+        const embed_word bytes =
+            ((args->size - byte) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - byte) : MMGR_SWAR_BYTES;
+        const unsigned long long in_word = EMBED_CALL(
+            text_word_units, TextCtx,
+            .loaded = EMBED_CALL(text_word_loaded, TextCtx, .text = args->text, .at = byte, .size = args->size),
+            .lanes = bytes);
+        if (units + in_word > args->at)
+        {
+            break;
+        }
+        units += in_word;
+        byte += bytes;
+    }
+    while ((byte < args->size) && (units < args->at))
+    {
+        const unsigned char lead = (unsigned char)args->text[byte];
+        if ((lead & 0xC0u) != 0x80u)
+        {
+            units += (lead >= 0xF0u) ? 2ULL : 1ULL;
+        }
+        byte += 1ULL;
+    }
+    while ((byte < args->size) && (((unsigned char)args->text[byte] & 0xC0u) == 0x80u))
+    {
+        byte += 1ULL;
+    }
+    return byte;
 }
 
 int cli_text_starts(const CliTextSizePrefixCfg *args)

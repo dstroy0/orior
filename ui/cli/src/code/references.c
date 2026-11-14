@@ -79,7 +79,6 @@ typedef struct
     unsigned long long at;
     const char *text;
     unsigned long long length;
-    unsigned long long unit;
     unsigned int file_at;
     unsigned int reference;
     VerbaLinea *err_msg;
@@ -120,28 +119,6 @@ static char *references_open_text(const CliOpenTextCfg *args)
     }
     g_cli_guard->persistent_buf_release(held, g_cli_servers_owner);
     return copy;
-}
-
-// the byte in `length` bytes of `text` where the UTF-16 unit `unit` starts, the text's end where the unit is past it:
-// a byte that leads four bytes counts two units, a continuation byte none, every other byte one
-EMBED_INLINE unsigned long long references_byte_of_unit(const ReferencesCtx *args)
-{
-    unsigned long long units = 0ULL;
-    unsigned long long at = 0ULL;
-    while ((at < args->length) && (units < args->unit))
-    {
-        const unsigned char byte = (unsigned char)args->text[at];
-        if ((byte & 0xC0u) != 0x80u)
-        {
-            units += (byte >= 0xF0u) ? 2ULL : 1ULL;
-        }
-        at += 1ULL;
-    }
-    while ((at < args->length) && (((unsigned char)args->text[at] & 0xC0u) == 0x80u))
-    {
-        at += 1ULL;
-    }
-    return at;
 }
 
 // one reference the tree passes: a file record where its path is not the last file's, its line's text and its record
@@ -235,9 +212,9 @@ EMBED_INLINE void references_name_read(const ReferencesCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = &one, .src = read->ones.cell, .bytes = sizeof(one)});
     const char *const text = read->bytes.cell + one.text;
     const unsigned long long from =
-        EMBED_CALL(references_byte_of_unit, ReferencesCtx, .text = text, .length = one.length, .unit = one.from);
+        EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = one.length, .at = one.from);
     const unsigned long long to =
-        EMBED_CALL(references_byte_of_unit, ReferencesCtx, .text = text, .length = one.length, .unit = one.to);
+        EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = one.length, .at = one.to);
     const unsigned long long length = ((to > from) && (to - from < sizeof(s_references.name))) ? to - from : 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = s_references.name, .src = text + from, .bytes = (embed_word)length});
     s_references.name[length] = '\0';
@@ -527,10 +504,10 @@ int cli_references_row(unsigned int at, CliReferenceRow *row)
     row->text_length = EMBED_CALL(references_bytes_copy, ReferencesCtx, .at = one.text, .length = one.length,
                                   .out = row->text_copied, .capacity = sizeof(row->text_copied));
     row->text = row->text_copied;
-    row->match_at = EMBED_CALL(references_byte_of_unit, ReferencesCtx, .text = row->text, .length = row->text_length,
-                               .unit = one.from);
-    const unsigned long long match_end = EMBED_CALL(references_byte_of_unit, ReferencesCtx, .text = row->text,
-                                                    .length = row->text_length, .unit = one.to);
+    row->match_at = EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = row->text,
+                               .size = row->text_length, .at = one.from);
+    const unsigned long long match_end = EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = row->text,
+                                                    .size = row->text_length, .at = one.to);
     row->match_length = (match_end > row->match_at) ? match_end - row->match_at : 0ULL;
     return 1;
 }

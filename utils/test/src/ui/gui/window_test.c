@@ -523,11 +523,18 @@ static void released_with(int x, int y, unsigned int button)
     stepped();
 }
 
-// the caret's left pixel as a drawn frame places it
+// the caret's rectangle as the editor positions it for the frame displayed, drawn or not
+static GuiRect caret_box(void)
+{
+    stepped();
+    return EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = &s_window.editor,
+                      .glyphs = &s_window.glyphs, .place = s_window.frame.editor, .scale = s_window.frame.scale);
+}
+
+// the caret's left pixel
 static int caret_x(void)
 {
-    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
-    return s_window.editor.caret_rect.x;
+    return caret_box().x;
 }
 
 // the pixel `cells` cells right of the line's start `start`, each `cell` pixels wide, as the editor rounds it
@@ -565,7 +572,8 @@ static void table_checked(void)
     cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
     // the second column's line, at cell 8, dragged to cell 10 widens the second column from 2 cells to 5
-    const int row_y = s_window.editor.caret_rect.y + (s_window.editor.caret_rect.height / 2);
+    const GuiRect caret = caret_box();
+    const int row_y = caret.y + (caret.height / 2);
     pressed_with(cell_x(first_x, cell, 8), row_y, GUI_BUTTON_LEFT);
     cli_check(s_window.column_drag == 2u, "a press on the second column's line grips it");
     moved(cell_x(first_x, cell, 10), row_y);

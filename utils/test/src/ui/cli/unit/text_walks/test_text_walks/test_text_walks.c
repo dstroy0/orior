@@ -144,6 +144,30 @@ void test_a_last_line_with_no_newline_stops_at_the_end(void)
     TEST_ASSERT_EQUAL_UINT64(11ull, line.next);
 }
 
+void test_utf16_units_are_counted_across_words(void)
+{
+    // ten ASCII bytes past a word's width, then a two, a three and a four byte character: 10, 1, 1 and 2 units
+    const char text[] = "abcdefghij\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80";
+    TEST_ASSERT_EQUAL_UINT64(14ull, EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text, .size = sizeof(text) - 1u));
+    TEST_ASSERT_EQUAL_UINT64(10ull, EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text, .size = 10ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text, .size = 0ull));
+}
+
+void test_the_byte_of_a_utf16_unit_is_found_across_words(void)
+{
+    // ten ASCII bytes, then a two, a three and a four byte character: the units start at bytes 0 to 9, 10, 12, 15,
+    // and the four byte character's second unit is inside it: the next character's byte is 19, the end
+    const char text[] = "abcdefghij\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80";
+    const unsigned long long size = sizeof(text) - 1u;
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 0ull));
+    TEST_ASSERT_EQUAL_UINT64(9ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 9ull));
+    TEST_ASSERT_EQUAL_UINT64(10ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 10ull));
+    TEST_ASSERT_EQUAL_UINT64(12ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 11ull));
+    TEST_ASSERT_EQUAL_UINT64(15ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 12ull));
+    TEST_ASSERT_EQUAL_UINT64(19ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 14ull));
+    TEST_ASSERT_EQUAL_UINT64(19ull, EMBED_CALL(cli_text_at_size.unit_byte, CliTextAtSizeCfg, .text = text, .size = size, .at = 40ull));
+}
+
 void test_a_text_is_copied(void)
 {
     char copied[8];

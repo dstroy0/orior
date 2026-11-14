@@ -112,6 +112,9 @@ unsigned long long cli_text_end_class(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_back_end_class(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_to_pair(const CliTextAtSizeFirstCfg *args);
 unsigned long long cli_text_number(const CliTextAtSizeCfg *args);
+// the byte of `size` bytes of `text` where the UTF-16 unit `at` starts, `size` where the unit is past the text, read a
+// word at a time to the word the unit is in and a byte at a time inside it
+unsigned long long cli_text_unit_byte(const CliTextAtSizeCfg *args);
 // the number the hex digits from `at` below `size` write, in either case, all ones where they are more than 16, the
 // place past them into `end` where it is not NULL
 unsigned long long cli_text_hex(const CliTextAtSizeCfg *args);
@@ -546,12 +549,14 @@ typedef struct
     unsigned long long (*number)(const CliTextAtSizeCfg *args);
     int (*quoted_end)(const CliTextAtSizeCfg *args);
     unsigned long long (*hex)(const CliTextAtSizeCfg *args);
+    unsigned long long (*unit_byte)(const CliTextAtSizeCfg *args);
 } CliTextAtSizeNs;
-EMBED_TABLE_LAYOUT(CliTextAtSizeNs, number, quoted_end, hex);
+EMBED_TABLE_LAYOUT(CliTextAtSizeNs, number, quoted_end, hex, unit_byte);
 EMBED_TABLE_STORAGE CliTextAtSizeNs cli_text_at_size EMBED_UNUSED = {
     .number = cli_text_number,
     .quoted_end = cli_text_quoted_end,
     .hex = cli_text_hex,
+    .unit_byte = cli_text_unit_byte,
 };
 
 typedef struct
