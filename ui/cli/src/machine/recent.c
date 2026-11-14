@@ -7,6 +7,7 @@
 
 #include "../command_line/cli_internal.h"
 #include "../command_line/pool.h"
+#include "../text/text.h"
 #include "state.h"
 
 // the key each list is stored under in orior's folder
@@ -56,11 +57,9 @@ EMBED_INLINE void recent_positioned(const RecentCtx *args)
     unsigned int count = 0u;
     for (unsigned long long at = 0ULL; (at < args->length) && (count < CLI_RECENT_MAX);)
     {
-        unsigned long long end = at;
-        while ((end < args->length) && (args->text[end] != '\n'))
-        {
-            end += 1ULL;
-        }
+        // the entry's newline found a word at a time
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = args->text, .at = at, .size = args->length, .set = "\n");
         bytes += (end > at) ? (end - at) + 1ULL : 0ULL;
         count += (end > at) ? 1u : 0u;
         at = end + 1ULL;
@@ -78,11 +77,9 @@ EMBED_INLINE void recent_positioned(const RecentCtx *args)
     unsigned long long used = 0ULL;
     for (unsigned long long at = 0ULL; (at < args->length) && (positioned < count);)
     {
-        unsigned long long end = at;
-        while ((end < args->length) && (args->text[end] != '\n'))
-        {
-            end += 1ULL;
-        }
+        // the entry's newline found a word at a time
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = args->text, .at = at, .size = args->length, .set = "\n");
         if (end > at)
         {
             memor.cpy(&(MemoriaCfg){.dst = cell + used, .src = args->text + at, .bytes = end - at});

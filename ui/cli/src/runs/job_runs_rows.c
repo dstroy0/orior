@@ -8,6 +8,8 @@
 // copied out of the store's cells for the row last read
 #include "job_runs_internal.h"
 
+#include "../text/text.h"
+
 typedef struct
 {
     int write;
@@ -235,11 +237,9 @@ EMBED_INLINE int word_among(const RowsCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->other_length;)
     {
-        unsigned long long end = at;
-        while ((end < args->other_length) && (args->other[end] != ' '))
-        {
-            end += 1ULL;
-        }
+        // the word's end at the next space, found a word at a time
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = args->other, .at = at, .size = args->other_length, .set = " ");
         if (((end - at) == args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = args->other + at, .other = args->text, .bytes = args->length}) == 0))
         {

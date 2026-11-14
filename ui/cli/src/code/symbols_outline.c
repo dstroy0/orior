@@ -7,6 +7,7 @@
 
 #include "../command_line/pool.h"
 #include "../editor/document.h"
+#include "../text/text.h"
 
 // the bytes each row's name and type are copied into
 #define OUTLINE_TEXT_BYTES (256u * 1024u)
@@ -137,11 +138,10 @@ EMBED_INLINE void outline_depths_read(const OutlineCtx *args)
             outline->row[row].indent = (outline->row[row].line == line) ? (unsigned int)indent : 0u;
             row += 1u;
         }
-        while ((at < args->length) && (args->text[at] != '\n'))
-        {
-            at += 1ULL;
-        }
-        at += 1ULL;
+        // the line's newline found a word at a time, the next line past it
+        at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
+                        .size = args->length, .set = "\n") +
+             1ULL;
         line += 1ULL;
     }
     unsigned int step = 0u;

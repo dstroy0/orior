@@ -8,6 +8,7 @@
 #include "job_runs_internal.h"
 
 #include "../command_line/command_line_internal.h"
+#include "../text/text.h"
 
 typedef struct
 {
@@ -265,11 +266,9 @@ void cli_job_runs_choice_take(const CliJobRunsCtx *args)
     int found = 0;
     for (unsigned long long at = 0ULL; at < length;)
     {
-        unsigned long long end = at;
-        while ((end < length) && (value[end] != ' '))
-        {
-            end += 1ULL;
-        }
+        // the word's end at the next space, found a word at a time
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = value, .at = at, .size = length, .set = " ");
         const int same = ((end - at) == choice_length) &&
                          (memor.cmp(&(MemoriaCfg){.src = value + at, .other = choice, .bytes = choice_length}) == 0);
         found = found || same;

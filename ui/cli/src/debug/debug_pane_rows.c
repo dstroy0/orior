@@ -13,6 +13,7 @@
 #include "debug_pane_internal.h"
 
 #include "../command_line/rings.h"
+#include "../text/text.h"
 
 // the bytes of a scratch a session's answer is written into, the max bytes of a row's key, the cell the console's
 // text is first taken at, and the notices of the views with no rows of their own
@@ -715,11 +716,9 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
     unsigned long long from = 0ULL;
     while (from < args->length)
     {
-        unsigned long long stop = from;
-        while ((stop < args->length) && (args->text[stop] != '\n'))
-        {
-            stop += 1ULL;
-        }
+        // the line's newline found a word at a time
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = args->text, .at = from, .size = args->length, .set = "\n");
         const int ended = stop < args->length;
         const unsigned long long piece = stop - from;
         CliDebugPaneEntry *const last =

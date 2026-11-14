@@ -3500,36 +3500,26 @@ static int view_lines_join(const ViewCtx *args)
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
     char *const put = made->put;
-    unsigned long long at = 0ULL;
-    unsigned long long read = 0ULL;
-    while ((read < size) && (consumed[read] != '\n'))
-    {
-        put[at] = consumed[read];
-        at += 1ULL;
-        read += 1ULL;
-    }
+    // each line copied whole to its newline, the newlines and blanks around them found a word at a time
+    unsigned long long read = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = consumed,
+                                         .at = 0ULL, .size = size, .set = "\n");
+    memor.cpy(&(MemoriaCfg){.dst = put, .src = consumed, .bytes = (embed_word)read});
+    unsigned long long at = read;
     while (read < size)
     {
-        read += 1ULL;
-        while ((read < size) && ((consumed[read] == ' ') || (consumed[read] == '\t')))
-        {
-            read += 1ULL;
-        }
-        while ((at > 0ULL) && ((put[at - 1ULL] == ' ') || (put[at - 1ULL] == '\t')))
-        {
-            at -= 1ULL;
-        }
+        read = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = consumed, .at = read + 1ULL,
+                          .size = size, .set = " \t");
+        at = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = put, .at = at, .set = " \t");
         if ((at != 0ULL) && (read < size) && (consumed[read] != '\n'))
         {
             put[at] = ' ';
             at += 1ULL;
         }
-        while ((read < size) && (consumed[read] != '\n'))
-        {
-            put[at] = consumed[read];
-            at += 1ULL;
-            read += 1ULL;
-        }
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = consumed, .at = read, .size = size, .set = "\n");
+        memor.cpy(&(MemoriaCfg){.dst = put + at, .src = consumed + read, .bytes = (embed_word)(end - read)});
+        at += end - read;
+        read = end;
     }
     made->append_length = at;
     return EMBED_CALL(view_cell_replace, ViewCtx, .view = args->view, .made = made, .err_msg = args->err_msg);

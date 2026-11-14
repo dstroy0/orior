@@ -786,11 +786,9 @@ EMBED_INLINE void inline_positioned(const MarkdownCtx *args)
         }
         if (!inside && (character == '<'))
         {
-            unsigned int close = at + 1u;
-            while ((close < to) && (text[close] != '>') && (text[close] != ' '))
-            {
-                close += 1u;
-            }
+            // the bracket's close, or the blank that says it is none, found a word at a time
+            const unsigned int close =
+                EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = at + 1u, .to = to, .bytes = "> ");
             const int autolink = (close < to) && (text[close] == '>') &&
                                  (EMBED_CALL(starts_with, MarkdownCtx, .text = text, .from = at + 1u, .to = close,
                                              .bytes = "http://", .length = 7u) ||
