@@ -239,23 +239,37 @@ void cli_pool_reported(const char *name, const VerbaLinea *report)
     }
 }
 
+// the mover's run on the option assigned already: what the pool starts again after a refusal ended the mover
+static void pool_mover_entered(void *context)
+{
+    mmgr_movable_run(context);
+}
+
 int cli_pool_made(unsigned long long bytes)
 {
-    // a program empties its pool before any thread takes a cell, and empties it again only while no cell is allocated;
-    // the mover is ended first, so that it does not read the cellblock as it empties, and started again with it.
-    // Nothing takes between the test and the emptying. A request past the pool declared is refused
+    // A program empties its pool before any thread takes a cell, and empties it again only while no cell is out.
+    // The pool ends the mover first: the mover then reads no cellblock as the pool empties, and holds no closed
+    // bit that leaves a trim owed. The gap reader runs the trims owed, and the idle test comes after it. Nothing
+    // takes between the test and the emptying. The pool refuses a request past the pool declared, and after a
+    // refusal starts the mover again on the option assigned
     SeriesCellularum *const record = &cli_pool_site_cli_pool_ctx;
+    const int ran = s_mover_run != NULL;
+    pool_mover_ended();
+    (void)g_cli_guard->buf_available();
     const int idle = mmgr_series_cellularum_idle(record);
     const int fits = bytes <= CLI_POOL_BYTES;
     if (idle && fits)
     {
-        pool_mover_ended();
         mmgr_series_cellularum_emptied(record);
         // the mover's thread starts with the pool, so the cellblock is sorted in every quiet past the fragmentation
         // threshold, whether or not a module stores movable cells
         cli_pool_movable_ready();
         // the rings' records positioned over their parts of the rings block, with the pool, before any ticket is taken
         cli_rings.positioned();
+    }
+    else if (ran)
+    {
+        (void)pool_mover_started(pool_mover_entered, record);
     }
     return idle && fits;
 }

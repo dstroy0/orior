@@ -28,8 +28,8 @@ extern "C"
     extern const MinimumSecurityGuard *const g_cli_guard;
 
     // the pool emptied for a request of `bytes`, which the pool declared has to cover, the mover ended first and
-    // started again with it: 1, or 0 where a cell is still allocated or the request is past it; every program empties
-    // its pool before its first take
+    // started again with it or after a refusal: 1, or 0 where a cell is still out or the request is past it; every
+    // program empties its pool before its first take
     int cli_pool_made(unsigned long long bytes);
     // the cellblock's record: what mmgr_owner_of_buf and the peak readers take
     const SeriesCellularum *cli_pool_series_cellularum(void);
