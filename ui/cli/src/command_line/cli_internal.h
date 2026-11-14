@@ -89,7 +89,7 @@ typedef struct CliTreeCtx CliTreeCtx;
 #define CLI_ERR_MSG_MAX_LEN QUERY_LINE_MAX_LEN
 
 // orior's version
-#define CLI_VERSION "0.1.0"
+#define CLI_VERSION "1.10.0"
 
 // the most processes the system lists, the most mounts a window lists, and the longest name of one
 #define CLI_PROCESSES_MAX 65536u
