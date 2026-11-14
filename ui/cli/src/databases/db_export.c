@@ -80,27 +80,29 @@ EMBED_INLINE void export_csv_value(const DbExportCtx *args)
     {
         return;
     }
-    int quoted = 0;
-    for (unsigned long long at = 0ULL; (at < args->value->size) && !quoted; at += 1ULL)
+    // a value with a comma, a quote or a line end in it is quoted, each quote in it doubled; the bytes between the
+    // quotes go out in runs, found a word at a time
+    const char *const text = args->value->text;
+    const unsigned long long size = args->value->size;
+    if (EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL, .size = size,
+                   .set = ",\"\n\r") >= size)
     {
-        quoted =
-            (cellul.chr(&(CatenaFinitaCfg){.src = ",\"\n\r", .cap = CLI_POOL_BYTES, .byte = args->value->text[at]}) !=
-             NULL) &&
-            (args->value->text[at] != '\0');
-    }
-    if (!quoted)
-    {
-        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = args->value->text,
-                   .size = args->value->size);
+        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = text, .size = size);
         return;
     }
     EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = "\"", .size = 1ULL);
-    for (unsigned long long at = 0ULL; at < args->value->size; at += 1ULL)
+    unsigned long long run = 0ULL;
+    unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text,
+                                       .at = 0ULL, .size = size, .set = "\"");
+    while (at < size)
     {
-        EMBED_CALL(export_append, DbExportCtx, .export = args->export,
-                   .text = (args->value->text[at] == '"') ? "\"\"" : args->value->text + at,
-                   .size = (args->value->text[at] == '"') ? 2ULL : 1ULL);
+        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = text + run, .size = at - run);
+        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = "\"\"", .size = 2ULL);
+        run = at + 1ULL;
+        at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = run, .size = size,
+                        .set = "\"");
     }
+    EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = text + run, .size = size - run);
     EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = "\"", .size = 1ULL);
 }
 

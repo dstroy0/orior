@@ -1324,11 +1324,8 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
 // takes out; one it touches, its first line with lines added or taken, or the lines it hides, opened
 EMBED_INLINE void view_folds_edit(const ViewCtx *args)
 {
-    unsigned long long added = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->edit->length; at += 1ULL)
-    {
-        added += (args->edit->text[at] == '\n') ? 1ULL : 0ULL;
-    }
+    const unsigned long long added = EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->edit->text,
+                                                .size = args->edit->length, .byte = '\n');
     const unsigned long long removed = args->edit->to.line - args->edit->from.line;
     unsigned int saved = 0u;
     for (unsigned int at = 0u; at < args->view->folds; at += 1u)
@@ -3855,13 +3852,11 @@ static int view_lines_indent(const ViewCtx *args)
     unsigned long long read = 0ULL;
     for (unsigned long long line = first; line <= last; line += 1ULL)
     {
-        unsigned long long end = read;
-        int filled = 0;
-        while ((end < size) && (consumed[end] != '\n'))
-        {
-            filled = filled || ((consumed[end] != ' ') && (consumed[end] != '\t'));
-            end += 1ULL;
-        }
+        // the line to its newline, found a word at a time, and whether a byte of it is no blank
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = consumed, .at = read, .size = size, .set = "\n");
+        const int filled = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = consumed,
+                                      .at = read, .size = end, .set = " \t") < end;
         at = EMBED_CALL(view_indent_line, ViewCtx, .view_read = args->view, .text = consumed, .from_u64 = read,
                         .to_u64 = end, .line = line, .mark = put, .at = at, .deeper = args->deeper,
                         .count = (filled || (lines == 1ULL)) ? step : 0ULL, .width = stop, .tabs = tabs,
@@ -3887,15 +3882,12 @@ static int view_lines_indent(const ViewCtx *args)
     return 1;
 }
 
-// the end of the line of `text`, `size` bytes, that starts at `from_u64`: its newline, or the text's end
+// the end of the line of `text`, `size` bytes, that starts at `from_u64`: its newline, or the text's end, found a
+// word at a time
 EMBED_INLINE unsigned long long view_line_end(const ViewCtx *args)
 {
-    unsigned long long end = args->from_u64;
-    while ((end < args->size) && (args->text[end] != '\n'))
-    {
-        end += 1ULL;
-    }
-    return end;
+    return EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = args->from_u64,
+                      .size = args->size, .set = "\n");
 }
 
 // the first byte of `text` from `from_u64` to before `to_u64` that is neither a space nor a tab, `to_u64` where none is
@@ -4418,15 +4410,16 @@ static int view_lines_sort(const ViewCtx *args)
     unsigned char *const repeats = (unsigned char *)(work + count);
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
+    // each line starts past a newline, the newlines found a word at a time
     unsigned int line = 0u;
     start[0] = 0ULL;
-    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
+    for (unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = consumed,
+                                            .at = 0ULL, .size = size, .set = "\n");
+         at < size; at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = consumed,
+                                    .at = at + 1ULL, .size = size, .set = "\n"))
     {
-        if (consumed[at] == '\n')
-        {
-            line += 1u;
-            start[line] = at + 1ULL;
-        }
+        line += 1u;
+        start[line] = at + 1ULL;
     }
     start[count] = size + 1ULL;
     for (unsigned int at = 0u; at < count; at += 1u)

@@ -145,29 +145,37 @@ static void cli_compiler_found(const CliEachAtCfg *args)
     {
         return;
     }
-    unsigned long long at = args->at;
-    // the key's closing quote, then the colon, then the value's opening bracket or quote
-    while ((at < sift->piece_size) && (sift->piece[at] != ':'))
-    {
-        at += 1ULL;
-    }
-    while ((at < sift->piece_size) && (sift->piece[at] != '[') && (sift->piece[at] != '"'))
-    {
-        at += 1ULL;
-    }
-    const int arguments = (at < sift->piece_size) && (sift->piece[at] == '[');
-    while (arguments && (at < sift->piece_size) && (sift->piece[at] != '"'))
-    {
-        at += 1ULL;
-    }
+    // Explicit cast reads the piece's bytes as the text the scans take, the same bytes
+    const char *const piece = (const char *)sift->piece;
+    const unsigned long long size = sift->piece_size;
+    // the key's closing quote, then the colon, then the value's opening bracket or quote, each found a word at a time
+    unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = piece,
+                                       .at = args->at, .size = size, .set = ":");
+    at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = piece, .at = at, .size = size,
+                    .set = "[\"");
+    const int arguments = (at < size) && (piece[at] == '[');
+    at = arguments ? EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = piece, .at = at,
+                                .size = size, .set = "\"")
+                   : at;
     char value[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ULL;
     at += 1ULL;
-    while ((at < sift->piece_size) && (sift->piece[at] != '"') && (length < (sizeof(value) - 1u)))
+    // the value's bytes copied a run at a time to its closing quote, an escaped byte the byte after its backslash
+    while ((at < size) && (length < (sizeof(value) - 1u)))
     {
-        // an escaped byte is the byte after its backslash
-        at += (sift->piece[at] == '\\') ? 1ULL : 0ULL;
-        value[length] = (at < sift->piece_size) ? (char)sift->piece[at] : '\0';
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = piece, .at = at, .size = size, .set = "\"\\");
+        const unsigned long long room = (sizeof(value) - 1u) - length;
+        const unsigned long long run = ((stop - at) < room) ? (stop - at) : room;
+        memor.cpy(&(MemoriaCfg){.dst = value + length, .src = piece + at, .bytes = (embed_word)run});
+        length += run;
+        at += run;
+        if ((at >= size) || (piece[at] == '"') || (length >= (sizeof(value) - 1u)))
+        {
+            break;
+        }
+        at += 1ULL;
+        value[length] = (at < size) ? piece[at] : '\0';
         length += 1ULL;
         at += 1ULL;
     }

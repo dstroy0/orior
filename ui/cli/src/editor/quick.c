@@ -12,6 +12,7 @@
 #include "../command_line/commands.h"
 #include "../command_line/pool.h"
 #include "../machine/recent.h"
+#include "../text/text.h"
 #include "files.h"
 #include "files_internal.h"
 #include "view.h"
@@ -169,15 +170,12 @@ typedef struct
     unsigned long long *column;
 } QuickCtx;
 
-// how many characters `length` bytes of UTF-8 `text` hold: its lead bytes
+// how many characters `length` bytes of UTF-8 `text` hold: its lead bytes, counted a word at a time; a row's text is
+// far shorter than an unsigned int counts
 EMBED_INLINE unsigned int quick_characters(const QuickCtx *args)
 {
-    unsigned int characters = 0u;
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        characters += (((unsigned char)args->text[at] & 0xC0u) != 0x80u) ? 1u : 0u;
-    }
-    return characters;
+    return (unsigned int)EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->text,
+                                    .size = args->length);
 }
 
 // a row of `type` begun after the build's rows, its texts empty at the text's end and its marks after the build's:
@@ -270,11 +268,9 @@ EMBED_INLINE void quick_file_row(const QuickCtx *args)
     {
         return;
     }
-    unsigned long long name = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        name = (args->text[at] == '/') ? (at + 1ULL) : name;
-    }
+    // the name starts past the last slash, at 0 where the path has none
+    const unsigned long long name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                               .text = args->text, .at = args->length, .set = "/");
     const unsigned int cut = EMBED_CALL(quick_characters, QuickCtx, .text = args->text, .length = name);
     mmgr_line_put_n(&build->text, args->text, args->length);
     row->target_length = EMBED_CALL(quick_written, QuickCtx, .build = build, .at = row->target);
@@ -892,16 +888,14 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     const unsigned int mode = EMBED_CALL(quick_mode, QuickCtx, .build = &build);
     // the text read past its first character where it reads one, its spaces at either end left out
     const unsigned long long skip = ((mode == CLI_QUICK_FILES) || (mode == CLI_QUICK_EVERYWHERE)) ? 0ULL : 1ULL;
-    unsigned long long from = (skip < s_quick.length) ? skip : s_quick.length;
-    unsigned long long to = s_quick.length;
-    while ((from < to) && (s_quick.text[from] == ' '))
-    {
-        from += 1ULL;
-    }
-    while ((to > from) && (s_quick.text[to - 1ULL] == ' '))
-    {
-        to -= 1ULL;
-    }
+    const unsigned long long from =
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = s_quick.text,
+                   .at = (skip < s_quick.length) ? skip : s_quick.length, .size = s_quick.length, .set = " ");
+    // the first byte past the leading spaces is no space, so the trailing spaces end at or after it
+    const unsigned long long to = (from < s_quick.length)
+                                      ? EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                                   .text = s_quick.text, .at = s_quick.length, .set = " ")
+                                      : s_quick.length;
     const char *const query = s_quick.text + from;
     switch (mode)
     {

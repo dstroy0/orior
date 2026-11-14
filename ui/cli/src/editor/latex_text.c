@@ -50,20 +50,8 @@ typedef struct
 // `length` bytes and `with`, the case of ASCII characters aside
 EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->with, .cap = CLI_POOL_BYTES}) != args->length)
-    {
-        return 0;
-    }
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        const char character =
-            ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] - 'A' + 'a') : args->text[at];
-        if (character != args->with[at])
-        {
-            return 0;
-        }
-    }
-    return 1;
+    return EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = args->text, .size = args->length,
+                      .other_pointer = args->with);
 }
 
 unsigned long long cli_tex_digits(const CliLatexTextLengthAtCtx *args)
