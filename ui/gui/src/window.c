@@ -662,7 +662,8 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     const char *const key = EMBED_CALL(window_shown_key, GuiWindowCtx, .at = 0u);
     EMBED_CALL(window_tokens_load, GuiWindowCtx, .window = window, .key = key);
     const int shown = cli_view_shown();
-    if (args->edited)
+    // the rest auto save waits out starts at an edit of the text; a view that only scrolled or colored keeps its text
+    if (args->edited && !args->on)
     {
         window->edited_ms = cli_clock_milliseconds();
     }

@@ -698,6 +698,9 @@ static void tab_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
     cli_check(tab_opened("first.txt"), "a file opens for the tab's menu");
+    // the tabs row stands whole after the pointer rests in the head's band, with the claim on it or off
+    moved(400, 2);
+    stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
     const GuiRect tabs = s_window.frame.tabs;
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
                .input = &(GuiInput){.type = GUI_INPUT_MENU, .x = tabs.x + 20, .y = tabs.y + (tabs.height / 2)});

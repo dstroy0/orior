@@ -71,7 +71,7 @@ embed_u64 mmgr_carcer_hw_clock_ns(void)
     return embed_clock_ns();
 }
 
-void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, embed_word bytes)
+void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
 {
     char text[200];
     VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
@@ -108,6 +108,12 @@ static void pool_mover_run(void *context)
     s_mover_run(s_mover_context);
     EMBED_ATOMIC_STORE(&s_mover_ended, 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
+}
+
+// the thread's id in the width MMgr badges a pass with
+static size_t pool_thread_id(void)
+{
+    return (size_t)cli_thread_id();
 }
 
 static embed_bool pool_mover_started(void (*run)(void *context), void *context)
@@ -176,7 +182,7 @@ void cli_pool_movable_ready(void)
                                 .width = (processors < POOL_WIDTH_MOST) ? processors : POOL_WIDTH_MOST,
                                 .rows = POOL_TOUCH_ROWS,
                                 .thread_started = pool_mover_started,
-                                .thread_id = cli_thread_id,
+                                .thread_id = pool_thread_id,
                                 .thread_wait = pool_mover_waited,
                                 .thread_yield = cli_thread_yield,
                                 .thread_moving = pool_mover_moving});
@@ -377,8 +383,8 @@ void cli_pool_telemetry_log(void)
     unsigned long long touches = 0ULL;
     for (embed_word row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
     {
-        embed_word id = 0u;
-        embed_word passes = 0u;
+        size_t id = 0u;
+        size_t passes = 0u;
         if (mmgr_movable_touches(record, row, &id, &passes))
         {
             touches += (unsigned long long)passes;
@@ -429,13 +435,13 @@ void cli_pool_telemetry_log(void)
     static unsigned long long s_pool_telemetry_passes[POOL_TOUCH_ROWS + 1u];
     for (embed_word row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
     {
-        embed_word id = 0u;
-        embed_word passes = 0u;
+        size_t id = 0u;
+        size_t passes = 0u;
         if (mmgr_movable_touches(record, row, &id, &passes) &&
             ((unsigned long long)passes != s_pool_telemetry_passes[row]))
         {
             s_pool_telemetry_passes[row] = (unsigned long long)passes;
-            const int named = (id >= 1u) && (id <= (embed_word)count);
+            const int named = (id >= 1u) && (id <= (size_t)count);
             line.at = 0ULL;
             mmgr_line_put(&line, named ? owners[id - 1u].name : "other");
             mmgr_line_ch(&line, ' ');
