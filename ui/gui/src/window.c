@@ -5376,6 +5376,12 @@ void gui_window_step(const GuiWindowCfg *args)
                    .panicked_out = &window->side_menu.runs_panicked);
         window->pending = 1;
     }
+    // the explorer's folders listed again as the watch reports entries that came and went
+    if (cli_files_explorer_changed())
+    {
+        cli_files_explorer_refresh();
+        window->pending = 1;
+    }
     // the Search pane's query searched as its rest passes or as the watch marks what it found stale, and the Git
     // pane's graph and the Changes read again the same way while each is in sight
     window->pending =

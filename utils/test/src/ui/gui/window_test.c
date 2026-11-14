@@ -865,6 +865,34 @@ static void joined(const char *root, const char *rest, char *out)
     (void)mmgr_line_finish(&line);
 }
 
+// whether the explorer's rows name `name`
+static int explorer_lists(const char *name)
+{
+    CliExplorerRow row;
+    for (unsigned int at = 0u; cli_files_explorer_row(at, &row); at += 1u)
+    {
+        if (same(row.name, name))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the window stepped until the explorer lists `name` where `listed` is 1, or lists it no more where it is 0, within
+// `milliseconds`: whether it does
+static int explorer_settles(const char *name, int listed, unsigned long long milliseconds)
+{
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while ((explorer_lists(name) != listed) && (cli_clock_milliseconds() < until))
+    {
+        stepped();
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 20ULL);
+    }
+    return explorer_lists(name) == listed;
+}
+
 // The File menu's commands through the door: a folder made in the tree and made a repository, the tree kept as a
 // template, auto save turned on and saving a changed tab once the edits rest, the trust question asked and its answer
 // kept, and the environment setting saved
@@ -874,6 +902,21 @@ static void file_checked(void)
     joined(s_root, "made_here", path);
     cli_check(asked("create-folder", "made_here") && folder_stands(path), "create-folder makes the folder in the tree");
     cli_check(!asked("create-folder", NULL), "create-folder without a name is refused");
+    // a folder made and a folder deleted on the disk, outside the window, list the explorer again as the watch reports
+    // them; the folder holds a file, which the poll of a system that cannot watch the tree reads
+    char gone[CLI_PATH_MAX_LEN];
+    joined(s_root, "gone_here", gone);
+    if (cli_files_explorer_rows() == 0u)
+    {
+        cli_files_explorer_show(s_root);
+    }
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = gone);
+    file_written("gone_here/note.txt", "kept\n");
+    cli_check(explorer_settles("gone_here", 1, 8000ULL),
+              "a folder made on the disk comes into the explorer as the watch reports it");
+    (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = gone);
+    cli_check(explorer_settles("gone_here", 0, 8000ULL),
+              "a folder deleted on the disk goes from the explorer as the watch reports it");
     char git[CLI_PATH_MAX_LEN];
     joined(path, ".git", git);
     cli_check(asked("create-repository", "made_here") && folder_stands(git),

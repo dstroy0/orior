@@ -212,20 +212,30 @@ static int cli_gather(const WatchCtx *args)
             moved[moves] = path;
             moves += 1u;
         }
-        if ((path[0] == '\0') || EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg,
-                                            .patterns = &args->batch->patterns, .path = path, .dir = dir))
+        const char *const slash =
+            EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path, .length_value = length, .byte = '/');
+        // the slash lies in the path, at or past its start; the folder's path ends before it, the tree's top where
+        // the path holds none
+        const unsigned long long folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL;
+        const int hidden = EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &args->batch->patterns,
+                                      .path = path, .dir = dir);
+        if ((path[0] != '\0') && hidden && ((type == CLI_CHANGE_ADDED) || (type == CLI_CHANGE_REMOVED)))
+        {
+            // an entry the patterns hide still comes into its folder's listing and goes from it: the folder changed,
+            // and nothing else is reported of the entry
+            EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
+                       .path = path, .length = folder_length);
+            continue;
+        }
+        if ((path[0] == '\0') || hidden)
         {
             continue;
         }
         git = git || tracked;
         if ((type == CLI_CHANGE_ADDED) || (type == CLI_CHANGE_REMOVED))
         {
-            const char *const slash = EMBED_CALL(
-                cli_text_byte.last, CliTextByteCfg, .text = path,
-                .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
-            // the slash lies in the path, at or past its start
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
-                       .path = path, .length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ULL);
+                       .path = path, .length = folder_length);
             if ((type == CLI_CHANGE_ADDED) && !dir)
             {
                 EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->written,

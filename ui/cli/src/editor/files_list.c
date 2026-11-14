@@ -373,6 +373,8 @@ typedef struct
 static const char *s_explorer_root;
 static FilesExplorerFolder s_explorer[CLI_FILES_EXPLORER_FOLDERS];
 static unsigned int s_explorer_folders;
+// how many times the watch marked the explorer stale, counted on the watch's thread and read on the window's
+static embed_atomic_u32 s_explorer_stale;
 
 // the listing of the folder `dir`, or NULL where it was never listed
 static FilesExplorerFolder *explorer_folder(const char *dir)
@@ -526,6 +528,20 @@ void cli_files_explorer_refresh(void)
     {
         g_cli_guard->persistent_buf_release(open, g_cli_editor_owner);
     }
+}
+
+void cli_files_explorer_stale(void)
+{
+    (void)embed_atomic_u32_fetch_add(&s_explorer_stale, 1u);
+}
+
+int cli_files_explorer_changed(void)
+{
+    static unsigned int s_seen;
+    const unsigned int marks = embed_atomic_u32_load(&s_explorer_stale);
+    const int changed = marks != s_seen;
+    s_seen = marks;
+    return changed;
 }
 
 void cli_files_explorer_collapse(void)

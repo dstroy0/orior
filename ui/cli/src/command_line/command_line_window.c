@@ -89,6 +89,11 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     {
         EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = root);
     }
+    // the explorer lists its folders again on the window's thread, as entries came and went
+    if ((args->folders->count != 0u) || args->lost)
+    {
+        cli_files_explorer_stale();
+    }
     // what the Search pane found is found again, and the Git pane's graph and the Changes read again, as files git
     // sees change
     if (args->git || args->lost)

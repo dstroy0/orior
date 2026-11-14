@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_watch.c: a batch reports which folders and files changed, the system reports a written file and a new one on Windows and on
-// Linux, and a poll of the tree finds what changed since the last
+// Linux, a poll of the tree finds what changed since the last, an entry the watching's patterns hide still marks its folder
+// changed as it comes or goes, and a hidden file's write is left out whole
 #include "ui/cli/src/editor/watch_internal.h"
+#include "ui/cli/src/text/patterns.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -76,6 +78,56 @@ void setUp(void)
 
 void tearDown(void)
 {
+}
+
+static char s_folders[1024];
+static unsigned int s_folders_count;
+static unsigned int s_files_count;
+
+// a batch's folders recorded, `|` between them, and its folders and files counted
+static void batch_recorded(const CliWatchBatchCfg *args)
+{
+    VerbaLinea line = {s_folders, sizeof(s_folders), 0ull};
+    for (unsigned int at = 0u; at < args->folders->count; at += 1u)
+    {
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->folders, .index = at));
+    }
+    (void)mmgr_line_finish(&line);
+    s_folders_count = args->folders->count;
+    s_files_count = args->files->count;
+}
+
+// the changes `paths`, `count` of them, of the types `types`, gathered into a batch recorded with the watching's
+// patterns hiding `hidden`: whether any change was left
+static int hidden_gathered(const char *hidden, const char *const *paths, const unsigned int *types, unsigned int count)
+{
+    const char *const lines[1] = {hidden};
+    tree_written("watch_hidden");
+    (void)EMBED_CALL(cli_patterns_lines_count.set, CliPatternsLinesCountCfg, .lines = lines, .count = 1u, .part = CLI_PART_WATCHING);
+    s_folders[0] = '\0';
+    s_folders_count = 0u;
+    s_files_count = 0u;
+    const int any = EMBED_CALL(cli_watch_paths_internal.gathered_get, CliWatchPathsCtx, .root = s_root, .paths = paths, .types = types, .count = count, .take = batch_recorded, .context = NULL);
+    (void)EMBED_CALL(cli_patterns_lines_count.set, CliPatternsLinesCountCfg, .lines = lines, .count = 0u, .part = CLI_PART_WATCHING);
+    return any;
+}
+
+void test_a_hidden_folder_removed_marks_the_folder_it_stood_in_changed(void)
+{
+    static const char *const s_gone[1] = {"deps"};
+    static const unsigned int s_gone_types[1] = {CLI_CHANGE_REMOVED};
+    TEST_ASSERT_TRUE(hidden_gathered("deps", s_gone, s_gone_types, 1u));
+    TEST_ASSERT_EQUAL_UINT(1u, s_folders_count);
+    TEST_ASSERT_EQUAL_STRING("", s_folders);
+    TEST_ASSERT_EQUAL_UINT(0u, s_files_count);
+}
+
+void test_a_hidden_file_written_is_left_out_whole(void)
+{
+    static const char *const s_written[1] = {"deps/x.txt"};
+    static const unsigned int s_written_types[1] = {CLI_CHANGE_MODIFIED};
+    TEST_ASSERT_FALSE(hidden_gathered("deps/x.txt", s_written, s_written_types, 1u));
 }
 
 void test_a_poll_finds_a_written_file(void)

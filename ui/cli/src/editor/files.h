@@ -154,6 +154,10 @@ int cli_files_explorer_open(const char *path);
 void cli_files_explorer_refresh(void);
 void cli_files_explorer_collapse(void);
 int cli_files_explorer_menu(unsigned int at);
+// the explorer marked stale from the watch's thread, as a folder's entries come and go; and whether it was marked since
+// this was last asked, read on the window's thread: 1 once for each run of marks
+void cli_files_explorer_stale(void);
+int cli_files_explorer_changed(void);
 
 // the most letters a text a match reads contains
 #define CLI_FUZZY_LETTERS 4096u
