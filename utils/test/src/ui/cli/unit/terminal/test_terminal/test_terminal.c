@@ -74,12 +74,17 @@ static void xterm_open(unsigned int columns, unsigned int rows)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = s_key, .path = s_path, .out = &shape,
                                 .err_msg = &err_msg));
     s_stored = 1;
-    // the index of so small a file is whole at once or a moment after
+    // the index of so small a file is whole at once or a moment after; a wait past ten seconds is a failure, not a hang
     int whole = 0;
     unsigned long long counted = 0ULL;
-    while (EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_key, .lines = &counted, .whole = &whole) && !whole)
+    static CliWake s_index_pause;
+    const unsigned long long index_last_ms = cli_clock_milliseconds() + 10000ULL;
+    while (EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_key, .lines = &counted, .whole = &whole) && !whole &&
+           (cli_clock_milliseconds() < index_last_ms))
     {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_index_pause, .milliseconds_u64 = 1ULL);
     }
+    TEST_ASSERT_TRUE_MESSAGE(whole, "the index of the xterm's file is whole within ten seconds");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_key, .from = 0ULL,
                                 .to = ~0ULL));
     TEST_ASSERT_EQUAL_UINT64(rows, text_lines());
@@ -520,12 +525,15 @@ static int shell_run(const char *const *words, const char *typed)
     }
     const int ended = s_shell.state == CLI_TERMINAL_SHELL_EXITED;
     EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &s_shell, .now_ms = cli_clock_milliseconds());
-    while (s_shell.state == CLI_TERMINAL_SHELL_RUNNING)
+    // a shell hung up on ends within the hang-up's wait and its kill; past ten seconds the wait is a failure, not a hang
+    const unsigned long long end_last_ms = cli_clock_milliseconds() + 10000ULL;
+    while ((s_shell.state == CLI_TERMINAL_SHELL_RUNNING) && (cli_clock_milliseconds() < end_last_ms))
     {
         (void)EMBED_CALL(cli_terminal_shell.drain, CliTerminalShellCfg, .shell = &s_shell, .xterm = NULL,
                          .now_ms = cli_clock_milliseconds());
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 5ULL);
     }
+    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_TERMINAL_SHELL_EXITED, s_shell.state, "the shell hung up on ends within ten seconds");
     return ended;
 }
 
