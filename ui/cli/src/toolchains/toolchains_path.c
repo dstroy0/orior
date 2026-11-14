@@ -26,6 +26,8 @@ static int s_has_environment;
 static char s_shell_path[CLI_PATH_TEXT];
 static int s_shell_queried;
 static int s_shell_read;
+static int s_shell_asked;
+static int s_shell_ended;
 static CliThread s_shell_thread;
 
 void cli_toolchains_set_tree(const CliToolchainsRootCfg *args)
@@ -136,6 +138,12 @@ static void cli_shell_read_state(void *context)
         s_shell_read = 1;
     }
     g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    s_shell_ended = 1;
+}
+
+int cli_toolchains_shell_path_read(void)
+{
+    return !s_shell_asked || s_shell_ended;
 }
 
 typedef struct
@@ -171,6 +179,7 @@ EMBED_INLINE int cli_shell_path(const ToolchainsPathCtx *args)
     {
         s_shell_thread.run = cli_shell_read_state;
         s_shell_thread.context = s_shell;
+        s_shell_asked = 1;
         EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_shell_thread);
     }
     return read;

@@ -6,6 +6,7 @@
 // first; and the PATH a step runs with begins with the folders put ahead of it
 #include "ui/cli/src/toolchains/toolchains_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "../../../../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 #if defined(_WIN32)
@@ -281,11 +282,22 @@ void test_a_check_stores_what_each_search_found_in_oriors_folder(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = found_file));
 }
 
+// the login shell's PATH read, within its patience and a margin: the folders a search reads stand still after it
+static void shell_path_read(void)
+{
+    const unsigned long long last_ms = cli_clock_milliseconds() + 12000ULL;
+    while (!cli_toolchains_shell_path_read() && (cli_clock_milliseconds() < last_ms))
+    {
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
+    }
+}
+
 void test_the_next_search_reads_what_was_stored(void)
 {
     unsigned int count = 0u;
     CliFound found;
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    shell_path_read();
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 0, .seen = NULL, .context_read = NULL, .out = &out);
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_checks_owner);
     const int cached = EMBED_CALL(cli_toolchains_id_internal.found_cache, CliToolchainsIdCtx, .id = "git", .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = count, .found = &found);

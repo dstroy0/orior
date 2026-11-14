@@ -26,6 +26,9 @@ int cli_toolchains_natural(const CliToolchainsACtx *args);
 // the PATH `shell` sets as a login shell into `path`, which is sized for `size`: 1, or 0 where it sets none within the
 // patience (toolchains_path.c)
 int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args);
+// whether the login shell's PATH is read, or none is asked for: 1 where the folders a search reads stand still from
+// here on (toolchains_path.c)
+int cli_toolchains_shell_path_read(void);
 
 // the lock the files are read and written under
 
