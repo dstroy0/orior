@@ -528,14 +528,27 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     unsigned int next = 0u;
     GuiColor color = palette->editor_text;
     const float start = x;
-    // a table's grid under the text: a line one scaled pixel wide down the left of every column after the first
-    // and one past the last, each over the row's height, and one along the row's foot, in the table line color
+    // a table's grid under the text, from the first column to the line past the last: the first line of the file
+    // is the header row on its own ground; a line one scaled pixel wide down the left of every column after the
+    // first and one past the last, each over the row's height, and one along the row's foot, in the table line color
     const int line_width = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = args->scale);
-    if (frame->table != 0u)
+    if ((frame->table != 0u) && (frame->column_count != 0u))
     {
+        // the grid's pixels, rounded, are far inside what an int represents
+        const int grid_left = (int)arith_round_f32(start);
+        const int grid_right =
+            (int)arith_round_f32(start + ((float)frame->column_offset[frame->column_count] * cell));
+        if (args->line_line_pointer->number == 0ULL)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                          .one = (GuiRect){grid_left, args->row_rect.y, grid_right - grid_left,
+                                                           args->row_rect.height},
+                                          .other = clip),
+                       .color = palette->table_head);
+        }
         for (unsigned int column = 1u; column <= frame->column_count; column += 1u)
         {
-            // a line's pixel, rounded, is far inside what an int represents
             const int edge = (int)arith_round_f32(start + ((float)frame->column_offset[column] * cell)) - line_width;
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                        .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
@@ -545,8 +558,8 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
         }
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){clip.x, args->row_rect.y + args->row_rect.height - line_width,
-                                                       clip.width, line_width},
+                                      .one = (GuiRect){grid_left, args->row_rect.y + args->row_rect.height - line_width,
+                                                       grid_right - grid_left, line_width},
                                       .other = clip),
                    .color = palette->table_line);
     }

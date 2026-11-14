@@ -496,9 +496,11 @@ unsigned int gui_autohide_zone(const GuiAutohideWidthCfg *args)
     {
         return GUI_AUTOHIDE_RIGHT;
     }
-    // the band under the head's, a tabs row deep, is the tabs row's: a rest in it brings the row, a claim of its own
+    // the band under the work's inside top, a tabs row deep and below the head's band, is the tabs row's: a rest in it
+    // brings the row, a claim of its own; the band moves down with the work as the bar comes out
     const int tabs = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = args->scale);
-    if (args->y < band + tabs)
+    const int tabs_top = (args->work_top > band) ? args->work_top : band;
+    if ((args->y >= tabs_top) && (args->y < tabs_top + tabs))
     {
         return GUI_AUTOHIDE_TABS;
     }

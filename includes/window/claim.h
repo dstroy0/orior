@@ -188,6 +188,8 @@ struct GuiAutohidePointerCfg
     int menu_open;
 };
 
+// the window's sides, the scale, the controls' width, the pixel asked about, and the work's inside top, under which
+// the tabs row's band begins
 struct GuiAutohideWidthCfg
 {
     unsigned int width;
@@ -196,6 +198,7 @@ struct GuiAutohideWidthCfg
     int controls_width;
     int x;
     int y;
+    int work_top;
 };
 
 struct GuiAutohideTableCfg

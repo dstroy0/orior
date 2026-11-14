@@ -392,7 +392,10 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
         drop_y[at] = -way.y / over * lift;
         weight[at] = (strengths > 0.0) ? light.strength / strengths : 0.0;
     }
-    const double shadow_strength = 1.0 - (BEAD_SHADOW_FADE_PRESSED * share);
+    // a tab is clear glass on the row: it casts no shadow, and its rim darkens half as much as a dome's
+    const int tab = atlas->shape == GUI_BEAD_SHAPE_TAB;
+    const double shadow_strength = tab ? 0.0 : 1.0 - (BEAD_SHADOW_FADE_PRESSED * share);
+    const double rim_strength = tab ? 0.5 : 1.0;
     const double eta = 1.0 / GUI_BEAD_INDEX;
     const double sharp = BEAD_GLINT_SHARP * (1.0 - (BEAD_GLINT_SOFTEN * share));
     const double glint_strength = 1.0 - (BEAD_GLINT_DIM * share);
@@ -473,7 +476,7 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
             const double mix = (1.0 - covered) * halo * halo;
             const double shadow = (1.0 - unshaded) * shadow_strength * (1.0 - covered);
             // the rim darkens where the dome turns away from the eye, max on the side away from the light
-            const double rim = arith_pow(1.0 - normal.z, BEAD_RIM_POWER) * covered *
+            const double rim = arith_pow(1.0 - normal.z, BEAD_RIM_POWER) * covered * rim_strength *
                                (BEAD_RIM_ROUND + ((1.0 - BEAD_RIM_ROUND) * facing_away));
             GuiColor lit = 0u;
             lit = EMBED_CALL(bead_light_over, BeadCtx, .had = lit, .share = shadow, .color = atlas->color[GUI_BEAD_COLOR_SHADOW]);

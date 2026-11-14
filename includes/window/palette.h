@@ -41,7 +41,7 @@ typedef struct
 // tinted with and the tint itself, the ink at its opacity; the bar's text, its titles' text, the ground of a title
 // pointed or open and its text then, a path's text on the bars, and the status bar's text; the editor's ground at
 // the editor's opacity, its text, line numbers, current
-// line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, a table's grid lines, the ground of a mark
+// line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, a table's grid lines and its header row's ground, the ground of a mark
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
 // stronger; the minimap's selection, its match, its slider and the slider dragged; the displayed tab's ground and the
 // line along it; the ground of the side_menu's tool whose window shows, the signal at a share; the side pane's ground,
@@ -83,6 +83,7 @@ typedef struct
     GuiColor caret;
     GuiColor guide;
     GuiColor table_line;
+    GuiColor table_head;
     GuiColor same;
     GuiColor widget_line;
     GuiColor match;
@@ -92,6 +93,7 @@ typedef struct
     GuiColor map_slider;
     GuiColor map_slider_on;
     GuiColor tab_background;
+    GuiColor tab_inactive;
     GuiColor tab_line;
     GuiColor side_menu_on;
     GuiColor side_background;

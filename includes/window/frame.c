@@ -625,11 +625,13 @@ unsigned int gui_frame_holes(const GuiFrameHolesCfg *args)
                         .grown = grown, .snap = snap, .hole = &args->holes[count])
                  ? 1u
                  : 0u;
+    // the controls' pane is a tab in the work's corner: its hole is the pane itself, the border bent round its edge
+    // with no gap, and the pane and the bend read as one object
     if (args->frame_read->controls_pane_share > 0)
     {
         count +=
             EMBED_CALL(frame_hole, FrameCtx, .work = args->frame_read->work, .box = args->frame_read->controls_pane,
-                       .grown = grown, .snap = snap, .hole = &args->holes[count])
+                       .grown = 0, .snap = snap, .hole = &args->holes[count])
                 ? 1u
                 : 0u;
     }

@@ -199,6 +199,9 @@ int main(void)
     // and a rest there brings the row on its own reveal and no bar
     cli_check(EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = 1000u, .height = 800u, .scale = 100, .controls_width = 106, .x = 500, .y = 40) == GUI_AUTOHIDE_TABS, "the band under the head's is the tabs row's");
     cli_check(EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = 1000u, .height = 800u, .scale = 100, .controls_width = 106, .x = 500, .y = 60) == GUI_AUTOHIDE_NONE, "below a tabs row's depth is no zone");
+    cli_check((EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = 1000u, .height = 800u, .scale = 100, .controls_width = 106, .x = 500, .y = 80, .work_top = 70) == GUI_AUTOHIDE_TABS) &&
+                  (EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = 1000u, .height = 800u, .scale = 100, .controls_width = 106, .x = 500, .y = 40, .work_top = 70) == GUI_AUTOHIDE_NONE),
+              "the tabs' band moves down with the work's inside top as the bar comes out");
     g_test_clock_ms = 15000ull;
     EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &claim, .x = 500, .y = 40, .zone = GUI_AUTOHIDE_TABS, .over_parts = 0, .now_ms = cli_clock_milliseconds());
     g_test_clock_ms = 15400ull;

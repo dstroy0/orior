@@ -7035,7 +7035,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     if (window->claim.autohidden && (window->claim.displayed != GUI_AUTOHIDE_TOP) &&
         (EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = window->frame.width,
                     .height = window->frame.height, .scale = window->frame.scale,
-                    .controls_width = window->frame.controls.width, .x = input->x, .y = input->y) == GUI_AUTOHIDE_TOP))
+                    .controls_width = window->frame.controls.width, .x = input->x, .y = input->y,
+                    .work_top = window->frame.inside.y) == GUI_AUTOHIDE_TOP))
     {
         EMBED_CALL(gui_autohide_pointer.show_now, GuiAutohidePointerCfg, .claim = &window->claim, .x = input->x,
                    .y = input->y, .zone = GUI_AUTOHIDE_TOP, .now_ms = cli_clock_milliseconds());
@@ -7242,7 +7243,8 @@ static void window_move(const GuiInputHandlerCfg *args)
                    .zone =
                        EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = frame->width,
                                   .height = frame->height, .scale = frame->scale,
-                                  .controls_width = frame->controls.width, .x = args->input->x, .y = args->input->y),
+                                  .controls_width = frame->controls.width, .x = args->input->x, .y = args->input->y,
+                                  .work_top = frame->inside.y),
                    .over_parts = EMBED_CALL(window_over_parts, GuiWindowCtx, .window_read = window, .x = args->input->x,
                                             .y = args->input->y),
                    .menu_open = g_cli_menus_open.levels > 0u, .now_ms = cli_clock_milliseconds());

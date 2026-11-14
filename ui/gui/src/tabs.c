@@ -255,6 +255,7 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     const GuiColor displayed_line = GUI_FRAME_FADED(args->palette->tab_line, share);
     const GuiColor box_line = GUI_FRAME_FADED(args->palette->widget_line, share);
     const GuiColor ground = GUI_FRAME_FADED(args->palette->tab_background, share);
+    const GuiColor ground_idle = GUI_FRAME_FADED(args->palette->tab_inactive, share);
     const GuiColor mark = GUI_FRAME_FADED(args->palette->hover, share);
     const GuiColor text = GUI_FRAME_FADED(args->palette->text, share);
     const GuiColor text_2 = GUI_FRAME_FADED(args->palette->text_2, share);
@@ -285,8 +286,9 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         // the tabs are fewer than an int counts
         const int displayed = (int)at == displayed;
         // Each tab a box, its top corners rounded and its foot open on the row's line, a line one pixel wide up its
-        // sides and over its top, and a gap before the next. The displayed tab is on the tab's ground in the tab's
-        // line; the others have no ground of their own, the lattice through each under its bead, in the widget's line
+        // sides and over its top, and a gap before the next. Every tab is clear amethyst: a translucent violet
+        // ground the lattice shows through under its bead, the displayed tab's deeper, in the tab's line; the
+        // others in the widget's line
         const unsigned int radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_TAB_RADIUS, .scale = scale);
         const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
@@ -294,11 +296,8 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         // a corner is round only where the row's edge does not cut the tab
         const unsigned int top = ((met.x == rect.x) ? GUI_RASTER_CORNER_TOP_LEFT : 0u) |
                                  ((met.x + met.width == rect.x + rect.width) ? GUI_RASTER_CORNER_TOP_RIGHT : 0u);
-        if (displayed)
-        {
-            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box,
-                       .radius = radius, .color = ground, .corners = top);
-        }
+        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
+                   .color = displayed ? ground : ground_idle, .corners = top);
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
                    .color = displayed ? displayed_line : box_line, .corners = top, .stroke = one);
         const int baseline =
