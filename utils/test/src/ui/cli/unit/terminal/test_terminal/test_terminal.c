@@ -30,6 +30,7 @@
 #if !defined(_WIN32)
 #include <errno.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 int cli_spawn_probe_read(char *out, int capacity);
@@ -559,7 +560,7 @@ static int shell_run(const char *const *words, const char *typed)
         mmgr_line_decimal(&diag_line, (unsigned long long)(long long)killed, 1u);
         mmgr_line_put(&diag_line, " errno=");
         mmgr_line_decimal(&diag_line, (unsigned long long)errno, 1u);
-        usleep(200000u);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 200ULL);
         int status = 0;
         errno = 0;
         const pid_t waited = waitpid((pid_t)s_shell.spawned.process, &status, WNOHANG);
@@ -571,6 +572,18 @@ static int shell_run(const char *const *words, const char *typed)
         mmgr_line_decimal(&diag_line, s_shell.spawned.process, 1u);
         mmgr_line_put(&diag_line, " self=");
         mmgr_line_decimal(&diag_line, (unsigned long long)getpid(), 1u);
+        const int leader_fd = (int)(s_shell.spawned.out - 1ULL);
+        (void)fcntl(leader_fd, F_SETFL, fcntl(leader_fd, F_GETFL) | O_NONBLOCK);
+        char bytes[64];
+        errno = 0;
+        const long got_bytes = (long)read(leader_fd, bytes, sizeof(bytes) - 1u);
+        mmgr_line_put(&diag_line, " leader_read=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)got_bytes, 1u);
+        mmgr_line_put(&diag_line, " errno=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)errno, 1u);
+        bytes[(got_bytes > 0) ? got_bytes : 0] = '\0';
+        mmgr_line_put(&diag_line, " bytes=");
+        mmgr_line_put(&diag_line, (got_bytes > 0) ? bytes : "");
 #endif
         (void)mmgr_line_finish(&diag_line);
         TEST_FAIL_MESSAGE(diag);
