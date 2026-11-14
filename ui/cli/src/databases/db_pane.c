@@ -541,7 +541,6 @@ static void pane_confirmed(const CliPromptCfg *args)
         (void)EMBED_CALL(cli_db_pane.run, CliDbPaneCfg, .statement = statement, .size = size, .answered = 1,
                          .root = pane->root);
     }
-    g_cli_guard->persistent_buf_release(statement, g_cli_db_pane_owner);
 }
 
 // the run's answer, a confirm, read for the ask's sentence: the statement's first word, the connection and the count
@@ -652,8 +651,7 @@ int cli_db_pane_step(const CliDbPaneCfg *args)
     {
         EMBED_CALL(transaction_written, DbPaneCtx, .at = run->connection, .open = run->open);
     }
-    g_cli_guard->persistent_buf_release(run->statement, g_cli_db_pane_owner);
-    g_cli_guard->persistent_buf_release(run->answer, g_cli_db_pane_owner);
+    // the statement and the answer are the run's fixed buffers outside the pool: nothing to give back
     run->statement = NULL;
     run->answer = NULL;
     return 1;

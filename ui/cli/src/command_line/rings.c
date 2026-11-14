@@ -20,7 +20,7 @@
 
 // each part's bytes, in the parts' order
 static const unsigned long long s_bytes[CLI_RINGS_COUNT] = {
-    CLI_NOTICES_RING_BYTES,       CLI_COMMS_RING_BYTES,
+    CLI_NOTICES_PART_BYTES,       CLI_COMMS_RING_BYTES,
     CLI_DEBUG_CONSOLE_RING_BYTES, CLI_REPORT_ERRORS_RING_BYTES,
     CLI_JOB_RUNS_RING_BYTES,      CLI_JOB_RUNS_REPORTS_RING_BYTES,
     CLI_RUNNER_LINES_RING_BYTES,  CLI_SERVERS_JOBS_RING_BYTES,
@@ -32,7 +32,7 @@ static const unsigned long long s_bytes[CLI_RINGS_COUNT] = {
 
 // the block, every part's bytes rounded to the boundary, one after another in the parts' order
 #define CLI_RINGS_BLOCK_BYTES                                                                                          \
-    (CLI_RINGS_ALIGNED(CLI_NOTICES_RING_BYTES) + CLI_RINGS_ALIGNED(CLI_COMMS_RING_BYTES) +                             \
+    (CLI_RINGS_ALIGNED(CLI_NOTICES_PART_BYTES) + CLI_RINGS_ALIGNED(CLI_COMMS_RING_BYTES) +                             \
      CLI_RINGS_ALIGNED(CLI_DEBUG_CONSOLE_RING_BYTES) + CLI_RINGS_ALIGNED(CLI_REPORT_ERRORS_RING_BYTES) +               \
      CLI_RINGS_ALIGNED(CLI_JOB_RUNS_RING_BYTES) + CLI_RINGS_ALIGNED(CLI_JOB_RUNS_REPORTS_RING_BYTES) +                 \
      CLI_RINGS_ALIGNED(CLI_RUNNER_LINES_RING_BYTES) + CLI_RINGS_ALIGNED(CLI_SERVERS_JOBS_RING_BYTES) +                 \

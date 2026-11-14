@@ -30,7 +30,7 @@ EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
 
 // `size` bytes of a piece escaped into the quoting's line, the letter the last piece ended inside of made whole from
 // this one's first bytes, and the letter this one ends inside of carried over: 1, or 0 where the line is full
-static int json_quoting_append(void *context, const char *bytes, embed_word size)
+static int json_quoting_append(void *context, const char *bytes, size_t size)
 {
     CliJsonQuoting *const quoting = (CliJsonQuoting *)context;
     const unsigned char *at = (const unsigned char *)bytes;

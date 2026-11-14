@@ -148,7 +148,7 @@ typedef struct
 } RequestsHunks;
 
 // a counting line's bytes taken and let go, its flushed count the bytes of every text written to it
-static int requests_counted(void *context, const char *bytes, embed_word size)
+static int requests_counted(void *context, const char *bytes, size_t size)
 {
     (void)context;
     (void)bytes;

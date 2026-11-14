@@ -137,12 +137,15 @@ void test_a_list_asked_for_fewer_answers_its_newest(void)
 void test_each_list_stands_in_orior_folder_a_line_an_entry(void)
 {
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "file");
-    CliStateEntries *const entries =
+    CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = s_home, .owner = g_cli_machine_owner});
-    TEST_ASSERT_NOT_NULL(entries);
-    TEST_ASSERT_EQUAL_STRING("file\nline\npalette\nsave", cli_state_entry_value(entries, "recent.commands"));
-    const char *const files = cli_state_entry_value(entries, "recent.files");
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    char commands_text[256];
+    char files_text[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_EQUAL_STRING("file\nline\npalette\nsave",
+                             cli_state_entry_value(&entries, "recent.commands", commands_text, sizeof(commands_text)));
+    const char *const files = cli_state_entry_value(&entries, "recent.files", files_text, sizeof(files_text));
     TEST_ASSERT_NOT_NULL(files);
     TEST_ASSERT_EQUAL_UINT8('f', (unsigned char)files[0]);
-    g_cli_guard->persistent_buf_release(entries, g_cli_machine_owner);
+    cli_state_entries_release(&entries);
 }

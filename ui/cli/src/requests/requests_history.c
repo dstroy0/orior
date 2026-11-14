@@ -22,7 +22,7 @@ typedef struct
 } CliStateWriting;
 
 // a piece added to the file the answers are written in, the first made anew: 1, or 0 where it could not be
-static int history_append(void *context, const char *bytes, embed_word size)
+static int history_append(void *context, const char *bytes, size_t size)
 {
     CliStateWriting *const writing = context;
     const int put = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = writing->path,

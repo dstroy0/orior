@@ -4,6 +4,10 @@
 // first, for a nested outline; none of the declarations before the first; the declarations beside one, those at its
 // depth under the one it stands in and at the top those of the file, each running symbol-go with its line; the line a
 // word reads as; and the setting set off answering no crumbs, standing across the state's save and read
+#if !defined(_WIN32)
+// setenv is POSIX, outside strict C11
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "ui/cli/src/code/crumbs.h"
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/command_line/commands.h"

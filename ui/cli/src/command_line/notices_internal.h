@@ -8,7 +8,8 @@
 #include "pool.h"
 
 // the notices the list takes at the most, and as many wait at the most; the segments of a ring, a power of two over
-// them; and the bytes the list ring's notices take, its part of the rings block
+// them; the bytes one ring's notices take; and the two rings' bytes, the notices' part of the rings block, the
+// list's ring first and the waiting ring after it
 #define CLI_NOTICES_LISTED 200u
 #define CLI_NOTICES_RING 256u
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_NOTICES_RING) && (CLI_NOTICES_RING >= CLI_NOTICES_LISTED),
@@ -28,5 +29,7 @@ typedef struct
 } CliNotice;
 
 #define CLI_NOTICES_RING_BYTES ((unsigned long long)CLI_NOTICES_RING * sizeof(CliNotice))
+#define CLI_NOTICES_RINGS 2u
+#define CLI_NOTICES_PART_BYTES ((unsigned long long)CLI_NOTICES_RINGS * CLI_NOTICES_RING_BYTES)
 
 #endif

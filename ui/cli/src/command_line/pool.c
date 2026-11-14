@@ -257,7 +257,7 @@ int cli_pool_made(unsigned long long bytes)
 // The line's flush as its cell fills: a cell of twice the capacity taken, the text so far copied into it, the cell
 // given back, and the line's `out` set past the copied text. 1, or 0 where the cells cannot meet the next cell or it
 // would pass `most`, which fills the line
-static int grown_flush(void *context, const char *bytes, embed_word size)
+static int grown_flush(void *context, const char *bytes, size_t size)
 {
     CliGrownLine *const grown = context;
     (void)bytes;

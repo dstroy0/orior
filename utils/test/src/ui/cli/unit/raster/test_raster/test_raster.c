@@ -257,6 +257,10 @@ void test_apples_raster_contains_the_page(void)
 void test_a_landscape_page_is_wider_than_tall(void)
 {
     listing_drawn();
+    // a render gives its faces back as it ends; a second render takes them again
+    char why[512];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_print_json.faces, CliPrintJsonCfg, .err_msg = &err_msg));
     s_layout.landscape = 1;
     s_layout.gray = 1;
     EMBED_CALL(cli_print_layout_listing.render, CliPrintLayoutListingCfg, .listing = s_listing, .layout = &s_layout, .dpi_f32 = 100.0f, .each = page_recorded, .context = &s_drawn);
@@ -266,6 +270,10 @@ void test_a_landscape_page_is_wider_than_tall(void)
 void test_a_turned_landscape_page_is_portrait(void)
 {
     listing_drawn();
+    // a render gives its faces back as it ends; a second render takes them again
+    char why[512];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_print_json.faces, CliPrintJsonCfg, .err_msg = &err_msg));
     s_layout.landscape = 1;
     s_layout.gray = 1;
     EMBED_CALL(cli_print_layout_listing.render, CliPrintLayoutListingCfg, .listing = s_listing, .layout = &s_layout, .dpi_f32 = 100.0f, .each = page_recorded, .context = &s_drawn);

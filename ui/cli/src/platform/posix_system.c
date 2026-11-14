@@ -5,11 +5,9 @@
 // log in; an event a started process
 // inherits is Windows' alone
 #if !defined(_WIN32)
-// O_CLOEXEC is POSIX, outside strict C11
-#define _POSIX_C_SOURCE 200809L
-#endif
-#if defined(__APPLE__)
-// sysctlbyname is the system's own, outside POSIX
+// O_CLOEXEC is POSIX and MAP_ANONYMOUS is the C library's own, both outside strict C11; sysctlbyname is the
+// system's own, outside POSIX
+#define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"

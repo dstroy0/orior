@@ -93,7 +93,7 @@ int main(void)
   run_test(test_apples_raster_names_its_type, "test_apples_raster_names_its_type", 237);
   run_test(test_apples_raster_contains_the_page, "test_apples_raster_contains_the_page", 247);
   run_test(test_a_landscape_page_is_wider_than_tall, "test_a_landscape_page_is_wider_than_tall", 257);
-  run_test(test_a_turned_landscape_page_is_portrait, "test_a_turned_landscape_page_is_portrait", 266);
+  run_test(test_a_turned_landscape_page_is_portrait, "test_a_turned_landscape_page_is_portrait", 270);
 
   return UNITY_END();
 }

@@ -123,7 +123,7 @@ static void processes_run_result(void)
 // a session's place with 100 breakpoints and a start planned on it
 static CliDebugSession *position_planned(void)
 {
-    static const char s_start[] = "{\"name\":\"x\"}";
+    static const char s_start[] = "{\"kind\":\"record\",\"path\":\"x.py\"}";
     static CliDebugPlan s_plan;
     CliDebugSession *const place = cli_debug_position();
     TEST_ASSERT_NOT_NULL(place);
@@ -148,10 +148,7 @@ static CliDebugSession *position_planned(void)
 static void position_freed(CliDebugSession *place)
 {
     EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
-    g_cli_guard->persistent_buf_release(place->start.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    cli_json_stored_release(&place->start);
     place->reserved = 0;
 }
 
@@ -369,7 +366,7 @@ void test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts(void)
 void test_a_positions_start_is_a_tree_of_its_own(void)
 {
     CliDebugSession *const place = position_planned();
-    TEST_ASSERT_NOT_EQUAL(0u, place->start.nodes_max);
+    TEST_ASSERT_NOT_NULL(place->start.cell);
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_in_use(g_cli_debug_owner));
     position_freed(place);
 }
@@ -380,7 +377,7 @@ void test_all_of_a_position_is_released_as_it_is_freed(void)
     position_freed(place);
     TEST_ASSERT_FALSE(place->reserved);
     TEST_ASSERT_NULL(place->positioned_cell);
-    TEST_ASSERT_EQUAL_UINT(0u, place->start.nodes_max);
+    TEST_ASSERT_NULL(place->start.cell);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_debug_owner));
 }
 

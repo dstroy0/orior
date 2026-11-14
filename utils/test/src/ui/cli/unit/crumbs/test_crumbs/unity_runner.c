@@ -78,14 +78,14 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\crumbs\\test_crumbs\\test_crumbs.c");
-  run_test(test_read_lists_folders_file_and_the_declarations_a_line_stands_inside, "test_read_lists_folders_file_and_the_declarations_a_line_stands_inside", 63);
-  run_test(test_a_line_inside_the_next_declaration_reads_it, "test_a_line_inside_the_next_declaration_reads_it", 76);
-  run_test(test_a_line_before_the_first_declaration_lists_none, "test_a_line_before_the_first_declaration_lists_none", 84);
-  run_test(test_no_key_lists_the_folders_and_the_file_alone, "test_no_key_lists_the_folders_and_the_file_alone", 91);
-  run_test(test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one, "test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one", 98);
-  run_test(test_the_menu_of_a_declaration_at_the_top_lists_the_files, "test_the_menu_of_a_declaration_at_the_top_lists_the_files", 109);
-  run_test(test_go_answers_the_line_a_word_reads_as, "test_go_answers_the_line_a_word_reads_as", 120);
-  run_test(test_the_setting_off_lists_none_and_stands_across_the_save_and_read, "test_the_setting_off_lists_none_and_stands_across_the_save_and_read", 129);
+  run_test(test_read_lists_folders_file_and_the_declarations_a_line_stands_inside, "test_read_lists_folders_file_and_the_declarations_a_line_stands_inside", 67);
+  run_test(test_a_line_inside_the_next_declaration_reads_it, "test_a_line_inside_the_next_declaration_reads_it", 80);
+  run_test(test_a_line_before_the_first_declaration_lists_none, "test_a_line_before_the_first_declaration_lists_none", 88);
+  run_test(test_no_key_lists_the_folders_and_the_file_alone, "test_no_key_lists_the_folders_and_the_file_alone", 95);
+  run_test(test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one, "test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one", 102);
+  run_test(test_the_menu_of_a_declaration_at_the_top_lists_the_files, "test_the_menu_of_a_declaration_at_the_top_lists_the_files", 113);
+  run_test(test_go_answers_the_line_a_word_reads_as, "test_go_answers_the_line_a_word_reads_as", 124);
+  run_test(test_the_setting_off_lists_none_and_stands_across_the_save_and_read, "test_the_setting_off_lists_none_and_stands_across_the_save_and_read", 133);
 
   return UNITY_END();
 }

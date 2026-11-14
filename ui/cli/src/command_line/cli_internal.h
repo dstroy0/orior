@@ -407,7 +407,7 @@ _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line
 // were not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0:
 // 1, or 0 where it was not put in place (file_writing.c)
 int cli_file_begin(const CliPathFileCtx *args);
-int cli_file_write_chunk(void *context, const char *bytes, embed_word size);
+int cli_file_write_chunk(void *context, const char *bytes, size_t size);
 int cli_file_end(const CliFileCtx *args);
 
 // a line over `stage`, which is sized for CLI_STAGE_BYTES + 1, handing each whole stage to the file begun; and the

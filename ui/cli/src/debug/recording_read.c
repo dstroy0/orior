@@ -608,8 +608,9 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
     {
         args->work->thread_ids[recording->thread_count] =
             EMBED_CALL(read_number, RecordingReadCtx, .json = json, .record = args->record, .at_u32 = 1u);
-        args->work->thread_names[recording->thread_count] = EMBED_CALL(
-            read_by_name, RecordingReadCtx, .json = json, .record = args->record, .at_u32 = 2u, .slashed = 0);
+        args->work->thread_names[recording->thread_count] =
+            EMBED_CALL(read_by_name, RecordingReadCtx, .work = args->work, .json = json, .record = args->record,
+                       .at_u32 = 2u, .slashed = 0);
         recording->thread_count += 1u;
     }
     else if (EMBED_CALL(read_type, RecordingReadCtx, .json = json, .record = args->record, .word_text = "call"))

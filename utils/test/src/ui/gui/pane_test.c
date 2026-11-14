@@ -99,25 +99,33 @@ int main(void)
                          .x = frame.side.x + frame.side.width + 40, .y = first.y + 3) &&
                   (pane.pointed == GUI_PANE_NONE),
               "the pointer leaving the side marks no row");
+    // the rows' menus are the catalog's Files and Explorer popups, each row run with the row's own path
+    char read_text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea read_err_msg = {read_text, sizeof(read_text), 0ULL};
+    cli_check(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &read_err_msg), "the catalog is read");
     unsigned int built = 0u;
     const CliItem *rows = NULL;
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = 0u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built > 8u) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Close", .other_cap = 6u}) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src", .other_cap = 4u}) &&
+                  rows[3].line &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
+                      .src = rows[8].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = rows[8].args, .cap = CLI_POOL_BYTES, .other = "src", .other_cap = 4u}),
               "the open folder's menu closes it and copies its path");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = 1u, .root = s_root) &&
                   ((rows = cli_menus_own_rows(&built)) != NULL) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open", .other_cap = 5u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
+                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){
                       .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src/main.c", .other_cap = 11u}),
               "the file's menu opens it");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = explorer, .row = GUI_PANE_OFF_ROWS, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 2u) &&
+                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built >= 2u) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "explorer-refresh", .other_cap = 17u}) &&
                   cellul.eq(&(CatenaFinitaCfg){

@@ -118,7 +118,7 @@ void test_each_line_is_recorded_with_its_frames_depth(void)
     TEST_ASSERT_EQUAL_UINT(8u, found->step_count);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT(s_depths[at], found->steps[at].depth);
+        TEST_ASSERT_EQUAL_UINT(s_depths[at], cli_recording_step(&(CliRecordingIndexCtx){.index = at}).depth);
     }
 }
 
@@ -141,7 +141,7 @@ void test_the_runs_exit_code_is_recorded(void)
 void test_a_raise_is_recorded_at_its_step(void)
 {
     TEST_ASSERT_EQUAL_UINT(1u, g_cli_replay->recording.raised_count);
-    TEST_ASSERT_EQUAL_UINT(6u, g_cli_replay->recording.raised[0].step);
+    TEST_ASSERT_EQUAL_UINT(6u, cli_recording_raise(&(CliRecordingIndexCtx){.index = 0u}).step);
 }
 
 void test_a_stack_positions_each_caller_at_its_line(void)

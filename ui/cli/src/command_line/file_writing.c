@@ -26,7 +26,7 @@ int cli_file_begin(const CliPathFileCtx *args)
     return (mmgr_line_finish(&named) != 0u) && ksg_writing_begun(args->file, args->path, adjacent);
 }
 
-int cli_file_write_chunk(void *context, const char *bytes, embed_word size)
+int cli_file_write_chunk(void *context, const char *bytes, size_t size)
 {
     return ksg_writing_put(context, bytes, size);
 }

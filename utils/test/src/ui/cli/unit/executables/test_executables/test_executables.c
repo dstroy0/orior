@@ -20,7 +20,10 @@ static const char s_meson_build[] = "project('me', 'c')\n# executable('commented
 static const char s_dotnet_project[] = "app/Hello.csproj";
 
 static CliNames s_names;
+// the lines' rings over bytes of the suite's own, as the runner lays its rings over its span of the rings block
 static CliRunLines s_lines;
+static embed_u8 s_lines_text[CLI_LINES_TEXT];
+static CliRunnerLine s_lines_records[CLI_LINES_MAX];
 static CliJob s_jobs[256];
 static CliParam s_params[1024];
 static CliStep s_steps[256];
@@ -166,6 +169,8 @@ static void traced_tree_written(void)
 
 void setUp(void)
 {
+    s_lines.text_bytes = s_lines_text;
+    s_lines.line_bytes = s_lines_records;
     cli_unity_begun();
     // the suite's folders are inside the tree's repository, whose commit would date every step; a date already sent is retained: the steps are shown
     // as they are outside any repository

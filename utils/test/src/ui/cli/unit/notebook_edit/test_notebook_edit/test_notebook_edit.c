@@ -61,18 +61,28 @@ static unsigned int rows_of(void)
     return EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "edit:a");
 }
 
+// whether the cell `cell` of `model` has a view open under its key
+static int cell_viewed(CliNotebookModel *model, unsigned int cell)
+{
+    char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
+    EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = cell,
+               .output = CLI_NOTEBOOK_NONE, .out = key);
+    return EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = key);
+}
+
 void test_one_cell_at_a_time_has_a_view(void)
 {
-    const CliNotebookModel *const model = opened("edit.py", s_script);
-    const unsigned int views = cli_view_count();
+    CliNotebookModel *const model = opened("edit.py", s_script);
+    TEST_ASSERT_FALSE(cell_viewed(model, 0u));
     focused(0u, 0ULL, 0ULL);
-    TEST_ASSERT_EQUAL_UINT(views + 1u, cli_view_count());
+    TEST_ASSERT_TRUE(cell_viewed(model, 0u));
     TEST_ASSERT_EQUAL_UINT(0u, model->focused);
     focused(2u, 0ULL, 0ULL);
-    TEST_ASSERT_EQUAL_UINT(views + 1u, cli_view_count());
+    TEST_ASSERT_FALSE(cell_viewed(model, 0u));
+    TEST_ASSERT_TRUE(cell_viewed(model, 2u));
     TEST_ASSERT_EQUAL_UINT(2u, model->focused);
     EMBED_CALL(cli_notebook_edit_focus.blur, CliNotebookEditFocusCfg, .key = "edit:a", .err_msg = &s_err_msg);
-    TEST_ASSERT_EQUAL_UINT(views, cli_view_count());
+    TEST_ASSERT_FALSE(cell_viewed(model, 2u));
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_NONE, model->focused);
 }
 

@@ -92,7 +92,7 @@ typedef struct
 } CommsViewCtx;
 
 // a counting line's bytes taken and let go, its flushed count the bytes of every text written to it
-static int comms_counted(void *context, const char *bytes, embed_word size)
+static int comms_counted(void *context, const char *bytes, size_t size)
 {
     (void)context;
     (void)bytes;

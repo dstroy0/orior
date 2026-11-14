@@ -68,22 +68,24 @@ typedef struct
     unsigned int at;
 } CliNoticesCtx;
 
-// the ring laid where none stands: the ring, its notices the rings block's part, so it punches no hole in the
-// persistent tier
+// the ring `at` laid where none stands: the list's ring at 0 and the waiting ring at 1, each ring's notices its
+// own CLI_NOTICES_RING_BYTES of the rings block's part, so neither punches a hole in the persistent tier
 EMBED_INLINE CliNoticesRing *notices_ring_taken(const CliNoticesCtx *args)
 {
-    static CliNoticesRing s_ring;
+    static CliNoticesRing s_rings[CLI_NOTICES_RINGS];
     if (args->ring != NULL)
     {
         return args->ring;
     }
-    s_ring.notice = (CliNotice *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_NOTICES);
-    (void)anularis.init(&(AnularisCfg){.ring = &s_ring.ring,
-                                       .buf = (embed_u8 *)(void *)s_ring.notice,
+    CliNoticesRing *const ring = &s_rings[args->at];
+    ring->notice = (CliNotice *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_NOTICES) +
+                                         ((unsigned long long)args->at * CLI_NOTICES_RING_BYTES));
+    (void)anularis.init(&(AnularisCfg){.ring = &ring->ring,
+                                       .buf = (embed_u8 *)(void *)ring->notice,
                                        .capacity = CLI_NOTICES_RING_BYTES,
                                        .segment_count = CLI_NOTICES_RING,
                                        .segment_bytes = sizeof(CliNotice)});
-    return &s_ring;
+    return ring;
 }
 
 // the notices a ring holds, 0 for a ring not yet taken
@@ -222,7 +224,7 @@ EMBED_INLINE void notices_released(const CliNoticesCtx *args)
 // or 0 where no list could be taken and the notice is let go
 EMBED_INLINE int notices_listed(const CliNoticesCtx *args)
 {
-    s_notices.list = EMBED_CALL(notices_ring_taken, CliNoticesCtx, .ring = s_notices.list);
+    s_notices.list = EMBED_CALL(notices_ring_taken, CliNoticesCtx, .ring = s_notices.list, .at = 0u);
     if (s_notices.list == NULL)
     {
         EMBED_CALL(notices_released, CliNoticesCtx, .notice_read = args->notice_read);
@@ -358,7 +360,7 @@ void cli_notice_post(const char *text, int failed)
         EMBED_CALL(notices_shown, CliNoticesCtx, .notice_read = &notice);
         return;
     }
-    s_notices.waiting = EMBED_CALL(notices_ring_taken, CliNoticesCtx, .ring = s_notices.waiting);
+    s_notices.waiting = EMBED_CALL(notices_ring_taken, CliNoticesCtx, .ring = s_notices.waiting, .at = 1u);
     if (s_notices.waiting == NULL)
     {
         (void)EMBED_CALL(notices_listed, CliNoticesCtx, .notice_read = &notice, .seen = 0);
